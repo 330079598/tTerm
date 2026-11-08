@@ -56,26 +56,24 @@ impl TerminalView {
                     .as_ref()
                     .map(|frame| frame.metrics.cell_width * frame.grid().columns as f32)
                     .unwrap_or(0.0)
+            && let Some(frame) = self.last_frame.as_ref()
+            && frame.snapshot.history_size() > 0
         {
-            if let Some(frame) = self.last_frame.as_ref()
-                && frame.snapshot.history_size() > 0
-            {
-                let track = frame.snapshot.grid().screen_lines as f32 * frame.metrics.cell_height;
-                let geometry = ScrollbarGeometry::new(
-                    track,
-                    frame.snapshot.grid().screen_lines,
-                    frame.snapshot.history_size(),
-                    frame.snapshot.display_offset(),
-                );
-                let y = (event.position.y - self.input_origin.unwrap().y).as_f32();
-                let target = geometry.offset_at(y, frame.snapshot.history_size());
-                let current = frame.snapshot.display_offset();
-                self.terminal
-                    .scroll(Scroll::Delta(target as i32 - current as i32));
-                self.scrollbar_drag = true;
-                cx.stop_propagation();
-                return;
-            }
+            let track = frame.snapshot.grid().screen_lines as f32 * frame.metrics.cell_height;
+            let geometry = ScrollbarGeometry::new(
+                track,
+                frame.snapshot.grid().screen_lines,
+                frame.snapshot.history_size(),
+                frame.snapshot.display_offset(),
+            );
+            let y = (event.position.y - self.input_origin.unwrap().y).as_f32();
+            let target = geometry.offset_at(y, frame.snapshot.history_size());
+            let current = frame.snapshot.display_offset();
+            self.terminal
+                .scroll(Scroll::Delta(target as i32 - current as i32));
+            self.scrollbar_drag = true;
+            cx.stop_propagation();
+            return;
         }
         let Some(button) = protocol_button(event.button) else {
             return;
