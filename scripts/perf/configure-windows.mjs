@@ -7,9 +7,19 @@ const raw = path.resolve(import.meta.dirname, "../../target/perf")
 const launch = JSON.parse(
   (await fs.readFile(path.join(raw, "launch.json"), "utf8")).replace(/^\uFEFF/, "")
 )
-const browser = await chromium.connectOverCDP(`http://127.0.0.1:${launch.port}`)
+let browser
+for (let attempt = 0; attempt < 30; attempt++) {
+  try {
+    browser = await chromium.connectOverCDP(`http://127.0.0.1:${launch.port}`)
+    break
+  } catch (error) {
+    if (attempt === 29) throw error
+    await new Promise((resolve) => setTimeout(resolve, 1000))
+  }
+}
 const page = browser.contexts()[0].pages()[0]
 await page.waitForSelector(".xterm-helper-textarea")
+await new Promise((resolve) => setTimeout(resolve, 2500))
 const isolated = await page.evaluate(async () => ({
   profiles: await window.__TAURI__.core.invoke("list_profiles"),
   session: await window.__TAURI__.core.invoke("load_session"),

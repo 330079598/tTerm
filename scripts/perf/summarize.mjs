@@ -21,6 +21,7 @@ for (const filename of (await fs.readdir(rawDir))
   const raw = JSON.parse(
     (await fs.readFile(path.join(rawDir, filename), "utf8")).replace(/^\uFEFF/, "")
   )
+  if (!Array.isArray(raw.samples)) continue
   const run = filename.match(/^run([12])/)[1]
   for (const [column, unit] of Object.entries(columns)) {
     // The first PDH sample initializes rate counters and is excluded consistently.

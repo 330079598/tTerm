@@ -46,6 +46,13 @@ async function input(text) {
 }
 for (const load of loads) {
   await guard()
+  await page.evaluate(async () => {
+    const current = window.__TAURI__.window.getCurrentWindow()
+    await current.center()
+    await current.setSize(new window.__TAURI__.dpi.PhysicalSize(1280, 800))
+    await current.setFocus()
+  })
+  await sleep(3000)
   const idle = load.match(/^idle-(1|10|30)$/)
   if (idle) {
     let state = await session()
@@ -73,6 +80,9 @@ for (const load of loads) {
   }))
   if (before.visibility !== "visible" || !before.focused)
     throw new Error("Window must be visible and focused")
+  if (before.inner.width !== 1280 || before.inner.height !== 800)
+    throw new Error("Window size changed; do not record incomparable baseline")
+  if (before.scale !== 1) throw new Error("Expected 100% scale on the primary display")
   await fs.writeFile(
     path.join(raw, `run${run}-${load}-session.json`),
     JSON.stringify(before, null, 2)
