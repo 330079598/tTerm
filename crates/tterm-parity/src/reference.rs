@@ -76,10 +76,15 @@ pub fn frontend_dirty(root: &Path) -> Result<bool, String> {
 /// Where one commit's reference lives, with a separate directory for a dirty
 /// frontend.
 pub fn reference_dir(root: &Path, commit: &str, dirty: bool) -> PathBuf {
+    let theme_suffix = std::env::var("PARITY_THEME")
+        .ok()
+        .filter(|theme| !theme.trim().is_empty() && theme != "dark")
+        .map(|theme| format!("-{theme}"))
+        .unwrap_or_default();
     let name = if dirty {
-        format!("{commit}-dirty")
+        format!("{commit}{theme_suffix}-dirty")
     } else {
-        commit.to_owned()
+        format!("{commit}{theme_suffix}")
     };
     root.join("target")
         .join("parity")
@@ -139,6 +144,8 @@ pub fn ensure_reference(
                 .map(|platform| vec!["--platform".to_owned(), platform])
                 .unwrap_or_default(),
         )
+        .arg("--theme")
+        .arg(&manifest.theme)
         .arg("--out")
         .arg(&dir)
         .arg("--commit")

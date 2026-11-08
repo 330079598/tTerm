@@ -41,6 +41,7 @@ const FRONTEND_PATHS = [
 async function main() {
   const options = parseArgs(process.argv.slice(2))
   const manifest = JSON.parse(await readFile(MANIFEST_PATH, "utf8"))
+  const theme = options.theme ?? process.env.PARITY_THEME ?? manifest.theme
   const commit = options.commit ?? frontendCommit()
   const dirty = frontendDirty()
   const defaultName = dirty ? `${commit}-dirty` : commit
@@ -74,7 +75,7 @@ async function main() {
     const platform = selectedPlatform(manifest, options.platform)
     browser = await launchBrowser(platform)
     for (const screen of screens) {
-      await captureScreen(browser, base, manifest, screen, outDir, platform)
+      await captureScreen(browser, base, manifest, screen, outDir, platform, theme)
     }
     const output = {
       version: 2,
@@ -94,13 +95,13 @@ async function main() {
   }
 }
 
-async function captureScreen(browser, base, manifest, screen, outDir, platform) {
+async function captureScreen(browser, base, manifest, screen, outDir, platform, theme) {
   const viewport = platform === "windows" ? manifest.windowsViewport ?? manifest.viewport : manifest.viewport
   const { width, height, deviceScaleFactor } = viewport
   const context = await browser.newContext({
     viewport: { width, height },
     deviceScaleFactor,
-    colorScheme: manifest.theme === "light" ? "light" : "dark",
+    colorScheme: theme === "light" ? "light" : "dark",
     locale: "en-US",
     timezoneId: "UTC",
     reducedMotion: "reduce",
@@ -111,7 +112,7 @@ async function captureScreen(browser, base, manifest, screen, outDir, platform) 
   try {
     const url = new URL("parity.html", base)
     url.searchParams.set("screen", screen.id)
-    url.searchParams.set("theme", manifest.theme)
+    url.searchParams.set("theme", theme)
     url.searchParams.set("scale", String(manifest.uiScalePercent))
     url.searchParams.set("platform", platform)
     await page.goto(url.href, { waitUntil: "load" })
@@ -184,7 +185,7 @@ function frontendCommit() {
 }
 
 function parseArgs(args) {
-  const options = { out: undefined, commit: undefined, screens: [], platform: undefined }
+  const options = { out: undefined, commit: undefined, screens: [], platform: undefined, theme: undefined }
   for (let index = 0; index < args.length; index += 1) {
     const argument = args[index]
     const value = args[index + 1]
@@ -199,6 +200,9 @@ function parseArgs(args) {
       index += 1
     } else if (argument === "--platform" && value) {
       options.platform = value
+      index += 1
+    } else if (argument === "--theme" && value) {
+      options.theme = value
       index += 1
     } else {
       throw new Error(`Unknown or incomplete argument: ${argument}`)

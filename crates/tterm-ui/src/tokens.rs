@@ -8,6 +8,7 @@
 
 pub mod color;
 pub mod font_size;
+pub mod gpui;
 pub mod palette;
 pub mod theme;
 pub mod type_scale;
