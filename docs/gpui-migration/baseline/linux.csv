@@ -1,0 +1,2 @@
+平台,构建,负载,指标,数值,单位,样本数,备注
+linux,release,all,unverified,,,0,未运行验证；缺少 Linux 桌面；WSL ConPTY 不作 Linux 基线

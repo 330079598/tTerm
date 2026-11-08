@@ -1,0 +1,9 @@
+
+Algorithm : SHA256
+Hash      : B20012581B92CDE076A4E6A94DA49540B07C82ABA6922705E9ECEFA2878A6FF5
+Path      : D:\code\rust\tTerm-P0-01\target\perf\load-run1\text-50MB.txt
+
+Algorithm : SHA256
+Hash      : B20012581B92CDE076A4E6A94DA49540B07C82ABA6922705E9ECEFA2878A6FF5
+Path      : D:\code\rust\tTerm-P0-01\target\perf\load-run2\text-50MB.txt
+

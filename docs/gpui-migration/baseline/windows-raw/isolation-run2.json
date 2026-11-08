@@ -1,0 +1,39 @@
+{
+  "profiles": [],
+  "session": {
+    "tabs": [
+      {
+        "autoTitle": true,
+        "connection": {
+          "cwd": "C:\\Users\\stone",
+          "terminalShell": "auto",
+          "type": "terminal"
+        },
+        "connectionHeaderPinned": true,
+        "hasConnected": true,
+        "id": "tab-1",
+        "isActive": true,
+        "isModified": false,
+        "sessionNonce": 0,
+        "shellName": "pwsh",
+        "title": "stone",
+        "type": "terminal"
+      }
+    ],
+    "active_tab_id": "tab-1",
+    "layout": {
+      "groups": [
+        {
+          "activeTabId": "tab-1",
+          "root": {
+            "tabId": "tab-1",
+            "type": "pane"
+          }
+        }
+      ],
+      "version": 2
+    },
+    "schema_version": 1,
+    "last_saved": 1794119667434
+  }
+}

@@ -1,0 +1,23 @@
+run2 cat complete; tabs=1
+run2 yes complete; tabs=1
+run2 vim complete; tabs=1
+file:///D:/code/rust/tTerm-P0-01/scripts/perf/run-windows.mjs:116
+    collector.on("exit", (code) => (code === 0 ? resolve() : reject(new Error(collectorLog))))
+                                                                    ^
+
+Error: Exception: D:\code\rust\tTerm-P0-01\scripts\perf\collect-windows.ps1:44
+
+Line |
+
+  44 |  �� es.Count) { throw 'No performance counter instances matched the appli ��
+
+     |                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+     | No performance counter instances matched the application tree.
+
+
+    at ChildProcess.<anonymous> (file:///D:/code/rust/tTerm-P0-01/scripts/perf/run-windows.mjs:116:69)
+    at ChildProcess.emit (node:events:509:28)
+    at ChildProcess._handle.onexit (node:internal/child_process:295:12)
+
+Node.js v24.19.0
