@@ -326,7 +326,9 @@ describe("direct and broadcast session ownership", () => {
         tracker.report(direct)
         tracker.report({ ...direct, state, scope: "broadcast" })
         expect(tracker.resumeSession(direct)).toBeNull()
-        expect(tracker.report({ ...direct, scope: "broadcast" })).toBe(false)
+        // Idle keeps dev status ownership, but cannot recreate a resume record.
+        expect(tracker.report({ ...direct, scope: "broadcast" })).toBe(state === "idle")
+        expect(tracker.resumeSession(direct)).toBeNull()
       }
       tracker.report(direct)
       tracker.reset()

@@ -1,8 +1,7 @@
 // What AI coding agents report through the hooks tTerm installs into them
 // (src-tauri/src/agent_integration): OSC 777 ; tterm-agent ; <agent> ; <state>,
 // Reports with sessions add ; <session> ; direct|broadcast ; <encoded-cwd>.
-// Legacy session reports
-// are broadcasts: they must never establish a resume session.
+// Legacy session reports are broadcasts and use the same claim rules.
 
 /** `idle`: stopped by the user, nothing to announce. `ended`: the agent quit. */
 const REPORT_STATES = ["processing", "waiting", "done", "error", "idle", "ended"] as const
@@ -12,7 +11,7 @@ export type AgentReportState = (typeof REPORT_STATES)[number]
 export interface AgentReport {
   agent: string
   state: AgentReportState
-  /** Only direct reports can establish the terminal's resume session. */
+  /** Direct reports or an unambiguous broadcast claim can establish a resume session. */
   session?: string
   scope?: "direct" | "broadcast"
   cwd?: string
@@ -101,6 +100,8 @@ const AGENTS_REPORTING_STOPS: ReadonlySet<string> = new Set(["codex", "opencode"
 
 /** The terminal each addressed session was submitted from, across tabs. */
 const sessionOwners = new Map<string, AgentTracker>()
+/** Keep consumed Enter timestamps too: a status claim must not hide competing input. */
+const recentSubmissions = new Map<AgentTracker, number>()
 
 interface AgentTrackerCallbacks {
   /** A restored record is already owned by this tab; broadcasts cannot create it. */
@@ -122,12 +123,17 @@ export class AgentTracker {
   private resume: AgentResumeSession | null = null
   private submittedAt: number | null = null
   private readonly sessions = new Set<string>()
+  private readonly resumeClaims = new Set<string>()
 
   constructor(
     private readonly callbacks: AgentTrackerCallbacks,
     private readonly waitDelayMs = AGENT_WAIT_ANNOUNCE_DELAY_MS
   ) {
     this.resume = callbacks.initialSession ?? null
+    if (this.resume && !sessionOwners.has(this.resume.sessionId)) {
+      sessionOwners.set(this.resume.sessionId, this)
+      this.sessions.add(this.resume.sessionId)
+    }
   }
 
   /**
@@ -143,11 +149,19 @@ export class AgentTracker {
   /** Enter typed in the terminal: it may take the next new session it hears of. */
   submit() {
     this.submittedAt = Date.now()
+    recentSubmissions.set(this, this.submittedAt)
   }
 
   report({ agent, state, session, scope, cwd }: AgentReport): boolean {
     if (session !== undefined) {
+      const owner = sessionOwners.get(session)
+      if (owner && owner !== this) return false
       if (scope === "direct") {
+        if (this.resume && this.resume.sessionId !== session) {
+          this.releaseSession(this.resume.sessionId)
+        }
+        sessionOwners.set(session, this)
+        this.sessions.add(session)
         if (agent === "claude" || agent === "codex") {
           const same =
             this.resume?.sessionId === session &&
@@ -165,9 +179,16 @@ export class AgentTracker {
           this.resume.agent === (agent === "claude" ? "claudeCode" : agent)
         if (!restored && !this.claim(session, state)) return false
         if (this.resume?.sessionId === session && !restored) return false
+        if (!restored && this.resumeClaims.has(session) && agent === "codex") {
+          const startCwd = this.callbacks.shellCwd?.() ?? cwd
+          this.resume = { agent, sessionId: session, ...(startCwd ? { cwd: startCwd } : {}) }
+        }
       }
     }
-    if (state === "idle") this.resume = null
+    if (state === "idle") {
+      this.resume = null
+      if (session) this.resumeClaims.delete(session)
+    }
     this.cancelWait()
     if (state === "ended") {
       this.reset()
@@ -199,7 +220,6 @@ export class AgentTracker {
     const saved = this.resume
     if (!saved || saved.sessionId !== session) return null
     if (saved.agent !== (agent === "claude" ? "claudeCode" : agent)) return null
-    // Even a recently submitted Enter cannot make a broadcast a new resume record.
     return saved
   }
 
@@ -257,6 +277,10 @@ export class AgentTracker {
       return false
     }
     this.submittedAt = null
+    const contenders = [...recentSubmissions.values()].filter(
+      (at) => Date.now() - at <= AGENT_CLAIM_WINDOW_MS
+    ).length
+    if (contenders === 1) this.resumeClaims.add(session)
     sessionOwners.set(session, this)
     this.sessions.add(session)
     return true
@@ -265,10 +289,12 @@ export class AgentTracker {
   private releaseSession(session: string) {
     if (sessionOwners.get(session) === this) sessionOwners.delete(session)
     this.sessions.delete(session)
+    this.resumeClaims.delete(session)
   }
 
   private releaseSessions() {
     for (const session of this.sessions) this.releaseSession(session)
+    recentSubmissions.delete(this)
   }
 
   private cancelWait() {
