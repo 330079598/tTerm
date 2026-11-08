@@ -17,6 +17,10 @@ const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
 const hookSource = `(() => {
   const components = new Map();
   const commits = [];
+  const latency = [];
+  const terminals = [];
+  window.__P004_LATENCY__ = latency;
+  window.__P004_TERM_DIAGNOSTICS__ = { fibers: 0, refs: 0, terminals: 0, errors: [] };
   window.__P004_COMMITS__ = commits;
   const nameOf = (fiber) => {
     const value = fiber.elementType || fiber.type;
@@ -25,6 +29,35 @@ const hookSource = `(() => {
   };
   const visit = (fiber, rows) => {
     for (let node = fiber; node; node = node.sibling) {
+      window.__P004_TERM_DIAGNOSTICS__.fibers += 1;
+      for (let hook = node.memoizedState; hook; hook = hook.next) {
+        const value = hook.memoizedState?.current;
+        if (value && typeof value === "object" && "buffer" in value && typeof value.write === "function" && typeof value.onWriteParsed === "function") {
+          window.__P004_TERM_DIAGNOSTICS__.refs += 1;
+          if (!terminals.some((item) => item.term === value)) {
+            const state = { term: value, seen: new Set() };
+            terminals.push(state);
+            window.__P004_TERM_DIAGNOSTICS__.terminals = terminals.length;
+            try {
+              value.onWriteParsed(() => {
+                const active = value.buffer.active;
+                for (let index = 0; index < active.length; index += 1) {
+                  const text = active.getLine(index)?.translateToString(true) ?? "";
+                  for (const match of text.matchAll(/P004LAT\|(\d{13})\|(\d+)/g)) {
+                    const sequence = Number(match[2]);
+                    const stamp = Number(match[1])
+                    if (Number.isFinite(stamp) && Number.isFinite(sequence) && !state.seen.has(sequence)) {
+                      state.seen.add(sequence);
+                      const parsedAt = Date.now()
+                      latency.push({ sequence, stamp, parsedAt, latencyMs: parsedAt - stamp, terminalIndex: terminals.indexOf(state) });
+                    }
+                  }
+                }
+              });
+            } catch (error) { window.__P004_TERM_DIAGNOSTICS__.errors.push(String(error)); }
+          }
+        }
+      }
       const name = nameOf(node);
       if (name) {
         const alternate = node.alternate;
@@ -153,16 +186,36 @@ actions.push(
   await action(
     "split-drag",
     async () => {
-      const handle = page
-        .locator('[data-panel-resize-handle-id], [class*="resize-handle"], [role="separator"]')
-        .first()
-      if ((await handle.count()) === 0) throw new Error("no visible split resize handle")
+      await page.keyboard.press("Control+\\")
+      await page.locator(".workspace-sash").first().waitFor({ timeout: 5000 })
+      const handle = page.locator(".workspace-sash").first()
       const box = await handle.boundingBox()
       if (!box) throw new Error("split resize handle has no box")
-      await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2)
-      await page.mouse.down()
-      await page.mouse.move(box.x + box.width / 2 + 80, box.y + box.height / 2 + 20, { steps: 8 })
-      await page.mouse.up()
+      const x = box.x + box.width / 2
+      const y = box.y + box.height / 2
+      await cdp.send("Input.dispatchMouseEvent", { type: "mouseMoved", x, y })
+      await cdp.send("Input.dispatchMouseEvent", {
+        type: "mousePressed",
+        x,
+        y,
+        button: "left",
+        clickCount: 1,
+      })
+      for (let step = 1; step <= 8; step += 1)
+        await cdp.send("Input.dispatchMouseEvent", {
+          type: "mouseMoved",
+          x: x + step * 10,
+          y,
+          button: "left",
+          buttons: 1,
+        })
+      await cdp.send("Input.dispatchMouseEvent", {
+        type: "mouseReleased",
+        x: x + 80,
+        y,
+        button: "left",
+        clickCount: 1,
+      })
     },
     1000
   )
@@ -232,17 +285,22 @@ async function timestamped(lines, name) {
   return { name, lines, started, finished: Date.now(), parsedSamples: samples }
 }
 
-const latency = [
+const latencyCommands = [
   await timestamped(20, "latency-small"),
   await timestamped(2000, "latency-sustained"),
 ]
+const parsedLatency = await page.evaluate(() => ({
+  samples: window.__P004_LATENCY__ ?? [],
+  diagnostics: window.__P004_TERM_DIAGNOSTICS__ ?? null,
+}))
 const result = {
   generatedAt: new Date().toISOString(),
   port: launch.port ?? port,
   cpu,
   actions,
   react,
-  latency,
+  latency: latencyCommands,
+  parsedLatency,
   hook: "Page.addScriptToEvaluateOnNewDocument; React DevTools supportsFiber hook",
 }
 await fs.writeFile(path.join(output, "raw.json"), JSON.stringify(result, null, 2))
@@ -251,7 +309,7 @@ console.log(
     {
       actions,
       commits: react.commits.length,
-      latency: latency.map(({ name, lines, parsedSamples }) => ({
+      latency: latencyCommands.map(({ name, lines, parsedSamples }) => ({
         name,
         lines,
         parsed: parsedSamples.length,
