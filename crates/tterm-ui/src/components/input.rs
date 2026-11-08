@@ -10,6 +10,7 @@ use gpui_kit::{Entity, IntoElement, ParentElement, Styled, div, px};
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct InputOptions {
     pub disabled: bool,
+    pub focused: bool,
     pub size: Size,
     pub colors: Option<Colors>,
 }
@@ -18,6 +19,7 @@ impl Default for InputOptions {
     fn default() -> Self {
         Self {
             disabled: false,
+            focused: false,
             size: Size::Medium,
             colors: None,
         }
@@ -29,24 +31,35 @@ pub fn input(state: &Entity<InputState>, options: InputOptions) -> impl IntoElem
     let colors = options
         .colors
         .unwrap_or(crate::tokens::palette::DARK.colors);
-    div()
+    let mut view = div()
         .h(px(36.0))
         .w_full()
         .px(px(12.0))
         .py(px(4.0))
         .rounded(px(6.0))
         .border(px(1.0))
-        .border_color(hsla(colors.input, 1.0))
-        .bg(hsla(colors.background, 1.0))
+        .border_color(hsla(
+            if options.focused {
+                colors.ring
+            } else {
+                colors.input
+            },
+            1.0,
+        ))
+        .bg(hsla(colors.input, 0.29))
         .child(
             Input::new(state)
-                .disabled(options.disabled)
+                .disabled(false)
                 .with_size(options.size)
                 .appearance(false)
                 .bordered(false)
                 .focus_bordered(false)
                 .text_color(hsla(colors.foreground, 1.0)),
-        )
+        );
+    if options.disabled {
+        view = view.opacity(0.5);
+    }
+    view
 }
 
 #[cfg(test)]

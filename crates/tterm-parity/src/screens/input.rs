@@ -42,16 +42,15 @@ impl InputScreen {
         });
         let focused = cx.new(|cx| InputState::new(window, cx).placeholder("Focus me"));
         let disabled = cx.new(|cx| InputState::new(window, cx).default_value("Disabled"));
-        focused.update(cx, |state, cx| state.focus(window, cx));
-        disabled.update(cx, |state, cx| state.set_disabled(true, cx));
         self.states = Some(vec![empty, long, focused, disabled]);
     }
 
-    fn style(&self) -> StyleSnapshot {
+    fn style(&self, focused: bool, disabled: bool) -> StyleSnapshot {
         let c = self.theme.colors;
+        let background = blend(hsl_to_rgba(c.input), hsl_to_rgba(c.background), 0.29);
         StyleSnapshot {
-            background_color: hsl_to_rgba(c.background),
-            border_color: hsl_to_rgba(c.border),
+            background_color: background,
+            border_color: hsl_to_rgba(if focused { c.ring } else { c.input }),
             border_width: 1.0,
             border_radius: 6.0,
             font_family: "system-ui".into(),
@@ -62,6 +61,7 @@ impl InputScreen {
             padding: PaddingSnapshot::symmetric(4.0, 12.0),
             declared_background_color: None,
             declared_border_color: None,
+            opacity: if disabled { 0.5 } else { 1.0 },
         }
     }
 
@@ -80,13 +80,16 @@ impl InputScreen {
             font_family: "system-ui".into(),
             font_size: 14.0,
             font_weight: 400,
-            line_height: 16.0,
+            line_height: 16.8,
             color: hsl_to_rgba(self.theme.colors.foreground),
             padding: PaddingSnapshot::all(32.0),
             declared_background_color: None,
             declared_border_color: None,
+            opacity: 1.0,
         };
-        let field_style = self.style();
+        let field_style = self.style(false, false);
+        let focused_style = self.style(true, false);
+        let disabled_style = self.style(false, true);
         let children = [
             parity_child(
                 &self.layout,
@@ -118,10 +121,11 @@ impl InputScreen {
                 &self.layout,
                 "ui.input.focus",
                 ElementSizing::Fixed,
-                field_style.clone(),
+                focused_style,
                 input(
                     &states[2],
                     InputOptions {
+                        focused: true,
                         colors: Some(self.theme.colors),
                         ..InputOptions::default()
                     },
@@ -131,7 +135,7 @@ impl InputScreen {
                 &self.layout,
                 "ui.input.disabled",
                 ElementSizing::Fixed,
-                field_style,
+                disabled_style,
                 input(
                     &states[3],
                     InputOptions {
@@ -161,4 +165,16 @@ impl InputScreen {
         )
         .size_full()
     }
+}
+
+fn blend(foreground: [u8; 4], background: [u8; 4], alpha: f32) -> [u8; 4] {
+    let blend_channel = |front: u8, back: u8| {
+        (f32::from(front) * alpha + f32::from(back) * (1.0 - alpha)).round() as u8
+    };
+    [
+        blend_channel(foreground[0], background[0]),
+        blend_channel(foreground[1], background[1]),
+        blend_channel(foreground[2], background[2]),
+        255,
+    ]
 }
