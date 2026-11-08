@@ -83,6 +83,7 @@ export function attachTerminalInput(ctx: TerminalSessionContext, deps: TerminalI
     // Shells that send no C mark start their command on Enter.
     let startsCommand = false
     if (data.includes("\r")) {
+      agentTracker.submit()
       startsCommand = commandMarks.handleEnter()
     }
 

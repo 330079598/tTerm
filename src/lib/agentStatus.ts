@@ -85,12 +85,22 @@ export const AGENT_WAIT_ANNOUNCE_DELAY_MS = 3000
 const AGENT_ECHO_WINDOW_MS = 10_000
 
 /**
+ * How long after Enter a terminal may take a session it is told about as its
+ * own: the hook runs once the prompt is submitted, after the login shell
+ * Codex starts it with.
+ */
+export const AGENT_CLAIM_WINDOW_MS = 10_000
+
+/**
  * Agents that report it themselves when the user stops them or refuses what
  * they ask, which Claude Code does not. Their keys are no sign of a stop:
  * Codex's Esc closes a popup first, and its Ctrl+C clears a draft. A guess
  * that an answer resumed their work is put right by the report if it did not.
  */
 const AGENTS_REPORTING_STOPS: ReadonlySet<string> = new Set(["codex", "opencode", "pi"])
+
+/** The terminal each addressed session was submitted from, across tabs. */
+const sessionOwners = new Map<string, AgentTracker>()
 
 interface AgentTrackerCallbacks {
   /** A restored record is already owned by this tab; broadcasts cannot create it. */
@@ -110,6 +120,8 @@ export class AgentTracker {
   private lastReportAt: number | null = null
   private waitTimer: ReturnType<typeof setTimeout> | null = null
   private resume: AgentResumeSession | null = null
+  private submittedAt: number | null = null
+  private readonly sessions = new Set<string>()
 
   constructor(
     private readonly callbacks: AgentTrackerCallbacks,
@@ -128,6 +140,11 @@ export class AgentTracker {
     return this.lastReportAt !== null && Date.now() - this.lastReportAt < AGENT_ECHO_WINDOW_MS
   }
 
+  /** Enter typed in the terminal: it may take the next new session it hears of. */
+  submit() {
+    this.submittedAt = Date.now()
+  }
+
   report({ agent, state, session, scope, cwd }: AgentReport): boolean {
     if (session !== undefined) {
       if (scope === "direct") {
@@ -142,11 +159,13 @@ export class AgentTracker {
             ...(startCwd ? { cwd: startCwd } : {}),
           }
         }
-      } else if (
-        this.resume?.sessionId !== session ||
-        this.resume.agent !== (agent === "claude" ? "claudeCode" : agent)
-      )
-        return false
+      } else {
+        const restored =
+          this.resume?.sessionId === session &&
+          this.resume.agent === (agent === "claude" ? "claudeCode" : agent)
+        if (!restored && !this.claim(session, state)) return false
+        if (this.resume?.sessionId === session && !restored) return false
+      }
     }
     if (state === "idle") this.resume = null
     this.cancelWait()
@@ -209,6 +228,7 @@ export class AgentTracker {
   /** The shell's prompt is back or the session closed: no agent runs anymore. */
   reset() {
     this.cancelWait()
+    this.releaseSessions()
     this.resume = null
     this.lastReportAt = null
     this.setStatus(null)
@@ -217,6 +237,38 @@ export class AgentTracker {
 
   dispose() {
     this.cancelWait()
+    this.releaseSessions()
+  }
+
+  /**
+   * Codex's shared background server tells every terminal running Codex
+   * about each of its sessions. A session belongs to the terminal Enter was
+   * typed in shortly before it was first heard of, and each Enter submits one
+   * session; the others hear of it and ignore it.
+   */
+  private claim(session: string, state: AgentReportState) {
+    const owner = sessionOwners.get(session)
+    if (owner === this) {
+      if (state === "ended") this.releaseSession(session)
+      return true
+    }
+    if (owner || state === "ended") return false
+    if (this.submittedAt === null || Date.now() - this.submittedAt > AGENT_CLAIM_WINDOW_MS) {
+      return false
+    }
+    this.submittedAt = null
+    sessionOwners.set(session, this)
+    this.sessions.add(session)
+    return true
+  }
+
+  private releaseSession(session: string) {
+    if (sessionOwners.get(session) === this) sessionOwners.delete(session)
+    this.sessions.delete(session)
+  }
+
+  private releaseSessions() {
+    for (const session of this.sessions) this.releaseSession(session)
   }
 
   private cancelWait() {
