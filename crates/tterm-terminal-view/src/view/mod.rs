@@ -157,6 +157,7 @@ pub struct TerminalView {
     blink_task: Option<Task<()>>,
     blink_only: bool,
     scroll: ScrollAccumulator,
+    scrollbar_drag: bool,
     stats: ViewStats,
 }
 
@@ -199,6 +200,7 @@ impl TerminalView {
             blink_task: None,
             blink_only: false,
             scroll: ScrollAccumulator::default(),
+            scrollbar_drag: false,
             stats: ViewStats::default(),
         }
     }

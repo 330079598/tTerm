@@ -10,6 +10,7 @@ use super::blink::{BLINK_INTERVAL, BlinkState};
 use super::font::{FontSet, grid_for, measure_cell};
 use super::frame::{FrameData, PreparedFrame, cursor_for};
 use super::row::{plan_row, row_hash, shape_row};
+use super::scrollbar::ScrollbarGeometry;
 use super::{TerminalView, bottom_anchored, grid_origin};
 
 impl TerminalView {
@@ -125,11 +126,20 @@ impl TerminalView {
         self.composition
             .refresh(&data.snapshot, cx.background_executor().now());
         self.prepare_ime(&data, origin, window, cx);
+        let scrollbar = (data.snapshot.history_size() > 0).then(|| {
+            ScrollbarGeometry::new(
+                bounds.size.height.as_f32(),
+                data.snapshot.grid().screen_lines,
+                data.snapshot.history_size(),
+                data.snapshot.display_offset(),
+            )
+        });
         PreparedFrame::Full {
             data,
             origin,
             cursor,
             show_cursor,
+            scrollbar,
         }
     }
 

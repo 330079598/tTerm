@@ -1,6 +1,7 @@
 //! Pointer routing and selection use the frame's grid geometry.
 
 use super::TerminalView;
+use super::scrollbar::ScrollbarGeometry;
 use crate::input::mouse::{self, ButtonAction, ButtonState};
 use gpui_kit::{
     Context, Modifiers, MouseButton, MouseDownEvent, MouseMoveEvent, MouseUpEvent, Pixels, Point,
@@ -9,6 +10,7 @@ use gpui_kit::{
 use tterm_terminal::{
     grid::GridPoint,
     selection::{SelectionKind, Side},
+    terminal::Scroll,
 };
 
 #[derive(Default)]
@@ -44,6 +46,37 @@ impl TerminalView {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
+        if event.position.x.as_f32()
+            >= self
+                .input_origin
+                .map(|origin| origin.x.as_f32())
+                .unwrap_or(0.0)
+                + self
+                    .last_frame
+                    .as_ref()
+                    .map(|frame| frame.metrics.cell_width * frame.grid().columns as f32)
+                    .unwrap_or(0.0)
+        {
+            if let Some(frame) = self.last_frame.as_ref()
+                && frame.snapshot.history_size() > 0
+            {
+                let track = frame.snapshot.grid().screen_lines as f32 * frame.metrics.cell_height;
+                let geometry = ScrollbarGeometry::new(
+                    track,
+                    frame.snapshot.grid().screen_lines,
+                    frame.snapshot.history_size(),
+                    frame.snapshot.display_offset(),
+                );
+                let y = (event.position.y - self.input_origin.unwrap().y).as_f32();
+                let target = geometry.offset_at(y, frame.snapshot.history_size());
+                let current = frame.snapshot.display_offset();
+                self.terminal
+                    .scroll(Scroll::Delta(target as i32 - current as i32));
+                self.scrollbar_drag = true;
+                cx.stop_propagation();
+                return;
+            }
+        }
         let Some(button) = protocol_button(event.button) else {
             return;
         };
@@ -81,6 +114,28 @@ impl TerminalView {
         _window: &mut Window,
         cx: &mut Context<Self>,
     ) {
+        if self.scrollbar_drag {
+            if let Some(frame) = self.last_frame.as_ref()
+                && let Some(origin) = self.input_origin
+            {
+                let track = frame.snapshot.grid().screen_lines as f32 * frame.metrics.cell_height;
+                let geometry = ScrollbarGeometry::new(
+                    track,
+                    frame.snapshot.grid().screen_lines,
+                    frame.snapshot.history_size(),
+                    frame.snapshot.display_offset(),
+                );
+                let y = (event.position.y - origin.y).as_f32();
+                let target = geometry.offset_at(y, frame.snapshot.history_size());
+                let current = frame.snapshot.display_offset();
+                if target != current {
+                    self.terminal
+                        .scroll(Scroll::Delta(target as i32 - current as i32));
+                    self.invalidate(cx);
+                }
+            }
+            return;
+        }
         // A release outside the native window may not be delivered. Recover
         // from the platform's button state when the pointer returns instead.
         if event.pressed_button.is_none() && self.pointer.held.is_some() {
@@ -121,6 +176,11 @@ impl TerminalView {
         _window: &mut Window,
         cx: &mut Context<Self>,
     ) {
+        if self.scrollbar_drag {
+            self.scrollbar_drag = false;
+            cx.stop_propagation();
+            return;
+        }
         let Some(button) = protocol_button(event.button) else {
             return;
         };
