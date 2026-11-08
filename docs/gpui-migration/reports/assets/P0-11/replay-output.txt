@@ -1,0 +1,16 @@
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.89s
+     Running tests\replay.rs (target\debug\deps\replay-e6a3979393a52c72.exe)
+
+running 2 tests
+test recording_preserves_microseconds_and_rejects_invalid_frames ... ok
+replay session: 0 changed records
+replay unicode: 4 changed records
+replay alternate-restored: 0 changed records
+replay alternate-active: 0 changed records
+replay scroll-region: 0 changed records
+replay margin-motion: 5 changed records
+replay attributes: 0 changed records
+replay charset-replies: 2 changed records
+test replay_matches_xterm_or_the_exact_documented_differences ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s

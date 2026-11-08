@@ -1,0 +1,9 @@
+checked session: 8 frames, 44x9, unicode=11
+checked unicode: 3 frames, 40x10, unicode=11
+checked alternate-restored: 4 frames, 40x8, unicode=11
+checked alternate-active: 2 frames, 40x8, unicode=11
+checked scroll-region: 3 frames, 40x8, unicode=11
+checked margin-motion: 2 frames, 40x8, unicode=11
+checked attributes: 6 frames, 40x8, unicode=11
+checked charset-replies: 2 frames, 40x8, unicode=11
+reference: 8 fixtures; D:\code\rust\tTerm-P0-11\crates\tterm-terminal\tests\fixtures\replay\; no application or DOM opened
