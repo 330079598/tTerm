@@ -65,11 +65,11 @@ pub fn build_resume_command(request: &ResumeRequest<'_>) -> Option<String> {
         ),
         ResumeShell::Fish => format!(
             "cd -- {} && {resume} {}",
-            quote_posix(request.cwd),
-            quote_posix(request.session_id)
+            quote_fish(request.cwd),
+            quote_fish(request.session_id)
         ),
         ResumeShell::PowerShell => format!(
-            "Set-Location -LiteralPath {}; {resume} {}",
+            "Set-Location -LiteralPath {}; if ($?) {{ {resume} {} }}",
             quote_powershell(request.cwd),
             quote_powershell(request.session_id)
         ),
@@ -118,6 +118,11 @@ fn quote_posix(value: &str) -> String {
 
 fn quote_powershell(value: &str) -> String {
     format!("'{}'", value.replace('\'', "''"))
+}
+
+fn quote_fish(value: &str) -> String {
+    // Fish interprets escaped backslashes even inside single quotes.
+    format!("'{}'", value.replace('\\', "\\\\").replace('\'', "\\'"))
 }
 
 /// Cmd has no literal single-quoted string and expands `%NAME%` before it
@@ -173,10 +178,29 @@ mod tests {
         assert_eq!(
             command,
             Some(
-                "Set-Location -LiteralPath 'C:\\Users\\A B\\O''Neil$`%'; codex resume 'abc-123'"
+                "Set-Location -LiteralPath 'C:\\Users\\A B\\O''Neil$`%'; if ($?) { codex resume 'abc-123' }"
                     .to_string()
             )
         );
+    }
+
+    #[test]
+    fn fish_quotes_backslashes_and_single_quotes_as_one_literal_argument() {
+        let command = build_resume_command(&request("fish", "/工作/a\\' $`% dir", "abc-123"));
+        assert_eq!(
+            command,
+            Some("cd -- '/工作/a\\\\\\' $`% dir' && claude --resume 'abc-123'".to_string())
+        );
+    }
+
+    #[test]
+    fn quotes_special_directories_for_every_unix_shell() {
+        for shell in ["bash", "zsh", "sh"] {
+            assert_eq!(
+                build_resume_command(&request(shell, "/工作/space ' $`%\\dir", "abc-123")),
+                Some("cd -- '/工作/space '\\'' $`%\\dir' && claude --resume 'abc-123'".to_string())
+            );
+        }
     }
 
     #[test]
