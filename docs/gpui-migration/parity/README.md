@@ -293,7 +293,8 @@ SSIM 的实现：灰度取 `0.2126R + 0.7152G + 0.0722B`（gamma 编码值），
 
 ## 9. 限制与已知差异
 
-- **Windows 自动出图使用真实窗口。** React 端用本机 Microsoft Edge，GPUI 端用真实窗口的 `Window::render_to_image`，窗口位于屏幕外并在截图后关闭。macOS 仍用 Playwright WebKit 与 GPUI `HeadlessAppContext`；Linux 的截图与并排检查按 ui-parity 5.3 节由人完成。
+- **Windows 自动出图使用真实窗口。** React 端用本机 Microsoft Edge，GPUI 端用真实窗口的 `Window::render_to_image`，窗口截图后立即关闭。窗口客户区按清单的逻辑尺寸创建；系统窗口装饰不进入 `render_to_image` 返回的客户区图像。macOS 仍用 Playwright WebKit 与 GPUI `HeadlessAppContext`；Linux 的截图与并排检查按 ui-parity 5.3 节由人完成。
+- 布局比较会在工具层归一化字体族：第一个字体名按小写比较；`-apple-system`、`BlinkMacSystemFont`、`.SystemUIFont`、`.AppleSystemUIFont` 与 Windows Edge 计算栈中的 `Segoe UI` 都归一为 `system-ui`。这只影响布局契约的字体名比较，不修改生产 CSS 或 parity 页面样式。
 - **Playwright 的 WebKit 不是 Tauri 的 WKWebView。** 同一引擎与字体栈，但没有 Tauri 注入的窗口装饰、透明与模糊；窗口级效果用 `[人工]` 在真实 Tauri 窗口里核一次（ui-parity 5.1 节）。W0-04 的示例屏幕只包含普通控件。
 - **文字渲染只要求接近。** 字体、字号、字重、行高与位置进入布局比较，实际字形由两端各自光栅化；文字像素通过 `textRegions` 从图像比较里遮掉，整屏 SSIM 仍会包含文字差异，因此门槛是 0.97 而不是 0.99。
 - **GPUI 的 `debug_selector` 不能直接用于无头截图。** 按 P0-25 第 9 项，`debug_selector` 只在 `cfg(any(test, all(debug_assertions, feature = "test-support")))` 下记录（`gpui-pre-0.3.11/src/elements/div.rs:901-920`，不满足时是空操作 `:922-925`），并且只有 `VisualTestContext::debug_bounds` 能读；`HeadlessAppContext` 没有读取入口。本工具改为在标记元素外包一层 `Div`，用 `on_children_prepainted` 读取唯一子元素的 border box；任何渲染模式都可用，也能拿到文字元素自身边界。构建前提与 P0-25 第 6 条限制一致。

@@ -20,7 +20,6 @@ const params = new URLSearchParams(window.location.search)
 const screenId = params.get("screen") ?? ""
 const theme = params.get("theme") ?? "dark"
 const scale = Number(params.get("scale") ?? "100")
-const platform = params.get("platform") ?? "macos"
 
 window.__PARITY_READY__ = false
 window.__PARITY_INVOKES__ = []
@@ -35,7 +34,6 @@ if (theme === "light") {
 } else {
   delete document.documentElement.dataset.theme
 }
-document.documentElement.dataset.platform = platform
 
 let readySent = false
 

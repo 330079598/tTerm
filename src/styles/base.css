@@ -10,11 +10,6 @@ body {
   overflow: hidden;
 }
 
-/* Edge/WebView2 on Windows uses the native Segoe UI stack for parity captures. */
-html[data-platform="windows"] body {
-  font-family: "Segoe UI", sans-serif;
-}
-
 /* Scrollbar styling for webkit browsers */
 ::-webkit-scrollbar {
   width: 8px;

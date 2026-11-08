@@ -173,6 +173,24 @@ fn a_font_family_change_fails() {
 }
 
 #[test]
+fn native_system_fonts_are_canonicalised() {
+    let mut actual_style = style();
+    actual_style.font_family = "Segoe UI, sans-serif".to_owned();
+    let bounds = BoundsSnapshot::new(0.0, 0.0, 10.0, 10.0);
+    let reference = document(vec![element("e", ElementSizing::Fixed, bounds)]);
+    let actual = LayoutDocument {
+        elements: vec![ElementSnapshot {
+            id: "e".to_owned(),
+            sizing: ElementSizing::Fixed,
+            bounds,
+            style: actual_style,
+        }],
+        ..document(Vec::new())
+    };
+    assert!(compare(&reference, &actual, BACKDROP).passed);
+}
+
+#[test]
 fn transparent_colours_compare_after_compositing() {
     let mut transparent = style();
     transparent.background_color = [0, 0, 0, 0];

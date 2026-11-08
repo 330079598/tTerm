@@ -38,7 +38,7 @@ export type Arch =
 const platformName =
   typeof window === "undefined"
     ? "macos"
-    : new URLSearchParams(window.location.search).get("platform") ?? "macos"
+    : (new URLSearchParams(window.location.search).get("platform") ?? "macos")
 const info = platformName === "windows" ? manifest.platforms.windows : manifest.platform
 
 /** The operating system, e.g. `macos`. */
