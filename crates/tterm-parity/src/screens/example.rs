@@ -37,6 +37,14 @@ const BUTTON_PADDING_X: f32 = 16.0;
 const BUTTON_PADDING_Y: f32 = 8.0;
 const CORNER_RADIUS: f32 = 4.0;
 
+fn parity_font_family() -> String {
+    if std::env::var("PARITY_PLATFORM").as_deref() == Ok("windows") {
+        "segoe ui".to_owned()
+    } else {
+        "system-ui".to_owned()
+    }
+}
+
 /// The example view, built from one fixture file.
 pub struct ExampleScreen {
     layout: LayoutSink,
@@ -170,7 +178,7 @@ fn root_style(colors: &Colors) -> StyleSnapshot {
         border_color: hsl_to_rgba(colors.border),
         border_width: 0.0,
         border_radius: 0.0,
-        font_family: "system-ui".to_owned(),
+        font_family: parity_font_family(),
         font_size: BODY_FONT_SIZE,
         font_weight: 400,
         line_height: BODY_LINE_HEIGHT,
@@ -187,7 +195,7 @@ fn input_style(colors: &Colors) -> StyleSnapshot {
         border_color: hsl_to_rgba(colors.input),
         border_width: 1.0,
         border_radius: CORNER_RADIUS,
-        font_family: "system-ui".to_owned(),
+        font_family: parity_font_family(),
         font_size: CONTENT_FONT_SIZE,
         font_weight: 400,
         line_height: TEXT_LINE_HEIGHT,
@@ -204,7 +212,7 @@ fn button_style(colors: &Colors) -> StyleSnapshot {
         border_color: hsl_to_rgba(colors.border),
         border_width: 0.0,
         border_radius: CORNER_RADIUS,
-        font_family: "system-ui".to_owned(),
+        font_family: parity_font_family(),
         font_size: CONTENT_FONT_SIZE,
         font_weight: 500,
         line_height: TEXT_LINE_HEIGHT,

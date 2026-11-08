@@ -2,6 +2,19 @@
 
 本目录记录 React 参考端与 GPUI 端的逐屏对比工具：怎么生成参考截图、怎么渲染 GPUI 屏幕、怎么跑对比、怎么加一屏，以及门槛和输出格式。门槛本身来自 [ui-parity.md 第 5.2 节](../ui-parity.md#52-通过门槛macosdpr-2)，本工具只负责执行它。
 
+Windows 通道使用本机 Microsoft Edge（Playwright `channel: "msedge"`），不下载 Playwright 浏览器；GPUI 端打开短暂的真实窗口并调用 `Window::render_to_image`，截图后立即关闭窗口。运行：
+
+```powershell
+$env:PARITY_PLATFORM = "windows"
+cargo run -p tterm-parity -- compare
+```
+
+直接生成 Edge 参考图：
+
+```powershell
+node scripts/parity/capture.mjs --platform windows --screen example.button-input.default
+```
+
 W0-04 只提供工具和一张示例屏幕（一个按钮加一个输入框），全部状态清单与夹具是 W0-05 的范围。示例屏幕的 id 是 `example.button-input.default`。
 
 ## 1. 组成
@@ -45,7 +58,7 @@ cargo run -p tterm-parity -- compare
 
 ### Tauri 模块的 parity 处理
 
-`vite.config.ts` 在 `--mode parity` 下用 `parityTauriAliases` 把下面 10 个模块全部改到 `src/parity/tauri/`；清单只在 `src/parity/tauri/modules.ts` 维护。`modules.test.ts` 遍历同一份清单，断言 Vite 确实从它生成别名、且每个实现文件都存在，新增 import 漏配时会失败。`plugin-os` 的返回值来自 `parity/screens.json` 的 `platform` 块（默认固定 macOS），不是浏览器探测。
+`vite.config.ts` 在 `--mode parity` 下用 `parityTauriAliases` 把下面 10 个模块全部改到 `src/parity/tauri/`；清单只在 `src/parity/tauri/modules.ts` 维护。`modules.test.ts` 遍历同一份清单，断言 Vite 确实从它生成别名、且每个实现文件都存在，新增 import 漏配时会失败。`plugin-os` 的返回值来自 `parity/screens.json` 的 `platform` 块（默认固定 macOS）或 Windows 覆盖，不是浏览器探测。
 
 | 模块 | parity 文件 | 处理方式 |
 | --- | --- | --- |
@@ -100,6 +113,8 @@ cargo run -p tterm-parity -- capture
 pnpm dev:parity
 # http://127.0.0.1:1423/parity.html?screen=example.button-input.default&theme=dark&scale=100
 ```
+
+Windows 上把 `PARITY_PLATFORM` 设为 `windows`；macOS 默认使用 WebKit 和 macOS 固定平台值。
 
 `compare` 的退出码：`0` 每一屏都过门槛，`1` 至少一屏不通过，`2` 工具或输入出错（缺参考、缺 Playwright、JSON 解析失败等）。失败时终端会打印每一屏的布局最大偏差、颜色差、SSIM、热力图路径和逐条失败原因，失败原因带元素 id。
 
@@ -278,7 +293,7 @@ SSIM 的实现：灰度取 `0.2126R + 0.7152G + 0.0722B`（gamma 编码值），
 
 ## 9. 限制与已知差异
 
-- **只在 macOS 自动出图。** React 端固定用 Playwright WebKit（macOS 上同引擎、同 CoreText），GPUI 端用 `HeadlessAppContext` 的 Metal 渲染。Windows/Linux 的截图与并排检查按 ui-parity 5.3 节由人完成，本工具只提供布局 JSON 的三平台生成路径。
+- **Windows 自动出图使用真实窗口。** React 端用本机 Microsoft Edge，GPUI 端用真实窗口的 `Window::render_to_image`，窗口位于屏幕外并在截图后关闭。macOS 仍用 Playwright WebKit 与 GPUI `HeadlessAppContext`；Linux 的截图与并排检查按 ui-parity 5.3 节由人完成。
 - **Playwright 的 WebKit 不是 Tauri 的 WKWebView。** 同一引擎与字体栈，但没有 Tauri 注入的窗口装饰、透明与模糊；窗口级效果用 `[人工]` 在真实 Tauri 窗口里核一次（ui-parity 5.1 节）。W0-04 的示例屏幕只包含普通控件。
 - **文字渲染只要求接近。** 字体、字号、字重、行高与位置进入布局比较，实际字形由两端各自光栅化；文字像素通过 `textRegions` 从图像比较里遮掉，整屏 SSIM 仍会包含文字差异，因此门槛是 0.97 而不是 0.99。
 - **GPUI 的 `debug_selector` 不能直接用于无头截图。** 按 P0-25 第 9 项，`debug_selector` 只在 `cfg(any(test, all(debug_assertions, feature = "test-support")))` 下记录（`gpui-pre-0.3.11/src/elements/div.rs:901-920`，不满足时是空操作 `:922-925`），并且只有 `VisualTestContext::debug_bounds` 能读；`HeadlessAppContext` 没有读取入口。本工具改为在标记元素外包一层 `Div`，用 `on_children_prepainted` 读取唯一子元素的 border box；任何渲染模式都可用，也能拿到文字元素自身边界。构建前提与 P0-25 第 6 条限制一致。

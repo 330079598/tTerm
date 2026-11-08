@@ -64,14 +64,29 @@ pub struct ScreensManifest {
     pub version: u32,
     /// The window to capture at.
     pub viewport: ViewportSpec,
+    #[serde(default)]
+    pub windows_viewport: Option<ViewportSpec>,
     /// `dark` or `light`; the app's own theme naming.
     pub theme: String,
     /// Interface scale in percent, as the settings express it.
     pub ui_scale_percent: u32,
     /// What `plugin-os` answers in parity mode.
     pub platform: PlatformSpec,
+    /// Optional platform overrides used by the Windows parity channel.
+    #[serde(default)]
+    pub platforms: std::collections::BTreeMap<String, PlatformSpec>,
     /// The screens, in report order.
     pub screens: Vec<ScreenSpec>,
+}
+
+impl ScreensManifest {
+    pub fn selected_viewport(&self) -> ViewportSpec {
+        if std::env::var("PARITY_PLATFORM").as_deref() == Ok("windows") {
+            self.windows_viewport.unwrap_or(self.viewport)
+        } else {
+            self.viewport
+        }
+    }
 }
 
 impl ScreensManifest {
