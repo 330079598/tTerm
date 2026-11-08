@@ -25,7 +25,7 @@ use alacritty_terminal::index::Point as AnsiPoint;
 use alacritty_terminal::selection::Selection as AnsiSelection;
 use alacritty_terminal::sync::FairMutex;
 use alacritty_terminal::term::cell::Cell as AnsiCell;
-use alacritty_terminal::term::{Config as TermConfig, Osc52, Term, TermMode};
+use alacritty_terminal::term::{Config as TermConfig, Osc52, Term, TermDamage, TermMode};
 use alacritty_terminal::vte::ansi::Processor;
 
 use crate::cell::Cell;
@@ -157,8 +157,6 @@ struct State {
     cell_size: CellSize,
     version: u64,
     scrollback_generation: u64,
-    evicted_lines: u64,
-    logical_output_lines: u64,
 }
 
 /// The terminal of one session.
@@ -191,8 +189,6 @@ impl Terminal {
             cell_size,
             version: 0,
             scrollback_generation: 0,
-            evicted_lines: 0,
-            logical_output_lines: 0,
         };
         Self {
             state: FairMutex::new(state),
@@ -211,24 +207,15 @@ impl Terminal {
         }
         let mut state = self.state.lock();
         let configured = state.config.scrollback;
-        let before = state.logical_output_lines;
-        let screen_lines = state.term.screen_lines();
         let was_alternate = state.term.mode().contains(TermMode::ALT_SCREEN);
         let State { parser, term, .. } = &mut *state;
         parser.advance(term, bytes);
         if was_alternate || term.mode().contains(TermMode::ALT_SCREEN) {
-            state.logical_output_lines = term.total_lines() as u64;
             return;
         }
-        let output_lines = bytes.iter().filter(|byte| **byte == b'\n').count();
-        let after = before.saturating_add(output_lines as u64);
-        state.logical_output_lines = after;
-        let limit = screen_lines.saturating_add(configured) as u64;
-        let evicted = after
-            .saturating_sub(limit)
-            .saturating_sub(before.saturating_sub(limit));
-        if evicted > 0 {
-            state.evicted_lines = state.evicted_lines.saturating_add(evicted);
+        let history_size = term.total_lines().saturating_sub(term.screen_lines());
+        let full_damage = matches!(term.damage(), TermDamage::Full);
+        if configured > 0 && history_size >= configured && full_damage {
             state.scrollback_generation = state.scrollback_generation.wrapping_add(1);
         }
     }
@@ -251,7 +238,6 @@ impl Terminal {
         let mut state = self.state.lock();
         state.cell_size = cell_size;
         state.term.resize(grid.clamped());
-        state.logical_output_lines = state.term.total_lines() as u64;
     }
 
     /// Changes the scrollback capacity.
@@ -363,7 +349,6 @@ fn take_snapshot(state: &mut State, version: u64) -> Snapshot {
         term,
         cell_size,
         scrollback_generation,
-        evicted_lines,
         ..
     } = state;
     let damage = Damage::take(term);
@@ -388,7 +373,6 @@ fn take_snapshot(state: &mut State, version: u64) -> Snapshot {
         display_offset,
         history_size,
         scrollback_generation: *scrollback_generation,
-        evicted_lines: *evicted_lines,
         selection,
         damage,
         bottom_line_occupied,

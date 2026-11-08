@@ -116,7 +116,6 @@ pub(crate) struct SnapshotParts {
     pub display_offset: usize,
     pub history_size: usize,
     pub scrollback_generation: u64,
-    pub evicted_lines: u64,
     pub selection: Option<SelectionRange>,
     pub damage: Damage,
     pub bottom_line_occupied: bool,
@@ -134,7 +133,6 @@ pub struct Snapshot {
     display_offset: usize,
     history_size: usize,
     scrollback_generation: u64,
-    evicted_lines: u64,
     selection: Option<SelectionRange>,
     damage: Damage,
     bottom_line_occupied: bool,
@@ -152,7 +150,6 @@ impl Snapshot {
             display_offset,
             history_size,
             scrollback_generation,
-            evicted_lines,
             selection,
             damage,
             bottom_line_occupied,
@@ -167,7 +164,6 @@ impl Snapshot {
             display_offset,
             history_size,
             scrollback_generation,
-            evicted_lines,
             selection,
             damage,
             bottom_line_occupied,
@@ -250,11 +246,6 @@ impl Snapshot {
     /// when the bounded history length itself stays unchanged.
     pub fn scrollback_generation(&self) -> u64 {
         self.scrollback_generation
-    }
-
-    /// The cumulative number of scrollback lines evicted by output.
-    pub fn evicted_lines(&self) -> u64 {
-        self.evicted_lines
     }
 
     /// The selection, in grid coordinates, or `None` when nothing is selected.
