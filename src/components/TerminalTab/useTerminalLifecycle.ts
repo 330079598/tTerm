@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react"
+import { useEffect, useRef, useState } from "react"
 import { useTranslation } from "react-i18next"
 import type { IDisposable } from "@xterm/xterm"
 import { invoke } from "@tauri-apps/api/core"
@@ -24,7 +24,7 @@ import { trackTerminalContent } from "@/components/TerminalTab/savedTerminalCont
 import { safePreloadFont } from "@/lib/canvasFontHost"
 import { setTabPasswordPrompt } from "@/lib/tabAttention"
 import { EMPTY_COMMAND_CAPTURE_STATE } from "@/lib/terminalCommandCapture"
-import { startAgentResume } from "@/components/TerminalTab/agentResume"
+import { startAgentResume, type AgentResumeNotice } from "@/components/TerminalTab/agentResume"
 
 export function useTerminalLifecycle({
   activateFitTimerRef,
@@ -88,12 +88,12 @@ export function useTerminalLifecycle({
   setStartError,
   setSearchResults,
   sessionNonce,
-  shellName,
   tabId,
   terminalRenderer,
   termRef,
   waitingForReconnectRef,
 }: UseTerminalLifecycleOptions) {
+  const [agentResumeNotice, setAgentResumeNotice] = useState<AgentResumeNotice | null>(null)
   const {
     activeRendererAddonRef,
     lastRendererRef,
@@ -271,12 +271,14 @@ export function useTerminalLifecycle({
       commandTimer,
       emitTypedCommand,
     })
-    const stopAgentResume = startAgentResume({
+    const agentResume = startAgentResume({
       term,
       commandMarks,
       resume: connectionRef.current?.agentResume,
       cwd: connectionRef.current?.cwd,
-      shell: connectionRef.current?.type === "ssh" ? "bash" : shellName,
+      onNotice: setAgentResumeNotice,
+      canSend: () =>
+        !session.disposed && session.currentPromptKey === null && !waitingForReconnectRef.current,
       tabId,
       sessionNonce,
     })
@@ -286,6 +288,7 @@ export function useTerminalLifecycle({
       checkPasswordPrompt,
       stopLoginScript,
       startLoginScript,
+      agentResume,
       agentTracker,
       commandTimer,
     })
@@ -371,7 +374,7 @@ export function useTerminalLifecycle({
       for (const disposable of scrollbackDisposables) disposable.dispose()
       for (const disposable of shellIntegrationDisposables) disposable.dispose()
       attentionReports.dispose()
-      stopAgentResume()
+      agentResume.dispose()
       agentTracker.reset()
       commandTimer.prompt()
       commandMarks.dispose()
@@ -442,7 +445,6 @@ export function useTerminalLifecycle({
     themeRef,
     waitingForReconnectRef,
     onAgentSessionChangeRef,
-    shellName,
     rendererSuspendedRef,
     activeRendererAddonRef,
     lastRendererRef,
@@ -467,5 +469,6 @@ export function useTerminalLifecycle({
 
   return {
     clearTextureAtlas,
+    agentResumeNotice,
   }
 }

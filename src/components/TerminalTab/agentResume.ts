@@ -4,49 +4,99 @@ import type { Terminal } from "@xterm/xterm"
 import type { CommandMarks } from "@/components/TerminalTab/commandMarks"
 import type { AgentResumeInfo } from "@/types/tab"
 
-const RESUME_TIMEOUT_MS = 15_000
+export type AgentResumeNotice = {
+  reason: "timeout" | "unknownShell" | "unavailable" | "unsafe" | "failed"
+  enabled: boolean
+  resume: () => void
+}
 
 interface AgentResumeOptions {
-  term: Terminal
-  commandMarks: CommandMarks
+  term: Pick<Terminal, "onData" | "onKey">
+  commandMarks: Pick<CommandMarks, "onPrompt" | "promptState">
   resume: AgentResumeInfo | undefined
   cwd: string | undefined
-  shell: string | undefined
   tabId: string
   sessionNonce: number
+  canSend: () => boolean
+  onNotice: (notice: AgentResumeNotice | null) => void
 }
 
-/** Sends only the command returned by the Rust resume builder after a prompt. */
+/** Waits for a live prompt; manual and automatic sends use the Rust builder. */
 export function startAgentResume(options: AgentResumeOptions) {
-  const { term, commandMarks, resume, cwd, shell, tabId, sessionNonce } = options
-  if (!resume || !cwd || !shell) return () => {}
+  const { term, commandMarks, resume, cwd, tabId, sessionNonce, onNotice, canSend } = options
+  let stopped = !resume
+  let ready = false
+  let shell: string | undefined
+  let automatic = true
+  let inFlight = false
+  let generation = 0
+  let timer: ReturnType<typeof setTimeout> | undefined
 
-  let cancelled = false
-  let sent = false
   const cancel = () => {
-    cancelled = true
+    stopped = true
+    generation += 1
+    clearTimeout(timer)
+    onNotice(null)
   }
-  const inputDisposable = term.onData(cancel)
-  const timeout = window.setTimeout(cancel, RESUME_TIMEOUT_MS)
+  const manual = (reason: AgentResumeNotice["reason"], enabled = true) => {
+    automatic = false
+    clearTimeout(timer)
+    if (!stopped) onNotice({ reason, enabled, resume: () => void send(true) })
+  }
+  const send = async (byButton: boolean) => {
+    if (stopped || !ready || !shell || !resume || inFlight || !canSend()) return
+    if (!byButton && (!automatic || commandMarks.promptState() !== "prompt")) return
+    const attempt = generation
+    inFlight = true
+    try {
+      // Saved values are untrusted, including on the manual button path.
+      const command = await invoke<string | null>("build_agent_resume_command", {
+        agent: resume.agent,
+        sessionId: resume.sessionId,
+        cwd: cwd ?? "",
+        shell,
+      })
+      if (stopped || attempt !== generation || !canSend()) return
+      if (!command) return manual("unsafe", false)
+      if (!byButton && (!automatic || commandMarks.promptState() !== "prompt")) return
+      await invoke("write_pty", { tabId, sessionNonce, data: `${command}\r` })
+      cancel()
+    } catch (error) {
+      console.error(error)
+      if (!stopped) manual("failed")
+    } finally {
+      inFlight = false
+    }
+  }
+  const input = term.onData((data) => {
+    // Terminal cursor/focus replies are not user input. Keys and pastes are.
+    if (!data.startsWith("\x1b") || data.startsWith("\x1b[200~")) cancel()
+  })
+  const keys = term.onKey(cancel)
   const stopPrompt = commandMarks.onPrompt((event) => {
-    if (cancelled || sent || event.kind !== "prompt") return
-    sent = true
-    void invoke<string | null>("build_agent_resume_command", {
-      agent: resume.agent,
-      sessionId: resume.sessionId,
-      cwd,
-      shell,
-    }).then((command) => {
-      if (!cancelled && command) {
-        invoke("write_pty", { tabId, sessionNonce, data: `${command}\r` }).catch(console.error)
-      }
-    })
+    if (event.kind === "prompt") void send(false)
   })
 
-  return () => {
-    cancelled = true
-    window.clearTimeout(timeout)
-    inputDisposable.dispose()
-    stopPrompt()
+  return {
+    /** Called only after this connection authenticated and opened its shell. */
+    ready(detectedShell: string | undefined, integration: boolean) {
+      if (stopped) return
+      generation += 1
+      ready = true
+      shell = detectedShell
+      if (!shell) return manual("unknownShell", false)
+      if (!integration || shell.toLowerCase() === "cmd") return manual("unavailable")
+      timer = setTimeout(() => manual("timeout"), 15_000)
+      void send(false)
+    },
+    disconnect: cancel,
+    dispose() {
+      cancel()
+      input.dispose()
+      keys.dispose()
+      stopPrompt()
+    },
   }
 }
+
+export type AgentResumeController = ReturnType<typeof startAgentResume>

@@ -1690,6 +1690,14 @@
     "savedConnectionDeleted": "{{address}}（已删除）",
     "savedConnectionMissing": "这一跳使用的已保存连接已被删除，请另选一个或手动填写。"
   },
+  "agentResume": {
+    "continue": "继续 AI 会话",
+    "timeout": "未检测到 shell 提示符。请确认此终端已就绪后再继续。",
+    "unknownShell": "当前 shell 未知，检测到实际 shell 前无法续接 AI 会话。",
+    "unavailable": "没有 shell 集成时无法自动续接。请确认此终端已就绪后手动继续。",
+    "unsafe": "保存的会话或目录无法在此 shell 中安全使用。",
+    "failed": "无法续接 AI 会话。请确认此终端已就绪后重试。"
+  },
   "sessionHeader": {
     "shellIntegrationFallback": "{{connection}}：Shell 集成未生效，已使用普通 shell",
     "shellIntegrationReasons": {

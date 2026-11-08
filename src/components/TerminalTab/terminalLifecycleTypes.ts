@@ -95,7 +95,6 @@ export type UseTerminalLifecycleOptions = {
   setStartError: (value: string | null) => void
   setSearchResults: React.Dispatch<React.SetStateAction<ISearchResultChangeEvent>>
   sessionNonce: number
-  shellName?: string
   tabId: string
   termRef: React.RefObject<Terminal | null>
   waitingForReconnectRef: React.RefObject<boolean>

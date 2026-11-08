@@ -1708,6 +1708,14 @@
     "savedConnectionDeleted": "{{address}} (deleted)",
     "savedConnectionMissing": "The saved connection this hop used was deleted. Choose another one or enter the jump host manually."
   },
+  "agentResume": {
+    "continue": "Continue AI session",
+    "timeout": "No shell prompt was detected. Check this terminal is ready before continuing.",
+    "unknownShell": "The current shell is unknown. AI session resume is unavailable until its shell is detected.",
+    "unavailable": "Automatic resume is unavailable without shell integration. Check this terminal is ready, then continue manually.",
+    "unsafe": "The saved session or directory cannot be used safely with this shell.",
+    "failed": "The AI session could not be resumed. Check this terminal is ready before trying again."
+  },
   "sessionHeader": {
     "shellIntegrationFallback": "{{connection}}: shell integration did not start, using a plain shell",
     "shellIntegrationReasons": {
