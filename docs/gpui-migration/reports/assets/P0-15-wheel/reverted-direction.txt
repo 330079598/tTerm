@@ -1,0 +1,116 @@
+   Compiling tterm-terminal-view v0.1.0 (D:\code\rust\tTerm-P0-15-wheel\crates\tterm-terminal-view)
+   Compiling tterm-gpui v0.1.0 (D:\code\rust\tTerm-P0-15-wheel\crates\tterm-gpui)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 12.34s
+     Running unittests src\lib.rs (target\debug\deps\t_term_lib-80c06ce39f42aeff.exe)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 835 filtered out; finished in 0.00s
+
+     Running unittests src\main.rs (target\debug\deps\tTerm-ea1810428c0f924a.exe)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src\lib.rs (target\debug\deps\tterm_core-70983a2e34d5cc5f.exe)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src\lib.rs (target\debug\deps\tterm_gpui-3822ccf83fa22766.exe)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 12 filtered out; finished in 0.00s
+
+     Running unittests src\main.rs (target\debug\deps\tterm_gpui-4fea893e5f2c500f.exe)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src\lib.rs (target\debug\deps\tterm_parity-97f93cfea10454e0.exe)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 60 filtered out; finished in 0.00s
+
+     Running unittests src\main.rs (target\debug\deps\tterm_parity-bf4cd7a68322ce02.exe)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src\lib.rs (target\debug\deps\tterm_platform-c9d9f043d32fcbbb.exe)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src\lib.rs (target\debug\deps\tterm_terminal-8d370cafcecab024.exe)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 68 filtered out; finished in 0.00s
+
+     Running unittests src\lib.rs (target\debug\deps\tterm_terminal_view-d1920bb224052428.exe)
+
+running 5 tests
+test view::wheel::tests::line_notches_send_one_alternate_arrow_in_each_direction ... FAILED
+test view::wheel::tests::line_notches_report_one_sgr_button_in_each_direction ... FAILED
+test view::wheel::tests::line_notches_scroll_history_by_fifty_pixels ... FAILED
+test view::wheel::tests::pixel_application_events_accumulate_reverse_and_emit_at_most_once ... FAILED
+test view::wheel::tests::pixel_events_scroll_history_in_both_directions ... FAILED
+
+failures:
+
+---- view::wheel::tests::line_notches_send_one_alternate_arrow_in_each_direction stdout ----
+
+thread 'view::wheel::tests::line_notches_send_one_alternate_arrow_in_each_direction' (43856) panicked at crates\tterm-terminal-view\src\view\wheel\tests.rs:48:5:
+assertion `left == right` failed
+  left: [27, 79, 66]
+ right: [27, 79, 65]
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+---- view::wheel::tests::line_notches_report_one_sgr_button_in_each_direction stdout ----
+
+thread 'view::wheel::tests::line_notches_report_one_sgr_button_in_each_direction' (31236) panicked at crates\tterm-terminal-view\src\view\wheel\tests.rs:37:5:
+assertion `left == right` failed
+  left: [27, 91, 60, 54, 53, 59, 49, 59, 49, 77]
+ right: [27, 91, 60, 54, 52, 59, 49, 59, 49, 77]
+
+---- view::wheel::tests::line_notches_scroll_history_by_fifty_pixels stdout ----
+
+thread 'view::wheel::tests::line_notches_scroll_history_by_fifty_pixels' (23192) panicked at crates\tterm-terminal-view\src\view\wheel\tests.rs:61:9:
+assertion `left == right` failed
+  left: 0
+ right: 2
+
+---- view::wheel::tests::pixel_application_events_accumulate_reverse_and_emit_at_most_once stdout ----
+
+thread 'view::wheel::tests::pixel_application_events_accumulate_reverse_and_emit_at_most_once' (48444) panicked at crates\tterm-terminal-view\src\view\wheel\tests.rs:107:9:
+assertion `left == right` failed
+  left: [27, 91, 60, 54, 53, 59, 49, 59, 49, 77]
+ right: [27, 91, 60, 54, 52, 59, 49, 59, 49, 77]
+
+---- view::wheel::tests::pixel_events_scroll_history_in_both_directions stdout ----
+
+thread 'view::wheel::tests::pixel_events_scroll_history_in_both_directions' (47620) panicked at crates\tterm-terminal-view\src\view\wheel\tests.rs:80:5:
+assertion `left == right` failed
+  left: 0
+ right: 3
+
+
+failures:
+    view::wheel::tests::line_notches_report_one_sgr_button_in_each_direction
+    view::wheel::tests::line_notches_scroll_history_by_fifty_pixels
+    view::wheel::tests::line_notches_send_one_alternate_arrow_in_each_direction
+    view::wheel::tests::pixel_application_events_accumulate_reverse_and_emit_at_most_once
+    view::wheel::tests::pixel_events_scroll_history_in_both_directions
+
+test result: FAILED. 0 passed; 5 failed; 0 ignored; 0 measured; 129 filtered out; finished in 0.10s
+
+error: test failed, to rerun pass `-p tterm-terminal-view --lib`
+exit=101

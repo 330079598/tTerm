@@ -20,7 +20,7 @@ fn a_program_that_reports_the_mouse_gets_wheel_reports() {
     let modes = Modes::MOUSE_REPORT_CLICK;
     assert_eq!(
         wheel_action(modes, false, wheel(2, 0)),
-        WheelAction::Report(vec![MouseButton::WheelUp, MouseButton::WheelUp])
+        WheelAction::Report(vec![MouseButton::WheelUp])
     );
     assert_eq!(
         wheel_action(modes, false, wheel(-1, 0)),
@@ -42,11 +42,7 @@ fn shift_still_reports_when_the_program_takes_the_mouse() {
     // enabled a mouse mode receives Shift+wheel too.
     assert_eq!(
         wheel_action(Modes::MOUSE_REPORT_CLICK, true, wheel(3, 0)),
-        WheelAction::Report(vec![
-            MouseButton::WheelUp,
-            MouseButton::WheelUp,
-            MouseButton::WheelUp
-        ])
+        WheelAction::Report(vec![MouseButton::WheelUp])
     );
 }
 
@@ -66,7 +62,7 @@ fn alternate_screen_scroll_sends_arrows() {
     let modes = Modes::ALT_SCREEN.union(Modes::ALTERNATE_SCROLL);
     assert_eq!(
         wheel_action(modes, false, wheel(2, 0)),
-        WheelAction::Alternate(vec![AlternateArrow::Up, AlternateArrow::Up])
+        WheelAction::Alternate(vec![AlternateArrow::Up])
     );
     assert_eq!(
         wheel_action(modes, false, wheel(-1, 0)),

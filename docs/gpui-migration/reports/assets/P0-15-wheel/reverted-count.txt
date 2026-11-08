@@ -1,0 +1,140 @@
+   Compiling tterm-terminal-view v0.1.0 (D:\code\rust\tTerm-P0-15-wheel\crates\tterm-terminal-view)
+   Compiling tterm-gpui v0.1.0 (D:\code\rust\tTerm-P0-15-wheel\crates\tterm-gpui)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 5.51s
+     Running unittests src\lib.rs (target\debug\deps\t_term_lib-80c06ce39f42aeff.exe)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 835 filtered out; finished in 0.00s
+
+     Running unittests src\main.rs (target\debug\deps\tTerm-ea1810428c0f924a.exe)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src\lib.rs (target\debug\deps\tterm_core-70983a2e34d5cc5f.exe)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src\lib.rs (target\debug\deps\tterm_gpui-3822ccf83fa22766.exe)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 12 filtered out; finished in 0.00s
+
+     Running unittests src\main.rs (target\debug\deps\tterm_gpui-4fea893e5f2c500f.exe)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src\lib.rs (target\debug\deps\tterm_parity-97f93cfea10454e0.exe)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 60 filtered out; finished in 0.00s
+
+     Running unittests src\main.rs (target\debug\deps\tterm_parity-bf4cd7a68322ce02.exe)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src\lib.rs (target\debug\deps\tterm_platform-c9d9f043d32fcbbb.exe)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src\lib.rs (target\debug\deps\tterm_terminal-8d370cafcecab024.exe)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 68 filtered out; finished in 0.00s
+
+     Running unittests src\lib.rs (target\debug\deps\tterm_terminal_view-d1920bb224052428.exe)
+
+running 13 tests
+test input::wheel::tests::a_plain_screen_scrolls_locally ... ok
+test input::mouse::tests::wheel_reports ... ok
+test input::wheel::tests::no_movement_does_nothing ... ok
+test input::wheel::tests::a_program_that_reports_the_mouse_gets_wheel_reports ... FAILED
+test input::wheel::tests::alternate_screen_scroll_sends_arrows ... FAILED
+test input::wheel::tests::shift_still_reports_when_the_program_takes_the_mouse ... FAILED
+test input::wheel::tests::shift_drops_alternate_scroll ... ok
+test view::pointer_tests::shift_wheel_keeps_the_existing_reporting_policy ... ok
+test view::wheel::tests::line_notches_report_one_sgr_button_in_each_direction ... FAILED
+test view::wheel::tests::line_notches_send_one_alternate_arrow_in_each_direction ... FAILED
+test view::wheel::tests::pixel_application_events_accumulate_reverse_and_emit_at_most_once ... FAILED
+test view::wheel::tests::line_notches_scroll_history_by_fifty_pixels ... FAILED
+test view::wheel::tests::pixel_events_scroll_history_in_both_directions ... ok
+
+failures:
+
+---- input::wheel::tests::a_program_that_reports_the_mouse_gets_wheel_reports stdout ----
+
+thread 'input::wheel::tests::a_program_that_reports_the_mouse_gets_wheel_reports' (36648) panicked at crates\tterm-terminal-view\src\input\wheel\tests.rs:21:5:
+assertion `left == right` failed
+  left: Report([WheelUp, WheelUp])
+ right: Report([WheelUp])
+
+---- input::wheel::tests::alternate_screen_scroll_sends_arrows stdout ----
+
+thread 'input::wheel::tests::alternate_screen_scroll_sends_arrows' (28484) panicked at crates\tterm-terminal-view\src\input\wheel\tests.rs:63:5:
+assertion `left == right` failed
+  left: Alternate([Up, Up])
+ right: Alternate([Up])
+
+---- input::wheel::tests::shift_still_reports_when_the_program_takes_the_mouse stdout ----
+
+thread 'input::wheel::tests::shift_still_reports_when_the_program_takes_the_mouse' (42164) panicked at crates\tterm-terminal-view\src\input\wheel\tests.rs:43:5:
+assertion `left == right` failed
+  left: Report([WheelUp, WheelUp, WheelUp])
+ right: Report([WheelUp])
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+---- view::wheel::tests::line_notches_report_one_sgr_button_in_each_direction stdout ----
+
+thread 'view::wheel::tests::line_notches_report_one_sgr_button_in_each_direction' (15092) panicked at crates\tterm-terminal-view\src\view\wheel\tests.rs:37:5:
+assertion `left == right` failed
+  left: [27, 91, 60, 54, 52, 59, 49, 59, 49, 77, 27, 91, 60, 54, 52, 59, 49, 59, 49, 77, 27, 91, 60, 54, 52, 59, 49, 59, 49, 77]
+ right: [27, 91, 60, 54, 52, 59, 49, 59, 49, 77]
+
+---- view::wheel::tests::line_notches_send_one_alternate_arrow_in_each_direction stdout ----
+
+thread 'view::wheel::tests::line_notches_send_one_alternate_arrow_in_each_direction' (16008) panicked at crates\tterm-terminal-view\src\view\wheel\tests.rs:48:5:
+assertion `left == right` failed
+  left: [27, 79, 65, 27, 79, 65, 27, 79, 65]
+ right: [27, 79, 65]
+
+---- view::wheel::tests::pixel_application_events_accumulate_reverse_and_emit_at_most_once stdout ----
+
+thread 'view::wheel::tests::pixel_application_events_accumulate_reverse_and_emit_at_most_once' (8576) panicked at crates\tterm-terminal-view\src\view\wheel\tests.rs:117:9:
+assertion `left == right` failed: a large event still emits once
+  left: [27, 91, 60, 54, 52, 59, 49, 59, 49, 77, 27, 91, 60, 54, 52, 59, 49, 59, 49, 77, 27, 91, 60, 54, 52, 59, 49, 59, 49, 77]
+ right: [27, 91, 60, 54, 52, 59, 49, 59, 49, 77]
+
+---- view::wheel::tests::line_notches_scroll_history_by_fifty_pixels stdout ----
+
+thread 'view::wheel::tests::line_notches_scroll_history_by_fifty_pixels' (36488) panicked at crates\tterm-terminal-view\src\view\wheel\tests.rs:61:9:
+assertion `left == right` failed
+  left: 3
+ right: 2
+
+
+failures:
+    input::wheel::tests::a_program_that_reports_the_mouse_gets_wheel_reports
+    input::wheel::tests::alternate_screen_scroll_sends_arrows
+    input::wheel::tests::shift_still_reports_when_the_program_takes_the_mouse
+    view::wheel::tests::line_notches_report_one_sgr_button_in_each_direction
+    view::wheel::tests::line_notches_scroll_history_by_fifty_pixels
+    view::wheel::tests::line_notches_send_one_alternate_arrow_in_each_direction
+    view::wheel::tests::pixel_application_events_accumulate_reverse_and_emit_at_most_once
+
+test result: FAILED. 6 passed; 7 failed; 0 ignored; 0 measured; 121 filtered out; finished in 0.05s
+
+error: test failed, to rerun pass `-p tterm-terminal-view --lib`
+exit=101
