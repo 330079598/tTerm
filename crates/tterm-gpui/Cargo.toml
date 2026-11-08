@@ -6,6 +6,11 @@ description = "The GPUI client of tTerm; for now the P0-14 local PTY prototype"
 license = "MIT"
 publish = false
 
+[features]
+# The automation endpoint is intentionally opt-in. Its source is also gated
+# by `debug_assertions`, so a release build cannot contain the endpoint.
+automation = ["gpui-kit/test-support", "dep:image"]
+
 [lints]
 workspace = true
 
@@ -21,6 +26,7 @@ tterm-terminal = { path = "../tterm-terminal" }
 # P1-12 replaces the direct portable-pty use with AppServices.
 portable-pty = "0.9"
 async-channel = "2"
+image = { version = "=0.25.10", default-features = false, features = ["png"], optional = true }
 
 [dev-dependencies]
 # `test-support` gives the terminal_view example `Window::render_to_image` for
@@ -31,4 +37,4 @@ gpui-kit = { workspace = true, features = ["test-support", "profiler"] }
 [target.'cfg(windows)'.dependencies]
 # Loads the bundled conpty.dll by full path; the version is the one pins.md
 # fixes for tTerm and gpui-pre.
-windows = { version = "0.62.2", features = ["Win32_System_LibraryLoader"] }
+windows = { version = "0.62.2", features = ["Win32_System_LibraryLoader", "Win32_Security_Cryptography"] }

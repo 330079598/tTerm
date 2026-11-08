@@ -64,15 +64,46 @@ fn open_window(cx: &mut App, command: CommandSpec) -> Result<(), String> {
             window.focus(&focus, cx);
             window.activate_window();
         })
-        .map_err(|error| error.to_string())
+        .map_err(|error| error.to_string())?;
+
+    #[cfg(all(feature = "automation", debug_assertions))]
+    super::automation::start(handle, prototype, cx);
+    Ok(())
 }
 
 /// The window's root view: the terminal and the session that feeds it.
-struct Prototype {
+pub(super) struct Prototype {
     view: Entity<TerminalView>,
     session: Option<Session>,
     /// The latest title the program set, which the next render shows.
     title: Arc<Mutex<Option<String>>>,
+    #[cfg(all(feature = "automation", debug_assertions))]
+    automation_toggled: bool,
+}
+
+#[cfg(all(feature = "automation", debug_assertions))]
+impl Prototype {
+    pub(super) fn automation_state(&self) -> String {
+        let title = if self.automation_toggled {
+            "tTerm GPUI Automation"
+        } else {
+            DEFAULT_TITLE
+        };
+        format!("title={title}")
+    }
+
+    pub(super) fn automation_toggle_title(&mut self, cx: &mut Context<Self>) {
+        self.automation_toggled = !self.automation_toggled;
+        let next = if self.automation_toggled {
+            "tTerm GPUI Automation"
+        } else {
+            DEFAULT_TITLE
+        };
+        if let Ok(mut title) = self.title.lock() {
+            *title = Some(next.to_string());
+        }
+        cx.notify();
+    }
 }
 
 impl Prototype {
@@ -106,6 +137,8 @@ impl Prototype {
                     view,
                     session: None,
                     title,
+                    #[cfg(all(feature = "automation", debug_assertions))]
+                    automation_toggled: false,
                 };
             }
         };
@@ -134,6 +167,8 @@ impl Prototype {
             view,
             session: Some(session),
             title,
+            #[cfg(all(feature = "automation", debug_assertions))]
+            automation_toggled: false,
         }
     }
 }
