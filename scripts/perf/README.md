@@ -54,7 +54,7 @@ Tauri 使用 WebView 开发者工具 Performance 录制，可用 CDP `Tracing.st
 
 `node scripts/perf/frames.mjs target/perf docs/gpui-migration/baseline/windows-frames.csv` 从 trace 提取以上指标，同时输出带源 trace SHA256 的原始帧事件子集（`.frames.json`）。完整 trace 保留在本机 target/perf，可导入开发者工具；提交的子集用于复算数字，不宣称可替代完整性能剖析。进程资源数字由 summarize.mjs 复算。
 
-`node scripts/perf/archive.mjs target/perf docs/gpui-migration/baseline/windows-raw` 归档资源 JSON、会话条件、原始帧事件子集与截图。资源和帧事件以 gzip 保存；解压到临时目录后可分别用 summarize.mjs 复算资源 CSV，或从帧事件的 ts 差复算帧 CSV。完整 trace 文件较大，仅在本机 target/perf 保留，子集包含其 SHA256。不要把无效预跑目录 preliminary 混入最终归档。
+`node scripts/perf/archive.mjs target/perf docs/gpui-migration/baseline/windows-raw` 归档资源 JSON、会话条件、原始帧事件子集与截图。资源和帧事件以 gzip 保存；解压到临时目录后可分别用 summarize.mjs 复算资源 CSV，或用 frames.mjs 从帧事件复算帧 CSV。完整 trace 文件较大，仅在本机 target/perf 保留，子集包含其 SHA256。不要把无效预跑目录 preliminary 混入最终归档。
 
 P0-21 原生端需在相同合成绘制阶段打点，用连续合成帧时间戳差、同样窗口和采样区间比较；GPUI 内部单帧绘制耗时另列，不与帧间隔混用。若无法提供同阶段打点，必须标口径不等价，不能直接作性能提升结论。固定 60 Hz 的门槛只是参照值；高刷新率机器要记录实际刷新率，比较仍用完全相同条件。前后台切换、窗口遮挡、trace 丢包会破坏样本，需记录或重跑。
 

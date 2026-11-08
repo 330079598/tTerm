@@ -13,7 +13,9 @@ for (const file of files) {
   } else if (
     /^run[12]-.+(active\.png|\.collector\.txt)$/.test(file) ||
     /^(conditions-run[12]|isolation-run[12]|display)\.json$/.test(file) ||
-    /^(binary-hash|final-run[12])\.txt$/.test(file) ||
+    /^(binary-hash|final-run[12]|final-run2-tail|cleanup|second-round-counter-error)\.txt$/.test(
+      file
+    ) ||
     /^check-.+\.txt$/.test(file)
   ) {
     await fs.copyFile(path.join(raw, file), path.join(destination, file))
