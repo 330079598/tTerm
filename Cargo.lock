@@ -10993,6 +10993,7 @@ version = "0.1.0"
 dependencies = [
  "async-channel",
  "gpui-kit",
+ "image",
  "portable-pty",
  "tterm-terminal",
  "tterm-terminal-view",

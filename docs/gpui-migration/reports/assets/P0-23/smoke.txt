@@ -1,0 +1,19 @@
+prototype-pid: 25672
+tterm-gpui: local terminals use the ConPTY at D:\code\rust\tTerm-P0-23\target\debug\conpty.dll
+tterm-gpui automation listening on 127.0.0.1:8405
+tterm-gpui automation token file: C:\Users\stone\AppData\Local\com.stone.tTerm.gpui-dev\automation-30998c4ebe99a1ba.token
+C:\Users\stone\AppData\Local\com.stone.tTerm.gpui-dev\automation-30998c4ebe99a1ba.token NT AUTHORITY\SYSTEM:(I)(F)
+                                                                                        BUILTIN\Administrators:(I)(F)
+                                                                                        home-pc\stone:(I)(F)
+
+Successfully processed 1 files; Failed processing 0 files
+window_id=WindowId(1v1)
+focused=true
+active=true
+root=tterm_gpui::terminal_demo::window::Prototype
+
+state-before: title=tTerm GPUI Dev
+state-after: title=tTerm P0-23 OSC title
+screenshot: docs\gpui-migration\reports\assets\P0-23\osc-title.png (33828 bytes)
+token-cleanup: removed by prototype
+prototype-cleanup: exited (0)

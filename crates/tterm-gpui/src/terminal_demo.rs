@@ -14,6 +14,9 @@ mod pipeline;
 mod session;
 mod window;
 
+#[cfg(all(feature = "automation", debug_assertions))]
+mod automation;
+
 #[cfg(test)]
 mod tests;
 
