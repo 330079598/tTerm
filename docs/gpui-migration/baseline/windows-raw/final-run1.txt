@@ -1,0 +1,7 @@
+run1 cat complete; tabs=1
+run1 yes complete; tabs=1
+run1 vim complete; tabs=1
+run1 tmux complete; tabs=1
+run1 idle-1 complete; tabs=1
+run1 idle-10 complete; tabs=10
+run1 idle-30 complete; tabs=30

@@ -1,0 +1,4 @@
+run2 tmux complete; tabs=1
+run2 idle-1 complete; tabs=1
+run2 idle-10 complete; tabs=10
+run2 idle-30 complete; tabs=30

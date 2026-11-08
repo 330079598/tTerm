@@ -1,0 +1,1 @@
+Captured 14 samples: vim -> D:\code\rust\tTerm-P0-01\target\perf\run1-vim.json
