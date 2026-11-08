@@ -63,3 +63,6 @@ impl TerminalView {
         }
     }
 }
+
+#[cfg(test)]
+mod tests;
