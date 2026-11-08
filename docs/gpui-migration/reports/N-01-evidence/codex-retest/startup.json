@@ -1,0 +1,37 @@
+{
+  "id": 1,
+  "result": {
+    "result": {
+      "type": "object",
+      "value": {
+        "profiles": [],
+        "tabs": [
+          {
+            "title": "stone",
+            "type": "terminal",
+            "isModified": false,
+            "connection": {
+              "type": "terminal",
+              "cwd": "C:\\Users\\stone",
+              "terminalShell": "auto"
+            },
+            "shellName": "pwsh",
+            "autoTitle": true,
+            "sessionNonce": 0,
+            "connectionHeaderPinned": true,
+            "id": "tab-1",
+            "isActive": true,
+            "hasConnected": true
+          }
+        ],
+        "integrations": [
+          {
+            "agent": "codex",
+            "state": "outdated",
+            "configPath": "C:\\Users\\stone\\.codex\\hooks.json"
+          }
+        ]
+      }
+    }
+  }
+}

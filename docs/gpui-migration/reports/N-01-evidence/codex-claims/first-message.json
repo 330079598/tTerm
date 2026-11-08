@@ -1,0 +1,72 @@
+{
+  "id": 1,
+  "result": {
+    "result": {
+      "type": "object",
+      "value": {
+        "tabs": [
+          {
+            "id": "tab-301",
+            "title": "N01 Codex claims",
+            "type": "terminal",
+            "isActive": true,
+            "hasConnected": true,
+            "isModified": false,
+            "sessionNonce": 0,
+            "connection": {
+              "type": "terminal",
+              "terminalShell": "pwsh",
+              "cwd": "C:\\Users\\stone\\AppData\\Local\\Temp\\tterm-n01-claims-20261108-154857\\空格 中文",
+              "agentResume": {
+                "agent": "codex",
+                "sessionId": "01a1b88a-1cea-7212-a8e8-892cd6b098e5",
+                "cwd": "C:\\Users\\stone\\AppData\\Local\\Temp\\tterm-n01-claims-20261108-154857\\空格 中文"
+              }
+            },
+            "connectionHeaderPinned": true
+          }
+        ],
+        "screen": "  To get started, describe a task or try one of these commands:\n \n  /init - create an AGENTS.md file with instructions for Codex\n  /status - show current session configuration\n  /permissions - choose what Codex is allowed to do\n  /model - choose what model and reasoning effort to use\n  /review - review any changes and find issues\n \n \n› reply with OK N01 unambiguous\n \n \n• Hook failed\n  └ hook exited with code 1\n \n• Hook failed\n  └ hook exited with code 1\n \n• OK N01 unambiguous\n \n• Hook failed\n  └ hook exited with code 1\n \n  Worked for 5s • 15:51                                                                        \n \n \n› Ask Codex to do anything\n \n  GPT-6.1 Sol · sunline-gpt high · ~\\AppData\\Local\\Temp\\tterm-n01-claims-20261108-154857\\空格 …\n  ← for agents · ? for shortcuts                                      ⚠ 1 warning · f2 to view",
+        "saved": {
+          "tabs": [
+            {
+              "connection": {
+                "agentResume": {
+                  "agent": "codex",
+                  "cwd": "C:\\Users\\stone\\AppData\\Local\\Temp\\tterm-n01-claims-20261108-154857\\空格 中文",
+                  "sessionId": "01a1b88a-1cea-7212-a8e8-892cd6b098e5"
+                },
+                "cwd": "C:\\Users\\stone\\AppData\\Local\\Temp\\tterm-n01-claims-20261108-154857\\空格 中文",
+                "terminalShell": "pwsh",
+                "type": "terminal"
+              },
+              "connectionHeaderPinned": true,
+              "hasConnected": true,
+              "id": "tab-301",
+              "isActive": true,
+              "isModified": false,
+              "sessionNonce": 0,
+              "title": "N01 Codex claims",
+              "type": "terminal"
+            }
+          ],
+          "active_tab_id": "tab-301",
+          "layout": {
+            "groups": [
+              {
+                "activeTabId": "tab-301",
+                "root": {
+                  "tabId": "tab-301",
+                  "type": "pane"
+                }
+              }
+            ],
+            "version": 2
+          },
+          "schema_version": 1,
+          "last_saved": 1794124286467
+        }
+      }
+    }
+  }
+}

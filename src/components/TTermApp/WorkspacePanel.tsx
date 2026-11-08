@@ -140,6 +140,9 @@ export const WorkspacePanel = React.memo(function WorkspacePanel({
               onCwdChange={(cwd) =>
                 workspace.updateTab(tab.id, (current) => withLocalCwd(current, cwd))
               }
+              onAgentSessionChange={(session) =>
+                workspace.onTerminalAgentSessionChange?.(tab.id, session)
+              }
               onDistroChange={(distroId) =>
                 workspace.updateTab(tab.id, (current) => withLocalDistro(current, distroId))
               }

@@ -25,6 +25,7 @@ interface SessionRestoreOptions {
   saveSession: ReturnType<typeof useSessionPersistence>["saveSession"]
   /** Whether a restart shows each terminal tab's content from before. */
   restoreTerminalContent: boolean
+  resumeAgentSessions: boolean
   /** The shells local tabs start, read when the session is restored. */
   shellConfig: ShellConfig
   /** Opens the directories tTerm was asked to open; resolves to whether it opened any. */
@@ -37,8 +38,14 @@ interface SessionRestoreOptions {
  */
 export function useSessionRestore(shell: AppShell, options: SessionRestoreOptions) {
   const { tabs, groups, activeTabId, addTab, restoreSession } = shell
-  const { isLoaded, getPreloadedSession, saveSession, restoreTerminalContent, openLaunchDirs } =
-    options
+  const {
+    isLoaded,
+    getPreloadedSession,
+    saveSession,
+    restoreTerminalContent,
+    resumeAgentSessions,
+    openLaunchDirs,
+  } = options
   const [sessionRestored, setSessionRestored] = useState(false)
   // Read once, when the restore runs; a change to the shells must not restore again.
   const shellConfigRef = useRef(options.shellConfig)
@@ -74,6 +81,11 @@ export function useSessionRestore(shell: AppShell, options: SessionRestoreOption
                 }
               : tab
           )
+          if (!resumeAgentSessions) {
+            for (const tab of savedTabs) {
+              if (tab.connection) tab.connection.agentResume = undefined
+            }
+          }
           const restoredTabs = (await refreshSavedLocalTabs(savedTabs)).map(normalizeSavedSshTab)
           if (isTerminalContentRestoreEnabled()) {
             // Before the tabs' terminals are made, which show it as they open.
@@ -110,7 +122,7 @@ export function useSessionRestore(shell: AppShell, options: SessionRestoreOption
     return () => {
       cancelled = true
     }
-  }, [addTab, getPreloadedSession, isLoaded, openLaunchDirs, restoreSession])
+  }, [addTab, getPreloadedSession, isLoaded, openLaunchDirs, resumeAgentSessions, restoreSession])
 
   useEffect(() => {
     if (!sessionRestored) {

@@ -1,0 +1,35 @@
+pi --version
+1.5.0
+pi official shipped docs/cli.md
+
+- `-c`, `--continue`<br>
+  Continues the most recent session for the current directory.
+- `-r`, `--resume`<br>
+  Opens the session selector and resumes the chosen session in its working directory. Press Tab to include sessions from other directories.
+- `--session <path|id>`<br>
+  Opens a session by file path or full/partial ID, and resumes it in its working directory. If the ID only matches sessions stored for another directory, Pi offers to fork it into the current directory instead.
+- `--session-id <id>`<br>
+  Opens the current directory's existing session with the ID, or creates it otherwise. IDs accept letters, numbers, `.`, `_`, and `-`.
+- `--fork <path|id>`<br>
+opencode installed package metadata
+{
+  "name": "@opencode/cli",
+  "bin": {
+    "opencode": "./bin/opencode.exe",
+    "opencode2": "./bin/opencode.exe"
+  },
+  "scripts": {
+    "postinstall": "node ./postinstall.mjs"
+  },
+  "version": "2.2.6",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/anomalyco/opencode.git"
+  },
+  "os": [
+CLI versions verified previously; refreshed below
+2.1.319 (Claude Code)
+WARNING: failed to clean up stale arg0 temp dirs: Access is denied. (os error 5)
+WARNING: proceeding, even though we could not create PATH aliases: Access is denied. (os error 5) at path "C:\\Users\\stone\\.codex\\tmp\\arg0-windows\\codex-arg0IPnW1t"
+codex-cli 0.167.0

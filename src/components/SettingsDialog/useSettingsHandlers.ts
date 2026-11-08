@@ -47,6 +47,10 @@ export function useSettingsHandlers({
     await saveSettings({ restore_terminal_content: checked })
   }
 
+  const handleResumeAgentSessionsChange = async (checked: boolean) => {
+    await saveSettings({ resume_agent_sessions: checked })
+  }
+
   const handleZmodemAutoDetectEnabledChange = async (checked: boolean) => {
     await saveSettings({ zmodem_auto_detect_enabled: checked })
   }
@@ -148,6 +152,7 @@ export function useSettingsHandlers({
     handleClearSession,
     handleRestoreAllSessionConnectionsChange,
     handleRestoreTerminalContentChange,
+    handleResumeAgentSessionsChange,
     handleZmodemAutoDetectEnabledChange,
     handleZmodemDownloadDirectoryChange,
     handleBackgroundThrottlingChange,

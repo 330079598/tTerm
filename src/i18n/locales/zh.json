@@ -235,6 +235,8 @@
     "restoreAllSessionConnectionsDesc": "关闭后，启动时仅连接当前标签页，其他恢复的标签页在打开时再连接。",
     "restoreTerminalContent": "重启后恢复终端内容",
     "restoreTerminalContentDesc": "每个终端标签页会在新会话上方显示关闭 tTerm 前的内容。内容以明文保存在本机，可能包含终端里出现过的任何信息。",
+    "resumeAgentSessions": "重启后继续 AI 会话",
+    "resumeAgentSessionsDesc": "自动重新打开 tTerm 关闭时仍在运行的 Claude Code 和 Codex 会话。",
     "saveFailed": "保存设置失败",
     "languageChangeFailed": "保存语言设置失败。",
     "themeChangeFailed": "保存主题失败。",
@@ -1687,6 +1689,14 @@
     "savedConnectionOwnJumps": "它自己配置的跳板机在这里不会生效，请把它们作为前面的跳板机加进来。",
     "savedConnectionDeleted": "{{address}}（已删除）",
     "savedConnectionMissing": "这一跳使用的已保存连接已被删除，请另选一个或手动填写。"
+  },
+  "agentResume": {
+    "continue": "继续 AI 会话",
+    "timeout": "未检测到 shell 提示符。请确认此终端已就绪后再继续。",
+    "unknownShell": "当前 shell 未知，检测到实际 shell 前无法续接 AI 会话。",
+    "unavailable": "没有 shell 集成时无法自动续接。请确认此终端已就绪后手动继续。",
+    "unsafe": "保存的会话或目录无法在此 shell 中安全使用。",
+    "failed": "无法续接 AI 会话。请确认此终端已就绪后重试。"
   },
   "sessionHeader": {
     "shellIntegrationFallback": "{{connection}}：Shell 集成未生效，已使用普通 shell",

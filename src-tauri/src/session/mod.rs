@@ -6,6 +6,8 @@ use crate::db::meta;
 use rusqlite::Connection;
 use serde::{Deserialize, Serialize};
 
+#[cfg(test)]
+mod resume_compatibility_tests;
 pub(crate) mod scrollback;
 
 pub(crate) const SESSION_KEY: &str = "session";

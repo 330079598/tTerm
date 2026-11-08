@@ -39,16 +39,21 @@ pub fn run_helper_if_requested() -> Option<i32> {
         return Some(2);
     }
     // Read even when the id goes unused: the agent writes it to the hook.
-    let session = read_session();
-    report(&agent, &state, session.as_deref());
+    let metadata = read_metadata();
+    report(
+        &agent,
+        &state,
+        metadata.session.as_deref(),
+        metadata.cwd.as_deref(),
+    );
     // Like the hook on Unix, finding no console is not the hook's failure.
     Some(0)
 }
 
-fn report(agent: &str, state: &str, session: Option<&str>) {
+fn report(agent: &str, state: &str, session: Option<&str>, cwd: Option<&str>) {
     let processes = processes();
     let mut consoles = HashSet::new();
-    let own = format!("\x1b]777;tterm-agent;{agent};{state}\x07");
+    let own = report_sequence(agent, state, session, cwd, false);
     let exe = format!("{agent}.exe");
     let mut seen = HashSet::new();
     let mut pid = processes.get(&std::process::id()).map(|process| process.0);
@@ -70,11 +75,34 @@ fn report(agent: &str, state: &str, session: Option<&str>) {
     let Some(session) = session else {
         return;
     };
-    let addressed = format!("\x1b]777;tterm-agent;{agent};{state};{session}\x07");
+    let addressed = report_sequence(agent, state, Some(session), cwd, true);
     for (pid, (_, name)) in &processes {
         if name.eq_ignore_ascii_case(&exe) {
             write_to_console(*pid, &addressed, &mut consoles);
         }
+    }
+}
+
+/// Scope distinguishes a report from this console from the shared server's fanout.
+fn report_sequence(
+    agent: &str,
+    state: &str,
+    session: Option<&str>,
+    cwd: Option<&str>,
+    broadcast: bool,
+) -> String {
+    let scope = if broadcast { "broadcast" } else { "direct" };
+    let cwd = cwd
+        .map(|cwd| {
+            percent_encoding::utf8_percent_encode(cwd, percent_encoding::NON_ALPHANUMERIC)
+                .to_string()
+        })
+        .unwrap_or_default();
+    match session {
+        Some(session) => {
+            format!("\x1b]777;tterm-agent;{agent};{state};{session};{scope};{cwd}\x07")
+        }
+        None => format!("\x1b]777;tterm-agent;{agent};{state}\x07"),
     }
 }
 
@@ -121,21 +149,46 @@ fn processes() -> HashMap<u32, (u32, String)> {
     processes
 }
 
-/// The `session_id` of the JSON the agent writes to the hook's input.
-fn read_session() -> Option<String> {
+#[derive(Default)]
+struct HookMetadata {
+    session: Option<String>,
+    cwd: Option<String>,
+}
+
+fn read_metadata() -> HookMetadata {
     let mut input = Vec::new();
-    std::io::stdin()
+    if std::io::stdin()
         .take(MAX_INPUT_BYTES)
         .read_to_end(&mut input)
-        .ok()?;
-    let value: serde_json::Value = serde_json::from_slice(&input).ok()?;
-    let session = value.get("session_id")?.as_str()?;
-    let valid = !session.is_empty()
-        && session.len() <= 64
-        && session
-            .chars()
-            .all(|c| c.is_ascii_alphanumeric() || c == '-');
-    valid.then(|| session.to_string())
+        .is_err()
+    {
+        return HookMetadata::default();
+    }
+    parse_metadata(&input)
+}
+
+/// Never interpolate raw JSON into an OSC; validate then encode its directory.
+fn parse_metadata(input: &[u8]) -> HookMetadata {
+    let Ok(value) = serde_json::from_slice::<serde_json::Value>(input) else {
+        return HookMetadata::default();
+    };
+    let session = value
+        .get("session_id")
+        .and_then(|value| value.as_str())
+        .filter(|session| {
+            !session.is_empty()
+                && session.len() <= 64
+                && session
+                    .bytes()
+                    .all(|c| c.is_ascii_alphanumeric() || c == b'-')
+        })
+        .map(str::to_string);
+    let cwd = value
+        .get("cwd")
+        .and_then(|value| value.as_str())
+        .filter(|cwd| !cwd.is_empty() && cwd.len() <= 16384 && !cwd.chars().any(char::is_control))
+        .map(str::to_string);
+    HookMetadata { session, cwd }
 }
 
 /// What may go into the report: the frontend reads only these.
@@ -159,6 +212,55 @@ mod tests {
         assert!(!is_name("Codex", 32));
         assert!(!is_name("done\x07\x1b]0;x", 16));
         assert!(!is_name("processing-and-more", 16));
+    }
+
+    #[test]
+    fn both_agents_report_their_session_to_their_own_console() {
+        for agent in ["claude", "codex"] {
+            assert_eq!(
+                report_sequence(agent, "processing", Some("abc-123"), None, false),
+                format!("\x1b]777;tterm-agent;{agent};processing;abc-123;direct;\x07")
+            );
+        }
+        assert_eq!(
+            report_sequence("codex", "done", Some("abc-123"), None, true),
+            "\x1b]777;tterm-agent;codex;done;abc-123;broadcast;\x07"
+        );
+        assert_eq!(
+            report_sequence("claude", "done", None, None, false),
+            "\x1b]777;tterm-agent;claude;done\x07"
+        );
+    }
+
+    #[test]
+    fn hook_json_cwd_is_validated_and_encoded_with_session() {
+        let metadata = parse_metadata(br#"{"session_id":"abc-123","cwd":"C:\\work dir;name"}"#);
+        assert_eq!(metadata.session.as_deref(), Some("abc-123"));
+        assert_eq!(
+            report_sequence(
+                "claude",
+                "done",
+                metadata.session.as_deref(),
+                metadata.cwd.as_deref(),
+                false
+            ),
+            "\x1b]777;tterm-agent;claude;done;abc-123;direct;C%3A%5Cwork%20dir%3Bname\x07"
+        );
+        for cwd in [
+            "/bad\nline",
+            "/bad\rline",
+            "/bad\tline",
+            "/bad\0line",
+            "/bad\u{1b}line",
+            "/bad\u{85}line",
+        ] {
+            let input = serde_json::json!({"session_id":"abc-123", "cwd":cwd});
+            assert!(parse_metadata(input.to_string().as_bytes()).cwd.is_none());
+        }
+        assert!(parse_metadata(br#"{"session_id":"abc; rm -rf ~"}"#)
+            .session
+            .is_none());
+        assert!(parse_metadata(b"{").session.is_none());
     }
 
     #[test]

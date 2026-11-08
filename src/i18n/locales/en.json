@@ -244,6 +244,8 @@
     "restoreAllSessionConnectionsDesc": "When off, only the active tab connects at startup. Other restored tabs connect when opened.",
     "restoreTerminalContent": "Restore terminal content after a restart",
     "restoreTerminalContentDesc": "Each terminal tab shows what it showed before tTerm was closed, above its new session. The content is saved on this computer as plain text, so it can hold anything the terminals printed.",
+    "resumeAgentSessions": "Resume AI sessions after a restart",
+    "resumeAgentSessionsDesc": "Automatically reopen Claude Code and Codex sessions that were running when tTerm closed.",
     "saveFailed": "Failed to save settings",
     "languageChangeFailed": "Failed to save language setting.",
     "themeChangeFailed": "Failed to save theme.",
@@ -1705,6 +1707,14 @@
     "savedConnectionOwnJumps": "Its own jump hosts aren't used here; add them as hops before this one.",
     "savedConnectionDeleted": "{{address}} (deleted)",
     "savedConnectionMissing": "The saved connection this hop used was deleted. Choose another one or enter the jump host manually."
+  },
+  "agentResume": {
+    "continue": "Continue AI session",
+    "timeout": "No shell prompt was detected. Check this terminal is ready before continuing.",
+    "unknownShell": "The current shell is unknown. AI session resume is unavailable until its shell is detected.",
+    "unavailable": "Automatic resume is unavailable without shell integration. Check this terminal is ready, then continue manually.",
+    "unsafe": "The saved session or directory cannot be used safely with this shell.",
+    "failed": "The AI session could not be resumed. Check this terminal is ready before trying again."
   },
   "sessionHeader": {
     "shellIntegrationFallback": "{{connection}}: shell integration did not start, using a plain shell",
