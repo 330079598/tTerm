@@ -22,6 +22,21 @@ const hookSource = `(() => {
   window.__P004_LATENCY__ = latency;
   window.__P004_TERM_DIAGNOSTICS__ = { fibers: 0, refs: 0, terminals: 0, errors: [] };
   window.__P004_COMMITS__ = commits;
+  window.__P004_RESET_LATENCY__ = () => {
+    latency.length = 0;
+    for (const state of terminals) state.seen.clear();
+  };
+  window.__P004_READ_TERMINALS__ = () => terminals.map((state, terminalIndex) => {
+    const active = state.term.buffer?.active;
+    const lines = [];
+    if (active) {
+      const start = Math.max(0, active.length - 20);
+      for (let index = start; index < active.length; index += 1) {
+        lines.push(active.getLine(index)?.translateToString(true) ?? "");
+      }
+    }
+    return { terminalIndex, lines };
+  });
   const nameOf = (fiber) => {
     const value = fiber.elementType || fiber.type;
     if (typeof value === "string") return null;
@@ -138,6 +153,21 @@ async function input(text) {
   }
 }
 
+async function writeLocalPty(text) {
+  return page.evaluate(async (data) => {
+    const invoke = window.__TAURI__?.core?.invoke
+    if (typeof invoke !== "function") throw new Error("Tauri invoke is unavailable")
+    const session = await invoke("load_session")
+    const tab = session?.tabs?.find((candidate) => candidate?.connection?.type === "terminal")
+    if (!tab?.id) throw new Error("no local terminal tab in load_session")
+    return invoke("write_pty", {
+      tabId: tab.id,
+      sessionNonce: tab.sessionNonce ?? 0,
+      data,
+    })
+  }, `${text}\r`)
+}
+
 async function action(name, fn, wait = 1200) {
   await setScenario(name)
   const started = Date.now()
@@ -186,7 +216,15 @@ actions.push(
   await action(
     "split-drag",
     async () => {
-      await page.keyboard.press("Control+\\")
+      const buttons = await page
+        .locator(".pane-header-action")
+        .evaluateAll((items) =>
+          items.map((item) => ({ label: item.getAttribute("aria-label"), text: item.textContent }))
+        )
+      const splitButton = page.getByRole("button", { name: /split right/i }).first()
+      if ((await splitButton.count()) === 0)
+        throw new Error(`no pane split button: ${JSON.stringify(buttons)}`)
+      await splitButton.click()
       await page.locator(".workspace-sash").first().waitFor({ timeout: 5000 })
       const handle = page.locator(".workspace-sash").first()
       const box = await handle.boundingBox()
@@ -251,6 +289,7 @@ const react = await page.evaluate(() => ({
 
 async function timestamped(lines, name) {
   await setScenario(name)
+  await page.evaluate(() => window.__P004_RESET_LATENCY__?.())
   await page.keyboard.press("Escape").catch(() => {})
   await page.locator(".terminal-tab-shell.is-active .xterm-helper-textarea").focus()
   await page
@@ -261,33 +300,46 @@ async function timestamped(lines, name) {
     .click({ timeout: 3000 })
     .catch(() => {})
   await page.locator(".terminal-tab-shell.is-active .xterm-helper-textarea").focus()
-  const command = `$i=0; 1..${lines} | ForEach-Object { $i++; Write-Output ('P004LAT|' + [DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds() + '|' + $i) }`
+  const command =
+    lines === 20
+      ? `1..${lines} | ForEach-Object { Write-Output ('P004LAT|' + [DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds() + '|' + $_); Start-Sleep -Milliseconds 50 }`
+      : `1..${lines} | ForEach-Object { Write-Output ('P004LAT|' + [DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds() + '|' + $_) }`
   const started = Date.now()
-  await input(command)
-  const samples = []
-  const deadline = Date.now() + Math.max(8000, lines * 25)
-  let lastText = ""
-  while (Date.now() < deadline && samples.length < lines) {
-    const text = await page
-      .locator(".terminal-tab-shell.is-active .xterm-rows")
-      .innerText()
-      .catch(() => "")
-    if (text !== lastText) {
-      lastText = text
-      for (const match of text.matchAll(/P004LAT\|(\d{13})\|(\d+)/g)) {
-        const stamp = Number(match[1])
-        if (!samples.some((item) => item.sequence === Number(match[2])))
-          samples.push({ sequence: Number(match[2]), latencyMs: Date.now() - stamp })
-      }
-    }
-    await sleep(25)
+  let inputError = null
+  try {
+    await writeLocalPty(command)
+  } catch (error) {
+    inputError = String(error)
+    await input(command)
   }
-  return { name, lines, started, finished: Date.now(), parsedSamples: samples }
+  await sleep(2000)
+  const screenshot = path.join(output, `${name}-after-input.png`)
+  await page.screenshot({ path: screenshot })
+  const buffer = await page.evaluate(() => window.__P004_READ_TERMINALS__?.() ?? [])
+  const deadline = Date.now() + Math.max(12000, lines * 80)
+  let count = 0
+  while (Date.now() < deadline) {
+    count = await page.evaluate(() => window.__P004_LATENCY__?.length ?? 0)
+    if (count >= lines) break
+    await sleep(50)
+  }
+  const parsedSamples = await page.evaluate(() => window.__P004_LATENCY__ ?? [])
+  return {
+    name,
+    lines,
+    started,
+    finished: Date.now(),
+    inputError,
+    screenshot,
+    buffer,
+    parsedSamples,
+  }
 }
 
 const latencyCommands = [
   await timestamped(20, "latency-small"),
-  await timestamped(2000, "latency-sustained"),
+  await timestamped(2000, "latency-2000"),
+  await timestamped(20000, "latency-20000"),
 ]
 const parsedLatency = await page.evaluate(() => ({
   samples: window.__P004_LATENCY__ ?? [],
