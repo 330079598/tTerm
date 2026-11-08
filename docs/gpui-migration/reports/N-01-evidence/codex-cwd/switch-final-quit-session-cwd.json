@@ -1,0 +1,15 @@
+{
+  "record": {
+    "agent": "codex",
+    "cwd": "C:\\Users\\stone\\AppData\\Local\\Temp\\tterm-n01-cwd-20261108-162245\\空格 中文",
+    "sessionId": "01a1ba44-3235-7cb3-8005-fda0cc183f3f"
+  },
+  "testCwd": "C:\\Users\\stone\\AppData\\Local\\Temp\\tterm-n01-cwd-20261108-162245\\空格 中文",
+  "matches": [
+    {
+      "path": "C:\\Users\\stone\\.codex\\sessions\\2026\\11\\08\\rollout-2026-11-08T16-26-33-01a1ba44-3235-7cb3-8005-fda0cc183f3f.jsonl",
+      "id": "01a1ba44-3235-7cb3-8005-fda0cc183f3f",
+      "cwd": "C:\\Users\\stone\\AppData\\Local\\Temp\\tterm-n01-cwd-20261108-162245\\空格 中文"
+    }
+  ]
+}
