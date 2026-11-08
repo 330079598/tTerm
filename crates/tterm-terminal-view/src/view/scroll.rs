@@ -21,8 +21,8 @@ impl ScrollAccumulator {
             return 0;
         }
         let pixels = match delta {
-            ScrollDelta::Pixels(point) => -point.y.as_f32(),
-            ScrollDelta::Lines(point) => -point.y * cell_height,
+            ScrollDelta::Pixels(point) => point.y.as_f32(),
+            ScrollDelta::Lines(point) => point.y * cell_height,
         };
         if !pixels.is_finite() {
             return 0;
@@ -60,11 +60,11 @@ mod tests {
     fn a_line_event_moves_one_line_up() {
         let mut accumulator = ScrollAccumulator::default();
         assert_eq!(
-            accumulator.lines(ScrollDelta::Lines(point(0.0, -1.0)), 20.0),
+            accumulator.lines(ScrollDelta::Lines(point(0.0, 1.0)), 20.0),
             1
         );
         assert_eq!(
-            accumulator.lines(ScrollDelta::Lines(point(0.0, 1.0)), 20.0),
+            accumulator.lines(ScrollDelta::Lines(point(0.0, -1.0)), 20.0),
             -1
         );
     }
@@ -72,7 +72,7 @@ mod tests {
     #[test]
     fn pixel_fractions_accumulate() {
         let mut accumulator = ScrollAccumulator::default();
-        let delta = || ScrollDelta::Pixels(point(px(0.0), px(-8.0)));
+        let delta = || ScrollDelta::Pixels(point(px(0.0), px(8.0)));
         assert_eq!(accumulator.lines(delta(), 20.0), 0);
         assert_eq!(accumulator.lines(delta(), 20.0), 0);
         assert_eq!(accumulator.lines(delta(), 20.0), 1);
@@ -82,9 +82,9 @@ mod tests {
     #[test]
     fn reversing_drops_the_remainder() {
         let mut accumulator = ScrollAccumulator::default();
-        accumulator.lines(ScrollDelta::Pixels(point(px(0.0), px(-8.0))), 20.0);
+        accumulator.lines(ScrollDelta::Pixels(point(px(0.0), px(8.0))), 20.0);
         assert_eq!(
-            accumulator.lines(ScrollDelta::Pixels(point(px(0.0), px(8.0))), 20.0),
+            accumulator.lines(ScrollDelta::Pixels(point(px(0.0), px(-8.0))), 20.0),
             0
         );
         assert!(accumulator.remainder() < 0.0);
@@ -96,7 +96,7 @@ mod tests {
     fn a_zero_height_does_not_divide_by_zero() {
         let mut accumulator = ScrollAccumulator::default();
         assert_eq!(
-            accumulator.lines(ScrollDelta::Pixels(point(px(0.0), px(-8.0))), 0.0),
+            accumulator.lines(ScrollDelta::Pixels(point(px(0.0), px(8.0))), 0.0),
             0
         );
     }
@@ -106,8 +106,8 @@ mod tests {
         let mut accumulator = ScrollAccumulator::default();
         assert_eq!(
             accumulator.lines(ScrollDelta::Pixels(point(px(0.0), px(-30.0))), 20.0),
-            1
+            -1
         );
-        assert!((accumulator.remainder() - 10.0).abs() < 1e-4);
+        assert!((accumulator.remainder() + 10.0).abs() < 1e-4);
     }
 }

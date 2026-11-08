@@ -248,7 +248,7 @@ fn shift_wheel_keeps_the_existing_reporting_policy(cx: &mut TestAppContext) {
         cx,
         gpui_kit::ScrollEvent {
             position,
-            delta: gpui_kit::ScrollDelta::Lines(point(0., -1.)),
+            delta: gpui_kit::ScrollDelta::Lines(point(0., 1.)),
             modifiers: Modifiers {
                 shift: true,
                 ..Default::default()
