@@ -32,10 +32,12 @@ export function watchAttentionReports(
     term.parser.registerOscHandler(osc, (data) => {
       const report = osc === 777 ? parseAgentReport(data) : null
       if (report) {
-        agentTracker.report(report)
-        const session = agentTracker.resumeSession(report)
-        if (session) onAgentSession(session)
-        else if (report.state === "ended" || report.state === "idle") onAgentSession(null)
+        const accepted = agentTracker.report(report)
+        if (accepted) {
+          const session = agentTracker.resumeSession(report)
+          if (session) onAgentSession(session)
+          else if (report.state === "ended" || report.state === "idle") onAgentSession(null)
+        }
         return false
       }
       // An agent's own notifications repeat what its reports say.

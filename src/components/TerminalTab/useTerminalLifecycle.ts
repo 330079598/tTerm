@@ -441,6 +441,8 @@ export function useTerminalLifecycle({
     termRef,
     themeRef,
     waitingForReconnectRef,
+    onAgentSessionChangeRef,
+    shellName,
     rendererSuspendedRef,
     activeRendererAddonRef,
     lastRendererRef,

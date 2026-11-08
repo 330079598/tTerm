@@ -122,7 +122,7 @@ export function useSessionRestore(shell: AppShell, options: SessionRestoreOption
     return () => {
       cancelled = true
     }
-  }, [addTab, getPreloadedSession, isLoaded, openLaunchDirs, restoreSession])
+  }, [addTab, getPreloadedSession, isLoaded, openLaunchDirs, resumeAgentSessions, restoreSession])
 
   useEffect(() => {
     if (!sessionRestored) {

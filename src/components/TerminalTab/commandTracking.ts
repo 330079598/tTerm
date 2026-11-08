@@ -49,7 +49,10 @@ export function createCommandTracking(ctx: TerminalSessionContext) {
   const commandTimer = new CommandTimer((command) => setTabRunningCommand(tabId, command))
   const timeCommand = (data: string) => {
     const mark = parseCommandMark(data)
-    if (mark?.kind === "prompt") agentTracker.reset()
+    if (mark?.kind === "prompt") {
+      agentTracker.reset()
+      onAgentSessionChangeRef.current?.(null)
+    }
     const finished = mark && commandTimer.mark(mark, Date.now())
     if (finished) onAttentionRef.current?.({ kind: "command", ...finished })
   }

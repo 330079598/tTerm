@@ -255,6 +255,8 @@ export interface Tab {
     terminalShellWslDistro?: string
     /** Local terminal: last directory the shell reported; a restart resumes there. */
     cwd?: string
+    /** AI session to resume after a restart, when an installed hook reported one. */
+    agentResume?: AgentResumeInfo
     /** Ordered jump host chain to tunnel through. */
     jumpHosts?: JumpHostConnection[]
     /** SSH: charset of the remote shell; missing means UTF-8. */
@@ -293,6 +295,11 @@ export interface Tab {
     size: number
     modifiedAt?: number
   }
+}
+
+export interface AgentResumeInfo {
+  agent: "claudeCode" | "codex"
+  sessionId: string
 }
 
 /** Singleton app pages that live in a tab but have no connection or session. */

@@ -116,18 +116,18 @@ export class AgentTracker {
     this.submittedAt = Date.now()
   }
 
-  report({ agent, state, session }: AgentReport) {
-    if (session !== undefined && !this.claim(session, state)) return
+  report({ agent, state, session }: AgentReport): boolean {
+    if (session !== undefined && !this.claim(session, state)) return false
     this.cancelWait()
     if (state === "ended") {
       this.reset()
-      return
+      return true
     }
     this.lastReportAt = Date.now()
     this.setAgent(agent)
     if (state === "idle") {
       this.setStatus(null)
-      return
+      return true
     }
     if (state === "processing" || state === "waiting") {
       this.setStatus({ agent, activity: state })
@@ -137,10 +137,11 @@ export class AgentTracker {
           this.callbacks.onAnnounce({ agent, state })
         }, this.waitDelayMs)
       }
-      return
+      return true
     }
     this.setStatus(null)
     this.callbacks.onAnnounce({ agent, state })
+    return true
   }
 
   resumeSession({ agent, state, session }: AgentReport): AgentResumeSession | null {
