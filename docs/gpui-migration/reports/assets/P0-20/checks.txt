@@ -1,0 +1,69 @@
+pnpm lint (exit=0)
+$ eslint src
+pnpm format-check (exit=0)
+$ prettier --check src
+Checking formatting...
+All matched files use Prettier code style!
+pnpm check-tokens (exit=0)
+$ node scripts/tokens/generate.mjs --check
+pnpm typecheck (exit=0)
+$ tsc --noEmit
+pnpm check-size (exit=0)
+$ node scripts/check-file-size.mjs
+file-size: 1020 files within their limits
+pnpm test (elevated rerun exit=0)
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+
+ Test Files  174 passed (174)
+      Tests  1294 passed (1294)
+   Start at  14:13:49
+   Duration  32.79s (environment 61%, transform 16%, import 13%, tests 10%)
+
+    Isolate  174 workers spawned · ~2.29s startup each (spawn + environment, per file)
+             at least ~18.67s faster with isolate: false — reuses workers across files instead of one per file
+
+cargo fmt --all --check (exit=0, no output)
+cargo clippy --workspace --all-targets -- -D warnings (exit=0)
+    Checking tterm-gpui v0.1.0 (D:\code\rust\tTerm-P0-20\crates\tterm-gpui)
+    Checking tTerm v0.8.1 (D:\code\rust\tTerm-P0-20\src-tauri)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 2.68s
+cargo test --workspace (exit=0; raw result lines)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1m 55s
+     Running unittests src\lib.rs (target\debug\deps\t_term_lib-80c06ce39f42aeff.exe)
+test sftp::internal::api::conflict::tests::retry_skips_finished_files_before_the_policy ... ok
+test session_log::tests::compression_leaves_no_unfinished_archive ... ok
+test sftp::internal::api::download::directory::tests::rename_retry_skips_the_copy_an_earlier_attempt_finished ... ok
+test terminal::wsl_distros::tests::lists_the_default_first_then_by_name_without_docker_or_unfinished_ones ... ok
+test result: ok. 812 passed; 0 failed; 23 ignored; 0 measured; 0 filtered out; finished in 13.43s
+     Running unittests src\main.rs (target\debug\deps\tTerm-ea1810428c0f924a.exe)
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+     Running unittests src\lib.rs (target\debug\deps\tterm_core-70983a2e34d5cc5f.exe)
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+     Running unittests src\lib.rs (target\debug\deps\tterm_gpui-3822ccf83fa22766.exe)
+test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.96s
+     Running unittests src\main.rs (target\debug\deps\tterm_gpui-4fea893e5f2c500f.exe)
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+     Running unittests examples\p0_20_remote_editor\main.rs (target\debug\examples\p0_20_remote_editor-25b47f82f54c25cd.exe)
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.67s
+     Running unittests src\lib.rs (target\debug\deps\tterm_parity-97f93cfea10454e0.exe)
+test result: ok. 60 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.18s
+     Running unittests src\main.rs (target\debug\deps\tterm_parity-bf4cd7a68322ce02.exe)
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+     Running unittests src\lib.rs (target\debug\deps\tterm_platform-c9d9f043d32fcbbb.exe)
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+     Running unittests src\lib.rs (target\debug\deps\tterm_terminal-8d370cafcecab024.exe)
+test result: ok. 68 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 10.59s
+     Running unittests src\lib.rs (target\debug\deps\tterm_terminal_view-d1920bb224052428.exe)
+test result: ok. 134 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.41s
+     Running unittests src\lib.rs (target\debug\deps\tterm_ui-e87b7d1d4ad967b9.exe)
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
