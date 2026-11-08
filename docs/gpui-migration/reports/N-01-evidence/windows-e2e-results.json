@@ -1,0 +1,49 @@
+{
+  "environment": "Windows 11, local pwsh only",
+  "identifier": "com.stone.tTerm.n01",
+  "APPDATA": "C:\\Users\\stone\\AppData\\Local\\Temp\\tterm-n01-20261108-141050\\appdata",
+  "configDirObserved": "C:\\Users\\stone\\AppData\\Roaming\\com.stone.tTerm.n01",
+  "LOCALAPPDATA": "unchanged",
+  "profilesAtStartup": [],
+  "remoteTabsAtStartup": [],
+  "versions": {
+    "claude": "2.1.319",
+    "codex": "0.167.0"
+  },
+  "sessions": [
+    {
+      "tab": "tab-101",
+      "tool": "claude",
+      "id": "0b28e9a1-6998-4191-8e2b-aed9275e28ab",
+      "result": "automatic resume verified by child process command line and original conversation"
+    },
+    {
+      "tab": "tab-102",
+      "tool": "codex",
+      "id": "01a1b9d2-ba26-7031-b9b1-c15a87c9fca2",
+      "result": "message replied; three Hook failed / code 1 notices; no agentResume saved; no automatic resume"
+    },
+    {
+      "tab": "tab-103",
+      "tool": "claude",
+      "id": "e78b12e4-b719-4db4-ab28-3f97799816c0",
+      "result": "same-directory automatic resume passed"
+    },
+    {
+      "tab": "tab-104",
+      "tool": "claude",
+      "id": "e440c051-5e2e-4c63-a60b-7149960878cb",
+      "result": "same-directory automatic resume passed"
+    }
+  ],
+  "normalExit": "Claude /exit then full restart left PowerShell with no resume records; Codex exit behavior not validated because it did not auto-resume",
+  "switchOff": "UI switch off; saved real Claude record present before quit; restart waits >15s; zero agent child processes",
+  "notes": [
+    "CDP Runtime.evaluate and Page.captureScreenshot; terminal inputs only via app write_pty with explicit local PowerShell guard",
+    "Used React existing tab actions/reducer through CDP; no product code modification",
+    "Default restore-all setting off: background tabs initialize when activated; both Claude tabs verified after activation",
+    "First pnpm launch failed JSON quoting before app startup; pnpm.CMD requires escaped JSON quotes",
+    "Claude initially inherited CLAUDE_CODE_CHILD_SESSION and disabled transcript saving; exited without message, removed marker from test child environment, restarted",
+    "Codex config contains other preexisting hooks; failure attribution not established. Did not remove user hooks or weaken scope rules."
+  ]
+}
