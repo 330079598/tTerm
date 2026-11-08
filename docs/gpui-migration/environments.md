@@ -56,7 +56,7 @@
 - 截图与自动化：
   - GPUI 在 Windows 上没有无头渲染器（`current_headless_renderer` 在 Windows 返回 `None`，见 P0-10 报告），截图要打开真实窗口后用 `Window::render_to_image` 读回纹理。
   - Tauri 开发版可以经 WebView2 的调试端口（CDP）驱动，用法见 P0-15 报告“偏差”一节。
-- 性能测试：2026-11-08，P0-01 在 Windows 沙箱中克隆 vtebench，失败于 `schannel: AcquireCredentialsHandle failed: SEC_E_NO_CREDENTIALS (0x8009030e)`；按执行环境的强制重试规则，同一命令提升权限后成功。检出路径为 `D:\code\rust\tTerm-P0-01\target\perf-tools\vtebench`，提交 `ead80032e57dee2e75f0b51f2ea67528647d9944`，尚未编译或运行。任务补充要求沙箱内克隆失败即停止，因此基线采集仍停止，等待评估者处理。WSL Ubuntu 经提升权限可访问，没有在其中克隆或编译 vtebench。完整命令与输出见 [P0-01 报告](reports/P0-01.md)。
+- 性能测试：vtebench 的 WSL home 最终路径尚未建立；提交 `ead80032e57dee2e75f0b51f2ea67528647d9944`。用法：工具就绪后，在 WSL Ubuntu 的 vtebench 根目录运行 release 可执行文件，标准负载取该检出的 `benchmarks/`；编译、运行均未验证，当前阻塞见 [P0-01 报告](reports/P0-01.md)。
 - 注意：Tauri 开发版的数据目录 `com.stone.tTerm.dev` 与已安装的正式版 `com.stone.tTerm` 都存有真实连接，测试不得读写，见[执行规则第 7 条](README.md#2-执行规则)。
 
 ### 2.2 Windows 虚拟机
@@ -126,4 +126,4 @@
 | 日期       | 变更                                                                                |
 | ---------- | ----------------------------------------------------------------------------------- |
 | 2026-11-07 | 首次建立：Windows 物理机与 SSH 测试主机由本机采集，Mac 取自各卡报告；Linux 桌面缺失 |
-| 2026-11-08 | P0-01：记录 Windows 上 vtebench 克隆失败及预定路径；性能基线采集阻塞，未启动 Tauri |
+| 2026-11-08 | P0-01：登记 vtebench 提交与 WSL 用法；Windows 基线尚未采集，当前阻塞见任务报告 |
