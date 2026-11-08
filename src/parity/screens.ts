@@ -1,5 +1,7 @@
 import type { ParityScreenProps } from "@/parity/types"
 import { ExampleButtonInput } from "@/parity/screens/ExampleButtonInput"
+import { ButtonVariants, ButtonSizes } from "@/parity/screens/ButtonPrimitive"
+import { InputPrimitive } from "@/parity/screens/InputPrimitive"
 import type { ComponentType } from "react"
 
 /**
@@ -9,6 +11,9 @@ import type { ComponentType } from "react"
  */
 export const parityScreens: Record<string, ComponentType<ParityScreenProps>> = {
   "example.button-input.default": ExampleButtonInput,
+  "ui.button.variants": ButtonVariants,
+  "ui.button.sizes": ButtonSizes,
+  "ui.input.default": InputPrimitive,
 }
 
 /** The registered ids, for the manifest test. */
