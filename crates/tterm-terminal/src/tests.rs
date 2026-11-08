@@ -351,6 +351,17 @@ fn long_wrapped_line_evicts_history_without_a_newline() {
 }
 
 #[test]
+fn evicting_then_entering_the_alternate_screen_in_one_write_advances_the_generation() {
+    let terminal = terminal(20, 3, 2);
+    terminal.write(b"old-0\r\nold-1\r\nold-2\r\nold-3\r\nold-4\r\n");
+    let before = terminal.snapshot();
+    terminal.write(b"new-0\r\nnew-1\r\n\x1b[?1049h");
+    let after = terminal.snapshot();
+    assert!(after.modes().contains(crate::mode::Modes::ALT_SCREEN));
+    assert!(after.scrollback_generation() > before.scrollback_generation());
+}
+
+#[test]
 fn csi_scroll_up_and_index_evict_history() {
     for sequence in [b"\x1b[3S".as_slice(), b"\x1bD".as_slice()] {
         let terminal = terminal(20, 3, 2);

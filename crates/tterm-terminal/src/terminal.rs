@@ -210,7 +210,15 @@ impl Terminal {
         let was_alternate = state.term.mode().contains(TermMode::ALT_SCREEN);
         let State { parser, term, .. } = &mut *state;
         parser.advance(term, bytes);
-        if was_alternate || term.mode().contains(TermMode::ALT_SCREEN) {
+        let is_alternate = term.mode().contains(TermMode::ALT_SCREEN);
+        if was_alternate != is_alternate {
+            // A switch swaps grids within one write, and the main screen may
+            // have evicted history before it. Only the active grid can be
+            // inspected afterwards, so a new generation drops cached rows.
+            state.scrollback_generation = state.scrollback_generation.wrapping_add(1);
+            return;
+        }
+        if is_alternate {
             return;
         }
         let history_size = term.total_lines().saturating_sub(term.screen_lines());
