@@ -33,6 +33,11 @@ impl FrameData {
     pub fn grid(&self) -> GridSize {
         self.snapshot.grid()
     }
+
+    /// Whether this frame belongs to the same scrollback generation.
+    pub fn scrollback_generation(&self) -> u64 {
+        self.snapshot.scrollback_generation()
+    }
 }
 
 /// What an element's prepaint found to paint.

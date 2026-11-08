@@ -158,6 +158,7 @@ struct State {
     version: u64,
     scrollback_generation: u64,
     evicted_lines: u64,
+    logical_output_lines: u64,
 }
 
 /// The terminal of one session.
@@ -191,6 +192,7 @@ impl Terminal {
             version: 0,
             scrollback_generation: 0,
             evicted_lines: 0,
+            logical_output_lines: 0,
         };
         Self {
             state: FairMutex::new(state),
@@ -208,14 +210,18 @@ impl Terminal {
             return;
         }
         let mut state = self.state.lock();
-        let State { term, parser, .. } = &mut *state;
-        let before_history = term.total_lines().saturating_sub(term.screen_lines());
-        parser.advance(term, bytes);
         let configured = state.config.scrollback;
+        let before = state.logical_output_lines;
+        let screen_lines = state.term.screen_lines();
+        let State { parser, term, .. } = &mut *state;
+        parser.advance(term, bytes);
         let output_lines = bytes.iter().filter(|byte| **byte == b'\n').count();
-        let evicted = before_history
-            .saturating_add(output_lines)
-            .saturating_sub(configured) as u64;
+        let after = before.saturating_add(output_lines as u64);
+        state.logical_output_lines = after;
+        let limit = screen_lines.saturating_add(configured) as u64;
+        let evicted = after
+            .saturating_sub(limit)
+            .saturating_sub(before.saturating_sub(limit));
         if evicted > 0 {
             state.evicted_lines = state.evicted_lines.saturating_add(evicted);
             state.scrollback_generation = state.scrollback_generation.wrapping_add(1);

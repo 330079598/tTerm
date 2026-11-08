@@ -334,6 +334,54 @@ fn scrollback_eviction_is_exposed_as_generation_and_count() {
 }
 
 #[test]
+fn scrolling_back_and_returning_keeps_unsubmitted_bottom_input() {
+    let terminal = terminal(20, 4, 20);
+    terminal.write(b"one\r\ntwo\r\nthree\r\nfour\r\n");
+    terminal.write(b"draft");
+    terminal.scroll(Scroll::Top);
+    let history = terminal.snapshot();
+    assert!(history.is_scrolled_back());
+    terminal.scroll(Scroll::Bottom);
+    let bottom = terminal.snapshot();
+    assert!(
+        screen_text(&bottom)
+            .iter()
+            .any(|line| line.contains("draft"))
+    );
+}
+
+#[test]
+fn rapid_output_while_scrolled_keeps_complete_frames() {
+    let terminal = terminal(20, 4, 5);
+    for index in 0..20 {
+        terminal.write(format!("seed-{index}\r\n").as_bytes());
+    }
+    terminal.scroll(Scroll::Delta(2));
+    for index in 0..20 {
+        terminal.write(format!("burst-{index}\r\n").as_bytes());
+        let frame = terminal.snapshot();
+        assert_eq!(frame.rows().len(), 4);
+        assert!(frame.rows().iter().all(|row| !row.cells().is_empty()));
+    }
+}
+
+#[test]
+fn an_evicted_anchor_moves_like_xterm_after_the_offset_limit() {
+    let terminal = terminal(20, 4, 5);
+    for index in 0..20 {
+        terminal.write(format!("line-{index}\r\n").as_bytes());
+    }
+    terminal.scroll(Scroll::Delta(2));
+    let mut first_rows = Vec::new();
+    for index in 20..28 {
+        terminal.write(format!("line-{index}\r\n").as_bytes());
+        first_rows.push(trimmed_row_text(&terminal.snapshot(), 0));
+    }
+    assert_eq!(&first_rows[..3], ["line-15", "line-15", "line-15"]);
+    assert!(first_rows[3..].windows(2).all(|rows| rows[0] != rows[1]));
+}
+
+#[test]
 fn in_place_updates_damage_only_their_rows() {
     let terminal = terminal(20, 5, 0);
     terminal.snapshot();

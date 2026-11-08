@@ -29,6 +29,7 @@ mod pointer;
 mod prepare;
 mod row;
 mod scroll;
+mod scrollbar;
 mod style;
 mod wheel;
 

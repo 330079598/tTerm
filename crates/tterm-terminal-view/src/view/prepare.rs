@@ -143,10 +143,10 @@ impl TerminalView {
         let style_epoch = self.style_epoch;
         // Alacritty's damage covers the cells only, not a palette or font
         // change, so rows built under another style epoch are never reused.
-        let previous = self
-            .last_frame
-            .clone()
-            .filter(|frame| frame.style_epoch == style_epoch);
+        let previous = self.last_frame.clone().filter(|frame| {
+            frame.style_epoch == style_epoch
+                && frame.scrollback_generation() == snapshot.scrollback_generation()
+        });
         let damaged = damaged_rows(snapshot.damage(), snapshot.line_count());
         let mut rows = Vec::with_capacity(snapshot.line_count());
         let palette = &self.palette;
