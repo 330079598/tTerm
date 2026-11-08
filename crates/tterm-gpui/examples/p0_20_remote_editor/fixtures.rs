@@ -27,9 +27,10 @@ pub fn sample(language: &str) -> &'static str {
     }
 }
 
-/// Generates a disposable file in this worktree's isolated build directory.
+/// Generates a disposable file under the system temporary directory, so a
+/// failed run never leaves 50 MiB inside the repository.
 pub fn large_file() -> Result<PathBuf, String> {
-    let folder = PathBuf::from("target/com.stone.tTerm.gpui-dev/P0-20");
+    let folder = std::env::temp_dir().join("tterm-gpui-dev-P0-20");
     std::fs::create_dir_all(&folder).map_err(|error| error.to_string())?;
     let path = folder.join("50MiB.txt");
     let mut file =

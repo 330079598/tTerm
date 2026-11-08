@@ -134,9 +134,10 @@ fn decode_utf16(bytes: &[u8], little: bool) -> Result<String, String> {
     String::from_utf16(&units).map_err(|error| error.to_string())
 }
 
-/// Exercises only disposable files below the isolated GPUI probe directory.
+/// Exercises only disposable files under the system temporary directory.
 pub fn local_check() -> Result<(), String> {
-    let folder = std::path::PathBuf::from("target/com.stone.tTerm.gpui-dev/P0-20")
+    let folder = std::env::temp_dir()
+        .join("tterm-gpui-dev-P0-20")
         .join(format!("formats-{}", std::process::id()));
     std::fs::create_dir_all(&folder).map_err(|error| error.to_string())?;
     let result = check_formats(&folder);
