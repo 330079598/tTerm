@@ -2,7 +2,7 @@
 export function agentResumeCwdMatches(hookCwd: string | undefined, shellCwd: string | undefined) {
   if (!hookCwd || !shellCwd || /[\p{Cc}]/u.test(hookCwd + shellCwd)) return false
   const normalize = (path: string) => {
-    const slashes = path.replaceAll("\\", "/")
+    const slashes = path.replace(/\\/g, "/")
     const unprefixed = slashes.replace(/^\/\/\?\/(?:UNC\/)?/i, (prefix) =>
       /UNC/i.test(prefix) ? "//" : ""
     )
