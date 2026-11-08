@@ -6,6 +6,12 @@ description = "The GPUI client of tTerm; for now the P0-14 local PTY prototype"
 license = "MIT"
 publish = false
 
+[[example]]
+name = "p0_20_remote_editor"
+path = "examples/p0_20_remote_editor/main.rs"
+# Keep the probe's regression tests in the required workspace test run.
+test = true
+
 [features]
 # The automation endpoint is intentionally opt-in. Its source is also gated
 # by `debug_assertions`, so a release build cannot contain the endpoint.
