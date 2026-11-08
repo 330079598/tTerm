@@ -1,0 +1,6 @@
+$ eslint src
+$ prettier --check src
+Checking formatting...
+All matched files use Prettier code style!
+$ node scripts/tokens/generate.mjs --check
+$ tsc --noEmit

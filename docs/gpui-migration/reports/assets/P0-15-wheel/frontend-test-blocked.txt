@@ -1,0 +1,70 @@
+$ vitest run src
+failed to load config from D:\code\rust\tTerm-P0-15-wheel\vite.config.ts
+
+⎯⎯⎯⎯⎯⎯⎯ Startup Error ⎯⎯⎯⎯⎯⎯⎯⎯
+Error: Build failed with 4 errors:
+
+[plugin externalize-deps]
+Error: spawn EPERM
+    at ChildProcess.spawn (node:internal/child_process:458:11)
+    at spawn (node:child_process:813:9)
+    at Object.execFile (node:child_process:349:17)
+    at exec (node:child_process:236:25)
+    at optimizeSafeRealPathSync (file:///D:/code/rust/tTerm-P0-15-wheel/node_modules/.pnpm/vite@8.3.1_@types+node@24.1_f2a5bc877c8e0355e61714699072a9f8/node_modules/vite/dist/node/chunks/node.js:2458:2)
+    at windowsSafeRealPathSync (file:///D:/code/rust/tTerm-P0-15-wheel/node_modules/.pnpm/vite@8.3.1_@types+node@24.1_f2a5bc877c8e0355e61714699072a9f8/node_modules/vite/dist/node/chunks/node.js:2444:3)
+    at getRealPath (file:///D:/code/rust/tTerm-P0-15-wheel/node_modules/.pnpm/vite@8.3.1_@types+node@24.1_f2a5bc877c8e0355e61714699072a9f8/node_modules/vite/dist/node/chunks/node.js:29337:36)
+    at tryResolveRealFileOrType (file:///D:/code/rust/tTerm-P0-15-wheel/node_modules/.pnpm/vite@8.3.1_@types+node@24.1_f2a5bc877c8e0355e61714699072a9f8/node_modules/vite/dist/node/chunks/node.js:29331:9)
+    at tryCleanFsResolve (file:///D:/code/rust/tTerm-P0-15-wheel/node_modules/.pnpm/vite@8.3.1_@types+node@24.1_f2a5bc877c8e0355e61714699072a9f8/node_modules/vite/dist/node/chunks/node.js:29080:21)
+    at tryFsResolve (file:///D:/code/rust/tTerm-P0-15-wheel/node_modules/.pnpm/vite@8.3.1_@types+node@24.1_f2a5bc877c8e0355e61714699072a9f8/node_modules/vite/dist/node/chunks/node.js:29073:14)
+[plugin externalize-deps]
+Error: spawn EPERM
+    at ChildProcess.spawn (node:internal/child_process:458:11)
+    at spawn (node:child_process:813:9)
+    at Object.execFile (node:child_process:349:17)
+    at exec (node:child_process:236:25)
+    at optimizeSafeRealPathSync (file:///D:/code/rust/tTerm-P0-15-wheel/node_modules/.pnpm/vite@8.3.1_@types+node@24.1_f2a5bc877c8e0355e61714699072a9f8/node_modules/vite/dist/node/chunks/node.js:2458:2)
+    at windowsSafeRealPathSync (file:///D:/code/rust/tTerm-P0-15-wheel/node_modules/.pnpm/vite@8.3.1_@types+node@24.1_f2a5bc877c8e0355e61714699072a9f8/node_modules/vite/dist/node/chunks/node.js:2444:3)
+    at getRealPath (file:///D:/code/rust/tTerm-P0-15-wheel/node_modules/.pnpm/vite@8.3.1_@types+node@24.1_f2a5bc877c8e0355e61714699072a9f8/node_modules/vite/dist/node/chunks/node.js:29337:36)
+    at tryResolveRealFileOrType (file:///D:/code/rust/tTerm-P0-15-wheel/node_modules/.pnpm/vite@8.3.1_@types+node@24.1_f2a5bc877c8e0355e61714699072a9f8/node_modules/vite/dist/node/chunks/node.js:29331:9)
+    at tryCleanFsResolve (file:///D:/code/rust/tTerm-P0-15-wheel/node_modules/.pnpm/vite@8.3.1_@types+node@24.1_f2a5bc877c8e0355e61714699072a9f8/node_modules/vite/dist/node/chunks/node.js:29080:21)
+    at tryFsResolve (file:///D:/code/rust/tTerm-P0-15-wheel/node_modules/.pnpm/vite@8.3.1_@types+node@24.1_f2a5bc877c8e0355e61714699072a9f8/node_modules/vite/dist/node/chunks/node.js:29073:14)
+[plugin externalize-deps]
+Error: spawn EPERM
+    at ChildProcess.spawn (node:internal/child_process:458:11)
+    at spawn (node:child_process:813:9)
+    at Object.execFile (node:child_process:349:17)
+    at exec (node:child_process:236:25)
+    at optimizeSafeRealPathSync (file:///D:/code/rust/tTerm-P0-15-wheel/node_modules/.pnpm/vite@8.3.1_@types+node@24.1_f2a5bc877c8e0355e61714699072a9f8/node_modules/vite/dist/node/chunks/node.js:2458:2)
+    at windowsSafeRealPathSync (file:///D:/code/rust/tTerm-P0-15-wheel/node_modules/.pnpm/vite@8.3.1_@types+node@24.1_f2a5bc877c8e0355e61714699072a9f8/node_modules/vite/dist/node/chunks/node.js:2444:3)
+    at getRealPath (file:///D:/code/rust/tTerm-P0-15-wheel/node_modules/.pnpm/vite@8.3.1_@types+node@24.1_f2a5bc877c8e0355e61714699072a9f8/node_modules/vite/dist/node/chunks/node.js:29337:36)
+    at tryResolveRealFileOrType (file:///D:/code/rust/tTerm-P0-15-wheel/node_modules/.pnpm/vite@8.3.1_@types+node@24.1_f2a5bc877c8e0355e61714699072a9f8/node_modules/vite/dist/node/chunks/node.js:29331:9)
+    at tryCleanFsResolve (file:///D:/code/rust/tTerm-P0-15-wheel/node_modules/.pnpm/vite@8.3.1_@types+node@24.1_f2a5bc877c8e0355e61714699072a9f8/node_modules/vite/dist/node/chunks/node.js:29080:21)
+    at tryFsResolve (file:///D:/code/rust/tTerm-P0-15-wheel/node_modules/.pnpm/vite@8.3.1_@types+node@24.1_f2a5bc877c8e0355e61714699072a9f8/node_modules/vite/dist/node/chunks/node.js:29073:14)
+[plugin externalize-deps]
+Error: spawn EPERM
+    at ChildProcess.spawn (node:internal/child_process:458:11)
+    at spawn (node:child_process:813:9)
+    at Object.execFile (node:child_process:349:17)
+    at exec (node:child_process:236:25)
+    at optimizeSafeRealPathSync (file:///D:/code/rust/tTerm-P0-15-wheel/node_modules/.pnpm/vite@8.3.1_@types+node@24.1_f2a5bc877c8e0355e61714699072a9f8/node_modules/vite/dist/node/chunks/node.js:2458:2)
+    at windowsSafeRealPathSync (file:///D:/code/rust/tTerm-P0-15-wheel/node_modules/.pnpm/vite@8.3.1_@types+node@24.1_f2a5bc877c8e0355e61714699072a9f8/node_modules/vite/dist/node/chunks/node.js:2444:3)
+    at getRealPath (file:///D:/code/rust/tTerm-P0-15-wheel/node_modules/.pnpm/vite@8.3.1_@types+node@24.1_f2a5bc877c8e0355e61714699072a9f8/node_modules/vite/dist/node/chunks/node.js:29337:36)
+    at tryResolveRealFileOrType (file:///D:/code/rust/tTerm-P0-15-wheel/node_modules/.pnpm/vite@8.3.1_@types+node@24.1_f2a5bc877c8e0355e61714699072a9f8/node_modules/vite/dist/node/chunks/node.js:29331:9)
+    at tryCleanFsResolve (file:///D:/code/rust/tTerm-P0-15-wheel/node_modules/.pnpm/vite@8.3.1_@types+node@24.1_f2a5bc877c8e0355e61714699072a9f8/node_modules/vite/dist/node/chunks/node.js:29080:21)
+    at tryFsResolve (file:///D:/code/rust/tTerm-P0-15-wheel/node_modules/.pnpm/vite@8.3.1_@types+node@24.1_f2a5bc877c8e0355e61714699072a9f8/node_modules/vite/dist/node/chunks/node.js:29073:14)
+    at aggregateBindingErrorsIntoJsError (file:///D:/code/rust/tTerm-P0-15-wheel/node_modules/.pnpm/rolldown@1.2.11/node_modules/rolldown/dist/shared/error-C7pxws0W.mjs:48:18)
+    at unwrapBindingResult (file:///D:/code/rust/tTerm-P0-15-wheel/node_modules/.pnpm/rolldown@1.2.11/node_modules/rolldown/dist/shared/error-C7pxws0W.mjs:18:128)
+    at #build (file:///D:/code/rust/tTerm-P0-15-wheel/node_modules/.pnpm/rolldown@1.2.11/node_modules/rolldown/dist/shared/rolldown-CgWItHdG.mjs:133:34)
+    at async bundleConfigFile (file:///D:/code/rust/tTerm-P0-15-wheel/node_modules/.pnpm/vite@8.3.1_@types+node@24.1_f2a5bc877c8e0355e61714699072a9f8/node_modules/vite/dist/node/chunks/node.js:37813:12)
+    at async bundleAndLoadConfigFile (file:///D:/code/rust/tTerm-P0-15-wheel/node_modules/.pnpm/vite@8.3.1_@types+node@24.1_f2a5bc877c8e0355e61714699072a9f8/node_modules/vite/dist/node/chunks/node.js:37709:18)
+    at async loadConfigFromFile (file:///D:/code/rust/tTerm-P0-15-wheel/node_modules/.pnpm/vite@8.3.1_@types+node@24.1_f2a5bc877c8e0355e61714699072a9f8/node_modules/vite/dist/node/chunks/node.js:37670:42)
+    at async resolveConfig (file:///D:/code/rust/tTerm-P0-15-wheel/node_modules/.pnpm/vite@8.3.1_@types+node@24.1_f2a5bc877c8e0355e61714699072a9f8/node_modules/vite/dist/node/chunks/node.js:37271:22)
+    at async resolveConfig$1 (file:///D:/code/rust/tTerm-P0-15-wheel/node_modules/.pnpm/vitest@5.0.2_@types+node@24_1cbbe8cc28e8407afb6f275af0014d93/node_modules/vitest/dist/chunks/index.C-uw7tH9.js:14778:25)
+    at async createVitest (file:///D:/code/rust/tTerm-P0-15-wheel/node_modules/.pnpm/vitest@5.0.2_@types+node@24_1cbbe8cc28e8407afb6f275af0014d93/node_modules/vitest/dist/chunks/cli-api.DL4Bd7Vh.js:26:17)
+    at async prepareVitest (file:///D:/code/rust/tTerm-P0-15-wheel/node_modules/.pnpm/vitest@5.0.2_@types+node@24_1cbbe8cc28e8407afb6f275af0014d93/node_modules/vitest/dist/chunks/cli-api.DL4Bd7Vh.js:421:14) {
+  errors: [Getter/Setter]
+}
+
+
+
+[ELIFECYCLE] Test failed. See above for more details.

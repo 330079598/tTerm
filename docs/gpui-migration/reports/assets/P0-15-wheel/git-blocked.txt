@@ -1,0 +1,5 @@
+Command: git add crates/tterm-terminal-view/src/input/wheel.rs crates/tterm-terminal-view/src/input/wheel/tests.rs crates/tterm-terminal-view/src/view/pointer_tests.rs crates/tterm-terminal-view/src/view/scroll.rs crates/tterm-terminal-view/src/view/wheel.rs crates/tterm-terminal-view/src/view/wheel/tests.rs
+fatal: Unable to create 'D:/code/rust/tTerm/.git/worktrees/tTerm-P0-15-wheel/index.lock': Permission denied
+Command: git commit -m ':bug: Align GPUI wheel direction and per-event counts with Tauri'
+fatal: Unable to create 'D:/code/rust/tTerm/.git/worktrees/tTerm-P0-15-wheel/index.lock': Permission denied
+Exit code: 1
