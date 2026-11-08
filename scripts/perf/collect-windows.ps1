@@ -6,6 +6,7 @@ param(
     [string]$Build = 'release-tauri-perf'
 )
 $ErrorActionPreference = 'Stop'
+if ($Seconds -lt 2) { throw 'Seconds must be at least 2.' }
 $logical = (Get-CimInstance Win32_ComputerSystem).NumberOfLogicalProcessors
 $root = Get-CimInstance Win32_Process -Filter "ProcessId=$RootPid"
 if (!$root) { throw 'Root process is not running.' }
@@ -40,6 +41,7 @@ while ($clock.Elapsed.TotalSeconds -lt $Seconds) {
     $instances = @($counter.CounterSamples | Where-Object {
         $_.Path.EndsWith('\id process') -and [int]$_.CookedValue -in $ids
     } | ForEach-Object { $_.Path.Substring(0, $_.Path.LastIndexOf('\')) })
+    if (!$instances.Count) { throw 'No performance counter instances matched the application tree.' }
     $values = @{}
     foreach ($name in @('% processor time', 'working set', 'working set - private', 'private bytes')) {
         $matching = @($counter.CounterSamples | Where-Object {
@@ -51,10 +53,12 @@ while ($clock.Elapsed.TotalSeconds -lt $Seconds) {
     $gpu = $null
     if ($gpuAvailable) {
         try {
-            $gpuCounter = Get-Counter -Counter '\GPU Process Memory(*)\Dedicated Usage', '\GPU Process Memory(*)\Shared Usage' -ErrorAction Stop
+            $gpuCounter = Get-Counter -Counter '\GPU Process Memory(*)\Dedicated Usage', '\GPU Process Memory(*)\Shared Usage' -ErrorAction SilentlyContinue
+            if (!$gpuCounter) { throw 'GPU performance counter query returned no data.' }
             $gpu = @($gpuCounter.CounterSamples | Where-Object {
-                $_.InstanceName -match '^pid_(\d+)_' -and [int]$Matches[1] -in $ids
+                $_.InstanceName -match '^pid_(\d+)_' -and [int]$Matches[1] -in $ids -and $_.Status -eq 0
             })
+            if (!$gpu.Count) { throw 'No valid GPU process memory samples for this application tree.' }
         } catch { $gpuAvailable = $false; $gpuError = $_.Exception.Message }
     }
     $row = [ordered]@{

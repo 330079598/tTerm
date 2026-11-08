@@ -27,6 +27,8 @@ pnpm tauri build --no-bundle --config '{"identifier":"com.stone.tTerm.perf"}'
 
 若命令行转义丢失引号，把相同 JSON 写到 `target/perf/identifier.json`，用 `--config target/perf/identifier.json`；该临时文件不提交。绝不启动正式或开发标识二进制。运行 `scripts/perf/start-windows.ps1` 设置全新空 APPDATA（LOCALAPPDATA 不变）并以 WebView2 调试端口启动，不绕过旧数据迁移保护。
 
+本轮脚本默认客户端物理尺寸 1280×800、主显示器 100% 缩放，每项负载前居中、设置尺寸并检查，防止跨屏 DPI 变化。不同机器修改该固定值时，必须两轮及 P0-21 一致，并写进报告。`configure-windows.mjs` 先核验空 profiles 和纯本地会话，再设置 Consolas 14 px、回滚 10,000 行；自动更新关闭以减少采集噪声。启动后执行 `node scripts/perf/configure-windows.mjs`，再运行 `node scripts/perf/run-windows.mjs 1 cat yes vim tmux idle-1 idle-10 idle-30`。退出并清理后以相同流程运行第 2 轮；使用 `stop-windows.ps1` 清理经核对的 Roaming、Local perf 目录和临时 APPDATA。
+
 启动后、输入前，确认系统原 APPDATA 下只有 `com.stone.tTerm.perf` 是本次数据目录；通过 CDP 只读调用 `list_profiles`、`load_session`，核验没有连接、没有恢复远程标签，同时保存 DOM/截图。发现任何连接或远程标签立即退出并阻塞，不输入。仅从正常界面打开本地终端，CDP 发键盘输入，不点击文件对话框按钮。
 
 ```powershell
@@ -49,6 +51,8 @@ Tauri 使用 WebView 开发者工具 Performance 录制，可用 CDP `Tracing.st
 主要帧指标定义为**渲染器合成帧绘制事件的连续时间戳差**（ms），由浏览器 trace 的 `DrawFrame` 瞬时事件（ph=I）同一进程、同一线程序列计算，明确报告实际 PID/TID；同时列 p50、p95、p99、最大值、样本数及 >16.667 ms 比例。它是合成帧间隔，不是实际显示完成时间、JS 工作耗时、显示器扫描延迟或输入到光子的延迟。`FramePresented` 如可用可另列为显示反馈，不能混入 DrawFrame 序列。本机 trace 的反馈事件稀少，所以没有据此推断实际呈现帧率。空闲不连续产帧时长间隔表示无新帧，不解释为卡顿；输出负载与空闲分开比较。若无 DrawFrame，保留 trace 标未获得，不用 rAF 回调模拟帧耗时。
 
 `node scripts/perf/frames.mjs target/perf docs/gpui-migration/baseline/windows-frames.csv` 从 trace 提取以上指标，同时输出带源 trace SHA256 的原始帧事件子集（`.frames.json`）。完整 trace 保留在本机 target/perf，可导入开发者工具；提交的子集用于复算数字，不宣称可替代完整性能剖析。进程资源数字由 summarize.mjs 复算。
+
+`node scripts/perf/archive.mjs target/perf docs/gpui-migration/baseline/windows-raw` 归档资源 JSON、会话条件、原始帧事件子集与截图。资源和帧事件以 gzip 保存；解压到临时目录后可分别用 summarize.mjs 复算资源 CSV，或从帧事件的 ts 差复算帧 CSV。完整 trace 文件较大，仅在本机 target/perf 保留，子集包含其 SHA256。不要把无效预跑目录 preliminary 混入最终归档。
 
 P0-21 原生端需在相同合成绘制阶段打点，用连续合成帧时间戳差、同样窗口和采样区间比较；GPUI 内部单帧绘制耗时另列，不与帧间隔混用。若无法提供同阶段打点，必须标口径不等价，不能直接作性能提升结论。固定 60 Hz 的门槛只是参照值；高刷新率机器要记录实际刷新率，比较仍用完全相同条件。前后台切换、窗口遮挡、trace 丢包会破坏样本，需记录或重跑。
 

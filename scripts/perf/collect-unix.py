@@ -16,6 +16,9 @@ parser.add_argument("--output", type=Path, required=True)
 parser.add_argument("--seconds", type=int, default=40)
 parser.add_argument("--build", default="release")
 args = parser.parse_args()
+if args.seconds < 2:
+    parser.error("--seconds must be at least 2")
+args.output.parent.mkdir(parents=True, exist_ok=True)
 system = platform.system().lower()
 if system not in ("darwin", "linux"):
     raise SystemExit("Use collect-windows.ps1 on Windows")
@@ -63,7 +66,9 @@ metrics = {"rss_mean": (sum(s["rss_bytes"] for s in samples) / len(samples), "by
 if system == "linux" and len(samples) > 1:
     cpu = [(b["cpu_ticks"] - a["cpu_ticks"]) / os.sysconf("SC_CLK_TCK") /
            (b["elapsed_s"] - a["elapsed_s"]) * 100 / (os.cpu_count() or 1)
-           for a, b in zip(samples, samples[1:])]
+           for a, b in zip(samples, samples[1:])
+           if {p[0] for p in a["members"]} == {p[0] for p in b["members"]}
+           and not a.get("proc_incomplete") and not b.get("proc_incomplete")]
     # An exiting process removes its cumulative ticks; that interval is not usable.
     cpu = [value for value in cpu if value >= 0]
     if cpu:
