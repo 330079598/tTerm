@@ -312,6 +312,28 @@ fn output_while_scrolled_back_is_fully_damaged() {
 }
 
 #[test]
+fn scrollback_eviction_is_exposed_as_generation_and_count() {
+    let terminal = terminal(20, 4, 5);
+    terminal.write(b"L00\r\nL01\r\nL02\r\nL03\r\n");
+    let before = terminal.snapshot();
+    let before_generation = before.scrollback_generation();
+    let before_evicted = before.evicted_lines();
+
+    terminal.scroll(Scroll::Delta(2));
+    terminal.write(b"L04\r\nL05\r\nL06\r\nL07\r\nL08\r\nL09\r\n");
+    let first_eviction = terminal.snapshot();
+    assert!(first_eviction.scrollback_generation() > before_generation);
+    assert!(first_eviction.evicted_lines() > before_evicted);
+    assert_eq!(trimmed_row_text(&first_eviction, 0), "L02");
+
+    terminal.write(b"L10\r\nL11\r\nL12\r\n");
+    let second_eviction = terminal.snapshot();
+    assert!(second_eviction.scrollback_generation() > first_eviction.scrollback_generation());
+    assert!(second_eviction.evicted_lines() > first_eviction.evicted_lines());
+    assert_eq!(trimmed_row_text(&second_eviction, 0), "L05");
+}
+
+#[test]
 fn in_place_updates_damage_only_their_rows() {
     let terminal = terminal(20, 5, 0);
     terminal.snapshot();

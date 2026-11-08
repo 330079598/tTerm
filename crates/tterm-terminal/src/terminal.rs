@@ -156,6 +156,8 @@ struct State {
     config: Config,
     cell_size: CellSize,
     version: u64,
+    scrollback_generation: u64,
+    evicted_lines: u64,
 }
 
 /// The terminal of one session.
@@ -187,6 +189,8 @@ impl Terminal {
             config,
             cell_size,
             version: 0,
+            scrollback_generation: 0,
+            evicted_lines: 0,
         };
         Self {
             state: FairMutex::new(state),
@@ -205,7 +209,17 @@ impl Terminal {
         }
         let mut state = self.state.lock();
         let State { term, parser, .. } = &mut *state;
+        let before_history = term.total_lines().saturating_sub(term.screen_lines());
         parser.advance(term, bytes);
+        let configured = state.config.scrollback;
+        let output_lines = bytes.iter().filter(|byte| **byte == b'\n').count();
+        let evicted = before_history
+            .saturating_add(output_lines)
+            .saturating_sub(configured) as u64;
+        if evicted > 0 {
+            state.evicted_lines = state.evicted_lines.saturating_add(evicted);
+            state.scrollback_generation = state.scrollback_generation.wrapping_add(1);
+        }
     }
 
     /// Takes every intent produced since the last call, in order.
@@ -334,7 +348,11 @@ impl Terminal {
 /// Builds the frame while the caller holds the lock.
 fn take_snapshot(state: &mut State, version: u64) -> Snapshot {
     let State {
-        term, cell_size, ..
+        term,
+        cell_size,
+        scrollback_generation,
+        evicted_lines,
+        ..
     } = state;
     let damage = Damage::take(term);
     let grid = GridSize::new(term.columns(), term.screen_lines());
@@ -357,6 +375,8 @@ fn take_snapshot(state: &mut State, version: u64) -> Snapshot {
         modes,
         display_offset,
         history_size,
+        scrollback_generation: *scrollback_generation,
+        evicted_lines: *evicted_lines,
         selection,
         damage,
         bottom_line_occupied,
