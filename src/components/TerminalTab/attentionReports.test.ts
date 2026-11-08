@@ -4,7 +4,7 @@ import type { Terminal } from "@xterm/xterm"
 import { watchAttentionReports } from "@/components/TerminalTab/attentionReports"
 import { AgentTracker } from "@/lib/agentStatus"
 
-function tab() {
+function tab(cwd?: string) {
   let osc: (payload: string) => boolean = () => false
   const term = {
     parser: {
@@ -16,7 +16,12 @@ function tab() {
     onBell: () => ({ dispose() {} }),
   } as unknown as Terminal
   const sessions = vi.fn()
-  const tracker = new AgentTracker({ onStatus: vi.fn(), onAgent: vi.fn(), onAnnounce: vi.fn() })
+  const tracker = new AgentTracker({
+    shellCwd: () => cwd,
+    onStatus: vi.fn(),
+    onAgent: vi.fn(),
+    onAnnounce: vi.fn(),
+  })
   const reports = watchAttentionReports(term, {
     agentTracker: tracker,
     onAgentSession: sessions,
@@ -79,8 +84,8 @@ describe("resume metadata through terminal reports", () => {
   })
 
   it("persists a sole claimant but not competing claims through the terminal callback", () => {
-    const a = tab(),
-      b = tab()
+    const a = tab("/tmp"),
+      b = tab("/tmp")
     a.submit()
     a.receive("tterm-agent;codex;processing;sole;broadcast;%2Ftmp")
     b.receive("tterm-agent;codex;processing;sole;broadcast;%2Ftmp")

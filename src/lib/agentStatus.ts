@@ -3,6 +3,8 @@
 // Reports with sessions add ; <session> ; direct|broadcast ; <encoded-cwd>.
 // Legacy session reports are broadcasts and use the same claim rules.
 
+import { agentResumeCwdMatches } from "@/lib/agentResumeCwd"
+
 /** `idle`: stopped by the user, nothing to announce. `ended`: the agent quit. */
 const REPORT_STATES = ["processing", "waiting", "done", "error", "idle", "ended"] as const
 
@@ -179,9 +181,15 @@ export class AgentTracker {
           this.resume.agent === (agent === "claude" ? "claudeCode" : agent)
         if (!restored && !this.claim(session, state)) return false
         if (this.resume?.sessionId === session && !restored) return false
-        if (!restored && !owner && this.resumeClaims.has(session) && agent === "codex") {
-          const startCwd = this.callbacks.shellCwd?.() ?? cwd
-          this.resume = { agent, sessionId: session, ...(startCwd ? { cwd: startCwd } : {}) }
+        const shellCwd = this.callbacks.shellCwd?.()
+        if (
+          !restored &&
+          !owner &&
+          this.resumeClaims.has(session) &&
+          agent === "codex" &&
+          agentResumeCwdMatches(cwd, shellCwd)
+        ) {
+          this.resume = { agent, sessionId: session, cwd: shellCwd }
         }
       }
     }

@@ -4,9 +4,14 @@ import { AgentTracker, AGENT_CLAIM_WINDOW_MS } from "@/lib/agentStatus"
 
 describe("broadcast resume claims preserve dev status routing", () => {
   const trackers: AgentTracker[] = []
-  const make = () => {
+  const make = (cwd: string | undefined = "/same directory") => {
     const status = vi.fn()
-    const tracker = new AgentTracker({ onStatus: status, onAgent: vi.fn(), onAnnounce: vi.fn() })
+    const tracker = new AgentTracker({
+      shellCwd: () => cwd,
+      onStatus: status,
+      onAgent: vi.fn(),
+      onAnnounce: vi.fn(),
+    })
     trackers.push(tracker)
     return { tracker, status }
   }
@@ -95,5 +100,28 @@ describe("broadcast resume claims preserve dev status routing", () => {
     expect(a.tracker.resumeSession(report)?.sessionId).toBe(report.session)
     expect(a.tracker.resumeSession({ ...report, session: "old-session" })).toBeNull()
     expect(a.status).toHaveBeenLastCalledWith(null)
+  })
+
+  it.each([
+    ["/external", "/same directory", false],
+    [undefined, "/same directory", false],
+    ["/same directory", "", false],
+    ["/same directory", "/same directory", true],
+    ["C:/WORK/中文 dir", "c:\\work\\中文 dir", true],
+    ["C:/other", "c:\\work", false],
+  ])("hook cwd %s and shell cwd %s gate only resume, not dev status", (hook, shell, records) => {
+    const a = make(shell),
+      b = make(shell)
+    a.tracker.submit()
+    const event = { ...report, cwd: hook }
+    expect(a.tracker.report(event)).toBe(true)
+    expect(b.tracker.report(event)).toBe(false)
+    expect(a.status).toHaveBeenCalledWith({ agent: "codex", activity: "processing" })
+    expect(b.status).not.toHaveBeenCalled()
+    expect(a.tracker.resumeSession(event) !== null).toBe(records)
+    expect(b.tracker.resumeSession(event)).toBeNull()
+    a.tracker.report({ ...event, state: "waiting" })
+    expect(a.status).toHaveBeenLastCalledWith({ agent: "codex", activity: "waiting" })
+    expect(a.tracker.resumeSession(event) !== null).toBe(records)
   })
 })
