@@ -12,12 +12,12 @@
 
 ## 验收
 
-| 验收条件（照抄任务卡） | 结果 | 证据 |
-| --- | --- | --- |
+| 验收条件（照抄任务卡）                                                                            | 结果 | 证据                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
+| ------------------------------------------------------------------------------------------------- | ---- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | 示例屏幕在 Windows 上通过第 5.2 节的门槛，故意改动 1 像素会失败并指名元素，两次运行结果哈希相同。 | 通过 | `$env:PARITY_PLATFORM='windows'; cargo run -p tterm-parity -- compare`：`PASS`，布局最大偏差 `0.62 px`，整屏 SSIM `0.997678`，遮文字 SSIM `0.999831`，screen color `0 px above 1`。临时把 `BUTTON_PADDING_X` 从 `16.0` 改为 `17.0` 后退出 `1`，输出指名 `example.button`，失败原文保存在 `target/parity/windows-padding-fail.txt`。连续两次结果：`result.json` SHA-256 `79216006C26761B60D11B2BB2CB14F9FB5A2E4C5A2D0BA6CB90C92F0CC84D479`；热力图 SHA-256 `726DFF5B7DD222E8DC1B76A90F1BB18B1269C4C92C5BBCF9339DBD234480AC73`。 |
-| Playwright Edge 与真实 Tauri 窗口的交叉核对有截图与比较数字。 | 通过 | 在 `target/w0-04-win/tauri.json` 临时标识 `com.stone.tTerm.gpui-dev`、空 APPDATA 和 WebView2 调试端口 `9458` 下启动 Tauri；CDP 读取 `list_profiles=[]`、`session.tabs=[]`、`active_tab_id=null` 后打开同一 parity URL 并保存 `target/w0-04-win/tauri.png`。Edge 图为 `target/w0-04-win/edge.png`。两图均 `800x600`：平均通道绝对差 `0.0159020833`，最大通道差 `159`，任一通道变化 `94` 像素，通道差 >8 的像素 `94`，全局灰度 SSIM `0.981893215`；原始输出见 `target/w0-04-win/cross-check.txt`。 |
-| macOS 通道的代码路径不受影响（cfg 分平台；macOS 记为“推迟（决策 012）”，不要求本机验证）。 | 通过 | `capture.rs` 的 `#[cfg(target_os = "windows")]` / `#[cfg(not(target_os = "windows"))]` 分支保留原无头路径；macOS 按决策 012 推迟。 |
-| AGENTS.md 的全部检查通过。 | 通过 | `pnpm lint`、`pnpm format:check`、`pnpm check:tokens`、`pnpm exec tsc --noEmit`、`pnpm test`（174 files / 1294 tests）、`pnpm check:size`（1025 files）通过；`cargo fmt --all --check`、`cargo clippy --workspace --all-targets -- -D warnings`、`cargo test --workspace`（tTerm 812 passed / 23 ignored；tterm-gpui 12；tterm-parity 60；其余目标与 doc-tests 通过）通过。 |
+| Playwright Edge 与真实 Tauri 窗口的交叉核对有截图与比较数字。                                     | 通过 | 在 `target/w0-04-win/tauri.json` 临时标识 `com.stone.tTerm.gpui-dev`、空 APPDATA 和 WebView2 调试端口 `9458` 下启动 Tauri；CDP 读取 `list_profiles=[]`、`session.tabs=[]`、`active_tab_id=null` 后打开同一 parity URL 并保存 `target/w0-04-win/tauri.png`。Edge 图为 `target/w0-04-win/edge.png`。两图均 `800x600`：平均通道绝对差 `0.0159020833`，最大通道差 `159`，任一通道变化 `94` 像素，通道差 >8 的像素 `94`，全局灰度 SSIM `0.981893215`；原始输出见 `target/w0-04-win/cross-check.txt`。                               |
+| macOS 通道的代码路径不受影响（cfg 分平台；macOS 记为“推迟（决策 012）”，不要求本机验证）。        | 通过 | `capture.rs` 的 `#[cfg(target_os = "windows")]` / `#[cfg(not(target_os = "windows"))]` 分支保留原无头路径；macOS 按决策 012 推迟。                                                                                                                                                                                                                                                                                                                                                                                             |
+| AGENTS.md 的全部检查通过。                                                                        | 通过 | `pnpm lint`、`pnpm format:check`、`pnpm check:tokens`、`pnpm exec tsc --noEmit`、`pnpm test`（174 files / 1294 tests）、`pnpm check:size`（1025 files）通过；`cargo fmt --all --check`、`cargo clippy --workspace --all-targets -- -D warnings`、`cargo test --workspace`（tTerm 812 passed / 23 ignored；tterm-gpui 12；tterm-parity 60；其余目标与 doc-tests 通过）通过。                                                                                                                                                    |
 
 ## 检查
 
@@ -48,3 +48,23 @@ cargo run -p tterm-parity -- compare
 ## 遗留问题
 
 - macOS/Linux 按决策 012 推迟，不在本轮验证。
+
+## 评估
+
+- 日期：2026-11-08
+- 结论：**通过**（Windows）。macOS 与 Linux 按决策 012 推迟。
+
+第 1 轮返工的三项都已改正：生产 `src/styles/base.css` 不再有改动，字体名改在比较工具里统一（`layout.mjs` 与 `layout_check.rs`，附单元测试）；GPUI 截图按 1 倍缩放直接输出 800×600，没有经过缩放；Tauri WebView2 与 Edge 的交叉核对已补做。
+
+评估时本机复核：
+
+- AGENTS.md 的全部检查在本 worktree 重跑通过（前端 174 个测试文件、1294 个测试；Rust 部分 fmt、clippy 与 `cargo test --workspace` 全部通过）。
+- 用当前提交重新生成参照数据，再连跑两次 `PARITY_PLATFORM=windows cargo run -p tterm-parity -- compare`：都通过，布局最大偏差 0.62 px，遮掉文字后 SSIM 0.999831，屏幕颜色 0 px 超过 1，两次 `result.json` 的 SHA-256 都是 `4A0998F3…2C5B62`。执行者报告中的 PASS 用的是返工前带未提交改动的参照数据（`02c7f2e2-dirty`），这次复核补上了用当前代码生成的结果。
+- 交叉核对：`tauri.png` 与 `edge.png` 的 94 个不同像素全部落在 x 697–784、y 13–22，也就是 Tauri 窗口自己画的最小化、最大化、关闭按钮。页面内容逐像素相同，所以 Edge 可以替代 WebView2 做 Windows 参照。
+
+执行者遗留、已由评估人清理：
+
+- 隔离运行留下了 `%APPDATA%\com.stone.tTerm.gpui-dev`（只有一个空数据库）。报告说已清理，实际只删了 `%LOCALAPPDATA%` 下的那个。旧数据迁移读取的是被重定向的 APPDATA，所以没有复制真实数据。
+- 交叉核对时启动的 `pnpm dev:parity`（Vite）没有关闭，导致后来的参照截图全部超时。
+
+后续（不阻塞本卡）：如果有人先手动运行 `capture.mjs` 生成参照目录，`ensure_reference` 会把这份没有经过颜色测量的结果当成有效缓存，`compare` 就会报背景色不符。可以让 `cache_is_current` 检查颜色测量是否已经做过，或者在 README 里写明不要手动生成参照目录。
