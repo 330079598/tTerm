@@ -1,0 +1,5 @@
+before_trigger content_exists=false
+generate_started bytes=200000000 buffer=65536
+generate_finished bytes=200000000 elapsed_ms=127
+Published and verified bytes=200000000 path=\\?\C:\Users\stone\AppData\Local\Temp\com.stone.tTerm.gpui-dev\P0-19\drag-21252-0\destination\generated-200MB.bin staging=C:\Users\stone\AppData\Local\Temp\com.stone.tTerm.gpui-dev\P0-19\drag-21252-0
+existing_destination preserved=true; local-check passed (not a native drag)
