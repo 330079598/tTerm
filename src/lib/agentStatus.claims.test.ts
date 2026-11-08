@@ -84,4 +84,16 @@ describe("broadcast resume claims preserve dev status routing", () => {
     expect(b.tracker.resumeSession(report)).toBeNull()
     expect(b.status).toHaveBeenCalledWith({ agent: "codex", activity: "processing" })
   })
+
+  it("does not replace the current resume with a later report from an older status claim", () => {
+    const a = make()
+    a.tracker.submit()
+    a.tracker.report({ ...report, session: "old-session" })
+    a.tracker.submit()
+    a.tracker.report(report)
+    a.tracker.report({ ...report, session: "old-session", state: "done" })
+    expect(a.tracker.resumeSession(report)?.sessionId).toBe(report.session)
+    expect(a.tracker.resumeSession({ ...report, session: "old-session" })).toBeNull()
+    expect(a.status).toHaveBeenLastCalledWith(null)
+  })
 })

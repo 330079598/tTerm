@@ -179,7 +179,7 @@ export class AgentTracker {
           this.resume.agent === (agent === "claude" ? "claudeCode" : agent)
         if (!restored && !this.claim(session, state)) return false
         if (this.resume?.sessionId === session && !restored) return false
-        if (!restored && this.resumeClaims.has(session) && agent === "codex") {
+        if (!restored && !owner && this.resumeClaims.has(session) && agent === "codex") {
           const startCwd = this.callbacks.shellCwd?.() ?? cwd
           this.resume = { agent, sessionId: session, ...(startCwd ? { cwd: startCwd } : {}) }
         }
