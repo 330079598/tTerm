@@ -1,0 +1,5 @@
+generate_started bytes=200000000 buffer=65536
+native_drag_started hwnd=HWND(0x7012a) placeholder_bytes=0
+generate_finished bytes=200000000 elapsed_ms=130
+native_drag_ended accepted=false
+Cancelled or unknown target; generated staging content discarded
