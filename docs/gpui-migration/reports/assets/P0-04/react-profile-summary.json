@@ -1,0 +1,450 @@
+{
+  "generatedAt": "2026-11-08T08:04:33.974Z",
+  "cpu": [
+    {
+      "at": 1794124958217,
+      "value": 92.1998484199664
+    },
+    {
+      "at": 1794124963905,
+      "value": 35.3716111800647
+    },
+    {
+      "at": 1794124967801,
+      "value": 32.1165972502707
+    },
+    {
+      "at": 1794124970401,
+      "value": 23.3014379930817
+    },
+    {
+      "at": 1794124976252,
+      "value": 1.42033998009852
+    }
+  ],
+  "actions": [
+    {
+      "name": "continuous-output",
+      "started": 1794124960372,
+      "ended": 1794124963905,
+      "error": null
+    },
+    {
+      "name": "switch-tab",
+      "started": 1794124965836,
+      "ended": 1794124967800,
+      "error": null
+    },
+    {
+      "name": "split-drag",
+      "started": 1794124969394,
+      "ended": 1794124970401,
+      "error": "Error: no visible split resize handle"
+    },
+    {
+      "name": "settings",
+      "started": 1794124972024,
+      "ended": 1794124976252,
+      "error": null
+    }
+  ],
+  "commitCount": 24,
+  "scenarios": {
+    "startup": {
+      "commitCount": 15,
+      "top": [
+        {
+          "name": "SafeFragment",
+          "renders": 48,
+          "actualDuration": 526.8999997377396,
+          "commits": 48
+        },
+        {
+          "name": "ErrorBoundaryInner",
+          "renders": 21,
+          "actualDuration": 280.89999985694885,
+          "commits": 21
+        },
+        {
+          "name": "ErrorBoundary",
+          "renders": 20,
+          "actualDuration": 280.5,
+          "commits": 20
+        },
+        {
+          "name": "App",
+          "renders": 15,
+          "actualDuration": 175.299999833107,
+          "commits": 15
+        },
+        {
+          "name": "RouterProvider",
+          "renders": 15,
+          "actualDuration": 167,
+          "commits": 15
+        },
+        {
+          "name": "RouterContextProvider",
+          "renders": 15,
+          "actualDuration": 166.59999990463257,
+          "commits": 15
+        },
+        {
+          "name": "Matches",
+          "renders": 15,
+          "actualDuration": 166.59999990463257,
+          "commits": 15
+        },
+        {
+          "name": "MatchesInner",
+          "renders": 15,
+          "actualDuration": 133.59999990463257,
+          "commits": 15
+        },
+        {
+          "name": "CatchBoundary",
+          "renders": 15,
+          "actualDuration": 132.29999995231628,
+          "commits": 15
+        },
+        {
+          "name": "MatchView",
+          "renders": 12,
+          "actualDuration": 131.89999997615814,
+          "commits": 12
+        },
+        {
+          "name": "RootLayout",
+          "renders": 12,
+          "actualDuration": 131.69999992847443,
+          "commits": 12
+        },
+        {
+          "name": "ConfigProvider",
+          "renders": 12,
+          "actualDuration": 131.4999998807907,
+          "commits": 12
+        },
+        {
+          "name": "UserVerificationProvider",
+          "renders": 12,
+          "actualDuration": 131.39999985694885,
+          "commits": 12
+        },
+        {
+          "name": "KeymapProvider",
+          "renders": 12,
+          "actualDuration": 126.69999980926514,
+          "commits": 12
+        },
+        {
+          "name": "ThemeProvider",
+          "renders": 12,
+          "actualDuration": 126.2999997138977,
+          "commits": 12
+        }
+      ]
+    },
+    "continuous-output": {
+      "commitCount": 5,
+      "top": [
+        {
+          "name": "SafeFragment",
+          "renders": 20,
+          "actualDuration": 95.19999980926514,
+          "commits": 20
+        },
+        {
+          "name": "SftpDrawer",
+          "renders": 5,
+          "actualDuration": 41.200000166893005,
+          "commits": 5
+        },
+        {
+          "name": "ErrorBoundary",
+          "renders": 6,
+          "actualDuration": 32.39999997615814,
+          "commits": 6
+        },
+        {
+          "name": "ErrorBoundaryInner",
+          "renders": 6,
+          "actualDuration": 32.200000047683716,
+          "commits": 6
+        },
+        {
+          "name": "SftpDrawerHeader",
+          "renders": 5,
+          "actualDuration": 27.799999952316284,
+          "commits": 5
+        },
+        {
+          "name": "App",
+          "renders": 5,
+          "actualDuration": 24,
+          "commits": 5
+        },
+        {
+          "name": "RouterProvider",
+          "renders": 5,
+          "actualDuration": 23.899999976158142,
+          "commits": 5
+        },
+        {
+          "name": "RouterContextProvider",
+          "renders": 5,
+          "actualDuration": 23.899999976158142,
+          "commits": 5
+        },
+        {
+          "name": "Matches",
+          "renders": 5,
+          "actualDuration": 23.899999976158142,
+          "commits": 5
+        },
+        {
+          "name": "MatchesInner",
+          "renders": 5,
+          "actualDuration": 23.799999952316284,
+          "commits": 5
+        },
+        {
+          "name": "CatchBoundary",
+          "renders": 5,
+          "actualDuration": 23.799999952316284,
+          "commits": 5
+        },
+        {
+          "name": "MatchView",
+          "renders": 5,
+          "actualDuration": 23.799999952316284,
+          "commits": 5
+        },
+        {
+          "name": "RootLayout",
+          "renders": 5,
+          "actualDuration": 23.799999952316284,
+          "commits": 5
+        },
+        {
+          "name": "ConfigProvider",
+          "renders": 5,
+          "actualDuration": 23.799999952316284,
+          "commits": 5
+        },
+        {
+          "name": "UserVerificationProvider",
+          "renders": 4,
+          "actualDuration": 23.700000047683716,
+          "commits": 4
+        }
+      ]
+    },
+    "switch-tab": {
+      "commitCount": 3,
+      "top": [
+        {
+          "name": "SafeFragment",
+          "renders": 12,
+          "actualDuration": 48,
+          "commits": 12
+        },
+        {
+          "name": "SftpDrawer",
+          "renders": 3,
+          "actualDuration": 22.199999928474426,
+          "commits": 3
+        },
+        {
+          "name": "SftpDrawerHeader",
+          "renders": 3,
+          "actualDuration": 14.399999856948853,
+          "commits": 3
+        },
+        {
+          "name": "App",
+          "renders": 3,
+          "actualDuration": 12,
+          "commits": 3
+        },
+        {
+          "name": "ErrorBoundary",
+          "renders": 3,
+          "actualDuration": 12,
+          "commits": 3
+        },
+        {
+          "name": "ErrorBoundaryInner",
+          "renders": 3,
+          "actualDuration": 12,
+          "commits": 3
+        },
+        {
+          "name": "RouterProvider",
+          "renders": 3,
+          "actualDuration": 12,
+          "commits": 3
+        },
+        {
+          "name": "RouterContextProvider",
+          "renders": 3,
+          "actualDuration": 12,
+          "commits": 3
+        },
+        {
+          "name": "Matches",
+          "renders": 3,
+          "actualDuration": 12,
+          "commits": 3
+        },
+        {
+          "name": "MatchesInner",
+          "renders": 3,
+          "actualDuration": 12,
+          "commits": 3
+        },
+        {
+          "name": "CatchBoundary",
+          "renders": 3,
+          "actualDuration": 12,
+          "commits": 3
+        },
+        {
+          "name": "MatchView",
+          "renders": 3,
+          "actualDuration": 12,
+          "commits": 3
+        },
+        {
+          "name": "RootLayout",
+          "renders": 3,
+          "actualDuration": 12,
+          "commits": 3
+        },
+        {
+          "name": "ConfigProvider",
+          "renders": 3,
+          "actualDuration": 12,
+          "commits": 3
+        },
+        {
+          "name": "UserVerificationProvider",
+          "renders": 3,
+          "actualDuration": 12,
+          "commits": 3
+        }
+      ]
+    },
+    "settings": {
+      "commitCount": 1,
+      "top": [
+        {
+          "name": "SafeFragment",
+          "renders": 4,
+          "actualDuration": 30.40000009536743,
+          "commits": 4
+        },
+        {
+          "name": "App",
+          "renders": 1,
+          "actualDuration": 7.700000047683716,
+          "commits": 1
+        },
+        {
+          "name": "ErrorBoundary",
+          "renders": 1,
+          "actualDuration": 7.700000047683716,
+          "commits": 1
+        },
+        {
+          "name": "ErrorBoundaryInner",
+          "renders": 1,
+          "actualDuration": 7.700000047683716,
+          "commits": 1
+        },
+        {
+          "name": "RouterProvider",
+          "renders": 1,
+          "actualDuration": 7.700000047683716,
+          "commits": 1
+        },
+        {
+          "name": "RouterContextProvider",
+          "renders": 1,
+          "actualDuration": 7.700000047683716,
+          "commits": 1
+        },
+        {
+          "name": "Matches",
+          "renders": 1,
+          "actualDuration": 7.700000047683716,
+          "commits": 1
+        },
+        {
+          "name": "MatchesInner",
+          "renders": 1,
+          "actualDuration": 7.600000023841858,
+          "commits": 1
+        },
+        {
+          "name": "CatchBoundary",
+          "renders": 1,
+          "actualDuration": 7.600000023841858,
+          "commits": 1
+        },
+        {
+          "name": "MatchView",
+          "renders": 1,
+          "actualDuration": 7.600000023841858,
+          "commits": 1
+        },
+        {
+          "name": "RootLayout",
+          "renders": 1,
+          "actualDuration": 7.600000023841858,
+          "commits": 1
+        },
+        {
+          "name": "ConfigProvider",
+          "renders": 1,
+          "actualDuration": 7.600000023841858,
+          "commits": 1
+        },
+        {
+          "name": "UserVerificationProvider",
+          "renders": 1,
+          "actualDuration": 7.600000023841858,
+          "commits": 1
+        },
+        {
+          "name": "KeymapProvider",
+          "renders": 1,
+          "actualDuration": 7.600000023841858,
+          "commits": 1
+        },
+        {
+          "name": "ThemeProvider",
+          "renders": 1,
+          "actualDuration": 7.600000023841858,
+          "commits": 1
+        }
+      ]
+    }
+  },
+  "latency": [
+    {
+      "name": "latency-small",
+      "lines": 20,
+      "started": 1794124980825,
+      "finished": 1794125010882,
+      "parsedSamples": []
+    },
+    {
+      "name": "latency-sustained",
+      "lines": 2000,
+      "started": 1794125013894,
+      "finished": 1794125073974,
+      "parsedSamples": []
+    }
+  ]
+}
