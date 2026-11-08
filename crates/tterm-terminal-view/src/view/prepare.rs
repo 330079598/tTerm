@@ -10,6 +10,7 @@ use super::blink::{BLINK_INTERVAL, BlinkState};
 use super::font::{FontSet, grid_for, measure_cell};
 use super::frame::{FrameData, PreparedFrame, cursor_for};
 use super::row::{plan_row, row_hash, shape_row};
+use super::scrollbar::ScrollbarGeometry;
 use super::{TerminalView, bottom_anchored, grid_origin};
 
 impl TerminalView {
@@ -125,11 +126,20 @@ impl TerminalView {
         self.composition
             .refresh(&data.snapshot, cx.background_executor().now());
         self.prepare_ime(&data, origin, window, cx);
+        let scrollbar = (data.snapshot.history_size() > 0).then(|| {
+            ScrollbarGeometry::new(
+                bounds.size.height.as_f32(),
+                data.snapshot.grid().screen_lines,
+                data.snapshot.history_size(),
+                data.snapshot.display_offset(),
+            )
+        });
         PreparedFrame::Full {
             data,
             origin,
             cursor,
             show_cursor,
+            scrollbar,
         }
     }
 
@@ -143,10 +153,10 @@ impl TerminalView {
         let style_epoch = self.style_epoch;
         // Alacritty's damage covers the cells only, not a palette or font
         // change, so rows built under another style epoch are never reused.
-        let previous = self
-            .last_frame
-            .clone()
-            .filter(|frame| frame.style_epoch == style_epoch);
+        let previous = self.last_frame.clone().filter(|frame| {
+            frame.style_epoch == style_epoch
+                && frame.scrollback_generation() == snapshot.scrollback_generation()
+        });
         let damaged = damaged_rows(snapshot.damage(), snapshot.line_count());
         let mut rows = Vec::with_capacity(snapshot.line_count());
         let palette = &self.palette;

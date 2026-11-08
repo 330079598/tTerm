@@ -115,6 +115,7 @@ pub(crate) struct SnapshotParts {
     pub modes: Modes,
     pub display_offset: usize,
     pub history_size: usize,
+    pub scrollback_generation: u64,
     pub selection: Option<SelectionRange>,
     pub damage: Damage,
     pub bottom_line_occupied: bool,
@@ -131,6 +132,7 @@ pub struct Snapshot {
     modes: Modes,
     display_offset: usize,
     history_size: usize,
+    scrollback_generation: u64,
     selection: Option<SelectionRange>,
     damage: Damage,
     bottom_line_occupied: bool,
@@ -147,6 +149,7 @@ impl Snapshot {
             modes,
             display_offset,
             history_size,
+            scrollback_generation,
             selection,
             damage,
             bottom_line_occupied,
@@ -160,6 +163,7 @@ impl Snapshot {
             modes,
             display_offset,
             history_size,
+            scrollback_generation,
             selection,
             damage,
             bottom_line_occupied,
@@ -233,6 +237,15 @@ impl Snapshot {
     /// most the configured capacity.
     pub fn history_size(&self) -> usize {
         self.history_size
+    }
+
+    /// The monotonically increasing history generation.
+    ///
+    /// The generation advances whenever output evicts one or more oldest
+    /// scrollback lines. Views use it to invalidate absolute-line caches even
+    /// when the bounded history length itself stays unchanged.
+    pub fn scrollback_generation(&self) -> u64 {
+        self.scrollback_generation
     }
 
     /// The selection, in grid coordinates, or `None` when nothing is selected.

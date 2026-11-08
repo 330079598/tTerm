@@ -13,7 +13,7 @@ use gpui_kit::{
     AppContext, Bounds, Entity, TestAppContext, WindowBounds, WindowOptions, point, px, size,
 };
 use tterm_terminal::grid::{CellSize, GridSize};
-use tterm_terminal::terminal::{Config, Terminal};
+use tterm_terminal::terminal::{Config, Scroll, Terminal};
 
 use super::font::{FontSet, TerminalFont};
 use super::row::{plan_row, shape_row};
@@ -193,6 +193,43 @@ fn a_palette_change_recolors_rows_that_received_no_output(cx: &mut TestAppContex
             assert!(!row.glyphs.is_empty());
             assert!(row.glyphs.iter().all(|glyph| glyph.color == foreground));
         }
+    });
+}
+
+#[gpui_kit::test]
+fn a_full_scrollback_generation_rebuilds_every_visible_row(cx: &mut TestAppContext) {
+    let (handle, view) = open_window(cx);
+    view.update(cx, |view, _| {
+        view.terminal.set_scrollback(3);
+        for index in 0..40 {
+            view.terminal.write(format!("seed-{index}\r\n").as_bytes());
+        }
+        view.terminal.scroll(Scroll::Delta(2));
+    });
+    cx.update_window(handle, |_, window, cx| window.render_frame(cx))
+        .expect("render the scrolled history");
+    let before = view.read_with(cx, |view, _| {
+        view.last_frame.as_ref().expect("history frame").clone()
+    });
+
+    view.update(cx, |view, _| {
+        let long = "x".repeat(220);
+        view.terminal
+            .write(format!("{long}\r\nnext\r\n").as_bytes());
+    });
+    cx.update_window(handle, |_, window, cx| window.render_frame(cx))
+        .expect("render after wrapped eviction");
+    view.read_with(cx, |view, _| {
+        let after = view.last_frame.as_ref().expect("updated frame");
+        assert!(
+            after.scrollback_generation() > before.scrollback_generation(),
+            "history eviction advances the frame generation"
+        );
+        assert_eq!(after.rows.len(), after.snapshot.line_count());
+        assert!(
+            after.rows.iter().all(|row| !row.glyphs.is_empty()),
+            "a generation change never publishes a blank or partial frame"
+        );
     });
 }
 

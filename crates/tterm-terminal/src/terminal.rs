@@ -25,7 +25,7 @@ use alacritty_terminal::index::Point as AnsiPoint;
 use alacritty_terminal::selection::Selection as AnsiSelection;
 use alacritty_terminal::sync::FairMutex;
 use alacritty_terminal::term::cell::Cell as AnsiCell;
-use alacritty_terminal::term::{Config as TermConfig, Osc52, Term};
+use alacritty_terminal::term::{Config as TermConfig, Osc52, Term, TermDamage, TermMode};
 use alacritty_terminal::vte::ansi::Processor;
 
 use crate::cell::Cell;
@@ -156,6 +156,7 @@ struct State {
     config: Config,
     cell_size: CellSize,
     version: u64,
+    scrollback_generation: u64,
 }
 
 /// The terminal of one session.
@@ -187,6 +188,7 @@ impl Terminal {
             config,
             cell_size,
             version: 0,
+            scrollback_generation: 0,
         };
         Self {
             state: FairMutex::new(state),
@@ -204,8 +206,26 @@ impl Terminal {
             return;
         }
         let mut state = self.state.lock();
-        let State { term, parser, .. } = &mut *state;
+        let configured = state.config.scrollback;
+        let was_alternate = state.term.mode().contains(TermMode::ALT_SCREEN);
+        let State { parser, term, .. } = &mut *state;
         parser.advance(term, bytes);
+        let is_alternate = term.mode().contains(TermMode::ALT_SCREEN);
+        if was_alternate != is_alternate {
+            // A switch swaps grids within one write, and the main screen may
+            // have evicted history before it. Only the active grid can be
+            // inspected afterwards, so a new generation drops cached rows.
+            state.scrollback_generation = state.scrollback_generation.wrapping_add(1);
+            return;
+        }
+        if is_alternate {
+            return;
+        }
+        let history_size = term.total_lines().saturating_sub(term.screen_lines());
+        let full_damage = matches!(term.damage(), TermDamage::Full);
+        if configured > 0 && history_size >= configured && full_damage {
+            state.scrollback_generation = state.scrollback_generation.wrapping_add(1);
+        }
     }
 
     /// Takes every intent produced since the last call, in order.
@@ -334,7 +354,10 @@ impl Terminal {
 /// Builds the frame while the caller holds the lock.
 fn take_snapshot(state: &mut State, version: u64) -> Snapshot {
     let State {
-        term, cell_size, ..
+        term,
+        cell_size,
+        scrollback_generation,
+        ..
     } = state;
     let damage = Damage::take(term);
     let grid = GridSize::new(term.columns(), term.screen_lines());
@@ -357,6 +380,7 @@ fn take_snapshot(state: &mut State, version: u64) -> Snapshot {
         modes,
         display_offset,
         history_size,
+        scrollback_generation: *scrollback_generation,
         selection,
         damage,
         bottom_line_occupied,

@@ -312,6 +312,150 @@ fn output_while_scrolled_back_is_fully_damaged() {
 }
 
 #[test]
+fn scrollback_eviction_advances_generation_without_approximate_counts() {
+    let terminal = terminal(20, 4, 5);
+    terminal.write(b"L00\r\nL01\r\nL02\r\nL03\r\n");
+    let before = terminal.snapshot();
+    let before_generation = before.scrollback_generation();
+
+    terminal.scroll(Scroll::Delta(2));
+    terminal.write(b"L04\r\nL05\r\nL06\r\nL07\r\nL08\r\nL09\r\n");
+    let first_eviction = terminal.snapshot();
+    assert!(first_eviction.scrollback_generation() > before_generation);
+    assert_eq!(trimmed_row_text(&first_eviction, 0), "L02");
+
+    terminal.write(b"L10\r\nL11\r\nL12\r\n");
+    let second_eviction = terminal.snapshot();
+    assert!(second_eviction.scrollback_generation() > first_eviction.scrollback_generation());
+    assert_eq!(trimmed_row_text(&second_eviction, 0), "L05");
+}
+
+#[test]
+fn long_wrapped_line_evicts_history_without_a_newline() {
+    let terminal = terminal(4, 2, 2);
+    terminal.write(b"old-0\r\nold-1\r\n");
+    let before = terminal.snapshot();
+    terminal.scroll(Scroll::Top);
+    terminal.snapshot();
+
+    terminal.write(b"abcdefghijklmno");
+    let after = terminal.snapshot();
+    assert!(after.scrollback_generation() > before.scrollback_generation());
+    assert!(after.history_size() <= 2);
+    assert!(
+        after
+            .rows()
+            .iter()
+            .any(|row| { row.cells().iter().any(|cell| cell.ch != ' ') })
+    );
+}
+
+#[test]
+fn evicting_then_entering_the_alternate_screen_in_one_write_advances_the_generation() {
+    let terminal = terminal(20, 3, 2);
+    terminal.write(b"old-0\r\nold-1\r\nold-2\r\nold-3\r\nold-4\r\n");
+    let before = terminal.snapshot();
+    terminal.write(b"new-0\r\nnew-1\r\n\x1b[?1049h");
+    let after = terminal.snapshot();
+    assert!(after.modes().contains(crate::mode::Modes::ALT_SCREEN));
+    assert!(after.scrollback_generation() > before.scrollback_generation());
+}
+
+#[test]
+fn csi_scroll_up_and_index_evict_history() {
+    for sequence in [b"\x1b[3S".as_slice(), b"\x1bD".as_slice()] {
+        let terminal = terminal(20, 3, 2);
+        terminal.write(b"old-0\r\nold-1\r\nold-2\r\n");
+        let before = terminal.snapshot();
+        terminal.write(sequence);
+        let after = terminal.snapshot();
+        assert!(
+            after.scrollback_generation() > before.scrollback_generation(),
+            "sequence {sequence:?} must advance the generation when history is full"
+        );
+    }
+}
+
+#[test]
+fn middle_linefeed_and_partial_scroll_region_do_not_mix_view_content() {
+    let terminal = terminal(12, 5, 4);
+    terminal.write(b"seed-0\r\nseed-1\r\nseed-2\r\nseed-3\r\n");
+    let before = terminal.snapshot();
+
+    terminal.write(b"\x1b[3;1H\r\n");
+    let middle = terminal.snapshot();
+    assert!(middle.rows().iter().all(|row| !row.cells().is_empty()));
+
+    terminal.write(b"\x1b[2;4r\x1b[4;1H\r\n\x1b[r");
+    let region = terminal.snapshot();
+    assert!(region.rows().iter().all(|row| !row.cells().is_empty()));
+    assert!(region.scrollback_generation() >= before.scrollback_generation());
+}
+
+#[test]
+fn clearing_history_then_output_starts_a_consistent_generation() {
+    let terminal = terminal(12, 4, 3);
+    terminal.write(b"old-0\r\nold-1\r\nold-2\r\nold-3\r\n");
+    terminal.scroll(Scroll::Top);
+    terminal.snapshot();
+    terminal.write(b"\x1b[3J");
+    let cleared = terminal.snapshot();
+    assert_eq!(cleared.history_size(), 0);
+    terminal.write(b"fresh\r\n");
+    let after = terminal.snapshot();
+    assert!(after.history_size() <= 1);
+    assert!(after.rows().iter().all(|row| !row.cells().is_empty()));
+}
+
+#[test]
+fn scrolling_back_and_returning_keeps_unsubmitted_bottom_input() {
+    let terminal = terminal(20, 4, 20);
+    terminal.write(b"one\r\ntwo\r\nthree\r\nfour\r\n");
+    terminal.write(b"draft");
+    terminal.scroll(Scroll::Top);
+    let history = terminal.snapshot();
+    assert!(history.is_scrolled_back());
+    terminal.scroll(Scroll::Bottom);
+    let bottom = terminal.snapshot();
+    assert!(
+        screen_text(&bottom)
+            .iter()
+            .any(|line| line.contains("draft"))
+    );
+}
+
+#[test]
+fn rapid_output_while_scrolled_keeps_complete_frames() {
+    let terminal = terminal(20, 4, 5);
+    for index in 0..20 {
+        terminal.write(format!("seed-{index}\r\n").as_bytes());
+    }
+    terminal.scroll(Scroll::Delta(2));
+    for index in 0..20 {
+        terminal.write(format!("burst-{index}\r\n").as_bytes());
+        let frame = terminal.snapshot();
+        assert_eq!(frame.rows().len(), 4);
+        assert!(frame.rows().iter().all(|row| !row.cells().is_empty()));
+    }
+}
+
+#[test]
+fn an_evicted_anchor_moves_like_xterm_after_the_offset_limit() {
+    let terminal = terminal(20, 4, 5);
+    for index in 0..20 {
+        terminal.write(format!("line-{index}\r\n").as_bytes());
+    }
+    terminal.scroll(Scroll::Delta(2));
+    let mut first_rows = Vec::new();
+    for index in 20..28 {
+        terminal.write(format!("line-{index}\r\n").as_bytes());
+        first_rows.push(trimmed_row_text(&terminal.snapshot(), 0));
+    }
+    assert_eq!(&first_rows[..3], ["line-15", "line-15", "line-15"]);
+    assert!(first_rows[3..].windows(2).all(|rows| rows[0] != rows[1]));
+}
+
+#[test]
 fn in_place_updates_damage_only_their_rows() {
     let terminal = terminal(20, 5, 0);
     terminal.snapshot();
