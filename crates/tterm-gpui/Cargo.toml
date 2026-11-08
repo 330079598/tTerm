@@ -7,6 +7,11 @@ license = "MIT"
 publish = false
 
 [[example]]
+name = "p0_19_drag_out"
+path = "examples/p0_19_drag_out/main.rs"
+test = true
+
+[[example]]
 name = "p0_20_remote_editor"
 path = "examples/p0_20_remote_editor/main.rs"
 # Keep the probe's regression tests in the required workspace test run.
@@ -43,4 +48,4 @@ gpui-kit = { workspace = true, features = ["test-support", "profiler"] }
 [target.'cfg(windows)'.dependencies]
 # Loads the bundled conpty.dll by full path; the version is the one pins.md
 # fixes for tTerm and gpui-pre.
-windows = { version = "0.62.2", features = ["Win32_System_LibraryLoader", "Win32_Security_Cryptography"] }
+windows = { version = "=0.62.2", features = ["Win32_System_LibraryLoader", "Win32_Security_Cryptography", "Win32_System_Com", "Win32_System_Ole", "Win32_UI_Shell", "Win32_UI_Shell_Common", "Win32_UI_WindowsAndMessaging"] }
