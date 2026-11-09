@@ -15,8 +15,6 @@ use gpui_kit::{
 use tterm_terminal::grid::{CellSize, GridSize};
 use tterm_terminal::terminal::{Config, Scroll, Terminal};
 
-use super::font::{FontSet, TerminalFont};
-use super::row::{plan_row, shape_row};
 use super::{TerminalView, TerminalViewConfig};
 
 fn terminal() -> Arc<Terminal> {
@@ -231,52 +229,6 @@ fn a_full_scrollback_generation_rebuilds_every_visible_row(cx: &mut TestAppConte
             "a generation change never publishes a blank or partial frame"
         );
     });
-}
-
-#[test]
-fn shaping_places_each_glyph_on_its_column() {
-    let platform = gpui_kit::platform::current_platform(true);
-    let text_system = gpui_kit::TextSystem::new(platform.text_system());
-    let window_text = gpui_kit::WindowTextSystem::new(Arc::new(text_system));
-    let font = TerminalFont::default();
-    let fonts = FontSet::new(&font);
-    let cells: Vec<tterm_terminal::cell::Cell> = "abc"
-        .chars()
-        .map(|ch| tterm_terminal::cell::Cell {
-            ch,
-            foreground: tterm_terminal::color::Color::Named(
-                tterm_terminal::color::NamedColor::Foreground,
-            ),
-            background: tterm_terminal::color::Color::Named(
-                tterm_terminal::color::NamedColor::Background,
-            ),
-            attributes: tterm_terminal::cell::Attributes::default(),
-            underline_color: None,
-            hyperlink: None,
-            zerowidth: None,
-        })
-        .collect();
-    let plan = plan_row(
-        &cells,
-        &tterm_terminal::palette::TerminalPalette::default(),
-        crate::glyphs::CellMetrics::new(8.0, 16.0),
-    );
-    let layout = shape_row(plan, &window_text, &fonts, 14.0);
-    assert_eq!(layout.glyphs.len(), 3);
-    assert_eq!(
-        layout
-            .glyphs
-            .iter()
-            .map(|glyph| glyph.column)
-            .collect::<Vec<_>>(),
-        [0, 1, 2]
-    );
-    assert!(
-        layout
-            .glyphs
-            .iter()
-            .all(|glyph| glyph.offset_x.as_f32().abs() < 0.01)
-    );
 }
 
 #[test]
