@@ -1,0 +1,11 @@
+{
+  "input": "Playwright WebKit trusted ArrowDown after pointer move to item-0",
+  "before": {
+    "hover": true,
+    "background": "oklab(0.544629 -0.049777 -0.157557 / 0.5)"
+  },
+  "after": {
+    "hover": true,
+    "background": "oklab(0.544629 -0.049777 -0.157557 / 0.5)"
+  }
+}
