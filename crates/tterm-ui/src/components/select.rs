@@ -8,7 +8,7 @@
 //! root; highlight movement, choosing and outside clicks are handled here.
 
 use super::icons::{CHEVRON_DOWN, icon};
-use super::surface::{css_color, css_opacity, shadow_xs, surface};
+use super::surface::{css_group_color, shadow_xs, surface};
 use crate::tokens::color::Hsl;
 use crate::tokens::gpui::hsla;
 use crate::tokens::theme::Theme;
@@ -74,6 +74,8 @@ pub struct Select {
     disabled: bool,
     /// Draws the focus border without focus, for parity fixtures.
     force_focused: bool,
+    /// The opaque colour behind the control; see [`Select::backdrop`].
+    backdrop: Option<Hsl>,
     theme: Theme,
     focus: FocusHandle,
     list_focus: FocusHandle,
@@ -101,6 +103,7 @@ impl Select {
             open: false,
             disabled: false,
             force_focused: false,
+            backdrop: None,
             theme,
             focus: cx.focus_handle(),
             list_focus: cx.focus_handle(),
@@ -115,6 +118,13 @@ impl Select {
 
     pub fn force_focused(mut self, focused: bool) -> Self {
         self.force_focused = focused;
+        self
+    }
+
+    /// The opaque colour behind the control, used to flatten the disabled
+    /// opacity (see [`css_group_color`]). Defaults to the theme background.
+    pub fn backdrop(mut self, backdrop: Hsl) -> Self {
+        self.backdrop = Some(backdrop);
         self
     }
 
@@ -179,6 +189,12 @@ impl Select {
     fn render_control(&self, focused: bool, cx: &mut Context<Self>) -> impl IntoElement {
         let computed = style(focused, self.disabled, self.theme);
         let (top, right, bottom, left) = computed.padding;
+        // CSS fades the control as one group. GPUI fades each primitive, which
+        // would let the shadow show through the half-transparent fill, so the
+        // opaque fill, border and text are flattened over the backdrop instead
+        // and painted at full opacity.
+        let backdrop = self.backdrop.unwrap_or(self.theme.colors.background);
+        let paint = |color: Hsl| css_group_color(color, computed.opacity, backdrop);
         let label = self.options.get(self.selected).cloned().unwrap_or_default();
         let bounds = self.control_bounds.clone();
         div()
@@ -200,11 +216,10 @@ impl Select {
                     .border_color(gpui_kit::transparent_black())
                     .shadow(vec![shadow_xs(computed.opacity)])
                     .text_size(px(14.0))
-                    .text_color(hsla(computed.foreground, 1.0))
-                    .opacity(css_opacity(computed.opacity))
+                    .text_color(paint(computed.foreground))
                     .child(surface(
-                        css_color(computed.background, 1.0),
-                        css_color(computed.border, 1.0),
+                        paint(computed.background),
+                        paint(computed.border),
                         1.0,
                         6.0,
                         None,
