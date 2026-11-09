@@ -120,7 +120,10 @@ export function collectLayout(screen) {
         backgroundColor: toRgba(style.backgroundColor),
         borderColor: toRgba(style.borderTopColor),
         borderWidth: parsePx(style.borderTopWidth, "border-top-width"),
-        borderRadius: parsePx(style.borderTopLeftRadius, "border-top-left-radius"),
+        borderRadius:
+          style.borderTopLeftRadius.includes("infinity")
+            ? Math.min(element.getBoundingClientRect().width, element.getBoundingClientRect().height) / 2
+            : parsePx(style.borderTopLeftRadius, "border-top-left-radius"),
         ringSpread: ringSpread(style.boxShadow),
         fontFamily: canonicalFontFamily(style.fontFamily),
         fontSize: parsePx(style.fontSize, "font-size"),
