@@ -14,7 +14,7 @@
 | 002  | P0-06 的依赖来源与固定组合                | [002-dependency-sources.md](002-dependency-sources.md)                                   |
 | 003  | G1 是否进入 P1                            | 留给 G1                                                                                  |
 | 004  | P0-26 的打包与更新衔接                    | [004-packaging.md](004-packaging.md)                                                     |
-| 005  | G0 剖析结论确认                           | 留给 G0                                                                                  |
+| 005  | G0 剖析结论确认                           | 不使用（G0 已由 015 取消）                                                               |
 | 006  | W0-01 的 CI 验收暂缓                      | [006-w0-01-ci-waiver.md](006-w0-01-ci-waiver.md)                                         |
 | 007  | 只用官方来源，终端以官方 Alacritty 为内核 | [007-official-sources-and-terminal-route.md](007-official-sources-and-terminal-route.md) |
 | 008  | 实现终端的执行者可以阅读 Zed 终端源码     | [008-zed-terminal-reading.md](008-zed-terminal-reading.md)                               |
@@ -24,8 +24,10 @@
 | 012  | 先做 Windows，macOS 与 Linux 的验证推后   | [012-windows-first.md](012-windows-first.md)                                             |
 | 013  | focus ring 外沿纳入对比工具的边缘遮罩     | [013-ring-edge-mask.md](013-ring-edge-mask.md)                                           |
 | 014  | 图标用独立检查代替逐像素比较              | [014-icon-check.md](014-icon-check.md)                                                   |
+| 015  | 收窄 P0，性能对比最后统一做               | [015-trim-p0.md](015-trim-p0.md)                                                         |
+| 016  | macOS 与 Windows 同等，Linux 推迟         | [016-mac-windows-either.md](016-mac-windows-either.md)                                   |
 
-- 下一个可用编号：**015**。
+- 下一个可用编号：**017**。
 
 ## 正文格式
 

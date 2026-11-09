@@ -23,15 +23,12 @@
 - **P0-24 第一批已合并**（2026-11-09，在 Mac 上）：PasswordInput、Select、Switch 在 macOS 深浅两种主题下达标。Codex 两轮只交了静态画面，决策人随后改由 Claude 直接实现。期间对比工具新增了组件部件比较、例外登记（E-001）和图标检查（决策 014）。
 - **P0-24 第二批已合并**（2026-11-09，在 Mac 上）：Tabs、Dialog、右键菜单在 macOS 深浅两种主题下达标，一共 16 屏。决策人改回由 Codex 实现、Claude 验收，三个组件各用一个 worktree 并行，审查交给 subagent。期间做了两件事：决策 013 补充了有偏移的 ring，E-001 扩展到 Dialog、右键菜单、Tabs active。第一批遗留的 `shadow-xs` 和 `layout.test.mjs` 也一并完成。P0-24 在 macOS 上只剩 [人工] 项，Windows 通道还没做。
 - P0-10-mac-test 已通过并合并（2026-11-09）：macOS 上 `cargo test --workspace` 不再有失败项。
+- **P0 收窄**（[决策 015](decisions/015-trim-p0.md)、[决策 016](decisions/016-mac-windows-either.md)，2026-11-09）：P0-02、03、05、16、17、18、21 推迟，G0 取消；与 Tauri 版的性能对比在迁移完成后统一做一次（决策 015 第 5 条），各自的去向见决策 015。P0-24 已在 macOS 达标，满足 G1；Windows 通道改为待补。
 - 排队，按顺序：
-  1. ~~P0-24 第二批~~：已完成（2026-11-09）；
-  2. P0-01 补跑 vtebench（WSL 里已装 cargo，`~/vtebench` 已克隆），以及 macOS 基线（Mac 空闲时单独跑）；
-  3. P0-21，机器空闲时单独跑；
-  4. P0-17、P0-18 的 Windows 部分，要人动手的项整理成检查清单给 stone；
-  5. P0-05、P0-22；
-  6. 请 stone 过 G1。
-- Windows 上要补的：P0-24 的 Windows 通道对比（G1 门槛）。
-- 平台顺序按[决策 012](decisions/012-windows-first.md)：Windows，然后 macOS，最后 Linux。macOS 与 Linux 的验收项记为“推迟（决策 012）”，不阻塞进度。手头有 Mac 时，可以补 macOS 的推迟项：P0-02、P0-01 的 macOS 基线、P0-18 的 macOS 部分。
+  1. P0-22 精简版（一页，不占机器）：停止条件逐项给结论或“推迟到哪张卡”，按现有任务卡重估工期；
+  2. 请 stone 过 G1，然后派 P1-01、P1-02 等不互相依赖的卡；目标是尽快完成 P1-12，开始 P3-01 与 P3-07。
+- 平台按[决策 016](decisions/016-mac-windows-either.md)：macOS 与 Windows 同等，有哪台用哪台，另一个平台记为“待补（决策 016）”，在该平台发布前补齐；Linux 的验证全部推迟到 Linux 发布前。CI 仍跑三平台。
+- 待补清单：P0-24 的 Windows 通道对比与 [人工] 项；P0-26 的 macOS 升级验证。
 
 ## 3. 派发
 
