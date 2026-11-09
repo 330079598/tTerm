@@ -22,8 +22,9 @@
 | 010  | 远程编辑器候选方案（提议）                | [010-remote-editor-proposal.md](010-remote-editor-proposal.md)                           |
 | 011  | 文件拖出原生适配方案（提议）              | [011-drag-out-proposal.md](011-drag-out-proposal.md)                                     |
 | 012  | 先做 Windows，macOS 与 Linux 的验证推后   | [012-windows-first.md](012-windows-first.md)                                             |
+| 013  | focus ring 外沿纳入对比工具的边缘遮罩     | [013-ring-edge-mask.md](013-ring-edge-mask.md)                                           |
 
-- 下一个可用编号：**013**。
+- 下一个可用编号：**014**。
 
 ## 正文格式
 
