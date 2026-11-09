@@ -132,7 +132,9 @@ pub fn button(
         .rounded(px(6.0))
         .border(px(computed.border_width))
         .border_color(gpui_kit::transparent_black())
-        .shadow(vec![shadow_xs(computed.opacity)])
+        .when(matches!(variant, Variant::Outline), |this| {
+            this.shadow(vec![shadow_xs(computed.opacity)])
+        })
         .relative()
         .text_color(hsla(computed.foreground, 1.0))
         .text_size(px(computed.font_size))
