@@ -1,0 +1,42 @@
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.66s
+     Running `/Users/stone/Code/rust/tTerm-P0-24/scripts/macos-dev-bundle.sh target/debug/tterm-parity compare`
+reference: regenerating the React screens for aaaf5d75b7f6051b307b73b67b3d15d58a58efd1
+example.button-input.default: 3 element(s), 3 text region(s)
+ui.button.variants: 12 element(s), 11 text region(s)
+ui.button.sizes: 9 element(s), 8 text region(s)
+ui.input.default: 5 element(s), 4 text region(s)
+reference: 4 screen(s) in /Users/stone/Code/rust/tTerm-P0-24/target/parity/reference/aaaf5d75b7f6051b307b73b67b3d15d58a58efd1-light
+gpui example.button-input.default: 3 element(s) -> /Users/stone/Code/rust/tTerm-P0-24/target/parity/actual/example.button-input.default.layout.json
+gpui ui.button.variants: 12 element(s) -> /Users/stone/Code/rust/tTerm-P0-24/target/parity/actual/ui.button.variants.layout.json
+gpui ui.button.sizes: 9 element(s) -> /Users/stone/Code/rust/tTerm-P0-24/target/parity/actual/ui.button.sizes.layout.json
+gpui ui.input.default: 5 element(s) -> /Users/stone/Code/rust/tTerm-P0-24/target/parity/actual/ui.input.default.layout.json
+
+example.button-input.default PASS
+  layout: 3 element(s), max bounds delta 0.25 px, 0 failure(s)
+  color (text masked): mean deltaE00 0.0001, max 3.2200, 41 px above 1
+  color (screen gate): mean deltaE00 0.0000, max 0.0000, 0 px above 1
+  ssim: full 0.998897, masked 1.000000
+  heatmap: /Users/stone/Code/rust/tTerm-P0-24/target/parity/report/heatmaps/example.button-input.default.png
+ui.button.variants FAIL
+  layout: 12 element(s), max bounds delta 0.00 px, 0 failure(s)
+  color (text masked): mean deltaE00 0.0364, max 12.6537, 3282 px above 1
+  color (screen gate): mean deltaE00 0.0307, max 1.6225, 16 px above 1
+  ssim: full 0.987278, masked 0.998621
+  heatmap: /Users/stone/Code/rust/tTerm-P0-24/target/parity/report/heatmaps/ui.button.variants.png
+  failure: screen colour gate: 16 pixel(s) above CIEDE2000 1 outside text and element edges (allowed 0)
+ui.button.sizes PASS
+  layout: 9 element(s), max bounds delta 0.00 px, 0 failure(s)
+  color (text masked): mean deltaE00 0.0005, max 4.3899, 288 px above 1
+  color (screen gate): mean deltaE00 0.0000, max 0.0000, 0 px above 1
+  ssim: full 0.998873, masked 0.999998
+  heatmap: /Users/stone/Code/rust/tTerm-P0-24/target/parity/report/heatmaps/ui.button.sizes.png
+ui.input.default PASS
+  layout: 5 element(s), max bounds delta 0.00 px, 0 failure(s)
+  color (text masked): mean deltaE00 0.0159, max 12.8033, 7158 px above 1
+  color (screen gate): mean deltaE00 0.0046, max 0.9965, 0 px above 1
+  ssim: full 0.974104, masked 0.996851
+  heatmap: /Users/stone/Code/rust/tTerm-P0-24/target/parity/report/heatmaps/ui.input.default.png
+
+4 screen(s): 3 passed, 1 failed
+report: /Users/stone/Code/rust/tTerm-P0-24/target/parity/report/index.html
+result: /Users/stone/Code/rust/tTerm-P0-24/target/parity/report/result.json
