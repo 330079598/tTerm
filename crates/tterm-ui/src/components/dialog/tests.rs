@@ -370,18 +370,16 @@ fn rendering_two_dialog_themes_does_not_mutate_global_theme(cx: &mut TestAppCont
 fn keyboard_activates_each_dialog_button(cx: &mut TestAppContext) {
     let (probe, visual) = harness(cx, false);
     let dialog = dialog(&probe, visual);
-    for (index, expected) in [
-        (0, Some(DialogAction::Cancel)),
-        (1, Some(DialogAction::Confirm)),
-        (2, None),
+    for (tabs, expected) in [
+        ("tab", Some(DialogAction::Cancel)),
+        ("tab tab", Some(DialogAction::Confirm)),
+        ("tab tab tab", None),
     ] {
         visual.update(|window, cx| {
-            dialog.update(cx, |dialog, cx| {
-                dialog.reopen(window, cx);
-                dialog.initialized_focus = true;
-                dialog.controls[index].focus(window, cx);
-            })
+            dialog.update(cx, |dialog, cx| dialog.reopen(window, cx));
         });
+        redraw(visual);
+        visual.simulate_keystrokes(tabs);
         redraw(visual);
         visual.simulate_keystrokes("enter");
         redraw(visual);
