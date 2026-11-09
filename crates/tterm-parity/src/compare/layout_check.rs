@@ -193,18 +193,7 @@ fn compare_style(
         actual.ring_spread,
         failures,
     );
-    if reference.ring_spreads.len() != actual.ring_spreads.len()
-        || reference
-            .ring_spreads
-            .iter()
-            .zip(&actual.ring_spreads)
-            .any(|(first, second)| (first - second).abs() > STYLE_TOLERANCE)
-    {
-        failures.push(format!(
-            "{id}: ring spreads {:?} -> {:?}",
-            reference.ring_spreads, actual.ring_spreads
-        ));
-    }
+    compare_ring_spreads(id, reference, actual, failures);
     check_number(id, "opacity", reference.opacity, actual.opacity, failures);
     check_number(
         id,
@@ -297,6 +286,26 @@ fn compare_style(
         },
         failures,
     );
+}
+
+fn compare_ring_spreads(
+    id: &str,
+    reference: &StyleSnapshot,
+    actual: &StyleSnapshot,
+    failures: &mut Vec<String>,
+) {
+    if reference.ring_spreads.len() != actual.ring_spreads.len()
+        || reference
+            .ring_spreads
+            .iter()
+            .zip(&actual.ring_spreads)
+            .any(|(first, second)| (first - second).abs() > STYLE_TOLERANCE)
+    {
+        failures.push(format!(
+            "{id}: ring spreads {:?} -> {:?}",
+            reference.ring_spreads, actual.ring_spreads
+        ));
+    }
 }
 
 fn canonical_font_family(family: &str) -> String {
