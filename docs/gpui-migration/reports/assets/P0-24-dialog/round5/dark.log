@@ -1,0 +1,108 @@
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.74s
+     Running `/Users/stone/Code/rust/tTerm-P0-24-dialog/scripts/macos-dev-bundle.sh target/debug/tterm-parity compare`
+reference: regenerating the React screens for 66e969328a1d2047b2137b7279019c0869a3f1e9
+example.button-input.default: 3 element(s), 3 text region(s)
+ui.button.variants: 12 element(s), 11 text region(s)
+ui.button.sizes: 9 element(s), 8 text region(s)
+ui.input.default: 5 element(s), 4 text region(s)
+ui.password.default: 3 element(s), 3 text region(s)
+ui.select.default: 4 element(s), 4 text region(s)
+ui.switch.default: 8 element(s), 0 text region(s)
+ui.dialog.confirm: 9 element(s), 5 text region(s)
+ui.dialog.destructive: 9 element(s), 5 text region(s)
+ui.dialog.prompt: 11 element(s), 7 text region(s)
+ui.dialog.multiline: 9 element(s), 8 text region(s)
+reference: 11 screen(s) in /Users/stone/Code/rust/tTerm-P0-24-dialog/target/parity/reference/66e969328a1d2047b2137b7279019c0869a3f1e9
+gpui example.button-input.default: 3 element(s) -> /Users/stone/Code/rust/tTerm-P0-24-dialog/target/parity/actual/example.button-input.default.layout.json
+gpui ui.button.variants: 12 element(s) -> /Users/stone/Code/rust/tTerm-P0-24-dialog/target/parity/actual/ui.button.variants.layout.json
+gpui ui.button.sizes: 9 element(s) -> /Users/stone/Code/rust/tTerm-P0-24-dialog/target/parity/actual/ui.button.sizes.layout.json
+gpui ui.input.default: 5 element(s) -> /Users/stone/Code/rust/tTerm-P0-24-dialog/target/parity/actual/ui.input.default.layout.json
+gpui ui.password.default: 3 element(s) -> /Users/stone/Code/rust/tTerm-P0-24-dialog/target/parity/actual/ui.password.default.layout.json
+gpui ui.select.default: 4 element(s) -> /Users/stone/Code/rust/tTerm-P0-24-dialog/target/parity/actual/ui.select.default.layout.json
+gpui ui.switch.default: 8 element(s) -> /Users/stone/Code/rust/tTerm-P0-24-dialog/target/parity/actual/ui.switch.default.layout.json
+gpui ui.dialog.confirm: 9 element(s) -> /Users/stone/Code/rust/tTerm-P0-24-dialog/target/parity/actual/ui.dialog.confirm.layout.json
+gpui ui.dialog.destructive: 9 element(s) -> /Users/stone/Code/rust/tTerm-P0-24-dialog/target/parity/actual/ui.dialog.destructive.layout.json
+gpui ui.dialog.prompt: 11 element(s) -> /Users/stone/Code/rust/tTerm-P0-24-dialog/target/parity/actual/ui.dialog.prompt.layout.json
+gpui ui.dialog.multiline: 9 element(s) -> /Users/stone/Code/rust/tTerm-P0-24-dialog/target/parity/actual/ui.dialog.multiline.layout.json
+
+example.button-input.default PASS
+  layout: 3 element(s), max bounds delta 0.25 px, 0 failure(s)
+  color (text masked): mean deltaE00 0.0001, max 2.6153, 52 px above 1
+  color (screen gate): mean deltaE00 0.0000, max 0.0000, 0 px above 1
+  ssim: full 0.998504, masked 1.000000
+  heatmap: /Users/stone/Code/rust/tTerm-P0-24-dialog/target/parity/report/heatmaps/example.button-input.default.png
+ui.button.variants PASS
+  layout: 12 element(s), max bounds delta 0.00 px, 0 failure(s)
+  color (text masked): mean deltaE00 0.0212, max 5.5621, 388 px above 1
+  color (screen gate): mean deltaE00 0.0197, max 0.6928, 0 px above 1
+  ssim: full 0.990719, masked 0.999943
+  heatmap: /Users/stone/Code/rust/tTerm-P0-24-dialog/target/parity/report/heatmaps/ui.button.variants.png
+ui.button.sizes PASS
+  layout: 9 element(s), max bounds delta 0.00 px, 0 failure(s)
+  color (text masked): mean deltaE00 0.0004, max 3.1651, 288 px above 1
+  color (screen gate): mean deltaE00 0.0000, max 0.0000, 0 px above 1
+  ssim: full 0.998855, masked 0.999997
+  heatmap: /Users/stone/Code/rust/tTerm-P0-24-dialog/target/parity/report/heatmaps/ui.button.sizes.png
+ui.input.default PASS
+  layout: 5 element(s), max bounds delta 0.00 px, 0 failure(s)
+  color (text masked): mean deltaE00 0.0051, max 12.0435, 322 px above 1
+  color (screen gate): mean deltaE00 0.0021, max 0.6928, 0 px above 1
+  ssim: full 0.977373, masked 0.999870
+  heatmap: /Users/stone/Code/rust/tTerm-P0-24-dialog/target/parity/report/heatmaps/ui.input.default.png
+ui.password.default PASS
+  layout: 3 element(s), max bounds delta 0.00 px, 0 failure(s)
+  color (text masked): mean deltaE00 0.0046, max 5.5621, 372 px above 1
+  color (screen gate): mean deltaE00 0.0018, max 0.6928, 0 px above 1
+  ssim: full 0.991643, masked 0.999883
+  icons: 3 checked, 0 failed; worst ink |1-ratio| 0.009, centroid 0.00 px, stroke colour 0.62
+  heatmap: /Users/stone/Code/rust/tTerm-P0-24-dialog/target/parity/report/heatmaps/ui.password.default.png
+ui.select.default PASS
+  layout: 4 element(s), max bounds delta 0.00 px, 0 failure(s)
+  color (text masked): mean deltaE00 0.0030, max 11.6053, 430 px above 1
+  color (screen gate): mean deltaE00 0.0020, max 0.6928, 0 px above 1
+  ssim: full 0.998832, masked 0.999930
+  icons: 4 checked, 0 failed; worst ink |1-ratio| 0.028, centroid 0.00 px, stroke colour 0.33
+  heatmap: /Users/stone/Code/rust/tTerm-P0-24-dialog/target/parity/report/heatmaps/ui.select.default.png
+ui.switch.default PASS
+  layout: 8 element(s), max bounds delta 0.00 px, 0 failure(s)
+  color (text masked): mean deltaE00 0.0004, max 3.8900, 236 px above 1
+  color (screen gate): mean deltaE00 0.0000, max 0.0808, 0 px above 1
+  ssim: full 0.999996, masked 0.999994
+  exceptions (judged by a person, see parity/exceptions.md): E-001
+  heatmap: /Users/stone/Code/rust/tTerm-P0-24-dialog/target/parity/report/heatmaps/ui.switch.default.png
+ui.dialog.confirm PASS
+  layout: 9 element(s), max bounds delta 0.17 px, 0 failure(s)
+  color (text masked): mean deltaE00 0.5686, max 5.5621, 182 px above 1
+  color (screen gate): mean deltaE00 0.5731, max 0.6928, 0 px above 1
+  ssim: full 0.996232, masked 0.999944
+  icons: 1 checked, 0 failed; worst ink |1-ratio| 0.021, centroid 0.00 px, stroke colour 0.56
+  exceptions (judged by a person, see parity/exceptions.md): E-001
+  heatmap: /Users/stone/Code/rust/tTerm-P0-24-dialog/target/parity/report/heatmaps/ui.dialog.confirm.png
+ui.dialog.destructive PASS
+  layout: 9 element(s), max bounds delta 0.25 px, 0 failure(s)
+  color (text masked): mean deltaE00 0.5702, max 5.5621, 256 px above 1
+  color (screen gate): mean deltaE00 0.5748, max 0.6928, 0 px above 1
+  ssim: full 0.995944, masked 0.999940
+  icons: 2 checked, 0 failed; worst ink |1-ratio| 0.021, centroid 0.03 px, stroke colour 0.56
+  exceptions (judged by a person, see parity/exceptions.md): E-001
+  heatmap: /Users/stone/Code/rust/tTerm-P0-24-dialog/target/parity/report/heatmaps/ui.dialog.destructive.png
+ui.dialog.prompt PASS
+  layout: 11 element(s), max bounds delta 0.14 px, 0 failure(s)
+  color (text masked): mean deltaE00 0.5340, max 12.0435, 274 px above 1
+  color (screen gate): mean deltaE00 0.5413, max 0.6928, 0 px above 1
+  ssim: full 0.990697, masked 0.999929
+  icons: 1 checked, 0 failed; worst ink |1-ratio| 0.021, centroid 0.00 px, stroke colour 0.56
+  exceptions (judged by a person, see parity/exceptions.md): E-001
+  heatmap: /Users/stone/Code/rust/tTerm-P0-24-dialog/target/parity/report/heatmaps/ui.dialog.prompt.png
+ui.dialog.multiline PASS
+  layout: 9 element(s), max bounds delta 0.17 px, 0 failure(s)
+  color (text masked): mean deltaE00 0.5609, max 5.5621, 182 px above 1
+  color (screen gate): mean deltaE00 0.5657, max 0.6928, 0 px above 1
+  ssim: full 0.981114, masked 0.999942
+  icons: 1 checked, 0 failed; worst ink |1-ratio| 0.021, centroid 0.00 px, stroke colour 0.56
+  exceptions (judged by a person, see parity/exceptions.md): E-001
+  heatmap: /Users/stone/Code/rust/tTerm-P0-24-dialog/target/parity/report/heatmaps/ui.dialog.multiline.png
+
+11 screen(s): 11 passed, 0 failed
+report: /Users/stone/Code/rust/tTerm-P0-24-dialog/target/parity/report/index.html
+result: /Users/stone/Code/rust/tTerm-P0-24-dialog/target/parity/report/result.json

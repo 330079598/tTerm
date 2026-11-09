@@ -2,7 +2,7 @@
 
 ## 结论
 
-**需要确认（第 4 轮）。** H1–L3 的生产代码和 Root 交互测试已补齐，全部代码检查通过。最终干净工作区深浅 compare 均为 **10/11 通过**：原有 10 屏全部通过，新 `ui.dialog.multiline` 布局、样式、图标、full/masked SSIM 均通过，剩余深色 5016、浅色 2 个门槛超限像素全部在内容框外的阴影、outset 25 内。E-001 的已批准扩展明确只列原三屏，本轮没有自行添加第四屏，需要 stone 确认是否适用。第 3 轮通过结果保留为历史证据，最终结果见文末。
+**完成待评估（第 5 轮）。** 评估者已确认多行屏属于既有 E-001 Dialog 内容框范围。本轮只更新例外、manifest 与报告证据，未修改代码。先提交后从干净工作区在沙箱外重新生成深浅参照，两主题均 **11/11 屏通过**，每屏 `screenColors.pixelsAboveOne=0`。全部检查通过，multiline 已加入本轮四屏人工核对表。第 4 轮失败保留为历史诊断，现已解决。
 
 ## 范围与导出部件
 
@@ -106,7 +106,7 @@ GPUI 打开时从 `window.focused(cx)` 保存真实 handle，Prompt 初始 focus
 - Windows 通道：未验证（需 Windows）。
 - `[人工]` 淡入/缩放动画未实现；当前 React Dialog 本身也未提供这两项入场动画 class，静止比较不包含动画。
 - `[人工]` 真实键盘中文输入法、系统辅助功能及 Tauri 真窗口交叉截图；自动化交互测试已执行，不再标为未验证。
-- 第 4 轮已补多行 parity 和窄窗口布局测试；新增屏阴影的 E-001 范围仍需确认。
+- 第 4 轮已补多行 parity 和窄窗口布局测试；新增屏阴影的 E-001 范围已在第 5 轮确认并验证。
 
 ## 第 3 轮：E-001 扩展与干净工作区复跑
 
@@ -237,7 +237,7 @@ cp target/parity/report/result.json target/parity/report-light.json
 
 原始结果：[深色 JSON](assets/P0-24-dialog/round4/report-dark.json)、[浅色 JSON](assets/P0-24-dialog/round4/report-light.json)；命令日志：[深色](assets/P0-24-dialog/round4/dark.log)、[浅色](assets/P0-24-dialog/round4/light.log)。四屏两主题原图、布局与热力图均提交在 [round4](assets/P0-24-dialog/round4/)。
 
-### 需要确认：新增多行屏的阴影范围
+### 第 4 轮历史待确认：新增多行屏的阴影范围（第 5 轮已解决）
 
 E-001 第 3 轮授权只列 `ui.dialog.confirm.content`、`ui.dialog.destructive.content`、`ui.dialog.prompt.content`。新增 `ui.dialog.multiline.content` 没有引用例外。先读取 result.json 门槛计数，再按原比较器 text_mask → screen_mask → mark_icons 的相同链路逐像素诊断，结果如下：
 
@@ -268,9 +268,65 @@ PARITY_DIALOG_BACKDROP_TEXT=1 PARITY_THEME=dark CARGO_BUILD_JOBS=3 cargo run -p 
 
 沙箱外 AGENTS.md 全部检查通过：lint、format:check、check:tokens、typecheck、test（174 文件、1294 测试）、check:size；Rust fmt、`cargo clippy --workspace --all-targets -- -D warnings`、`cargo test --workspace` 均通过，所有 cargo 命令均 `CARGO_BUILD_JOBS=3`，使用本 worktree target。最终 Rust **1179 passed、0 failed、52 ignored**，没有新增 ignored 或命令行跳过；应用枚举测试在沙箱外通过。[前端日志](assets/P0-24-dialog/round4/frontend.log)、[clippy](assets/P0-24-dialog/round4/clippy.log)、[workspace 测试](assets/P0-24-dialog/round4/tests.log)。
 
-Windows 未验证（需 Windows）；[人工] 动画、真实中文输入法、系统辅助功能、真实 Tauri 窗口交叉截图仍未覆盖。本轮代码修正已提交；新增屏阴影授权待确认，未合并、未 push。
-
+Windows 未验证（需 Windows）；[人工] 动画、真实中文输入法、系统辅助功能、真实 Tauri 窗口交叉截图仍未覆盖。第 4 轮代码修正已提交；当时新增屏阴影范围待确认，第 5 轮已解决。未合并、未 push。
 
 ## 第 5 轮：多行屏归入 E-001
 
-评估者已明确确认，多行屏与原三屏使用同一个 Dialog 内容框容器、同一个 `shadow-lg`，属于 stone 批准的既有 Dialog 扩展范围。本轮仅更新例外范围、manifest 引用和报告，不修改生产代码。先提交登记，再在完全干净的工作区、沙箱外用 `UPDATE_REFERENCE=1` 复跑深浅主题。结果和人工核对表在复跑后补入。
+评估者已明确确认，多行屏与原三屏使用同一个 Dialog 内容框容器、同一个 `shadow-lg`，属于 stone 批准的既有 Dialog 扩展范围。本轮仅更新例外范围、manifest 引用和报告，不修改生产代码。先提交登记，再在完全干净的工作区、沙箱外用 `UPDATE_REFERENCE=1` 复跑深浅主题。结果和人工核对表如下。
+
+### 干净工作区复跑
+
+登记提交为 `66e969328a1d2047b2137b7279019c0869a3f1e9`。两次运行前均执行 `test -z "$(git status --porcelain)"`；两次之间只在被忽略的 `target/` 内保存产物，报告和证据在两次对比完成后才写入。
+
+```sh
+UPDATE_REFERENCE=1 PARITY_THEME=dark CARGO_BUILD_JOBS=3 cargo run -p tterm-parity -- compare
+cp target/parity/report/result.json target/parity/report-dark.json
+UPDATE_REFERENCE=1 PARITY_THEME=light CARGO_BUILD_JOBS=3 cargo run -p tterm-parity -- compare
+cp target/parity/report/result.json target/parity/report-light.json
+```
+
+两次均在沙箱外执行、退出 0，使用本 worktree 的 target。参照目录为 `target/parity/reference/66e969328a1d2047b2137b7279019c0869a3f1e9/` 与同 hash 的 `-light/`；两份 JSON 的 `reference.frontendCommit` 均为该提交，`reference.dirty=false`，无 `-dirty`。
+
+| 屏幕                           | 深色结果 / 门槛超限像素 | 浅色结果 / 门槛超限像素 | 两主题例外 |
+| ------------------------------ | ----------------------- | ----------------------- | ---------- |
+| `example.button-input.default` | 通过 / 0                | 通过 / 0                | 无         |
+| `ui.button.variants`           | 通过 / 0                | 通过 / 0                | 无         |
+| `ui.button.sizes`              | 通过 / 0                | 通过 / 0                | 无         |
+| `ui.input.default`             | 通过 / 0                | 通过 / 0                | 无         |
+| `ui.password.default`          | 通过 / 0                | 通过 / 0                | 无         |
+| `ui.select.default`            | 通过 / 0                | 通过 / 0                | 无         |
+| `ui.switch.default`            | 通过 / 0                | 通过 / 0                | E-001      |
+| `ui.dialog.confirm`            | 通过 / 0                | 通过 / 0                | E-001      |
+| `ui.dialog.destructive`        | 通过 / 0                | 通过 / 0                | E-001      |
+| `ui.dialog.prompt`             | 通过 / 0                | 通过 / 0                | E-001      |
+| `ui.dialog.multiline`          | 通过 / 0                | 通过 / 0                | E-001      |
+
+| Dialog 屏幕             | 深浅最大布局差 / failures | 深色 full / masked  | 浅色 full / masked  | 深浅图标 |
+| ----------------------- | ------------------------- | ------------------- | ------------------- | -------- |
+| `ui.dialog.confirm`     | 0.17px / 0                | 0.996232 / 0.999944 | 0.995716 / 0.999690 | 1/1 通过 |
+| `ui.dialog.destructive` | 0.25px / 0                | 0.995944 / 0.999940 | 0.995442 / 0.999647 | 2/2 通过 |
+| `ui.dialog.prompt`      | 0.14px / 0                | 0.990697 / 0.999929 | 0.989785 / 0.999537 | 1/1 通过 |
+| `ui.dialog.multiline`   | 0.17px / 0                | 0.981114 / 0.999942 | 0.980600 / 0.999674 | 1/1 通过 |
+
+原始结果：[深色 JSON](assets/P0-24-dialog/round5/report-dark.json)、[浅色 JSON](assets/P0-24-dialog/round5/report-light.json)；命令日志：[深色](assets/P0-24-dialog/round5/dark.log)、[浅色](assets/P0-24-dialog/round5/light.log)。四屏的本轮原图、布局与并排裁剪保存在 [round5](assets/P0-24-dialog/round5/)。JSON 保留工具输出的相对图像路径；提交的截图副本按主题及屏幕名保存。
+
+### 四屏实测与人工核对
+
+本轮从新截图重新统计内容框 border box 外、outset 25 内的物理像素，结果与第 4 轮一致，见 [shadow-measurements.json](assets/P0-24-dialog/round5/shadow-measurements.json)。深色 RGB 通道最大差 1 级的像素分别为 confirm 128,264、destructive 128,264、prompt 143,064、multiline 137,864，四屏各另有 136 个差 2 级。该范围包含纯色底上 0.9 遮罩的 1 级量化差，不能等同于门槛计数。浅色四屏各原有 2 个阴影超限点；应用 E-001 后深浅四屏门槛计数均为 0。没有更改阴影参数、比较器、门槛或生产 CSS。
+
+按 E-001 原方法核对本轮截图，逐屏查看内容框下沿及左右下圆角。并排图左 Reference / WebKit，右 GPUI，最近邻放大 4 倍（400%，每物理像素为 4×4），未增强颜色、平滑插值或移动对齐。全下沿裁剪覆盖左右各 25 CSS px、底边内 12px 至底边外 25px。
+
+| 屏幕                    | 深色 400% 核对                                      | 浅色 400% 核对                                      | 本轮全下沿并排                                                                                                                                | 本轮下圆角并排                                                                                                                          |
+| ----------------------- | --------------------------------------------------- | --------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| `ui.dialog.confirm`     | 方向、范围、深浅一致，未见缺失或偏移，按 E-001 通过 | 方向、范围、深浅一致，未见缺失或偏移，按 E-001 通过 | [深色](assets/P0-24-dialog/round5/dark/confirm-lower-edge-4x.png)、[浅色](assets/P0-24-dialog/round5/light/confirm-lower-edge-4x.png)         | [深色](assets/P0-24-dialog/round5/dark/confirm-corners-4x.png)、[浅色](assets/P0-24-dialog/round5/light/confirm-corners-4x.png)         |
+| `ui.dialog.destructive` | 方向、范围、深浅一致，未见缺失或偏移，按 E-001 通过 | 方向、范围、深浅一致，未见缺失或偏移，按 E-001 通过 | [深色](assets/P0-24-dialog/round5/dark/destructive-lower-edge-4x.png)、[浅色](assets/P0-24-dialog/round5/light/destructive-lower-edge-4x.png) | [深色](assets/P0-24-dialog/round5/dark/destructive-corners-4x.png)、[浅色](assets/P0-24-dialog/round5/light/destructive-corners-4x.png) |
+| `ui.dialog.prompt`      | 方向、范围、深浅一致，未见缺失或偏移，按 E-001 通过 | 方向、范围、深浅一致，未见缺失或偏移，按 E-001 通过 | [深色](assets/P0-24-dialog/round5/dark/prompt-lower-edge-4x.png)、[浅色](assets/P0-24-dialog/round5/light/prompt-lower-edge-4x.png)           | [深色](assets/P0-24-dialog/round5/dark/prompt-corners-4x.png)、[浅色](assets/P0-24-dialog/round5/light/prompt-corners-4x.png)           |
+| `ui.dialog.multiline`   | 方向、范围、深浅一致，未见缺失或偏移，按 E-001 通过 | 方向、范围、深浅一致，未见缺失或偏移，按 E-001 通过 | [深色](assets/P0-24-dialog/round5/dark/multiline-lower-edge-4x.png)、[浅色](assets/P0-24-dialog/round5/light/multiline-lower-edge-4x.png)     | [深色](assets/P0-24-dialog/round5/dark/multiline-corners-4x.png)、[浅色](assets/P0-24-dialog/round5/light/multiline-corners-4x.png)     |
+
+multiline 与其他三屏使用同一生产容器和 `shadow-lg`，按评估者本轮确认归入既有 E-001，未新增例外编号。E-001 标题和原有 Switch 段落保持不变；Dialog 扩展段更新为四屏及可复核数字，不写总屏数通过结论，避免登记内容随屏幕数量失效。
+
+### 完整检查
+
+本轮沙箱外重新运行 AGENTS.md 全部检查：前端 lint、format:check、check:tokens、typecheck、test、check:size 均通过，**174 文件、1294 测试通过**；Rust fmt、`cargo clippy --workspace --all-targets -- -D warnings`、`cargo test --workspace` 均通过，所有 cargo 均 `CARGO_BUILD_JOBS=3`，**1179 passed、0 failed、52 ignored**（仓库原有标记，无新增或命令行 skip），tterm-ui **50/50**，包括 20 个 Root Dialog 测试。沙箱外应用枚举测试通过。
+
+日志：[前端](assets/P0-24-dialog/round5/frontend.log)、[clippy](assets/P0-24-dialog/round5/clippy.log)、[workspace 测试](assets/P0-24-dialog/round5/tests.log)。Windows、[人工] 动画/输入法/辅助功能/Tauri 真窗口交叉截图仍保留既有未验证说明；本轮无新增待确认项。未合并、未 push。

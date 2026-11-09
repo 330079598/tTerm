@@ -1,0 +1,142 @@
+[
+  {
+    "theme": "dark",
+    "screen": "ui.dialog.confirm",
+    "contentBounds": {
+      "x": 176.0,
+      "y": 228.0,
+      "width": 448.0,
+      "height": 144.0
+    },
+    "outsetCss": 25,
+    "outsideRgbMaxDifferenceCounts": {
+      "1": 128264,
+      "2": 136
+    }
+  },
+  {
+    "theme": "dark",
+    "screen": "ui.dialog.destructive",
+    "contentBounds": {
+      "x": 176.0,
+      "y": 228.0,
+      "width": 448.0,
+      "height": 144.0
+    },
+    "outsetCss": 25,
+    "outsideRgbMaxDifferenceCounts": {
+      "1": 128264,
+      "2": 136
+    }
+  },
+  {
+    "theme": "dark",
+    "screen": "ui.dialog.prompt",
+    "contentBounds": {
+      "x": 176.0,
+      "y": 191.0,
+      "width": 448.0,
+      "height": 218.0
+    },
+    "outsetCss": 25,
+    "outsideRgbMaxDifferenceCounts": {
+      "1": 143064,
+      "2": 136
+    }
+  },
+  {
+    "theme": "dark",
+    "screen": "ui.dialog.multiline",
+    "contentBounds": {
+      "x": 176.0,
+      "y": 204.0,
+      "width": 448.0,
+      "height": 192.0
+    },
+    "outsetCss": 25,
+    "outsideRgbMaxDifferenceCounts": {
+      "1": 137864,
+      "2": 136
+    }
+  },
+  {
+    "theme": "light",
+    "screen": "ui.dialog.confirm",
+    "contentBounds": {
+      "x": 176.0,
+      "y": 228.0,
+      "width": 448.0,
+      "height": 144.0
+    },
+    "outsetCss": 25,
+    "outsideRgbMaxDifferenceCounts": {
+      "0": 87930,
+      "1": 38414,
+      "2": 1966,
+      "3": 52,
+      "4": 28,
+      "5": 8,
+      "6": 2
+    }
+  },
+  {
+    "theme": "light",
+    "screen": "ui.dialog.destructive",
+    "contentBounds": {
+      "x": 176.0,
+      "y": 228.0,
+      "width": 448.0,
+      "height": 144.0
+    },
+    "outsetCss": 25,
+    "outsideRgbMaxDifferenceCounts": {
+      "0": 87930,
+      "1": 38414,
+      "2": 1966,
+      "3": 52,
+      "4": 28,
+      "5": 8,
+      "6": 2
+    }
+  },
+  {
+    "theme": "light",
+    "screen": "ui.dialog.prompt",
+    "contentBounds": {
+      "x": 176.0,
+      "y": 191.0,
+      "width": 448.0,
+      "height": 218.0
+    },
+    "outsetCss": 25,
+    "outsideRgbMaxDifferenceCounts": {
+      "0": 95922,
+      "1": 44630,
+      "2": 2558,
+      "3": 52,
+      "4": 28,
+      "5": 8,
+      "6": 2
+    }
+  },
+  {
+    "theme": "light",
+    "screen": "ui.dialog.multiline",
+    "contentBounds": {
+      "x": 176.0,
+      "y": 204.0,
+      "width": 448.0,
+      "height": 192.0
+    },
+    "outsetCss": 25,
+    "outsideRgbMaxDifferenceCounts": {
+      "0": 93114,
+      "1": 42446,
+      "2": 2350,
+      "3": 52,
+      "4": 28,
+      "5": 8,
+      "6": 2
+    }
+  }
+]
