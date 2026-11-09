@@ -20,10 +20,11 @@
 ## 2. 当前进度（2026-11-09）
 
 - `GPUI` 已推送。逐卡状态见 [status.md](status.md)。
-- **P0-24 第一批已合并**（2026-11-09，在 Mac 上）：PasswordInput、Select、Switch 在 macOS 深浅两种主题下达标。Codex 两轮只交了静态画面，决策人随后改由 Claude 直接实现。期间对比工具新增了组件部件比较、例外登记（E-001）和图标检查（决策 014）。worktree `../tTerm-P0-24` 保留，第二批在同一分支继续。
+- **P0-24 第一批已合并**（2026-11-09，在 Mac 上）：PasswordInput、Select、Switch 在 macOS 深浅两种主题下达标。Codex 两轮只交了静态画面，决策人随后改由 Claude 直接实现。期间对比工具新增了组件部件比较、例外登记（E-001）和图标检查（决策 014）。
+- **P0-24 第二批已合并**（2026-11-09，在 Mac 上）：Tabs、Dialog、右键菜单在 macOS 深浅两种主题下达标，一共 16 屏。决策人改回由 Codex 实现、Claude 验收，三个组件各用一个 worktree 并行，审查交给 subagent。期间做了两件事：决策 013 补充了有偏移的 ring，E-001 扩展到 Dialog、右键菜单、Tabs active。第一批遗留的 `shadow-xs` 和 `layout.test.mjs` 也一并完成。P0-24 在 macOS 上只剩 [人工] 项，Windows 通道还没做。
 - P0-10-mac-test 已通过并合并（2026-11-09）：macOS 上 `cargo test --workspace` 不再有失败项。
 - 排队，按顺序：
-  1. P0-24 第二批：Tabs、Dialog、ContextMenu；顺带给 outline Button 与 Input 补上 `shadow-xs`，并把 `layout.test.mjs` 接进检查；
+  1. ~~P0-24 第二批~~：已完成（2026-11-09）；
   2. P0-01 补跑 vtebench（WSL 里已装 cargo，`~/vtebench` 已克隆），以及 macOS 基线（Mac 空闲时单独跑）；
   3. P0-21，机器空闲时单独跑；
   4. P0-17、P0-18 的 Windows 部分，要人动手的项整理成检查清单给 stone；
@@ -142,4 +143,16 @@ scripts/migration/run-codex.ps1 -Card <ID> -Worktree ..\tTerm-<ID> -PromptFile <
 - 评估者自己也会误判：P0-24 中曾把落在边缘带里的接缝像素当成门槛问题。下返工结论前，先用结果 JSON 确认哪些像素真正进入了门槛。
 - 组件卡一轮只派一个组件。P0-24 第一批一次派了三个，执行者 20 分钟后就停下了：每个组件都只交了静态画面，GPUI 屏与 React 屏的元素对不上，对比和检查也都没跑。
 - 执行者把超限像素归为“抗锯齿”时，先看差异是不是成片平移。Switch 的 2000 多个超限像素其实是 thumb 偏了 1px：thumb 没有被标记，布局比较发现不了。
-- Codex 在组件卡上的表现：即使一轮只派一个组件，也会把像素差异归因于抗锯齿，不去找真正的原因。决策人已决定组件卡由 Claude 直接实现（2026-11-09）。
+- Codex 在组件卡上的表现：即使一轮只派一个组件，也会把像素差异归因于抗锯齿，不去找真正的原因。第二批（2026-11-09）改回 Codex 实现、Claude 验收：评估者给出准确的原因和位置以后，Codex 基本一次就能修对；但第 1 轮几乎从来通不过，每张卡要 3 到 6 轮。
+- Codex 常见的问题：
+  - 不跑对比，把它写成“未验证”；
+  - 在有未提交改动的工作区里截参照（目录名带 `-dirty`）；
+  - 报告把已经变差的屏写成“保持原样”。
+
+  验收时先看结果 JSON 里的 `reference.dirty` 和各屏计数，再读报告。
+
+- **组件测试必须在 `base::Root` 下跑。** `gpui_kit::open_window` 会给窗口套一层 Root，Root 绑定了 Tab 和 Shift+Tab 而且不往下传；GPUI 又是先分发按键绑定，后调用原始的 `on_key_down`。用 `cx.add_window_view` 直接建的窗口没有 Root，这类问题在测试里看不出来。Dialog 和右键菜单第一版都是这样漏掉的。焦点在组件内循环用 gpui-base 的 `focus_trap`，组件自己的按键用 key context 加 action。
+- 浮层（菜单、弹出框）用 `deferred(anchored())` 并 `.occlude()`，否则祖先元素的 content mask 会把它裁掉，后绘制的兄弟元素也会盖住它、抢走它的点击。遮罩层同样要 `.occlude()`。
+- GPUI 的 `BoxShadow` 会画在盒子下方，透过半透明的底色露出来；CSS 的阴影只画在盒子外。有阴影的半透明控件，要先把底色合成到背景上（`css_backdrop_color`）。
+- 并行的卡各写各的报告文件（`reports/P0-24-<组件>.md`），共用的 `P0-24.md` 会冲突。合并时 `screens.json`、`exceptions.md`、`surface.rs`、`screens/mod.rs` 一定会冲突：评估者先把 `GPUI` 合进卡的分支，解决冲突、重跑全部检查和对比，再合回 `GPUI`。
+- 每张卡在像素对比通过以后，再另开一个只读审查，看真实窗口里的行为（Root 下的按键、遮挡、浮层、回调重入）。这一批每张卡都靠这一步查出了对比查不出的问题。
