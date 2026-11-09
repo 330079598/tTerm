@@ -21,15 +21,14 @@
 
 - `GPUI` 已推送。逐卡状态见 [status.md](status.md)。
 - **P0-24 部分通过并已合并**（2026-11-09，在 Mac 上做）：Button 与 Input 在 macOS 深浅主题四屏达标，focus ring 外沿按[决策 013](decisions/013-ring-edge-mask.md) 遮罩。worktree `../tTerm-P0-24` 保留，后两批在同一分支继续。缺的项见报告末尾“评估（2026-11-09，macOS，Button 与 Input）”。
-- **新发现**：`tterm-terminal-view` 的 `view::tests::shaping_places_each_glyph_on_its_column` 在 macOS 上失败（`current_platform(true)` 不在主线程），GPUI 分支同样失败，要另开修复卡。
+- P0-10-mac-test 已通过并合并（2026-11-09）：macOS 上 `cargo test --workspace` 不再有失败项。
 - 排队，按顺序：
-  1. 修复上面这个 macOS 测试（小卡）；
-  2. P0-24 第一批：PasswordInput、Select、Switch；第二批：Tabs、Dialog、ContextMenu；
-  3. P0-01 补跑 vtebench（WSL 里已装 cargo，`~/vtebench` 已克隆），以及 macOS 基线（Mac 空闲时单独跑）；
-  4. P0-21，机器空闲时单独跑；
-  5. P0-17、P0-18 的 Windows 部分，要人动手的项整理成检查清单给 stone；
-  6. P0-05、P0-22；
-  7. 请 stone 过 G1。
+  1. P0-24 第一批：PasswordInput、Select、Switch；第二批：Tabs、Dialog、ContextMenu；
+  2. P0-01 补跑 vtebench（WSL 里已装 cargo，`~/vtebench` 已克隆），以及 macOS 基线（Mac 空闲时单独跑）；
+  3. P0-21，机器空闲时单独跑；
+  4. P0-17、P0-18 的 Windows 部分，要人动手的项整理成检查清单给 stone；
+  5. P0-05、P0-22；
+  6. 请 stone 过 G1。
 - Windows 上要补的：P0-24 的 Windows 通道对比（G1 门槛）。
 - 平台顺序按[决策 012](decisions/012-windows-first.md)：Windows，然后 macOS，最后 Linux。macOS 与 Linux 的验收项记为“推迟（决策 012）”，不阻塞进度。手头有 Mac 时，可以补 macOS 的推迟项：P0-02、P0-01 的 macOS 基线、P0-18 的 macOS 部分。
 
