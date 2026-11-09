@@ -288,3 +288,21 @@ React parity 夹具通过 `document.dispatchEvent` 发出的按键是不受信�
 AGENTS.md 全部检查均在沙箱外、干净工作区通过；cargo 从本 worktree 根目录运行，CARGO_BUILD_JOBS=3，使用本 worktree 的 target。pnpm lint、format:check、check:tokens、typecheck、test、check:size 均通过，前端 175 文件、1295 测试；[大小检查](assets/P0-24-context-menu/round5/size.log) 1051 文件通过。cargo fmt --all --check、[clippy --workspace --all-targets -- -D warnings](assets/P0-24-context-menu/round5/clippy.log)、[cargo test --workspace](assets/P0-24-context-menu/round5/workspace-tests.log) 均通过，Rust 共 **1173 通过、0 失败**，其中 tterm-ui 44 项、菜单 14 项。未筛选或新增跳过测试；Tauri 原有 52 个源码标记 ignored 未改。
 
 既有真实双主题绘制测试 `rendering_two_themes_in_one_window_preserves_global_theme` 继续通过。Windows 通道仍为**未验证（需 Windows）**。[人工] 真实 Tauri 窗口交叉截图及标签、终端、SFTP 调用处端到端使用体验仍待验证。本轮捕获及 hover 探测结束时关闭其 Vite、WebKit、GPUI 进程；未运行受保护标识的 Tauri 应用，未合并、未 push。
+
+## 评估（2026-11-09，macOS）
+
+- 结论：**通过，合并到 GPUI**。右键菜单在 macOS 深浅两种主题下达标，用到 E-001 的右键菜单扩展（决策人 stone 同意，2026-11-09）。
+- 本卡共五轮：
+  - 第 1 轮停下来确认图标尺寸：提示词写的 14px 是评估者误读，按实测的 16px 还原；
+  - 第 2 轮完成组件；
+  - 第 3 轮登记例外，并在干净的工作区里复跑；
+  - 第 4、5 轮修复评估者代码审查发现的问题：菜单改为 `deferred` 浮层并 occlude，键位改为 action 绑定以压过 Root 和祖先元素，回调延后执行，焦点环按 focus-visible 语义绘制，hover 不再受输入方式影响，键位改为显式的 `tterm_ui::init`，支持长标签换行。
+- 复核：
+  - 第 4、5 轮的修复由评估者另开一个审查逐条核对，并论证每个测试在修复撤回后都会失败；
+  - 评估者在本机、沙箱外重跑了 AGENTS.md 的全部检查：前端检查全部通过，`cargo test --workspace` 1173 项通过、0 项失败、52 项为原有的 ignored；
+  - `UPDATE_REFERENCE=1` 深色、浅色两次对比都是 10/10，参照取自干净提交 `92c46435`。
+- 遗留问题：
+  - Windows 通道深浅两种主题的对比：未验证，属于 G1 门槛；
+  - [人工]：真实 Tauri 窗口的交叉截图，以及标签栏、终端、SFTP 三处调用的端到端体验；
+  - React parity 夹具发的是不受信任的按键事件，所以两端焦点环一致，不能证明两端的输入方式判定相同；
+  - 正式接入时，应用启动要在 `gpui_kit::init` 之后调用 `tterm_ui::init`。
