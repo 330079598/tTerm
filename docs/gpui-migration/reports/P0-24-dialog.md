@@ -2,7 +2,7 @@
 
 ## 结论
 
-**需要确认。** 返工后已在沙箱外实际运行深浅两种主题的完整 compare，已有 7 屏均通过；三个 Dialog 屏的布局、样式、图标和 SSIM 均通过，屏幕颜色门槛仍失败，全部剩余超限位于内容框外的 `shadow-lg` 区域。没有改变门槛、扩大遮罩或新增例外。下文保留真实失败数字，不以“未验证”替代本机对比。
+**完成待评估。** 第 3 轮按 stone 于 2026-11-09 的授权扩展 E-001，先提交，再从干净工作区在沙箱外重新生成深浅参照并运行完整 compare。两种主题均 **10/10 屏通过**，每屏 `screenColors.pixelsAboveOne=0`，已有屏没有退步。参照提交为 `1eafb1440972baf67308485600c0d8ba1f024857`，两份结果均为 `dirty:false`，缓存目录不带 `-dirty`。完整检查通过；三屏的阴影人工核对和本轮证据见文末。
 
 ## 范围与导出部件
 
@@ -38,7 +38,7 @@
 - X 使用脚本生成的 Lucide SVG，实际按钮为 16×16、距内容框 padding-box 顶/右 16px、opacity 0.7；删除原来的 ghost 32px 按钮。破坏性 TriangleAlert 同样来自生成脚本，来源已登记。
 - 每个内部 slot 的实际 prepaint bounds 由生产组件 observer 提供；快照的字号、颜色、边框、padding 与绘制共享 `PartStyle`。两端包含 overlay、content、header、title、description、footer、close、cancel、confirm，Prompt 另含 input。
 
-## macOS 深浅对比
+## 第 2 轮历史对比（扩展 E-001 前）
 
 环境：Mac mini M4，macOS Apple Silicon，800×600 逻辑像素，DPR 2，WebKit 2191，100% UI scale。使用 GPUI dev bundle 的独立 `com.stone.tTerm.gpui-dev`，未运行 Tauri 正式版或访问真实数据目录。参考端 `reducedMotion=reduce`，截图禁用动画，只比较静止态。
 
@@ -60,9 +60,9 @@ compare 两次均退出 1。完整原始 JSON、截图和热力图提交在 [ass
 | `ui.dialog.prompt`      | 失败：布局 10 元素、最大 0.14px、0 failure；颜色门槛 **2496px**；full 0.990410、masked 0.999927；图标 1/1 通过 | 失败：布局最大 0.14px、0 failure；颜色门槛 **2px**；full 0.989855、masked 0.999543；图标 1/1 通过 |
 | 已有 7 屏               | **7/7 通过**，每屏 screenColors.pixelsAboveOne=0                                                               | **7/7 通过**，每屏 screenColors.pixelsAboveOne=0                                                  |
 
-已有屏使用原有 E-001 的 Switch 范围，没有将它扩到 Dialog。例外登记正确位置是仓库根目录 [parity/exceptions.md](../../../parity/exceptions.md)。
+第 2 轮仅使用原有 E-001 的 Switch 范围；第 3 轮已按授权扩展到 Dialog。例外登记正确位置是仓库根目录 [parity/exceptions.md](../../../parity/exceptions.md)。
 
-## 剩余颜色失败与需要确认
+## 第 2 轮阴影失败诊断（第 3 轮已获授权）
 
 先读取 `screenColors.pixelsAboveOne`，再使用比较器的 `text_mask`、`screen_mask`、`icons::mark_icons` 相同调用链列出真正计入门槛的像素。诊断源代码与输出分别保存在 `assets/P0-24-dialog/gate-pixels-source.rs.txt` 和两主题的 `gate-pixels.txt`，未改比较器。
 
@@ -70,7 +70,7 @@ compare 两次均退出 1。完整原始 JSON、截图和热力图提交在 [ass
 - 浅色确认框只有 **(366,747)** 与 **(1233,747)** 两点：React `(234,234,234,255)`，GPUI `(239,239,239,255)`，ΔE00 **1.060197**。它们位于内容框下圆角外侧阴影，未落在现有元素边缘带。
 - 深色的成带差异已核对两层 `shadow-lg` 的 offset、negative spread 与 blur/2；没有靠改变 CSS 参数、换更深浅的阴影或主题特判拟合 WebKit。
 
-这些像素不属于决策 013 的无模糊 ring，也不属于决策 014 的图标；E-001 仅授权四个 Switch。需要评估者确认如何处理 Dialog 的模糊阴影差异。在确认前保留失败并停止，不自行新增例外。
+这些像素不属于决策 013 的无模糊 ring，也不属于决策 014 的图标。第 2 轮因 E-001 当时仅授权四个 Switch 而停下；第 3 轮 stone 已明确批准扩展，现按原人工判定方法核对 Dialog 阴影，并保留本节作为授权前的诊断证据。
 
 截图：[深色 actual](assets/P0-24-dialog/dark/confirm-actual.png)、[深色 reference](assets/P0-24-dialog/dark/confirm-reference.png)、[深色热力图](assets/P0-24-dialog/dark/confirm-heatmap.png)；[浅色 actual](assets/P0-24-dialog/light/confirm-actual.png)、[浅色 reference](assets/P0-24-dialog/light/confirm-reference.png)、[浅色热力图](assets/P0-24-dialog/light/confirm-heatmap.png)。另外两屏的对应三张图也在同目录。
 
@@ -103,12 +103,10 @@ GPUI 打开时从 `window.focused(cx)` 保存真实 handle，Prompt 初始 focus
 
 ## 偏差、未验证与 [人工]
 
-- **需要确认：** 上述 `shadow-lg` 颜色门槛仍失败，未满足三屏全部通过，不宣称完成待评估。
 - Windows 通道：未验证（需 Windows）。
 - `[人工]` 淡入/缩放动画未实现；当前 React Dialog 本身也未提供这两项入场动画 class，静止比较不包含动画。
 - `[人工]` 真实键盘中文输入法、系统辅助功能及 Tauri 真窗口交叉截图；自动化交互测试已执行，不再标为未验证。
 - 多行描述与较窄窗口的完整视觉矩阵尚未覆盖。当前描述高度按单行 WebKit 的实际 16px 处理，扩展多行需单独校验；本轮不把这点掩饰为通用完整排版。
-
 
 ## 第 3 轮：E-001 扩展与干净工作区复跑
 
@@ -116,4 +114,64 @@ GPUI 打开时从 `window.focused(cx)` 保存真实 handle，Prompt 初始 focus
 
 浅色旧结果的两点均在授权范围内：确认框/破坏性确认框底边 y=372 CSS px，超限物理坐标 (366,747)、(1233,747) 对应逻辑坐标 (183,373.5)、(616.5,373.5)，在底边外 1.5px，处于 outset 25 内。Prompt 底边 y=398，对应两点物理坐标为 (366,799)、(1233,799)，同样在底边外 1.5px。复跑时重新验证门槛结果。
 
-先提交例外和本段说明，再从干净工作区用 `UPDATE_REFERENCE=1` 在沙箱外依次复跑深浅主题；结果与人工核对证据在复跑后补入。
+### 干净参照与执行结果
+
+先提交 `1eafb144`（`:white_check_mark: extend approved shadow exception to dialog content`），提交例外、三屏 manifest 引用及本节初始说明。两次 compare 开始前均执行 `test -z "$(git status --porcelain)"`，两次之间只保存 `target/` 中的结果，没有修改已跟踪文件。两次均退出 0，执行命令与上方相同，均使用 `UPDATE_REFERENCE=1`、`CARGO_BUILD_JOBS=3` 并在沙箱外运行。
+
+- 深色参照目录：`target/parity/reference/1eafb1440972baf67308485600c0d8ba1f024857/`。
+- 浅色参照目录：`target/parity/reference/1eafb1440972baf67308485600c0d8ba1f024857-light/`。
+- 两份 JSON 均记载 `reference.frontendCommit=1eafb1440972baf67308485600c0d8ba1f024857`、`reference.dirty=false`；没有 `-dirty` 参照。
+- 每次运行后分别保存 `target/parity/report-dark.json`、`target/parity/report-light.json`。提交的原始结果：[深色 JSON](assets/P0-24-dialog/round3/report-dark.json)、[浅色 JSON](assets/P0-24-dialog/round3/report-light.json)；原始命令日志：[深色](assets/P0-24-dialog/round3/compare-dark.log)、[浅色](assets/P0-24-dialog/round3/compare-light.log)。JSON 中图像相对路径保留工具输出；本轮 Dialog 原始截图及布局另存于证据目录的 `dark/`、`light/`。
+
+下表直接取本轮 JSON 的 `passed`、`screenColors.pixelsAboveOne` 和 `exceptions`，不以元素颜色诊断数代替屏幕门槛计数。
+
+| 屏幕                           | 深色结果 / 门槛像素 | 浅色结果 / 门槛像素 | 深浅两端使用的例外 |
+| ------------------------------ | ------------------- | ------------------- | ------------------ |
+| `example.button-input.default` | 通过 / 0            | 通过 / 0            | 无                 |
+| `ui.button.variants`           | 通过 / 0            | 通过 / 0            | 无                 |
+| `ui.button.sizes`              | 通过 / 0            | 通过 / 0            | 无                 |
+| `ui.input.default`             | 通过 / 0            | 通过 / 0            | 无                 |
+| `ui.password.default`          | 通过 / 0            | 通过 / 0            | 无                 |
+| `ui.select.default`            | 通过 / 0            | 通过 / 0            | 无                 |
+| `ui.switch.default`            | 通过 / 0            | 通过 / 0            | E-001              |
+| `ui.dialog.confirm`            | 通过 / 0            | 通过 / 0            | E-001              |
+| `ui.dialog.destructive`        | 通过 / 0            | 通过 / 0            | E-001              |
+| `ui.dialog.prompt`             | 通过 / 0            | 通过 / 0            | E-001              |
+
+Dialog 的细项如下（布局单位 CSS px；full / masked 为 SSIM）：
+
+| 屏幕                    | 布局（深浅一致）              | 深色 full / masked  | 浅色 full / masked  | 深浅图标 |
+| ----------------------- | ----------------------------- | ------------------- | ------------------- | -------- |
+| `ui.dialog.confirm`     | 9 元素，最大 0.17，0 failure  | 0.994687 / 0.999967 | 0.994139 / 0.999692 | 1/1 通过 |
+| `ui.dialog.destructive` | 9 元素，最大 0.25，0 failure  | 0.994007 / 0.999964 | 0.993470 / 0.999649 | 2/2 通过 |
+| `ui.dialog.prompt`      | 10 元素，最大 0.14，0 failure | 0.990410 / 0.999952 | 0.989855 / 0.999678 | 1/1 通过 |
+
+应用 E-001 后，三屏 screenColors.maxDeltaE 深色均为 0.6928、浅色均为 0.9965。内容框本身继续参加布局、样式和像素比较；只排除 manifest 中对应内容框 border box 外的 25 CSS px，未修改比较器、通过门槛、文字遮罩或通用边缘带。
+
+### 阴影像素复核
+
+本轮原图重新统计内容框 border box 外、outset 25 内的 RGB 通道最大差：深色 confirm/destructive 每屏差 1 级的 **10,030** 个、差 2 级的 **24** 个；prompt 差 1 级的 **10,862** 个、差 2 级的 **24** 个，与前轮相同。授权前诊断最大 CIEDE2000 为 **1.49**；本轮阴影截图与前轮逐像素相同。这里的 RGB 差异数量不是应用例外后的门槛计数。
+
+浅色前述两点本轮仍分别为参照 `(234,234,234)`、GPUI `(239,239,239)`；三屏均在底边外 1.5 CSS px、outset 25 内，没有范围外遗留点。浅色框外还有未达到 ΔE00 门槛的微小差异，不能把“2 个超限像素”误读为“仅 2 个像素不同”。坐标、范围、RGB 差值分布及裁剪参数保存在 [crop-metadata.json](assets/P0-24-dialog/round3/crop-metadata.json)。原因及判定规则沿用 [E-001](../../../parity/exceptions.md)，不另设标准。
+
+### 人工核对
+
+逐屏查看本轮深浅原图的内容框下沿，并按 E-001 方法以最近邻放大到 **400%（每个物理像素变为 4×4）** 核对：阴影方向向下、范围和深浅与参照一致，未见缺失、位置偏移或明显偏深偏浅。并排图左为 Reference / WebKit，右为 GPUI；全宽图覆盖内容框左右各 25 CSS px、底边内 12px 至底边外 25px。另存左右圆角局部图，便于在报告内按原分辨率查看；未做颜色增强、平滑插值或对齐平移。
+
+| 屏幕                    | 深色 400% 核对                      | 浅色 400% 核对                      | 全下沿并排图                                                                                                                                  | 圆角并排图                                                                                                                              |
+| ----------------------- | ----------------------------------- | ----------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| `ui.dialog.confirm`     | 方向、范围、深浅一致，按 E-001 通过 | 方向、范围、深浅一致，按 E-001 通过 | [深色](assets/P0-24-dialog/round3/dark/confirm-lower-edge-4x.png)、[浅色](assets/P0-24-dialog/round3/light/confirm-lower-edge-4x.png)         | [深色](assets/P0-24-dialog/round3/dark/confirm-corners-4x.png)、[浅色](assets/P0-24-dialog/round3/light/confirm-corners-4x.png)         |
+| `ui.dialog.destructive` | 方向、范围、深浅一致，按 E-001 通过 | 方向、范围、深浅一致，按 E-001 通过 | [深色](assets/P0-24-dialog/round3/dark/destructive-lower-edge-4x.png)、[浅色](assets/P0-24-dialog/round3/light/destructive-lower-edge-4x.png) | [深色](assets/P0-24-dialog/round3/dark/destructive-corners-4x.png)、[浅色](assets/P0-24-dialog/round3/light/destructive-corners-4x.png) |
+| `ui.dialog.prompt`      | 方向、范围、深浅一致，按 E-001 通过 | 方向、范围、深浅一致，按 E-001 通过 | [深色](assets/P0-24-dialog/round3/dark/prompt-lower-edge-4x.png)、[浅色](assets/P0-24-dialog/round3/light/prompt-lower-edge-4x.png)           | [深色](assets/P0-24-dialog/round3/dark/prompt-corners-4x.png)、[浅色](assets/P0-24-dialog/round3/light/prompt-corners-4x.png)           |
+
+示例（全分辨率并排证据见表中链接）：
+
+![确认框深色下圆角，左参照右 GPUI，最近邻 4 倍](assets/P0-24-dialog/round3/dark/confirm-corners-4x.png)
+
+![确认框浅色下圆角，左参照右 GPUI，最近邻 4 倍](assets/P0-24-dialog/round3/light/confirm-corners-4x.png)
+
+### 本轮完整检查
+
+在沙箱外运行 AGENTS.md 的全部检查：`pnpm lint && pnpm format:check && pnpm check:tokens && pnpm typecheck && pnpm test && pnpm check:size`，均通过，Vitest **174 文件、1294 测试通过**。Rust 的 `cargo fmt --all --check`、`cargo clippy --workspace --all-targets -- -D warnings`、`cargo test --workspace` 均通过，均带 `CARGO_BUILD_JOBS=3`，没有使用共享 target。Rust 共 **1169 passed、0 failed、52 ignored**（仓库原有 ignored，无新增或命令行跳过），tterm-ui **40/40** 通过；`macos_lists_the_applications_for_text_with_icons` 在沙箱外通过。交互与主题隔离测试名沿用上表，本轮完整 workspace 测试再次覆盖。
+
+本轮日志：[clippy](assets/P0-24-dialog/round3/clippy.log)、[workspace tests](assets/P0-24-dialog/round3/tests.log)、[文件大小](assets/P0-24-dialog/round3/size.log)。本轮没有修改生产组件，报告与证据在对比结束后提交。没有合并或 push。Windows、动画和人工输入法等未覆盖项仍按上方“偏差、未验证与 [人工]”保留；本机静止对比、交互测试、主题隔离及完整检查均已验证。
