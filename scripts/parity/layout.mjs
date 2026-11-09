@@ -181,9 +181,10 @@ export function collectLayout(screen) {
     for (const value of range.getClientRects()) pushRegion(value)
   }
 
-  // An input's value is not a text node, so its whole content box is treated
-  // as text and left out of the masked image comparison.
-  for (const element of document.querySelectorAll("input, textarea")) {
+  // An input's value is not a text node, and neither is the option a closed
+  // `<select>` displays, so their whole content box is treated as text and
+  // left out of the masked image comparison.
+  for (const element of document.querySelectorAll("input, textarea, select")) {
     const bounds = element.getBoundingClientRect()
     if (bounds.width === 0 || bounds.height === 0) continue
     const style = getComputedStyle(element)
