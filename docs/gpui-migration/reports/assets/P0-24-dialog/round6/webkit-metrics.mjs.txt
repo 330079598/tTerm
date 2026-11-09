@@ -1,0 +1,22 @@
+import { createServer } from '../node_modules/vite/dist/node/index.js';
+import { webkit } from '../node_modules/playwright/index.mjs';
+import { writeFile } from 'node:fs/promises';
+const server=await createServer({root:process.cwd(),mode:'parity',logLevel:'error',server:{port:0,host:'127.0.0.1'}});
+let browser;
+try {
+ await server.listen();browser=await webkit.launch();const page=await browser.newPage({viewport:{width:800,height:600},deviceScaleFactor:2,locale:'en-US'});
+ await page.goto(server.resolvedUrls.local[0]+'parity.html?screen=ui.dialog.multiline&theme=dark&scale=100');
+ await page.waitForFunction(()=>window.__PARITY_READY__===true);await page.evaluate(()=>document.fonts.ready);
+ const metrics=await page.evaluate(()=>{
+  const el=document.querySelector('[data-slot="dialog-description"]'); const st=getComputedStyle(el);const text=el.textContent;const node=el.firstChild;
+  const rects=Array.from((()=>{const r=document.createRange();r.selectNodeContents(el);return r.getClientRects()})()).map(r=>({x:r.x,y:r.y,width:r.width,height:r.height}));
+  // A diagnostic-only single-line clone retains the computed font and spacing.
+  const span=document.createElement('span');span.style.cssText=`position:absolute;white-space:pre;font-family:${st.fontFamily};font-size:${st.fontSize};font-weight:${st.fontWeight};font-style:${st.fontStyle};letter-spacing:${st.letterSpacing};`;span.textContent=text.split('\n')[1];document.body.append(span);
+  const canvas=document.createElement('canvas');const ctx=canvas.getContext('2d');ctx.font=`${st.fontWeight} ${st.fontSize} ${st.fontFamily}`;
+  const canvasPrefixes=Array.from(span.textContent).map((char,index)=>({index,char,x:ctx.measureText(span.textContent.slice(0,index)).width}));
+  const origin=span.getBoundingClientRect().x;
+  const glyphs=Array.from(span.textContent).map((char,index)=>{const r=document.createRange();r.setStart(span.firstChild,0);r.setEnd(span.firstChild,index);const prefix=r.getClientRects();const x= index===0?0:prefix[0].width;return {index,char,x}});
+  const candidates=['This much longer second line will wrap automatically because','it contains more text than can fit inside the dialog content','This much longer second line will wrap automatically because ',' '].map(text=>{span.textContent=text;return{text,width:(()=>{const r=document.createRange();r.selectNodeContents(span);return r.getClientRects()[0].width})()}});span.remove();
+  return {text,font:{family:st.fontFamily,size:st.fontSize,weight:st.fontWeight},letterSpacing:st.letterSpacing,description:el.getBoundingClientRect().toJSON(),rects,glyphs,canvasPrefixes,candidates};
+ });await writeFile('target/dialog-metrics-webkit.json',JSON.stringify(metrics,null,2)+'\n');
+}finally{await browser?.close();await server.close()}

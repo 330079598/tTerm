@@ -57,6 +57,10 @@ pub struct ButtonStyle {
     pub ring: Option<crate::tokens::color::Hsl>,
     /// Outer shadow spread in logical pixels, shared with parity snapshots.
     pub ring_spread: f32,
+    /// Alpha of the focus ring, including the destructive theme variants.
+    pub ring_alpha: f32,
+    /// Link decoration follows hover rather than the variant alone.
+    pub underline: bool,
 }
 
 pub fn style(variant: Variant, size: ButtonSize, state: ButtonState, theme: Theme) -> ButtonStyle {
@@ -92,10 +96,11 @@ pub fn style(variant: Variant, size: ButtonSize, state: ButtonState, theme: Them
             0.5
         } else if matches!(variant, Variant::Outline) && theme.uses_dark_variant() {
             if state.hovered { 0.5 } else { 0.3 }
+        } else if state.hovered && matches!(variant, Variant::Default | Variant::Destructive) {
+            // hover has higher specificity than the :where-based dark variant.
+            0.9
         } else if matches!(variant, Variant::Destructive) && theme.uses_dark_variant() {
             0.6
-        } else if state.hovered && matches!(variant, Variant::Default | Variant::Destructive) {
-            0.9
         } else if state.hovered && matches!(variant, Variant::Secondary) {
             0.8
         } else {
@@ -109,7 +114,19 @@ pub fn style(variant: Variant, size: ButtonSize, state: ButtonState, theme: Them
             0.0
         },
         opacity: if state.disabled { 0.5 } else { 1.0 },
-        ring: state.focused.then_some(colors.ring),
+        ring: state
+            .focused
+            .then_some(if matches!(variant, Variant::Destructive) {
+                colors.destructive
+            } else {
+                colors.ring
+            }),
+        ring_alpha: if matches!(variant, Variant::Destructive) {
+            if theme.uses_dark_variant() { 0.4 } else { 0.2 }
+        } else {
+            0.5
+        },
+        underline: matches!(variant, Variant::Link) && state.hovered,
         ring_spread: if state.focused { 3.0 } else { 0.0 },
     }
 }
@@ -153,9 +170,9 @@ pub fn button(
             computed.radius,
             computed
                 .ring
-                .map(|ring| (css_color(ring, 0.5), computed.ring_spread)),
+                .map(|ring| (css_color(ring, computed.ring_alpha), computed.ring_spread)),
         ));
-    if matches!(variant, Variant::Link) {
+    if computed.underline {
         view = view.underline();
     }
     let label = label.into();

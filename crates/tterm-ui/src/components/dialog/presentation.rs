@@ -1,4 +1,5 @@
 //! Shared painting declarations and optional prepaint observation.
+use super::text::DialogText;
 use super::{Dialog, DialogAction, DialogKind};
 use crate::components::icons::{INFO, TRIANGLE_ALERT, X, icon};
 use crate::components::input::{InputOptions, input, style as input_style};
@@ -59,6 +60,7 @@ impl PartStyle {
     }
     pub(super) fn apply(&self, view: Div) -> Div {
         view.when(self.centered, |view| view.text_center())
+            .when(!self.centered, |view| view.text_left())
             .font_family(".SystemUIFont")
             .text_size(px(self.font_size))
             .line_height(px(self.line_height))
@@ -92,29 +94,22 @@ impl Dialog {
             })
             .child(child)
     }
-    fn text(&self, slot: &'static str, text: String) -> Div {
-        let observer = self.text_observer.clone();
-        div()
-            .on_children_prepainted(move |bounds, _, _| {
-                if let (Some(observer), Some(bounds)) = (&observer, bounds.first()) {
-                    observer(slot, *bounds);
-                }
-            })
-            .child(text)
+    fn text(&self, slot: &'static str, text: String) -> DialogText {
+        DialogText::new(slot, text.into(), self.text_observer.clone())
     }
     fn header(&self, narrow: bool) -> Div {
         let mut base = PartStyle::base(self.theme);
         base.centered = narrow;
         let mut title_style = base.clone();
+        title_style.centered = narrow && self.options.kind == DialogKind::Prompt;
         title_style.font_size = 18.0;
         title_style.line_height = 18.0;
         title_style.weight = 600;
         let title = title_style
             .apply(div())
-            .flex()
-            .items_center()
-            .gap(px(8.0))
-            .when(narrow, |view| view.justify_center());
+            .when(self.options.kind != DialogKind::Prompt, |view| {
+                view.flex().items_center().gap(px(8.0))
+            });
         let title = if self.options.destructive {
             title.child(icon(
                 TRIANGLE_ALERT,
@@ -135,7 +130,7 @@ impl Dialog {
             .child(self.part(
                 "dialog-title",
                 title_style,
-                title.child(self.options.title.clone()),
+                title.child(self.text("title", self.options.title.clone())),
             ));
         if let Some(description) = &self.options.description {
             let mut style = base.clone();
@@ -150,10 +145,6 @@ impl Dialog {
                         .apply(div())
                         .w_full()
                         .whitespace_normal()
-                        // WebKit's used line box floors this computed 16.8px
-                        // value. Keep natural wrapping and line count, with the
-                        // same used line advance instead of a fixed height.
-                        .line_height(px(style.line_height.floor()))
                         .child(self.text("description", description.clone())),
                 ),
             );
@@ -296,13 +287,10 @@ impl Render for Dialog {
             .bg(css_color(style.background, 1.0).opacity(OVERLAY_OPACITY))
             .id("dialog-overlay")
             .occlude()
-            .on_mouse_down(
-                MouseButton::Left,
-                cx.listener(|this, event, window, cx| {
-                    cx.stop_propagation();
-                    this.outside(event, window, cx);
-                }),
-            )
+            .on_any_mouse_down(cx.listener(|this, event, window, cx| {
+                cx.stop_propagation();
+                this.outside(event, window, cx);
+            }))
             .absolute()
             .inset_0();
         let overlay = self

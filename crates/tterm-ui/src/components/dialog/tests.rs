@@ -10,6 +10,7 @@ use std::collections::HashMap;
 struct Probe {
     bounds: Rc<RefCell<HashMap<String, gpui_kit::Bounds<gpui_kit::Pixels>>>>,
     styles: Rc<RefCell<HashMap<String, presentation::PartStyle>>>,
+    texts: Rc<RefCell<HashMap<String, gpui_kit::Bounds<gpui_kit::Pixels>>>>,
     received: Rc<RefCell<[usize; 3]>>,
     dialog: Entity<Dialog>,
     opener: FocusHandle,
@@ -73,6 +74,8 @@ fn configured_harness(
             opener.focus(window, cx);
             let bounds = Rc::new(RefCell::new(HashMap::new()));
             let styles = Rc::new(RefCell::new(HashMap::new()));
+            let texts = Rc::new(RefCell::new(HashMap::new()));
+            let observed_texts = texts.clone();
             let observed = bounds.clone();
             let observed_styles = styles.clone();
             let input = (options.kind == DialogKind::Prompt)
@@ -84,6 +87,9 @@ fn configured_harness(
                         observed_styles
                             .borrow_mut()
                             .insert(slot.to_owned(), style.clone());
+                    }))
+                    .observe_text(Rc::new(move |slot, bounds| {
+                        observed_texts.borrow_mut().insert(slot.to_owned(), bounds);
                     }))
                     .on_interact_outside(move |event| {
                         if prevent {
@@ -100,6 +106,7 @@ fn configured_harness(
                 opener,
                 bounds,
                 styles,
+                texts,
                 received: Rc::new(RefCell::new([0; 3])),
             }
         });
@@ -541,4 +548,140 @@ fn description_preserves_newlines_and_wraps(cx: &mut TestAppContext) {
         assert!(f32::from(bounds["dialog-description"].size.height) >= 3.0 * 16.0);
         assert!(bounds["dialog-footer"].origin.y > bounds["dialog-description"].bottom());
     });
+}
+
+#[gpui_kit::test]
+fn short_description_newline_creates_two_separate_rows(cx: &mut TestAppContext) {
+    let mut options = options();
+    options.description = Some("Alpha\nBeta".into());
+    let (probe, visual) = configured_harness(cx, false, options);
+    visual.read(|cx| {
+        let probe = probe.read(cx);
+        let rows = probe.texts.borrow();
+        let first = rows["description-0"];
+        let second = rows["description-1"];
+        assert_eq!(first.origin.x, second.origin.x);
+        assert_eq!(second.origin.y - first.origin.y, px(16.0));
+        assert!(first.size.width < px(100.0));
+        assert!(second.size.width < px(100.0));
+        assert!(!rows.contains_key("description-2"));
+        assert_eq!(
+            probe.bounds.borrow()["dialog-description"].size.height,
+            px(32.0)
+        );
+    });
+}
+#[gpui_kit::test]
+fn trailing_space_does_not_move_a_fitting_word_to_the_next_row(cx: &mut TestAppContext) {
+    let mut options = options();
+    options.description = Some("Alpha Beta Gamma".into());
+    let (probe, visual) = configured_harness(cx, false, options);
+    let width = visual.update(|window, _| {
+        let style = gpui_kit::TextStyle {
+            font_family: ".SystemUIFont".into(),
+            ..Default::default()
+        };
+        window
+            .text_system()
+            .shape_line("Alpha Beta".into(), px(14.0), &[style.to_run(10)], None)
+            .width
+    });
+    // Narrow content subtracts 32px margins, 48px padding and 2px border.
+    // One extra pixel survives layout rounding while the mock space is wider.
+    visual.simulate_resize(gpui_kit::size(width.ceil() + px(83.0), px(600.0)));
+    redraw(visual);
+    visual.read(|cx| {
+        let probe = probe.read(cx);
+        let rows = probe.texts.borrow();
+        assert_eq!(rows["description-0"].size.width, width);
+        assert_eq!(
+            rows["description-1"].center().x,
+            rows["description-0"].center().x
+        );
+        assert!(!rows.contains_key("description-2"));
+    });
+}
+fn assert_narrow_title(
+    cx: &mut TestAppContext,
+    options: DialogOptions,
+    centered: bool,
+    icon: bool,
+) {
+    let (probe, visual) = configured_harness(cx, false, options);
+    visual.simulate_resize(gpui_kit::size(px(500.0), px(600.0)));
+    redraw(visual);
+    visual.read(|cx| {
+        let probe = probe.read(cx);
+        let title = probe.bounds.borrow()["dialog-title"];
+        let text = probe.texts.borrow()["title-0"];
+        if centered {
+            assert!((f32::from(text.center().x - title.center().x)).abs() < 0.01);
+        } else {
+            assert_eq!(
+                text.origin.x,
+                title.origin.x + px(if icon { 24.0 } else { 0.0 })
+            );
+        }
+    });
+}
+#[gpui_kit::test]
+fn narrow_confirm_title_stays_left(cx: &mut TestAppContext) {
+    assert_narrow_title(cx, options(), false, false);
+}
+#[gpui_kit::test]
+fn narrow_destructive_title_stays_left_after_icon(cx: &mut TestAppContext) {
+    let mut options = options();
+    options.destructive = true;
+    assert_narrow_title(cx, options, false, true);
+}
+#[gpui_kit::test]
+fn narrow_info_title_stays_left_after_icon(cx: &mut TestAppContext) {
+    assert_narrow_title(
+        cx,
+        DialogOptions::info("Information", "Description"),
+        false,
+        true,
+    );
+}
+#[gpui_kit::test]
+fn narrow_prompt_title_is_centered(cx: &mut TestAppContext) {
+    assert_narrow_title(cx, prompt_options(), true, false);
+}
+#[gpui_kit::test]
+fn all_mouse_buttons_dismiss_the_overlay(cx: &mut TestAppContext) {
+    let (probe, visual) = harness(cx, false);
+    let dialog = dialog(&probe, visual);
+    for button in [
+        gpui_kit::MouseButton::Left,
+        gpui_kit::MouseButton::Right,
+        gpui_kit::MouseButton::Middle,
+    ] {
+        visual.update(|window, cx| dialog.update(cx, |dialog, cx| dialog.reopen(window, cx)));
+        redraw(visual);
+        let position = overlay_point(&probe, visual);
+        visual.simulate_mouse_down(position, button, Modifiers::default());
+        redraw(visual);
+        assert!(!open(&dialog, visual));
+    }
+}
+#[gpui_kit::test]
+fn close_and_reopen_clear_hover_state(cx: &mut TestAppContext) {
+    let (probe, visual) = harness(cx, false);
+    let dialog = dialog(&probe, visual);
+    for slot in ["cancel", "confirm", "dialog-close"] {
+        let bounds = visual.read(|cx| probe.read(cx).bounds.borrow()[slot]);
+        visual.update(|window, cx| window.simulate_mouse_move(bounds.center(), cx));
+        redraw(visual);
+        redraw(visual);
+        visual.read(|cx| assert!(dialog.read(cx).hovered.iter().any(|hover| *hover)));
+        visual.simulate_keystrokes("escape");
+        visual.read(|cx| assert_eq!(dialog.read(cx).hovered, [false; 3]));
+        redraw(visual);
+        visual.update(|window, cx| {
+            window.simulate_mouse_move(point(px(80.0), px(80.0)), cx);
+            dialog.update(cx, |dialog, cx| dialog.reopen(window, cx));
+        });
+        redraw(visual);
+        visual.read(|cx| assert_eq!(dialog.read(cx).hovered, [false; 3]));
+    }
 }

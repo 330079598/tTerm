@@ -260,7 +260,7 @@ E-001 第 3 轮授权只列 `ui.dialog.confirm.content`、`ui.dialog.destructive
 PARITY_DIALOG_BACKDROP_TEXT=1 PARITY_THEME=dark CARGO_BUILD_JOBS=3 cargo run -p tterm-parity -- capture
 ```
 
-[截图](assets/P0-24-dialog/round4/overlay-over-text-dark.png) 与 [日志](assets/P0-24-dialog/round4/backdrop.log)。同色纯色 parity 背景上 0.8→0.9 仅有量化等级影响；有文字时背景字形被明显压淡，保留 ui-parity §4.1 所述无 blur 的区别，供决策人以后调整常量。该证据用 headless Metal 真实生产绘制，不访问应用数据。
+[截图](assets/P0-24-dialog/round4/overlay-over-text-dark.png) 与 [日志](assets/P0-24-dialog/round4/backdrop.log)。0.9 会影响同色纯色 parity 背景：GPUI 合成结果为 `(27,29,35)`，React 为 `(26,29,35)`，整屏存在 1 级差；阴影带内差 2 级的像素从每屏 24 个增加到 136 个。纯色底的差异仍低于 ΔE00=1 门槛，框外阴影差异落在 E-001 范围内；有文字时背景字形被明显压淡，保留 ui-parity §4.1 所述无 blur 的区别，供决策人以后调整常量。该证据用 headless Metal 真实生产绘制，不访问应用数据。
 
 ![GPUI 0.9 遮罩覆盖文字](assets/P0-24-dialog/round4/overlay-over-text-dark.png)
 
@@ -330,3 +330,34 @@ multiline 与其他三屏使用同一生产容器和 `shadow-lg`，按评估者�
 本轮沙箱外重新运行 AGENTS.md 全部检查：前端 lint、format:check、check:tokens、typecheck、test、check:size 均通过，**174 文件、1294 测试通过**；Rust fmt、`cargo clippy --workspace --all-targets -- -D warnings`、`cargo test --workspace` 均通过，所有 cargo 均 `CARGO_BUILD_JOBS=3`，**1179 passed、0 failed、52 ignored**（仓库原有标记，无新增或命令行 skip），tterm-ui **50/50**，包括 20 个 Root Dialog 测试。沙箱外应用枚举测试通过。
 
 日志：[前端](assets/P0-24-dialog/round5/frontend.log)、[clippy](assets/P0-24-dialog/round5/clippy.log)、[workspace 测试](assets/P0-24-dialog/round5/tests.log)。Windows、[人工] 动画/输入法/辅助功能/Tauri 真窗口交叉截图仍保留既有未验证说明；本轮无新增待确认项。未合并、未 push。
+
+## 第 6 轮：逐行文字、窄窗口与 Button 状态收尾
+
+本轮先提交实现，再从干净工作区在沙箱外运行深浅对比。以下为修复与诊断，最终检查和对比结果在运行后补充。
+
+| 复核项                | 修正                                                                                                                               | 对应测试                                                                                                                                                          |
+| --------------------- | ---------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1 / H3 遮罩           | `DialogText` 使用真实 shaping 后的每行宽高报告文字区域，绘制与观测共用行；不再报告段落矩形。修正 GPUI 行尾空格提前触发溢出的行为。 | `trailing_space_does_not_move_a_fitting_word_to_the_next_row`；实际 Metal/WebKit 两主题 parity                                                                    |
+| 2 / destructive hover | hover 的 `/90` 优先于 `:where` dark 的 `/60`。                                                                                     | `react_variant_theme_hover_matrix`                                                                                                                                |
+| 3 / 窄标题            | Confirm、Destructive、Info 显式左对齐；Prompt 为普通标题并居中。断言实际文字的 x / 中点位置。                                      | `narrow_confirm_title_stays_left`、`narrow_destructive_title_stays_left_after_icon`、`narrow_info_title_stays_left_after_icon`、`narrow_prompt_title_is_centered` |
+| 4 / 显式换行          | 用短文本 `Alpha\nBeta` 证明两行只能来自换行符，断言同行首 x、y 差 16px、总高 32px 且无第三行。                                     | `short_description_newline_creates_two_separate_rows`                                                                                                             |
+| 5 / Button            | Link 只在 hover 下划线；destructive focus ring 浅色 `/20`、深色 `/40`。样式与绘制共用 `ring_alpha`、`underline`。                  | `react_variant_theme_hover_matrix`：6 变体 × 2 主题 × 2 hover × 2 focus，逐项固定背景及 alpha、前景、ring、下划线；每行注释标明 React class                       |
+| 6 / 鼠标与 hover      | 遮罩使用任意 mouse-down；close/reopen 都清空三项 hover。                                                                           | `all_mouse_buttons_dismiss_the_overlay`（左、右、中）、`close_and_reopen_clear_hover_state`                                                                       |
+| 7 / 遮罩说明          | 更正上文 0.9 遮罩的量化差，保留历史计数来源。                                                                                      | 第 5 轮 `shadow-measurements.json` 与本轮门槛计数                                                                                                                 |
+
+所有 Dialog 行为和布局测试均通过生产 `DialogOptions` 路径，在 `base::Root` 中运行。没有更改夹具文本、生产 CSS、比较器、门槛或例外范围。
+
+### 换行根因：行尾空格，不是字形 advance 差异
+
+实际两端 description 的内容宽度都是 **398px**（448px 内容框减左右各 24px padding 与 1px border），无 padding、border 或可用宽度错误。保持原夹具文本与浮点测量，结果如下：
+
+| 测量字符串                                                     | WebKit Range 宽度 / px | GPUI CoreText 宽度 / px |
+| -------------------------------------------------------------- | ---------------------: | ----------------------: |
+| `This much longer second line will wrap automatically because` |         397.3251953125 |          397.3251953125 |
+| 同上，末尾再加一个空格                                         |         401.1123046875 |          401.1123046875 |
+| 单个空格 advance                                               |            3.787109375 |             3.787109375 |
+| `it contains more text than can fit inside the dialog content` |          371.177734375 |           371.177734375 |
+
+GPUI `compute_wrap_boundaries` 在空格本身的 `next_x` 超过 398px 时仍使用前一个候选词边界，于是先把 `because` 移到下一行，再把 `content` 挤到末行。CSS `white-space: pre-line` 将行尾空格挂在行末，不用它判定词是否放得下。因此不是某个字形 advance 差了亚像素：这里的文字总 advance **完全一致**，是相同的空格 advance 被两端换行算法以不同方式计入。生产修复沿用原生分词/字形边界，只有当原边界后的词本身能放下时才保留该词，并跳过行尾空格；没有增大 wrap width 或改变取整。
+
+[WebKit 原始测量](assets/P0-24-dialog/round6/dialog-metrics-webkit.json)、[GPUI 原始测量](assets/P0-24-dialog/round6/dialog-metrics-gpui.json)、[WebKit 诊断源码](assets/P0-24-dialog/round6/webkit-metrics.mjs.txt)、[GPUI 诊断源码](assets/P0-24-dialog/round6/gpui-metrics.rs.txt)。WebKit 的实际 DOM Range 行宽为 58.618164、397.325195、371.177734、39.477539px；诊断单行 span 只用于测量，不改 parity 页面生产样式。单字符 DOM Range 会扩大到整数外接边界，不能当作 advance；canvas 的逐字前缀与完整 shaping 在局部 kerning 上有至多 0.2734375px 的差异，但两个候选整行宽度完全一致，不是本次提前换行原因。

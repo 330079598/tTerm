@@ -3,6 +3,7 @@ mod actions;
 pub mod presentation;
 #[cfg(test)]
 mod tests;
+mod text;
 
 use crate::tokens::theme::Theme;
 use gpui_kit::component::input::InputState;
@@ -155,6 +156,7 @@ impl Dialog {
         cx: &mut Context<Self>,
     ) {
         self.open = false;
+        self.hovered = [false; 3];
         self.last_action = action;
         if let Some(focus) = &self.restore_focus {
             focus.focus(window, cx);
@@ -164,6 +166,7 @@ impl Dialog {
     pub fn reopen(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         self.restore_focus = window.focused(cx);
         self.open = true;
+        self.hovered = [false; 3];
         self.initialized_focus = false;
         cx.notify();
     }

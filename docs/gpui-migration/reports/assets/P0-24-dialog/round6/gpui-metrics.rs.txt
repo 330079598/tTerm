@@ -1,0 +1,42 @@
+use gpui_kit::{Font, FontWeight, TextRun, TextSystem, WindowTextSystem, px};
+use serde_json::json;
+use std::sync::Arc;
+fn main() {
+    let platform = gpui_kit::platform::current_platform(true);
+    let system = WindowTextSystem::new(Arc::new(TextSystem::new(platform.text_system())));
+    let text = "This much longer second line will wrap automatically because it contains more text than can fit inside the dialog content width.";
+    let run = TextRun {
+        len: text.len(),
+        font: Font {
+            family: ".SystemUIFont".into(),
+            weight: FontWeight(400.0),
+            ..Default::default()
+        },
+        color: gpui_kit::black(),
+        background_color: None,
+        underline: None,
+        strikethrough: None,
+    };
+    let line = system.shape_line(text.into(), px(14.0), std::slice::from_ref(&run), None);
+    let glyphs: Vec<_> = line
+        .runs
+        .iter()
+        .flat_map(|run| &run.glyphs)
+        .map(|g| json!({"index":g.index,"glyph":g.id.0,"x":g.position.x.as_f32()}))
+        .collect();
+    let candidates: Vec<_> = [
+        "This much longer second line will wrap automatically because",
+        "it contains more text than can fit inside the dialog content",
+        "This much longer second line will wrap automatically because ",
+        " ",
+    ]
+    .iter()
+    .map(|s| {
+        let mut run = run.clone();
+        run.len = s.len();
+        let line = system.shape_line((*s).into(), px(14.0), &[run], None);
+        json!({"text":s,"width":line.width.as_f32()})
+    })
+    .collect();
+    println!("{}",serde_json::to_string_pretty(&json!({"text":text,"width":line.width.as_f32(),"glyphs":glyphs,"candidates":candidates})).unwrap());
+}
