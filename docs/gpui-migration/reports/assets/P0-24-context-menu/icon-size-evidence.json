@@ -1,0 +1,90 @@
+{
+  "referenceCommit": "6a72ac72c468aabf1b839c912844d36e663ff05f",
+  "referenceWasDirty": true,
+  "platform": "macos",
+  "theme": "dark",
+  "viewport": {
+    "width": 800,
+    "height": 600,
+    "deviceScaleFactor": 2.0
+  },
+  "referenceLayoutPath": "target/parity/reference/6a72ac72c468aabf1b839c912844d36e663ff05f-dirty/ui.context-menu.default.layout.json",
+  "icons": [
+    {
+      "bounds": {
+        "x": 551.0,
+        "y": 438.0,
+        "width": 16.0,
+        "height": 16.0
+      },
+      "color": [
+        204,
+        204,
+        204,
+        255
+      ],
+      "opacity": 1.0
+    },
+    {
+      "bounds": {
+        "x": 551.0,
+        "y": 466.0,
+        "width": 16.0,
+        "height": 16.0
+      },
+      "color": [
+        204,
+        204,
+        204,
+        255
+      ],
+      "opacity": 1.0
+    },
+    {
+      "bounds": {
+        "x": 551.0,
+        "y": 494.0,
+        "width": 16.0,
+        "height": 16.0
+      },
+      "color": [
+        204,
+        204,
+        204,
+        255
+      ],
+      "opacity": 1.0
+    },
+    {
+      "bounds": {
+        "x": 551.0,
+        "y": 531.0,
+        "width": 16.0,
+        "height": 16.0
+      },
+      "color": [
+        204,
+        204,
+        204,
+        255
+      ],
+      "opacity": 1.0
+    },
+    {
+      "bounds": {
+        "x": 551.0,
+        "y": 559.0,
+        "width": 16.0,
+        "height": 16.0
+      },
+      "color": [
+        204,
+        204,
+        204,
+        255
+      ],
+      "opacity": 0.5
+    }
+  ],
+  "note": "Extracted from a real WebKit capture of the production ContextMenu. Temporary fixture and implementation have been removed because the specified 14px size conflicts with the computed 16px production size."
+}

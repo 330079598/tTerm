@@ -1,0 +1,24 @@
+{
+  "commands": {
+    "load_config": {
+      "$pending": true
+    },
+    "load_app_state": {
+      "$pending": true
+    }
+  },
+  "actions": [
+    {
+      "label": "关闭右侧标签页，关闭右侧标签页，关闭右侧标签页，关闭右侧标签页",
+      "action": "close-right"
+    }
+  ],
+  "shortcuts": {
+    "macos": [
+      null
+    ],
+    "windows": [
+      null
+    ]
+  }
+}

@@ -71,6 +71,20 @@ pub fn shadow_xs(opacity: f32) -> BoxShadow {
     BoxShadow::new(px(0.0), px(1.0), color.into()).blur_radius(px(1.0))
 }
 
+/// Tailwind v4 `shadow-lg`: CSS blur radii 15/6px become GPUI sigma 7.5/3px.
+pub fn shadow_lg() -> Vec<BoxShadow> {
+    let black = css_color(Hsl::new(0.0, 0.0, 0.0), 0.1);
+    // CSS's first listed shadow is on top; GPUI paints in slice order.
+    vec![
+        BoxShadow::new(px(0.0), px(4.0), black)
+            .blur_radius(px(3.0))
+            .spread_radius(px(-4.0)),
+        BoxShadow::new(px(0.0), px(10.0), black)
+            .blur_radius(px(7.5))
+            .spread_radius(px(-3.0)),
+    ]
+}
+
 /// The outer corner radius of a CSS spread shadow (CSS Backgrounds 3, 6.1.1):
 /// corners grow by the spread, and small radii stay sharper.
 pub fn spread_radius(radius: f32, spread: f32) -> f32 {
@@ -147,6 +161,20 @@ mod tests {
     use crate::tokens::palette::DARK;
     use gpui_kit::test::TestWindowExt as _;
     use gpui_kit::{ParentElement, Render, TestAppContext, div};
+
+    #[test]
+    fn large_shadow_halves_css_blur_without_changing_offsets_or_spreads() {
+        let shadows = shadow_lg();
+        assert_eq!(shadows.len(), 2);
+        for (shadow, (y, sigma, spread)) in
+            shadows.iter().zip([(4.0, 3.0, -4.0), (10.0, 7.5, -3.0)])
+        {
+            assert_eq!(shadow.offset, gpui_kit::point(px(0.0), px(y)));
+            assert_eq!(shadow.blur_radius, px(sigma));
+            assert_eq!(shadow.spread_radius, px(spread));
+            assert_eq!(shadow.color, css_color(Hsl::new(0.0, 0.0, 0.0), 0.1));
+        }
+    }
 
     struct FocusedButton(Variant);
 
