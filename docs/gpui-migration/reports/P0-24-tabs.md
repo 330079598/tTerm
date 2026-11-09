@@ -189,3 +189,18 @@ Mac mini M4，800×600，DPR2，WebKit2191。两次退出码0：[深色 JSON](as
 - [人工] Select 展开列表、中文输入法、真实键盘 Caps Lock：沿用第一批遗留，本轮未验证。
 - [人工] 本轮新增 active trigger 阴影已按上表完成截图核对；Switch 既有 E-001 人工核对仍沿用第一批要求。
 - 未合并、未 push。临时统计源码已删除；对比脚本关闭浏览器和 Vite，没有本轮启动的窗口或后台服务遗留。
+
+## 评估（2026-11-09，macOS）
+
+- 结论：**通过，合并到 GPUI**。Tabs 两屏在 macOS 深浅两种主题下达标，第一批遗留的两项也一起完成：outline Button 与 Input 的 `shadow-xs`，以及把 `layout.test.mjs` 接入 `pnpm test`。用到决策 013 的补充（有偏移的 ring，决策人 stone，2026-11-09），以及 E-001 的 Tabs active trigger 扩展。
+- 共三轮：
+  - 第 1 轮补 `shadow-xs` 时把三屏原有的结果弄坏了，报告却写成“保持原样”；Tabs 的布局整体偏了 256px。评估者定位了原因：GPUI 的阴影画在盒子下面，会透过半透明的底色露出来。
+  - 第 2 轮修好了以上两处，并如实报告了残留的问题。
+  - 第 3 轮按决策人的决定，扩展了对比工具与例外。
+- 复核：
+  - 对比工具的改动由评估者逐行审过：遮罩只覆盖每一层 ring 的轮廓带，填充部分仍然计入门槛。GPUI 端的 `ring_spreads` 与绘制共用 `TabsStyle::ring_spreads()`。两个反向探测（ring 平移 1px、offset 改色）都失败。
+  - 评估者先把 `GPUI`（含右键菜单）合进本分支（`81839204`），给右键菜单的快照补上 `ring_spreads`，再在沙箱外重跑 AGENTS.md 的全部检查：`cargo test --workspace` 1184 项通过，0 失败，52 项是原有的 ignored。
+  - `UPDATE_REFERENCE=1` 深浅两种主题各 12/12，参照来自干净的提交 `81839204`。
+- 遗留问题：
+  - Windows 通道的深浅主题对比：未验证，属于 G1 门槛。
+  - Tab 键在真实窗口中的焦点移动：已在 `base::Root` 下测试，真实键盘为 [人工]。
