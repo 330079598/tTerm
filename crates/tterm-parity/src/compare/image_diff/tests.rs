@@ -19,6 +19,7 @@ fn layout(text_regions: Vec<BoundsSnapshot>) -> LayoutDocument {
         },
         elements: Vec::new(),
         text_regions,
+        icons: Vec::new(),
     }
 }
 
@@ -53,6 +54,7 @@ fn element_layout() -> LayoutDocument {
             },
         }],
         text_regions: Vec::new(),
+        icons: Vec::new(),
     }
 }
 

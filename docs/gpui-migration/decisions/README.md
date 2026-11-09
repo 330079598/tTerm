@@ -23,8 +23,9 @@
 | 011  | 文件拖出原生适配方案（提议）              | [011-drag-out-proposal.md](011-drag-out-proposal.md)                                     |
 | 012  | 先做 Windows，macOS 与 Linux 的验证推后   | [012-windows-first.md](012-windows-first.md)                                             |
 | 013  | focus ring 外沿纳入对比工具的边缘遮罩     | [013-ring-edge-mask.md](013-ring-edge-mask.md)                                           |
+| 014  | 图标用独立检查代替逐像素比较              | [014-icon-check.md](014-icon-check.md)                                                   |
 
-- 下一个可用编号：**014**。
+- 下一个可用编号：**015**。
 
 ## 正文格式
 

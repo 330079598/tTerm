@@ -204,8 +204,21 @@ export function collectLayout(screen) {
     (a, b) => a.y - b.y || a.x - b.x || a.width - b.width || a.height - b.height
   )
 
+  // Icons get their own check instead of the per-pixel gate: the two sides'
+  // rasterisers place the same strokes but antialias their edges differently.
+  const icons = []
+  for (const svg of document.querySelectorAll("svg")) {
+    const bounds = svg.getBoundingClientRect()
+    if (bounds.width === 0 || bounds.height === 0) continue
+    let opacity = 1
+    for (let node = svg; node && node.nodeType === Node.ELEMENT_NODE; node = node.parentElement) {
+      opacity *= Number.parseFloat(getComputedStyle(node).opacity) || 1
+    }
+    icons.push({ bounds: rect(bounds), color: toRgba(getComputedStyle(svg).color), opacity })
+  }
+
   return {
-    version: 3,
+    version: 4,
     screen,
     viewport: {
       width: window.innerWidth,
@@ -214,6 +227,7 @@ export function collectLayout(screen) {
     },
     elements,
     textRegions,
+    icons,
     invokedCommands: [...new Set(window.__PARITY_INVOKES__ ?? [])].sort(),
   }
 }

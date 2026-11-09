@@ -81,7 +81,9 @@ fn json_uses_the_contracts_field_names() {
         style(),
     );
     let json = serde_json::to_value(sink.finish()).expect("layout serialises");
-    assert_eq!(json["version"], 3);
+    assert_eq!(json["version"], 4);
+    // The GPUI side never records icons; the reference side does.
+    assert_eq!(json["icons"], serde_json::json!([]));
     assert_eq!(json["viewport"]["deviceScaleFactor"], 2.0);
     assert_eq!(json["elements"][0]["sizing"], "fixed");
     assert_eq!(json["elements"][0]["style"]["fontFamily"], "system-ui");

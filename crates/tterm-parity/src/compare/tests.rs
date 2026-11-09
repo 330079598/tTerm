@@ -51,6 +51,7 @@ fn document(style: StyleSnapshot) -> LayoutDocument {
             style,
         }],
         text_regions: Vec::new(),
+        icons: Vec::new(),
     }
 }
 

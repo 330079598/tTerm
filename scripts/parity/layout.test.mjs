@@ -55,7 +55,7 @@ test("computed shadows select visible zero-offset zero-blur outer spread", (t) =
     t.after(() => previous ? Object.defineProperty(globalThis, name, previous) : delete globalThis[name])
   }
   const layout = collectLayout("shadows")
-  assert.equal(layout.version, 3)
+  assert.equal(layout.version, 4)
   assert.deepEqual(layout.elements.map((element) => element.style.ringSpread), shadows.map(([, spread]) => spread))
 })
 
