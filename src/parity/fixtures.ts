@@ -33,4 +33,5 @@ export const fixtures: Record<string, ParityFixture> = {
   "ui.dialog.confirm": { commands: {} },
   "ui.dialog.destructive": { commands: {} },
   "ui.dialog.prompt": { commands: {} },
+  "ui.dialog.multiline": { commands: {} },
 }

@@ -121,6 +121,11 @@
           "outset": 25
         }
       ]
+    },
+    {
+      "id": "ui.dialog.multiline",
+      "title": "Dialog explicit newline and wrapped description",
+      "fixture": "ui.dialog.default.json"
     }
   ]
 }

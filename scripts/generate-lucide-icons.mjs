@@ -3,7 +3,7 @@ import { createRequire } from "node:module"
 
 const require = createRequire(import.meta.url)
 const packageJson = JSON.parse(await readFile(require.resolve("lucide-react/package.json"), "utf8"))
-const names = ["eye", "eye-off", "arrow-big-up-dash", "chevron-down", "x", "triangle-alert"]
+const names = ["eye", "eye-off", "arrow-big-up-dash", "chevron-down", "x", "triangle-alert", "info"]
 
 function nodeMarkup(node) {
   const [tag, attrs] = node

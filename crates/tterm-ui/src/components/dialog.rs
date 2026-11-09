@@ -1,11 +1,12 @@
 //! Locally themed modal primitives and app-dialog compositions.
+mod actions;
 pub mod presentation;
 #[cfg(test)]
 mod tests;
 
 use crate::tokens::theme::Theme;
 use gpui_kit::component::input::InputState;
-use gpui_kit::{Context, Entity, FocusHandle, Focusable, KeyDownEvent, MouseDownEvent, Window};
+use gpui_kit::{Context, Entity, FocusHandle, KeyDownEvent, MouseDownEvent, Window};
 use presentation::PartObserver;
 use std::rc::Rc;
 
@@ -13,6 +14,7 @@ use std::rc::Rc;
 pub enum DialogKind {
     Confirm,
     Prompt,
+    Info,
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum DialogAction {
@@ -28,6 +30,8 @@ pub struct DialogOptions {
     pub description: Option<String>,
     pub label: Option<String>,
     pub destructive: bool,
+    pub default_action: Option<DialogAction>,
+    pub placeholder: String,
     pub cancel_text: String,
     pub confirm_text: String,
 }
@@ -39,6 +43,8 @@ impl DialogOptions {
             description: Some(description.into()),
             label: None,
             destructive: false,
+            default_action: None,
+            placeholder: String::new(),
             cancel_text: String::new(),
             confirm_text: String::new(),
         }
@@ -49,6 +55,11 @@ impl DialogOptions {
         options.description = None;
         let label = label.into();
         options.label = (!label.is_empty()).then_some(label);
+        options
+    }
+    pub fn info(title: impl Into<String>, description: impl Into<String>) -> Self {
+        let mut options = Self::confirm(title, description);
+        options.kind = DialogKind::Info;
         options
     }
 }
@@ -69,6 +80,9 @@ impl InteractOutsideEvent<'_> {
 type OutsideHandler = Rc<dyn Fn(&mut InteractOutsideEvent<'_>)>;
 
 /// Owns modal visibility, editing state and the focus boundary.
+/// Mount as the last child of a window-sized overlay host at the window origin,
+/// alongside (above) application content, matching React's body portal. The
+/// component positions its viewport-sized layer absolutely within that host.
 pub struct Dialog {
     pub options: DialogOptions,
     pub theme: Theme,
@@ -78,6 +92,7 @@ pub struct Dialog {
     restore_focus: Option<FocusHandle>,
     input: Option<Entity<InputState>>,
     initialized_focus: bool,
+    hovered: [bool; 3],
     outside: Option<OutsideHandler>,
     observer: Option<PartObserver>,
     pub last_action: Option<DialogAction>,
@@ -93,11 +108,12 @@ impl Dialog {
             options,
             theme,
             open: true,
-            focus: cx.focus_handle(),
-            controls: std::array::from_fn(|_| cx.focus_handle()),
+            focus: cx.focus_handle().tab_stop(false),
+            controls: std::array::from_fn(|_| cx.focus_handle().tab_stop(true)),
             restore_focus: window.focused(cx),
             input: None,
             initialized_focus: false,
+            hovered: [false; 3],
             outside: None,
             observer: None,
             last_action: None,
@@ -156,13 +172,6 @@ impl Dialog {
             self.close(None, window, cx);
         }
     }
-    fn focus_order(&self, cx: &Context<Self>) -> Vec<FocusHandle> {
-        self.input
-            .iter()
-            .map(|state| state.read(cx).focus_handle(cx))
-            .chain(self.controls.iter().cloned())
-            .collect()
-    }
     fn handle_key(&mut self, event: &KeyDownEvent, window: &mut Window, cx: &mut Context<Self>) {
         match event.keystroke.key.as_str() {
             "escape" => {
@@ -170,18 +179,10 @@ impl Dialog {
                 cx.stop_propagation();
                 self.close(None, window, cx);
             }
-            "tab" => {
-                let order = self.focus_order(cx);
-                let index = order.iter().position(|focus| focus.is_focused(window));
-                let next = if event.keystroke.modifiers.shift {
-                    index.map_or(order.len() - 1, |i| (i + order.len() - 1) % order.len())
-                } else {
-                    index.map_or(0, |i| (i + 1) % order.len())
-                };
-                order[next].focus(window, cx);
+            "enter" if self.options.default_action.is_some() => {
                 window.prevent_default();
                 cx.stop_propagation();
-                cx.notify();
+                self.close(self.options.default_action, window, cx);
             }
             "enter" | "space" if self.controls.iter().any(|focus| focus.is_focused(window)) => {
                 let action = if self.controls[0].is_focused(window) {
@@ -196,7 +197,9 @@ impl Dialog {
                 self.close(action, window, cx);
             }
             "enter" if self.options.kind == DialogKind::Prompt => {
-                self.close(Some(DialogAction::Confirm), window, cx)
+                window.prevent_default();
+                cx.stop_propagation();
+                self.close(Some(DialogAction::Confirm), window, cx);
             }
             _ => {}
         }

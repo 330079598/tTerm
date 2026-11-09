@@ -16,22 +16,35 @@ function markDialog(prefix: string, onReady: () => void) {
   onReady()
 }
 
-function Confirm({ onReady, destructive }: ParityScreenProps & { destructive: boolean }) {
+function Confirm({
+  onReady,
+  destructive,
+  multiline = false,
+}: ParityScreenProps & { destructive: boolean; multiline?: boolean }) {
   const { confirm, ConfirmDialog } = useConfirmDialog()
   useEffect(() => {
     void confirm({
       title: destructive ? "Remove connection?" : "Delete profile?",
-      description: destructive
-        ? "All saved credentials will be removed."
-        : "This action cannot be undone.",
+      description: multiline
+        ? "First line.\nThis much longer second line will wrap automatically because it contains more text than can fit inside the dialog content width."
+        : destructive
+          ? "All saved credentials will be removed."
+          : "This action cannot be undone.",
       confirmText: destructive ? "Delete" : "Confirm",
       cancelText: "Cancel",
       variant: destructive ? "destructive" : "default",
     })
-  }, [confirm, destructive])
+  }, [confirm, destructive, multiline])
   useEffect(() => {
-    markDialog(destructive ? "ui.dialog.destructive" : "ui.dialog.confirm", onReady)
-  }, [ConfirmDialog, destructive, onReady])
+    markDialog(
+      multiline
+        ? "ui.dialog.multiline"
+        : destructive
+          ? "ui.dialog.destructive"
+          : "ui.dialog.confirm",
+      onReady
+    )
+  }, [ConfirmDialog, destructive, multiline, onReady])
   return (
     <main className="bg-background text-foreground h-full w-full">
       <ConfirmDialog />
@@ -52,6 +65,7 @@ export function DialogPromptPrimitive({ onReady }: ParityScreenProps) {
   useEffect(() => {
     void prompt({
       title: "Rename profile",
+      label: "Profile name",
       description: "Choose a new name for this profile.",
       defaultValue: "Production",
       cancelText: "Cancel",
@@ -64,4 +78,8 @@ export function DialogPromptPrimitive({ onReady }: ParityScreenProps) {
       <PromptDialog />
     </main>
   )
+}
+
+export function DialogMultilinePrimitive(props: ParityScreenProps) {
+  return <Confirm {...props} destructive={false} multiline />
 }

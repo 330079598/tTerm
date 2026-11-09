@@ -10,12 +10,14 @@ use tterm_ui::tokens::palette::{DARK, LIGHT};
 use tterm_ui::tokens::theme::Theme;
 pub const CONFIRM_SCREEN_ID: &str = "ui.dialog.confirm";
 pub const DESTRUCTIVE_SCREEN_ID: &str = "ui.dialog.destructive";
+pub const MULTILINE_SCREEN_ID: &str = "ui.dialog.multiline";
 pub const PROMPT_SCREEN_ID: &str = "ui.dialog.prompt";
 pub struct DialogScreen {
     layout: LayoutSink,
     theme: Theme,
     kind: DialogKind,
     destructive: bool,
+    multiline: bool,
     dialog: Option<Entity<Dialog>>,
 }
 impl DialogScreen {
@@ -24,6 +26,7 @@ impl DialogScreen {
         layout: LayoutSink,
         kind: DialogKind,
         destructive: bool,
+        multiline: bool,
     ) -> Result<Self, String> {
         let theme = match manifest.theme.as_str() {
             "dark" => DARK,
@@ -35,6 +38,7 @@ impl DialogScreen {
             theme,
             kind,
             destructive,
+            multiline,
             dialog: None,
         })
     }
@@ -43,7 +47,7 @@ impl DialogScreen {
             return;
         }
         let mut options = if self.kind == DialogKind::Prompt {
-            let mut options = DialogOptions::prompt("Rename profile", "");
+            let mut options = DialogOptions::prompt("Rename profile", "Profile name");
             options.description = Some("Choose a new name for this profile.".into());
             options
         } else {
@@ -60,6 +64,9 @@ impl DialogScreen {
                 },
             )
         };
+        if self.multiline {
+            options.description = Some("First line.\nThis much longer second line will wrap automatically because it contains more text than can fit inside the dialog content width.".into());
+        }
         options.destructive = self.destructive;
         options.cancel_text = "Cancel".into();
         options.confirm_text = if self.destructive {
@@ -75,7 +82,9 @@ impl DialogScreen {
         } else {
             None
         };
-        let prefix = if self.kind == DialogKind::Prompt {
+        let prefix = if self.multiline {
+            MULTILINE_SCREEN_ID
+        } else if self.kind == DialogKind::Prompt {
             PROMPT_SCREEN_ID
         } else if self.destructive {
             DESTRUCTIVE_SCREEN_ID
@@ -100,7 +109,7 @@ impl DialogScreen {
                     border_color: hsl_to_rgba(style.border),
                     border_width: style.border_width,
                     border_radius: style.radius,
-                    ring_spread: 0.0,
+                    ring_spread: style.ring_spread,
                     font_family: "system-ui".into(),
                     font_size: style.font_size,
                     font_weight: style.weight,
@@ -146,6 +155,10 @@ impl DialogScreen {
         div()
             .size_full()
             .bg(to_gpui(hsl_to_rgba(self.theme.colors.background)))
+            .text_color(to_gpui(hsl_to_rgba(self.theme.colors.foreground)))
+            .children(std::env::var_os("PARITY_DIALOG_BACKDROP_TEXT").map(|_| {
+                div().size_full().child("$ ssh production\nConnected to server\nuser@server:~$ tail -f application.log\nINFO Request completed successfully\nWARN Connection retry scheduled\nuser@server:~$ ls -la\nDocuments  Downloads  profiles.json")
+            }))
             .children(self.dialog.clone())
     }
 }

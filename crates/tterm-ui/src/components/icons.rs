@@ -11,3 +11,5 @@ pub fn icon(data: &'static [u8], color: Hsla, size: f32) -> impl IntoElement {
 }
 
 pub const TRIANGLE_ALERT: &[u8] = include_bytes!("../../assets/icons/triangle-alert.svg");
+
+pub const INFO: &[u8] = include_bytes!("../../assets/icons/info.svg");

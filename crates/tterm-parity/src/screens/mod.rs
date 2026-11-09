@@ -60,18 +60,28 @@ impl ScreenView {
                 sink,
                 tterm_ui::components::dialog::DialogKind::Confirm,
                 false,
+                false,
             )?)),
             dialog::DESTRUCTIVE_SCREEN_ID => Ok(Self::Dialog(dialog::DialogScreen::load(
                 manifest,
                 sink,
                 tterm_ui::components::dialog::DialogKind::Confirm,
                 true,
+                false,
             )?)),
             dialog::PROMPT_SCREEN_ID => Ok(Self::Dialog(dialog::DialogScreen::load(
                 manifest,
                 sink,
                 tterm_ui::components::dialog::DialogKind::Prompt,
                 false,
+                false,
+            )?)),
+            dialog::MULTILINE_SCREEN_ID => Ok(Self::Dialog(dialog::DialogScreen::load(
+                manifest,
+                sink,
+                tterm_ui::components::dialog::DialogKind::Confirm,
+                false,
+                true,
             )?)),
             other => Err(format!(
                 "No GPUI view is registered for parity screen \"{other}\""

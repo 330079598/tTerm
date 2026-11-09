@@ -11,6 +11,7 @@ import {
   DialogConfirmPrimitive,
   DialogDestructivePrimitive,
   DialogPromptPrimitive,
+  DialogMultilinePrimitive,
 } from "@/parity/screens/DialogPrimitive"
 import type { ComponentType } from "react"
 
@@ -30,6 +31,7 @@ export const parityScreens: Record<string, ComponentType<ParityScreenProps>> = {
   "ui.dialog.confirm": DialogConfirmPrimitive,
   "ui.dialog.destructive": DialogDestructivePrimitive,
   "ui.dialog.prompt": DialogPromptPrimitive,
+  "ui.dialog.multiline": DialogMultilinePrimitive,
 }
 
 /** The registered ids, for the manifest test. */

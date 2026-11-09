@@ -45,6 +45,8 @@ pub struct ButtonStyle {
     pub padding_x: f32,
     pub padding_y: f32,
     pub font_size: f32,
+    pub radius: f32,
+    pub weight: u16,
     pub line_height: f32,
     pub background: crate::tokens::color::Hsl,
     pub background_alpha: f32,
@@ -74,6 +76,8 @@ pub fn style(variant: Variant, size: ButtonSize, state: ButtonState, theme: Them
         padding_x,
         padding_y,
         font_size,
+        radius: 6.0,
+        weight: 500,
         line_height: if matches!(size, ButtonSize::Xs) {
             13.8
         } else {
@@ -90,6 +94,10 @@ pub fn style(variant: Variant, size: ButtonSize, state: ButtonState, theme: Them
             if state.hovered { 0.5 } else { 0.3 }
         } else if matches!(variant, Variant::Destructive) && theme.uses_dark_variant() {
             0.6
+        } else if state.hovered && matches!(variant, Variant::Default | Variant::Destructive) {
+            0.9
+        } else if state.hovered && matches!(variant, Variant::Secondary) {
+            0.8
         } else {
             1.0
         },
@@ -129,20 +137,20 @@ pub fn button(
         .min_w(px(computed.width))
         .px(px(computed.padding_x))
         .py(px(computed.padding_y))
-        .rounded(px(6.0))
+        .rounded(px(computed.radius))
         .border(px(computed.border_width))
         .border_color(gpui_kit::transparent_black())
         .relative()
         .text_color(hsla(computed.foreground, 1.0))
         .text_size(px(computed.font_size))
         .line_height(px(computed.line_height))
-        .font_weight(gpui_kit::FontWeight(500.0))
+        .font_weight(gpui_kit::FontWeight(f32::from(computed.weight)))
         .opacity(css_opacity(computed.opacity))
         .child(surface(
             css_color(computed.background, computed.background_alpha),
             css_color(computed.border, 1.0),
             computed.border_width,
-            6.0,
+            computed.radius,
             computed
                 .ring
                 .map(|ring| (css_color(ring, 0.5), computed.ring_spread)),
