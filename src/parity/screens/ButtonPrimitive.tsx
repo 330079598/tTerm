@@ -29,6 +29,16 @@ export function ButtonVariants({ onReady }: ParityScreenProps) {
         <Button data-parity="ui.button.variants.disabled" variant="default" disabled>
           disabled
         </Button>
+        <Button
+          data-parity="ui.button.variants.disabled-destructive"
+          variant="destructive"
+          disabled
+        >
+          disabled destructive
+        </Button>
+        <Button data-parity="ui.button.variants.disabled-outline" variant="outline" disabled>
+          disabled outline
+        </Button>
       </div>
     </main>
   )
