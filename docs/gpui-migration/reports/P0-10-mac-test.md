@@ -19,12 +19,12 @@
 
 ## 验收
 
-| 验收条件 | 结果 | 证据 |
-| --- | --- | --- |
+| 验收条件                                                                 | 结果                                       | 证据                                                                                                                                                           |
+| ------------------------------------------------------------------------ | ------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | macOS、Windows、Linux 在 cargo test 工作线程里运行且使用真实平台文字系统 | 通过（macOS 已验证；Windows/Linux 未验证） | `cargo test -p tterm-terminal-view --test shaping` 在 macOS 主线程测试二进制中通过；代码使用 `current_platform(true).text_system()`，未使用 fake text system。 |
-| 不使用 `ignore`、平台 cfg 跳过或降低断言 | 通过 | 新测试无 `ignore`/跳过 cfg；断言仍检查 3 个 glyph、列 `[0, 1, 2]` 和零列内偏移。 |
-| workspace 中其他测试线程调用 `current_platform` 一并修复 | 通过 | `rg -n 'current_platform\\(' --glob '*.rs'` 复核；除新测试外仅有示例和 parity 应用入口。 |
-| macOS `cargo test --workspace` 失败项为 0 | 待验证 | 见“检查”；需在沙箱外完成完整命令。 |
+| 不使用 `ignore`、平台 cfg 跳过或降低断言                                 | 通过                                       | 新测试无 `ignore`/跳过 cfg；断言仍检查 3 个 glyph、列 `[0, 1, 2]` 和零列内偏移。                                                                               |
+| workspace 中其他测试线程调用 `current_platform` 一并修复                 | 通过                                       | `rg -n 'current_platform\\(' --glob '*.rs'` 复核；除新测试外仅有示例和 parity 应用入口。                                                                       |
+| macOS `cargo test --workspace` 失败项为 0                                | 通过                                       | 见“检查”：沙箱外 `cargo test --workspace` 退出码 0；评估者复跑结果相同。                                                                                       |
 
 ## 检查
 
@@ -48,3 +48,11 @@ macOS 沙箱中已知的 `[人工]` 项 `macos_lists_the_applications_for_text_w
 ## 遗留问题
 
 无新的代码遗留问题。平台矩阵中的 Windows/Linux 验证仍需各自 CI 或真机结果。
+
+## 评估（2026-11-09）
+
+- 结论：**通过**。
+- 评估者在本机沙箱外重跑 AGENTS.md 的全部检查：pnpm 六项通过，fmt 与 clippy 通过；`cargo test --workspace` 不跳过任何测试，1136 项通过、0 项失败，`tests/shaping.rs` 在主线程运行并正常退出。
+- 用 `harness = false` 是合理的选择：`TestAppContext` 与 `HeadlessAppContext` 都要调用方自己提供平台文字系统，而不新增依赖时，要拿到真实的文字系统只有 `current_platform` 这一个入口。`view::row` 改为公开，与已经公开的 `font`、`element` 同级，公开项都有文档注释，可以接受。
+- 评估时把验收表中“macOS `cargo test --workspace` 失败项为 0”一行从“待验证”改为“通过”，使它与“检查”一节一致。
+- 遗留问题：Windows 与 Linux 未验证，要等 CI 或真机。这个测试二进制自己运行，不输出 libtest 的“test … ok”行，`--skip`、`--list` 这类过滤参数对它也不起作用。
