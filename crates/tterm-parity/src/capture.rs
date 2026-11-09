@@ -18,6 +18,10 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
+fn initialize_gpui(cx: &mut gpui_kit::App) {
+    gpui_kit::init(cx);
+}
+
 /// One captured screen.
 #[derive(Clone, Debug)]
 pub struct CapturedScreen {
@@ -127,7 +131,7 @@ fn capture_all_windows(
 
     let (sender, receiver) = std::sync::mpsc::channel();
     gpui_kit::application().run(move |cx: &mut gpui_kit::App| {
-        gpui_kit::init(cx);
+        initialize_gpui(cx);
         let mut results = Vec::with_capacity(pending.len());
         for (id, sink, view) in pending {
             let options = gpui_kit::WindowOptions {
@@ -203,6 +207,7 @@ fn capture_image(
     let mut context = HeadlessAppContext::with_platform(text_system, Arc::new(()), || {
         gpui_kit::platform::current_headless_renderer()
     });
+    context.update(initialize_gpui);
     let window = context
         .open_window(
             size(
