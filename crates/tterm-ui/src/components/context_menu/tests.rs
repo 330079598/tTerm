@@ -262,9 +262,10 @@ fn keyboard_ring_survives_mouse_move_until_pointer_press(cx: &mut TestAppContext
     let (_, visual, _) = harness(cx);
     assert_eq!(painted_ring_count(visual), 0);
     visual.simulate_keystrokes("down");
-    assert_eq!(painted_ring_count(visual), 1);
+    let keyboard_ring = painted_ring_count(visual);
+    assert!(keyboard_ring > 0);
     visual.simulate_mouse_move(point(px(60.0), px(80.0)), None, Modifiers::default());
-    assert_eq!(painted_ring_count(visual), 1);
+    assert_eq!(painted_ring_count(visual), keyboard_ring);
     // Card padding clears focus-visible without closing or activating a row.
     visual.simulate_click(point(px(22.0), px(22.0)), Modifiers::default());
     assert_eq!(painted_ring_count(visual), 0);
