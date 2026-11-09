@@ -372,7 +372,7 @@ fn compare_screen(
 /// Re-measures both screenshots and checks that the layout document, the
 /// pixels and the declared style all agree. The declared check is what makes
 /// the tool fail when a view draws a different colour from the one it records.
-fn validate_measurements(side: &Side, label: &str, _backdrop: [u8; 4], failures: &mut Vec<String>) {
+fn validate_measurements(side: &Side, label: &str, backdrop: [u8; 4], failures: &mut Vec<String>) {
     for element in &side.layout.elements {
         let measured = match measure::measure_element(
             &side.image,
@@ -386,7 +386,7 @@ fn validate_measurements(side: &Side, label: &str, _backdrop: [u8; 4], failures:
                 continue;
             }
         };
-        if element.style.opacity >= 0.999 && measured.background != element.style.background_color {
+        if measured.background != element.style.background_color {
             failures.push(format!(
                 "{}: {label} layout background {} but the pixels measured {}",
                 element.id,
@@ -396,16 +396,12 @@ fn validate_measurements(side: &Side, label: &str, _backdrop: [u8; 4], failures:
         }
         if element.style.border_width > 0.0 {
             match measured.border {
-                Some(border)
-                    if element.style.opacity >= 0.999 && border != element.style.border_color =>
-                {
-                    failures.push(format!(
-                        "{}: {label} layout border {} but the pixels measured {}",
-                        element.id,
-                        hex(element.style.border_color),
-                        hex(border)
-                    ))
-                }
+                Some(border) if border != element.style.border_color => failures.push(format!(
+                    "{}: {label} layout border {} but the pixels measured {}",
+                    element.id,
+                    hex(element.style.border_color),
+                    hex(border)
+                )),
                 None => failures.push(format!(
                     "{}: {label} has no readable border band for a {} px border",
                     element.id, element.style.border_width
@@ -417,7 +413,12 @@ fn validate_measurements(side: &Side, label: &str, _backdrop: [u8; 4], failures:
         if let Some(declared) = element.style.declared_background_color
             && declared[3] == 255
             && measured.background[3] == 255
-            && declared != measured.background
+            && !declaration_matches(
+                declared,
+                measured.background,
+                element.style.opacity,
+                backdrop,
+            )
         {
             failures.push(format!(
                 "{}: {label} declares background {} but the pixels measured {} (the style \
@@ -431,7 +432,7 @@ fn validate_measurements(side: &Side, label: &str, _backdrop: [u8; 4], failures:
             && let Some(declared) = element.style.declared_border_color
             && declared[3] == 255
             && let Some(border) = measured.border
-            && declared != border
+            && !declaration_matches(declared, border, element.style.opacity, backdrop)
         {
             failures.push(format!(
                 "{}: {label} declares border {} but the pixels measured {} (the style \
@@ -442,6 +443,25 @@ fn validate_measurements(side: &Side, label: &str, _backdrop: [u8; 4], failures:
             ));
         }
     }
+}
+
+fn declaration_matches(
+    declared: [u8; 4],
+    measured: [u8; 4],
+    opacity: f32,
+    backdrop: [u8; 4],
+) -> bool {
+    if opacity >= 0.999 {
+        return declared == measured;
+    }
+    let alpha = f64::from(opacity.clamp(0.0, 1.0));
+    let mut composite = [0, 0, 0, 255];
+    for channel in 0..3 {
+        composite[channel] = (f64::from(declared[channel]) * alpha
+            + f64::from(backdrop[channel]) * (1.0 - alpha))
+            .round() as u8;
+    }
+    color::delta_e_2000(color::srgb_to_lab(composite), color::srgb_to_lab(measured)) <= 1.0
 }
 
 fn hex(color: [u8; 4]) -> String {

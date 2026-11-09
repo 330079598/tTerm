@@ -223,8 +223,18 @@ fn compare_style(
             reference: reference.background_color,
             actual: actual.background_color,
             backdrop,
-            reference_opacity: reference.opacity,
-            actual_opacity: actual.opacity,
+            reference_opacity: if reference.declared_background_color.is_some() {
+                1.0
+            } else {
+                reference.opacity
+            },
+            actual_opacity: if actual.declared_background_color.is_some() {
+                1.0
+            } else {
+                actual.opacity
+            },
+            translucent: is_translucent(reference, reference.declared_background_color)
+                || is_translucent(actual, actual.declared_background_color),
         },
         failures,
     );
@@ -236,8 +246,18 @@ fn compare_style(
                 reference: reference.border_color,
                 actual: actual.border_color,
                 backdrop,
-                reference_opacity: reference.opacity,
-                actual_opacity: actual.opacity,
+                reference_opacity: if reference.declared_border_color.is_some() {
+                    1.0
+                } else {
+                    reference.opacity
+                },
+                actual_opacity: if actual.declared_border_color.is_some() {
+                    1.0
+                } else {
+                    actual.opacity
+                },
+                translucent: is_translucent(reference, reference.declared_border_color)
+                    || is_translucent(actual, actual.declared_border_color),
             },
             failures,
         );
@@ -251,6 +271,10 @@ fn compare_style(
             backdrop,
             reference_opacity: reference.opacity,
             actual_opacity: actual.opacity,
+            translucent: reference.opacity < 1.0
+                || actual.opacity < 1.0
+                || reference.color[3] < 255
+                || actual.color[3] < 255,
         },
         failures,
     );
@@ -287,12 +311,17 @@ fn check_number(id: &str, field: &str, reference: f32, actual: f32, failures: &m
     }
 }
 
+fn is_translucent(style: &StyleSnapshot, declared: Option<[u8; 4]>) -> bool {
+    style.opacity < 1.0 || declared.is_some_and(|color| color[3] < 255)
+}
+
 struct ColorComparison {
     reference: [u8; 4],
     actual: [u8; 4],
     backdrop: [u8; 4],
     reference_opacity: f32,
     actual_opacity: f32,
+    translucent: bool,
 }
 
 fn compare_color(id: &str, field: &str, colors: ColorComparison, failures: &mut Vec<String>) {
@@ -303,6 +332,7 @@ fn compare_color(id: &str, field: &str, colors: ColorComparison, failures: &mut 
         && colors.actual[3] == 255
         && colors.reference_opacity >= 0.999
         && colors.actual_opacity >= 0.999
+        && !colors.translucent
     {
         failures.push(format!(
             "{id}: {field} colour {} -> {}",

@@ -220,3 +220,17 @@ fn transparent_colours_compare_after_compositing() {
     };
     assert!(!compare(&reference, &actual, BACKDROP).passed);
 }
+
+#[test]
+fn measured_disabled_colours_are_not_composited_again() {
+    let bounds = BoundsSnapshot::new(0.0, 0.0, 10.0, 10.0);
+    let mut reference = document(vec![element("disabled", ElementSizing::Fixed, bounds)]);
+    let mut actual = reference.clone();
+    reference.elements[0].style.opacity = 0.5;
+    actual.elements[0].style.opacity = 0.5;
+    reference.elements[0].style.declared_background_color = Some([61, 61, 61, 255]);
+    actual.elements[0].style.declared_background_color = Some([61, 61, 61, 255]);
+    reference.elements[0].style.background_color = [44, 45, 48, 255];
+    actual.elements[0].style.background_color = [47, 48, 50, 255];
+    assert!(!compare(&reference, &actual, BACKDROP).passed);
+}

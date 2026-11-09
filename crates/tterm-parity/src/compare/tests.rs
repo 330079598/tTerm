@@ -84,6 +84,37 @@ fn identical_sides_pass() {
 }
 
 #[test]
+fn disabled_declarations_are_composited_once_and_still_detect_wrong_paint() {
+    let mut disabled = style();
+    disabled.opacity = 0.5;
+    disabled.declared_background_color = Some(BACKGROUND);
+    disabled.background_color = [14, 71, 120, 255];
+    let image = RgbaImage::from_pixel(32, 32, Rgba(disabled.background_color));
+    let snapshot = document(disabled);
+    let mut failures = Vec::new();
+    validate_measurements(
+        &side(image.clone(), snapshot.clone()),
+        "test",
+        [27, 29, 35, 255],
+        &mut failures,
+    );
+    assert!(failures.is_empty(), "{failures:?}");
+    let mut wrong = snapshot;
+    wrong.elements[0].style.declared_background_color = Some([255, 0, 0, 255]);
+    validate_measurements(
+        &side(image, wrong),
+        "test",
+        [27, 29, 35, 255],
+        &mut failures,
+    );
+    assert!(
+        failures
+            .iter()
+            .any(|failure| failure.contains("declares background"))
+    );
+}
+
+#[test]
 fn a_padding_change_fails_and_names_the_element() {
     let reference_layout = document(style());
     let mut changed = style();
