@@ -8,7 +8,7 @@ use gpui_kit::{AppContext, Context, Entity, Window};
 use gpui_kit::{IntoElement, ParentElement, Styled, div, px};
 use tterm_ui::components::password_input::{PasswordState, password_input};
 use tterm_ui::components::select::{SelectState, select};
-use tterm_ui::components::switch::{SwitchState, switch};
+use tterm_ui::components::switch::{SwitchState, style as switch_style, switch};
 use tterm_ui::tokens::palette::{DARK, LIGHT};
 
 pub const PASSWORD_ID: &str = "ui.password.default";
@@ -20,6 +20,7 @@ pub struct P024Screen {
     theme: tterm_ui::tokens::theme::Theme,
     kind: Kind,
     password_state: Option<Entity<InputState>>,
+    switch_states: [SwitchState; 4],
 }
 #[derive(Clone, Copy)]
 pub enum Kind {
@@ -44,6 +45,23 @@ impl P024Screen {
             theme,
             kind,
             password_state: None,
+            switch_states: [
+                SwitchState {
+                    checked: true,
+                    ..SwitchState::default()
+                },
+                SwitchState::default(),
+                SwitchState {
+                    checked: true,
+                    focused: true,
+                    ..SwitchState::default()
+                },
+                SwitchState {
+                    checked: true,
+                    disabled: true,
+                    ..SwitchState::default()
+                },
+            ],
         })
     }
     pub fn render(
@@ -73,25 +91,76 @@ impl P024Screen {
                 if self.password_state.is_none() {
                     self.password_state = Some(cx.new(|cx| InputState::new(window, cx)));
                 }
-                let state = self
-                    .password_state
-                    .as_ref()
-                    .expect("password state initialized");
-                div().w(px(576.0)).child(password_input(
-                    state,
-                    PasswordState {
-                        revealable: true,
-                        ..PasswordState::default()
-                    },
-                    self.theme,
-                ))
+                match self.password_state.as_ref() {
+                    Some(state) => div().w(px(576.0)).child(password_input(
+                        state,
+                        PasswordState {
+                            revealable: true,
+                            ..PasswordState::default()
+                        },
+                        self.theme,
+                    )),
+                    None => div().w(px(576.0)),
+                }
             }
             Kind::Select => div().h(px(36.0)).w(px(576.0)).child(select(
                 &SelectState::new(vec!["One".into(), "Two".into()]),
                 self.theme,
             )),
-            Kind::Switch => div().child(switch(SwitchState::default(), self.theme)),
+            Kind::Switch => {
+                let children = self
+                    .switch_states
+                    .iter()
+                    .enumerate()
+                    .map(|(index, state)| {
+                        let computed = switch_style(*state, self.theme);
+                        let style = StyleSnapshot {
+                            background_color: crate::color::hsl_to_rgba(computed.track),
+                            border_color: crate::color::hsl_to_rgba(computed.track),
+                            border_width: 1.0,
+                            border_radius: 10.0,
+                            ring_spread: computed.ring_spread,
+                            font_family: "system-ui".into(),
+                            font_size: 13.0,
+                            font_weight: 400,
+                            line_height: 18.2,
+                            color: crate::color::hsl_to_rgba(self.theme.colors.foreground),
+                            padding: PaddingSnapshot::all(0.0),
+                            declared_background_color: None,
+                            declared_border_color: None,
+                            opacity: computed.opacity,
+                        };
+                        let id = format!(
+                            "ui.switch.{}",
+                            ["checked", "unchecked", "focus", "disabled"][index]
+                        );
+                        crate::marker::parity_child(
+                            &self.layout,
+                            id,
+                            ElementSizing::Fixed,
+                            style,
+                            switch(
+                                format!("switch-{index}"),
+                                *state,
+                                self.theme,
+                                |_next, _event, _window, _cx| {},
+                            ),
+                        )
+                        .into_any_element()
+                    })
+                    .collect::<Vec<_>>();
+                div().flex().flex_col().gap(px(16.0)).children(children)
+            }
         };
+        if matches!(self.kind, Kind::Switch) {
+            return div()
+                .size_full()
+                .p(px(32.0))
+                .bg(crate::color::to_gpui(crate::color::hsl_to_rgba(
+                    colors.background,
+                )))
+                .child(child);
+        }
         parity_element(
             &self.layout,
             match self.kind {
