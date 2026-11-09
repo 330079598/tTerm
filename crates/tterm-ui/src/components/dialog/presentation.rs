@@ -293,7 +293,7 @@ impl Render for Dialog {
         style.background_alpha = OVERLAY_OPACITY;
         let overlay = style
             .apply(div())
-            .bg(css_color(style.background, OVERLAY_OPACITY))
+            .bg(css_color(style.background, 1.0).opacity(OVERLAY_OPACITY))
             .id("dialog-overlay")
             .occlude()
             .on_mouse_down(
