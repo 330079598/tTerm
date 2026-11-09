@@ -17,18 +17,21 @@
 - 每一次 push；
 - G 关卡。
 
-## 2. 当前进度（2026-11-08）
+## 2. 当前进度（2026-11-09）
 
 - `GPUI` 已推送。逐卡状态见 [status.md](status.md)。
-- **P0-24 暂停**，在分支 `migrate/P0-24-ui-primitives`，没有合并。Button 与 Input 已改为用 tterm-ui 令牌自绘，接近门槛。剩下的问题见该分支 `reports/P0-24.md` 末尾的“评估（2026-11-08，暂停）”。其余 6 个组件还没做，按两批做。
+- **P0-24 部分通过并已合并**（2026-11-09，在 Mac 上做）：Button 与 Input 在 macOS 深浅主题四屏达标，focus ring 外沿按[决策 013](decisions/013-ring-edge-mask.md) 遮罩。worktree `../tTerm-P0-24` 保留，后两批在同一分支继续。缺的项见报告末尾“评估（2026-11-09，macOS，Button 与 Input）”。
+- **新发现**：`tterm-terminal-view` 的 `view::tests::shaping_places_each_glyph_on_its_column` 在 macOS 上失败（`current_platform(true)` 不在主线程），GPUI 分支同样失败，要另开修复卡。
 - 排队，按顺序：
-  1. 继续 P0-24；
-  2. P0-01 补跑 vtebench（WSL 里已装 cargo，`~/vtebench` 已克隆）；
-  3. P0-21，机器空闲时单独跑；
-  4. P0-17、P0-18 的 Windows 部分，要人动手的项整理成检查清单给 stone；
-  5. P0-05、P0-22；
-  6. 请 stone 过 G1。
-- 平台顺序按[决策 012](decisions/012-windows-first.md)：Windows，然后 macOS，最后 Linux。macOS 与 Linux 的验收项记为“推迟（决策 012）”，不阻塞进度。手头有 Mac 时，可以补 macOS 的推迟项：P0-24 的 macOS 对比、P0-02、P0-01 的 macOS 基线、P0-18 的 macOS 部分。
+  1. 修复上面这个 macOS 测试（小卡）；
+  2. P0-24 第一批：PasswordInput、Select、Switch；第二批：Tabs、Dialog、ContextMenu；
+  3. P0-01 补跑 vtebench（WSL 里已装 cargo，`~/vtebench` 已克隆），以及 macOS 基线（Mac 空闲时单独跑）；
+  4. P0-21，机器空闲时单独跑；
+  5. P0-17、P0-18 的 Windows 部分，要人动手的项整理成检查清单给 stone；
+  6. P0-05、P0-22；
+  7. 请 stone 过 G1。
+- Windows 上要补的：P0-24 的 Windows 通道对比（G1 门槛）。
+- 平台顺序按[决策 012](decisions/012-windows-first.md)：Windows，然后 macOS，最后 Linux。macOS 与 Linux 的验收项记为“推迟（决策 012）”，不阻塞进度。手头有 Mac 时，可以补 macOS 的推迟项：P0-02、P0-01 的 macOS 基线、P0-18 的 macOS 部分。
 
 ## 3. 派发
 
@@ -90,7 +93,7 @@ scripts/migration/run-codex.ps1 -Card <ID> -Worktree ..\tTerm-<ID> -PromptFile <
 
 - 日志 `<ID>-<时间>.jsonl` 和最后一条消息 `<ID>-<时间>.last.md` 写在派发目录。派发目录默认是主仓库旁边的 `tTerm-dispatch`，可以用 `TTERM_DISPATCH_DIR` 改。
 - 脚本最后一行打印 thread。返工时带上它续跑，执行者会保留上下文。thread 只存在于跑它的那台机器上，换机器后只能开新会话，让执行者先读报告里的评估记录。
-- 沙箱用 workspace-write，按需审批，提升权限由自动审查者批准；可写目录是主仓库的 `.git` 和 `~/.cargo`，允许联网。执行者在沙箱里报权限错误时，先看是不是还缺某个可写目录。macOS 上这套配置还没实际跑过，第一次派发时要留意。
+- 沙箱用 workspace-write，按需审批，提升权限由自动审查者批准；可写目录是主仓库的 `.git` 和 `~/.cargo`，允许联网。执行者在沙箱里报权限错误时，先看是不是还缺某个可写目录。macOS 上这套配置已在 P0-24 跑过（2026-11-09），限制见第 6 节。
 - 协调者在后台运行脚本，等它结束的通知，不要轮询日志。
 
 ## 4. 验收
@@ -136,3 +139,5 @@ scripts/migration/run-codex.ps1 -Card <ID> -Worktree ..\tTerm-<ID> -PromptFile <
 - “两轮调不好就停”只适用于原因不明的情况。原因明确的失败要修完。
 - 执行者说某个工具没装，可能只是沙箱里看不到（例如 WSL 里的 cargo）。先自己核实。
 - 隔离运行后，报告说已清理，实际还留着目录。验收时自己检查。
+- macOS 沙箱里，Playwright WebKit 一启动就 `Abort trap: 6`，枚举本机应用的测试（`macos_lists_the_applications_for_text_with_icons`）也会失败。在沙箱外都正常。要跑对比的卡，提示词里写明对比命令直接申请提升权限。执行者说“本机起不来”时，先在沙箱外复跑。
+- 评估者自己也会误判：P0-24 中曾把落在边缘带里的接缝像素当成门槛问题。下返工结论前，先用结果 JSON 确认哪些像素真正进入了门槛。
