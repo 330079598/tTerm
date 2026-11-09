@@ -104,17 +104,15 @@ export function collectLayout(screen) {
     return spread
   }
 
-  const elements = [...document.querySelectorAll("[data-parity]")].map((element) => {
+  const snapshot = (element, id, sizing) => {
     const style = getComputedStyle(element)
     let opacity = 1
     for (let node = element; node && node.nodeType === Node.ELEMENT_NODE; node = node.parentElement) {
       opacity *= Number.parseFloat(getComputedStyle(node).opacity) || 1
     }
-    const id = element.getAttribute("data-parity")
-    if (!id) throw new Error("parity layout: an element has an empty data-parity")
     return {
       id,
-      sizing: element.getAttribute("data-parity-sizing") === "text" ? "text" : "fixed",
+      sizing,
       bounds: rect(element.getBoundingClientRect()),
       style: {
         backgroundColor: toRgba(style.backgroundColor),
@@ -139,7 +137,22 @@ export function collectLayout(screen) {
         },
       },
     }
-  })
+  }
+
+  // A component's internal parts (`data-slot` inside a marked element, such
+  // as the Switch thumb) are recorded too, so their position is compared and
+  // their antialiased edges get the same edge band as any marked element.
+  const elements = []
+  for (const element of document.querySelectorAll("[data-parity]")) {
+    const id = element.getAttribute("data-parity")
+    if (!id) throw new Error("parity layout: an element has an empty data-parity")
+    const sizing = element.getAttribute("data-parity-sizing") === "text" ? "text" : "fixed"
+    elements.push(snapshot(element, id, sizing))
+    for (const part of element.querySelectorAll("[data-slot]")) {
+      if (part.hasAttribute("data-parity")) continue
+      elements.push(snapshot(part, `${id}.${part.getAttribute("data-slot")}`, "fixed"))
+    }
+  }
 
   const textRegions = []
   const seen = new Set()

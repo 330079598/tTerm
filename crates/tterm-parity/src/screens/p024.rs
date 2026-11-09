@@ -116,7 +116,7 @@ impl P024Screen {
                         let computed = switch_style(*state, self.theme);
                         let style = StyleSnapshot {
                             background_color: crate::color::hsl_to_rgba(computed.track),
-                            border_color: crate::color::hsl_to_rgba(computed.track),
+                            border_color: computed.border,
                             border_width: 1.0,
                             border_radius: 10.0,
                             ring_spread: computed.ring_spread,
@@ -134,11 +134,28 @@ impl P024Screen {
                             "ui.switch.{}",
                             ["checked", "unchecked", "focus", "disabled"][index]
                         );
-                        crate::marker::parity_child(
+                        let thumb = StyleSnapshot {
+                            background_color: crate::color::hsl_to_rgba(computed.thumb),
+                            border_width: 0.0,
+                            border_radius: computed.thumb_size / 2.0,
+                            ring_spread: 0.0,
+                            ..style.clone()
+                        };
+                        let (thumb_x, thumb_y) = computed.thumb_offset;
+                        crate::marker::parity_child_with_parts(
                             &self.layout,
                             id,
-                            ElementSizing::Fixed,
                             style,
+                            vec![crate::marker::ParityPart {
+                                slot: "switch-thumb",
+                                bounds: crate::layout::BoundsSnapshot::new(
+                                    thumb_x,
+                                    thumb_y,
+                                    computed.thumb_size,
+                                    computed.thumb_size,
+                                ),
+                                style: thumb,
+                            }],
                             switch(
                                 format!("switch-{index}"),
                                 *state,
