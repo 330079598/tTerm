@@ -2,13 +2,12 @@
 
 ## 结论
 
-组件骨架、令牌映射、Lucide 单色 SVG 资源和 parity 屏已加入 GPUI。Button/Input 的既有屏幕未改动。由于本机没有完成 macOS 沙箱外的完整 parity 捕获，本批状态为**完成待评估**，对比与部分交互项目标记为未验证。
+本轮只完成 Switch 与 Lucide 图标脚本返工。Button/Input 的既有屏幕继续通过；Switch 布局和 SSIM 达标，但屏幕颜色门槛仍需确认。
 
 ## 改动
 
-- `tterm-ui` 新增 `password_input`、`select`、`switch`，每个组件读取局部 `Theme`，不写 gpui-component 全局主题。
-- `scripts/generate-lucide-icons.mjs` 从已安装 `lucide-react` 1.48.0 的图标数据生成四个 SVG；资源使用 `svg().data(...).text_color(...)` 单色着色。
-- parity 参考端新增 PasswordInput、Select、Switch 屏和 fixtures；GPUI 端新增对应注册项。
+- `switch` 改为基于 `gpui_base::Toggle` 的真实交互控件，Parity 屏逐元素标记四种状态。
+- `scripts/generate-lucide-icons.mjs` 从已安装 `lucide-react` 1.48.0 的 `dist/esm/icons/*.mjs` 读取 `__iconData` 生成四个 SVG。
 
 ## 做法与理由
 
@@ -21,7 +20,7 @@ PasswordInput 复用 tterm-ui Input 的编辑状态和已通过的 ghost `icon-s
 | PasswordInput 显示/隐藏、Eye/EyeOff、大写锁定图标与内边距 | 部分完成 | `components/password_input.rs`；真实输入和 caps lock 为 `[人工]` |
 | Select 收起态 default/focus/disabled/长值截断 | 未验证 | React parity 屏已注册；macOS compare 未完成 |
 | Select 展开列表键盘上下、回车、Esc、点外关闭 | 未完成 | 当前 GPUI 层先提供绘制和点击选项，键盘/外点击待后续修订 |
-| Switch checked/unchecked/focus/disabled，深浅主题 | 部分完成 | `components/switch.rs`；macOS compare 未完成 |
+| Switch checked/unchecked/focus/disabled，深浅主题 | 需要确认 | 深色 macOS：布局通过、SSIM 0.998393；屏幕颜色门槛 2039 px 超限。浅色未验证 |
 | Lucide 来源、版本与生成脚本 | 通过 | `third-party.md`、`scripts/generate-lucide-icons.mjs` |
 | 主题隔离 | 通过（代码路径） | 组件只接收局部 `Theme`；沿用 Button/Input 主题隔离测试模式 |
 
