@@ -37,14 +37,14 @@ pub fn surface(
     background: gpui_kit::Hsla,
     border: gpui_kit::Hsla,
     width: f32,
-    ring: Option<gpui_kit::Hsla>,
+    ring: Option<(gpui_kit::Hsla, f32)>,
 ) -> impl IntoElement {
     canvas(
         |_, _, _| (),
         move |bounds, (), window, _| {
             // Absolute children start at the parent's padding box.
             let bounds = bounds.inset(px(-width));
-            if let Some(ring) = ring {
+            if let Some((ring, spread)) = ring {
                 // CSS outer shadows exclude the border box, including when
                 // the button fill is transparent. Keep both AA edges separate.
                 // GPUI interpolates straight RGB as well as alpha at the inner
@@ -53,10 +53,10 @@ pub fn surface(
                 let mut clear_ring = ring;
                 clear_ring.a = 0.0;
                 window.paint_quad(quad(
-                    bounds.inset(px(-3.0)),
-                    px(9.0),
+                    bounds.inset(px(-spread)),
+                    px(6.0 + spread),
                     clear_ring,
-                    px(3.0),
+                    px(spread),
                     ring,
                     Default::default(),
                 ));

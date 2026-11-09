@@ -55,6 +55,8 @@ pub struct ButtonStyle {
     pub border_width: f32,
     pub opacity: f32,
     pub ring: Option<crate::tokens::color::Hsl>,
+    /// Outer shadow spread in logical pixels, shared with parity snapshots.
+    pub ring_spread: f32,
 }
 
 pub fn style(variant: Variant, size: ButtonSize, state: ButtonState, theme: Theme) -> ButtonStyle {
@@ -102,6 +104,7 @@ pub fn style(variant: Variant, size: ButtonSize, state: ButtonState, theme: Them
         },
         opacity: if state.disabled { 0.5 } else { 1.0 },
         ring: state.focused.then_some(colors.ring),
+        ring_spread: if state.focused { 3.0 } else { 0.0 },
     }
 }
 
@@ -138,7 +141,9 @@ pub fn button(
             css_color(computed.background, computed.background_alpha),
             css_color(computed.border, 1.0),
             computed.border_width,
-            computed.ring.map(|ring| css_color(ring, 0.5)),
+            computed
+                .ring
+                .map(|ring| (css_color(ring, 0.5), computed.ring_spread)),
         ));
     if matches!(variant, Variant::Link) {
         view = view.underline();
