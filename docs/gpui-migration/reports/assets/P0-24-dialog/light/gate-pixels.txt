@@ -1,0 +1,6 @@
+   Compiling tterm-parity v0.1.0 (/Users/stone/Code/rust/tTerm-P0-24-dialog/crates/tterm-parity)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.95s
+     Running `/Users/stone/Code/rust/tTerm-P0-24-dialog/scripts/macos-dev-bundle.sh target/debug/examples/dialog_pixels reference/b649cda56f162934db144528201d5a1faceb51a6-light-dirty`
+count 2
+samples [(366, 747, [234, 234, 234, 255], [239, 239, 239, 255], 1.0601967965435022), (1233, 747, [234, 234, 234, 255], [239, 239, 239, 255], 1.0601967965435022)]
+bins {(7, 29): 1, (24, 29): 1}

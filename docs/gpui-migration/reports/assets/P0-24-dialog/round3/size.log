@@ -1,0 +1,2 @@
+$ node scripts/check-file-size.mjs
+file-size: 1047 files within their limits

@@ -215,7 +215,10 @@ fn capture_image(
                 px(manifest.selected_viewport().width as f32),
                 px(manifest.selected_viewport().height as f32),
             ),
-            |_, cx| cx.new(|_| view),
+            |window, cx| {
+                let content = cx.new(|_| view);
+                cx.new(|cx| gpui_kit::base::Root::new(content, window, cx))
+            },
         )
         .map_err(|error| format!("could not open the {screen_id} window: {error}"))?;
     context.run_until_parked();

@@ -45,6 +45,8 @@ pub struct ButtonStyle {
     pub padding_x: f32,
     pub padding_y: f32,
     pub font_size: f32,
+    pub radius: f32,
+    pub weight: u16,
     pub line_height: f32,
     pub background: crate::tokens::color::Hsl,
     pub background_alpha: f32,
@@ -55,6 +57,10 @@ pub struct ButtonStyle {
     pub ring: Option<crate::tokens::color::Hsl>,
     /// Outer shadow spread in logical pixels, shared with parity snapshots.
     pub ring_spread: f32,
+    /// Alpha of the focus ring, including the destructive theme variants.
+    pub ring_alpha: f32,
+    /// Link decoration follows hover rather than the variant alone.
+    pub underline: bool,
 }
 
 pub fn style(variant: Variant, size: ButtonSize, state: ButtonState, theme: Theme) -> ButtonStyle {
@@ -74,6 +80,8 @@ pub fn style(variant: Variant, size: ButtonSize, state: ButtonState, theme: Them
         padding_x,
         padding_y,
         font_size,
+        radius: 6.0,
+        weight: 500,
         line_height: if matches!(size, ButtonSize::Xs) {
             13.8
         } else {
@@ -88,8 +96,13 @@ pub fn style(variant: Variant, size: ButtonSize, state: ButtonState, theme: Them
             0.5
         } else if matches!(variant, Variant::Outline) && theme.uses_dark_variant() {
             if state.hovered { 0.5 } else { 0.3 }
+        } else if state.hovered && matches!(variant, Variant::Default | Variant::Destructive) {
+            // hover has higher specificity than the :where-based dark variant.
+            0.9
         } else if matches!(variant, Variant::Destructive) && theme.uses_dark_variant() {
             0.6
+        } else if state.hovered && matches!(variant, Variant::Secondary) {
+            0.8
         } else {
             1.0
         },
@@ -101,7 +114,19 @@ pub fn style(variant: Variant, size: ButtonSize, state: ButtonState, theme: Them
             0.0
         },
         opacity: if state.disabled { 0.5 } else { 1.0 },
-        ring: state.focused.then_some(colors.ring),
+        ring: state
+            .focused
+            .then_some(if matches!(variant, Variant::Destructive) {
+                colors.destructive
+            } else {
+                colors.ring
+            }),
+        ring_alpha: if matches!(variant, Variant::Destructive) {
+            if theme.uses_dark_variant() { 0.4 } else { 0.2 }
+        } else {
+            0.5
+        },
+        underline: matches!(variant, Variant::Link) && state.hovered,
         ring_spread: if state.focused { 3.0 } else { 0.0 },
     }
 }
@@ -138,7 +163,7 @@ pub fn button(
         .min_w(px(computed.width))
         .px(px(computed.padding_x))
         .py(px(computed.padding_y))
-        .rounded(px(6.0))
+        .rounded(px(computed.radius))
         .border(px(computed.border_width))
         .border_color(gpui_kit::transparent_black())
         .when(matches!(variant, Variant::Outline), |this| {
@@ -148,18 +173,18 @@ pub fn button(
         .text_color(hsla(computed.foreground, 1.0))
         .text_size(px(computed.font_size))
         .line_height(px(computed.line_height))
-        .font_weight(gpui_kit::FontWeight(500.0))
+        .font_weight(gpui_kit::FontWeight(f32::from(computed.weight)))
         .opacity(css_opacity(computed.opacity))
         .child(surface(
             background,
             css_color(computed.border, 1.0),
             computed.border_width,
-            6.0,
+            computed.radius,
             computed
                 .ring
-                .map(|ring| (css_color(ring, 0.5), computed.ring_spread)),
+                .map(|ring| (css_color(ring, computed.ring_alpha), computed.ring_spread)),
         ));
-    if matches!(variant, Variant::Link) {
+    if computed.underline {
         view = view.underline();
     }
     let label = label.into();
@@ -246,128 +271,4 @@ fn colors_for(
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::tokens::palette::THEMES;
-    #[test]
-    fn exposes_every_react_variant_and_size() {
-        assert_eq!(
-            6,
-            [
-                Variant::Default,
-                Variant::Destructive,
-                Variant::Outline,
-                Variant::Secondary,
-                Variant::Ghost,
-                Variant::Link
-            ]
-            .len()
-        );
-        assert_eq!(
-            8,
-            [
-                ButtonSize::Default,
-                ButtonSize::Xs,
-                ButtonSize::Sm,
-                ButtonSize::Lg,
-                ButtonSize::Icon,
-                ButtonSize::IconXs,
-                ButtonSize::IconSm,
-                ButtonSize::IconLg
-            ]
-            .len()
-        );
-    }
-
-    #[test]
-    fn style_reads_the_selected_theme_without_shared_state() {
-        let before = style(
-            Variant::Default,
-            ButtonSize::Default,
-            ButtonState::default(),
-            THEMES[0],
-        );
-        for theme in THEMES {
-            let selected = style(
-                Variant::Default,
-                ButtonSize::Default,
-                ButtonState::default(),
-                theme,
-            );
-            assert_eq!(selected.background, theme.colors.primary);
-            assert_eq!(selected.foreground, theme.colors.primary_foreground);
-        }
-        assert_eq!(
-            style(
-                Variant::Default,
-                ButtonSize::Default,
-                ButtonState::default(),
-                THEMES[0],
-            ),
-            before
-        );
-    }
-
-    #[test]
-    fn hover_uses_the_variant_specific_background_and_border() {
-        let light = style(
-            Variant::Outline,
-            ButtonSize::Default,
-            ButtonState {
-                hovered: true,
-                ..ButtonState::default()
-            },
-            crate::tokens::palette::LIGHT,
-        );
-        assert_eq!(
-            light.background,
-            crate::tokens::palette::LIGHT.colors.accent
-        );
-        assert_eq!(light.border, crate::tokens::palette::LIGHT.colors.border);
-
-        let dark = style(
-            Variant::Outline,
-            ButtonSize::Default,
-            ButtonState {
-                hovered: true,
-                ..ButtonState::default()
-            },
-            crate::tokens::palette::DARK,
-        );
-        assert_eq!(dark.background, crate::tokens::palette::DARK.colors.input);
-        assert_eq!(dark.background_alpha, 0.5);
-        assert_eq!(dark.border, crate::tokens::palette::DARK.colors.input);
-    }
-
-    #[test]
-    fn disabled_keeps_each_variant_colour() {
-        let destructive = style(
-            Variant::Destructive,
-            ButtonSize::Default,
-            ButtonState {
-                disabled: true,
-                ..ButtonState::default()
-            },
-            crate::tokens::palette::LIGHT,
-        );
-        let outline = style(
-            Variant::Outline,
-            ButtonSize::Default,
-            ButtonState {
-                disabled: true,
-                ..ButtonState::default()
-            },
-            crate::tokens::palette::LIGHT,
-        );
-        assert_eq!(
-            destructive.background,
-            crate::tokens::palette::LIGHT.colors.destructive
-        );
-        assert_eq!(destructive.foreground, WHITE);
-        assert_eq!(
-            outline.background,
-            crate::tokens::palette::LIGHT.colors.background
-        );
-        assert_eq!(destructive.opacity, 0.5);
-    }
-}
+mod tests;

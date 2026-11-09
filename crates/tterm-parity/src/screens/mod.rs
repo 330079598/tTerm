@@ -6,6 +6,7 @@
 
 pub mod button;
 pub mod context_menu;
+pub mod dialog;
 pub mod example;
 pub mod input;
 pub mod password;
@@ -29,6 +30,7 @@ pub enum ScreenView {
     Password(password::PasswordScreen),
     Select(select::SelectScreen),
     Switch(switch::SwitchScreen),
+    Dialog(dialog::DialogScreen),
     TabsDefault(tabs::TabsScreen),
     TabsServer(tabs::TabsScreen),
     ContextMenu(context_menu::ContextMenuScreen),
@@ -58,6 +60,34 @@ impl ScreenView {
             )?)),
             select::SCREEN_ID => Ok(Self::Select(select::SelectScreen::load(manifest, sink)?)),
             switch::SCREEN_ID => Ok(Self::Switch(switch::SwitchScreen::load(manifest, sink)?)),
+            dialog::CONFIRM_SCREEN_ID => Ok(Self::Dialog(dialog::DialogScreen::load(
+                manifest,
+                sink,
+                tterm_ui::components::dialog::DialogKind::Confirm,
+                false,
+                false,
+            )?)),
+            dialog::DESTRUCTIVE_SCREEN_ID => Ok(Self::Dialog(dialog::DialogScreen::load(
+                manifest,
+                sink,
+                tterm_ui::components::dialog::DialogKind::Confirm,
+                true,
+                false,
+            )?)),
+            dialog::PROMPT_SCREEN_ID => Ok(Self::Dialog(dialog::DialogScreen::load(
+                manifest,
+                sink,
+                tterm_ui::components::dialog::DialogKind::Prompt,
+                false,
+                false,
+            )?)),
+            dialog::MULTILINE_SCREEN_ID => Ok(Self::Dialog(dialog::DialogScreen::load(
+                manifest,
+                sink,
+                tterm_ui::components::dialog::DialogKind::Confirm,
+                false,
+                true,
+            )?)),
             tabs::DEFAULT_SCREEN_ID => Ok(Self::TabsDefault(tabs::TabsScreen::load(
                 manifest, sink, false,
             )?)),
@@ -87,6 +117,7 @@ impl Render for ScreenView {
             Self::Password(view) => view.render(_window, _cx).into_any_element(),
             Self::Select(view) => view.render(_cx).into_any_element(),
             Self::Switch(view) => view.render().into_any_element(),
+            Self::Dialog(view) => view.render(_window, _cx).into_any_element(),
             Self::TabsDefault(view) | Self::TabsServer(view) => view.render(_cx).into_any_element(),
             Self::ContextMenu(view) => view.render(_window, _cx).into_any_element(),
         }

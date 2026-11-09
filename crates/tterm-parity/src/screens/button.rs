@@ -95,7 +95,9 @@ impl ButtonScreen {
             Variant::Default,
             ButtonSize::Default,
             ButtonState {
-                hovered: true,
+                // The React fixture explicitly overrides hover:bg-primary.
+                // Its captured state therefore retains the base fill.
+                hovered: false,
                 ..ButtonState::default()
             },
             "hover",

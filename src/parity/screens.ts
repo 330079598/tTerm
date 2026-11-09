@@ -12,6 +12,12 @@ import {
   SelectPrimitive,
   SwitchPrimitive,
 } from "@/parity/screens/P024Primitives"
+import {
+  DialogConfirmPrimitive,
+  DialogDestructivePrimitive,
+  DialogPromptPrimitive,
+  DialogMultilinePrimitive,
+} from "@/parity/screens/DialogPrimitive"
 import type { ComponentType } from "react"
 import { TabsPrimitive, TabsServerMonitor } from "@/parity/screens/TabsPrimitive"
 
@@ -28,6 +34,10 @@ export const parityScreens: Record<string, ComponentType<ParityScreenProps>> = {
   "ui.password.default": PasswordInputPrimitive,
   "ui.select.default": SelectPrimitive,
   "ui.switch.default": SwitchPrimitive,
+  "ui.dialog.confirm": DialogConfirmPrimitive,
+  "ui.dialog.destructive": DialogDestructivePrimitive,
+  "ui.dialog.prompt": DialogPromptPrimitive,
+  "ui.dialog.multiline": DialogMultilinePrimitive,
   "ui.tabs.default": TabsPrimitive,
   "ui.tabs.server-monitor": TabsServerMonitor,
   "ui.context-menu.default": ContextMenuDefault,

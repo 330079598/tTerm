@@ -17,6 +17,13 @@
 - 人工判定方法：在报告的并排截图里放大到 400% 以上，看 switch 下沿的阴影。判定标准是阴影的方向、范围和深浅与参照一致。逐像素的 1 级差异不算问题；阴影缺失、偏移或明显偏深偏浅算问题。
 - 证据：[P0-24 报告](../docs/gpui-migration/reports/P0-24.md)中“Switch（评估者实现，2026-11-09）”一节。
 
+### 扩展（2026-11-09，决策人 stone）：Dialog
+
+- 涉及：`ui.dialog.confirm` 的 `ui.dialog.confirm.content`、`ui.dialog.destructive` 的 `ui.dialog.destructive.content`、`ui.dialog.prompt` 的 `ui.dialog.prompt.content`、`ui.dialog.multiline` 的 `ui.dialog.multiline.content`。多行屏与原三屏使用同一个 Dialog 内容框容器、同一个 `shadow-lg`，属于既有 Dialog 扩展范围，不新增例外。
+- `outset` 为 25，即 `shadow-lg` 第一层的 y 偏移 10px 加 CSS 模糊 15px；内容框本身仍参加比较。
+- 现象：按第 4 轮及第 5 轮复跑的相同生产绘制实测，macOS 深色主题下，内容框 border box 外、outset 25 内，RGB 通道最大差 1 级的物理像素数分别为 confirm 128,264、destructive 128,264、prompt 143,064、multiline 137,864；四屏各另有 136 个差 2 级。该范围统计包含 0.9 遮罩在同色纯色底上的 1 级量化差，不等于门槛超限数。多行屏未引用 E-001 时阴影门槛为 5,016 个、最大 CIEDE2000 为 1.825380；浅色四屏各有 2 个阴影像素超过颜色门槛，均位于内容框下圆角外侧、outset 25 内。原因与人工判定方法沿用 E-001 原文。
+- 证据：[P0-24 Dialog 报告“第 5 轮：多行屏归入 E-001”](../docs/gpui-migration/reports/P0-24-dialog.md#第-5-轮多行屏归入-e-001)。
+
 ### 扩展（2026-11-09，决策人 stone）：Tabs active trigger
 
 - 涉及：`ui.tabs.default` 的 `ui.tabs.active`，以及 `ui.tabs.server-monitor` 的 `ui.tabs.server-active`。仅这两个 active 元素；focus trigger 不进入例外。

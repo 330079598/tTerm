@@ -1,0 +1,1033 @@
+{
+  "schemaVersion": 2,
+  "reference": {
+    "frontendCommit": "66e969328a1d2047b2137b7279019c0869a3f1e9",
+    "dirty": false
+  },
+  "thresholds": {
+    "fixedPx": 1.0,
+    "textPx": 2.0,
+    "textFraction": 0.02,
+    "maskedSsim": 0.99,
+    "fullSsim": 0.97,
+    "screenColorPixels": 0
+  },
+  "screens": [
+    {
+      "id": "example.button-input.default",
+      "title": "Example: one button and one input",
+      "passed": true,
+      "layout": {
+        "passed": true,
+        "elements": [
+          {
+            "id": "example.button",
+            "passed": true,
+            "maxBoundsDelta": 0.25,
+            "failures": []
+          },
+          {
+            "id": "example.input",
+            "passed": true,
+            "maxBoundsDelta": 0.0,
+            "failures": []
+          },
+          {
+            "id": "example.screen",
+            "passed": true,
+            "maxBoundsDelta": 0.0,
+            "failures": []
+          }
+        ],
+        "failures": []
+      },
+      "colors": {
+        "meanDeltaE": 0.0001,
+        "maxDeltaE": 2.6153,
+        "pixelsAboveOne": 52
+      },
+      "screenColors": {
+        "meanDeltaE": 0.0,
+        "maxDeltaE": 0.0,
+        "pixelsAboveOne": 0
+      },
+      "ssim": {
+        "full": 0.998504,
+        "masked": 1.0
+      },
+      "heatmap": "heatmaps/example.button-input.default.png",
+      "images": {
+        "reference": "../reference/66e969328a1d2047b2137b7279019c0869a3f1e9/example.button-input.default.png",
+        "actual": "../actual/example.button-input.default.png"
+      },
+      "icons": [],
+      "exceptions": [],
+      "failures": []
+    },
+    {
+      "id": "ui.button.variants",
+      "title": "Button variants and states",
+      "passed": true,
+      "layout": {
+        "passed": true,
+        "elements": [
+          {
+            "id": "ui.button.variants.default",
+            "passed": true,
+            "maxBoundsDelta": 0.0,
+            "failures": []
+          },
+          {
+            "id": "ui.button.variants.destructive",
+            "passed": true,
+            "maxBoundsDelta": 0.0,
+            "failures": []
+          },
+          {
+            "id": "ui.button.variants.disabled",
+            "passed": true,
+            "maxBoundsDelta": 0.0,
+            "failures": []
+          },
+          {
+            "id": "ui.button.variants.disabled-destructive",
+            "passed": true,
+            "maxBoundsDelta": 0.0,
+            "failures": []
+          },
+          {
+            "id": "ui.button.variants.disabled-outline",
+            "passed": true,
+            "maxBoundsDelta": 0.0,
+            "failures": []
+          },
+          {
+            "id": "ui.button.variants.focus",
+            "passed": true,
+            "maxBoundsDelta": 0.0,
+            "failures": []
+          },
+          {
+            "id": "ui.button.variants.ghost",
+            "passed": true,
+            "maxBoundsDelta": 0.0,
+            "failures": []
+          },
+          {
+            "id": "ui.button.variants.hover",
+            "passed": true,
+            "maxBoundsDelta": 0.0,
+            "failures": []
+          },
+          {
+            "id": "ui.button.variants.link",
+            "passed": true,
+            "maxBoundsDelta": 0.0,
+            "failures": []
+          },
+          {
+            "id": "ui.button.variants.outline",
+            "passed": true,
+            "maxBoundsDelta": 0.0,
+            "failures": []
+          },
+          {
+            "id": "ui.button.variants.screen",
+            "passed": true,
+            "maxBoundsDelta": 0.0,
+            "failures": []
+          },
+          {
+            "id": "ui.button.variants.secondary",
+            "passed": true,
+            "maxBoundsDelta": 0.0,
+            "failures": []
+          }
+        ],
+        "failures": []
+      },
+      "colors": {
+        "meanDeltaE": 0.0212,
+        "maxDeltaE": 5.5621,
+        "pixelsAboveOne": 388
+      },
+      "screenColors": {
+        "meanDeltaE": 0.0197,
+        "maxDeltaE": 0.6928,
+        "pixelsAboveOne": 0
+      },
+      "ssim": {
+        "full": 0.990719,
+        "masked": 0.999943
+      },
+      "heatmap": "heatmaps/ui.button.variants.png",
+      "images": {
+        "reference": "../reference/66e969328a1d2047b2137b7279019c0869a3f1e9/ui.button.variants.png",
+        "actual": "../actual/ui.button.variants.png"
+      },
+      "icons": [],
+      "exceptions": [],
+      "failures": []
+    },
+    {
+      "id": "ui.button.sizes",
+      "title": "Button sizes",
+      "passed": true,
+      "layout": {
+        "passed": true,
+        "elements": [
+          {
+            "id": "ui.button.sizes.default",
+            "passed": true,
+            "maxBoundsDelta": 0.0,
+            "failures": []
+          },
+          {
+            "id": "ui.button.sizes.icon",
+            "passed": true,
+            "maxBoundsDelta": 0.0,
+            "failures": []
+          },
+          {
+            "id": "ui.button.sizes.icon-lg",
+            "passed": true,
+            "maxBoundsDelta": 0.0,
+            "failures": []
+          },
+          {
+            "id": "ui.button.sizes.icon-sm",
+            "passed": true,
+            "maxBoundsDelta": 0.0,
+            "failures": []
+          },
+          {
+            "id": "ui.button.sizes.icon-xs",
+            "passed": true,
+            "maxBoundsDelta": 0.0,
+            "failures": []
+          },
+          {
+            "id": "ui.button.sizes.lg",
+            "passed": true,
+            "maxBoundsDelta": 0.0,
+            "failures": []
+          },
+          {
+            "id": "ui.button.sizes.screen",
+            "passed": true,
+            "maxBoundsDelta": 0.0,
+            "failures": []
+          },
+          {
+            "id": "ui.button.sizes.sm",
+            "passed": true,
+            "maxBoundsDelta": 0.0,
+            "failures": []
+          },
+          {
+            "id": "ui.button.sizes.xs",
+            "passed": true,
+            "maxBoundsDelta": 0.0,
+            "failures": []
+          }
+        ],
+        "failures": []
+      },
+      "colors": {
+        "meanDeltaE": 0.0004,
+        "maxDeltaE": 3.1651,
+        "pixelsAboveOne": 288
+      },
+      "screenColors": {
+        "meanDeltaE": 0.0,
+        "maxDeltaE": 0.0,
+        "pixelsAboveOne": 0
+      },
+      "ssim": {
+        "full": 0.998855,
+        "masked": 0.999997
+      },
+      "heatmap": "heatmaps/ui.button.sizes.png",
+      "images": {
+        "reference": "../reference/66e969328a1d2047b2137b7279019c0869a3f1e9/ui.button.sizes.png",
+        "actual": "../actual/ui.button.sizes.png"
+      },
+      "icons": [],
+      "exceptions": [],
+      "failures": []
+    },
+    {
+      "id": "ui.input.default",
+      "title": "Input primitive states",
+      "passed": true,
+      "layout": {
+        "passed": true,
+        "elements": [
+          {
+            "id": "ui.input.disabled",
+            "passed": true,
+            "maxBoundsDelta": 0.0,
+            "failures": []
+          },
+          {
+            "id": "ui.input.empty",
+            "passed": true,
+            "maxBoundsDelta": 0.0,
+            "failures": []
+          },
+          {
+            "id": "ui.input.focus",
+            "passed": true,
+            "maxBoundsDelta": 0.0,
+            "failures": []
+          },
+          {
+            "id": "ui.input.long",
+            "passed": true,
+            "maxBoundsDelta": 0.0,
+            "failures": []
+          },
+          {
+            "id": "ui.input.screen",
+            "passed": true,
+            "maxBoundsDelta": 0.0,
+            "failures": []
+          }
+        ],
+        "failures": []
+      },
+      "colors": {
+        "meanDeltaE": 0.0051,
+        "maxDeltaE": 12.0435,
+        "pixelsAboveOne": 322
+      },
+      "screenColors": {
+        "meanDeltaE": 0.0021,
+        "maxDeltaE": 0.6928,
+        "pixelsAboveOne": 0
+      },
+      "ssim": {
+        "full": 0.977373,
+        "masked": 0.99987
+      },
+      "heatmap": "heatmaps/ui.input.default.png",
+      "images": {
+        "reference": "../reference/66e969328a1d2047b2137b7279019c0869a3f1e9/ui.input.default.png",
+        "actual": "../actual/ui.input.default.png"
+      },
+      "icons": [],
+      "exceptions": [],
+      "failures": []
+    },
+    {
+      "id": "ui.password.default",
+      "title": "Password input states",
+      "passed": true,
+      "layout": {
+        "passed": true,
+        "elements": [
+          {
+            "id": "ui.password.default",
+            "passed": true,
+            "maxBoundsDelta": 0.0,
+            "failures": []
+          },
+          {
+            "id": "ui.password.disabled",
+            "passed": true,
+            "maxBoundsDelta": 0.0,
+            "failures": []
+          },
+          {
+            "id": "ui.password.masked",
+            "passed": true,
+            "maxBoundsDelta": 0.0,
+            "failures": []
+          }
+        ],
+        "failures": []
+      },
+      "colors": {
+        "meanDeltaE": 0.0046,
+        "maxDeltaE": 5.5621,
+        "pixelsAboveOne": 372
+      },
+      "screenColors": {
+        "meanDeltaE": 0.0018,
+        "maxDeltaE": 0.6928,
+        "pixelsAboveOne": 0
+      },
+      "ssim": {
+        "full": 0.991643,
+        "masked": 0.999883
+      },
+      "heatmap": "heatmaps/ui.password.default.png",
+      "images": {
+        "reference": "../reference/66e969328a1d2047b2137b7279019c0869a3f1e9/ui.password.default.png",
+        "actual": "../actual/ui.password.default.png"
+      },
+      "icons": [
+        {
+          "bounds": {
+            "x": 740.0,
+            "y": 42.0,
+            "width": 16.0,
+            "height": 16.0
+          },
+          "inkRatio": 1.0090967513946805,
+          "centroidDelta": 0.0014832225883226356,
+          "colorDeltaE": 0.3265440820899654,
+          "passed": true
+        },
+        {
+          "bounds": {
+            "x": 740.0,
+            "y": 94.0,
+            "width": 16.0,
+            "height": 16.0
+          },
+          "inkRatio": 1.0091388497913807,
+          "centroidDelta": 0.0016284660807890715,
+          "colorDeltaE": 0.3265440820899654,
+          "passed": true
+        },
+        {
+          "bounds": {
+            "x": 740.0,
+            "y": 146.0,
+            "width": 16.0,
+            "height": 16.0
+          },
+          "inkRatio": 1.0062775471298253,
+          "centroidDelta": 0.0024654953509756976,
+          "colorDeltaE": 0.6203749505174446,
+          "passed": true
+        }
+      ],
+      "exceptions": [],
+      "failures": []
+    },
+    {
+      "id": "ui.select.default",
+      "title": "Select states",
+      "passed": true,
+      "layout": {
+        "passed": true,
+        "elements": [
+          {
+            "id": "ui.select.default",
+            "passed": true,
+            "maxBoundsDelta": 0.0,
+            "failures": []
+          },
+          {
+            "id": "ui.select.disabled",
+            "passed": true,
+            "maxBoundsDelta": 0.0,
+            "failures": []
+          },
+          {
+            "id": "ui.select.focus",
+            "passed": true,
+            "maxBoundsDelta": 0.0,
+            "failures": []
+          },
+          {
+            "id": "ui.select.long",
+            "passed": true,
+            "maxBoundsDelta": 0.0,
+            "failures": []
+          }
+        ],
+        "failures": []
+      },
+      "colors": {
+        "meanDeltaE": 0.003,
+        "maxDeltaE": 11.6053,
+        "pixelsAboveOne": 430
+      },
+      "screenColors": {
+        "meanDeltaE": 0.002,
+        "maxDeltaE": 0.6928,
+        "pixelsAboveOne": 0
+      },
+      "ssim": {
+        "full": 0.998832,
+        "masked": 0.99993
+      },
+      "heatmap": "heatmaps/ui.select.default.png",
+      "images": {
+        "reference": "../reference/66e969328a1d2047b2137b7279019c0869a3f1e9/ui.select.default.png",
+        "actual": "../actual/ui.select.default.png"
+      },
+      "icons": [
+        {
+          "bounds": {
+            "x": 740.0,
+            "y": 42.0,
+            "width": 16.0,
+            "height": 16.0
+          },
+          "inkRatio": 1.0277416690075876,
+          "centroidDelta": 0.00033869863985103166,
+          "colorDeltaE": 0.3265440820899654,
+          "passed": true
+        },
+        {
+          "bounds": {
+            "x": 740.0,
+            "y": 94.0,
+            "width": 16.0,
+            "height": 16.0
+          },
+          "inkRatio": 1.0277416690075876,
+          "centroidDelta": 0.00033869863982260995,
+          "colorDeltaE": 0.3265440820899654,
+          "passed": true
+        },
+        {
+          "bounds": {
+            "x": 740.0,
+            "y": 146.0,
+            "width": 16.0,
+            "height": 16.0
+          },
+          "inkRatio": 1.0277416690075876,
+          "centroidDelta": 0.0003386986398083991,
+          "colorDeltaE": 0.3265440820899654,
+          "passed": true
+        },
+        {
+          "bounds": {
+            "x": 740.0,
+            "y": 198.0,
+            "width": 16.0,
+            "height": 16.0
+          },
+          "inkRatio": 1.0277416690075876,
+          "centroidDelta": 0.00033869863972313397,
+          "colorDeltaE": 0.3265440820899654,
+          "passed": true
+        }
+      ],
+      "exceptions": [],
+      "failures": []
+    },
+    {
+      "id": "ui.switch.default",
+      "title": "Switch states",
+      "passed": true,
+      "layout": {
+        "passed": true,
+        "elements": [
+          {
+            "id": "ui.switch.checked",
+            "passed": true,
+            "maxBoundsDelta": 0.0,
+            "failures": []
+          },
+          {
+            "id": "ui.switch.checked.switch-thumb",
+            "passed": true,
+            "maxBoundsDelta": 0.0,
+            "failures": []
+          },
+          {
+            "id": "ui.switch.disabled",
+            "passed": true,
+            "maxBoundsDelta": 0.0,
+            "failures": []
+          },
+          {
+            "id": "ui.switch.disabled.switch-thumb",
+            "passed": true,
+            "maxBoundsDelta": 0.0,
+            "failures": []
+          },
+          {
+            "id": "ui.switch.focus",
+            "passed": true,
+            "maxBoundsDelta": 0.0,
+            "failures": []
+          },
+          {
+            "id": "ui.switch.focus.switch-thumb",
+            "passed": true,
+            "maxBoundsDelta": 0.0,
+            "failures": []
+          },
+          {
+            "id": "ui.switch.unchecked",
+            "passed": true,
+            "maxBoundsDelta": 0.0,
+            "failures": []
+          },
+          {
+            "id": "ui.switch.unchecked.switch-thumb",
+            "passed": true,
+            "maxBoundsDelta": 0.0,
+            "failures": []
+          }
+        ],
+        "failures": []
+      },
+      "colors": {
+        "meanDeltaE": 0.0004,
+        "maxDeltaE": 3.89,
+        "pixelsAboveOne": 236
+      },
+      "screenColors": {
+        "meanDeltaE": 0.0,
+        "maxDeltaE": 0.0808,
+        "pixelsAboveOne": 0
+      },
+      "ssim": {
+        "full": 0.999996,
+        "masked": 0.999994
+      },
+      "heatmap": "heatmaps/ui.switch.default.png",
+      "images": {
+        "reference": "../reference/66e969328a1d2047b2137b7279019c0869a3f1e9/ui.switch.default.png",
+        "actual": "../actual/ui.switch.default.png"
+      },
+      "icons": [],
+      "exceptions": [
+        "E-001"
+      ],
+      "failures": []
+    },
+    {
+      "id": "ui.dialog.confirm",
+      "title": "Dialog confirm",
+      "passed": true,
+      "layout": {
+        "passed": true,
+        "elements": [
+          {
+            "id": "ui.dialog.confirm.cancel",
+            "passed": true,
+            "maxBoundsDelta": 0.17,
+            "failures": []
+          },
+          {
+            "id": "ui.dialog.confirm.confirm",
+            "passed": true,
+            "maxBoundsDelta": 0.03,
+            "failures": []
+          },
+          {
+            "id": "ui.dialog.confirm.content",
+            "passed": true,
+            "maxBoundsDelta": 0.0,
+            "failures": []
+          },
+          {
+            "id": "ui.dialog.confirm.content.dialog-close",
+            "passed": true,
+            "maxBoundsDelta": 0.0,
+            "failures": []
+          },
+          {
+            "id": "ui.dialog.confirm.content.dialog-description",
+            "passed": true,
+            "maxBoundsDelta": 0.0,
+            "failures": []
+          },
+          {
+            "id": "ui.dialog.confirm.content.dialog-footer",
+            "passed": true,
+            "maxBoundsDelta": 0.0,
+            "failures": []
+          },
+          {
+            "id": "ui.dialog.confirm.content.dialog-header",
+            "passed": true,
+            "maxBoundsDelta": 0.0,
+            "failures": []
+          },
+          {
+            "id": "ui.dialog.confirm.content.dialog-title",
+            "passed": true,
+            "maxBoundsDelta": 0.0,
+            "failures": []
+          },
+          {
+            "id": "ui.dialog.confirm.overlay",
+            "passed": true,
+            "maxBoundsDelta": 0.0,
+            "failures": []
+          }
+        ],
+        "failures": []
+      },
+      "colors": {
+        "meanDeltaE": 0.5686,
+        "maxDeltaE": 5.5621,
+        "pixelsAboveOne": 182
+      },
+      "screenColors": {
+        "meanDeltaE": 0.5731,
+        "maxDeltaE": 0.6928,
+        "pixelsAboveOne": 0
+      },
+      "ssim": {
+        "full": 0.996232,
+        "masked": 0.999944
+      },
+      "heatmap": "heatmaps/ui.dialog.confirm.png",
+      "images": {
+        "reference": "../reference/66e969328a1d2047b2137b7279019c0869a3f1e9/ui.dialog.confirm.png",
+        "actual": "../actual/ui.dialog.confirm.png"
+      },
+      "icons": [
+        {
+          "bounds": {
+            "x": 591.0,
+            "y": 245.0,
+            "width": 16.0,
+            "height": 16.0
+          },
+          "inkRatio": 1.0211166781471093,
+          "centroidDelta": 2.5421149729252077e-13,
+          "colorDeltaE": 0.5556091735596362,
+          "passed": true
+        }
+      ],
+      "exceptions": [
+        "E-001"
+      ],
+      "failures": []
+    },
+    {
+      "id": "ui.dialog.destructive",
+      "title": "Dialog destructive",
+      "passed": true,
+      "layout": {
+        "passed": true,
+        "elements": [
+          {
+            "id": "ui.dialog.destructive.cancel",
+            "passed": true,
+            "maxBoundsDelta": 0.14,
+            "failures": []
+          },
+          {
+            "id": "ui.dialog.destructive.confirm",
+            "passed": true,
+            "maxBoundsDelta": 0.25,
+            "failures": []
+          },
+          {
+            "id": "ui.dialog.destructive.content",
+            "passed": true,
+            "maxBoundsDelta": 0.0,
+            "failures": []
+          },
+          {
+            "id": "ui.dialog.destructive.content.dialog-close",
+            "passed": true,
+            "maxBoundsDelta": 0.0,
+            "failures": []
+          },
+          {
+            "id": "ui.dialog.destructive.content.dialog-description",
+            "passed": true,
+            "maxBoundsDelta": 0.0,
+            "failures": []
+          },
+          {
+            "id": "ui.dialog.destructive.content.dialog-footer",
+            "passed": true,
+            "maxBoundsDelta": 0.0,
+            "failures": []
+          },
+          {
+            "id": "ui.dialog.destructive.content.dialog-header",
+            "passed": true,
+            "maxBoundsDelta": 0.0,
+            "failures": []
+          },
+          {
+            "id": "ui.dialog.destructive.content.dialog-title",
+            "passed": true,
+            "maxBoundsDelta": 0.0,
+            "failures": []
+          },
+          {
+            "id": "ui.dialog.destructive.overlay",
+            "passed": true,
+            "maxBoundsDelta": 0.0,
+            "failures": []
+          }
+        ],
+        "failures": []
+      },
+      "colors": {
+        "meanDeltaE": 0.5702,
+        "maxDeltaE": 5.5621,
+        "pixelsAboveOne": 256
+      },
+      "screenColors": {
+        "meanDeltaE": 0.5748,
+        "maxDeltaE": 0.6928,
+        "pixelsAboveOne": 0
+      },
+      "ssim": {
+        "full": 0.995944,
+        "masked": 0.99994
+      },
+      "heatmap": "heatmaps/ui.dialog.destructive.png",
+      "images": {
+        "reference": "../reference/66e969328a1d2047b2137b7279019c0869a3f1e9/ui.dialog.destructive.png",
+        "actual": "../actual/ui.dialog.destructive.png"
+      },
+      "icons": [
+        {
+          "bounds": {
+            "x": 201.0,
+            "y": 254.0,
+            "width": 16.0,
+            "height": 16.0
+          },
+          "inkRatio": 1.0121318614386587,
+          "centroidDelta": 0.03100334248408413,
+          "colorDeltaE": 0.0,
+          "passed": true
+        },
+        {
+          "bounds": {
+            "x": 591.0,
+            "y": 245.0,
+            "width": 16.0,
+            "height": 16.0
+          },
+          "inkRatio": 1.0211166781471093,
+          "centroidDelta": 2.5421149729252077e-13,
+          "colorDeltaE": 0.5556091735596362,
+          "passed": true
+        }
+      ],
+      "exceptions": [
+        "E-001"
+      ],
+      "failures": []
+    },
+    {
+      "id": "ui.dialog.prompt",
+      "title": "Dialog prompt",
+      "passed": true,
+      "layout": {
+        "passed": true,
+        "elements": [
+          {
+            "id": "ui.dialog.prompt.cancel",
+            "passed": true,
+            "maxBoundsDelta": 0.14,
+            "failures": []
+          },
+          {
+            "id": "ui.dialog.prompt.confirm",
+            "passed": true,
+            "maxBoundsDelta": 0.03,
+            "failures": []
+          },
+          {
+            "id": "ui.dialog.prompt.content",
+            "passed": true,
+            "maxBoundsDelta": 0.0,
+            "failures": []
+          },
+          {
+            "id": "ui.dialog.prompt.content.dialog-close",
+            "passed": true,
+            "maxBoundsDelta": 0.0,
+            "failures": []
+          },
+          {
+            "id": "ui.dialog.prompt.content.dialog-description",
+            "passed": true,
+            "maxBoundsDelta": 0.0,
+            "failures": []
+          },
+          {
+            "id": "ui.dialog.prompt.content.dialog-footer",
+            "passed": true,
+            "maxBoundsDelta": 0.0,
+            "failures": []
+          },
+          {
+            "id": "ui.dialog.prompt.content.dialog-header",
+            "passed": true,
+            "maxBoundsDelta": 0.0,
+            "failures": []
+          },
+          {
+            "id": "ui.dialog.prompt.content.dialog-title",
+            "passed": true,
+            "maxBoundsDelta": 0.0,
+            "failures": []
+          },
+          {
+            "id": "ui.dialog.prompt.content.input",
+            "passed": true,
+            "maxBoundsDelta": 0.0,
+            "failures": []
+          },
+          {
+            "id": "ui.dialog.prompt.content.label",
+            "passed": true,
+            "maxBoundsDelta": 0.0,
+            "failures": []
+          },
+          {
+            "id": "ui.dialog.prompt.overlay",
+            "passed": true,
+            "maxBoundsDelta": 0.0,
+            "failures": []
+          }
+        ],
+        "failures": []
+      },
+      "colors": {
+        "meanDeltaE": 0.534,
+        "maxDeltaE": 12.0435,
+        "pixelsAboveOne": 274
+      },
+      "screenColors": {
+        "meanDeltaE": 0.5413,
+        "maxDeltaE": 0.6928,
+        "pixelsAboveOne": 0
+      },
+      "ssim": {
+        "full": 0.990697,
+        "masked": 0.999929
+      },
+      "heatmap": "heatmaps/ui.dialog.prompt.png",
+      "images": {
+        "reference": "../reference/66e969328a1d2047b2137b7279019c0869a3f1e9/ui.dialog.prompt.png",
+        "actual": "../actual/ui.dialog.prompt.png"
+      },
+      "icons": [
+        {
+          "bounds": {
+            "x": 591.0,
+            "y": 208.0,
+            "width": 16.0,
+            "height": 16.0
+          },
+          "inkRatio": 1.0211166781471093,
+          "centroidDelta": 2.0495186137532011e-13,
+          "colorDeltaE": 0.5556091735596362,
+          "passed": true
+        }
+      ],
+      "exceptions": [
+        "E-001"
+      ],
+      "failures": []
+    },
+    {
+      "id": "ui.dialog.multiline",
+      "title": "Dialog explicit newline and wrapped description",
+      "passed": true,
+      "layout": {
+        "passed": true,
+        "elements": [
+          {
+            "id": "ui.dialog.multiline.cancel",
+            "passed": true,
+            "maxBoundsDelta": 0.17,
+            "failures": []
+          },
+          {
+            "id": "ui.dialog.multiline.confirm",
+            "passed": true,
+            "maxBoundsDelta": 0.03,
+            "failures": []
+          },
+          {
+            "id": "ui.dialog.multiline.content",
+            "passed": true,
+            "maxBoundsDelta": 0.0,
+            "failures": []
+          },
+          {
+            "id": "ui.dialog.multiline.content.dialog-close",
+            "passed": true,
+            "maxBoundsDelta": 0.0,
+            "failures": []
+          },
+          {
+            "id": "ui.dialog.multiline.content.dialog-description",
+            "passed": true,
+            "maxBoundsDelta": 0.0,
+            "failures": []
+          },
+          {
+            "id": "ui.dialog.multiline.content.dialog-footer",
+            "passed": true,
+            "maxBoundsDelta": 0.0,
+            "failures": []
+          },
+          {
+            "id": "ui.dialog.multiline.content.dialog-header",
+            "passed": true,
+            "maxBoundsDelta": 0.0,
+            "failures": []
+          },
+          {
+            "id": "ui.dialog.multiline.content.dialog-title",
+            "passed": true,
+            "maxBoundsDelta": 0.0,
+            "failures": []
+          },
+          {
+            "id": "ui.dialog.multiline.overlay",
+            "passed": true,
+            "maxBoundsDelta": 0.0,
+            "failures": []
+          }
+        ],
+        "failures": []
+      },
+      "colors": {
+        "meanDeltaE": 0.5609,
+        "maxDeltaE": 5.5621,
+        "pixelsAboveOne": 182
+      },
+      "screenColors": {
+        "meanDeltaE": 0.5657,
+        "maxDeltaE": 0.6928,
+        "pixelsAboveOne": 0
+      },
+      "ssim": {
+        "full": 0.981114,
+        "masked": 0.999942
+      },
+      "heatmap": "heatmaps/ui.dialog.multiline.png",
+      "images": {
+        "reference": "../reference/66e969328a1d2047b2137b7279019c0869a3f1e9/ui.dialog.multiline.png",
+        "actual": "../actual/ui.dialog.multiline.png"
+      },
+      "icons": [
+        {
+          "bounds": {
+            "x": 591.0,
+            "y": 221.0,
+            "width": 16.0,
+            "height": 16.0
+          },
+          "inkRatio": 1.0211166781471093,
+          "centroidDelta": 1.6077746776921858e-13,
+          "colorDeltaE": 0.5556091735596362,
+          "passed": true
+        }
+      ],
+      "exceptions": [
+        "E-001"
+      ],
+      "failures": []
+    }
+  ],
+  "passed": true
+}

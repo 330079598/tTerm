@@ -1,0 +1,35 @@
+use tterm_parity::{compare::{color, icons, image_diff}, layout::LayoutDocument};
+fn main() {
+    let base = tterm_parity::repo_root().join("target/parity");
+    let result: serde_json::Value = serde_json::from_slice(&std::fs::read(base.join("report-dark.json")).unwrap()).unwrap();
+    let commit = result["reference"]["frontendCommit"].as_str().unwrap();
+    for theme in ["dark", "light"] {
+        let reference = base.join("reference").join(format!("{commit}{}", if theme == "light" { "-light" } else { "" }));
+        let actual = base.join(format!("round4-{theme}-actual"));
+        let screen = "ui.dialog.multiline";
+        let r: LayoutDocument = serde_json::from_slice(&std::fs::read(reference.join(format!("{screen}.layout.json"))).unwrap()).unwrap();
+        let a: LayoutDocument = serde_json::from_slice(&std::fs::read(actual.join(format!("{screen}.layout.json"))).unwrap()).unwrap();
+        let ri = image::open(reference.join(format!("{screen}.png"))).unwrap().into_rgba8();
+        let ai = image::open(actual.join(format!("{screen}.png"))).unwrap().into_rgba8();
+        let (w, h) = ri.dimensions();
+        let text = image_diff::text_mask(&r, &a, w, h);
+        let mut mask = image_diff::screen_mask(&r, &a, w, h, &text);
+        icons::mark_icons(&mut mask, &r, w, h);
+        let bounds = r.elements.iter().find(|e| e.id == "ui.dialog.multiline.content").unwrap().bounds;
+        let mut count = 0; let mut outside25 = 0; let mut inside = 0; let mut max: f64 = 0.0;
+        let mut samples = Vec::new(); let mut bins = std::collections::BTreeMap::new();
+        for y in 0..h { for x in 0..w {
+            if mask[(y*w+x) as usize] { continue; }
+            let p=ri.get_pixel(x,y).0; let q=ai.get_pixel(x,y).0;
+            let delta=color::delta_e_2000(color::srgb_to_lab(p),color::srgb_to_lab(q));
+            if delta > 1.0 {
+                count+=1; max=max.max(delta); let lx=x as f32/2.0; let ly=y as f32/2.0;
+                if lx>=bounds.x && lx<bounds.x+bounds.width && ly>=bounds.y && ly<bounds.y+bounds.height { inside+=1; }
+                if lx<bounds.x-25.0 || lx>bounds.x+bounds.width+25.0 || ly<bounds.y-25.0 || ly>bounds.y+bounds.height+25.0 { outside25+=1; }
+                *bins.entry((x/50,y/25)).or_insert(0)+=1;
+                if samples.len()<12 { samples.push((x,y,p,q,delta)); }
+            }
+        }}
+        println!("{theme}: gate={count}, inside_content={inside}, outside_outset25={outside25}, max={max:.6}, bounds={bounds:?}\nsamples={samples:?}\nbins={bins:?}");
+    }
+}

@@ -1,0 +1,269 @@
+[
+  {
+    "theme": "dark",
+    "screen": "ui.dialog.confirm",
+    "contentBounds": {
+      "x": 176.0,
+      "y": 228.0,
+      "width": 448.0,
+      "height": 144.0
+    },
+    "physicalCrop": [
+      302,
+      720,
+      1298,
+      794
+    ],
+    "scale": 4,
+    "resampling": "nearest",
+    "outsideRgbMaxDifferenceCounts": {
+      "0": 118346,
+      "1": 10030,
+      "2": 24
+    },
+    "lightPreviousGatePoints": []
+  },
+  {
+    "theme": "dark",
+    "screen": "ui.dialog.destructive",
+    "contentBounds": {
+      "x": 176.0,
+      "y": 228.0,
+      "width": 448.0,
+      "height": 144.0
+    },
+    "physicalCrop": [
+      302,
+      720,
+      1298,
+      794
+    ],
+    "scale": 4,
+    "resampling": "nearest",
+    "outsideRgbMaxDifferenceCounts": {
+      "0": 118346,
+      "1": 10030,
+      "2": 24
+    },
+    "lightPreviousGatePoints": []
+  },
+  {
+    "theme": "dark",
+    "screen": "ui.dialog.prompt",
+    "contentBounds": {
+      "x": 176.0,
+      "y": 202.0,
+      "width": 448.0,
+      "height": 196.0
+    },
+    "physicalCrop": [
+      302,
+      772,
+      1298,
+      846
+    ],
+    "scale": 4,
+    "resampling": "nearest",
+    "outsideRgbMaxDifferenceCounts": {
+      "0": 127914,
+      "1": 10862,
+      "2": 24
+    },
+    "lightPreviousGatePoints": []
+  },
+  {
+    "theme": "light",
+    "screen": "ui.dialog.confirm",
+    "contentBounds": {
+      "x": 176.0,
+      "y": 228.0,
+      "width": 448.0,
+      "height": 144.0
+    },
+    "physicalCrop": [
+      302,
+      720,
+      1298,
+      794
+    ],
+    "scale": 4,
+    "resampling": "nearest",
+    "outsideRgbMaxDifferenceCounts": {
+      "0": 87930,
+      "1": 38414,
+      "2": 1966,
+      "3": 52,
+      "4": 28,
+      "5": 8,
+      "6": 2
+    },
+    "lightPreviousGatePoints": [
+      {
+        "physical": [
+          366,
+          747
+        ],
+        "reference": [
+          234,
+          234,
+          234
+        ],
+        "actual": [
+          239,
+          239,
+          239
+        ],
+        "belowBottomCss": 1.5,
+        "insideOutset25": true
+      },
+      {
+        "physical": [
+          1233,
+          747
+        ],
+        "reference": [
+          234,
+          234,
+          234
+        ],
+        "actual": [
+          239,
+          239,
+          239
+        ],
+        "belowBottomCss": 1.5,
+        "insideOutset25": true
+      }
+    ]
+  },
+  {
+    "theme": "light",
+    "screen": "ui.dialog.destructive",
+    "contentBounds": {
+      "x": 176.0,
+      "y": 228.0,
+      "width": 448.0,
+      "height": 144.0
+    },
+    "physicalCrop": [
+      302,
+      720,
+      1298,
+      794
+    ],
+    "scale": 4,
+    "resampling": "nearest",
+    "outsideRgbMaxDifferenceCounts": {
+      "0": 87930,
+      "1": 38414,
+      "2": 1966,
+      "3": 52,
+      "4": 28,
+      "5": 8,
+      "6": 2
+    },
+    "lightPreviousGatePoints": [
+      {
+        "physical": [
+          366,
+          747
+        ],
+        "reference": [
+          234,
+          234,
+          234
+        ],
+        "actual": [
+          239,
+          239,
+          239
+        ],
+        "belowBottomCss": 1.5,
+        "insideOutset25": true
+      },
+      {
+        "physical": [
+          1233,
+          747
+        ],
+        "reference": [
+          234,
+          234,
+          234
+        ],
+        "actual": [
+          239,
+          239,
+          239
+        ],
+        "belowBottomCss": 1.5,
+        "insideOutset25": true
+      }
+    ]
+  },
+  {
+    "theme": "light",
+    "screen": "ui.dialog.prompt",
+    "contentBounds": {
+      "x": 176.0,
+      "y": 202.0,
+      "width": 448.0,
+      "height": 196.0
+    },
+    "physicalCrop": [
+      302,
+      772,
+      1298,
+      846
+    ],
+    "scale": 4,
+    "resampling": "nearest",
+    "outsideRgbMaxDifferenceCounts": {
+      "0": 93546,
+      "1": 42782,
+      "2": 2382,
+      "3": 52,
+      "4": 28,
+      "5": 8,
+      "6": 2
+    },
+    "lightPreviousGatePoints": [
+      {
+        "physical": [
+          366,
+          799
+        ],
+        "reference": [
+          234,
+          234,
+          234
+        ],
+        "actual": [
+          239,
+          239,
+          239
+        ],
+        "belowBottomCss": 1.5,
+        "insideOutset25": true
+      },
+      {
+        "physical": [
+          1233,
+          799
+        ],
+        "reference": [
+          234,
+          234,
+          234
+        ],
+        "actual": [
+          239,
+          239,
+          239
+        ],
+        "belowBottomCss": 1.5,
+        "insideOutset25": true
+      }
+    ]
+  }
+]

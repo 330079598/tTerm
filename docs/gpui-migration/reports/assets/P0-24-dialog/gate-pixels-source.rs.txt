@@ -1,0 +1,48 @@
+use tterm_parity::{
+    compare::{color, icons, image_diff},
+    layout::LayoutDocument,
+};
+fn main() {
+    let root = tterm_parity::repo_root();
+    let path = root.join("target/parity");
+    let reference = "reference/b649cda56f162934db144528201d5a1faceb51a6-dirty";
+    let r: LayoutDocument = serde_json::from_slice(
+        &std::fs::read(path.join(reference).join("ui.dialog.confirm.layout.json")).unwrap(),
+    )
+    .unwrap();
+    let a: LayoutDocument = serde_json::from_slice(
+        &std::fs::read(path.join("actual/ui.dialog.confirm.layout.json")).unwrap(),
+    )
+    .unwrap();
+    let ri = image::open(path.join(reference).join("ui.dialog.confirm.png"))
+        .unwrap()
+        .into_rgba8();
+    let ai = image::open(path.join("actual/ui.dialog.confirm.png"))
+        .unwrap()
+        .into_rgba8();
+    let (w, h) = ri.dimensions();
+    let text = image_diff::text_mask(&r, &a, w, h);
+    let mut mask = image_diff::screen_mask(&r, &a, w, h, &text);
+    icons::mark_icons(&mut mask, &r, w, h);
+    let mut count = 0;
+    let mut bins = std::collections::BTreeMap::new();
+    let mut samples = Vec::new();
+    for y in 0..h {
+        for x in 0..w {
+            if mask[(y * w + x) as usize] {
+                continue;
+            }
+            let p = ri.get_pixel(x, y).0;
+            let q = ai.get_pixel(x, y).0;
+            let d = color::delta_e_2000(color::srgb_to_lab(p), color::srgb_to_lab(q));
+            if d > 1.0 {
+                count += 1;
+                *bins.entry((x / 50, y / 25)).or_insert(0) += 1;
+                if samples.len() < 20 {
+                    samples.push((x, y, p, q, d));
+                }
+            }
+        }
+    }
+    println!("count {count}\nsamples {samples:?}\nbins {bins:?}");
+}

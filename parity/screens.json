@@ -84,13 +84,25 @@
       "id": "ui.tabs.default",
       "title": "Tabs primitive states",
       "fixture": "ui.tabs.default.json",
-      "exceptions": [{ "entry": "E-001", "elements": ["ui.tabs.active"], "outset": 4 }]
+      "exceptions": [
+        {
+          "entry": "E-001",
+          "elements": ["ui.tabs.active"],
+          "outset": 4
+        }
+      ]
     },
     {
       "id": "ui.tabs.server-monitor",
       "title": "Tabs using ServerMonitorPanel classes",
       "fixture": "ui.tabs.default.json",
-      "exceptions": [{ "entry": "E-001", "elements": ["ui.tabs.server-active"], "outset": 4 }]
+      "exceptions": [
+        {
+          "entry": "E-001",
+          "elements": ["ui.tabs.server-active"],
+          "outset": 4
+        }
+      ]
     },
     {
       "id": "ui.context-menu.default",
@@ -124,6 +136,54 @@
         {
           "entry": "E-001",
           "elements": ["ui.context-menu"],
+          "outset": 25
+        }
+      ]
+    },
+    {
+      "id": "ui.dialog.confirm",
+      "title": "Dialog confirm",
+      "fixture": "ui.dialog.default.json",
+      "exceptions": [
+        {
+          "entry": "E-001",
+          "elements": ["ui.dialog.confirm.content"],
+          "outset": 25
+        }
+      ]
+    },
+    {
+      "id": "ui.dialog.destructive",
+      "title": "Dialog destructive",
+      "fixture": "ui.dialog.default.json",
+      "exceptions": [
+        {
+          "entry": "E-001",
+          "elements": ["ui.dialog.destructive.content"],
+          "outset": 25
+        }
+      ]
+    },
+    {
+      "id": "ui.dialog.prompt",
+      "title": "Dialog prompt",
+      "fixture": "ui.dialog.default.json",
+      "exceptions": [
+        {
+          "entry": "E-001",
+          "elements": ["ui.dialog.prompt.content"],
+          "outset": 25
+        }
+      ]
+    },
+    {
+      "id": "ui.dialog.multiline",
+      "title": "Dialog explicit newline and wrapped description",
+      "fixture": "ui.dialog.default.json",
+      "exceptions": [
+        {
+          "entry": "E-001",
+          "elements": ["ui.dialog.multiline.content"],
           "outset": 25
         }
       ]
