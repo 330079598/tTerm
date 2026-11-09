@@ -1,4 +1,5 @@
 //! Inline CSS line boxes without GPUI's whole-pixel line-height rounding.
+use super::{PartObserver, PartStyle};
 use gpui_kit::{
     App, AvailableSpace, Bounds, Element, GlobalElementId, InspectorElementId, IntoElement,
     LayoutId, Pixels, SharedString, Window, WrappedLine, px, size,
@@ -8,11 +9,13 @@ use std::{cell::RefCell, rc::Rc};
 pub(super) struct MenuText {
     text: SharedString,
     lines: Rc<RefCell<Vec<WrappedLine>>>,
+    observer: Option<(PartObserver, String, PartStyle)>,
 }
 impl MenuText {
-    pub fn new(text: SharedString) -> Self {
+    pub fn new(text: SharedString, observer: Option<(PartObserver, String, PartStyle)>) -> Self {
         Self {
             text,
+            observer,
             lines: Rc::new(RefCell::new(Vec::new())),
         }
     }
@@ -44,9 +47,13 @@ impl Element for MenuText {
         let style = window.text_style();
         let font_size = style.font_size.to_pixels(window.rem_size());
         let run = style.to_run(text.len());
-        let line_height = style
+        // WebKit's inline span has a 16px line box at this 14px font size,
+        // even though computedStyle reports the inherited 16.8px declaration.
+        let line_height = px(style
             .line_height
-            .to_pixels(font_size.into(), window.rem_size());
+            .to_pixels(font_size.into(), window.rem_size())
+            .as_f32()
+            .floor());
         let layout = window.request_measured_layout(
             Default::default(),
             move |known, available, window, _| {
@@ -84,11 +91,40 @@ impl Element for MenuText {
         &mut self,
         _: Option<&GlobalElementId>,
         _: Option<&InspectorElementId>,
-        _: Bounds<Pixels>,
+        bounds: Bounds<Pixels>,
         _: &mut (),
-        _: &mut Window,
+        window: &mut Window,
         _: &mut App,
     ) {
+        let Some((observer, slot, style)) = &self.observer else {
+            return;
+        };
+        let height = px(style.line_height.floor());
+        let mut y = bounds.origin.y;
+        let mut index = 0;
+        for line in self.lines.borrow().iter() {
+            let layout = &line.unwrapped_layout;
+            let mut start = px(0.0);
+            let ends = line
+                .wrap_boundaries
+                .iter()
+                .map(|b| layout.runs[b.run_ix].glyphs[b.glyph_ix].position.x)
+                .chain(std::iter::once(layout.width));
+            for end in ends {
+                observer(
+                    &format!("text-{slot}-{index}"),
+                    Bounds::new(
+                        gpui_kit::point(bounds.origin.x, y),
+                        size(end - start, px(16.0)),
+                    ),
+                    *style,
+                );
+                index += 1;
+                y += height;
+                start = end;
+            }
+        }
+        let _ = window;
     }
     fn paint(
         &mut self,
@@ -102,9 +138,11 @@ impl Element for MenuText {
     ) {
         let style = window.text_style();
         let font_size = style.font_size.to_pixels(window.rem_size());
-        let height = style
+        let height = px(style
             .line_height
-            .to_pixels(font_size.into(), window.rem_size());
+            .to_pixels(font_size.into(), window.rem_size())
+            .as_f32()
+            .floor());
         let mut origin = bounds.origin;
         for line in self.lines.borrow().iter() {
             let _ = line.paint(origin, height, style.text_align, Some(bounds), window, cx);

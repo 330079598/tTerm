@@ -147,7 +147,12 @@ impl ContextMenu {
             self.part(
                 format!("label-{index}"),
                 child_style,
-                Self::styled(child_style).child(super::text::MenuText::new(action.label.clone())),
+                Self::styled(child_style).child(super::text::MenuText::new(
+                    action.label.clone(),
+                    self.observer
+                        .clone()
+                        .map(|observer| (observer, format!("label-{index}"), child_style)),
+                )),
             )
             .min_w(px(0.0)),
         );

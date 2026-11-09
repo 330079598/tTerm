@@ -106,7 +106,7 @@ impl ContextMenuScreen {
                     } else {
                         format!("ui.context-menu.{slot}")
                     };
-                    if slot.starts_with("label-") || slot.starts_with("shortcut-") {
+                    if slot.starts_with("text-") || slot.starts_with("shortcut-") {
                         sink.record_text_region(
                             slot,
                             BoundsSnapshot::new(
@@ -116,6 +116,9 @@ impl ContextMenuScreen {
                                 bounds.size.height.as_f32(),
                             ),
                         );
+                        if slot.starts_with("text-") {
+                            return;
+                        }
                     }
                     sink.record_element(
                         &id,
