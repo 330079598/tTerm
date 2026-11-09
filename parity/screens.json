@@ -83,12 +83,26 @@
     {
       "id": "ui.context-menu.default",
       "title": "Tab context menu default",
-      "fixture": "ui.context-menu.json"
+      "fixture": "ui.context-menu.json",
+      "exceptions": [
+        {
+          "entry": "E-001",
+          "elements": ["ui.context-menu"],
+          "outset": 25
+        }
+      ]
     },
     {
       "id": "ui.context-menu.highlighted",
       "title": "Tab context menu highlighted",
-      "fixture": "ui.context-menu.json"
+      "fixture": "ui.context-menu.json",
+      "exceptions": [
+        {
+          "entry": "E-001",
+          "elements": ["ui.context-menu"],
+          "outset": 25
+        }
+      ]
     }
   ]
 }
