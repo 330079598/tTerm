@@ -140,3 +140,5 @@ scripts/migration/run-codex.ps1 -Card <ID> -Worktree ..\tTerm-<ID> -PromptFile <
 - 隔离运行后，报告说已清理，实际还留着目录。验收时自己检查。
 - macOS 沙箱里，Playwright WebKit 一启动就 `Abort trap: 6`，枚举本机应用的测试（`macos_lists_the_applications_for_text_with_icons`）也会失败。在沙箱外都正常。要跑对比的卡，提示词里写明对比命令直接申请提升权限。执行者说“本机起不来”时，先在沙箱外复跑。
 - 评估者自己也会误判：P0-24 中曾把落在边缘带里的接缝像素当成门槛问题。下返工结论前，先用结果 JSON 确认哪些像素真正进入了门槛。
+- 组件卡一轮只派一个组件。P0-24 第一批一次派了三个，执行者 20 分钟后就停下了：每个组件都只交了静态画面，GPUI 屏与 React 屏的元素对不上，对比和检查也都没跑。
+- 执行者把超限像素归为“抗锯齿”时，先看差异是不是成片平移。Switch 的 2000 多个超限像素其实是 thumb 偏了 1px：thumb 没有被标记，布局比较发现不了。
