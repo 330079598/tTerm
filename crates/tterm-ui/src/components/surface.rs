@@ -107,12 +107,12 @@ pub fn offset_ring(
     background: gpui_kit::Hsla,
     ring: gpui_kit::Hsla,
     radius: f32,
-    spread: f32,
+    spreads: [f32; 2],
 ) -> impl IntoElement {
     canvas(
         |_, _, _| (),
         move |bounds, (), window, _| {
-            for (color, outset) in [(ring, spread), (background, 2.0)] {
+            for (color, outset) in [(ring, spreads[1]), (background, spreads[0])] {
                 let mut clear = color;
                 clear.a = 0.0;
                 window.paint_quad(quad(

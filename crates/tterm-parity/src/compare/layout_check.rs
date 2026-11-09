@@ -193,6 +193,18 @@ fn compare_style(
         actual.ring_spread,
         failures,
     );
+    if reference.ring_spreads.len() != actual.ring_spreads.len()
+        || reference
+            .ring_spreads
+            .iter()
+            .zip(&actual.ring_spreads)
+            .any(|(first, second)| (first - second).abs() > STYLE_TOLERANCE)
+    {
+        failures.push(format!(
+            "{id}: ring spreads {:?} -> {:?}",
+            reference.ring_spreads, actual.ring_spreads
+        ));
+    }
     check_number(id, "opacity", reference.opacity, actual.opacity, failures);
     check_number(
         id,

@@ -42,6 +42,7 @@ fn element_layout() -> LayoutDocument {
                 border_width: 0.0,
                 border_radius: 0.0,
                 ring_spread: 0.0,
+                ring_spreads: Vec::new(),
                 font_family: "system-ui".to_owned(),
                 font_size: 14.0,
                 font_weight: 400,
@@ -84,6 +85,7 @@ fn ring_mask_only_excludes_the_outer_one_pixel_band_at_both_scales() {
         layout.elements[0].bounds = BoundsSnapshot::new(10.0, 10.0, 20.0, 20.0);
         layout.elements[0].style.border_radius = 6.0;
         layout.elements[0].style.ring_spread = 3.0;
+        layout.elements[0].style.ring_spreads = vec![3.0];
         let width = 40 * scale as u32;
         let mask = edge_mask(&layout, &layout, width, width);
         let at = |x: u32, y: u32| mask[(y * width + x) as usize];
@@ -226,4 +228,25 @@ fn an_exception_masks_only_the_outset_outside_the_element() {
         "pixel centres within two pixels of either side: 0, 1 and 6, 7"
     );
     assert!(!mask[4 * 10 + 4], "the element itself is still compared");
+}
+
+#[test]
+fn both_offset_ring_contours_are_edges_but_their_fills_are_not() {
+    let mut layout = element_layout();
+    layout.viewport.device_scale_factor = 2.0;
+    layout.elements[0].bounds = BoundsSnapshot::new(24.0, 24.0, 32.0, 24.0);
+    layout.elements[0].style.border_radius = 6.0;
+    layout.elements[0].style.ring_spread = 4.0;
+    layout.elements[0].style.ring_spreads = vec![2.0, 4.0];
+    let mask = edge_mask(&layout, &layout, 160, 160);
+    let at = |x: usize, y: usize| mask[y * 160 + x];
+    assert!(at(80, 39) && at(80, 40), "outer contour, both sides");
+    assert!(at(80, 43) && at(80, 44), "offset contour, both sides");
+    assert!(!at(80, 42), "ring fill remains compared");
+    assert!(!at(80, 46), "offset fill remains compared");
+    assert!(!at(80, 38), "outer band is only one physical pixel");
+    // At the upper-left corner the inner contour is a radius-8 circle,
+    // centred at (60,60) physical pixels: (48.5,48.5) is on that curve.
+    assert!(at(48, 48), "offset rounded contour");
+    assert!(at(45, 45), "outer rounded contour");
 }

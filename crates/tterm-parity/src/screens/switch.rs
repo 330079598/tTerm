@@ -78,6 +78,11 @@ impl SwitchScreen {
                     border_width: 1.0,
                     border_radius: 10.0,
                     ring_spread: computed.ring_spread,
+                    ring_spreads: if computed.ring_spread > 0.0 {
+                        vec![computed.ring_spread]
+                    } else {
+                        Vec::new()
+                    },
                     font_family: "system-ui".into(),
                     font_size: 13.0,
                     font_weight: 400,
@@ -93,6 +98,7 @@ impl SwitchScreen {
                     border_width: 0.0,
                     border_radius: computed.thumb_size / 2.0,
                     ring_spread: 0.0,
+                    ring_spreads: Vec::new(),
                     ..style.clone()
                 };
                 let (thumb_x, thumb_y) = computed.thumb_offset;

@@ -52,6 +52,11 @@ impl TabsScreen {
             border_width: 0.0,
             border_radius: geometry.radius,
             ring_spread: if focused { geometry.ring_spread } else { 0.0 },
+            ring_spreads: if focused {
+                geometry.ring_spreads().to_vec()
+            } else {
+                Vec::new()
+            },
             font_family: "system-ui".into(),
             font_size: geometry.font_size,
             font_weight: 500,
@@ -81,6 +86,7 @@ impl TabsScreen {
             border_width: 0.0,
             border_radius: 0.0,
             ring_spread: 0.0,
+            ring_spreads: Vec::new(),
             font_family: "system-ui".into(),
             font_size: 13.0,
             font_weight: 400,
@@ -102,6 +108,7 @@ impl TabsScreen {
             border_width: 0.0,
             border_radius: geometry.list_radius,
             ring_spread: 0.0,
+            ring_spreads: Vec::new(),
             font_family: "system-ui".into(),
             font_size: 13.0,
             font_weight: 400,
@@ -179,6 +186,7 @@ impl TabsScreen {
             border_width: 0.0,
             border_radius: 0.0,
             ring_spread: 0.0,
+            ring_spreads: Vec::new(),
             font_family: "system-ui".into(),
             font_size: 13.0,
             font_weight: 400,

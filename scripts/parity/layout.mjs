@@ -73,7 +73,7 @@ export function collectLayout(screen) {
     context.fillRect(0, 0, 1, 1)
     return Array.from(context.getImageData(0, 0, 1, 1).data)
   }
-  const ringSpread = (boxShadow) => {
+  const ringSpreads = (boxShadow) => {
     // Split only outside colour functions: rgb() can itself contain commas.
     const splitOutside = (text, separator) => {
       let depth = 0
@@ -90,7 +90,7 @@ export function collectLayout(screen) {
       if (token.trim()) tokens.push(token.trim())
       return tokens
     }
-    let spread = 0
+    const spreads = []
     for (const layer of splitOutside(boxShadow, /,/)) {
       const tokens = splitOutside(layer, /\s/)
       if (tokens.includes("inset") || layer === "none") continue
@@ -99,13 +99,14 @@ export function collectLayout(screen) {
       const color = tokens.find((token) => !/^-?(?:\d*\.)?\d+(?:px)?$/.test(token))
       // Offset or blurred shadows are intentionally outside this contract.
       if (lengths.length < 2 || lengths.length > 4 || x !== 0 || y !== 0 || blur !== 0) continue
-      if (outset > 0 && color && toRgba(color)[3] > 0) spread = Math.max(spread, outset)
+      if (outset > 0 && color && toRgba(color)[3] > 0) spreads.push(outset)
     }
-    return spread
+    return spreads.sort((a, b) => a - b)
   }
 
   const snapshot = (element, id, sizing) => {
     const style = getComputedStyle(element)
+    const spreads = ringSpreads(style.boxShadow)
     let opacity = 1
     for (let node = element; node && node.nodeType === Node.ELEMENT_NODE; node = node.parentElement) {
       opacity *= Number.parseFloat(getComputedStyle(node).opacity) || 1
@@ -122,7 +123,8 @@ export function collectLayout(screen) {
           style.borderTopLeftRadius.includes("infinity")
             ? Math.min(element.getBoundingClientRect().width, element.getBoundingClientRect().height) / 2
             : parsePx(style.borderTopLeftRadius, "border-top-left-radius"),
-        ringSpread: ringSpread(style.boxShadow),
+        ringSpread: spreads.at(-1) ?? 0,
+        ringSpreads: spreads,
         fontFamily: canonicalFontFamily(style.fontFamily),
         fontSize: parsePx(style.fontSize, "font-size"),
         fontWeight: parseWeight(style.fontWeight),
@@ -218,7 +220,7 @@ export function collectLayout(screen) {
   }
 
   return {
-    version: 4,
+    version: 5,
     screen,
     viewport: {
       width: window.innerWidth,

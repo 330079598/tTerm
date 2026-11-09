@@ -31,8 +31,16 @@ pub struct TabsStyle {
     pub line_height: f32,
     pub radius: f32,
     pub ring_spread: f32,
+    pub ring_offset: f32,
     pub content_margin: f32,
     pub content_padding: (f32, f32),
+}
+
+impl TabsStyle {
+    /// Both CSS shadow contours, shared by paint and parity capture.
+    pub fn ring_spreads(self) -> [f32; 2] {
+        [self.ring_offset, self.ring_spread]
+    }
 }
 
 /// Production default and the overrides used by TerminalTab/ServerMonitorPanel.
@@ -49,6 +57,7 @@ pub fn style(server_monitor: bool) -> TabsStyle {
         line_height: if server_monitor { 13.2 } else { 16.8 },
         radius: 4.0,
         ring_spread: 4.0,
+        ring_offset: 2.0,
         content_margin: if server_monitor { 0.0 } else { 8.0 },
         content_padding: if server_monitor {
             (14.0, 16.0)
@@ -181,7 +190,7 @@ impl RenderOnce for Trigger {
                 css_color(colors.background, 1.0),
                 css_color(colors.ring, 1.0),
                 geometry.radius,
-                geometry.ring_spread,
+                geometry.ring_spreads(),
             ));
         }
         button.child(self.label)
