@@ -269,3 +269,8 @@ PARITY_DIALOG_BACKDROP_TEXT=1 PARITY_THEME=dark CARGO_BUILD_JOBS=3 cargo run -p 
 沙箱外 AGENTS.md 全部检查通过：lint、format:check、check:tokens、typecheck、test（174 文件、1294 测试）、check:size；Rust fmt、`cargo clippy --workspace --all-targets -- -D warnings`、`cargo test --workspace` 均通过，所有 cargo 命令均 `CARGO_BUILD_JOBS=3`，使用本 worktree target。最终 Rust **1179 passed、0 failed、52 ignored**，没有新增 ignored 或命令行跳过；应用枚举测试在沙箱外通过。[前端日志](assets/P0-24-dialog/round4/frontend.log)、[clippy](assets/P0-24-dialog/round4/clippy.log)、[workspace 测试](assets/P0-24-dialog/round4/tests.log)。
 
 Windows 未验证（需 Windows）；[人工] 动画、真实中文输入法、系统辅助功能、真实 Tauri 窗口交叉截图仍未覆盖。本轮代码修正已提交；新增屏阴影授权待确认，未合并、未 push。
+
+
+## 第 5 轮：多行屏归入 E-001
+
+评估者已明确确认，多行屏与原三屏使用同一个 Dialog 内容框容器、同一个 `shadow-lg`，属于 stone 批准的既有 Dialog 扩展范围。本轮仅更新例外范围、manifest 引用和报告，不修改生产代码。先提交登记，再在完全干净的工作区、沙箱外用 `UPDATE_REFERENCE=1` 复跑深浅主题。结果和人工核对表在复跑后补入。

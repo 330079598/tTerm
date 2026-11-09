@@ -125,7 +125,16 @@
     {
       "id": "ui.dialog.multiline",
       "title": "Dialog explicit newline and wrapped description",
-      "fixture": "ui.dialog.default.json"
+      "fixture": "ui.dialog.default.json",
+      "exceptions": [
+        {
+          "entry": "E-001",
+          "elements": [
+            "ui.dialog.multiline.content"
+          ],
+          "outset": 25
+        }
+      ]
     }
   ]
 }
