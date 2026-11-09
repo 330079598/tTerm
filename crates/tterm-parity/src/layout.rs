@@ -12,7 +12,7 @@ use std::path::Path;
 use std::rc::Rc;
 
 /// Bumped whenever the JSON shape changes incompatibly.
-pub const SCHEMA_VERSION: u32 = 3;
+pub const SCHEMA_VERSION: u32 = 4;
 
 /// The window and pixel density a screen was captured at.
 #[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
@@ -161,6 +161,23 @@ pub struct LayoutDocument {
     pub elements: Vec<ElementSnapshot>,
     /// Text rectangles the masked SSIM leaves out.
     pub text_regions: Vec<BoundsSnapshot>,
+    /// Icons (`<svg>` elements) on the reference side. They are compared by
+    /// the icon check instead of pixel by pixel; the GPUI side records none,
+    /// so the check never trusts the side it is checking.
+    #[serde(default)]
+    pub icons: Vec<IconSnapshot>,
+}
+
+/// One icon as the reference rendered it.
+#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct IconSnapshot {
+    /// The `<svg>` box in logical pixels.
+    pub bounds: BoundsSnapshot,
+    /// The computed `color`, which Lucide strokes with (`currentColor`).
+    pub color: [u8; 4],
+    /// The product of the element's and its ancestors' opacity.
+    pub opacity: f32,
 }
 
 impl LayoutDocument {
@@ -252,6 +269,7 @@ impl LayoutSink {
             viewport: state.viewport,
             elements: state.elements.values().cloned().collect(),
             text_regions: state.text_regions.values().copied().collect(),
+            icons: Vec::new(),
         }
     }
 }

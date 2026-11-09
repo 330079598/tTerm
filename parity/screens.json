@@ -30,12 +30,39 @@
       "title": "Example: one button and one input",
       "fixture": "example.button-input.default.json"
     },
-    { "id": "ui.button.variants", "title": "Button variants and states", "fixture": "ui.button.default.json" },
+    {
+      "id": "ui.button.variants",
+      "title": "Button variants and states",
+      "fixture": "ui.button.default.json"
+    },
     { "id": "ui.button.sizes", "title": "Button sizes", "fixture": "ui.button.default.json" },
     {
       "id": "ui.input.default",
       "title": "Input primitive states",
       "fixture": "ui.input.default.json"
+    },
+    {
+      "id": "ui.password.default",
+      "title": "Password input states",
+      "fixture": "ui.password.default.json"
+    },
+    { "id": "ui.select.default", "title": "Select states", "fixture": "ui.select.default.json" },
+    {
+      "id": "ui.switch.default",
+      "title": "Switch states",
+      "fixture": "ui.switch.default.json",
+      "exceptions": [
+        {
+          "entry": "E-001",
+          "elements": [
+            "ui.switch.checked",
+            "ui.switch.unchecked",
+            "ui.switch.focus",
+            "ui.switch.disabled"
+          ],
+          "outset": 3
+        }
+      ]
     }
   ]
 }

@@ -1,7 +1,7 @@
 //! CSS colour quantization and non-overlapping background/border painting.
 
 use crate::tokens::{color::Hsl, gpui::hsla};
-use gpui_kit::{IntoElement, Rgba, Styled, canvas, px, quad};
+use gpui_kit::{BoxShadow, IntoElement, Rgba, Styled, canvas, px, quad};
 
 /// CSS rasterizes translucent colours through an 8-bit premultiplied surface.
 /// Quantize that surface before GPUI blends it, preserving a transparent fill.
@@ -31,12 +31,67 @@ pub fn css_opacity(opacity: f32) -> f32 {
     (opacity.clamp(0.0, 1.0) * 255.0).floor() / 255.0
 }
 
+/// Composites an opaque colour at `opacity` over an opaque `backdrop`, the way
+/// CSS `opacity` flattens an element group before blending it.
+///
+/// GPUI applies element opacity to every primitive separately, so a child
+/// painted over its parent's fill lets that fill show through it. Components
+/// whose disabled state overlaps opaque layers paint these precomposited
+/// colours at full opacity instead.
+pub fn css_group_color(color: Hsl, opacity: f32, backdrop: Hsl) -> gpui_kit::Hsla {
+    let front = Rgba::from(hsla(color, 1.0));
+    let back = Rgba::from(hsla(backdrop, 1.0));
+    let alpha = css_opacity(opacity);
+    let channel = |front: f32, back: f32| {
+        let front = (front * 255.0).round();
+        let back = (back * 255.0).round();
+        (front * alpha + back * (1.0 - alpha)).round() / 255.0
+    };
+    Rgba {
+        r: channel(front.r, back.r),
+        g: channel(front.g, back.g),
+        b: channel(front.b, back.b),
+        a: 1.0,
+    }
+    .into()
+}
+
+/// Tailwind v4's `shadow-xs`: `0 1px 2px 0 rgb(0 0 0 / 0.05)`.
+///
+/// GPUI's blur radius is the Gaussian sigma while CSS's is twice the sigma,
+/// so the CSS 2px blur becomes 1px. `opacity` is the element's CSS opacity,
+/// which applies to its shadow as part of the same group.
+pub fn shadow_xs(opacity: f32) -> BoxShadow {
+    let color = Rgba {
+        r: 0.0,
+        g: 0.0,
+        b: 0.0,
+        a: 0.05 * css_opacity(opacity),
+    };
+    BoxShadow::new(px(0.0), px(1.0), color.into()).blur_radius(px(1.0))
+}
+
+/// The outer corner radius of a CSS spread shadow (CSS Backgrounds 3, 6.1.1):
+/// corners grow by the spread, and small radii stay sharper.
+pub fn spread_radius(radius: f32, spread: f32) -> f32 {
+    if spread > 0.0 && radius < spread {
+        radius + spread * (1.0 + (radius / spread - 1.0).powi(3))
+    } else {
+        radius + spread
+    }
+}
+
 /// Paints the fill inside the border so GPUI's per-primitive opacity cannot
 /// blend a disabled border over an already translucent fill a second time.
+///
+/// `width` must be the parent's border width: absolute children start at the
+/// parent's padding box, and the border box is recovered from it. `radius` is
+/// the parent's border-box corner radius.
 pub fn surface(
     background: gpui_kit::Hsla,
     border: gpui_kit::Hsla,
     width: f32,
+    radius: f32,
     ring: Option<(gpui_kit::Hsla, f32)>,
 ) -> impl IntoElement {
     canvas(
@@ -54,7 +109,7 @@ pub fn surface(
                 clear_ring.a = 0.0;
                 window.paint_quad(quad(
                     bounds.inset(px(-spread)),
-                    px(6.0 + spread),
+                    px(spread_radius(radius, spread)),
                     clear_ring,
                     px(spread),
                     ring,
@@ -63,7 +118,7 @@ pub fn surface(
             }
             window.paint_quad(quad(
                 bounds.inset(px(width)),
-                px((6.0 - width).max(0.0)),
+                px((radius - width).max(0.0)),
                 background,
                 px(0.0),
                 gpui_kit::transparent_black(),
@@ -72,7 +127,7 @@ pub fn surface(
             if width > 0.0 {
                 window.paint_quad(quad(
                     bounds,
-                    px(6.0),
+                    px(radius),
                     gpui_kit::transparent_black(),
                     px(width),
                     border,

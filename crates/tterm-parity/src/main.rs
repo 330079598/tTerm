@@ -128,6 +128,25 @@ fn print_screen(screen: &ScreenReport, report_dir: &Path) {
         "  ssim: full {:.6}, masked {:.6}",
         screen.ssim.full, screen.ssim.masked
     );
+    if !screen.icons.is_empty() {
+        let failed = screen.icons.iter().filter(|icon| !icon.passed).count();
+        let worst = |pick: fn(&tterm_parity::compare::icons::IconReport) -> f64| {
+            screen.icons.iter().map(pick).fold(0.0, f64::max)
+        };
+        println!(
+            "  icons: {} checked, {failed} failed; worst ink |1-ratio| {:.3}, centroid {:.2} px, stroke colour {:.2}",
+            screen.icons.len(),
+            worst(|icon| (icon.ink_ratio - 1.0).abs()),
+            worst(|icon| icon.centroid_delta),
+            worst(|icon| icon.color_delta_e),
+        );
+    }
+    if !screen.exceptions.is_empty() {
+        println!(
+            "  exceptions (judged by a person, see parity/exceptions.md): {}",
+            screen.exceptions.join(", ")
+        );
+    }
     let heatmap = if screen.heatmap.is_empty() {
         "(not generated)".to_owned()
     } else {

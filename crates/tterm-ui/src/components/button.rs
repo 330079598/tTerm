@@ -6,9 +6,7 @@ use crate::tokens::gpui::hsla;
 use crate::tokens::palette::Colors;
 use crate::tokens::theme::Theme;
 use gpui_kit::prelude::FluentBuilder;
-use gpui_kit::{
-    ElementId, InteractiveElement, IntoElement, ParentElement, SharedString, Styled, div, px,
-};
+use gpui_kit::{ElementId, InteractiveElement, ParentElement, SharedString, Styled, div, px};
 
 /// React's `text-white` destructive variant is independent of theme tokens.
 const WHITE: crate::tokens::color::Hsl = crate::tokens::color::Hsl::new(0.0, 0.0, 100.0);
@@ -108,6 +106,9 @@ pub fn style(variant: Variant, size: ButtonSize, state: ButtonState, theme: Them
     }
 }
 
+/// Builds a button. The result is a stateful `Div`, so callers attach
+/// `on_click` and icon children; an empty label adds no text node, which keeps
+/// icon-only buttons centred the way React's `size="icon*"` buttons are.
 pub fn button(
     id: impl Into<ElementId>,
     label: impl Into<SharedString>,
@@ -115,7 +116,7 @@ pub fn button(
     size: ButtonSize,
     state: ButtonState,
     theme: Theme,
-) -> impl IntoElement {
+) -> gpui_kit::Stateful<gpui_kit::Div> {
     let computed = style(variant, size, state, theme);
     let mut view = div()
         .id(id)
@@ -141,6 +142,7 @@ pub fn button(
             css_color(computed.background, computed.background_alpha),
             css_color(computed.border, 1.0),
             computed.border_width,
+            6.0,
             computed
                 .ring
                 .map(|ring| (css_color(ring, 0.5), computed.ring_spread)),
@@ -148,7 +150,12 @@ pub fn button(
     if matches!(variant, Variant::Link) {
         view = view.underline();
     }
-    view.child(label.into())
+    let label = label.into();
+    if label.is_empty() {
+        view
+    } else {
+        view.child(label)
+    }
 }
 
 fn dimensions(size: ButtonSize) -> (f32, f32, f32, f32, f32) {

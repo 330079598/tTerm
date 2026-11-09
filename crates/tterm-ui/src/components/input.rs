@@ -14,7 +14,13 @@ pub struct InputOptions {
     pub focused: bool,
     pub size: Size,
     pub theme: Option<Theme>,
+    /// Right padding in logical pixels: `px-3` by default, wider when a
+    /// control such as the password toggle sits over the field's right end.
+    pub padding_right: f32,
 }
+
+/// `px-3`.
+pub const PADDING_X: f32 = 12.0;
 
 impl Default for InputOptions {
     fn default() -> Self {
@@ -23,6 +29,7 @@ impl Default for InputOptions {
             focused: false,
             size: Size::Medium,
             theme: None,
+            padding_right: PADDING_X,
         }
     }
 }
@@ -35,6 +42,7 @@ pub struct InputStyle {
     pub border: crate::tokens::color::Hsl,
     pub foreground: crate::tokens::color::Hsl,
     pub opacity: f32,
+    pub padding_right: f32,
 }
 
 /// Resolves the production Input rules without changing any global theme.
@@ -51,6 +59,7 @@ pub fn style(options: InputOptions) -> InputStyle {
         },
         foreground: colors.foreground,
         opacity: if options.disabled { 0.5 } else { 1.0 },
+        padding_right: options.padding_right,
     }
 }
 
@@ -60,7 +69,8 @@ pub fn input(state: &Entity<InputState>, options: InputOptions) -> gpui_kit::Div
     div()
         .h(px(36.0))
         .w_full()
-        .px(px(12.0))
+        .pl(px(PADDING_X))
+        .pr(px(computed.padding_right))
         .py(px(4.0))
         .rounded(px(6.0))
         .border(px(1.0))
@@ -71,11 +81,12 @@ pub fn input(state: &Entity<InputState>, options: InputOptions) -> gpui_kit::Div
             css_color(computed.background, computed.background_alpha),
             css_color(computed.border, 1.0),
             1.0,
+            6.0,
             None,
         ))
         .child(
             Input::new(state)
-                .disabled(false)
+                .disabled(options.disabled)
                 .with_size(options.size)
                 .appearance(false)
                 .bordered(false)

@@ -109,6 +109,51 @@ where
         .child(child)
 }
 
+/// An internal part of a marked component, the GPUI side of a `data-slot`
+/// inside a `data-parity` element (for example the Switch thumb).
+///
+/// `bounds` is relative to the component's border box and must come from the
+/// same style value the component paints with; the screenshot comparison then
+/// proves the painted position.
+pub struct ParityPart {
+    pub slot: &'static str,
+    pub bounds: BoundsSnapshot,
+    pub style: StyleSnapshot,
+}
+
+/// Like [`parity_child`], and also records each part as `<id>.<slot>`.
+pub fn parity_child_with_parts<E>(
+    sink: &LayoutSink,
+    id: impl Into<String>,
+    style: StyleSnapshot,
+    parts: Vec<ParityPart>,
+    child: E,
+) -> Div
+where
+    E: IntoElement,
+{
+    let sink = sink.clone();
+    let id = id.into();
+    div()
+        .on_children_prepainted(move |bounds, _, _| {
+            if let Some(bounds) = bounds.first() {
+                let origin = to_snapshot(*bounds);
+                sink.record_element(&id, ElementSizing::Fixed, origin, style.clone());
+                for part in &parts {
+                    let placed = BoundsSnapshot::new(
+                        origin.x + part.bounds.x,
+                        origin.y + part.bounds.y,
+                        part.bounds.width,
+                        part.bounds.height,
+                    );
+                    let part_id = format!("{id}.{}", part.slot);
+                    sink.record_element(&part_id, ElementSizing::Fixed, placed, part.style.clone());
+                }
+            }
+        })
+        .child(child)
+}
+
 /// A text element plus the rectangle the masked comparison leaves out.
 ///
 /// The wrapper is the recording element; the inner div carries the text style

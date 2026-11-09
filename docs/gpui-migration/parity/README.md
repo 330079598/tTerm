@@ -60,29 +60,29 @@ cargo run -p tterm-parity -- compare
 
 `vite.config.ts` 在 `--mode parity` 下用 `parityTauriAliases` 把下面 10 个模块全部改到 `src/parity/tauri/`；清单只在 `src/parity/tauri/modules.ts` 维护。`modules.test.ts` 遍历同一份清单，断言 Vite 确实从它生成别名、且每个实现文件都存在，新增 import 漏配时会失败。`plugin-os` 的返回值来自 `parity/screens.json` 的 `platform` 块（默认固定 macOS）或 Windows 覆盖，不是浏览器探测。
 
-| 模块 | parity 文件 | 处理方式 |
-| --- | --- | --- |
-| `@tauri-apps/api/core` | `core.ts` | 工作实现：夹具 `invoke`、`Channel`、`isTauri`、`convertFileSrc` |
-| `@tauri-apps/api/event` | `event.ts` | 工作实现：进程内 `listen`/`once`/`emit` |
-| `@tauri-apps/api/window` | `window.ts` | 桩：`getCurrentWindow()` 调用即报错 |
-| `@tauri-apps/api/app` | `app.ts` | 桩：`getVersion()` 调用即报错 |
-| `@tauri-apps/api/path` | `path.ts` | 桩：`homeDir()` 调用即报错 |
-| `@tauri-apps/api/webviewWindow` | `webviewWindow.ts` | 桩：`getCurrentWebviewWindow()` 调用即报错 |
-| `@tauri-apps/plugin-dialog` | `dialog.ts` | 桩：`open`/`save`/`message`/`ask`/`confirm` 调用即报错 |
-| `@tauri-apps/plugin-os` | `os.ts` | 工作实现：`platform`/`version`/`family`/`type`/`arch`/`exeExtension`/`eol` 同步返回清单值 |
-| `@tauri-apps/plugin-opener` | `opener.ts` | 桩：`openUrl`/`openPath`/`revealItemInDir` 调用即报错 |
-| `@tauri-apps/plugin-process` | `process.ts` | 桩：`relaunch`/`exit` 调用即报错 |
+| 模块                            | parity 文件        | 处理方式                                                                                  |
+| ------------------------------- | ------------------ | ----------------------------------------------------------------------------------------- |
+| `@tauri-apps/api/core`          | `core.ts`          | 工作实现：夹具 `invoke`、`Channel`、`isTauri`、`convertFileSrc`                           |
+| `@tauri-apps/api/event`         | `event.ts`         | 工作实现：进程内 `listen`/`once`/`emit`                                                   |
+| `@tauri-apps/api/window`        | `window.ts`        | 桩：`getCurrentWindow()` 调用即报错                                                       |
+| `@tauri-apps/api/app`           | `app.ts`           | 桩：`getVersion()` 调用即报错                                                             |
+| `@tauri-apps/api/path`          | `path.ts`          | 桩：`homeDir()` 调用即报错                                                                |
+| `@tauri-apps/api/webviewWindow` | `webviewWindow.ts` | 桩：`getCurrentWebviewWindow()` 调用即报错                                                |
+| `@tauri-apps/plugin-dialog`     | `dialog.ts`        | 桩：`open`/`save`/`message`/`ask`/`confirm` 调用即报错                                    |
+| `@tauri-apps/plugin-os`         | `os.ts`            | 工作实现：`platform`/`version`/`family`/`type`/`arch`/`exeExtension`/`eol` 同步返回清单值 |
+| `@tauri-apps/plugin-opener`     | `opener.ts`        | 桩：`openUrl`/`openPath`/`revealItemInDir` 调用即报错                                     |
+| `@tauri-apps/plugin-process`    | `process.ts`       | 桩：`relaunch`/`exit` 调用即报错                                                          |
 
 ## 2. 依赖与安装
 
-| 依赖 | 版本 | 来源 | 用途 |
-| --- | --- | --- | --- |
-| Playwright（npm devDependency） | `1.54.0`（精确固定） | npm 官方 registry | 驱动 WebKit 截参考图 |
-| Playwright WebKit 浏览器 | revision `2191` | `pnpm exec playwright install webkit` | 与 WKWebView 同引擎、同 CoreText |
-| `gpui-kit` | `=0.9.0`（workspace pin） | crates.io | GPUI 与应用层 |
-| `image` | `=0.25.10`（`default-features = false`，只开 `png`） | crates.io | 读写 PNG |
-| `serde` / `serde_json` | 锁文件中的 `1.x` | crates.io | 布局与报告 JSON |
-| `tterm-ui` | 本地 crate | `crates/tterm-ui` | 与 React 同源的 design tokens |
+| 依赖                            | 版本                                                 | 来源                                  | 用途                             |
+| ------------------------------- | ---------------------------------------------------- | ------------------------------------- | -------------------------------- |
+| Playwright（npm devDependency） | `1.54.0`（精确固定）                                 | npm 官方 registry                     | 驱动 WebKit 截参考图             |
+| Playwright WebKit 浏览器        | revision `2191`                                      | `pnpm exec playwright install webkit` | 与 WKWebView 同引擎、同 CoreText |
+| `gpui-kit`                      | `=0.9.0`（workspace pin）                            | crates.io                             | GPUI 与应用层                    |
+| `image`                         | `=0.25.10`（`default-features = false`，只开 `png`） | crates.io                             | 读写 PNG                         |
+| `serde` / `serde_json`          | 锁文件中的 `1.x`                                     | crates.io                             | 布局与报告 JSON                  |
+| `tterm-ui`                      | 本地 crate                                           | `crates/tterm-ui`                     | 与 React 同源的 design tokens    |
 
 首次安装：
 
@@ -177,11 +177,11 @@ pnpm-lock.yaml vite.config.ts tsconfig.json index.html parity.html
 
    夹具值可以是下表四种形状之一。`args` 用递归深比较，键顺序无关；列表按顺序找第一个全等匹配，匹配不到按缺夹具处理。空数组是普通空值，不会被当成 args 列表。
 
-   | 夹具值 | 行为 |
-   | --- | --- |
-   | 普通 JSON 值 | `resolve` 返回它的深拷贝 |
-   | `{ "$reject": "错误文本" }` | `reject(new Error("错误文本"))`，用于错误状态 |
-   | `{ "$pending": true }` | 返回永不 resolve 的 Promise，用于加载状态 |
+   | 夹具值                                   | 行为                                                              |
+   | ---------------------------------------- | ----------------------------------------------------------------- |
+   | 普通 JSON 值                             | `resolve` 返回它的深拷贝                                          |
+   | `{ "$reject": "错误文本" }`              | `reject(new Error("错误文本"))`，用于错误状态                     |
+   | `{ "$pending": true }`                   | 返回永不 resolve 的 Promise，用于加载状态                         |
    | `[{ "args": {...}, "value": ... }, ...]` | 按调用参数选择 `value`；每个 `value` 仍可再是普通值或上面两种指令 |
 
    没有夹具、没有匹配的 args、或屏幕尚未激活夹具时，`invoke` 会抛错并列出已有 command；同时把 command 记进 `window.__PARITY_MISSING__`。即使组件 `catch` 了错误继续渲染，`capture.mjs` 也会在截图前后检查该列表并让这一屏失败，避免截出一张“空状态但看起来正常”的图。`src/parity/tauri/missing-fixture.test.tsx` 覆盖了组件 catch 的情况。
@@ -246,24 +246,30 @@ pnpm-lock.yaml vite.config.ts tsconfig.json index.html parity.html
 
 ## 7. 比较规则与门槛
 
-| 检查 | 规则 |
-| --- | --- |
-| 布局，固定尺寸元素 | `x`、`y`、`width`、`height` 各自偏差 ≤ 1 逻辑像素 |
-| 布局，文字尺寸元素（`sizing: "text"`） | 偏差 ≤ `max(2 逻辑像素, 参考宽度的 2%)` |
-| 元素集合 | 两端 id 必须一一对应；多一个或少一个都失败 |
-| 样式 | 字体族、字号、字重、行高、圆角、边框宽度完全相等（浮点容差 0.01px）；内边距按 0.01px 比较（比 5.2 节更严，见“限制”） |
-| 元素颜色（实测） | 不透明颜色逐通道 8 位相等；带 alpha 时先叠在屏幕左上角（屏幕背景）上，再要求 CIEDE2000 ≤ 1 |
-| 声明颜色（快照/计算样式） | 不透明声明值必须与实测值逐通道 8 位相等；不一致即失败，防止“改绘制、不改快照” |
-| 图像，遮住文字 | SSIM ≥ 0.99 |
-| 图像，整屏 | SSIM ≥ 0.97 |
-| 整屏颜色门槛 | 遮掉文字区域和每个标记元素的边框带 + 两侧各 1 物理像素抗锯齿带后，CIEDE2000 > 1 的像素数必须为 0 |
-| 颜色差（文字遮罩，报告项） | 未遮罩像素的 CIEDE2000 均值、最大值、>1 的像素数；不单独设门槛 |
+| 检查                                   | 规则                                                                                                                 |
+| -------------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
+| 布局，固定尺寸元素                     | `x`、`y`、`width`、`height` 各自偏差 ≤ 1 逻辑像素                                                                    |
+| 布局，文字尺寸元素（`sizing: "text"`） | 偏差 ≤ `max(2 逻辑像素, 参考宽度的 2%)`                                                                              |
+| 元素集合                               | 两端 id 必须一一对应；多一个或少一个都失败                                                                           |
+| 样式                                   | 字体族、字号、字重、行高、圆角、边框宽度完全相等（浮点容差 0.01px）；内边距按 0.01px 比较（比 5.2 节更严，见“限制”） |
+| 元素颜色（实测）                       | 不透明颜色逐通道 8 位相等；带 alpha 时先叠在屏幕左上角（屏幕背景）上，再要求 CIEDE2000 ≤ 1                           |
+| 声明颜色（快照/计算样式）              | 不透明声明值必须与实测值逐通道 8 位相等；不一致即失败，防止“改绘制、不改快照”                                        |
+| 图像，遮住文字                         | SSIM ≥ 0.99                                                                                                          |
+| 图像，整屏                             | SSIM ≥ 0.97                                                                                                          |
+| 整屏颜色门槛                           | 遮掉文字区域和每个标记元素的边框带 + 两侧各 1 物理像素抗锯齿带后，CIEDE2000 > 1 的像素数必须为 0                     |
+| 颜色差（文字遮罩，报告项）             | 未遮罩像素的 CIEDE2000 均值、最大值、>1 的像素数；不单独设门槛                                                       |
 
 整屏颜色门槛的遮罩由 `image_diff::screen_mask` 生成：文字遮罩取两端 `textRegions` 的并集并按 2 物理像素膨胀；元素边缘按两端的 `bounds`/`borderRadius`/`borderWidth` 用圆角矩形 SDF 标记 `|sdf| ≤ 边框宽度 × DPR + 1` 的物理像素，把边框本身和两侧抗锯齿都算进边缘带。门槛是 0 个超限像素（`SCREEN_COLOR_MAX_PIXELS = 0`）；若将来确实需要放宽，必须把理由写进本文档，而不是悄悄改常量。
 
 **Focus ring 外轮廓（决策人 2026-11-09 决定）。** 无偏移、无模糊的外扩 box-shadow 也有抗锯齿边缘，按与元素边缘相同的余量排除其外轮廓两侧各 **1 个物理像素**。布局字段 `ringSpread` 是逻辑像素：参照端从 computed `box-shadow` 解析非 inset、x/y/blur 均为 0、spread 为正且非透明的层，多层取最外的 spread；有偏移或模糊的层保持原样绘制、跳过此轮廓记录。GPUI 从 ButtonStyle 的 ring 存在性和绘制共用的 spread 记录，布局比较要求 spread 相等（0.01px 容差）。无 ring 为 0。布局 schema 升至 3，旧布局缓存重新生成；参考 manifest 与结果报告版本仍为 2。
 
 外轮廓矩形向外扩 spread，圆角按 [CSS Backgrounds 3 §6.1.1](https://www.w3.org/TR/css-backgrounds-3/#shadow-shape) 计算：r ≥ spread 时为 r + spread；r < spread 时为 `r + spread × (1 + (r/spread - 1)^3)`，再按 DPR 转物理像素。仅外沿抗锯齿带被遮住；ring 中间的填充仍进入颜色门槛，原有 border box 边缘带也保持不变。颜色、SSIM 门槛数值不变，不登记例外，不模仿特定引擎的抗锯齿曲线。反向探测必须能让错误 spread 或 ring 填充触发失败。
+
+**组件内部的部件（2026-11-09）。** 被标记元素内部带 `data-slot` 的部件（例如 Switch 的 `switch-thumb`）由 `layout.mjs` 记为 `<元素 id>.<slot>`；GPUI 端用 `parity_child_with_parts` 记录同一部件，位置取自组件绘制用的同一份样式数据。部件与普通标记元素一样参加位置比较和边缘带遮罩。部件本身带 `data-parity` 时只按它自己的 id 记一次。
+
+**登记的例外（ui-parity 5.2 节）。** `parity/screens.json` 的屏幕可以列出 `exceptions`，每项包括 `entry`（`parity/exceptions.md` 中 `## E-NNN` 的编号）、`elements`（标记元素 id）和 `outset`（从 border box 往外的逻辑像素）。这些元素 border box 以外、`outset` 以内的像素会从遮文字后的 SSIM 和屏幕颜色门槛里一起去掉，元素本身仍然比较。加载清单时，没在 `exceptions.md` 登记的编号会报错；名称在两端布局里都找不到的元素记为失败。每屏结果的 `exceptions` 字段与命令行输出都会列出用到的编号，评估者要按条目写明的方法人工核对。
+
+**图标检查（[决策 014](../decisions/014-icon-check.md)，2026-11-09）。** 参照端把每个可见 `<svg>` 记进布局 JSON 的 `icons`（`bounds`、`color`、`opacity`；布局 schema 因此升到 4，GPUI 端不记录）。图标框外扩 2 个物理像素的区域不参加屏幕颜色门槛，改由 `compare/icons.rs` 在参照图标框内对两张截图做三项检查：墨量（像素到背景色的 Lab 距离之和；背景色取区域外圈最常见的颜色）之比在 1 ± 0.03 之内；墨量重心相差不超过 0.25 个逻辑像素；参照端完全覆盖的像素（墨量达到最大值的 90% 以上）的平均颜色，两端 CIEDE2000 不超过 1。每屏结果的 `icons` 字段与命令行的 `icons:` 一行给出各项数值。反向探测：改图标颜色、平移 1px、换成另一个图标都会失败。
 
 SSIM 的实现：灰度取 `0.2126R + 0.7152G + 0.0722B`（gamma 编码值），按不重叠的 16×16 窗口计算标准 SSIM（`C1 = (0.01·255)²`、`C2 = (0.03·255)²`），取窗口平均。遮罩版本跳过文字像素；一个窗口剩余不足 32 个未遮罩像素时整个窗口跳过。这是本工具自己的实现，换实现得到的数值会略有不同，但门槛与结论以 `compare` 的输出为准。
 
@@ -311,16 +317,16 @@ SSIM 的实现：灰度取 `0.2126R + 0.7152G + 0.0722B`（gamma 编码值），
 
 ## 10. 故障排除
 
-| 现象 | 处理 |
-| --- | --- |
-| `Could not start Playwright's WebKit` | `pnpm exec playwright install webkit`；确认 `playwright` 是 1.54.0 |
-| `Vite started without a local URL` / 端口占用 | 抓图脚本用随机端口，不占用 1420/1423；手动 `pnpm dev:parity` 用 1423 |
-| `reference capture failed` 且提到 `page error` | 打开 `pnpm dev:parity` 的 URL，看控制台；通常是屏幕没有调 `onReady` 或夹具缺 command |
-| `Parity mock: no fixture for "…"` | 在 `parity/fixtures/*.json` 补该 command，并在 `src/parity/fixtures.ts` 用真实类型标注 |
-| 参考截图过期 | 干净工作区设置 `UPDATE_REFERENCE=1`；前端有未提交改动时会自动使用 `<hash>-dirty` 并每次重生成 |
-| `missing fixture(s) for: …` | 组件 catch 了没有夹具的 invoke；按列出的 command 补夹具，不要靠 catch 掩盖 |
-| `image size 1600x1200 -> …` | GPUI 无头窗口的缩放不是 2；检查 `HeadlessAppContext` 的平台与清单的 `deviceScaleFactor` |
-| 字体或行高偏差 | 屏幕必须显式设置整数行高；字体族两端都归一成 `system-ui` |
+| 现象                                           | 处理                                                                                          |
+| ---------------------------------------------- | --------------------------------------------------------------------------------------------- |
+| `Could not start Playwright's WebKit`          | `pnpm exec playwright install webkit`；确认 `playwright` 是 1.54.0                            |
+| `Vite started without a local URL` / 端口占用  | 抓图脚本用随机端口，不占用 1420/1423；手动 `pnpm dev:parity` 用 1423                          |
+| `reference capture failed` 且提到 `page error` | 打开 `pnpm dev:parity` 的 URL，看控制台；通常是屏幕没有调 `onReady` 或夹具缺 command          |
+| `Parity mock: no fixture for "…"`              | 在 `parity/fixtures/*.json` 补该 command，并在 `src/parity/fixtures.ts` 用真实类型标注        |
+| 参考截图过期                                   | 干净工作区设置 `UPDATE_REFERENCE=1`；前端有未提交改动时会自动使用 `<hash>-dirty` 并每次重生成 |
+| `missing fixture(s) for: …`                    | 组件 catch 了没有夹具的 invoke；按列出的 command 补夹具，不要靠 catch 掩盖                    |
+| `image size 1600x1200 -> …`                    | GPUI 无头窗口的缩放不是 2；检查 `HeadlessAppContext` 的平台与清单的 `deviceScaleFactor`       |
+| 字体或行高偏差                                 | 屏幕必须显式设置整数行高；字体族两端都归一成 `system-ui`                                      |
 
 ## 11. 复现 W0-04 的验收
 

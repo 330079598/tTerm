@@ -30,6 +30,23 @@ pub struct ScreenSpec {
     pub title: String,
     /// Fixture file under `parity/fixtures/`.
     pub fixture: String,
+    /// Regions registered in `parity/exceptions.md` (ui-parity 5.2): they are
+    /// left out of the image comparison and judged by a person instead.
+    #[serde(default)]
+    pub exceptions: Vec<ExceptionSpec>,
+}
+
+/// One registered exception on a screen.
+#[derive(Clone, Debug, PartialEq, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ExceptionSpec {
+    /// The entry heading in `parity/exceptions.md`, such as `E-001`.
+    pub entry: String,
+    /// Marked elements whose surroundings the entry covers.
+    pub elements: Vec<String>,
+    /// How far outside each element's border box the region reaches, in
+    /// logical pixels. The element itself is still compared.
+    pub outset: f32,
 }
 
 /// The platform the reference side is told it runs on.
@@ -103,6 +120,7 @@ impl ScreensManifest {
             manifest.theme = theme;
         }
         manifest.validate()?;
+        manifest.validate_exception_entries(root)?;
         Ok(manifest)
     }
 
@@ -170,10 +188,56 @@ impl ScreensManifest {
                     screen.id
                 ));
             }
+            for exception in &screen.exceptions {
+                if exception.entry.trim().is_empty() || exception.elements.is_empty() {
+                    return Err(format!(
+                        "parity/screens.json screen \"{}\" has an exception without an entry or elements",
+                        screen.id
+                    ));
+                }
+                if !exception.outset.is_finite() || exception.outset <= 0.0 {
+                    return Err(format!(
+                        "parity/screens.json screen \"{}\" exception {} needs a positive outset",
+                        screen.id, exception.entry
+                    ));
+                }
+            }
             if screen.fixture.contains('/') || screen.fixture.contains('\\') {
                 return Err(format!(
                     "parity/screens.json screen \"{}\" has a fixture path; put the file name only",
                     screen.id
+                ));
+            }
+        }
+        Ok(())
+    }
+}
+
+impl ScreensManifest {
+    /// Every exception must name an entry that `parity/exceptions.md` registers
+    /// as a `## <entry>` heading, so no region leaves the comparison unrecorded.
+    fn validate_exception_entries(&self, root: &Path) -> Result<(), String> {
+        let entries: Vec<&ExceptionSpec> = self
+            .screens
+            .iter()
+            .flat_map(|screen| &screen.exceptions)
+            .collect();
+        if entries.is_empty() {
+            return Ok(());
+        }
+        let path = root.join("parity").join("exceptions.md");
+        let text = fs::read_to_string(&path)
+            .map_err(|error| format!("could not read {}: {error}", path.display()))?;
+        let headings: BTreeSet<&str> = text
+            .lines()
+            .filter_map(|line| line.strip_prefix("## "))
+            .filter_map(|heading| heading.split_whitespace().next())
+            .collect();
+        for exception in entries {
+            if !headings.contains(exception.entry.as_str()) {
+                return Err(format!(
+                    "parity/screens.json uses exception {}, which parity/exceptions.md does not register",
+                    exception.entry
                 ));
             }
         }

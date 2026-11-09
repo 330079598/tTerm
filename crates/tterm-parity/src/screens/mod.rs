@@ -7,6 +7,9 @@
 pub mod button;
 pub mod example;
 pub mod input;
+pub mod password;
+pub mod select;
+pub mod switch;
 
 use crate::layout::LayoutSink;
 use crate::manifest::{ScreenSpec, ScreensManifest};
@@ -21,6 +24,9 @@ pub enum ScreenView {
     ButtonVariants(button::ButtonScreen),
     ButtonSizes(button::ButtonScreen),
     Input(input::InputScreen),
+    Password(password::PasswordScreen),
+    Select(select::SelectScreen),
+    Switch(switch::SwitchScreen),
 }
 
 impl ScreenView {
@@ -42,6 +48,11 @@ impl ScreenView {
                 manifest, sink, false,
             )?)),
             input::SCREEN_ID => Ok(Self::Input(input::InputScreen::load(manifest, sink)?)),
+            password::SCREEN_ID => Ok(Self::Password(password::PasswordScreen::load(
+                manifest, sink,
+            )?)),
+            select::SCREEN_ID => Ok(Self::Select(select::SelectScreen::load(manifest, sink)?)),
+            switch::SCREEN_ID => Ok(Self::Switch(switch::SwitchScreen::load(manifest, sink)?)),
             other => Err(format!(
                 "No GPUI view is registered for parity screen \"{other}\""
             )),
@@ -57,6 +68,9 @@ impl Render for ScreenView {
                 view.render().into_any_element()
             }
             Self::Input(view) => view.render(_window, _cx).into_any_element(),
+            Self::Password(view) => view.render(_window, _cx).into_any_element(),
+            Self::Select(view) => view.render(_cx).into_any_element(),
+            Self::Switch(view) => view.render().into_any_element(),
         }
     }
 }

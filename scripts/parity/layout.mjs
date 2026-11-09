@@ -104,23 +104,24 @@ export function collectLayout(screen) {
     return spread
   }
 
-  const elements = [...document.querySelectorAll("[data-parity]")].map((element) => {
+  const snapshot = (element, id, sizing) => {
     const style = getComputedStyle(element)
     let opacity = 1
     for (let node = element; node && node.nodeType === Node.ELEMENT_NODE; node = node.parentElement) {
       opacity *= Number.parseFloat(getComputedStyle(node).opacity) || 1
     }
-    const id = element.getAttribute("data-parity")
-    if (!id) throw new Error("parity layout: an element has an empty data-parity")
     return {
       id,
-      sizing: element.getAttribute("data-parity-sizing") === "text" ? "text" : "fixed",
+      sizing,
       bounds: rect(element.getBoundingClientRect()),
       style: {
         backgroundColor: toRgba(style.backgroundColor),
         borderColor: toRgba(style.borderTopColor),
         borderWidth: parsePx(style.borderTopWidth, "border-top-width"),
-        borderRadius: parsePx(style.borderTopLeftRadius, "border-top-left-radius"),
+        borderRadius:
+          style.borderTopLeftRadius.includes("infinity")
+            ? Math.min(element.getBoundingClientRect().width, element.getBoundingClientRect().height) / 2
+            : parsePx(style.borderTopLeftRadius, "border-top-left-radius"),
         ringSpread: ringSpread(style.boxShadow),
         fontFamily: canonicalFontFamily(style.fontFamily),
         fontSize: parsePx(style.fontSize, "font-size"),
@@ -136,7 +137,22 @@ export function collectLayout(screen) {
         },
       },
     }
-  })
+  }
+
+  // A component's internal parts (`data-slot` inside a marked element, such
+  // as the Switch thumb) are recorded too, so their position is compared and
+  // their antialiased edges get the same edge band as any marked element.
+  const elements = []
+  for (const element of document.querySelectorAll("[data-parity]")) {
+    const id = element.getAttribute("data-parity")
+    if (!id) throw new Error("parity layout: an element has an empty data-parity")
+    const sizing = element.getAttribute("data-parity-sizing") === "text" ? "text" : "fixed"
+    elements.push(snapshot(element, id, sizing))
+    for (const part of element.querySelectorAll("[data-slot]")) {
+      if (part.hasAttribute("data-parity")) continue
+      elements.push(snapshot(part, `${id}.${part.getAttribute("data-slot")}`, "fixed"))
+    }
+  }
 
   const textRegions = []
   const seen = new Set()
@@ -165,9 +181,10 @@ export function collectLayout(screen) {
     for (const value of range.getClientRects()) pushRegion(value)
   }
 
-  // An input's value is not a text node, so its whole content box is treated
-  // as text and left out of the masked image comparison.
-  for (const element of document.querySelectorAll("input, textarea")) {
+  // An input's value is not a text node, and neither is the option a closed
+  // `<select>` displays, so their whole content box is treated as text and
+  // left out of the masked image comparison.
+  for (const element of document.querySelectorAll("input, textarea, select")) {
     const bounds = element.getBoundingClientRect()
     if (bounds.width === 0 || bounds.height === 0) continue
     const style = getComputedStyle(element)
@@ -187,8 +204,21 @@ export function collectLayout(screen) {
     (a, b) => a.y - b.y || a.x - b.x || a.width - b.width || a.height - b.height
   )
 
+  // Icons get their own check instead of the per-pixel gate: the two sides'
+  // rasterisers place the same strokes but antialias their edges differently.
+  const icons = []
+  for (const svg of document.querySelectorAll("svg")) {
+    const bounds = svg.getBoundingClientRect()
+    if (bounds.width === 0 || bounds.height === 0) continue
+    let opacity = 1
+    for (let node = svg; node && node.nodeType === Node.ELEMENT_NODE; node = node.parentElement) {
+      opacity *= Number.parseFloat(getComputedStyle(node).opacity) || 1
+    }
+    icons.push({ bounds: rect(bounds), color: toRgba(getComputedStyle(svg).color), opacity })
+  }
+
   return {
-    version: 3,
+    version: 4,
     screen,
     viewport: {
       width: window.innerWidth,
@@ -197,6 +227,7 @@ export function collectLayout(screen) {
     },
     elements,
     textRegions,
+    icons,
     invokedCommands: [...new Set(window.__PARITY_INVOKES__ ?? [])].sort(),
   }
 }

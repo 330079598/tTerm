@@ -44,6 +44,7 @@ fn document(elements: Vec<ElementSnapshot>) -> LayoutDocument {
         },
         elements,
         text_regions: Vec::new(),
+        icons: Vec::new(),
     }
 }
 

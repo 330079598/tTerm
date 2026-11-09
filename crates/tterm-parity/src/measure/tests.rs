@@ -112,6 +112,7 @@ fn declared_colours_are_preserved_and_measured_colours_replace_them() {
         },
         elements: vec![element],
         text_regions: Vec::new(),
+        icons: Vec::new(),
     };
 
     measure_document(&image, &mut document).expect("measurement");
@@ -140,6 +141,7 @@ fn an_element_outside_the_image_names_the_element() {
         },
         elements: vec![element],
         text_regions: Vec::new(),
+        icons: Vec::new(),
     };
 
     let error = measure_document(&image, &mut document).expect_err("out of bounds");

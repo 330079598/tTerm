@@ -2,6 +2,9 @@ import type { SavedProfile } from "@/types/tab"
 import exampleButtonInput from "@fixtures/example.button-input.default.json"
 import buttonFixture from "@fixtures/ui.button.default.json"
 import inputFixture from "@fixtures/ui.input.default.json"
+import passwordFixture from "@fixtures/ui.password.default.json"
+import selectFixture from "@fixtures/ui.select.default.json"
+import switchFixture from "@fixtures/ui.switch.default.json"
 
 /** What the mocked `invoke` answers for one screen. */
 export interface ParityFixture {
@@ -24,4 +27,7 @@ export const fixtures: Record<string, ParityFixture> = {
   "ui.button.variants": { commands: buttonFixture.commands },
   "ui.button.sizes": { commands: buttonFixture.commands },
   "ui.input.default": { commands: inputFixture.commands },
+  "ui.password.default": { commands: passwordFixture.commands },
+  "ui.select.default": { commands: selectFixture.commands },
+  "ui.switch.default": { commands: switchFixture.commands },
 }

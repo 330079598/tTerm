@@ -3,7 +3,8 @@
 use super::ColorReport;
 use super::color::delta_e_2000;
 use super::color::srgb_to_lab;
-use crate::layout::LayoutDocument;
+use crate::layout::{ElementSnapshot, LayoutDocument};
+use crate::manifest::ExceptionSpec;
 use image::{Rgba, RgbaImage};
 
 /// The local SSIM window. Windows do not overlap, which keeps the comparison
@@ -158,6 +159,76 @@ pub fn screen_mask(
     mark_edges(&mut mask, reference, width, height);
     mark_edges(&mut mask, actual, width, height);
     mask
+}
+
+/// Leaves registered exception regions out of the comparison: the pixels
+/// outside each named element's border box, up to `outset` logical pixels
+/// away. Returns the element ids that neither layout contains, so a typo
+/// cannot silently register nothing.
+pub fn mark_exceptions(
+    mask: &mut [bool],
+    layouts: [&LayoutDocument; 2],
+    exceptions: &[ExceptionSpec],
+    width: u32,
+    height: u32,
+) -> Vec<String> {
+    let mut missing = Vec::new();
+    for exception in exceptions {
+        for id in &exception.elements {
+            let mut found = false;
+            for layout in layouts {
+                let Some(element) = layout.elements.iter().find(|element| &element.id == id) else {
+                    continue;
+                };
+                found = true;
+                mark_outset(mask, layout, element, exception.outset, width, height);
+            }
+            if !found {
+                missing.push(format!("{}: {id}", exception.entry));
+            }
+        }
+    }
+    missing
+}
+
+fn mark_outset(
+    mask: &mut [bool],
+    layout: &LayoutDocument,
+    element: &ElementSnapshot,
+    outset: f32,
+    width: u32,
+    height: u32,
+) {
+    let scale = f64::from(layout.viewport.device_scale_factor);
+    let bounds = element.bounds;
+    let left = f64::from(bounds.x) * scale;
+    let top = f64::from(bounds.y) * scale;
+    let element_width = f64::from(bounds.width) * scale;
+    let element_height = f64::from(bounds.height) * scale;
+    let radius = (f64::from(element.style.border_radius) * scale)
+        .min(element_width / 2.0)
+        .min(element_height / 2.0)
+        .max(0.0);
+    let reach = f64::from(outset) * scale;
+    let margin = reach.ceil() as i32 + 1;
+    let start_x = (left.floor() as i32 - margin).max(0);
+    let start_y = (top.floor() as i32 - margin).max(0);
+    let end_x = ((left + element_width).ceil() as i32 + margin).min(width as i32);
+    let end_y = ((top + element_height).ceil() as i32 + margin).min(height as i32);
+    for y in start_y..end_y {
+        for x in start_x..end_x {
+            let distance = rounded_rect_sdf(
+                f64::from(x) + 0.5 - left,
+                f64::from(y) + 0.5 - top,
+                element_width,
+                element_height,
+                radius,
+            );
+            if distance > 0.0 && distance <= reach {
+                mask[(y as u32 * width + x as u32) as usize] = true;
+            }
+        }
+    }
 }
 
 /// Marks the border band plus one pixel of antialiasing around each element.

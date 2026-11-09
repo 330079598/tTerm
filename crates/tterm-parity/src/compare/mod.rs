@@ -8,6 +8,7 @@
 //! than CIEDE2000 1.
 
 pub mod color;
+pub mod icons;
 pub mod image_diff;
 pub mod layout_check;
 pub mod report;
@@ -67,6 +68,11 @@ pub struct ScreenReport {
     pub heatmap: String,
     /// Where the two screenshots are, relative to the report directory.
     pub images: ImagePaths,
+    /// The icon check, one entry per reference icon.
+    pub icons: Vec<icons::IconReport>,
+    /// Entries of `parity/exceptions.md` whose regions were left out of the
+    /// image comparison and need a person's judgement.
+    pub exceptions: Vec<String>,
     /// Everything that failed, flattened for the summary.
     pub failures: Vec<String>,
 }
@@ -282,6 +288,7 @@ fn compare_screen(
     validate_measurements(reference, "reference", backdrop, &mut failures);
     validate_measurements(actual, "GPUI", backdrop, &mut failures);
     let mut heatmap = None;
+    let mut icon_reports = Vec::new();
     let mut ssim = SsimReport {
         full: 0.0,
         masked: 0.0,
@@ -310,7 +317,19 @@ fn compare_screen(
         ));
     } else {
         let (width, height) = reference.image.dimensions();
-        let mask = image_diff::text_mask(&reference.layout, &actual.layout, width, height);
+        let mut mask = image_diff::text_mask(&reference.layout, &actual.layout, width, height);
+        // Registered exceptions leave every image comparison below, gate
+        // included; the report names them so a reader knows to judge them.
+        let missing = image_diff::mark_exceptions(
+            &mut mask,
+            [&reference.layout, &actual.layout],
+            &screen.exceptions,
+            width,
+            height,
+        );
+        for entry in missing {
+            failures.push(format!("exception {entry} names no marked element"));
+        }
         let full = ssim_rounded(image_diff::ssim(&reference.image, &actual.image, None));
         let masked = ssim_rounded(image_diff::ssim(
             &reference.image,
@@ -332,8 +351,27 @@ fn compare_screen(
             max_delta_e: round_to(difference.max_delta_e, 4),
             pixels_above_one: difference.pixels_above_one,
         };
-        let gate_mask =
+        let mut gate_mask =
             image_diff::screen_mask(&reference.layout, &actual.layout, width, height, &mask);
+        icons::mark_icons(&mut gate_mask, &reference.layout, width, height);
+        icon_reports = icons::check_icons(&reference.image, &actual.image, &reference.layout);
+        for icon in icon_reports.iter().filter(|icon| !icon.passed) {
+            let b = icon.bounds;
+            failures.push(format!(
+                "icon at ({}, {}) {}x{}: ink ratio {:.3} (allowed ±{}), centroid moved {:.2} px \
+                 (allowed {}), stroke colour CIEDE2000 {:.2} (allowed {})",
+                b.x,
+                b.y,
+                b.width,
+                b.height,
+                icon.ink_ratio,
+                icons::INK_TOLERANCE,
+                icon.centroid_delta,
+                icons::CENTROID_TOLERANCE,
+                icon.color_delta_e,
+                icons::COLOR_TOLERANCE
+            ));
+        }
         let gate = image_diff::color_difference(&reference.image, &actual.image, &gate_mask);
         screen_colors = ColorReport {
             mean_delta_e: round_to(gate.mean_delta_e, 4),
@@ -342,8 +380,8 @@ fn compare_screen(
         };
         if gate.pixels_above_one > SCREEN_COLOR_MAX_PIXELS {
             failures.push(format!(
-                "screen colour gate: {} pixel(s) above CIEDE2000 1 outside text and element \
-                 edges (allowed {SCREEN_COLOR_MAX_PIXELS})",
+                "screen colour gate: {} pixel(s) above CIEDE2000 1 outside text, element \
+                 edges and icons (allowed {SCREEN_COLOR_MAX_PIXELS})",
                 gate.pixels_above_one
             ));
         }
@@ -364,6 +402,12 @@ fn compare_screen(
             reference: format!("../reference/{reference_name}/{}.png", screen.id),
             actual: format!("../actual/{}.png", screen.id),
         },
+        icons: icon_reports,
+        exceptions: screen
+            .exceptions
+            .iter()
+            .map(|exception| exception.entry.clone())
+            .collect(),
         failures,
     };
     (report, heatmap)

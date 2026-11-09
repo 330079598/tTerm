@@ -25,6 +25,7 @@ fn manifest() -> ScreensManifest {
             id: "example.button-input.default".to_owned(),
             title: "Example".to_owned(),
             fixture: "example.button-input.default.json".to_owned(),
+            exceptions: Vec::new(),
         }],
     }
 }
@@ -35,7 +36,7 @@ fn the_repository_manifest_is_valid() {
     let loaded = ScreensManifest::load(&root).expect("the committed manifest is valid");
     assert_eq!(loaded.version, MANIFEST_VERSION);
     assert_eq!(loaded.viewport.device_scale_factor, 2.0);
-    assert_eq!(loaded.screens.len(), 4);
+    assert_eq!(loaded.screens.len(), 7);
 }
 
 #[test]
@@ -86,4 +87,34 @@ fn expect_error(manifest: ScreensManifest, fragment: &str) {
         error.contains(fragment),
         "expected {fragment:?} in {error:?}"
     );
+}
+
+fn exception(entry: &str, outset: f32) -> ExceptionSpec {
+    ExceptionSpec {
+        entry: entry.to_owned(),
+        elements: vec!["example.button".to_owned()],
+        outset,
+    }
+}
+
+#[test]
+fn an_exception_needs_a_positive_outset() {
+    let mut manifest = manifest();
+    manifest.screens[0].exceptions = vec![exception("E-001", 0.0)];
+    expect_error(manifest, "positive outset");
+}
+
+#[test]
+fn an_exception_must_be_registered_in_the_exceptions_file() {
+    let mut manifest = manifest();
+    manifest.screens[0].exceptions = vec![exception("E-999", 3.0)];
+    let error = manifest
+        .validate_exception_entries(&crate::repo_root())
+        .expect_err("E-999 is not registered");
+    assert!(error.contains("E-999"), "{error}");
+    let mut registered = self::manifest();
+    registered.screens[0].exceptions = vec![exception("E-001", 3.0)];
+    registered
+        .validate_exception_entries(&crate::repo_root())
+        .expect("E-001 is registered");
 }
