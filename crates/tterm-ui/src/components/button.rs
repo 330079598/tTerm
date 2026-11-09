@@ -1,7 +1,7 @@
 //! Token-backed Button primitive. Behavior is local to tterm-ui so component
 //! colours never mutate gpui-component's global theme.
 
-use crate::components::surface::{css_color, css_opacity, surface};
+use crate::components::surface::{css_color, css_opacity, shadow_xs, surface};
 use crate::tokens::gpui::hsla;
 use crate::tokens::palette::Colors;
 use crate::tokens::theme::Theme;
@@ -132,6 +132,7 @@ pub fn button(
         .rounded(px(6.0))
         .border(px(computed.border_width))
         .border_color(gpui_kit::transparent_black())
+        .shadow(vec![shadow_xs(computed.opacity)])
         .relative()
         .text_color(hsla(computed.foreground, 1.0))
         .text_size(px(computed.font_size))

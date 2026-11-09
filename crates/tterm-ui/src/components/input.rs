@@ -1,6 +1,6 @@
 //! Input primitive backed by gpui-component's editable input state.
 
-use crate::components::surface::{css_color, css_opacity, surface};
+use crate::components::surface::{css_color, css_opacity, shadow_xs, surface};
 use crate::tokens::gpui::hsla;
 use crate::tokens::theme::Theme;
 use gpui_kit::component::input::{Input, InputState};
@@ -75,6 +75,7 @@ pub fn input(state: &Entity<InputState>, options: InputOptions) -> gpui_kit::Div
         .rounded(px(6.0))
         .border(px(1.0))
         .border_color(gpui_kit::transparent_black())
+        .shadow(vec![shadow_xs(computed.opacity)])
         .relative()
         .text_color(hsla(computed.foreground, 1.0))
         .child(surface(
