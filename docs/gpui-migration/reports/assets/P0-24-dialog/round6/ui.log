@@ -1,0 +1,67 @@
+   Compiling tterm-ui v0.1.0 (/Users/stone/Code/rust/tTerm-P0-24-dialog/crates/tterm-ui)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1.14s
+     Running unittests src/lib.rs (target/debug/deps/tterm_ui-f4d3106180442019)
+
+running 59 tests
+test components::button::tests::exposes_every_react_variant_and_size ... ok
+test components::button::tests::disabled_keeps_each_variant_colour ... ok
+test components::button::tests::hover_uses_the_variant_specific_background_and_border ... ok
+test components::button::tests::style_reads_the_selected_theme_without_shared_state ... ok
+test components::button::tests::react_variant_theme_hover_matrix ... ok
+test components::dialog::tests::description_preserves_newlines_and_wraps ... ok
+test components::dialog::tests::close_button_closes_dialog ... ok
+test components::dialog::tests::confirm_default_action_focuses_confirm ... ok
+test components::dialog::tests::closing_restores_the_saved_focus_handle ... ok
+test components::dialog::tests::all_mouse_buttons_dismiss_the_overlay ... ok
+test components::dialog::tests::content_click_keeps_dialog_open ... ok
+test components::dialog::tests::default_action_sets_initial_focus_and_overrides_enter ... ok
+test components::dialog::tests::escape_closes_dialog ... ok
+test components::dialog::tests::escape_closes_prompt_from_autofocused_input ... ok
+test components::dialog::tests::action_and_close_hover_are_painted_and_observed ... ok
+test components::dialog::tests::close_and_reopen_clear_hover_state ... ok
+test components::dialog::tests::modal_occludes_background_mouse_hover_and_scroll ... ok
+test components::dialog::tests::info_renders_one_action_and_cycles_with_close ... ok
+test components::dialog::tests::narrow_info_title_stays_left_after_icon ... ok
+test components::dialog::tests::narrow_window_stacks_footer_and_centers_header ... ok
+test components::dialog::tests::narrow_prompt_title_is_centered ... ok
+test components::dialog::tests::narrow_destructive_title_stays_left_after_icon ... ok
+test components::dialog::tests::enter_submits_prompt_from_autofocused_input ... ok
+test components::dialog::tests::narrow_confirm_title_stays_left ... ok
+test components::dialog::tests::outside_hook_can_prevent_dismissal ... ok
+test components::dialog::tests::overlay_click_closes_dialog ... ok
+test components::input::tests::simulated_keystrokes_update_the_editable_state ... ok
+test components::password_input::tests::caps_lock_warning_follows_the_react_rules ... ok
+test components::dialog::tests::prompt_placeholder_and_label_use_public_options ... ok
+test components::dialog::tests::short_description_newline_creates_two_separate_rows ... ok
+test components::dialog::tests::keyboard_activates_each_dialog_button ... ok
+test components::dialog::tests::trailing_space_does_not_move_a_fitting_word_to_the_next_row ... ok
+test components::select::tests::the_control_follows_the_css_states ... ok
+test components::password_input::tests::a_disabled_toggle_keeps_the_text_masked ... ok
+test components::select::tests::a_disabled_select_does_not_open ... ok
+test components::password_input::tests::the_toggle_reveals_the_text ... ok
+test components::surface::tests::shadow_lg_converts_both_css_layers_to_sigma ... ok
+test components::surface::tests::outer_ring_stays_hollow_for_transparent_and_translucent_buttons ... ok
+test components::select::tests::the_keyboard_opens_moves_and_confirms ... ok
+test components::switch::tests::disabled_switch_does_not_report_changes ... ok
+test components::switch::tests::local_theme_style_is_isolated ... ok
+test tokens::gpui::tests::converts_hsl_and_clamps_alpha ... ok
+test tokens::gpui::tests::scales_font_size_and_line_height ... ok
+test components::select::tests::clicking_an_option_chooses_it_and_closes_the_list ... ok
+test components::switch::tests::click_and_space_report_checked_state ... ok
+test tokens::tests::a_colour_name_is_looked_up_without_its_dashes ... ok
+test tokens::tests::dark_variant_matches_css_theme_selector_rule ... ok
+test components::dialog::tests::rendering_two_dialog_themes_does_not_mutate_global_theme ... ok
+test components::switch::tests::disabled_thumb_does_not_show_the_track_through ... ok
+test components::switch::tests::thumb_sits_inside_the_border_and_travels_sixteen_pixels ... ok
+test tokens::tests::the_first_theme_is_the_default_one ... ok
+test tokens::tests::radius_matches_tokens_json ... ok
+test tokens::tests::theme_ids_are_unique ... ok
+test tokens::tests::font_sizes_match_tokens_json ... ok
+test tokens::tests::theme_colours_match_tokens_json ... ok
+test components::select::tests::escape_and_outside_clicks_close_without_choosing ... ok
+test components::input::tests::rendering_local_themes_does_not_mutate_global_theme ... ok
+test components::dialog::tests::prompt_tab_cycle_includes_editable_input ... ok
+test components::dialog::tests::tab_and_shift_tab_cycle_focus ... ok
+
+test result: ok. 59 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+

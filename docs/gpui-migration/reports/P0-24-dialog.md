@@ -2,7 +2,7 @@
 
 ## 结论
 
-**完成待评估（第 5 轮）。** 评估者已确认多行屏属于既有 E-001 Dialog 内容框范围。本轮只更新例外、manifest 与报告证据，未修改代码。先提交后从干净工作区在沙箱外重新生成深浅参照，两主题均 **11/11 屏通过**，每屏 `screenColors.pixelsAboveOne=0`。全部检查通过，multiline 已加入本轮四屏人工核对表。第 4 轮失败保留为历史诊断，现已解决。
+**完成待评估（第 6 轮）。** 本轮修复逐行文字区域、行尾空格换行、窄窗口标题和 Button/鼠标/hover 状态。换行原因是 GPUI 将行尾空格计入溢出，候选行字形宽度两端一致；已在不改夹具、宽度或取整的前提下修正。先提交后从干净工作区在沙箱外重新生成深浅参照，两主题均 **11/11 屏通过**，每屏 `screenColors.pixelsAboveOne=0`。AGENTS.md 全部检查通过，见“第 6 轮”。
 
 ## 范围与导出部件
 
@@ -333,7 +333,7 @@ multiline 与其他三屏使用同一生产容器和 `shadow-lg`，按评估者�
 
 ## 第 6 轮：逐行文字、窄窗口与 Button 状态收尾
 
-本轮先提交实现，再从干净工作区在沙箱外运行深浅对比。以下为修复与诊断，最终检查和对比结果在运行后补充。
+本轮先提交实现 `b519ac26`，再从干净工作区在沙箱外运行深浅对比，均为 11/11。以下逐项记录修复、诊断与验收证据。
 
 | 复核项                | 修正                                                                                                                               | 对应测试                                                                                                                                                          |
 | --------------------- | ---------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -361,3 +361,55 @@ multiline 与其他三屏使用同一生产容器和 `shadow-lg`，按评估者�
 GPUI `compute_wrap_boundaries` 在空格本身的 `next_x` 超过 398px 时仍使用前一个候选词边界，于是先把 `because` 移到下一行，再把 `content` 挤到末行。CSS `white-space: pre-line` 将行尾空格挂在行末，不用它判定词是否放得下。因此不是某个字形 advance 差了亚像素：这里的文字总 advance **完全一致**，是相同的空格 advance 被两端换行算法以不同方式计入。生产修复沿用原生分词/字形边界，只有当原边界后的词本身能放下时才保留该词，并跳过行尾空格；没有增大 wrap width 或改变取整。
 
 [WebKit 原始测量](assets/P0-24-dialog/round6/dialog-metrics-webkit.json)、[GPUI 原始测量](assets/P0-24-dialog/round6/dialog-metrics-gpui.json)、[WebKit 诊断源码](assets/P0-24-dialog/round6/webkit-metrics.mjs.txt)、[GPUI 诊断源码](assets/P0-24-dialog/round6/gpui-metrics.rs.txt)。WebKit 的实际 DOM Range 行宽为 58.618164、397.325195、371.177734、39.477539px；诊断单行 span 只用于测量，不改 parity 页面生产样式。单字符 DOM Range 会扩大到整数外接边界，不能当作 advance；canvas 的逐字前缀与完整 shaping 在局部 kerning 上有至多 0.2734375px 的差异，但两个候选整行宽度完全一致，不是本次提前换行原因。
+
+### 干净工作区双主题验收
+
+两次运行前均检查 `git status --porcelain` 为空，运行实现提交为 `b519ac26`。参照缓存按最后一次前端变更命名，因此目录仍为 `66e969328a1d2047b2137b7279019c0869a3f1e9` / 同 hash 的 `-light`；两份 `reference.dirty=false`，不含 `-dirty`。每次均重新生成参照，结果另存到 `target/parity/report-dark.json`、`report-light.json`。
+
+```sh
+UPDATE_REFERENCE=1 PARITY_THEME=dark CARGO_BUILD_JOBS=3 cargo run -p tterm-parity -- compare
+UPDATE_REFERENCE=1 PARITY_THEME=light CARGO_BUILD_JOBS=3 cargo run -p tterm-parity -- compare
+```
+
+[深色原始 result.json](assets/P0-24-dialog/round6/result-dark.json)、[浅色原始 result.json](assets/P0-24-dialog/round6/result-light.json)、[深色完整日志](assets/P0-24-dialog/round6/compare-dark.log)、[浅色完整日志](assets/P0-24-dialog/round6/compare-light.log)。下表计数为真正进入门槛的 `screenColors.pixelsAboveOne`，不是未排除元素边缘的 `colors.pixelsAboveOne`。
+
+| 屏幕                           | 深/浅门槛像素 | 深色 full / masked SSIM | 浅色 full / masked SSIM | 深/浅例外     | 结果     |
+| ------------------------------ | ------------: | ----------------------- | ----------------------- | ------------- | -------- |
+| `example.button-input.default` |         0 / 0 | 0.998504 / 1.000000     | 0.998897 / 1.000000     | 无 / 无       | 深浅通过 |
+| `ui.button.variants`           |         0 / 0 | 0.991161 / 0.999943     | 0.987793 / 0.998621     | 无 / 无       | 深浅通过 |
+| `ui.button.sizes`              |         0 / 0 | 0.998855 / 0.999997     | 0.998873 / 0.999998     | 无 / 无       | 深浅通过 |
+| `ui.input.default`             |         0 / 0 | 0.977373 / 0.999870     | 0.974107 / 0.996851     | 无 / 无       | 深浅通过 |
+| `ui.password.default`          |         0 / 0 | 0.991643 / 0.999883     | 0.988158 / 0.996464     | 无 / 无       | 深浅通过 |
+| `ui.select.default`            |         0 / 0 | 0.998832 / 0.999930     | 0.998606 / 0.999034     | 无 / 无       | 深浅通过 |
+| `ui.switch.default`            |         0 / 0 | 0.999996 / 0.999994     | 0.999988 / 0.999984     | E-001 / E-001 | 深浅通过 |
+| `ui.dialog.confirm`            |         0 / 0 | 0.996232 / 0.999944     | 0.995716 / 0.999692     | E-001 / E-001 | 深浅通过 |
+| `ui.dialog.destructive`        |         0 / 0 | 0.995944 / 0.999941     | 0.995442 / 0.999649     | E-001 / E-001 | 深浅通过 |
+| `ui.dialog.prompt`             |         0 / 0 | 0.990697 / 0.999929     | 0.989785 / 0.999539     | E-001 / E-001 | 深浅通过 |
+| `ui.dialog.multiline`          |         0 / 0 | 0.992637 / 0.999944     | 0.992232 / 0.999683     | E-001 / E-001 | 深浅通过 |
+
+四个 Dialog 的布局 failure 均为 0，最大边界差 confirm/multiline 0.17px、destructive 0.25px、prompt 0.14px；图标深浅均通过。四屏颜色门槛 max ΔE00 深色 0.6928、浅色 0.9965。已有七屏全部通过。多行屏 full SSIM 深色由第 5 轮 0.981114 提高到 0.992637，浅色由 0.980600 提高到 0.992232。
+
+本轮 GPUI description 上报四个矩形 `(x,y,width,height)`：`(201,255,58.618164,16)`、`(201,271,397.3252,16)`、`(201,287,371.17773,16)`、`(201,303,39.47754,16)`，没有整段 398×64px 的文字区域。[深色布局](assets/P0-24-dialog/round6/dark/multiline-gpui.layout.json)、[浅色布局](assets/P0-24-dialog/round6/light/multiline-gpui.layout.json)。第三行末尾现为 `content`，第四行只有 `width.`，与 WebKit 相同。
+
+[深色参照](assets/P0-24-dialog/round6/dark/multiline-reference.png)、[GPUI](assets/P0-24-dialog/round6/dark/multiline-gpui.png)、[热力图](assets/P0-24-dialog/round6/dark/multiline-heatmap.png)；[浅色参照](assets/P0-24-dialog/round6/light/multiline-reference.png)、[GPUI](assets/P0-24-dialog/round6/light/multiline-gpui.png)、[热力图](assets/P0-24-dialog/round6/light/multiline-heatmap.png)。无需新增例外或待确认项。
+
+### 人工核对 E-001
+
+按原有 E-001 的方法，在本轮截图上放大到 400% 查看内容框下沿、两侧下圆角与阴影尾部；每张图左为参照、右为 GPUI。
+
+| 屏幕                    | 深色证据                                                                   | 浅色证据                                                                    | 核对结论                                                             |
+| ----------------------- | -------------------------------------------------------------------------- | --------------------------------------------------------------------------- | -------------------------------------------------------------------- |
+| `ui.dialog.confirm`     | [400% 下沿](assets/P0-24-dialog/round6/dark/confirm-lower-edge-4x.png)     | [400% 下沿](assets/P0-24-dialog/round6/light/confirm-lower-edge-4x.png)     | 两主题下沿阴影方向、范围、深浅一致，未见缺失或整体偏移；沿用 E-001。 |
+| `ui.dialog.destructive` | [400% 下沿](assets/P0-24-dialog/round6/dark/destructive-lower-edge-4x.png) | [400% 下沿](assets/P0-24-dialog/round6/light/destructive-lower-edge-4x.png) | 两主题下沿阴影方向、范围、深浅一致，未见缺失或整体偏移；沿用 E-001。 |
+| `ui.dialog.prompt`      | [400% 下沿](assets/P0-24-dialog/round6/dark/prompt-lower-edge-4x.png)      | [400% 下沿](assets/P0-24-dialog/round6/light/prompt-lower-edge-4x.png)      | 两主题下沿阴影方向、范围、深浅一致，未见缺失或整体偏移；沿用 E-001。 |
+| `ui.dialog.multiline`   | [400% 下沿](assets/P0-24-dialog/round6/dark/multiline-lower-edge-4x.png)   | [400% 下沿](assets/P0-24-dialog/round6/light/multiline-lower-edge-4x.png)   | 两主题下沿阴影方向、范围、深浅一致，未见缺失或整体偏移；沿用 E-001。 |
+
+### 全部检查、主题隔离与未验证项
+
+AGENTS.md 全部检查均在沙箱外运行并通过：
+
+- `pnpm lint`、`pnpm format:check`、`pnpm check:tokens`、`pnpm typecheck`、`pnpm test`（174 文件、1294 测试）、`pnpm check:size`（1049 文件）；[执行记录](assets/P0-24-dialog/round6/frontend-checks.md)、[size 日志](assets/P0-24-dialog/round6/size.log)。
+- `cargo fmt --all --check`、`cargo clippy --workspace --all-targets -- -D warnings`、`cargo test --workspace`：**1188 passed、0 failed、52 个既有 ignored**，0 filtered，没有新增 ignored 或跳过命令。全部 cargo 均带 `CARGO_BUILD_JOBS=3`，使用本 worktree target。[fmt](assets/P0-24-dialog/round6/fmt.log)、[clippy](assets/P0-24-dialog/round6/clippy.log)、[workspace 测试原文](assets/P0-24-dialog/round6/tests.log)。
+- UI 单包 **59/59**，[日志](assets/P0-24-dialog/round6/ui.log)。`rendering_two_dialog_themes_does_not_mutate_global_theme`、Input 模块中同时绘制 Button/Input 的 `rendering_local_themes_does_not_mutate_global_theme` 继续通过；同窗口两套主题、渲染前后读全局主题的证据仍有效。应用枚举 `macos_lists_the_applications_for_text_with_icons` 在沙箱外通过。
+
+Windows 未验证（需 Windows）。[人工] 动画、真实中文输入法、系统辅助功能、真实 Tauri 窗口交叉截图仍未覆盖。诊断启动的 WebKit/Vite 均在 finally 中关闭，GPUI 使用 headless，临时 Rust 诊断入口已删除。无新依赖，未合并、未 push。
