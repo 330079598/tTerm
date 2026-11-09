@@ -20,6 +20,7 @@ use std::sync::Arc;
 
 fn initialize_gpui(cx: &mut gpui_kit::App) {
     gpui_kit::init(cx);
+    tterm_ui::init(cx);
 }
 
 /// One captured screen.

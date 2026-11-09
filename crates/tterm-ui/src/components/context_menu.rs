@@ -15,6 +15,11 @@ use crate::tokens::theme::Theme;
 use gpui_kit::{App, Bounds, Context, FocusHandle, Hsla, Pixels, SharedString, Window};
 use std::{cell::Cell, rc::Rc};
 
+/// Registers menu bindings during application setup and after rebuilding the keymap.
+pub fn init(cx: &mut App) {
+    keyboard::init(cx);
+}
+
 /// Only the icons currently used by the page-tab menu are migrated.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum MenuIcon {
@@ -66,6 +71,7 @@ pub struct ContextMenu {
     actions: Vec<MenuAction>,
     theme: Theme,
     highlighted: Option<usize>,
+    focus_visible: bool,
     hovered: Option<usize>,
     open: bool,
     focus: FocusHandle,
@@ -85,7 +91,6 @@ impl ContextMenu {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) -> Self {
-        keyboard::init(cx);
         let highlighted = actions.iter().position(|a| !a.separator && !a.disabled);
         let previous_focus = window.focused(cx);
         let focus = cx.focus_handle();
@@ -97,6 +102,7 @@ impl ContextMenu {
             actions,
             theme,
             highlighted,
+            focus_visible: window.last_input_was_keyboard(),
             hovered: None,
             open: true,
             focus,
@@ -187,6 +193,7 @@ impl ContextMenu {
             None => 0,
         };
         self.highlighted = Some(enabled[next]);
+        self.focus_visible = true;
         cx.notify();
     }
 }

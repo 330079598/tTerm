@@ -30,6 +30,7 @@ impl Render for Probe {
 type Events = Rc<RefCell<Vec<String>>>;
 fn harness(cx: &mut TestAppContext) -> (Entity<ContextMenu>, &mut VisualTestContext, Events) {
     cx.update(gpui_kit::init);
+    cx.update(crate::init);
     let events: Events = Rc::new(RefCell::new(Vec::new()));
     let events_for_view = events.clone();
     let (root, visual) = cx.add_window_view(|window, cx| {
@@ -163,6 +164,7 @@ impl Render for Themes {
 #[gpui_kit::test]
 fn rendering_two_themes_in_one_window_preserves_global_theme(cx: &mut TestAppContext) {
     cx.update(gpui_kit::init);
+    cx.update(crate::init);
     let before =
         cx.read(|cx| serde_json::to_string(gpui_kit::component::theme::Theme::global(cx)).unwrap());
     let (_, visual) = cx.add_window_view(|window, cx| {
@@ -243,23 +245,66 @@ fn callbacks_can_read_and_update_the_menu_after_entity_borrow_ends(cx: &mut Test
     assert_eq!(&*events.borrow(), &["read-action", "read-close"]);
 }
 
+fn painted_ring_count(visual: &mut VisualTestContext) -> usize {
+    visual.update(|window, cx| {
+        window.render_frame(cx);
+        let ring = crate::components::surface::css_color(DARK.colors.ring, 0.5);
+        window
+            .painted_quads()
+            .iter()
+            .filter(|quad| quad.border_color == ring)
+            .count()
+    })
+}
+
 #[gpui_kit::test]
-fn focus_ring_follows_real_pointer_and_keyboard_input(cx: &mut TestAppContext) {
-    let (menu, visual, _) = harness(cx);
-    let ring = |visual: &mut VisualTestContext| {
-        visual.update(|window, cx| {
-            menu.read(cx)
-                .row_style(0, window.last_input_was_keyboard())
-                .ring_spread
-        })
-    };
-    assert_eq!(ring(visual), 0.0);
-    visual.simulate_keystrokes("home");
-    redraw(visual);
-    assert_eq!(ring(visual), 3.0);
+fn keyboard_ring_survives_mouse_move_until_pointer_press(cx: &mut TestAppContext) {
+    let (_, visual, _) = harness(cx);
+    assert_eq!(painted_ring_count(visual), 0);
+    visual.simulate_keystrokes("down");
+    assert_eq!(painted_ring_count(visual), 1);
+    visual.simulate_mouse_move(point(px(60.0), px(80.0)), None, Modifiers::default());
+    assert_eq!(painted_ring_count(visual), 1);
+    // Card padding clears focus-visible without closing or activating a row.
+    visual.simulate_click(point(px(22.0), px(22.0)), Modifiers::default());
+    assert_eq!(painted_ring_count(visual), 0);
+}
+
+#[gpui_kit::test]
+fn hovered_background_survives_keyboard_navigation(cx: &mut TestAppContext) {
+    let (_, visual, _) = harness(cx);
     visual.simulate_mouse_move(point(px(60.0), px(42.0)), None, Modifiers::default());
-    redraw(visual);
-    assert_eq!(ring(visual), 0.0);
+    let hover_color = crate::components::surface::css_color(DARK.colors.accent, 0.5);
+    for key in [None, Some("down")] {
+        if let Some(key) = key {
+            visual.simulate_keystrokes(key);
+        }
+        visual.update(|window, cx| {
+            window.render_frame(cx);
+            assert!(
+                window
+                    .painted_quads()
+                    .iter()
+                    .any(|quad| quad.background == hover_color.into())
+            );
+        });
+    }
+}
+
+#[gpui_kit::test]
+fn explicit_init_restores_menu_bindings_after_keymap_reload(cx: &mut TestAppContext) {
+    let (menu, visual, _) = harness(cx);
+    visual.update(|_, cx| {
+        cx.clear_key_bindings();
+        crate::init(cx);
+    });
+    for (key, index) in [("tab", 2), ("shift-tab", 0), ("down", 2)] {
+        visual.simulate_keystrokes(key);
+        redraw(visual);
+        assert_eq!(state(&menu, visual), (true, Some(index)));
+    }
+    visual.simulate_keystrokes("escape");
+    assert!(!state(&menu, visual).0);
 }
 
 gpui_kit::actions!(menu_test, [AncestorCancel]);
@@ -296,6 +341,7 @@ impl Render for OverlayProbe {
 #[gpui_kit::test]
 fn deferred_menu_escapes_clipping_occludes_later_sibling_and_owns_escape(cx: &mut TestAppContext) {
     cx.update(gpui_kit::init);
+    cx.update(crate::init);
     cx.update(|cx| {
         cx.bind_keys([gpui_kit::KeyBinding::new(
             "escape",

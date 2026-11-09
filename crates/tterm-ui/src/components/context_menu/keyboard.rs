@@ -1,20 +1,14 @@
 //! Menu bindings outrank Root traversal and ancestor dialog actions.
 use super::ContextMenu;
-use gpui_kit::{App, Context, Div, Global, InteractiveElement, KeyBinding, Stateful, Window};
+use gpui_kit::{App, Context, Div, InteractiveElement, KeyBinding, Stateful, Window};
 
 gpui_kit::actions!(
     context_menu,
     [SelectNext, SelectPrev, First, Last, Confirm, Cancel]
 );
-struct Bindings;
-impl Global for Bindings {}
 pub(super) const CONTEXT: &str = "TTermContextMenu";
 
 pub(super) fn init(cx: &mut App) {
-    if cx.has_global::<Bindings>() {
-        return;
-    }
-    cx.set_global(Bindings);
     cx.bind_keys([
         KeyBinding::new("tab", SelectNext, Some(CONTEXT)),
         KeyBinding::new("shift-tab", SelectPrev, Some(CONTEXT)),
@@ -49,6 +43,7 @@ impl ContextMenu {
         } else {
             indices.next()
         };
+        self.focus_visible = true;
         cx.notify();
     }
     fn confirm(&mut self, window: &mut Window, cx: &mut Context<Self>) {

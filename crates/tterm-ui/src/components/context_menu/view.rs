@@ -59,10 +59,10 @@ impl ContextMenu {
             .opacity(css_opacity(style.opacity))
     }
 
-    pub(super) fn row_style(&self, index: usize, keyboard: bool) -> PartStyle {
+    pub(super) fn row_style(&self, index: usize) -> PartStyle {
         let action = &self.actions[index];
         let base = self.base_style();
-        let focused = keyboard && self.highlighted == Some(index);
+        let focused = self.focus_visible && self.highlighted == Some(index);
         let hovered = self.hovered == Some(index) && !action.disabled;
         PartStyle {
             background: if hovered {
@@ -180,7 +180,7 @@ impl ContextMenu {
         row
     }
 
-    fn row(&self, index: usize, keyboard: bool, cx: &mut Context<Self>) -> AnyElement {
+    fn row(&self, index: usize, cx: &mut Context<Self>) -> AnyElement {
         let action = &self.actions[index];
         let base = self.base_style();
         if action.separator {
@@ -199,8 +199,8 @@ impl ContextMenu {
                 )
                 .into_any_element();
         }
-        let focused = keyboard && self.highlighted == Some(index);
-        let style = self.row_style(index, keyboard);
+        let focused = self.focus_visible && self.highlighted == Some(index);
+        let style = self.row_style(index);
         let mut row = Self::styled(style)
             .id((self.id.clone(), index))
             .w_full()
@@ -218,6 +218,7 @@ impl ContextMenu {
         row = self.row_content(index, row, style);
         if !action.disabled {
             row = row
+                .hover_listener_mode(gpui_kit::HoverListenerMode::InputModalityIndependent)
                 .on_hover(cx.listener(move |this, hovered: &bool, _, cx| {
                     this.hovered = if *hovered {
                         Some(index)
@@ -250,7 +251,7 @@ impl Render for ContextMenu {
             ..self.base_style()
         };
         let rows = (0..self.actions.len())
-            .map(|index| self.row(index, window.last_input_was_keyboard(), cx))
+            .map(|index| self.row(index, cx))
             .collect::<Vec<_>>();
         let body = self.part(
             "body".into(),
@@ -265,6 +266,20 @@ impl Render for ContextMenu {
             .shadow(shadow_lg())
             .track_focus(&self.focus)
             .occlude()
+            .on_mouse_down(
+                gpui_kit::MouseButton::Left,
+                cx.listener(|this, _, _, cx| {
+                    this.focus_visible = false;
+                    cx.notify();
+                }),
+            )
+            .on_mouse_down(
+                gpui_kit::MouseButton::Right,
+                cx.listener(|this, _, _, cx| {
+                    this.focus_visible = false;
+                    cx.notify();
+                }),
+            )
             .on_mouse_down_out(cx.listener(|this, _, window, cx| this.close(window, cx)))
             .child(surface(
                 style.background,

@@ -47,8 +47,9 @@ impl Element for MenuText {
         let style = window.text_style();
         let font_size = style.font_size.to_pixels(window.rem_size());
         let run = style.to_run(text.len());
-        // WebKit's inline span has a 16px line box at this 14px font size,
-        // even though computedStyle reports the inherited 16.8px declaration.
+        // WebKit truncates this inline line box to whole CSS pixels: the measured
+        // 16.8px declaration yields 16px per line (32px for two wrapped lines).
+        // Use that derived height for every line, including the first and its text region.
         let line_height = px(style
             .line_height
             .to_pixels(font_size.into(), window.rem_size())
@@ -79,7 +80,7 @@ impl Element for MenuText {
                     measured.width = measured.width.max(line_size.width.ceil());
                 }
                 if count > 0 {
-                    measured.height = px(16.0) + line_height * (count - 1) as f32;
+                    measured.height = line_height * count as f32;
                 }
                 *lines.borrow_mut() = shaped.into_iter().collect();
                 measured
@@ -115,7 +116,7 @@ impl Element for MenuText {
                     &format!("text-{slot}-{index}"),
                     Bounds::new(
                         gpui_kit::point(bounds.origin.x, y),
-                        size(end - start, px(16.0)),
+                        size(end - start, height),
                     ),
                     *style,
                 );
