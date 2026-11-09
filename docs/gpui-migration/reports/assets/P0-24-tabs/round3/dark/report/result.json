@@ -1,0 +1,743 @@
+{
+  "schemaVersion": 2,
+  "reference": {
+    "frontendCommit": "45765904d4939bcef8e13c0f2058d76ad5a73e4b",
+    "dirty": false
+  },
+  "thresholds": {
+    "fixedPx": 1.0,
+    "textPx": 2.0,
+    "textFraction": 0.02,
+    "maskedSsim": 0.99,
+    "fullSsim": 0.97,
+    "screenColorPixels": 0
+  },
+  "screens": [
+    {
+      "id": "example.button-input.default",
+      "title": "Example: one button and one input",
+      "passed": true,
+      "layout": {
+        "passed": true,
+        "elements": [
+          {
+            "id": "example.button",
+            "passed": true,
+            "maxBoundsDelta": 0.25,
+            "failures": []
+          },
+          {
+            "id": "example.input",
+            "passed": true,
+            "maxBoundsDelta": 0.0,
+            "failures": []
+          },
+          {
+            "id": "example.screen",
+            "passed": true,
+            "maxBoundsDelta": 0.0,
+            "failures": []
+          }
+        ],
+        "failures": []
+      },
+      "colors": {
+        "meanDeltaE": 0.0001,
+        "maxDeltaE": 2.6153,
+        "pixelsAboveOne": 52
+      },
+      "screenColors": {
+        "meanDeltaE": 0.0,
+        "maxDeltaE": 0.0,
+        "pixelsAboveOne": 0
+      },
+      "ssim": {
+        "full": 0.998504,
+        "masked": 1.0
+      },
+      "heatmap": "heatmaps/example.button-input.default.png",
+      "images": {
+        "reference": "../reference/45765904d4939bcef8e13c0f2058d76ad5a73e4b/example.button-input.default.png",
+        "actual": "../actual/example.button-input.default.png"
+      },
+      "icons": [],
+      "exceptions": [],
+      "failures": []
+    },
+    {
+      "id": "ui.button.variants",
+      "title": "Button variants and states",
+      "passed": true,
+      "layout": {
+        "passed": true,
+        "elements": [
+          {
+            "id": "ui.button.variants.default",
+            "passed": true,
+            "maxBoundsDelta": 0.0,
+            "failures": []
+          },
+          {
+            "id": "ui.button.variants.destructive",
+            "passed": true,
+            "maxBoundsDelta": 0.0,
+            "failures": []
+          },
+          {
+            "id": "ui.button.variants.disabled",
+            "passed": true,
+            "maxBoundsDelta": 0.0,
+            "failures": []
+          },
+          {
+            "id": "ui.button.variants.disabled-destructive",
+            "passed": true,
+            "maxBoundsDelta": 0.0,
+            "failures": []
+          },
+          {
+            "id": "ui.button.variants.disabled-outline",
+            "passed": true,
+            "maxBoundsDelta": 0.0,
+            "failures": []
+          },
+          {
+            "id": "ui.button.variants.focus",
+            "passed": true,
+            "maxBoundsDelta": 0.0,
+            "failures": []
+          },
+          {
+            "id": "ui.button.variants.ghost",
+            "passed": true,
+            "maxBoundsDelta": 0.0,
+            "failures": []
+          },
+          {
+            "id": "ui.button.variants.hover",
+            "passed": true,
+            "maxBoundsDelta": 0.0,
+            "failures": []
+          },
+          {
+            "id": "ui.button.variants.link",
+            "passed": true,
+            "maxBoundsDelta": 0.0,
+            "failures": []
+          },
+          {
+            "id": "ui.button.variants.outline",
+            "passed": true,
+            "maxBoundsDelta": 0.0,
+            "failures": []
+          },
+          {
+            "id": "ui.button.variants.screen",
+            "passed": true,
+            "maxBoundsDelta": 0.0,
+            "failures": []
+          },
+          {
+            "id": "ui.button.variants.secondary",
+            "passed": true,
+            "maxBoundsDelta": 0.0,
+            "failures": []
+          }
+        ],
+        "failures": []
+      },
+      "colors": {
+        "meanDeltaE": 0.0551,
+        "maxDeltaE": 5.7733,
+        "pixelsAboveOne": 386
+      },
+      "screenColors": {
+        "meanDeltaE": 0.0548,
+        "maxDeltaE": 0.7063,
+        "pixelsAboveOne": 0
+      },
+      "ssim": {
+        "full": 0.990686,
+        "masked": 0.999909
+      },
+      "heatmap": "heatmaps/ui.button.variants.png",
+      "images": {
+        "reference": "../reference/45765904d4939bcef8e13c0f2058d76ad5a73e4b/ui.button.variants.png",
+        "actual": "../actual/ui.button.variants.png"
+      },
+      "icons": [],
+      "exceptions": [],
+      "failures": []
+    },
+    {
+      "id": "ui.button.sizes",
+      "title": "Button sizes",
+      "passed": true,
+      "layout": {
+        "passed": true,
+        "elements": [
+          {
+            "id": "ui.button.sizes.default",
+            "passed": true,
+            "maxBoundsDelta": 0.0,
+            "failures": []
+          },
+          {
+            "id": "ui.button.sizes.icon",
+            "passed": true,
+            "maxBoundsDelta": 0.0,
+            "failures": []
+          },
+          {
+            "id": "ui.button.sizes.icon-lg",
+            "passed": true,
+            "maxBoundsDelta": 0.0,
+            "failures": []
+          },
+          {
+            "id": "ui.button.sizes.icon-sm",
+            "passed": true,
+            "maxBoundsDelta": 0.0,
+            "failures": []
+          },
+          {
+            "id": "ui.button.sizes.icon-xs",
+            "passed": true,
+            "maxBoundsDelta": 0.0,
+            "failures": []
+          },
+          {
+            "id": "ui.button.sizes.lg",
+            "passed": true,
+            "maxBoundsDelta": 0.0,
+            "failures": []
+          },
+          {
+            "id": "ui.button.sizes.screen",
+            "passed": true,
+            "maxBoundsDelta": 0.0,
+            "failures": []
+          },
+          {
+            "id": "ui.button.sizes.sm",
+            "passed": true,
+            "maxBoundsDelta": 0.0,
+            "failures": []
+          },
+          {
+            "id": "ui.button.sizes.xs",
+            "passed": true,
+            "maxBoundsDelta": 0.0,
+            "failures": []
+          }
+        ],
+        "failures": []
+      },
+      "colors": {
+        "meanDeltaE": 0.0004,
+        "maxDeltaE": 3.1651,
+        "pixelsAboveOne": 288
+      },
+      "screenColors": {
+        "meanDeltaE": 0.0,
+        "maxDeltaE": 0.0,
+        "pixelsAboveOne": 0
+      },
+      "ssim": {
+        "full": 0.998855,
+        "masked": 0.999997
+      },
+      "heatmap": "heatmaps/ui.button.sizes.png",
+      "images": {
+        "reference": "../reference/45765904d4939bcef8e13c0f2058d76ad5a73e4b/ui.button.sizes.png",
+        "actual": "../actual/ui.button.sizes.png"
+      },
+      "icons": [],
+      "exceptions": [],
+      "failures": []
+    },
+    {
+      "id": "ui.input.default",
+      "title": "Input primitive states",
+      "passed": true,
+      "layout": {
+        "passed": true,
+        "elements": [
+          {
+            "id": "ui.input.disabled",
+            "passed": true,
+            "maxBoundsDelta": 0.0,
+            "failures": []
+          },
+          {
+            "id": "ui.input.empty",
+            "passed": true,
+            "maxBoundsDelta": 0.0,
+            "failures": []
+          },
+          {
+            "id": "ui.input.focus",
+            "passed": true,
+            "maxBoundsDelta": 0.0,
+            "failures": []
+          },
+          {
+            "id": "ui.input.long",
+            "passed": true,
+            "maxBoundsDelta": 0.0,
+            "failures": []
+          },
+          {
+            "id": "ui.input.screen",
+            "passed": true,
+            "maxBoundsDelta": 0.0,
+            "failures": []
+          }
+        ],
+        "failures": []
+      },
+      "colors": {
+        "meanDeltaE": 0.0029,
+        "maxDeltaE": 12.008,
+        "pixelsAboveOne": 324
+      },
+      "screenColors": {
+        "meanDeltaE": 0.0015,
+        "maxDeltaE": 0.6928,
+        "pixelsAboveOne": 0
+      },
+      "ssim": {
+        "full": 0.977403,
+        "masked": 0.999898
+      },
+      "heatmap": "heatmaps/ui.input.default.png",
+      "images": {
+        "reference": "../reference/45765904d4939bcef8e13c0f2058d76ad5a73e4b/ui.input.default.png",
+        "actual": "../actual/ui.input.default.png"
+      },
+      "icons": [],
+      "exceptions": [],
+      "failures": []
+    },
+    {
+      "id": "ui.password.default",
+      "title": "Password input states",
+      "passed": true,
+      "layout": {
+        "passed": true,
+        "elements": [
+          {
+            "id": "ui.password.default",
+            "passed": true,
+            "maxBoundsDelta": 0.0,
+            "failures": []
+          },
+          {
+            "id": "ui.password.disabled",
+            "passed": true,
+            "maxBoundsDelta": 0.0,
+            "failures": []
+          },
+          {
+            "id": "ui.password.masked",
+            "passed": true,
+            "maxBoundsDelta": 0.0,
+            "failures": []
+          }
+        ],
+        "failures": []
+      },
+      "colors": {
+        "meanDeltaE": 0.0027,
+        "maxDeltaE": 5.7733,
+        "pixelsAboveOne": 370
+      },
+      "screenColors": {
+        "meanDeltaE": 0.0012,
+        "maxDeltaE": 0.6928,
+        "pixelsAboveOne": 0
+      },
+      "ssim": {
+        "full": 0.991676,
+        "masked": 0.99992
+      },
+      "heatmap": "heatmaps/ui.password.default.png",
+      "images": {
+        "reference": "../reference/45765904d4939bcef8e13c0f2058d76ad5a73e4b/ui.password.default.png",
+        "actual": "../actual/ui.password.default.png"
+      },
+      "icons": [
+        {
+          "bounds": {
+            "x": 740.0,
+            "y": 42.0,
+            "width": 16.0,
+            "height": 16.0
+          },
+          "inkRatio": 1.0090967513946805,
+          "centroidDelta": 0.0014832225883226356,
+          "colorDeltaE": 0.3265440820899654,
+          "passed": true
+        },
+        {
+          "bounds": {
+            "x": 740.0,
+            "y": 94.0,
+            "width": 16.0,
+            "height": 16.0
+          },
+          "inkRatio": 1.0091388497913807,
+          "centroidDelta": 0.0016284660807890715,
+          "colorDeltaE": 0.3265440820899654,
+          "passed": true
+        },
+        {
+          "bounds": {
+            "x": 740.0,
+            "y": 146.0,
+            "width": 16.0,
+            "height": 16.0
+          },
+          "inkRatio": 1.0062775471298253,
+          "centroidDelta": 0.0024654953509756976,
+          "colorDeltaE": 0.6203749505174446,
+          "passed": true
+        }
+      ],
+      "exceptions": [],
+      "failures": []
+    },
+    {
+      "id": "ui.select.default",
+      "title": "Select states",
+      "passed": true,
+      "layout": {
+        "passed": true,
+        "elements": [
+          {
+            "id": "ui.select.default",
+            "passed": true,
+            "maxBoundsDelta": 0.0,
+            "failures": []
+          },
+          {
+            "id": "ui.select.disabled",
+            "passed": true,
+            "maxBoundsDelta": 0.0,
+            "failures": []
+          },
+          {
+            "id": "ui.select.focus",
+            "passed": true,
+            "maxBoundsDelta": 0.0,
+            "failures": []
+          },
+          {
+            "id": "ui.select.long",
+            "passed": true,
+            "maxBoundsDelta": 0.0,
+            "failures": []
+          }
+        ],
+        "failures": []
+      },
+      "colors": {
+        "meanDeltaE": 0.003,
+        "maxDeltaE": 11.6053,
+        "pixelsAboveOne": 430
+      },
+      "screenColors": {
+        "meanDeltaE": 0.002,
+        "maxDeltaE": 0.6928,
+        "pixelsAboveOne": 0
+      },
+      "ssim": {
+        "full": 0.998832,
+        "masked": 0.99993
+      },
+      "heatmap": "heatmaps/ui.select.default.png",
+      "images": {
+        "reference": "../reference/45765904d4939bcef8e13c0f2058d76ad5a73e4b/ui.select.default.png",
+        "actual": "../actual/ui.select.default.png"
+      },
+      "icons": [
+        {
+          "bounds": {
+            "x": 740.0,
+            "y": 42.0,
+            "width": 16.0,
+            "height": 16.0
+          },
+          "inkRatio": 1.0277416690075876,
+          "centroidDelta": 0.00033869863985103166,
+          "colorDeltaE": 0.3265440820899654,
+          "passed": true
+        },
+        {
+          "bounds": {
+            "x": 740.0,
+            "y": 94.0,
+            "width": 16.0,
+            "height": 16.0
+          },
+          "inkRatio": 1.0277416690075876,
+          "centroidDelta": 0.00033869863982260995,
+          "colorDeltaE": 0.3265440820899654,
+          "passed": true
+        },
+        {
+          "bounds": {
+            "x": 740.0,
+            "y": 146.0,
+            "width": 16.0,
+            "height": 16.0
+          },
+          "inkRatio": 1.0277416690075876,
+          "centroidDelta": 0.0003386986398083991,
+          "colorDeltaE": 0.3265440820899654,
+          "passed": true
+        },
+        {
+          "bounds": {
+            "x": 740.0,
+            "y": 198.0,
+            "width": 16.0,
+            "height": 16.0
+          },
+          "inkRatio": 1.0277416690075876,
+          "centroidDelta": 0.00033869863972313397,
+          "colorDeltaE": 0.3265440820899654,
+          "passed": true
+        }
+      ],
+      "exceptions": [],
+      "failures": []
+    },
+    {
+      "id": "ui.switch.default",
+      "title": "Switch states",
+      "passed": true,
+      "layout": {
+        "passed": true,
+        "elements": [
+          {
+            "id": "ui.switch.checked",
+            "passed": true,
+            "maxBoundsDelta": 0.0,
+            "failures": []
+          },
+          {
+            "id": "ui.switch.checked.switch-thumb",
+            "passed": true,
+            "maxBoundsDelta": 0.0,
+            "failures": []
+          },
+          {
+            "id": "ui.switch.disabled",
+            "passed": true,
+            "maxBoundsDelta": 0.0,
+            "failures": []
+          },
+          {
+            "id": "ui.switch.disabled.switch-thumb",
+            "passed": true,
+            "maxBoundsDelta": 0.0,
+            "failures": []
+          },
+          {
+            "id": "ui.switch.focus",
+            "passed": true,
+            "maxBoundsDelta": 0.0,
+            "failures": []
+          },
+          {
+            "id": "ui.switch.focus.switch-thumb",
+            "passed": true,
+            "maxBoundsDelta": 0.0,
+            "failures": []
+          },
+          {
+            "id": "ui.switch.unchecked",
+            "passed": true,
+            "maxBoundsDelta": 0.0,
+            "failures": []
+          },
+          {
+            "id": "ui.switch.unchecked.switch-thumb",
+            "passed": true,
+            "maxBoundsDelta": 0.0,
+            "failures": []
+          }
+        ],
+        "failures": []
+      },
+      "colors": {
+        "meanDeltaE": 0.0004,
+        "maxDeltaE": 3.89,
+        "pixelsAboveOne": 236
+      },
+      "screenColors": {
+        "meanDeltaE": 0.0,
+        "maxDeltaE": 0.0808,
+        "pixelsAboveOne": 0
+      },
+      "ssim": {
+        "full": 0.999996,
+        "masked": 0.999994
+      },
+      "heatmap": "heatmaps/ui.switch.default.png",
+      "images": {
+        "reference": "../reference/45765904d4939bcef8e13c0f2058d76ad5a73e4b/ui.switch.default.png",
+        "actual": "../actual/ui.switch.default.png"
+      },
+      "icons": [],
+      "exceptions": [
+        "E-001"
+      ],
+      "failures": []
+    },
+    {
+      "id": "ui.tabs.default",
+      "title": "Tabs primitive states",
+      "passed": true,
+      "layout": {
+        "passed": true,
+        "elements": [
+          {
+            "id": "ui.tabs.active",
+            "passed": true,
+            "maxBoundsDelta": 0.33,
+            "failures": []
+          },
+          {
+            "id": "ui.tabs.content",
+            "passed": true,
+            "maxBoundsDelta": 0.0,
+            "failures": []
+          },
+          {
+            "id": "ui.tabs.default",
+            "passed": true,
+            "maxBoundsDelta": 0.0,
+            "failures": []
+          },
+          {
+            "id": "ui.tabs.focus",
+            "passed": true,
+            "maxBoundsDelta": 0.12,
+            "failures": []
+          },
+          {
+            "id": "ui.tabs.inactive",
+            "passed": true,
+            "maxBoundsDelta": 0.33,
+            "failures": []
+          },
+          {
+            "id": "ui.tabs.list",
+            "passed": true,
+            "maxBoundsDelta": 0.09,
+            "failures": []
+          }
+        ],
+        "failures": []
+      },
+      "colors": {
+        "meanDeltaE": 0.0002,
+        "maxDeltaE": 6.7605,
+        "pixelsAboveOne": 123
+      },
+      "screenColors": {
+        "meanDeltaE": 0.0,
+        "maxDeltaE": 0.0,
+        "pixelsAboveOne": 0
+      },
+      "ssim": {
+        "full": 0.998166,
+        "masked": 0.999993
+      },
+      "heatmap": "heatmaps/ui.tabs.default.png",
+      "images": {
+        "reference": "../reference/45765904d4939bcef8e13c0f2058d76ad5a73e4b/ui.tabs.default.png",
+        "actual": "../actual/ui.tabs.default.png"
+      },
+      "icons": [],
+      "exceptions": [
+        "E-001"
+      ],
+      "failures": []
+    },
+    {
+      "id": "ui.tabs.server-monitor",
+      "title": "Tabs using ServerMonitorPanel classes",
+      "passed": true,
+      "layout": {
+        "passed": true,
+        "elements": [
+          {
+            "id": "ui.tabs.server",
+            "passed": true,
+            "maxBoundsDelta": 0.0,
+            "failures": []
+          },
+          {
+            "id": "ui.tabs.server-active",
+            "passed": true,
+            "maxBoundsDelta": 0.08,
+            "failures": []
+          },
+          {
+            "id": "ui.tabs.server-content",
+            "passed": true,
+            "maxBoundsDelta": 0.0,
+            "failures": []
+          },
+          {
+            "id": "ui.tabs.server-focus",
+            "passed": true,
+            "maxBoundsDelta": 0.06,
+            "failures": []
+          },
+          {
+            "id": "ui.tabs.server-inactive",
+            "passed": true,
+            "maxBoundsDelta": 0.05,
+            "failures": []
+          },
+          {
+            "id": "ui.tabs.server-list",
+            "passed": true,
+            "maxBoundsDelta": 0.03,
+            "failures": []
+          }
+        ],
+        "failures": []
+      },
+      "colors": {
+        "meanDeltaE": 0.0001,
+        "maxDeltaE": 2.701,
+        "pixelsAboveOne": 84
+      },
+      "screenColors": {
+        "meanDeltaE": 0.0,
+        "maxDeltaE": 0.0,
+        "pixelsAboveOne": 0
+      },
+      "ssim": {
+        "full": 0.997984,
+        "masked": 0.999999
+      },
+      "heatmap": "heatmaps/ui.tabs.server-monitor.png",
+      "images": {
+        "reference": "../reference/45765904d4939bcef8e13c0f2058d76ad5a73e4b/ui.tabs.server-monitor.png",
+        "actual": "../actual/ui.tabs.server-monitor.png"
+      },
+      "icons": [],
+      "exceptions": [
+        "E-001"
+      ],
+      "failures": []
+    }
+  ],
+  "passed": true
+}

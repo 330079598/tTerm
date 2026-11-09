@@ -1,5 +1,7 @@
 # P0-24 Tabs 与阴影返工（macOS）
 
+> 当前状态：第 3 轮已完成待评估，最终结果见文末“第 3 轮”。下文保留第 2 轮的历史结果与原因。
+
 ## 结论与更正
 
 状态：**需要确认**。本轮已经修复阴影引起的 Button、Input、PasswordInput 回归，七张既有屏幕在深浅两种主题下全部通过。Tabs 两屏的元素集合、盒模型、样式和 SSIM 均通过，但颜色门槛仍未通过，尚未满足“九屏全部通过”。此前报告“既有屏幕保持原有结果”与当时深色五屏失败的事实矛盾，现撤回该说法。对比和结果读取均由执行者完成，没有留给评估者代跑。
@@ -98,3 +100,92 @@ UPDATE_REFERENCE=1 PARITY_PLATFORM=macos PARITY_THEME=light CARGO_BUILD_JOBS=3 c
 - [人工] Select 原生展开列表、中文输入法、真实键盘 Caps Lock：沿用第一批遗留；本轮未验证。
 - [人工] Switch 已登记 E-001 的阴影外观仍需按既有方法核对；未扩大适用范围。
 - 未合并、未 push。
+
+
+## 第 3 轮（2026-11-09）：多层 ring 与 Tabs active 阴影
+
+### 结论与范围
+
+**完成待评估**。决策人 stone 已批准把 ring-offset 的内轮廓纳入决策 013，把 Tabs 两个 active trigger 纳入 E-001。实现、文档、采集和比较测试已经同步；深浅主题均为 **9/9**，每屏 `screenColors.pixelsAboveOne` 都为 **0**。此前“需要确认”的剩余问题在本轮批准的规则范围内解决。
+
+没有改生产 CSS、颜色、像素门槛、SSIM 门槛或轮廓带宽。E-001 仅新增默认屏 `ui.tabs.active` 和第二屏 `ui.tabs.server-active`，outset=4；focus trigger 没有进入例外。
+
+### 工具与计算样式
+
+- React 从 computed box-shadow 采集全部可见、非 inset、x/y/blur=0、spread>0 的层，按升序写入必填 `ringSpreads`。原 `ringSpread` 保留最大值。Tabs focus 为 `[2,4]`，既有 Button/Switch focus 为 `[3]`，无 ring 为 `[]`。
+- GPUI 的 `TabsStyle` 现在包含 `ring_offset` 和 `ring_spread`，`ring_spreads()` 同时供 `offset_ring` 绘制与 parity 快照使用；没有在快照另写 2 和 4。Button、Switch 也从自身绘制计算样式导出数组。
+- 每层轮廓按各自 spread 外扩、按 CSS Backgrounds 3 计算圆角，只排除轮廓两侧各 1 个物理像素；ring 与 offset 的填充仍参与颜色门槛。
+- 布局 schema **4 → 5**；`ringSpreads` 无 serde default，旧缓存缺字段会报错。空 elements 的旧版本也由 `LayoutDocument::load` 拒绝，cache_is_current 因此会重建。manifest/report schema 不变。
+- 数组长度、顺序、值均进入样式检查，0.01px 容差；失败信息含元素名。决策 013 的原文保留，在末尾补充 ring-offset 规则，模糊及 x/y 非零阴影仍不由该规则处理。
+
+### 反向探测与自动测试
+
+[完整 Rust 输出](assets/P0-24-tabs/round3/checks/workspace-test.txt)、[node 采集测试](assets/P0-24-tabs/round3/checks/layout-test.txt)。
+
+| 测试/探测 | 实际验证 | 结果 |
+| --- | --- | --- |
+| layout.test.mjs 两层 shadow | CSS 顺序 `[4,2]` 采为 `[2,4]`，ringSpread=4；透明、inset、blur、x/y 非零与负 spread 不纳入 | 通过 |
+| both_offset_ring_contours_are_edges_but_their_fills_are_not | DPR2 下两条轮廓的两侧及圆角被排除；ring 中间、offset 中间和带外像素仍未遮罩 | 通过 |
+| multilayer_ring_control_passes_without_changing_thresholds | 两端完全相同的多层圆角 ring 交给完整 compare_screen | 通过，门槛计数 0 |
+| moving_the_painted_ring_one_logical_pixel_fails_the_screen_gate | 只把 GPUI 图像中的 ring 整体向右挪 1 逻辑像素，不修改快照或遮罩 | **按预期失败**，screen colour gate >0 |
+| changing_the_offset_fill_fails_the_screen_gate | 只把 GPUI offset 填充换红色，spread 与快照保持原值 | **按预期失败**，screen colour gate >0 |
+| a_missing_offset_contour_fails_and_names_the_element | 数组删内层、改内层、交换顺序 | **按预期失败**，信息含 `tabs.focus: ring spreads` |
+| ring_spreads_are_required / old_schema_is_rejected | 缺数组以及 schema4 空布局 | **按预期拒绝**，没有静默复用缓存 |
+
+### 干净工作区对比
+
+先提交，再在沙箱外运行下列命令；运行时 `git status --short` 为空。代码提交为 `45a95d8d`、`45765904`，样式比较函数拆分为 `52ed0eab`。最终两种主题参照键均为 `45765904d4939bcef8e13c0f2058d76ad5a73e4b`（前端/parity 清单最后一次变更提交），`dirty:false`；深色目录无后缀，浅色后缀 `-light`，均**没有 `-dirty`**。实际 GPUI 为拆分后的最终代码。
+
+```sh
+UPDATE_REFERENCE=1 PARITY_PLATFORM=macos PARITY_THEME=dark CARGO_BUILD_JOBS=3 cargo run -p tterm-parity -- compare
+UPDATE_REFERENCE=1 PARITY_PLATFORM=macos PARITY_THEME=light CARGO_BUILD_JOBS=3 cargo run -p tterm-parity -- compare
+```
+
+Mac mini M4，800×600，DPR2，WebKit2191。两次退出码0：[深色 JSON](assets/P0-24-tabs/round3/dark/report/result.json)、[浅色 JSON](assets/P0-24-tabs/round3/light/report/result.json)。原样另存 `target/parity/report-dark.json`、`target/parity/report-light.json`。附件包含 actual PNG、两端布局、热力图、HTML 和 compare 日志；参考 PNG 依仓库规则保留在 target 缓存。
+
+| 屏幕 | 主题 | 结论 | 布局最大偏差 | 门槛计数 第2轮→第3轮 / 当前最大ΔE00 | 遮文字 SSIM | 整屏 SSIM |
+| --- | --- | --- | ---: | --- | ---: | ---: |
+| example.button-input.default | 深色 | 通过 | 0.25px | 0 → 0 / 0.0000 | 1.000000 | 0.998504 |
+| ui.button.variants | 深色 | 通过 | 0.00px | 0 → 0 / 0.7063 | 0.999909 | 0.990686 |
+| ui.button.sizes | 深色 | 通过 | 0.00px | 0 → 0 / 0.0000 | 0.999997 | 0.998855 |
+| ui.input.default | 深色 | 通过 | 0.00px | 0 → 0 / 0.6928 | 0.999898 | 0.977403 |
+| ui.password.default | 深色 | 通过 | 0.00px | 0 → 0 / 0.6928 | 0.999920 | 0.991676 |
+| ui.select.default | 深色 | 通过 | 0.00px | 0 → 0 / 0.6928 | 0.999930 | 0.998832 |
+| ui.switch.default | 深色 | 通过 | 0.00px | 0 → 0 / 0.0808 | 0.999994 | 0.999996 |
+| ui.tabs.default | 深色 | 通过 | 0.33px | 44 → 0 / 0.0000 | 0.999993 | 0.998166 |
+| ui.tabs.server-monitor | 深色 | 通过 | 0.08px | 29 → 0 / 0.0000 | 0.999999 | 0.997984 |
+| example.button-input.default | 浅色 | 通过 | 0.25px | 0 → 0 / 0.0000 | 1.000000 | 0.998897 |
+| ui.button.variants | 浅色 | 通过 | 0.00px | 0 → 0 / 0.3994 | 0.999203 | 0.987847 |
+| ui.button.sizes | 浅色 | 通过 | 0.00px | 0 → 0 / 0.0000 | 0.999998 | 0.998873 |
+| ui.input.default | 浅色 | 通过 | 0.00px | 0 → 0 / 0.3994 | 0.999299 | 0.976297 |
+| ui.password.default | 浅色 | 通过 | 0.00px | 0 → 0 / 0.3994 | 0.999295 | 0.990699 |
+| ui.select.default | 浅色 | 通过 | 0.00px | 0 → 0 / 0.3994 | 0.999034 | 0.998606 |
+| ui.switch.default | 浅色 | 通过 | 0.00px | 0 → 0 / 0.2741 | 0.999984 | 0.999988 |
+| ui.tabs.default | 浅色 | 通过 | 0.33px | 133 → 0 / 0.0000 | 0.999984 | 0.998292 |
+| ui.tabs.server-monitor | 浅色 | 通过 | 0.08px | 32 → 0 / 0.4925 | 0.999992 | 0.998184 |
+
+七张既有屏幕门槛计数均保持 0；没有变差。两个 Tabs 屏幕深色从 44/29 降至 0/0，浅色从 133/32 降至 0/0。
+
+### 阴影独立统计与人工核对表
+
+用工具原有的 text_mask、screen_mask 和 ΔE00 函数对真实截图统计，先只应用新的两层轮廓，暂不应用 E-001。这样把 ring 曲线和 shadow-sm 尾部分开：[原始坐标与像素值](assets/P0-24-tabs/round3/checks/shadow-probe.txt)。
+
+| active trigger | 主题 | 仅轮廓规则后的超限像素 / 最大ΔE00 | 应用 E-001 后 | 400% 以上核对 |
+| --- | --- | --- | --- | --- |
+| ui.tabs.active | 深色 | 18 / 1.224873 | 0 | [放大图](assets/P0-24-tabs/round3/visual/dark-ui.tabs.default-shadow-400.png)：方向向下、范围相近，未见缺失或偏移，深浅接近，通过 |
+| ui.tabs.server-active | 深色 | 13 / 1.224873 | 0 | [放大图](assets/P0-24-tabs/round3/visual/dark-ui.tabs.server-monitor-shadow-400.png)：方向向下、范围相近，未见缺失或偏移，深浅接近，通过 |
+| ui.tabs.active | 浅色 | 99 / 1.912586 | 0 | [放大图](assets/P0-24-tabs/round3/visual/light-ui.tabs.default-shadow-400.png)：向下浅灰，GPUI 尾部略柔和，范围与深浅接近，未见缺失或偏移，通过 |
+| ui.tabs.server-active | 浅色 | 12 / 1.822615 | 0 | [放大图](assets/P0-24-tabs/round3/visual/light-ui.tabs.server-monitor-shadow-400.png)：向下浅灰，尾部略柔和，未见缺失、偏移或明显深浅错误，通过 |
+
+放大图把物理像素放大 4 倍，在 DPR2 下相当于逻辑尺寸 8 倍；上下分别为参照与 GPUI，执行者已逐图查看。实际浅色阴影尾部最大差高于此前深色的 1.0–1.2，已如实记录在 E-001 扩展中。最终 ring 区域无超限像素，E-001 区域只覆盖 active trigger，未把 focus ring 混进阴影例外。
+
+### 完整检查、偏差与未验证项
+
+所有 AGENTS.md 检查均在沙箱外执行。前端六项通过：174 个文件、1294 项 Vitest、2 项 node 测试，1046 文件大小达标；[完整日志](assets/P0-24-tabs/round3/checks/frontend.txt)。fmt 通过；clippy workspace/all-targets/-D warnings 通过；完整 `cargo test --workspace` **1169 passed、0 failed、52 项仓库原有 ignored**，未用 skip/exclude，macOS applications-with-icons 通过。[clippy](assets/P0-24-tabs/round3/checks/clippy.txt)、[workspace](assets/P0-24-tabs/round3/checks/workspace-test.txt)。
+
+首次 clippy 指出 compare_style 为153行，已单独拆出 compare_ring_spreads 后全量复跑通过，没有放宽限制。无其他实现偏差、新依赖、生产 CSS 变化或新增例外编号。未修改 AGENTS.md、check.yml、status.md 或共用 P0-24.md。
+
+- Windows 深浅主题：未验证（需 Windows）。
+- [人工] Select 展开列表、中文输入法、真实键盘 Caps Lock：沿用第一批遗留，本轮未验证。
+- [人工] 本轮新增 active trigger 阴影已按上表完成截图核对；Switch 既有 E-001 人工核对仍沿用第一批要求。
+- 未合并、未 push。临时统计源码已删除；对比脚本关闭浏览器和 Vite，没有本轮启动的窗口或后台服务遗留。
