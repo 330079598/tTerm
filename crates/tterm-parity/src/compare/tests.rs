@@ -31,6 +31,7 @@ fn screen() -> ScreenSpec {
         id: "example.button-input.default".to_owned(),
         title: "Example".to_owned(),
         fixture: "example.button-input.default.json".to_owned(),
+        exceptions: Vec::new(),
     }
 }
 

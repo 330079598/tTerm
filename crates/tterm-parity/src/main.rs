@@ -128,6 +128,12 @@ fn print_screen(screen: &ScreenReport, report_dir: &Path) {
         "  ssim: full {:.6}, masked {:.6}",
         screen.ssim.full, screen.ssim.masked
     );
+    if !screen.exceptions.is_empty() {
+        println!(
+            "  exceptions (judged by a person, see parity/exceptions.md): {}",
+            screen.exceptions.join(", ")
+        );
+    }
     let heatmap = if screen.heatmap.is_empty() {
         "(not generated)".to_owned()
     } else {

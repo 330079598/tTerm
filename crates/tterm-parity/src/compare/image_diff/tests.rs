@@ -202,3 +202,26 @@ fn masked_pixels_are_left_out_of_the_colour_difference() {
     assert_eq!(report.max_delta_e, 0.0);
     assert_eq!(report.pixels_above_one, 0);
 }
+
+#[test]
+fn an_exception_masks_only_the_outset_outside_the_element() {
+    let layout = element_layout();
+    let exceptions = [crate::manifest::ExceptionSpec {
+        entry: "E-001".to_owned(),
+        elements: vec!["e".to_owned(), "absent".to_owned()],
+        outset: 2.0,
+    }];
+    let mut mask = vec![false; 100];
+    let missing = mark_exceptions(&mut mask, [&layout, &layout], &exceptions, 10, 10);
+    assert_eq!(missing, vec!["E-001: absent".to_owned()]);
+    // The element spans 2..6; row 4 shows the band on both sides.
+    let row = |y: usize| (0..10).map(|x| mask[y * 10 + x]).collect::<Vec<_>>();
+    assert_eq!(
+        row(4),
+        [
+            true, true, false, false, false, false, true, true, false, false
+        ],
+        "pixel centres within two pixels of either side: 0, 1 and 6, 7"
+    );
+    assert!(!mask[4 * 10 + 4], "the element itself is still compared");
+}

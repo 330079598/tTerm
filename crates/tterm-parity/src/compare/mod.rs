@@ -67,6 +67,9 @@ pub struct ScreenReport {
     pub heatmap: String,
     /// Where the two screenshots are, relative to the report directory.
     pub images: ImagePaths,
+    /// Entries of `parity/exceptions.md` whose regions were left out of the
+    /// image comparison and need a person's judgement.
+    pub exceptions: Vec<String>,
     /// Everything that failed, flattened for the summary.
     pub failures: Vec<String>,
 }
@@ -310,7 +313,19 @@ fn compare_screen(
         ));
     } else {
         let (width, height) = reference.image.dimensions();
-        let mask = image_diff::text_mask(&reference.layout, &actual.layout, width, height);
+        let mut mask = image_diff::text_mask(&reference.layout, &actual.layout, width, height);
+        // Registered exceptions leave every image comparison below, gate
+        // included; the report names them so a reader knows to judge them.
+        let missing = image_diff::mark_exceptions(
+            &mut mask,
+            [&reference.layout, &actual.layout],
+            &screen.exceptions,
+            width,
+            height,
+        );
+        for entry in missing {
+            failures.push(format!("exception {entry} names no marked element"));
+        }
         let full = ssim_rounded(image_diff::ssim(&reference.image, &actual.image, None));
         let masked = ssim_rounded(image_diff::ssim(
             &reference.image,
@@ -364,6 +379,11 @@ fn compare_screen(
             reference: format!("../reference/{reference_name}/{}.png", screen.id),
             actual: format!("../actual/{}.png", screen.id),
         },
+        exceptions: screen
+            .exceptions
+            .iter()
+            .map(|exception| exception.entry.clone())
+            .collect(),
         failures,
     };
     (report, heatmap)
