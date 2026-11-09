@@ -5,6 +5,7 @@ import inputFixture from "@fixtures/ui.input.default.json"
 import passwordFixture from "@fixtures/ui.password.default.json"
 import selectFixture from "@fixtures/ui.select.default.json"
 import switchFixture from "@fixtures/ui.switch.default.json"
+import tabsFixture from "@fixtures/ui.tabs.default.json"
 
 /** What the mocked `invoke` answers for one screen. */
 export interface ParityFixture {
@@ -30,4 +31,6 @@ export const fixtures: Record<string, ParityFixture> = {
   "ui.password.default": { commands: passwordFixture.commands },
   "ui.select.default": { commands: selectFixture.commands },
   "ui.switch.default": { commands: switchFixture.commands },
+  "ui.tabs.default": { commands: tabsFixture.commands },
+  "ui.tabs.server-monitor": { commands: tabsFixture.commands },
 }

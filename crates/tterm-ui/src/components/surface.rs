@@ -71,6 +71,18 @@ pub fn shadow_xs(opacity: f32) -> BoxShadow {
     BoxShadow::new(px(0.0), px(1.0), color.into()).blur_radius(px(1.0))
 }
 
+/// Tailwind v4's `shadow-sm`: `0 1px 3px 0 rgb(0 0 0 / 0.1),
+/// 0 1px 2px -1px rgb(0 0 0 / 0.1)`.
+pub fn shadow_sm(opacity: f32) -> Vec<BoxShadow> {
+    let alpha = 0.1 * css_opacity(opacity);
+    vec![
+        BoxShadow::new(px(0.0), px(1.0), gpui_kit::black().opacity(alpha)).blur_radius(px(1.5)),
+        BoxShadow::new(px(0.0), px(1.0), gpui_kit::black().opacity(alpha))
+            .blur_radius(px(1.0))
+            .spread_radius(px(-1.0)),
+    ]
+}
+
 /// The outer corner radius of a CSS spread shadow (CSS Backgrounds 3, 6.1.1):
 /// corners grow by the spread, and small radii stay sharper.
 pub fn spread_radius(radius: f32, spread: f32) -> f32 {
