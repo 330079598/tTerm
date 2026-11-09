@@ -56,6 +56,24 @@ pub fn css_group_color(color: Hsl, opacity: f32, backdrop: Hsl) -> gpui_kit::Hsl
     .into()
 }
 
+/// Flattens a CSS alpha fill onto its opaque backdrop before adding a shadow.
+/// GPUI shadows also paint beneath the box, so an unflattened fill would let
+/// shadow ink change the interior colour. Preserve CSS premultiplied rounding.
+pub fn css_backdrop_color(color: Hsl, alpha: f32, backdrop: Hsl) -> gpui_kit::Hsla {
+    let front = Rgba::from(css_color(color, alpha));
+    let back = Rgba::from(css_color(backdrop, 1.0));
+    let channel = |front_channel: f32, back_channel: f32| {
+        ((front_channel * front.a + back_channel * (1.0 - front.a)) * 255.0).round() / 255.0
+    };
+    Rgba {
+        r: channel(front.r, back.r),
+        g: channel(front.g, back.g),
+        b: channel(front.b, back.b),
+        a: 1.0,
+    }
+    .into()
+}
+
 /// Tailwind v4's `shadow-xs`: `0 1px 2px 0 rgb(0 0 0 / 0.05)`.
 ///
 /// GPUI's blur radius is the Gaussian sigma while CSS's is twice the sigma,
@@ -159,6 +177,21 @@ mod tests {
     use crate::tokens::palette::DARK;
     use gpui_kit::test::TestWindowExt as _;
     use gpui_kit::{ParentElement, Render, TestAppContext, div};
+
+    #[test]
+    fn translucent_fill_is_flattened_before_shadow_paint() {
+        let rgba = Rgba::from(css_backdrop_color(
+            DARK.colors.input,
+            0.3,
+            DARK.colors.background,
+        ));
+        let bytes = [rgba.r, rgba.g, rgba.b, rgba.a].map(|channel| (channel * 255.0).round() as u8);
+        assert_eq!(bytes, [37, 38, 42, 255]);
+        assert_eq!(
+            css_backdrop_color(DARK.colors.input, 0.0, DARK.colors.background),
+            css_color(DARK.colors.background, 1.0)
+        );
+    }
 
     struct FocusedButton(Variant);
 
