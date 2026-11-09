@@ -1,0 +1,14 @@
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 1.12s
+     Running `/Users/stone/Code/rust/tTerm-P0-24-dialog/scripts/macos-dev-bundle.sh target/debug/tterm-parity capture`
+gpui example.button-input.default: 3 element(s) -> /Users/stone/Code/rust/tTerm-P0-24-dialog/target/parity/actual/example.button-input.default.png
+gpui ui.button.variants: 12 element(s) -> /Users/stone/Code/rust/tTerm-P0-24-dialog/target/parity/actual/ui.button.variants.png
+gpui ui.button.sizes: 9 element(s) -> /Users/stone/Code/rust/tTerm-P0-24-dialog/target/parity/actual/ui.button.sizes.png
+gpui ui.input.default: 5 element(s) -> /Users/stone/Code/rust/tTerm-P0-24-dialog/target/parity/actual/ui.input.default.png
+gpui ui.password.default: 3 element(s) -> /Users/stone/Code/rust/tTerm-P0-24-dialog/target/parity/actual/ui.password.default.png
+gpui ui.select.default: 4 element(s) -> /Users/stone/Code/rust/tTerm-P0-24-dialog/target/parity/actual/ui.select.default.png
+gpui ui.switch.default: 8 element(s) -> /Users/stone/Code/rust/tTerm-P0-24-dialog/target/parity/actual/ui.switch.default.png
+gpui ui.dialog.confirm: 9 element(s) -> /Users/stone/Code/rust/tTerm-P0-24-dialog/target/parity/actual/ui.dialog.confirm.png
+gpui ui.dialog.destructive: 9 element(s) -> /Users/stone/Code/rust/tTerm-P0-24-dialog/target/parity/actual/ui.dialog.destructive.png
+gpui ui.dialog.prompt: 11 element(s) -> /Users/stone/Code/rust/tTerm-P0-24-dialog/target/parity/actual/ui.dialog.prompt.png
+gpui ui.dialog.multiline: 9 element(s) -> /Users/stone/Code/rust/tTerm-P0-24-dialog/target/parity/actual/ui.dialog.multiline.png
+actual: /Users/stone/Code/rust/tTerm-P0-24-dialog/target/parity/actual

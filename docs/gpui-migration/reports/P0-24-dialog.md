@@ -2,7 +2,7 @@
 
 ## 结论
 
-**完成待评估。** 第 3 轮按 stone 于 2026-11-09 的授权扩展 E-001，先提交，再从干净工作区在沙箱外重新生成深浅参照并运行完整 compare。两种主题均 **10/10 屏通过**，每屏 `screenColors.pixelsAboveOne=0`，已有屏没有退步。参照提交为 `1eafb1440972baf67308485600c0d8ba1f024857`，两份结果均为 `dirty:false`，缓存目录不带 `-dirty`。完整检查通过；三屏的阴影人工核对和本轮证据见文末。
+**需要确认（第 4 轮）。** H1–L3 的生产代码和 Root 交互测试已补齐，全部代码检查通过。最终干净工作区深浅 compare 均为 **10/11 通过**：原有 10 屏全部通过，新 `ui.dialog.multiline` 布局、样式、图标、full/masked SSIM 均通过，剩余深色 5016、浅色 2 个门槛超限像素全部在内容框外的阴影、outset 25 内。E-001 的已批准扩展明确只列原三屏，本轮没有自行添加第四屏，需要 stone 确认是否适用。第 3 轮通过结果保留为历史证据，最终结果见文末。
 
 ## 范围与导出部件
 
@@ -106,7 +106,7 @@ GPUI 打开时从 `window.focused(cx)` 保存真实 handle，Prompt 初始 focus
 - Windows 通道：未验证（需 Windows）。
 - `[人工]` 淡入/缩放动画未实现；当前 React Dialog 本身也未提供这两项入场动画 class，静止比较不包含动画。
 - `[人工]` 真实键盘中文输入法、系统辅助功能及 Tauri 真窗口交叉截图；自动化交互测试已执行，不再标为未验证。
-- 多行描述与较窄窗口的完整视觉矩阵尚未覆盖。当前描述高度按单行 WebKit 的实际 16px 处理，扩展多行需单独校验；本轮不把这点掩饰为通用完整排版。
+- 第 4 轮已补多行 parity 和窄窗口布局测试；新增屏阴影的 E-001 范围仍需确认。
 
 ## 第 3 轮：E-001 扩展与干净工作区复跑
 
@@ -175,3 +175,97 @@ Dialog 的细项如下（布局单位 CSS px；full / masked 为 SSIM）：
 在沙箱外运行 AGENTS.md 的全部检查：`pnpm lint && pnpm format:check && pnpm check:tokens && pnpm typecheck && pnpm test && pnpm check:size`，均通过，Vitest **174 文件、1294 测试通过**。Rust 的 `cargo fmt --all --check`、`cargo clippy --workspace --all-targets -- -D warnings`、`cargo test --workspace` 均通过，均带 `CARGO_BUILD_JOBS=3`，没有使用共享 target。Rust 共 **1169 passed、0 failed、52 ignored**（仓库原有 ignored，无新增或命令行跳过），tterm-ui **40/40** 通过；`macos_lists_the_applications_for_text_with_icons` 在沙箱外通过。交互与主题隔离测试名沿用上表，本轮完整 workspace 测试再次覆盖。
 
 本轮日志：[clippy](assets/P0-24-dialog/round3/clippy.log)、[workspace tests](assets/P0-24-dialog/round3/tests.log)、[文件大小](assets/P0-24-dialog/round3/size.log)。本轮没有修改生产组件，报告与证据在对比结束后提交。没有合并或 push。Windows、动画和人工输入法等未覆盖项仍按上方“偏差、未验证与 [人工]”保留；本机静止对比、交互测试、主题隔离及完整检查均已验证。
+
+## 第 4 轮：真实窗口行为与组合补全
+
+### H1–L3 修改和测试
+
+本轮继续采用 gpui-base 行为加局部主题自绘，没有修改全局 Theme 或引入依赖。全部 Dialog 测试经 `gpui_kit::base::Root::new` 包装应用视图，与 `open_window` 的构造一致；macOS parity headless 也补上相同 Root。测试的 overlay host 位于窗口原点、窗口等大，Dialog 是背景内容之后的绝对定位兄弟节点；挂载约定写在 Dialog 的公开文档和 Probe 注释里。测试用窗口的真实 `window.simulate_mouse_move` 派发指针事件，避免仅更改测试平台状态而未更新窗口 hover。
+
+| 项目                  | 修改                                                                                                                                                                                        | 对应生产路径测试                                                                                                                                                            |
+| --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| H1                    | 删除自写 Tab/Shift+Tab，内容使用 `FocusTrapElement::focus_trap`；容器排除 tab order，按钮 handle 为 tab stop，Root 执行遍历                                                                 | `tab_and_shift_tab_cycle_focus`、`prompt_tab_cycle_includes_editable_input`、`closing_restores_the_saved_focus_handle`、`keyboard_activates_each_dialog_button`             |
+| H2                    | 遮罩和内容均 `.occlude()`；选择阻断所有鼠标事件，包含滚轮，不能让终端滚动。遮罩自身处理 mouse-down，取消全局 outside mouse-down 监听                                                        | `modal_occludes_background_mouse_hover_and_scroll`、`content_click_keeps_dialog_open`；后台探针记录 mouse-down、hover、scroll 均为 0，关闭后再派发并验证三者均能被探针观察  |
+| H3                    | 描述改为自然内容高度、正常折行，保留 `\n`。按本机 WebKit 实际行盒使用 16px 行 advance，computed 样式仍为 16.8px；没有固定总高度                                                             | `description_preserves_newlines_and_wraps`；新增 `ui.dialog.multiline`，包含一个显式换行及自动折行长行                                                                      |
+| M1                    | Dialog 挂到窗口原点；遮罩点击用 (80,80)，断言在 overlay 内、content 外，opener 只占 (0,0) 的 24×24                                                                                          | `overlay_click_closes_dialog`、`outside_hook_can_prevent_dismissal`，同时检查焦点归还或仍留在内容中及后台未收到点击                                                         |
+| M2                    | Prompt 使用 `DialogOptions::prompt` / `with_input` 公开构造，打开自动 focus Input；删除修改私有字段及手动输入 focus 的捷径；按钮激活测试通过 Root Tab 到达                                  | `prompt_tab_cycle_includes_editable_input`、`enter_submits_prompt_from_autofocused_input`、`escape_closes_prompt_from_autofocused_input`、`content_click_keeps_dialog_open` |
+| M3 defaultAction      | `DialogOptions.default_action` 决定初始按钮焦点，Enter 即使 Tab 到另一按钮也按指定动作执行，与 React data-dialog-initial-focus / onKeyDown 对应                                             | `default_action_sets_initial_focus_and_overrides_enter`、`confirm_default_action_focuses_confirm`                                                                           |
+| M3 placeholder / Info | placeholder 通过 InputState 的生产 set_placeholder；`DialogOptions::info` 渲染 Lucide Info、单个确认/关闭 action 与右上 X，保留 Esc/outside 路径                                            | `prompt_placeholder_and_label_use_public_options`、`info_renders_one_action_and_cycles_with_close`                                                                          |
+| M3 Label / hover      | Label 14px / leading 14px / 500，生产 part observer 导出；取消和确认按钮跟踪 hover、复用 Button 的 hover 颜色/alpha，X hover opacity=1。共享 Button 补齐 primary/destructive 的 hover alpha | `prompt_placeholder_and_label_use_public_options`、`action_and_close_hover_are_painted_and_observed`；`ui.dialog.prompt` 用生产 Label 验证样式                              |
+| M4                    | 命名常量 `OVERLAY_OPACITY=0.9`，注释引用 ui-parity §4.1；先量化同色 opaque token 再施加透明度，不虚构元素 blur                                                                              | GPUI 文字背景证据见下图；该截图仅供人工调整，无 React 像素判定                                                                                                              |
+| L1                    | PartStyle 导出真实 ring_spread；按钮圆角、weight 从 ButtonStyle 读取，Button 绘制也读取同一字段                                                                                             | Root 按钮激活及 hover 测试；Dialog parity observer 与绘制同源                                                                                                               |
+| L2                    | Regular/Semibold advance 插值仅在 `#[cfg(target_os="macos")]` 使用；其余平台按请求 weight 测量                                                                                              | macOS 11 屏 compare 实际测量；Windows 未验证                                                                                                                                |
+| L3                    | <640px 宽度为 viewport−32，footer flex-col-reverse、按钮全宽、header/title 居中；>=640 保持 448px 水平 footer                                                                               | `narrow_window_stacks_footer_and_centers_header`：500px 窗口、468px 内容、x=16、确认在取消上方、两按钮等 footer 宽、header 样式居中                                         |
+
+主题隔离仍由 Root 中的 `rendering_two_dialog_themes_does_not_mutate_global_theme` 真实渲染深浅两套 Dialog，检查 prepaint 主题色及渲染前后全局 Theme 相等。Esc、X、遮罩与输入的测试名同时列于前面的交互表。本轮 tterm-ui **50/50** 通过，其中 Dialog 20 个 Root 测试。React 的终端恢复焦点后备栈仍未迁入；GPUI 保存并恢复打开前的真实 handle。
+
+自然折行在本机 GPUI 与 WebKit 的词边界略有不同：两端该长描述均为 4 行、64px 高，GPUI 末行是 `content width.`，WebKit 是 `width.`。没有写死断行或更改生产文本。按现有规则，实际文字边界由生产文本子元素 `on_children_prepainted` 观测，写入 GPUI textRegions，与参照端一起交给原有 text_mask；未修改比较器、扩大通用遮罩或提高阈值。差异后的 full SSIM 仍超过 0.97。
+
+### 干净参照最终对比
+
+先提交生产修正和测试，最终代码为 `0491d3e8`；深浅运行前均用 `test -z "$(git status --porcelain)"` 检查完全干净。两次均在沙箱外运行：
+
+```sh
+UPDATE_REFERENCE=1 PARITY_THEME=dark CARGO_BUILD_JOBS=3 cargo run -p tterm-parity -- compare
+cp target/parity/report/result.json target/parity/report-dark.json
+UPDATE_REFERENCE=1 PARITY_THEME=light CARGO_BUILD_JOBS=3 cargo run -p tterm-parity -- compare
+cp target/parity/report/result.json target/parity/report-light.json
+```
+
+两次均退出 1。前端缓存键为 `2256b796b68c75dac0a2a990c78d97c7700834c8`（最后修改参考前端的提交，不是 Rust HEAD）；目录分别是该 hash 与该 hash 加 `-light`，均无 `-dirty`。两份 JSON 的 `reference.dirty=false`。运行后才补写本报告与证据。
+
+| 屏幕                           | 深色 passed / 门槛超限像素 | 浅色 passed / 门槛超限像素 | 两主题例外 |
+| ------------------------------ | -------------------------- | -------------------------- | ---------- |
+| `example.button-input.default` | 通过 / 0                   | 通过 / 0                   | 无         |
+| `ui.button.variants`           | 通过 / 0                   | 通过 / 0                   | 无         |
+| `ui.button.sizes`              | 通过 / 0                   | 通过 / 0                   | 无         |
+| `ui.input.default`             | 通过 / 0                   | 通过 / 0                   | 无         |
+| `ui.password.default`          | 通过 / 0                   | 通过 / 0                   | 无         |
+| `ui.select.default`            | 通过 / 0                   | 通过 / 0                   | 无         |
+| `ui.switch.default`            | 通过 / 0                   | 通过 / 0                   | E-001      |
+| `ui.dialog.confirm`            | 通过 / 0                   | 通过 / 0                   | E-001      |
+| `ui.dialog.destructive`        | 通过 / 0                   | 通过 / 0                   | E-001      |
+| `ui.dialog.prompt`             | 通过 / 0                   | 通过 / 0                   | E-001      |
+| `ui.dialog.multiline`          | 失败 / 5016                | 失败 / 2                   | 无         |
+
+| Dialog 屏幕             | 深浅最大布局差 / failures | 深色 full / masked  | 浅色 full / masked  | 图标          |
+| ----------------------- | ------------------------- | ------------------- | ------------------- | ------------- |
+| `ui.dialog.confirm`     | 0.17px / 0                | 0.996232 / 0.999944 | 0.995716 / 0.999690 | 深浅 1/1 通过 |
+| `ui.dialog.destructive` | 0.25px / 0                | 0.995944 / 0.999940 | 0.995442 / 0.999647 | 深浅 2/2 通过 |
+| `ui.dialog.prompt`      | 0.14px / 0                | 0.990697 / 0.999929 | 0.989785 / 0.999537 | 深浅 1/1 通过 |
+| `ui.dialog.multiline`   | 0.17px / 0                | 0.981114 / 0.999921 | 0.980600 / 0.999553 | 深浅 1/1 通过 |
+
+原始结果：[深色 JSON](assets/P0-24-dialog/round4/report-dark.json)、[浅色 JSON](assets/P0-24-dialog/round4/report-light.json)；命令日志：[深色](assets/P0-24-dialog/round4/dark.log)、[浅色](assets/P0-24-dialog/round4/light.log)。四屏两主题原图、布局与热力图均提交在 [round4](assets/P0-24-dialog/round4/)。
+
+### 需要确认：新增多行屏的阴影范围
+
+E-001 第 3 轮授权只列 `ui.dialog.confirm.content`、`ui.dialog.destructive.content`、`ui.dialog.prompt.content`。新增 `ui.dialog.multiline.content` 没有引用例外。先读取 result.json 门槛计数，再按原比较器 text_mask → screen_mask → mark_icons 的相同链路逐像素诊断，结果如下：
+
+| 主题 | 门槛超限 | 内容框内部 | outset 25 外 | 最大 ΔE00 |
+| ---- | -------- | ---------- | ------------ | --------- |
+| 深色 | 5016     | 0          | 0            | 1.825380  |
+| 浅色 | 2        | 0          | 0            | 1.060197  |
+
+深色示例物理坐标 (348,438)：参照 `(26,29,34)`，GPUI `(27,29,35)`，ΔE00=1.129849；(349,441)：参照 `(26,29,34)`，GPUI `(27,28,34)`，ΔE00=1.717315。浅色 (366,795)、(1233,795)：参照 `(234,234,234)`，GPUI `(239,239,239)`，ΔE00=1.060197。内容框为 x=176、y=204、448×192 CSS px，浅色两点在底边 396 外 1.5px。颜色超限集中在框外阴影，未归为圆角抗锯齿，也未改阴影 offset/blur/spread 来拟合浏览器。
+
+诊断源码：[gate-diagnostic.rs.txt](assets/P0-24-dialog/round4/gate-diagnostic.rs.txt)，[完整坐标样本与分布](assets/P0-24-dialog/round4/gate.log)。可将源码临时放到 `crates/tterm-parity/examples/dialog_gate_round4.rs`，以 `CARGO_BUILD_JOBS=3 cargo run -p tterm-parity --example dialog_gate_round4` 复现；诊断临时入口已删除，不修改比较器。
+
+按 E-001 既有方法查看 [深色 400% 下圆角并排](assets/P0-24-dialog/round4/dark/multiline-corners-4x.png) 与 [浅色](assets/P0-24-dialog/round4/light/multiline-corners-4x.png)，方向、范围和深浅一致，未见缺失或偏移；这是候选例外的人工证据，不代表已获第四屏授权。**需要 stone 确认是否允许将 E-001 同样应用到 `ui.dialog.multiline.content`、outset 25。** 本轮保持失败，不自行登记或放宽门槛。
+
+### 0.9 遮罩覆盖文字
+
+通过生产 Dialog 在带多行终端示意文字的 GPUI parity 背景上渲染，使用以下独立证据命令（不作为像素比较输入）：
+
+```sh
+PARITY_DIALOG_BACKDROP_TEXT=1 PARITY_THEME=dark CARGO_BUILD_JOBS=3 cargo run -p tterm-parity -- capture
+```
+
+[截图](assets/P0-24-dialog/round4/overlay-over-text-dark.png) 与 [日志](assets/P0-24-dialog/round4/backdrop.log)。同色纯色 parity 背景上 0.8→0.9 仅有量化等级影响；有文字时背景字形被明显压淡，保留 ui-parity §4.1 所述无 blur 的区别，供决策人以后调整常量。该证据用 headless Metal 真实生产绘制，不访问应用数据。
+
+![GPUI 0.9 遮罩覆盖文字](assets/P0-24-dialog/round4/overlay-over-text-dark.png)
+
+### 完整检查与未验证
+
+沙箱外 AGENTS.md 全部检查通过：lint、format:check、check:tokens、typecheck、test（174 文件、1294 测试）、check:size；Rust fmt、`cargo clippy --workspace --all-targets -- -D warnings`、`cargo test --workspace` 均通过，所有 cargo 命令均 `CARGO_BUILD_JOBS=3`，使用本 worktree target。最终 Rust **1179 passed、0 failed、52 ignored**，没有新增 ignored 或命令行跳过；应用枚举测试在沙箱外通过。[前端日志](assets/P0-24-dialog/round4/frontend.log)、[clippy](assets/P0-24-dialog/round4/clippy.log)、[workspace 测试](assets/P0-24-dialog/round4/tests.log)。
+
+Windows 未验证（需 Windows）；[人工] 动画、真实中文输入法、系统辅助功能、真实 Tauri 窗口交叉截图仍未覆盖。本轮代码修正已提交；新增屏阴影授权待确认，未合并、未 push。
