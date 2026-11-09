@@ -45,12 +45,19 @@ pub fn surface(
             // Absolute children start at the parent's padding box.
             let bounds = bounds.inset(px(-width));
             if let Some(ring) = ring {
+                // CSS outer shadows exclude the border box, including when
+                // the button fill is transparent. Keep both AA edges separate.
+                // GPUI interpolates straight RGB as well as alpha at the inner
+                // edge; retain the border RGB in the zero-alpha fill to avoid
+                // multiplying coverage into the colour a second time.
+                let mut clear_ring = ring;
+                clear_ring.a = 0.0;
                 window.paint_quad(quad(
                     bounds.inset(px(-3.0)),
                     px(9.0),
+                    clear_ring,
+                    px(3.0),
                     ring,
-                    px(0.0),
-                    gpui_kit::transparent_black(),
                     Default::default(),
                 ));
             }
@@ -76,4 +83,83 @@ pub fn surface(
     )
     .absolute()
     .inset_0()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::components::button::{ButtonSize, ButtonState, Variant, button, style};
+    use crate::tokens::palette::DARK;
+    use gpui_kit::test::TestWindowExt as _;
+    use gpui_kit::{ParentElement, Render, TestAppContext, div};
+
+    struct FocusedButton(Variant);
+
+    impl Render for FocusedButton {
+        fn render(
+            &mut self,
+            _window: &mut gpui_kit::Window,
+            _cx: &mut gpui_kit::Context<Self>,
+        ) -> impl IntoElement {
+            div().p(px(20.0)).child(button(
+                "focus-surface",
+                "",
+                self.0,
+                ButtonSize::Default,
+                ButtonState {
+                    focused: true,
+                    ..ButtonState::default()
+                },
+                DARK,
+            ))
+        }
+    }
+
+    #[gpui_kit::test]
+    fn outer_ring_stays_hollow_for_transparent_and_translucent_buttons(cx: &mut TestAppContext) {
+        cx.update(gpui_kit::init);
+        for variant in [Variant::Ghost, Variant::Outline] {
+            let computed = style(
+                variant,
+                ButtonSize::Default,
+                ButtonState {
+                    focused: true,
+                    ..ButtonState::default()
+                },
+                DARK,
+            );
+            assert!(computed.background_alpha < 1.0);
+            let (_, visual) = cx.add_window_view(|_, _| FocusedButton(variant));
+            visual.update(|window, cx| {
+                window.render_frame(cx);
+                let ring_color = css_color(computed.ring.expect("focused ring"), 0.5);
+                let quads = window.painted_quads();
+                let ring = quads
+                    .iter()
+                    .find(|quad| quad.border_color == ring_color)
+                    .expect("painted ring border");
+                let scale = window.scale_factor();
+                let mut clear_ring = ring_color;
+                clear_ring.a = 0.0;
+                assert_eq!(ring.background, clear_ring.into());
+                assert_eq!(ring.border_widths.top.as_f32(), 3.0 * scale);
+                assert_eq!(ring.border_widths.left, ring.border_widths.top);
+                assert_eq!(ring.border_widths.right, ring.border_widths.top);
+                assert_eq!(ring.border_widths.bottom, ring.border_widths.top);
+                assert_eq!(ring.corner_radii.top_left.as_f32(), 9.0 * scale);
+                // The ring hole is exactly the button border box: its centre
+                // never contains ring paint, regardless of the fill's alpha.
+                assert_eq!(ring.bounds.origin.x.as_f32(), 17.0 * scale);
+                assert_eq!(ring.bounds.origin.y.as_f32(), 17.0 * scale);
+                assert_eq!(
+                    ring.bounds.size.height.as_f32(),
+                    (computed.height + 6.0) * scale
+                );
+                assert_eq!(
+                    ring.corner_radii.top_left.as_f32() - ring.border_widths.top.as_f32(),
+                    6.0 * scale
+                );
+            });
+        }
+    }
 }
