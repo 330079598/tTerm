@@ -413,3 +413,33 @@ AGENTS.md 全部检查均在沙箱外运行并通过：
 - UI 单包 **59/59**，[日志](assets/P0-24-dialog/round6/ui.log)。`rendering_two_dialog_themes_does_not_mutate_global_theme`、Input 模块中同时绘制 Button/Input 的 `rendering_local_themes_does_not_mutate_global_theme` 继续通过；同窗口两套主题、渲染前后读全局主题的证据仍有效。应用枚举 `macos_lists_the_applications_for_text_with_icons` 在沙箱外通过。
 
 Windows 未验证（需 Windows）。[人工] 动画、真实中文输入法、系统辅助功能、真实 Tauri 窗口交叉截图仍未覆盖。诊断启动的 WebKit/Vite 均在 finally 中关闭，GPUI 使用 headless，临时 Rust 诊断入口已删除。无新依赖，未合并、未 push。
+
+## 评估（2026-11-09，macOS）
+
+- 结论：**通过，合并到 GPUI**。Dialog 的确认、危险操作、输入、多行描述四屏，在 macOS 深浅两种主题下都达标，用到了 E-001 的 Dialog 扩展（决策人 stone，2026-11-09）。
+- 本卡共六轮：
+  - 第 1 轮没有跑对比。
+  - 第 2、3 轮补跑对比，并登记了例外。
+  - 第 4 至 6 轮修复评估者两次代码审查发现的问题：
+    - 真实窗口下 Tab 被 Root 吞掉，改用 `focus_trap`；
+    - 遮罩挡不住鼠标，加上 `occlude`；
+    - 描述只能显示一行；
+    - 补上 `defaultAction`、placeholder、信息框，以及 Label 和 hover；
+    - 窄窗口断点；
+    - 深色 destructive 的 hover 和 focus ring 颜色，link 的下划线；
+    - 描述的文字区域改为逐行上报。
+- 换行算法：第 6 轮把描述的换行改为“行尾的可折叠空格不计入溢出”，与 CSS `pre-line` 的规则一致。这一改动只作用于 Dialog 的文字，GPUI 其他地方的文字不受影响。复核确认 CJK 文字和词内溢出不受影响。评估者接受这项改动。
+- 复核：
+  - 每一轮的修复，都由评估者另开审查逐条核实，并论证了测试在修复被撤回后会失败。
+  - 评估者把 `GPUI`（含 Tabs 与右键菜单）合进本分支（`5ed24329`）后：
+    - 合并时保留右键菜单分支那一版 `shadow_lg`（图层顺序正确），给 Dialog 快照补上 `ring_spreads`；
+    - 在沙箱外重跑 AGENTS.md 的全部检查：`cargo test --workspace` 1213 项通过，0 失败，52 项是原有的 ignored；
+    - `UPDATE_REFERENCE=1` 深浅主题各 16/16，参照来自干净的提交 `5ed24329`。
+- 遗留问题：
+  - Windows 通道的深浅主题对比：未验证，属于 G1 门槛。
+  - [人工] 入场动画、中文输入法、系统辅助功能、真实 Tauri 窗口的交叉截图。
+  - 遮罩不透明度 0.9 是第 4.1 节规定的替代做法，具体取值等决策人看截图后再定。
+  - 低优先级：
+    - 不换行空格（U+00A0）会被当作换行点（`dialog/text.rs` 的空格回溯）；
+    - 窄窗口下，确认框和信息框的标题折成多行后，React 逐行居中，GPUI 左对齐；
+    - 行区域的 HashMap 从不清空，以后写“行数变少”的测试会被旧数据干扰。
