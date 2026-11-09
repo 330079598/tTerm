@@ -138,6 +138,10 @@ impl Dialog {
                         .apply(div())
                         .w_full()
                         .whitespace_normal()
+                        // WebKit's used line box floors this computed 16.8px
+                        // value. Keep natural wrapping and line count, with the
+                        // same used line advance instead of a fixed height.
+                        .line_height(px(style.line_height.floor()))
                         .child(description.clone()),
                 ),
             );
