@@ -219,33 +219,39 @@ fn compare_style(
     compare_color(
         id,
         "background",
-        reference.background_color,
-        actual.background_color,
-        backdrop,
-        reference.opacity,
-        actual.opacity,
+        ColorComparison {
+            reference: reference.background_color,
+            actual: actual.background_color,
+            backdrop,
+            reference_opacity: reference.opacity,
+            actual_opacity: actual.opacity,
+        },
         failures,
     );
     if reference.border_width > 0.0 || actual.border_width > 0.0 {
         compare_color(
             id,
             "border",
-            reference.border_color,
-            actual.border_color,
-            backdrop,
-            reference.opacity,
-            actual.opacity,
+            ColorComparison {
+                reference: reference.border_color,
+                actual: actual.border_color,
+                backdrop,
+                reference_opacity: reference.opacity,
+                actual_opacity: actual.opacity,
+            },
             failures,
         );
     }
     compare_color(
         id,
         "text",
-        reference.color,
-        actual.color,
-        backdrop,
-        reference.opacity,
-        actual.opacity,
+        ColorComparison {
+            reference: reference.color,
+            actual: actual.color,
+            backdrop,
+            reference_opacity: reference.opacity,
+            actual_opacity: actual.opacity,
+        },
         failures,
     );
 }
@@ -281,38 +287,37 @@ fn check_number(id: &str, field: &str, reference: f32, actual: f32, failures: &m
     }
 }
 
-fn compare_color(
-    id: &str,
-    field: &str,
+struct ColorComparison {
     reference: [u8; 4],
     actual: [u8; 4],
     backdrop: [u8; 4],
     reference_opacity: f32,
     actual_opacity: f32,
-    failures: &mut Vec<String>,
-) {
-    if reference == actual {
+}
+
+fn compare_color(id: &str, field: &str, colors: ColorComparison, failures: &mut Vec<String>) {
+    if colors.reference == colors.actual {
         return;
     }
-    if reference[3] == 255
-        && actual[3] == 255
-        && reference_opacity >= 0.999
-        && actual_opacity >= 0.999
+    if colors.reference[3] == 255
+        && colors.actual[3] == 255
+        && colors.reference_opacity >= 0.999
+        && colors.actual_opacity >= 0.999
     {
         failures.push(format!(
             "{id}: {field} colour {} -> {}",
-            hex(reference),
-            hex(actual)
+            hex(colors.reference),
+            hex(colors.actual)
         ));
         return;
     }
-    let first = composite_with_opacity(reference, backdrop, reference_opacity);
-    let second = composite_with_opacity(actual, backdrop, actual_opacity);
+    let first = composite_with_opacity(colors.reference, colors.backdrop, colors.reference_opacity);
+    let second = composite_with_opacity(colors.actual, colors.backdrop, colors.actual_opacity);
     let difference = delta_e_2000(srgb_to_lab(first), srgb_to_lab(second));
     if difference > COLOR_TOLERANCE {
         failures.push(format!(
             "{id}: {field} colour {} over the screen background became {} (CIEDE2000 {difference:.3} > {COLOR_TOLERANCE})",
-            hex(reference),
+            hex(colors.reference),
             hex(second)
         ));
     }

@@ -71,7 +71,7 @@ pub fn style(
         padding_x,
         padding_y,
         font_size,
-        line_height: if matches!(size, ButtonSize::Xs | ButtonSize::IconXs) {
+        line_height: if matches!(size, ButtonSize::Xs) {
             13.8
         } else {
             16.8
@@ -179,12 +179,16 @@ fn colors_for(
         ),
         Variant::Destructive => (
             colors.destructive,
-            colors.destructive_foreground,
+            crate::tokens::color::Hsl::new(0.0, 0.0, 100.0),
             colors.destructive,
             colors.destructive,
         ),
         Variant::Outline => (
-            colors.background,
+            if colors.background.lightness < 50.0 {
+                colors.input
+            } else {
+                colors.background
+            },
             colors.foreground,
             colors.input,
             colors.accent,
@@ -213,6 +217,7 @@ fn colors_for(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::tokens::palette::THEMES;
     #[test]
     fn exposes_every_react_variant_and_size() {
         assert_eq!(
@@ -240,6 +245,35 @@ mod tests {
                 ButtonSize::IconLg
             ]
             .len()
+        );
+    }
+
+    #[test]
+    fn style_reads_the_selected_theme_without_shared_state() {
+        let before = style(
+            Variant::Default,
+            ButtonSize::Default,
+            ButtonState::default(),
+            THEMES[0].colors,
+        );
+        for theme in THEMES {
+            let selected = style(
+                Variant::Default,
+                ButtonSize::Default,
+                ButtonState::default(),
+                theme.colors,
+            );
+            assert_eq!(selected.background, theme.colors.primary);
+            assert_eq!(selected.foreground, theme.colors.primary_foreground);
+        }
+        assert_eq!(
+            style(
+                Variant::Default,
+                ButtonSize::Default,
+                ButtonState::default(),
+                THEMES[0].colors,
+            ),
+            before
         );
     }
 }

@@ -47,9 +47,14 @@ impl InputScreen {
 
     fn style(&self, focused: bool, disabled: bool) -> StyleSnapshot {
         let c = self.theme.colors;
-        let background = blend(hsl_to_rgba(c.input), hsl_to_rgba(c.background), 0.29);
+        let dark = c.background.lightness < 50.0;
+        let background_alpha = if dark { 0.3 } else { 1.0 };
         StyleSnapshot {
-            background_color: background,
+            background_color: if dark {
+                with_alpha(hsl_to_rgba(c.input), background_alpha)
+            } else {
+                hsl_to_rgba(c.background)
+            },
             border_color: hsl_to_rgba(if focused { c.ring } else { c.input }),
             border_width: 1.0,
             border_radius: 6.0,
@@ -167,14 +172,7 @@ impl InputScreen {
     }
 }
 
-fn blend(foreground: [u8; 4], background: [u8; 4], alpha: f32) -> [u8; 4] {
-    let blend_channel = |front: u8, back: u8| {
-        (f32::from(front) * alpha + f32::from(back) * (1.0 - alpha)).round() as u8
-    };
-    [
-        blend_channel(foreground[0], background[0]),
-        blend_channel(foreground[1], background[1]),
-        blend_channel(foreground[2], background[2]),
-        255,
-    ]
+fn with_alpha(mut color: [u8; 4], alpha: f32) -> [u8; 4] {
+    color[3] = (alpha.clamp(0.0, 1.0) * 255.0).round() as u8;
+    color
 }

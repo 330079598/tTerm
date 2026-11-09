@@ -31,6 +31,11 @@ pub fn input(state: &Entity<InputState>, options: InputOptions) -> impl IntoElem
     let colors = options
         .colors
         .unwrap_or(crate::tokens::palette::DARK.colors);
+    let background_alpha = if colors.background.lightness < 50.0 {
+        0.3
+    } else {
+        0.0
+    };
     let mut view = div()
         .h(px(36.0))
         .w_full()
@@ -46,7 +51,7 @@ pub fn input(state: &Entity<InputState>, options: InputOptions) -> impl IntoElem
             },
             1.0,
         ))
-        .bg(hsla(colors.input, 0.29))
+        .bg(hsla(colors.input, background_alpha))
         .child(
             Input::new(state)
                 .disabled(false)
@@ -65,6 +70,7 @@ pub fn input(state: &Entity<InputState>, options: InputOptions) -> impl IntoElem
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::tokens::palette::THEMES;
     use gpui_kit::{AppContext as _, Render, TestAppContext, Window};
 
     struct Probe {
@@ -92,5 +98,20 @@ mod tests {
         cx.simulate_input("hello");
         let value = cx.read(|cx| view.read(cx).state.read(cx).value());
         assert_eq!(value.as_ref(), "hello");
+    }
+
+    #[test]
+    fn options_keep_theme_selection_local() {
+        let dark = InputOptions {
+            colors: Some(THEMES[0].colors),
+            ..InputOptions::default()
+        };
+        let light = InputOptions {
+            colors: Some(THEMES[1].colors),
+            ..InputOptions::default()
+        };
+        assert_ne!(dark.colors, light.colors);
+        assert_eq!(dark.colors, Some(THEMES[0].colors));
+        assert_eq!(light.colors, Some(THEMES[1].colors));
     }
 }

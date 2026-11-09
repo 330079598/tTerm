@@ -146,10 +146,9 @@ impl ButtonScreen {
         let c = self.theme.colors;
         let computed = button_style(variant, size, state, c);
         let style = StyleSnapshot {
-            background_color: blend(
+            background_color: with_alpha(
                 hsl_to_rgba(computed.background),
-                hsl_to_rgba(c.background),
-                computed.background_alpha * computed.opacity,
+                computed.background_alpha,
             ),
             border_color: hsl_to_rgba(computed.border),
             border_width: computed.border_width,
@@ -158,11 +157,7 @@ impl ButtonScreen {
             font_size: computed.font_size,
             font_weight: 500,
             line_height: computed.line_height,
-            color: blend(
-                hsl_to_rgba(computed.foreground),
-                hsl_to_rgba(c.background),
-                computed.opacity,
-            ),
+            color: hsl_to_rgba(computed.foreground),
             padding: PaddingSnapshot::symmetric(computed.padding_y, computed.padding_x),
             declared_background_color: None,
             declared_border_color: None,
@@ -198,12 +193,7 @@ impl ButtonScreen {
     }
 }
 
-fn blend(front: [u8; 4], back: [u8; 4], alpha: f32) -> [u8; 4] {
-    let f = alpha.clamp(0.0, 1.0);
-    [
-        (f32::from(front[0]) * f + f32::from(back[0]) * (1.0 - f)).round() as u8,
-        (f32::from(front[1]) * f + f32::from(back[1]) * (1.0 - f)).round() as u8,
-        (f32::from(front[2]) * f + f32::from(back[2]) * (1.0 - f)).round() as u8,
-        255,
-    ]
+fn with_alpha(mut color: [u8; 4], alpha: f32) -> [u8; 4] {
+    color[3] = (alpha.clamp(0.0, 1.0) * 255.0).round() as u8;
+    color
 }
