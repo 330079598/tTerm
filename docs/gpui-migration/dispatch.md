@@ -20,10 +20,10 @@
 ## 2. 当前进度（2026-11-09）
 
 - `GPUI` 已推送。逐卡状态见 [status.md](status.md)。
-- **P0-24 部分通过并已合并**（2026-11-09，在 Mac 上做）：Button 与 Input 在 macOS 深浅主题四屏达标，focus ring 外沿按[决策 013](decisions/013-ring-edge-mask.md) 遮罩。worktree `../tTerm-P0-24` 保留，后两批在同一分支继续。缺的项见报告末尾“评估（2026-11-09，macOS，Button 与 Input）”。
+- **P0-24 第一批已合并**（2026-11-09，在 Mac 上）：PasswordInput、Select、Switch 在 macOS 深浅两种主题下达标。Codex 两轮只交了静态画面，决策人随后改由 Claude 直接实现。期间对比工具新增了组件部件比较、例外登记（E-001）和图标检查（决策 014）。worktree `../tTerm-P0-24` 保留，第二批在同一分支继续。
 - P0-10-mac-test 已通过并合并（2026-11-09）：macOS 上 `cargo test --workspace` 不再有失败项。
 - 排队，按顺序：
-  1. P0-24 第一批：PasswordInput、Select、Switch；第二批：Tabs、Dialog、ContextMenu；
+  1. P0-24 第二批：Tabs、Dialog、ContextMenu；顺带给 outline Button 与 Input 补上 `shadow-xs`，并把 `layout.test.mjs` 接进检查；
   2. P0-01 补跑 vtebench（WSL 里已装 cargo，`~/vtebench` 已克隆），以及 macOS 基线（Mac 空闲时单独跑）；
   3. P0-21，机器空闲时单独跑；
   4. P0-17、P0-18 的 Windows 部分，要人动手的项整理成检查清单给 stone；
@@ -142,3 +142,4 @@ scripts/migration/run-codex.ps1 -Card <ID> -Worktree ..\tTerm-<ID> -PromptFile <
 - 评估者自己也会误判：P0-24 中曾把落在边缘带里的接缝像素当成门槛问题。下返工结论前，先用结果 JSON 确认哪些像素真正进入了门槛。
 - 组件卡一轮只派一个组件。P0-24 第一批一次派了三个，执行者 20 分钟后就停下了：每个组件都只交了静态画面，GPUI 屏与 React 屏的元素对不上，对比和检查也都没跑。
 - 执行者把超限像素归为“抗锯齿”时，先看差异是不是成片平移。Switch 的 2000 多个超限像素其实是 thumb 偏了 1px：thumb 没有被标记，布局比较发现不了。
+- Codex 在组件卡上的表现：即使一轮只派一个组件，也会把像素差异归因于抗锯齿，不去找真正的原因。决策人已决定组件卡由 Claude 直接实现（2026-11-09）。
