@@ -1,0 +1,778 @@
+{
+  "schemaVersion": 2,
+  "reference": {
+    "frontendCommit": "e17b21c35e51c2196f8c337e5a8cd30a0f78612c",
+    "dirty": true
+  },
+  "thresholds": {
+    "fixedPx": 1.0,
+    "textPx": 2.0,
+    "textFraction": 0.02,
+    "maskedSsim": 0.99,
+    "fullSsim": 0.97,
+    "screenColorPixels": 0
+  },
+  "screens": [
+    {
+      "id": "example.button-input.default",
+      "title": "Example: one button and one input",
+      "passed": true,
+      "layout": {
+        "passed": true,
+        "elements": [
+          {
+            "id": "example.button",
+            "passed": true,
+            "maxBoundsDelta": 0.25,
+            "failures": []
+          },
+          {
+            "id": "example.input",
+            "passed": true,
+            "maxBoundsDelta": 0.0,
+            "failures": []
+          },
+          {
+            "id": "example.screen",
+            "passed": true,
+            "maxBoundsDelta": 0.0,
+            "failures": []
+          }
+        ],
+        "failures": []
+      },
+      "colors": {
+        "meanDeltaE": 0.0001,
+        "maxDeltaE": 2.6153,
+        "pixelsAboveOne": 52
+      },
+      "screenColors": {
+        "meanDeltaE": 0.0,
+        "maxDeltaE": 0.0,
+        "pixelsAboveOne": 0
+      },
+      "ssim": {
+        "full": 0.998504,
+        "masked": 1.0
+      },
+      "heatmap": "heatmaps/example.button-input.default.png",
+      "images": {
+        "reference": "../reference/e17b21c35e51c2196f8c337e5a8cd30a0f78612c-dirty/example.button-input.default.png",
+        "actual": "../actual/example.button-input.default.png"
+      },
+      "icons": [],
+      "exceptions": [],
+      "failures": []
+    },
+    {
+      "id": "ui.button.variants",
+      "title": "Button variants and states",
+      "passed": false,
+      "layout": {
+        "passed": false,
+        "elements": [
+          {
+            "id": "ui.button.variants.default",
+            "passed": true,
+            "maxBoundsDelta": 0.0,
+            "failures": []
+          },
+          {
+            "id": "ui.button.variants.destructive",
+            "passed": true,
+            "maxBoundsDelta": 0.0,
+            "failures": []
+          },
+          {
+            "id": "ui.button.variants.disabled",
+            "passed": true,
+            "maxBoundsDelta": 0.0,
+            "failures": []
+          },
+          {
+            "id": "ui.button.variants.disabled-destructive",
+            "passed": true,
+            "maxBoundsDelta": 0.0,
+            "failures": []
+          },
+          {
+            "id": "ui.button.variants.disabled-outline",
+            "passed": true,
+            "maxBoundsDelta": 0.0,
+            "failures": []
+          },
+          {
+            "id": "ui.button.variants.focus",
+            "passed": true,
+            "maxBoundsDelta": 0.0,
+            "failures": []
+          },
+          {
+            "id": "ui.button.variants.ghost",
+            "passed": true,
+            "maxBoundsDelta": 0.0,
+            "failures": []
+          },
+          {
+            "id": "ui.button.variants.hover",
+            "passed": true,
+            "maxBoundsDelta": 0.0,
+            "failures": []
+          },
+          {
+            "id": "ui.button.variants.link",
+            "passed": true,
+            "maxBoundsDelta": 0.0,
+            "failures": []
+          },
+          {
+            "id": "ui.button.variants.outline",
+            "passed": false,
+            "maxBoundsDelta": 0.0,
+            "failures": [
+              "ui.button.variants.outline: background colour #25262aff over the screen background became #242629ff (CIEDE2000 1.117 > 1)"
+            ]
+          },
+          {
+            "id": "ui.button.variants.screen",
+            "passed": true,
+            "maxBoundsDelta": 0.0,
+            "failures": []
+          },
+          {
+            "id": "ui.button.variants.secondary",
+            "passed": true,
+            "maxBoundsDelta": 0.0,
+            "failures": []
+          }
+        ],
+        "failures": [
+          "ui.button.variants.outline: background colour #25262aff over the screen background became #242629ff (CIEDE2000 1.117 > 1)"
+        ]
+      },
+      "colors": {
+        "meanDeltaE": 0.0772,
+        "maxDeltaE": 5.7913,
+        "pixelsAboveOne": 93592
+      },
+      "screenColors": {
+        "meanDeltaE": 0.0778,
+        "maxDeltaE": 1.1172,
+        "pixelsAboveOne": 91652
+      },
+      "ssim": {
+        "full": 0.990724,
+        "masked": 0.999948
+      },
+      "heatmap": "heatmaps/ui.button.variants.png",
+      "images": {
+        "reference": "../reference/e17b21c35e51c2196f8c337e5a8cd30a0f78612c-dirty/ui.button.variants.png",
+        "actual": "../actual/ui.button.variants.png"
+      },
+      "icons": [],
+      "exceptions": [],
+      "failures": [
+        "ui.button.variants.outline: background colour #25262aff over the screen background became #242629ff (CIEDE2000 1.117 > 1)",
+        "screen colour gate: 91652 pixel(s) above CIEDE2000 1 outside text, element edges and icons (allowed 0)"
+      ]
+    },
+    {
+      "id": "ui.button.sizes",
+      "title": "Button sizes",
+      "passed": true,
+      "layout": {
+        "passed": true,
+        "elements": [
+          {
+            "id": "ui.button.sizes.default",
+            "passed": true,
+            "maxBoundsDelta": 0.0,
+            "failures": []
+          },
+          {
+            "id": "ui.button.sizes.icon",
+            "passed": true,
+            "maxBoundsDelta": 0.0,
+            "failures": []
+          },
+          {
+            "id": "ui.button.sizes.icon-lg",
+            "passed": true,
+            "maxBoundsDelta": 0.0,
+            "failures": []
+          },
+          {
+            "id": "ui.button.sizes.icon-sm",
+            "passed": true,
+            "maxBoundsDelta": 0.0,
+            "failures": []
+          },
+          {
+            "id": "ui.button.sizes.icon-xs",
+            "passed": true,
+            "maxBoundsDelta": 0.0,
+            "failures": []
+          },
+          {
+            "id": "ui.button.sizes.lg",
+            "passed": true,
+            "maxBoundsDelta": 0.0,
+            "failures": []
+          },
+          {
+            "id": "ui.button.sizes.screen",
+            "passed": true,
+            "maxBoundsDelta": 0.0,
+            "failures": []
+          },
+          {
+            "id": "ui.button.sizes.sm",
+            "passed": true,
+            "maxBoundsDelta": 0.0,
+            "failures": []
+          },
+          {
+            "id": "ui.button.sizes.xs",
+            "passed": true,
+            "maxBoundsDelta": 0.0,
+            "failures": []
+          }
+        ],
+        "failures": []
+      },
+      "colors": {
+        "meanDeltaE": 0.0004,
+        "maxDeltaE": 3.1651,
+        "pixelsAboveOne": 288
+      },
+      "screenColors": {
+        "meanDeltaE": 0.0,
+        "maxDeltaE": 0.0,
+        "pixelsAboveOne": 0
+      },
+      "ssim": {
+        "full": 0.998855,
+        "masked": 0.999997
+      },
+      "heatmap": "heatmaps/ui.button.sizes.png",
+      "images": {
+        "reference": "../reference/e17b21c35e51c2196f8c337e5a8cd30a0f78612c-dirty/ui.button.sizes.png",
+        "actual": "../actual/ui.button.sizes.png"
+      },
+      "icons": [],
+      "exceptions": [],
+      "failures": []
+    },
+    {
+      "id": "ui.input.default",
+      "title": "Input primitive states",
+      "passed": false,
+      "layout": {
+        "passed": false,
+        "elements": [
+          {
+            "id": "ui.input.disabled",
+            "passed": true,
+            "maxBoundsDelta": 0.0,
+            "failures": []
+          },
+          {
+            "id": "ui.input.empty",
+            "passed": false,
+            "maxBoundsDelta": 0.0,
+            "failures": [
+              "ui.input.empty: background colour #25262aff over the screen background became #242629ff (CIEDE2000 1.117 > 1)"
+            ]
+          },
+          {
+            "id": "ui.input.focus",
+            "passed": false,
+            "maxBoundsDelta": 0.0,
+            "failures": [
+              "ui.input.focus: background colour #25262aff over the screen background became #242629ff (CIEDE2000 1.117 > 1)"
+            ]
+          },
+          {
+            "id": "ui.input.long",
+            "passed": false,
+            "maxBoundsDelta": 0.0,
+            "failures": [
+              "ui.input.long: background colour #25262aff over the screen background became #242629ff (CIEDE2000 1.117 > 1)"
+            ]
+          },
+          {
+            "id": "ui.input.screen",
+            "passed": true,
+            "maxBoundsDelta": 0.0,
+            "failures": []
+          }
+        ],
+        "failures": [
+          "ui.input.empty: background colour #25262aff over the screen background became #242629ff (CIEDE2000 1.117 > 1)",
+          "ui.input.focus: background colour #25262aff over the screen background became #242629ff (CIEDE2000 1.117 > 1)",
+          "ui.input.long: background colour #25262aff over the screen background became #242629ff (CIEDE2000 1.117 > 1)"
+        ]
+      },
+      "colors": {
+        "meanDeltaE": 0.0335,
+        "maxDeltaE": 12.1351,
+        "pixelsAboveOne": 41824
+      },
+      "screenColors": {
+        "meanDeltaE": 0.029,
+        "maxDeltaE": 1.1172,
+        "pixelsAboveOne": 37800
+      },
+      "ssim": {
+        "full": 0.977399,
+        "masked": 0.999903
+      },
+      "heatmap": "heatmaps/ui.input.default.png",
+      "images": {
+        "reference": "../reference/e17b21c35e51c2196f8c337e5a8cd30a0f78612c-dirty/ui.input.default.png",
+        "actual": "../actual/ui.input.default.png"
+      },
+      "icons": [],
+      "exceptions": [],
+      "failures": [
+        "ui.input.empty: background colour #25262aff over the screen background became #242629ff (CIEDE2000 1.117 > 1)",
+        "ui.input.focus: background colour #25262aff over the screen background became #242629ff (CIEDE2000 1.117 > 1)",
+        "ui.input.long: background colour #25262aff over the screen background became #242629ff (CIEDE2000 1.117 > 1)",
+        "screen colour gate: 37800 pixel(s) above CIEDE2000 1 outside text, element edges and icons (allowed 0)"
+      ]
+    },
+    {
+      "id": "ui.password.default",
+      "title": "Password input states",
+      "passed": false,
+      "layout": {
+        "passed": false,
+        "elements": [
+          {
+            "id": "ui.password.default",
+            "passed": false,
+            "maxBoundsDelta": 0.0,
+            "failures": [
+              "ui.password.default: background colour #25262aff over the screen background became #242629ff (CIEDE2000 1.117 > 1)"
+            ]
+          },
+          {
+            "id": "ui.password.disabled",
+            "passed": true,
+            "maxBoundsDelta": 0.0,
+            "failures": []
+          },
+          {
+            "id": "ui.password.masked",
+            "passed": false,
+            "maxBoundsDelta": 0.0,
+            "failures": [
+              "ui.password.masked: background colour #25262aff over the screen background became #242629ff (CIEDE2000 1.117 > 1)"
+            ]
+          }
+        ],
+        "failures": [
+          "ui.password.default: background colour #25262aff over the screen background became #242629ff (CIEDE2000 1.117 > 1)",
+          "ui.password.masked: background colour #25262aff over the screen background became #242629ff (CIEDE2000 1.117 > 1)"
+        ]
+      },
+      "colors": {
+        "meanDeltaE": 0.0309,
+        "maxDeltaE": 5.7913,
+        "pixelsAboveOne": 39181
+      },
+      "screenColors": {
+        "meanDeltaE": 0.0254,
+        "maxDeltaE": 1.1172,
+        "pixelsAboveOne": 33744
+      },
+      "ssim": {
+        "full": 0.991676,
+        "masked": 0.999922
+      },
+      "heatmap": "heatmaps/ui.password.default.png",
+      "images": {
+        "reference": "../reference/e17b21c35e51c2196f8c337e5a8cd30a0f78612c-dirty/ui.password.default.png",
+        "actual": "../actual/ui.password.default.png"
+      },
+      "icons": [
+        {
+          "bounds": {
+            "x": 740.0,
+            "y": 42.0,
+            "width": 16.0,
+            "height": 16.0
+          },
+          "inkRatio": 1.0776174278188932,
+          "centroidDelta": 0.0014141299006800042,
+          "colorDeltaE": 0.3265440820899654,
+          "passed": false
+        },
+        {
+          "bounds": {
+            "x": 740.0,
+            "y": 94.0,
+            "width": 16.0,
+            "height": 16.0
+          },
+          "inkRatio": 1.077662384822178,
+          "centroidDelta": 0.0015626299633049012,
+          "colorDeltaE": 0.3265440820899654,
+          "passed": false
+        },
+        {
+          "bounds": {
+            "x": 740.0,
+            "y": 146.0,
+            "width": 16.0,
+            "height": 16.0
+          },
+          "inkRatio": 1.0062775471298253,
+          "centroidDelta": 0.0024654953509756976,
+          "colorDeltaE": 0.6203749505174446,
+          "passed": true
+        }
+      ],
+      "exceptions": [],
+      "failures": [
+        "ui.password.default: background colour #25262aff over the screen background became #242629ff (CIEDE2000 1.117 > 1)",
+        "ui.password.masked: background colour #25262aff over the screen background became #242629ff (CIEDE2000 1.117 > 1)",
+        "icon at (740, 42) 16x16: ink ratio 1.078 (allowed ±0.03), centroid moved 0.00 px (allowed 0.25), stroke colour CIEDE2000 0.33 (allowed 1)",
+        "icon at (740, 94) 16x16: ink ratio 1.078 (allowed ±0.03), centroid moved 0.00 px (allowed 0.25), stroke colour CIEDE2000 0.33 (allowed 1)",
+        "screen colour gate: 33744 pixel(s) above CIEDE2000 1 outside text, element edges and icons (allowed 0)"
+      ]
+    },
+    {
+      "id": "ui.select.default",
+      "title": "Select states",
+      "passed": true,
+      "layout": {
+        "passed": true,
+        "elements": [
+          {
+            "id": "ui.select.default",
+            "passed": true,
+            "maxBoundsDelta": 0.0,
+            "failures": []
+          },
+          {
+            "id": "ui.select.disabled",
+            "passed": true,
+            "maxBoundsDelta": 0.0,
+            "failures": []
+          },
+          {
+            "id": "ui.select.focus",
+            "passed": true,
+            "maxBoundsDelta": 0.0,
+            "failures": []
+          },
+          {
+            "id": "ui.select.long",
+            "passed": true,
+            "maxBoundsDelta": 0.0,
+            "failures": []
+          }
+        ],
+        "failures": []
+      },
+      "colors": {
+        "meanDeltaE": 0.003,
+        "maxDeltaE": 11.6053,
+        "pixelsAboveOne": 430
+      },
+      "screenColors": {
+        "meanDeltaE": 0.002,
+        "maxDeltaE": 0.6928,
+        "pixelsAboveOne": 0
+      },
+      "ssim": {
+        "full": 0.998832,
+        "masked": 0.99993
+      },
+      "heatmap": "heatmaps/ui.select.default.png",
+      "images": {
+        "reference": "../reference/e17b21c35e51c2196f8c337e5a8cd30a0f78612c-dirty/ui.select.default.png",
+        "actual": "../actual/ui.select.default.png"
+      },
+      "icons": [
+        {
+          "bounds": {
+            "x": 740.0,
+            "y": 42.0,
+            "width": 16.0,
+            "height": 16.0
+          },
+          "inkRatio": 1.0277416690075876,
+          "centroidDelta": 0.00033869863985103166,
+          "colorDeltaE": 0.3265440820899654,
+          "passed": true
+        },
+        {
+          "bounds": {
+            "x": 740.0,
+            "y": 94.0,
+            "width": 16.0,
+            "height": 16.0
+          },
+          "inkRatio": 1.0277416690075876,
+          "centroidDelta": 0.00033869863982260995,
+          "colorDeltaE": 0.3265440820899654,
+          "passed": true
+        },
+        {
+          "bounds": {
+            "x": 740.0,
+            "y": 146.0,
+            "width": 16.0,
+            "height": 16.0
+          },
+          "inkRatio": 1.0277416690075876,
+          "centroidDelta": 0.0003386986398083991,
+          "colorDeltaE": 0.3265440820899654,
+          "passed": true
+        },
+        {
+          "bounds": {
+            "x": 740.0,
+            "y": 198.0,
+            "width": 16.0,
+            "height": 16.0
+          },
+          "inkRatio": 1.0277416690075876,
+          "centroidDelta": 0.00033869863972313397,
+          "colorDeltaE": 0.3265440820899654,
+          "passed": true
+        }
+      ],
+      "exceptions": [],
+      "failures": []
+    },
+    {
+      "id": "ui.switch.default",
+      "title": "Switch states",
+      "passed": true,
+      "layout": {
+        "passed": true,
+        "elements": [
+          {
+            "id": "ui.switch.checked",
+            "passed": true,
+            "maxBoundsDelta": 0.0,
+            "failures": []
+          },
+          {
+            "id": "ui.switch.checked.switch-thumb",
+            "passed": true,
+            "maxBoundsDelta": 0.0,
+            "failures": []
+          },
+          {
+            "id": "ui.switch.disabled",
+            "passed": true,
+            "maxBoundsDelta": 0.0,
+            "failures": []
+          },
+          {
+            "id": "ui.switch.disabled.switch-thumb",
+            "passed": true,
+            "maxBoundsDelta": 0.0,
+            "failures": []
+          },
+          {
+            "id": "ui.switch.focus",
+            "passed": true,
+            "maxBoundsDelta": 0.0,
+            "failures": []
+          },
+          {
+            "id": "ui.switch.focus.switch-thumb",
+            "passed": true,
+            "maxBoundsDelta": 0.0,
+            "failures": []
+          },
+          {
+            "id": "ui.switch.unchecked",
+            "passed": true,
+            "maxBoundsDelta": 0.0,
+            "failures": []
+          },
+          {
+            "id": "ui.switch.unchecked.switch-thumb",
+            "passed": true,
+            "maxBoundsDelta": 0.0,
+            "failures": []
+          }
+        ],
+        "failures": []
+      },
+      "colors": {
+        "meanDeltaE": 0.0004,
+        "maxDeltaE": 3.89,
+        "pixelsAboveOne": 236
+      },
+      "screenColors": {
+        "meanDeltaE": 0.0,
+        "maxDeltaE": 0.0808,
+        "pixelsAboveOne": 0
+      },
+      "ssim": {
+        "full": 0.999996,
+        "masked": 0.999994
+      },
+      "heatmap": "heatmaps/ui.switch.default.png",
+      "images": {
+        "reference": "../reference/e17b21c35e51c2196f8c337e5a8cd30a0f78612c-dirty/ui.switch.default.png",
+        "actual": "../actual/ui.switch.default.png"
+      },
+      "icons": [],
+      "exceptions": [
+        "E-001"
+      ],
+      "failures": []
+    },
+    {
+      "id": "ui.tabs.default",
+      "title": "Tabs primitive states",
+      "passed": false,
+      "layout": {
+        "passed": true,
+        "elements": [
+          {
+            "id": "ui.tabs.active",
+            "passed": true,
+            "maxBoundsDelta": 0.33,
+            "failures": []
+          },
+          {
+            "id": "ui.tabs.content",
+            "passed": true,
+            "maxBoundsDelta": 0.0,
+            "failures": []
+          },
+          {
+            "id": "ui.tabs.default",
+            "passed": true,
+            "maxBoundsDelta": 0.0,
+            "failures": []
+          },
+          {
+            "id": "ui.tabs.focus",
+            "passed": true,
+            "maxBoundsDelta": 0.12,
+            "failures": []
+          },
+          {
+            "id": "ui.tabs.inactive",
+            "passed": true,
+            "maxBoundsDelta": 0.33,
+            "failures": []
+          },
+          {
+            "id": "ui.tabs.list",
+            "passed": true,
+            "maxBoundsDelta": 0.09,
+            "failures": []
+          }
+        ],
+        "failures": []
+      },
+      "colors": {
+        "meanDeltaE": 0.0008,
+        "maxDeltaE": 8.3149,
+        "pixelsAboveOne": 212
+      },
+      "screenColors": {
+        "meanDeltaE": 0.0003,
+        "maxDeltaE": 2.701,
+        "pixelsAboveOne": 44
+      },
+      "ssim": {
+        "full": 0.998166,
+        "masked": 0.999937
+      },
+      "heatmap": "heatmaps/ui.tabs.default.png",
+      "images": {
+        "reference": "../reference/e17b21c35e51c2196f8c337e5a8cd30a0f78612c-dirty/ui.tabs.default.png",
+        "actual": "../actual/ui.tabs.default.png"
+      },
+      "icons": [],
+      "exceptions": [],
+      "failures": [
+        "screen colour gate: 44 pixel(s) above CIEDE2000 1 outside text, element edges and icons (allowed 0)"
+      ]
+    },
+    {
+      "id": "ui.tabs.server-monitor",
+      "title": "Tabs using ServerMonitorPanel classes",
+      "passed": false,
+      "layout": {
+        "passed": true,
+        "elements": [
+          {
+            "id": "ui.tabs.server",
+            "passed": true,
+            "maxBoundsDelta": 0.0,
+            "failures": []
+          },
+          {
+            "id": "ui.tabs.server-active",
+            "passed": true,
+            "maxBoundsDelta": 0.08,
+            "failures": []
+          },
+          {
+            "id": "ui.tabs.server-content",
+            "passed": true,
+            "maxBoundsDelta": 0.0,
+            "failures": []
+          },
+          {
+            "id": "ui.tabs.server-focus",
+            "passed": true,
+            "maxBoundsDelta": 0.06,
+            "failures": []
+          },
+          {
+            "id": "ui.tabs.server-inactive",
+            "passed": true,
+            "maxBoundsDelta": 0.05,
+            "failures": []
+          },
+          {
+            "id": "ui.tabs.server-list",
+            "passed": true,
+            "maxBoundsDelta": 0.03,
+            "failures": []
+          }
+        ],
+        "failures": []
+      },
+      "colors": {
+        "meanDeltaE": 0.0005,
+        "maxDeltaE": 2.701,
+        "pixelsAboveOne": 116
+      },
+      "screenColors": {
+        "meanDeltaE": 0.0002,
+        "maxDeltaE": 2.701,
+        "pixelsAboveOne": 29
+      },
+      "ssim": {
+        "full": 0.997984,
+        "masked": 0.999998
+      },
+      "heatmap": "heatmaps/ui.tabs.server-monitor.png",
+      "images": {
+        "reference": "../reference/e17b21c35e51c2196f8c337e5a8cd30a0f78612c-dirty/ui.tabs.server-monitor.png",
+        "actual": "../actual/ui.tabs.server-monitor.png"
+      },
+      "icons": [],
+      "exceptions": [],
+      "failures": [
+        "screen colour gate: 29 pixel(s) above CIEDE2000 1 outside text, element edges and icons (allowed 0)"
+      ]
+    }
+  ],
+  "passed": false
+}
