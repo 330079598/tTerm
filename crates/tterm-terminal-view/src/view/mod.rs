@@ -27,7 +27,7 @@ mod paint;
 mod paste;
 mod pointer;
 mod prepare;
-mod row;
+pub mod row;
 mod scroll;
 mod scrollbar;
 mod style;

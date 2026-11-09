@@ -22,3 +22,8 @@ tterm-terminal = { path = "../tterm-terminal" }
 # Headless windows, test focus and frame rendering for the view behaviour
 # tests; the production crate does not enable this feature.
 gpui-kit = { workspace = true, features = ["test-support"] }
+
+[[test]]
+name = "shaping"
+path = "tests/shaping.rs"
+harness = false
