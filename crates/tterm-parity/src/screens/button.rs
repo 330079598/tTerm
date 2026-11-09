@@ -118,6 +118,26 @@ impl ButtonScreen {
             },
             "disabled",
         ));
+        out.push(self.item(
+            "disabled-destructive",
+            Variant::Destructive,
+            ButtonSize::Default,
+            ButtonState {
+                disabled: true,
+                ..ButtonState::default()
+            },
+            "disabled destructive",
+        ));
+        out.push(self.item(
+            "disabled-outline",
+            Variant::Outline,
+            ButtonSize::Default,
+            ButtonState {
+                disabled: true,
+                ..ButtonState::default()
+            },
+            "disabled outline",
+        ));
         out
     }
     fn size_children(&self) -> Vec<gpui_kit::AnyElement> {
@@ -143,8 +163,7 @@ impl ButtonScreen {
         state: ButtonState,
         label: &'static str,
     ) -> gpui_kit::AnyElement {
-        let c = self.theme.colors;
-        let computed = button_style(variant, size, state, c);
+        let computed = button_style(variant, size, state, self.theme);
         let style = StyleSnapshot {
             background_color: with_alpha(
                 hsl_to_rgba(computed.background),
@@ -186,7 +205,7 @@ impl ButtonScreen {
                 variant,
                 size,
                 state,
-                c,
+                self.theme,
             ),
         )
         .into_any_element()

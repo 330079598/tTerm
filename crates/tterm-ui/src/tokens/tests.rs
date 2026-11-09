@@ -109,6 +109,23 @@ fn theme_ids_are_unique() {
 }
 
 #[test]
+fn dark_variant_matches_css_theme_selector_rule() {
+    assert_eq!(
+        THEMES
+            .iter()
+            .filter(|theme| theme.uses_dark_variant())
+            .count(),
+        5
+    );
+    assert!(!THEMES[1].uses_dark_variant());
+    let bright_custom = crate::tokens::theme::Theme {
+        id: "ocean",
+        colors: THEMES[1].colors,
+    };
+    assert!(bright_custom.uses_dark_variant());
+}
+
+#[test]
 fn a_colour_name_is_looked_up_without_its_dashes() {
     assert_eq!(
         THEMES[0].colors.get("background"),

@@ -47,14 +47,13 @@ impl InputScreen {
 
     fn style(&self, focused: bool, disabled: bool) -> StyleSnapshot {
         let c = self.theme.colors;
-        let dark = c.background.lightness < 50.0;
-        let background_alpha = if dark { 0.3 } else { 1.0 };
+        let background_alpha = if self.theme.uses_dark_variant() {
+            0.3
+        } else {
+            0.0
+        };
         StyleSnapshot {
-            background_color: if dark {
-                with_alpha(hsl_to_rgba(c.input), background_alpha)
-            } else {
-                hsl_to_rgba(c.background)
-            },
+            background_color: with_alpha(hsl_to_rgba(c.input), background_alpha),
             border_color: hsl_to_rgba(if focused { c.ring } else { c.input }),
             border_width: 1.0,
             border_radius: 6.0,
@@ -104,7 +103,7 @@ impl InputScreen {
                 input(
                     &states[0],
                     InputOptions {
-                        colors: Some(self.theme.colors),
+                        theme: Some(self.theme),
                         ..InputOptions::default()
                     },
                 ),
@@ -117,7 +116,7 @@ impl InputScreen {
                 input(
                     &states[1],
                     InputOptions {
-                        colors: Some(self.theme.colors),
+                        theme: Some(self.theme),
                         ..InputOptions::default()
                     },
                 ),
@@ -131,7 +130,7 @@ impl InputScreen {
                     &states[2],
                     InputOptions {
                         focused: true,
-                        colors: Some(self.theme.colors),
+                        theme: Some(self.theme),
                         ..InputOptions::default()
                     },
                 ),
@@ -145,7 +144,7 @@ impl InputScreen {
                     &states[3],
                     InputOptions {
                         disabled: true,
-                        colors: Some(self.theme.colors),
+                        theme: Some(self.theme),
                         ..InputOptions::default()
                     },
                 ),
