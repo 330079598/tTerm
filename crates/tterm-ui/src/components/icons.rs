@@ -8,3 +8,7 @@ pub const CHEVRON_DOWN: &[u8] = include_bytes!("../../assets/icons/chevron-down.
 pub fn icon(data: &'static [u8], color: Hsla, size: f32) -> impl IntoElement {
     svg().data(data).size(px(size)).text_color(color)
 }
+
+pub const PLUS: &[u8] = include_bytes!("../../assets/icons/plus.svg");
+pub const ROTATE_CCW: &[u8] = include_bytes!("../../assets/icons/rotate-ccw.svg");
+pub const X: &[u8] = include_bytes!("../../assets/icons/x.svg");

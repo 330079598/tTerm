@@ -1,3 +1,4 @@
+import contextMenu from "@fixtures/ui.context-menu.json"
 import type { SavedProfile } from "@/types/tab"
 import exampleButtonInput from "@fixtures/example.button-input.default.json"
 import buttonFixture from "@fixtures/ui.button.default.json"
@@ -30,4 +31,6 @@ export const fixtures: Record<string, ParityFixture> = {
   "ui.password.default": { commands: passwordFixture.commands },
   "ui.select.default": { commands: selectFixture.commands },
   "ui.switch.default": { commands: switchFixture.commands },
+  "ui.context-menu.default": { commands: contextMenu.commands },
+  "ui.context-menu.highlighted": { commands: contextMenu.commands },
 }
