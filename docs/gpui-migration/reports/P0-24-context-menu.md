@@ -1,6 +1,6 @@
 # P0-24 第二批：右键菜单（macOS）
 
-状态：**完成待评估**。第 4 轮已修复代码审查列出的 1–8 项。菜单在生产 Base Root 下作为延迟浮层绘制并遮挡点击，回调在实体借用释放后执行，支持真实输入来源与长标签换行。干净工作区在沙箱外重生成参照，深浅两种主题均 **10/10 屏通过**，全部屏幕颜色超限为 0；E-001 继续只用于已批准的容器阴影。详见本报告“第 4 轮”。
+状态：**完成待评估**。第 5 轮已修复焦点环在鼠标移动后消失的问题，保留键盘操作期间的 hover 背景，改为显式初始化键位，并从行高推算文字区域。干净工作区在沙箱外重生成参照，深浅两种主题均 **10/10 屏通过**，全部屏幕颜色超限为 0；E-001 继续只用于已批准的容器阴影，已补齐 wrapped 实测与人工核对。详见本报告“第 5 轮”。
 
 ## 范围与生产语义
 
@@ -86,13 +86,13 @@ cp target/parity/report/result.json target/parity/report-light.json
 
 ### 已登记例外 E-001
 
-评估者复核第 2 轮像素证据后，决策人 stone 于 2026-11-09 批准把 E-001 扩展至 `ui.context-menu.default`、`ui.context-menu.highlighted` 的 `ui.context-menu`。`outset` 为 25，即 shadow-lg 第一层 y 偏移 10px + CSS 模糊 15px。只排除容器 border box 外的阴影区域，元素内部仍参与比较；原因与人工判定方法沿用 E-001 原文。没有改动 E-001 标题、编号或原有 Switch 段落。
+评估者复核第 2 轮像素证据后，决策人 stone 于 2026-11-09 批准把 E-001 扩展至右键菜单容器；第 5 轮确认同组件的 `ui.context-menu.wrapped` 也在批准范围内，与 default、highlighted 一并登记。`outset` 为 25，即 shadow-lg 第一层 y 偏移 10px + CSS 模糊 15px。只排除容器 border box 外的阴影区域，元素内部仍参与比较；原因与人工判定方法沿用 E-001 原文。没有改动 E-001 标题、编号或原有 Switch 段落。
 
 干净复跑后的深色两屏菜单框外均有 **4632 个物理像素差 1 级、4 个差 2 级**（按距圆角 border box 外 >1 至 50 个物理像素的区域统计，避开既有 1px 边缘带）。本轮两主题的参照与旧轮参照像素逐字节一致，深色两张 GPUI 截图也与旧轮逐字节一致；因此旧门槛审计中的 **642 个超限像素、其中 y=1185 一行 474 个**仍可复核，见 [原始门槛像素记录](assets/P0-24-context-menu/dark/gate-pixels.txt)。该行位于菜单下沿外约 2.5 CSS px。应用已批准的扩展后，深浅两屏计入门槛的超限像素均为 **0**。
 
 这属于 E-001 的低透明度模糊阴影尾部取整，不是图标或 ring 的抗锯齿说明。像素样本仍为：(1065,821) WebKit (27,29,34,255)、GPUI (27,28,34,255)；(1300,1185) WebKit (25,27,31,255)、GPUI (25,26,32,255)。本轮没有继续调整 alpha、sigma 或几何来迎合特定浏览器。
 
-下表是本轮对四个主题/屏幕组合逐一进行的视觉核对。使用 PNG 物理像素最近邻 **4 倍放大（400%）**，分别查看菜单下沿左角、直边中段、右角；每个小图均为左参照、右 GPUI。两屏在相同主题下的下沿截图一致，仍分别查看并记录。
+下表记录三个屏幕、两个主题的视觉核对。default/highlighted 保留第 3 轮记录，wrapped 补充第 5 轮证据。使用 PNG 物理像素最近邻 **4 倍放大（400%）**，分别查看菜单下沿左角、直边中段、右角；每个小图均为左参照、右 GPUI。default/highlighted 在相同主题下的下沿截图一致，仍分别查看并记录。
 
 | 屏幕 | 主题 | 400% 核对结论 | 并排证据（左参照，右 GPUI） |
 | --- | --- | --- | --- |
@@ -100,6 +100,8 @@ cp target/parity/report/result.json target/parity/report-light.json
 | ui.context-menu.highlighted | 深色 | 阴影方向、范围和深浅一致；键盘高亮不改变容器阴影，符合 E-001。 | [左角](assets/P0-24-context-menu/round3/dark/highlighted-inspect-left-4x.png)、[中段](assets/P0-24-context-menu/round3/dark/highlighted-inspect-middle-4x.png)、[右角](assets/P0-24-context-menu/round3/dark/highlighted-inspect-right-4x.png) |
 | ui.context-menu.default | 浅色 | 阴影方向、范围和深浅一致；圆角附近可见栅格边缘差，未见阴影缺失、错位或明显深浅差。 | [左角](assets/P0-24-context-menu/round3/light/default-inspect-left-4x.png)、[中段](assets/P0-24-context-menu/round3/light/default-inspect-middle-4x.png)、[右角](assets/P0-24-context-menu/round3/light/default-inspect-right-4x.png) |
 | ui.context-menu.highlighted | 浅色 | 阴影方向、范围和深浅一致；与默认屏容器阴影相同，符合 E-001。 | [左角](assets/P0-24-context-menu/round3/light/highlighted-inspect-left-4x.png)、[中段](assets/P0-24-context-menu/round3/light/highlighted-inspect-middle-4x.png)、[右角](assets/P0-24-context-menu/round3/light/highlighted-inspect-right-4x.png) |
+| ui.context-menu.wrapped | 深色 | 已查看 400% 下沿左角、中段、右角；阴影向下延伸，方向、范围和深浅一致，无缺失或偏移，符合 E-001。 | [左角](assets/P0-24-context-menu/round5/dark/wrapped-bottom-left-4x.png)、[中段](assets/P0-24-context-menu/round5/dark/wrapped-bottom-middle-4x.png)、[右角](assets/P0-24-context-menu/round5/dark/wrapped-bottom-right-4x.png) |
+| ui.context-menu.wrapped | 浅色 | 已查看 400% 下沿左角、中段、右角；阴影范围和深浅一致，圆角尾部有栅格差，未见阴影缺失、偏移或明显深浅差，符合 E-001。 | [左角](assets/P0-24-context-menu/round5/light/wrapped-bottom-left-4x.png)、[中段](assets/P0-24-context-menu/round5/light/wrapped-bottom-middle-4x.png)、[右角](assets/P0-24-context-menu/round5/light/wrapped-bottom-right-4x.png) |
 
 下沿完整裁剪使用 PNG 坐标 `(1040,1156)..(1600,1200)`，即菜单底边 y=1180 上方 24px 和下方可见的 20px；截图到窗口底部为止。每张从 560×44 放大至 2240×176，未调色或插值平滑。并排图各半保持相同 4 倍比例，原尺寸查看可核对：
 
@@ -169,7 +171,7 @@ PartStyle 增加 ancestor_opacity、font_family、font_weight。row_style 产生
 
 ### 6. focus-visible 输入来源
 
-直接使用 Window 保留的 `last_input_was_keyboard()`，避免组件自建第二份输入状态。鼠标打开时无 ring；真实键盘事件后显示，指针事件后隐藏。`focus_ring_follows_real_pointer_and_keyboard_input` 在 Root 内按上述顺序验证 0、3、0 的 ring spread。两端 parity 的 Home/ArrowDown 事件一致，因此捕获屏仍展示 focus-visible ring。
+第 4 轮直接使用 Window 的 `last_input_was_keyboard()`，鼠标打开时无 ring；真实键盘事件后显示，指针事件后隐藏。该实现会在鼠标移动时过早隐藏 ring，第 5 轮改为记录焦点变化的输入来源，并以真实绘制测试替换原来的样式断言。两端 parity 的焦点环证据范围见第 5 轮第 5 项。
 
 ### 7. 一次定位与传播
 
@@ -220,3 +222,69 @@ UPDATE_REFERENCE=1 PARITY_PLATFORM=macos PARITY_THEME=light CARGO_BUILD_JOBS=3 c
 AGENTS.md 全部检查均在沙箱外通过；cargo 从 worktree 根运行，CARGO_BUILD_JOBS=3，使用本地 target，无共享 CARGO_TARGET_DIR。前端 175 文件、1295 测试通过，[大小检查](assets/P0-24-context-menu/round4/size.log) 1051 文件通过；cargo fmt --all --check 通过，[clippy --workspace --all-targets -- -D warnings](assets/P0-24-context-menu/round4/clippy.log) 通过；[不筛选的 cargo test --workspace](assets/P0-24-context-menu/round4/workspace-tests.log) 通过，tterm-ui 42、tterm-parity 76、terminal-view 137、Tauri 817（原有 52 ignored 未改）。菜单 12 个测试全部通过；没有添加 ignore/allow 或跳过失败项。
 
 Windows 仍为未验证（需 Windows）。[人工] 真实 Tauri 窗口交叉截图与标签、终端、SFTP 调用处端到端体验仍待验证。长标签换行已验证，不再列作未实现限制。本轮 Vite/Playwright/GPUI 捕获均退出；核对到同名对比进程属于 Tabs worktree，没有触碰。没有运行受保护标识的 Tauri 应用，没有合并或 push。
+
+
+## 第 5 轮（2026-11-09）：焦点可见性与初始化收尾
+
+### 1. 按焦点变化记录输入来源，保留 hover
+
+打开菜单时从 `window.last_input_was_keyboard()` 记录 `focus_visible`；ArrowUp/Down、Tab/ShiftTab、Home/End 移动高亮时记为键盘。绘制只读这个记录，MouseMove 不修改它；卡片上的左键/右键 mouse-down 清除记录。这样键盘导航后的鼠标移动不会移除 ring，指针点击仍会清除。测试 `keyboard_ring_survives_mouse_move_until_pointer_press` 每一步调用 `render_frame` 后检查实际 `painted_quads`：初始无 ring，Down 后有 ring，MouseMove 后 ring 图元数量不变，点击卡片内边距后无 ring；没有直接调用 row_style。
+
+用真实生产 React 菜单、Playwright WebKit 的受信任 `page.keyboard.press('ArrowDown')` 核实：鼠标仍在第一个菜单项时，按键前后的 `:hover` 均为 true，背景均为 `oklab(0.544629 -0.049777 -0.157557 / 0.5)`，见 [探测记录](assets/P0-24-context-menu/round5/react-hover-probe.json)。GPUI 菜单行改为 `HoverListenerMode::InputModalityIndependent`。测试 `hovered_background_survives_keyboard_navigation` 渲染后检查真实 hover 背景图元，确认键盘操作不会清掉它。
+
+### 2. 显式注册键位，支持重载
+
+删除 Global 懒注册标记与构造函数内的注册，新增公开的 `context_menu::init(cx)`，按 gpui-component 的方式直接绑定全部菜单 action。新增 `tterm_ui::init(cx)` 入口并写明调用约定：在 `gpui_kit::init` 后调用，重建键位表时再次调用。当前实际使用菜单的 parity 初始化入口和所有菜单测试均走此入口；尚未依赖 tterm-ui 的 tterm-gpui 没有新增依赖。
+
+`explicit_init_restores_menu_bindings_after_keymap_reload` 在生产 Base Root 下清空 key bindings，再调用 `tterm_ui::init`，验证 Tab、ShiftTab、Down 移动以及 Esc 关闭，避免旧 Global 标记导致菜单绑定永久丢失。
+
+### 3. 文字高度从行高推算
+
+`context_menu/text.rs` 首行、总高度及文字区域统一使用声明行高向下取整后的值，不再硬写 16px。注释说明 WebKit 实测的对应关系：16.8px 声明行高得到 16px inline 行盒，两行得到 32px。测量、prepaint 的文字区域和 paint 均按同一规则计算。已有 `chinese_label_wraps_and_expands_row_from_its_minimum_height` 继续通过；default、highlighted、wrapped 两主题 SSIM 与第 4 轮相同，布局偏差也未增大。
+
+### 4. 补齐 E-001 与 wrapped 人工核对
+
+E-001 右键菜单扩展明确列出三屏共同的 `ui.context-menu` 容器与 shadow-lg，outset 保持 25。移除会过时的屏幕总数说明，换成本轮三屏两主题的实测数字。统计仍取圆角 border box 外 >1 至 50 个物理像素，避开既有边缘带；表中“差 N 级”为 RGBA 通道绝对差的最大值，见 [原始统计](assets/P0-24-context-menu/round5/shadow-audit.json)。这些是例外区域的审计数字，不是计入门槛的超限计数。
+
+| 屏幕 | 深色阴影区域差异像素 | 浅色阴影区域差异像素 | 应用 E-001 后颜色门槛超限（深 / 浅） |
+| --- | --- | --- | --- |
+| default | 差 1 级：4632；差 2 级：4 | 差 1/2/3/4/5 级：20788/2566/40/4/2 | 0 / 0 |
+| highlighted | 差 1 级：4632；差 2 级：4 | 差 1/2/3/4/5 级：20788/2566/40/4/2 | 0 / 0 |
+| wrapped | 差 1 级：2466；差 2 级：4 | 差 1/2/3/4 级：11306/938/36/6 | 0 / 0 |
+
+已在“已登记例外 E-001”的人工核对表补上 wrapped 深浅两行。六张并排证据分别覆盖左角、中段、右角，左参照、右 GPUI，最近邻放大 4 倍；源 PNG 裁剪 y=1156..1200，x 分别为 1040..1160、1240..1360、1480..1600。400% 检查确认方向、范围和深浅一致，无缺失或偏移。原有 Switch 段落、例外编号、遮罩与门槛未改。
+
+### 5. 焦点环 parity 证据的边界
+
+React parity 夹具通过 `document.dispatchEvent` 发出的按键是不受信任的事件，WebKit 未必会因此切换输入方式。因此两端截图中的焦点环一致，靠的是程序设置焦点时的规则，不能证明两边判断焦点可见的方式一致。第 1 项的 GPUI 实际绘制测试单独验证键盘导航、鼠标移动和指针点击的状态；受信任的 WebKit 探测单独验证 hover 在键盘操作时保留。
+
+### 第 5 轮干净工作区对比
+
+代码先提交，确认工作区干净后在沙箱外执行深浅两次 UPDATE_REFERENCE=1。深色运行时 HEAD 为 86cf0020；之后仅调整测试的 ring 图元数量断言并提交 80681ff3，浅色运行时 HEAD 为 80681ff3，两次生产绘制代码相同。参照键仍为最后一次前端提交 `92c46435623fb16caed6e93400e47d00dfdbca0e`，两份 result.json 均为 `dirty: false`，参照目录不带 `-dirty`。每次完成后立即将 result.json、GPUI 三屏 PNG 和 layout.json 另存，深色未被浅色覆盖。
+
+| 屏幕 | 深色 / 浅色 | 颜色门槛超限（深 / 浅） | 使用的例外（两主题） |
+| --- | --- | --- | --- |
+| example.button-input.default | 通过 / 通过 | 0 / 0 | 无（[]） |
+| ui.button.variants | 通过 / 通过 | 0 / 0 | 无（[]） |
+| ui.button.sizes | 通过 / 通过 | 0 / 0 | 无（[]） |
+| ui.input.default | 通过 / 通过 | 0 / 0 | 无（[]） |
+| ui.password.default | 通过 / 通过 | 0 / 0 | 无（[]） |
+| ui.select.default | 通过 / 通过 | 0 / 0 | 无（[]） |
+| ui.switch.default | 通过 / 通过 | 0 / 0 | E-001 |
+| ui.context-menu.default | 通过 / 通过 | 0 / 0 | E-001 |
+| ui.context-menu.highlighted | 通过 / 通过 | 0 / 0 | E-001 |
+| ui.context-menu.wrapped | 通过 / 通过 | 0 / 0 | E-001 |
+
+| 菜单屏 | 深色：遮文字 / 整屏 SSIM | 浅色：遮文字 / 整屏 SSIM | 最大布局偏差 |
+| --- | --- | --- | --- |
+| default | .999937 / .993386 | .999804 / .992203 | .97px |
+| highlighted | .999937 / .993386 | .999802 / .992202 | .97px |
+| wrapped | .999936 / .996595 | .999796 / .995948 | 0px |
+
+两主题均 **10/10**。default/highlighted 图标各 3/3 通过。原始结果：[深色](assets/P0-24-context-menu/round5/dark/result.json)、[浅色](assets/P0-24-context-menu/round5/light/result.json)。同目录保存各屏 GPUI PNG、layout.json 和 wrapped 阴影并排裁剪；运行时还另存 `target/parity/report-dark.json` 与 `report-light.json`。
+
+### 第 5 轮全量检查和未验证项
+
+AGENTS.md 全部检查均在沙箱外、干净工作区通过；cargo 从本 worktree 根目录运行，CARGO_BUILD_JOBS=3，使用本 worktree 的 target。pnpm lint、format:check、check:tokens、typecheck、test、check:size 均通过，前端 175 文件、1295 测试；[大小检查](assets/P0-24-context-menu/round5/size.log) 1051 文件通过。cargo fmt --all --check、[clippy --workspace --all-targets -- -D warnings](assets/P0-24-context-menu/round5/clippy.log)、[cargo test --workspace](assets/P0-24-context-menu/round5/workspace-tests.log) 均通过，Rust 共 **1173 通过、0 失败**，其中 tterm-ui 44 项、菜单 14 项。未筛选或新增跳过测试；Tauri 原有 52 个源码标记 ignored 未改。
+
+既有真实双主题绘制测试 `rendering_two_themes_in_one_window_preserves_global_theme` 继续通过。Windows 通道仍为**未验证（需 Windows）**。[人工] 真实 Tauri 窗口交叉截图及标签、终端、SFTP 调用处端到端使用体验仍待验证。本轮捕获及 hover 探测结束时关闭其 Vite、WebKit、GPUI 进程；未运行受保护标识的 Tauri 应用，未合并、未 push。

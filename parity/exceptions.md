@@ -19,7 +19,7 @@
 
 ### 扩展（2026-11-09，决策人 stone）：右键菜单
 
-- 涉及：`ui.context-menu.default`、`ui.context-menu.highlighted` 和 `ui.context-menu.wrapped`（第 4 轮新增的同组件换行屏）中的 `ui.context-menu`。`outset` 为 25，即 `shadow-lg` 第一层的 y 偏移 10px 加 CSS 模糊 15px。
-- 现象：干净提交 ac2eaf6f 的 macOS 深色复跑中，两屏菜单框外均有 4632 个物理像素差 1 级、4 个差 2 级；不应用本扩展时各有 642 个像素超出颜色门槛，其中 474 个在菜单下沿外约 2.5 个 CSS 像素的同一行，左右两侧也有 1 级取整差。应用本扩展后深浅两种主题的两屏颜色门槛计数均为 0，9 屏全部通过。
+- 涉及：`ui.context-menu.default`、`ui.context-menu.highlighted` 和 `ui.context-menu.wrapped` 中的 `ui.context-menu`。三屏为同一个容器、同一个 `shadow-lg`。`outset` 为 25，即第一层的 y 偏移 10px 加 CSS 模糊 15px。
+- 现象：第 5 轮干净工作区的 macOS 复跑中，按菜单圆角 border box 外 >1 至 50 个物理像素统计，深色 default/highlighted 各有 4632 个像素差 1 级、4 个差 2 级，wrapped 有 2466 个差 1 级、4 个差 2 级；浅色 default/highlighted 各有 20788/2566/40/4/2 个像素分别差 1/2/3/4/5 级，wrapped 有 11306/938/36/6 个分别差 1/2/3/4 级。应用本扩展后，两主题三屏的颜色门槛超限均为 0；400% 核对阴影方向、范围和深浅一致。
 - 原因与人工判定方法：沿用本条原文。
 - 证据：[右键菜单报告“已登记例外 E-001”](../docs/gpui-migration/reports/P0-24-context-menu.md#已登记例外-e-001)。

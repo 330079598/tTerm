@@ -1,0 +1,42 @@
+{
+  "region": "DPR 2; rounded border box signed distance > 1 and <= 50 physical pixels; excludes existing 1px edge band",
+  "value": "count by maximum absolute RGBA channel difference",
+  "counts": {
+    "dark": {
+      "default": {
+        "1": 4632,
+        "2": 4
+      },
+      "highlighted": {
+        "1": 4632,
+        "2": 4
+      },
+      "wrapped": {
+        "1": 2466,
+        "2": 4
+      }
+    },
+    "light": {
+      "default": {
+        "1": 20788,
+        "2": 2566,
+        "3": 40,
+        "4": 4,
+        "5": 2
+      },
+      "highlighted": {
+        "1": 20788,
+        "2": 2566,
+        "3": 40,
+        "4": 4,
+        "5": 2
+      },
+      "wrapped": {
+        "1": 11306,
+        "2": 938,
+        "3": 36,
+        "4": 6
+      }
+    }
+  }
+}
