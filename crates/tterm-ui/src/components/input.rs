@@ -71,6 +71,7 @@ pub fn input(state: &Entity<InputState>, options: InputOptions) -> gpui_kit::Div
             css_color(computed.background, computed.background_alpha),
             css_color(computed.border, 1.0),
             1.0,
+            6.0,
             None,
         ))
         .child(

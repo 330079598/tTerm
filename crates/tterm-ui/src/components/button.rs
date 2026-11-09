@@ -141,6 +141,7 @@ pub fn button(
             css_color(computed.background, computed.background_alpha),
             css_color(computed.border, 1.0),
             computed.border_width,
+            6.0,
             computed
                 .ring
                 .map(|ring| (css_color(ring, 0.5), computed.ring_spread)),
