@@ -1,0 +1,31 @@
+{
+  "version": 2,
+  "commit": "a6222e0a7254a23cb50a39cf5fb1bb00ad4b4dc8",
+  "viewport": {
+    "width": 800,
+    "height": 600,
+    "deviceScaleFactor": 2
+  },
+  "screens": [
+    {
+      "id": "example.button-input.default",
+      "image": "example.button-input.default.png",
+      "layout": "example.button-input.default.layout.json"
+    },
+    {
+      "id": "ui.button.variants",
+      "image": "ui.button.variants.png",
+      "layout": "ui.button.variants.layout.json"
+    },
+    {
+      "id": "ui.button.sizes",
+      "image": "ui.button.sizes.png",
+      "layout": "ui.button.sizes.layout.json"
+    },
+    {
+      "id": "ui.input.default",
+      "image": "ui.input.default.png",
+      "layout": "ui.input.default.layout.json"
+    }
+  ]
+}
