@@ -1,13 +1,13 @@
 //! Token-backed Button primitive. Behavior is local to tterm-ui so component
 //! colours never mutate gpui-component's global theme.
 
+use crate::components::surface::{css_color, css_opacity, surface};
 use crate::tokens::gpui::hsla;
 use crate::tokens::palette::Colors;
 use crate::tokens::theme::Theme;
 use gpui_kit::prelude::FluentBuilder;
 use gpui_kit::{
-    BoxShadow, ElementId, InteractiveElement, IntoElement, ParentElement, SharedString, Styled,
-    div, px,
+    ElementId, InteractiveElement, IntoElement, ParentElement, SharedString, Styled, div, px,
 };
 
 /// React's `text-white` destructive variant is independent of theme tokens.
@@ -60,10 +60,13 @@ pub struct ButtonStyle {
 pub fn style(variant: Variant, size: ButtonSize, state: ButtonState, theme: Theme) -> ButtonStyle {
     let colors = theme.colors;
     let (width, height, padding_x, padding_y, font_size) = dimensions(size);
-    let (mut background, foreground, border, hover_background) =
+    let (mut background, mut foreground, border, hover_background) =
         colors_for(variant, colors, theme.uses_dark_variant());
     if state.hovered {
         background = hover_background;
+        if matches!(variant, Variant::Outline | Variant::Ghost) {
+            foreground = colors.accent_foreground;
+        }
     }
     ButtonStyle {
         width,
@@ -77,8 +80,12 @@ pub fn style(variant: Variant, size: ButtonSize, state: ButtonState, theme: Them
             16.8
         },
         background,
-        background_alpha: if matches!(variant, Variant::Ghost | Variant::Link) {
+        background_alpha: if matches!(variant, Variant::Link)
+            || (matches!(variant, Variant::Ghost) && !state.hovered)
+        {
             0.0
+        } else if matches!(variant, Variant::Ghost) && theme.uses_dark_variant() {
+            0.5
         } else if matches!(variant, Variant::Outline) && theme.uses_dark_variant() {
             if state.hovered { 0.5 } else { 0.3 }
         } else if matches!(variant, Variant::Destructive) && theme.uses_dark_variant() {
@@ -120,20 +127,19 @@ pub fn button(
         .py(px(computed.padding_y))
         .rounded(px(6.0))
         .border(px(computed.border_width))
-        .border_color(hsla(computed.border, 1.0))
-        .bg(crate::tokens::gpui::hsla(
-            computed.background,
-            computed.background_alpha,
-        ))
+        .border_color(gpui_kit::transparent_black())
+        .relative()
         .text_color(hsla(computed.foreground, 1.0))
         .text_size(px(computed.font_size))
+        .line_height(px(computed.line_height))
         .font_weight(gpui_kit::FontWeight(500.0))
-        .opacity(computed.opacity);
-    if let Some(ring) = computed.ring {
-        view = view.shadow(vec![
-            BoxShadow::new(px(0.0), px(0.0), hsla(ring, 0.5)).spread_radius(px(3.0)),
-        ]);
-    }
+        .opacity(css_opacity(computed.opacity))
+        .child(surface(
+            css_color(computed.background, computed.background_alpha),
+            css_color(computed.border, 1.0),
+            computed.border_width,
+            computed.ring.map(|ring| css_color(ring, 0.5)),
+        ));
     if matches!(variant, Variant::Link) {
         view = view.underline();
     }
@@ -188,7 +194,11 @@ fn colors_for(
             } else {
                 colors.border
             },
-            colors.accent,
+            if dark_variant {
+                colors.input
+            } else {
+                colors.accent
+            },
         ),
         Variant::Secondary => (
             colors.secondary,
@@ -300,7 +310,7 @@ mod tests {
             },
             crate::tokens::palette::DARK,
         );
-        assert_eq!(dark.background, crate::tokens::palette::DARK.colors.accent);
+        assert_eq!(dark.background, crate::tokens::palette::DARK.colors.input);
         assert_eq!(dark.background_alpha, 0.5);
         assert_eq!(dark.border, crate::tokens::palette::DARK.colors.input);
     }

@@ -110,6 +110,18 @@ fn theme_ids_are_unique() {
 
 #[test]
 fn dark_variant_matches_css_theme_selector_rule() {
+    let stylesheet = include_str!("../../../../src/styles/themes.css");
+    assert!(stylesheet.contains(
+        "@custom-variant dark (&:where(:not([data-theme=\"light\"], [data-theme=\"light\"] *)))"
+    ));
+    for theme in THEMES {
+        assert_eq!(
+            theme.uses_dark_variant(),
+            theme.id != "light",
+            "{}",
+            theme.id
+        );
+    }
     assert_eq!(
         THEMES
             .iter()

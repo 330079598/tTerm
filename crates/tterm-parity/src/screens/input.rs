@@ -6,7 +6,7 @@ use crate::manifest::ScreensManifest;
 use crate::marker::{parity_child, parity_element};
 use gpui_kit::component::input::InputState;
 use gpui_kit::{AppContext, Context, Entity, IntoElement, ParentElement, Styled, Window, div, px};
-use tterm_ui::components::input::{InputOptions, input};
+use tterm_ui::components::input::{InputOptions, input, style as input_style};
 use tterm_ui::tokens::palette::{DARK, LIGHT};
 
 pub const SCREEN_ID: &str = "ui.input.default";
@@ -46,26 +46,29 @@ impl InputScreen {
     }
 
     fn style(&self, focused: bool, disabled: bool) -> StyleSnapshot {
-        let c = self.theme.colors;
-        let background_alpha = if self.theme.uses_dark_variant() {
-            0.3
-        } else {
-            0.0
-        };
+        let computed = input_style(InputOptions {
+            focused,
+            disabled,
+            theme: Some(self.theme),
+            ..InputOptions::default()
+        });
         StyleSnapshot {
-            background_color: with_alpha(hsl_to_rgba(c.input), background_alpha),
-            border_color: hsl_to_rgba(if focused { c.ring } else { c.input }),
+            background_color: with_alpha(
+                hsl_to_rgba(computed.background),
+                computed.background_alpha,
+            ),
+            border_color: hsl_to_rgba(computed.border),
             border_width: 1.0,
             border_radius: 6.0,
             font_family: "system-ui".into(),
             font_size: 14.0,
             font_weight: 400,
             line_height: 16.8,
-            color: hsl_to_rgba(c.foreground),
+            color: hsl_to_rgba(computed.foreground),
             padding: PaddingSnapshot::symmetric(4.0, 12.0),
             declared_background_color: None,
             declared_border_color: None,
-            opacity: if disabled { 0.5 } else { 1.0 },
+            opacity: computed.opacity,
         }
     }
 
