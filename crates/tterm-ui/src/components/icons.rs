@@ -9,3 +9,5 @@ pub const X: &[u8] = include_bytes!("../../assets/icons/x.svg");
 pub fn icon(data: &'static [u8], color: Hsla, size: f32) -> impl IntoElement {
     svg().data(data).size(px(size)).text_color(color)
 }
+
+pub const TRIANGLE_ALERT: &[u8] = include_bytes!("../../assets/icons/triangle-alert.svg");

@@ -71,6 +71,18 @@ pub fn shadow_xs(opacity: f32) -> BoxShadow {
     BoxShadow::new(px(0.0), px(1.0), color.into()).blur_radius(px(1.0))
 }
 
+/// Tailwind v4 `shadow-lg`: CSS blur is twice GPUI's Gaussian sigma.
+pub fn shadow_lg() -> Vec<BoxShadow> {
+    [(10.0, 15.0, -3.0), (4.0, 6.0, -4.0)]
+        .into_iter()
+        .map(|(y, blur, spread)| {
+            BoxShadow::new(px(0.0), px(y), gpui_kit::black().opacity(0.1))
+                .blur_radius(px(blur / 2.0))
+                .spread_radius(px(spread))
+        })
+        .collect()
+}
+
 /// The outer corner radius of a CSS spread shadow (CSS Backgrounds 3, 6.1.1):
 /// corners grow by the spread, and small radii stay sharper.
 pub fn spread_radius(radius: f32, spread: f32) -> f32 {
@@ -147,6 +159,18 @@ mod tests {
     use crate::tokens::palette::DARK;
     use gpui_kit::test::TestWindowExt as _;
     use gpui_kit::{ParentElement, Render, TestAppContext, div};
+
+    #[test]
+    fn shadow_lg_converts_both_css_layers_to_sigma() {
+        let layers = shadow_lg();
+        assert_eq!(layers.len(), 2);
+        assert_eq!(layers[0].blur_radius, px(7.5));
+        assert_eq!(layers[0].spread_radius, px(-3.0));
+        assert_eq!(layers[0].offset.y, px(10.0));
+        assert_eq!(layers[1].blur_radius, px(3.0));
+        assert_eq!(layers[1].spread_radius, px(-4.0));
+        assert_eq!(layers[1].offset.y, px(4.0));
+    }
 
     struct FocusedButton(Variant);
 

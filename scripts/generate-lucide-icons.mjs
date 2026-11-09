@@ -3,7 +3,7 @@ import { createRequire } from "node:module"
 
 const require = createRequire(import.meta.url)
 const packageJson = JSON.parse(await readFile(require.resolve("lucide-react/package.json"), "utf8"))
-const names = ["eye", "eye-off", "arrow-big-up-dash", "chevron-down", "x"]
+const names = ["eye", "eye-off", "arrow-big-up-dash", "chevron-down", "x", "triangle-alert"]
 
 function nodeMarkup(node) {
   const [tag, attrs] = node
@@ -13,9 +13,9 @@ function nodeMarkup(node) {
 const icons = {}
 for (const name of names) {
   const source = await readFile(require.resolve(`lucide-react/dist/esm/icons/${name}.mjs`), "utf8")
-  const match = source.match(/node:\s*(\[[\s\S]*?\])\s*\n};/)
+  const match = source.match(/const __iconData = (\{[\s\S]*?\n\});/)
   if (!match) throw new Error(`could not read icon data for ${name}`)
-  const nodes = Function(`"use strict"; return (${match[1]})`)()
+  const nodes = Function(`"use strict"; return (${match[1]})`)().node
   icons[name] = nodes.map(nodeMarkup).join("")
 }
 
