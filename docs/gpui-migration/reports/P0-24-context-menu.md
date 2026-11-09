@@ -1,6 +1,6 @@
 # P0-24 第二批：右键菜单（macOS）
 
-状态：**完成待评估**。第 3 轮按决策人 stone（2026-11-09）批准，将 E-001 扩展至两屏右键菜单的容器外阴影。先提交例外登记和屏幕引用为 `ac2eaf6f`，确认工作区干净后，在沙箱外用 UPDATE_REFERENCE=1 分别重跑深浅主题，均 **9/9 屏通过**。两份结果均为 `dirty: false`，参照目录不带 `-dirty`。没有修改生产实现、CSS、比较器或门槛数值。
+状态：**完成待评估**。第 4 轮已修复代码审查列出的 1–8 项。菜单在生产 Base Root 下作为延迟浮层绘制并遮挡点击，回调在实体借用释放后执行，支持真实输入来源与长标签换行。干净工作区在沙箱外重生成参照，深浅两种主题均 **10/10 屏通过**，全部屏幕颜色超限为 0；E-001 继续只用于已批准的容器阴影。详见本报告“第 4 轮”。
 
 ## 范围与生产语义
 
@@ -45,7 +45,7 @@ React 的规则是平移，不是围绕指针翻转：仅当 x+width > innerWidt
 | hover_tracks_enabled_rows_without_changing_keyboard_selection | 鼠标移动到普通项产生 hover，移到禁用项清除；键盘选择保持独立。 |
 | rendering_two_themes_in_one_window_preserves_global_theme | 同一真实窗口放 DARK/LIGHT 两个实体，render_frame 后检查两种 popover 填色确实被绘制；前后序列化全局 Theme 完全相等。 |
 
-另外支持 Home/End、Tab/ShiftTab、Space，关闭时若焦点仍在菜单或无焦点则恢复打开前的焦点。这些附加路径尚无逐项独立测试。
+另外支持 Home/End、Tab/ShiftTab、Space，关闭时若焦点仍在菜单或无焦点则恢复打开前的焦点。第 4 轮已补 Tab/ShiftTab、Home/End、Space 的真实 Root 测试。
 
 ## macOS 对比
 
@@ -131,7 +131,92 @@ CARGO_BUILD_JOBS=3 cargo test --workspace
 
 - 提示词写的是 14px，实测生产为 16px，评估者已确认按 16px。原先停止记录及图标证据保留在 d4b2588d 和 assets 下，本报告更新为继续实施后的结论。
 - 深色 shadow-lg 的尾部取整已按 stone 批准登记 E-001，干净工作区复跑及 400% 视觉核对通过；没有待确认事项。
-- 当前实现还固定采用这份真实标签菜单的 28px 行与单行标签框；生产允许长标签折行。长文案/极窄窗口下的折行尚未实现等价，不应把本组件视为已覆盖所有语言与调用处。
+- 第 4 轮已解除单行标签限制，中文长标签通过真实两端 parity；Windows 字体换行仍需 Windows 验证。
 - Windows 通道：未验证（需 Windows）。
 - [人工] 真实 Tauri 窗口与 WebKit 参照的交叉截图；实际鼠标打开标签、终端、SFTP 菜单的端到端使用体验未验证。
 - 未合并、未 push；未修改 status.md、共享 P0-24.md、生产 CSS 或依赖版本。
+
+
+## 第 4 轮（2026-11-09）：真实应用行为修复
+
+本轮先以 `98ad6e0a` 单独提交纯拆分：把原 148 行的 row 拆成 row_style、row_content 和 row，不改行为；随后提交行为修复和独立的 inline 行盒修正。没有新依赖、全局主题修改或生产 CSS 修改。
+
+### 1. 菜单浮层
+
+`view.rs` 使用 `deferred(anchored().position(0,0).child(PlacedMenu))`，延迟绘制优先级为 gpui-base 的 POPUP_PRIORITY，card 使用 `.occlude()`。deferred 不继承祖先 content mask，PlacedMenu 仍使用原 `fit_in_viewport` 规则和窗口绝对坐标。
+
+测试 `deferred_menu_escapes_clipping_occludes_later_sibling_and_owns_escape` 在真实 Base Root 内把宿主放进 12×12、overflow_hidden 的容器，并在后面绘制全窗口 mouse-down 监听兄弟元素；点击容器外的菜单第一项仍触发一次 action，兄弟元素计数为 0。
+
+### 2. Root 下的按键优先级
+
+选择菜单自身 key context + action，而不是 focus_trap：菜单只有一个实际 FocusHandle，选择索引由菜单管理，action 可以保留这一结构，并与 Root 的 Tab、祖先 Dialog 的 Escape 使用相同的 GPUI 分发规则。`keyboard.rs` 注册 TTermContextMenu context 下的 SelectNext、SelectPrev、First、Last、Confirm、Cancel，绑定上下键、Tab/ShiftTab、Home/End、Enter/Space、Escape。注册有全局哨兵避免重复绑定，但不写主题。
+
+全部渲染测试的宿主现在均像 `gpui_kit::open_window` 一样包在 `base::Root::new` 内。`root_tab_shift_tab_home_end_and_space_stay_in_menu` 逐项验证索引和焦点仍在菜单，Space 触发 action 后关闭；原有上下键/Enter 测试继续通过。`deferred_menu_escapes_clipping_occludes_later_sibling_and_owns_escape` 同时在祖先绑定 Escape，验证菜单关闭、祖先计数仍为 0。
+
+### 3. 回调借用
+
+action 与 close 回调克隆后通过 `window.defer(cx, ...)` 排队，当前实体 update 完成后才调用；action 排在 close 前，open 状态先置为 false，避免重入二次激活。没有使用会再次借用菜单的 defer_in。测试 `callbacks_can_read_and_update_the_menu_after_entity_borrow_ends` 在两个回调内都读取菜单，action 内还 update 菜单，不 panic，并验证 action、close 顺序。
+
+### 4. 快照与绘制同源
+
+PartStyle 增加 ancestor_opacity、font_family、font_weight。row_style 产生真实行 opacity；子部件从父 PartStyle 累乘祖先 opacity，实际样式声明和观测均由 view.rs 的相同字段产生。parity 侧直接使用 `part.opacity * part.ancestor_opacity`，删除从 fixture.disabled 猜测 .5 的逻辑；字体族与字重也直接取 part 字段。深浅两主题所有禁用行及子槽位样式检查通过，`rendering_two_themes_in_one_window_preserves_global_theme` 仍验证两种主题确实绘制且全局 Theme 不变。
+
+### 5. 定位和高亮测试缺口
+
+- `right_bottom_and_corner_use_measured_size_with_ten_pixel_inset` 新增 300×200 菜单放进 100×80 窗口的用例，必须得到 (10,10)，可发现 max/clamp 顺序错误。
+- `measured_placement_clamps_once_and_only_repositions_when_origin_changes` 通过真实 prepaint 的 PartObserver 读取容器框，验证初次贴近窗口右下角的坐标等于纯函数结果；窗口缩小后 origin 保持，再调用 set_origin 才重新测量定位。
+- 删除只为夹具提供的 initial_highlight。React 夹具发真实 Home，highlighted 再发 ArrowDown；GPUI 夹具在初次绘制后经 `window.dispatch_keystroke` 分发 Home、Down，走同一生产 action 绑定。最终布局数据中默认屏 item-0 ringSpread=3、item-1=0，高亮屏相反。
+
+### 6. focus-visible 输入来源
+
+直接使用 Window 保留的 `last_input_was_keyboard()`，避免组件自建第二份输入状态。鼠标打开时无 ring；真实键盘事件后显示，指针事件后隐藏。`focus_ring_follows_real_pointer_and_keyboard_input` 在 Root 内按上述顺序验证 0、3、0 的 ring spread。两端 parity 的 Home/ArrowDown 事件一致，因此捕获屏仍展示 focus-visible ring。
+
+### 7. 一次定位与传播
+
+PlacedMenu 把初次 fit 结果保存在实体持有的 Rc<Cell<Option<Point>>>；set_origin 仅在 x/y 真正变化时清空，窗口 resize 或文字布局重算不会重新 clamp。上面的真实渲染定位测试覆盖该行为。原始 on_key_down 与显式 stop_propagation 已移除；菜单使用 action 消费绑定，没有对原始键盘事件调用 stop_propagation。Root/祖先绑定优先级由 GPUI 的焦点上下文匹配解决。
+
+### 8. 长标签换行
+
+行改为 min-height 28、按内容增高；label 可收缩并按可用宽度排版。新增 MenuText 使用 GPUI 文字 shaping/wrap 结果测量和绘制，在 14px 字体下保留 WebKit 实测的 16px inline 行盒（computed line-height 仍为 16.8），避免 GPUI 通用 Text 把它 round 到 17px。逐行文字范围也从同一次 shaping 的 wrap boundaries 导出，背景测量保留每行末端空白，不把整个多行 label 都当作文字遮罩。
+
+`chinese_label_wraps_and_expands_row_from_its_minimum_height` 验证长中文使行和 label 增高且文字不越出水平 padding。新增 `ui.context-menu.wrapped` 两端均使用生产组件，文案来自中文 i18n 的真实标签操作资源，重复形成长标签；fixture 生成和一致性测试沿用真实生产 resolver。该屏没有新图标，容器阴影沿用 E-001/outset 25。manifest 屏幕数量断言更新为 10。
+
+新屏实际两端均为：菜单 (534,528) 256×62，行 (539,537) 246×44，label (547,543) 230×32。深色截图见下；[浅色截图](assets/P0-24-context-menu/round4/light/wrapped-gpui.png)。
+
+![中文长标签换行屏](assets/P0-24-context-menu/round4/dark/wrapped-gpui.png)
+
+### 第 4 轮干净工作区对比
+
+行为修复及文字修正均先提交，再确认 `git status --porcelain` 为空。前端参照键为 `92c46435623fb16caed6e93400e47d00dfdbca0e`：后续 `1fc9b3a1` 只改 Rust，因此前端缓存键仍为前一次前端提交。两主题结果均 `dirty: false`；目录为该键和该键加 `-light`，均不带 `-dirty`。每次均使用 UPDATE_REFERENCE=1，在沙箱外重新生成参照；深色结果和 actual 截图在浅色运行前另存至 context-menu-r4-dark，浅色另存 context-menu-r4-light。
+
+```sh
+UPDATE_REFERENCE=1 PARITY_PLATFORM=macos PARITY_THEME=dark CARGO_BUILD_JOBS=3 cargo run -p tterm-parity -- compare
+UPDATE_REFERENCE=1 PARITY_PLATFORM=macos PARITY_THEME=light CARGO_BUILD_JOBS=3 cargo run -p tterm-parity -- compare
+```
+
+| 屏幕 | 深色 / 浅色结果 | 颜色门槛超限（深 / 浅） | 例外（两主题） |
+| --- | --- | --- | --- |
+| example.button-input.default | 通过 / 通过 | 0 / 0 | 无 |
+| ui.button.variants | 通过 / 通过 | 0 / 0 | 无 |
+| ui.button.sizes | 通过 / 通过 | 0 / 0 | 无 |
+| ui.input.default | 通过 / 通过 | 0 / 0 | 无 |
+| ui.password.default | 通过 / 通过 | 0 / 0 | 无 |
+| ui.select.default | 通过 / 通过 | 0 / 0 | 无 |
+| ui.switch.default | 通过 / 通过 | 0 / 0 | E-001 |
+| ui.context-menu.default | 通过 / 通过 | 0 / 0 | E-001 |
+| ui.context-menu.highlighted | 通过 / 通过 | 0 / 0 | E-001 |
+| ui.context-menu.wrapped | 通过 / 通过 | 0 / 0 | E-001 |
+
+| 菜单屏 | 深色：遮文字 / 整屏 SSIM | 浅色：遮文字 / 整屏 SSIM | 最大布局偏差 |
+| --- | --- | --- | --- |
+| default | .999937 / .993386 | .999804 / .992203 | .97px |
+| highlighted | .999937 / .993386 | .999802 / .992202 | .97px |
+| wrapped | .999936 / .996595 | .999796 / .995948 | 0px |
+
+原有 9 屏均继续通过；default/highlighted 的图标独立检查仍各 3/3 通过。原始结果：[深色](assets/P0-24-context-menu/round4/dark/result.json)、[浅色](assets/P0-24-context-menu/round4/light/result.json)；round4 各主题目录还保存三屏截图与实际 layout.json，可检查槽位、文字区域和 ring 状态。所有门槛不变，没有新增例外编号或修改比较器。
+
+### 第 4 轮全量检查和未验证项
+
+AGENTS.md 全部检查均在沙箱外通过；cargo 从 worktree 根运行，CARGO_BUILD_JOBS=3，使用本地 target，无共享 CARGO_TARGET_DIR。前端 175 文件、1295 测试通过，[大小检查](assets/P0-24-context-menu/round4/size.log) 1051 文件通过；cargo fmt --all --check 通过，[clippy --workspace --all-targets -- -D warnings](assets/P0-24-context-menu/round4/clippy.log) 通过；[不筛选的 cargo test --workspace](assets/P0-24-context-menu/round4/workspace-tests.log) 通过，tterm-ui 42、tterm-parity 76、terminal-view 137、Tauri 817（原有 52 ignored 未改）。菜单 12 个测试全部通过；没有添加 ignore/allow 或跳过失败项。
+
+Windows 仍为未验证（需 Windows）。[人工] 真实 Tauri 窗口交叉截图与标签、终端、SFTP 调用处端到端体验仍待验证。长标签换行已验证，不再列作未实现限制。本轮 Vite/Playwright/GPUI 捕获均退出；核对到同名对比进程属于 Tabs worktree，没有触碰。没有运行受保护标识的 Tauri 应用，没有合并或 push。
