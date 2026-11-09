@@ -1,0 +1,14 @@
+{
+  "1": {
+    "different": 92,
+    "aboveOne": 60,
+    "gateAboveOne": 0,
+    "max": 6.044826
+  },
+  "2": {
+    "different": 124,
+    "aboveOne": 16,
+    "gateAboveOne": 16,
+    "max": 1.622464
+  }
+}

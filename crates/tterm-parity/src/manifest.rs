@@ -95,8 +95,13 @@ impl ScreensManifest {
         let path = manifest_path(root);
         let text = fs::read_to_string(&path)
             .map_err(|error| format!("could not read {}: {error}", path.display()))?;
-        let manifest: Self = serde_json::from_str(&text)
+        let mut manifest: Self = serde_json::from_str(&text)
             .map_err(|error| format!("could not parse {}: {error}", path.display()))?;
+        if let Ok(theme) = std::env::var("PARITY_THEME")
+            && !theme.trim().is_empty()
+        {
+            manifest.theme = theme;
+        }
         manifest.validate()?;
         Ok(manifest)
     }

@@ -32,6 +32,7 @@ fn style(
         border_color: border,
         border_width,
         border_radius,
+        ring_spread: 0.0,
         font_family: "system-ui".to_owned(),
         font_size: 14.0,
         font_weight: 400,
@@ -39,6 +40,7 @@ fn style(
         color: [204, 204, 204, 255],
         padding: PaddingSnapshot::all(0.0),
         declared_background_color: None,
+        opacity: 1.0,
         declared_border_color: None,
     }
 }

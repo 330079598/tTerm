@@ -138,7 +138,7 @@ pnpm-lock.yaml vite.config.ts tsconfig.json index.html parity.html
 
 `parity/README.md` 和 `docs/` 不参与缓存键，改文档不会触发参考图重生成。
 
-- 干净工作区：同一提交的第二次 `compare` 直接复用 `target/parity/reference/<hash>/`，不重新启动浏览器。复用前校验 `manifest.json` 的 `version` 为 2，且每个布局 JSON 都能按 schema 2 读取；版本不符就当作过期缓存重生成。
+- 干净工作区：同一提交的第二次 `compare` 直接复用 `target/parity/reference/<hash>/`，不重新启动浏览器。复用前校验 `manifest.json` 的 `version` 为 2，且每个布局 JSON 都能按 schema 3 读取；版本不符就当作过期缓存重生成。
 - **前端有未提交改动时不再静默用缓存。** `FRONTEND_PATHS` 下只要有一处改动，参考图写到 `target/parity/reference/<hash>-dirty/`，每次 `compare` 先删掉该目录再重新生成，不复用；终端会打印 `reference: the frontend is dirty; ...` 并说明用的是 dirty 参考。
 - `UPDATE_REFERENCE=1` 会先删掉当前参考目录再重新生成，避免旧屏幕残留；干净与 dirty 都适用。
 - 参考截图、布局 JSON、`manifest.json` 都在该目录；它们不提交。生成后工具会从 PNG 实测每个元素的背景/边框色，把实测值写回布局 JSON，同时保留 `declared*` 字段（见第 6 节）。
@@ -200,11 +200,11 @@ pnpm-lock.yaml vite.config.ts tsconfig.json index.html parity.html
 
 ## 6. 布局 JSON 契约
 
-两端写出同一形状（`version` 为 2）。`parity/screens.json` 也是 version 2，并带固定的 `platform` 块：
+两端写出同一形状（布局 `version` 为 3）。`parity/screens.json` 也是 version 2，并带固定的 `platform` 块：
 
 ```json
 {
-  "version": 2,
+  "version": 3,
   "screen": "example.button-input.default",
   "viewport": { "width": 800, "height": 600, "deviceScaleFactor": 2 },
   "elements": [
@@ -219,6 +219,7 @@ pnpm-lock.yaml vite.config.ts tsconfig.json index.html parity.html
         "declaredBorderColor": [61, 61, 61, 255],
         "borderWidth": 0,
         "borderRadius": 4,
+        "ringSpread": 0,
         "fontFamily": "system-ui",
         "fontSize": 14,
         "fontWeight": 500,
@@ -259,6 +260,10 @@ pnpm-lock.yaml vite.config.ts tsconfig.json index.html parity.html
 | 颜色差（文字遮罩，报告项） | 未遮罩像素的 CIEDE2000 均值、最大值、>1 的像素数；不单独设门槛 |
 
 整屏颜色门槛的遮罩由 `image_diff::screen_mask` 生成：文字遮罩取两端 `textRegions` 的并集并按 2 物理像素膨胀；元素边缘按两端的 `bounds`/`borderRadius`/`borderWidth` 用圆角矩形 SDF 标记 `|sdf| ≤ 边框宽度 × DPR + 1` 的物理像素，把边框本身和两侧抗锯齿都算进边缘带。门槛是 0 个超限像素（`SCREEN_COLOR_MAX_PIXELS = 0`）；若将来确实需要放宽，必须把理由写进本文档，而不是悄悄改常量。
+
+**Focus ring 外轮廓（决策人 2026-11-09 决定）。** 无偏移、无模糊的外扩 box-shadow 也有抗锯齿边缘，按与元素边缘相同的余量排除其外轮廓两侧各 **1 个物理像素**。布局字段 `ringSpread` 是逻辑像素：参照端从 computed `box-shadow` 解析非 inset、x/y/blur 均为 0、spread 为正且非透明的层，多层取最外的 spread；有偏移或模糊的层保持原样绘制、跳过此轮廓记录。GPUI 从 ButtonStyle 的 ring 存在性和绘制共用的 spread 记录，布局比较要求 spread 相等（0.01px 容差）。无 ring 为 0。布局 schema 升至 3，旧布局缓存重新生成；参考 manifest 与结果报告版本仍为 2。
+
+外轮廓矩形向外扩 spread，圆角按 [CSS Backgrounds 3 §6.1.1](https://www.w3.org/TR/css-backgrounds-3/#shadow-shape) 计算：r ≥ spread 时为 r + spread；r < spread 时为 `r + spread × (1 + (r/spread - 1)^3)`，再按 DPR 转物理像素。仅外沿抗锯齿带被遮住；ring 中间的填充仍进入颜色门槛，原有 border box 边缘带也保持不变。颜色、SSIM 门槛数值不变，不登记例外，不模仿特定引擎的抗锯齿曲线。反向探测必须能让错误 spread 或 ring 填充触发失败。
 
 SSIM 的实现：灰度取 `0.2126R + 0.7152G + 0.0722B`（gamma 编码值），按不重叠的 16×16 窗口计算标准 SSIM（`C1 = (0.01·255)²`、`C2 = (0.03·255)²`），取窗口平均。遮罩版本跳过文字像素；一个窗口剩余不足 32 个未遮罩像素时整个窗口跳过。这是本工具自己的实现，换实现得到的数值会略有不同，但门槛与结论以 `compare` 的输出为准。
 

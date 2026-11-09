@@ -13,6 +13,7 @@ fn style() -> StyleSnapshot {
         border_color: [61, 61, 61, 255],
         border_width: 0.0,
         border_radius: 4.0,
+        ring_spread: 0.0,
         font_family: "system-ui".to_owned(),
         font_size: 14.0,
         font_weight: 500,
@@ -20,6 +21,7 @@ fn style() -> StyleSnapshot {
         color: [255, 255, 255, 255],
         padding: PaddingSnapshot::symmetric(8.0, 16.0),
         declared_background_color: None,
+        opacity: 1.0,
         declared_border_color: None,
     }
 }
@@ -34,7 +36,7 @@ fn screen() -> ScreenSpec {
 
 fn document(style: StyleSnapshot) -> LayoutDocument {
     LayoutDocument {
-        version: 2,
+        version: crate::layout::SCHEMA_VERSION,
         screen: screen().id,
         viewport: ViewportSnapshot {
             width: 32,
@@ -79,6 +81,37 @@ fn identical_sides_pass() {
     assert_eq!(
         report.images.reference,
         "../reference/abc/example.button-input.default.png"
+    );
+}
+
+#[test]
+fn disabled_declarations_are_composited_once_and_still_detect_wrong_paint() {
+    let mut disabled = style();
+    disabled.opacity = 0.5;
+    disabled.declared_background_color = Some(BACKGROUND);
+    disabled.background_color = [14, 71, 120, 255];
+    let image = RgbaImage::from_pixel(32, 32, Rgba(disabled.background_color));
+    let snapshot = document(disabled);
+    let mut failures = Vec::new();
+    validate_measurements(
+        &side(image.clone(), snapshot.clone()),
+        "test",
+        [27, 29, 35, 255],
+        &mut failures,
+    );
+    assert!(failures.is_empty(), "{failures:?}");
+    let mut wrong = snapshot;
+    wrong.elements[0].style.declared_background_color = Some([255, 0, 0, 255]);
+    validate_measurements(
+        &side(image, wrong),
+        "test",
+        [27, 29, 35, 255],
+        &mut failures,
+    );
+    assert!(
+        failures
+            .iter()
+            .any(|failure| failure.contains("declares background"))
     );
 }
 

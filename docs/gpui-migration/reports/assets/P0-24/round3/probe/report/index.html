@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>tTerm parity report</title><style>body{font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;margin:32px;color:#1f2328;background:#fff}h1{font-size:22px;margin:0 0 8px}h2{font-size:17px;margin:24px 0 8px}.pass{color:#1a7f37}.fail{color:#cf222e}.card{border:1px solid #d0d7de;border-radius:8px;padding:16px;margin:16px 0}.images{display:flex;gap:16px;flex-wrap:wrap}figure{margin:0}img{max-width:520px;border:1px solid #d0d7de;border-radius:4px}figcaption{color:#57606a;font-size:12px;margin-top:4px}table{border-collapse:collapse;width:100%;margin-top:12px}th,td{border:1px solid #d0d7de;padding:4px 8px;text-align:left;vertical-align:top}th{background:#f6f8fa}code{font-family:ui-monospace,SFMono-Regular,monospace}.failure{color:#cf222e;font-family:ui-monospace,SFMono-Regular,monospace;font-size:12px}</style></head><body>
+<h1>tTerm UI parity report</h1>
+<p>Reference frontend commit: <code>a6222e0a7254a23cb50a39cf5fb1bb00ad4b4dc8</code>. Thresholds: fixed ≤ 1 px, text ≤ max(2 px, 2%), masked SSIM ≥ 0.99, full SSIM ≥ 0.97, screen-gate pixels ≤ 0.</p>
+<p class="fail"><strong>Overall: FAIL</strong></p>
+<section class="card"><h2>example.button-input.default <span class="pass">PASS</span></h2>
+<p>Example: one button and one input<br>SSIM full <code>0.998504</code>, masked <code>1.000000</code>. Text-masked colour ΔE<sub>00</sub> mean <code>0.0001</code>, max <code>2.6153</code>, pixels above 1: <code>52</code>. Screen gate: mean <code>0.0000</code>, max <code>0.0000</code>, pixels above 1: <code>0</code>.</p>
+<div class="images">
+<figure><img src="../../../../../../../../target/parity/reference/a6222e0a7254a23cb50a39cf5fb1bb00ad4b4dc8/example.button-input.default.png" alt="reference (WebKit)"><figcaption>reference (WebKit)</figcaption></figure>
+<figure><img src="../actual/example.button-input.default.png" alt="actual (GPUI)"><figcaption>actual (GPUI)</figcaption></figure>
+<figure><img src="heatmaps/example.button-input.default.png" alt="difference heatmap"><figcaption>difference heatmap</figcaption></figure>
+</div>
+<table><thead><tr><th>element</th><th>max bounds Δ</th><th>result</th><th>failures</th></tr></thead><tbody>
+<tr><td><code>example.button</code></td><td>0.25 px</td><td class="pass">pass</td><td class="failure"></td></tr>
+<tr><td><code>example.input</code></td><td>0.00 px</td><td class="pass">pass</td><td class="failure"></td></tr>
+<tr><td><code>example.screen</code></td><td>0.00 px</td><td class="pass">pass</td><td class="failure"></td></tr>
+</tbody></table>
+</section>
+<section class="card"><h2>ui.button.variants <span class="fail">FAIL</span></h2>
+<p>Button variants and states<br>SSIM full <code>0.986441</code>, masked <code>0.995576</code>. Text-masked colour ΔE<sub>00</sub> mean <code>0.0884</code>, max <code>20.2638</code>, pixels above 1: <code>6660</code>. Screen gate: mean <code>0.0198</code>, max <code>0.6928</code>, pixels above 1: <code>0</code>.</p>
+<div class="images">
+<figure><img src="../../../../../../../../target/parity/reference/a6222e0a7254a23cb50a39cf5fb1bb00ad4b4dc8/ui.button.variants.png" alt="reference (WebKit)"><figcaption>reference (WebKit)</figcaption></figure>
+<figure><img src="../actual/ui.button.variants.png" alt="actual (GPUI)"><figcaption>actual (GPUI)</figcaption></figure>
+<figure><img src="heatmaps/ui.button.variants.png" alt="difference heatmap"><figcaption>difference heatmap</figcaption></figure>
+</div>
+<table><thead><tr><th>element</th><th>max bounds Δ</th><th>result</th><th>failures</th></tr></thead><tbody>
+<tr><td><code>ui.button.variants.default</code></td><td>0.00 px</td><td class="pass">pass</td><td class="failure"></td></tr>
+<tr><td><code>ui.button.variants.destructive</code></td><td>0.00 px</td><td class="pass">pass</td><td class="failure"></td></tr>
+<tr><td><code>ui.button.variants.disabled</code></td><td>0.00 px</td><td class="pass">pass</td><td class="failure"></td></tr>
+<tr><td><code>ui.button.variants.disabled-destructive</code></td><td>0.00 px</td><td class="pass">pass</td><td class="failure"></td></tr>
+<tr><td><code>ui.button.variants.disabled-outline</code></td><td>0.00 px</td><td class="pass">pass</td><td class="failure"></td></tr>
+<tr><td><code>ui.button.variants.focus</code></td><td>0.00 px</td><td class="fail">fail</td><td class="failure">ui.button.variants.focus: ring spread 3 -&gt; 2 (difference 1.0000, allowed 0.01)</td></tr>
+<tr><td><code>ui.button.variants.ghost</code></td><td>0.00 px</td><td class="pass">pass</td><td class="failure"></td></tr>
+<tr><td><code>ui.button.variants.hover</code></td><td>0.00 px</td><td class="pass">pass</td><td class="failure"></td></tr>
+<tr><td><code>ui.button.variants.link</code></td><td>0.00 px</td><td class="pass">pass</td><td class="failure"></td></tr>
+<tr><td><code>ui.button.variants.outline</code></td><td>0.00 px</td><td class="pass">pass</td><td class="failure"></td></tr>
+<tr><td><code>ui.button.variants.screen</code></td><td>0.00 px</td><td class="pass">pass</td><td class="failure"></td></tr>
+<tr><td><code>ui.button.variants.secondary</code></td><td>0.00 px</td><td class="pass">pass</td><td class="failure"></td></tr>
+</tbody></table>
+<p class="failure">ui.button.variants.focus: ring spread 3 -&gt; 2 (difference 1.0000, allowed 0.01)</p>
+</section>
+<section class="card"><h2>ui.button.sizes <span class="pass">PASS</span></h2>
+<p>Button sizes<br>SSIM full <code>0.998855</code>, masked <code>0.999997</code>. Text-masked colour ΔE<sub>00</sub> mean <code>0.0004</code>, max <code>3.1651</code>, pixels above 1: <code>288</code>. Screen gate: mean <code>0.0000</code>, max <code>0.0000</code>, pixels above 1: <code>0</code>.</p>
+<div class="images">
+<figure><img src="../../../../../../../../target/parity/reference/a6222e0a7254a23cb50a39cf5fb1bb00ad4b4dc8/ui.button.sizes.png" alt="reference (WebKit)"><figcaption>reference (WebKit)</figcaption></figure>
+<figure><img src="../actual/ui.button.sizes.png" alt="actual (GPUI)"><figcaption>actual (GPUI)</figcaption></figure>
+<figure><img src="heatmaps/ui.button.sizes.png" alt="difference heatmap"><figcaption>difference heatmap</figcaption></figure>
+</div>
+<table><thead><tr><th>element</th><th>max bounds Δ</th><th>result</th><th>failures</th></tr></thead><tbody>
+<tr><td><code>ui.button.sizes.default</code></td><td>0.00 px</td><td class="pass">pass</td><td class="failure"></td></tr>
+<tr><td><code>ui.button.sizes.icon</code></td><td>0.00 px</td><td class="pass">pass</td><td class="failure"></td></tr>
+<tr><td><code>ui.button.sizes.icon-lg</code></td><td>0.00 px</td><td class="pass">pass</td><td class="failure"></td></tr>
+<tr><td><code>ui.button.sizes.icon-sm</code></td><td>0.00 px</td><td class="pass">pass</td><td class="failure"></td></tr>
+<tr><td><code>ui.button.sizes.icon-xs</code></td><td>0.00 px</td><td class="pass">pass</td><td class="failure"></td></tr>
+<tr><td><code>ui.button.sizes.lg</code></td><td>0.00 px</td><td class="pass">pass</td><td class="failure"></td></tr>
+<tr><td><code>ui.button.sizes.screen</code></td><td>0.00 px</td><td class="pass">pass</td><td class="failure"></td></tr>
+<tr><td><code>ui.button.sizes.sm</code></td><td>0.00 px</td><td class="pass">pass</td><td class="failure"></td></tr>
+<tr><td><code>ui.button.sizes.xs</code></td><td>0.00 px</td><td class="pass">pass</td><td class="failure"></td></tr>
+</tbody></table>
+</section>
+<section class="card"><h2>ui.input.default <span class="pass">PASS</span></h2>
+<p>Input primitive states<br>SSIM full <code>0.977335</code>, masked <code>0.999870</code>. Text-masked colour ΔE<sub>00</sub> mean <code>0.0051</code>, max <code>12.0435</code>, pixels above 1: <code>322</code>. Screen gate: mean <code>0.0021</code>, max <code>0.6928</code>, pixels above 1: <code>0</code>.</p>
+<div class="images">
+<figure><img src="../../../../../../../../target/parity/reference/a6222e0a7254a23cb50a39cf5fb1bb00ad4b4dc8/ui.input.default.png" alt="reference (WebKit)"><figcaption>reference (WebKit)</figcaption></figure>
+<figure><img src="../actual/ui.input.default.png" alt="actual (GPUI)"><figcaption>actual (GPUI)</figcaption></figure>
+<figure><img src="heatmaps/ui.input.default.png" alt="difference heatmap"><figcaption>difference heatmap</figcaption></figure>
+</div>
+<table><thead><tr><th>element</th><th>max bounds Δ</th><th>result</th><th>failures</th></tr></thead><tbody>
+<tr><td><code>ui.input.disabled</code></td><td>0.00 px</td><td class="pass">pass</td><td class="failure"></td></tr>
+<tr><td><code>ui.input.empty</code></td><td>0.00 px</td><td class="pass">pass</td><td class="failure"></td></tr>
+<tr><td><code>ui.input.focus</code></td><td>0.00 px</td><td class="pass">pass</td><td class="failure"></td></tr>
+<tr><td><code>ui.input.long</code></td><td>0.00 px</td><td class="pass">pass</td><td class="failure"></td></tr>
+<tr><td><code>ui.input.screen</code></td><td>0.00 px</td><td class="pass">pass</td><td class="failure"></td></tr>
+</tbody></table>
+</section>
+</body></html>

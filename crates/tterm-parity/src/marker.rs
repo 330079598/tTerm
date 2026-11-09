@@ -20,7 +20,8 @@
 use crate::color::to_gpui;
 use crate::layout::{BoundsSnapshot, ElementSizing, LayoutSink, StyleSnapshot};
 use gpui_kit::{
-    Bounds, Div, FontWeight, ParentElement, Pixels, Rgba, SharedString, Styled, div, px,
+    Bounds, Div, FontWeight, IntoElement, ParentElement, Pixels, Rgba, SharedString, Styled, div,
+    px,
 };
 
 /// The family GPUI resolves to the same macOS system UI font CSS calls
@@ -52,7 +53,8 @@ pub fn apply_snapshot(mut view: Div, style: &StyleSnapshot) -> Div {
         .text_size(px(style.font_size))
         .line_height(px(style.line_height))
         .font_weight(FontWeight(style.font_weight as f32))
-        .text_color(to_gpui(style.color));
+        .text_color(to_gpui(style.color))
+        .opacity(style.opacity);
     view
 }
 
@@ -74,6 +76,34 @@ pub fn parity_element(
         .on_children_prepainted(move |bounds, _, _| {
             if let Some(bounds) = bounds.first() {
                 sink.record_element(id, sizing, to_snapshot(*bounds), recorded.clone());
+            }
+        })
+        .child(child)
+}
+
+/// Wraps an arbitrary GPUI element and records the bounds of that one child.
+///
+/// Component parity screens use this when the child is a production control
+/// such as `gpui_component::Button` or `Input`; the wrapper must not add a
+/// second text node or paint a second control.
+pub fn parity_child<E>(
+    sink: &LayoutSink,
+    id: impl Into<String>,
+    sizing: ElementSizing,
+    style: StyleSnapshot,
+    child: E,
+) -> Div
+where
+    E: IntoElement,
+{
+    let sink = sink.clone();
+    let id = id.into();
+    let recorded = style.clone();
+    div()
+        .on_children_prepainted(move |bounds, _, _| {
+            if let Some(bounds) = bounds.first() {
+                let snapshot = to_snapshot(*bounds);
+                sink.record_element(&id, sizing, snapshot, recorded.clone());
             }
         })
         .child(child)

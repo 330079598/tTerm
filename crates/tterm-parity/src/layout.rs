@@ -12,7 +12,7 @@ use std::path::Path;
 use std::rc::Rc;
 
 /// Bumped whenever the JSON shape changes incompatibly.
-pub const SCHEMA_VERSION: u32 = 2;
+pub const SCHEMA_VERSION: u32 = 3;
 
 /// The window and pixel density a screen was captured at.
 #[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
@@ -108,6 +108,8 @@ pub struct StyleSnapshot {
     pub border_width: f32,
     /// Corner radius in logical pixels.
     pub border_radius: f32,
+    /// Zero-offset, zero-blur outer shadow spread; zero when absent.
+    pub ring_spread: f32,
     /// Canonical family; the platform UI font is `system-ui` on both sides.
     pub font_family: String,
     /// Font size in logical pixels.
@@ -118,6 +120,7 @@ pub struct StyleSnapshot {
     pub line_height: f32,
     /// Text color as 8-bit sRGB.
     pub color: [u8; 4],
+    pub opacity: f32,
     /// Padding in logical pixels.
     pub padding: PaddingSnapshot,
     /// The background the view declared before measurement. Keeping it lets an

@@ -4,7 +4,9 @@
 //! side keeps its own registry in `src/parity/screens.ts`; a screen missing
 //! from either side fails the manifest test or the capture, not silently.
 
+pub mod button;
 pub mod example;
+pub mod input;
 
 use crate::layout::LayoutSink;
 use crate::manifest::{ScreenSpec, ScreensManifest};
@@ -16,6 +18,9 @@ use std::path::Path;
 pub enum ScreenView {
     /// The W0-04 example: one button and one input.
     Example(ExampleScreen),
+    ButtonVariants(button::ButtonScreen),
+    ButtonSizes(button::ButtonScreen),
+    Input(input::InputScreen),
 }
 
 impl ScreenView {
@@ -30,6 +35,13 @@ impl ScreenView {
             example::SCREEN_ID => Ok(Self::Example(ExampleScreen::load(
                 root, screen, manifest, sink,
             )?)),
+            button::VARIANTS_SCREEN_ID => Ok(Self::ButtonVariants(button::ButtonScreen::load(
+                manifest, sink, true,
+            )?)),
+            button::SIZES_SCREEN_ID => Ok(Self::ButtonSizes(button::ButtonScreen::load(
+                manifest, sink, false,
+            )?)),
+            input::SCREEN_ID => Ok(Self::Input(input::InputScreen::load(manifest, sink)?)),
             other => Err(format!(
                 "No GPUI view is registered for parity screen \"{other}\""
             )),
@@ -41,6 +53,10 @@ impl Render for ScreenView {
     fn render(&mut self, _window: &mut Window, _cx: &mut Context<Self>) -> impl IntoElement {
         match self {
             Self::Example(view) => view.render().into_any_element(),
+            Self::ButtonVariants(view) | Self::ButtonSizes(view) => {
+                view.render().into_any_element()
+            }
+            Self::Input(view) => view.render(_window, _cx).into_any_element(),
         }
     }
 }

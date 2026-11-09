@@ -6,6 +6,7 @@ fn style() -> StyleSnapshot {
         border_color: [61, 61, 61, 255],
         border_width: 0.0,
         border_radius: 4.0,
+        ring_spread: 0.0,
         font_family: "system-ui".to_owned(),
         font_size: 14.0,
         font_weight: 400,
@@ -13,6 +14,7 @@ fn style() -> StyleSnapshot {
         color: [204, 204, 204, 255],
         padding: PaddingSnapshot::symmetric(4.0, 12.0),
         declared_background_color: None,
+        opacity: 1.0,
         declared_border_color: None,
     }
 }
@@ -79,7 +81,7 @@ fn json_uses_the_contracts_field_names() {
         style(),
     );
     let json = serde_json::to_value(sink.finish()).expect("layout serialises");
-    assert_eq!(json["version"], 2);
+    assert_eq!(json["version"], 3);
     assert_eq!(json["viewport"]["deviceScaleFactor"], 2.0);
     assert_eq!(json["elements"][0]["sizing"], "fixed");
     assert_eq!(json["elements"][0]["style"]["fontFamily"], "system-ui");
@@ -110,7 +112,7 @@ fn declared_colours_are_optional_and_keep_their_names() {
 #[test]
 fn the_reference_reader_ignores_extra_fields() {
     let text = r#"{
-        "version": 2,
+        "version": 3,
         "screen": "s",
         "viewport": { "width": 10, "height": 10, "deviceScaleFactor": 2 },
         "elements": [],
@@ -122,8 +124,19 @@ fn the_reference_reader_ignores_extra_fields() {
 }
 
 #[test]
-fn schema_version_two_is_written() {
+fn current_schema_version_is_written() {
     let document = sink().finish();
     assert_eq!(document.version, SCHEMA_VERSION);
     assert_eq!(document.screen, "example.button-input.default");
+}
+
+#[test]
+fn ring_spread_is_required_so_old_caches_are_not_silently_reused() {
+    let mut value = serde_json::to_value(style()).expect("style serialises");
+    assert_eq!(value["ringSpread"], 0.0);
+    value
+        .as_object_mut()
+        .expect("style object")
+        .remove("ringSpread");
+    assert!(serde_json::from_value::<StyleSnapshot>(value).is_err());
 }

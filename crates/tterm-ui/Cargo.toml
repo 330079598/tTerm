@@ -9,6 +9,9 @@ publish = false
 [lints]
 workspace = true
 
+[dependencies]
+gpui-kit = { workspace = true, features = ["test-support"] }
+
 [dev-dependencies]
 # Only the token tests parse src/styles/tokens.json; the crate itself has no
 # dependencies, so it builds before P0-06 fixes the GPUI revision.

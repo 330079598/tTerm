@@ -75,6 +75,9 @@ pub fn measure_element(
             bounds.width, bounds.height, bounds.x, bounds.y
         ));
     }
+    if right <= 0 || bottom <= 0 || left >= image.width() as i32 || top >= image.height() as i32 {
+        return Err("no background pixels".to_owned());
+    }
 
     let width = (right - left) as f32;
     let height = (bottom - top) as f32;
@@ -159,7 +162,7 @@ impl BoxRegion<'_> {
             }
         }
 
-        mode(counts).ok_or_else(|| "the element bounds contain no pixels".to_owned())
+        Ok(mode(counts).unwrap_or([0, 0, 0, 0]))
     }
 
     fn border(&self) -> Result<Option<[u8; 4]>, String> {

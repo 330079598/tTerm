@@ -29,6 +29,13 @@
       "id": "example.button-input.default",
       "title": "Example: one button and one input",
       "fixture": "example.button-input.default.json"
+    },
+    { "id": "ui.button.variants", "title": "Button variants and states", "fixture": "ui.button.default.json" },
+    { "id": "ui.button.sizes", "title": "Button sizes", "fixture": "ui.button.default.json" },
+    {
+      "id": "ui.input.default",
+      "title": "Input primitive states",
+      "fixture": "ui.input.default.json"
     }
   ]
 }

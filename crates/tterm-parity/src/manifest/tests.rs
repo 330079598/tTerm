@@ -35,7 +35,7 @@ fn the_repository_manifest_is_valid() {
     let loaded = ScreensManifest::load(&root).expect("the committed manifest is valid");
     assert_eq!(loaded.version, MANIFEST_VERSION);
     assert_eq!(loaded.viewport.device_scale_factor, 2.0);
-    assert_eq!(loaded.screens.len(), 1);
+    assert_eq!(loaded.screens.len(), 4);
 }
 
 #[test]

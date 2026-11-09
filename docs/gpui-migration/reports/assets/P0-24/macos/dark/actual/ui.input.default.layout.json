@@ -1,0 +1,287 @@
+{
+  "version": 2,
+  "screen": "ui.input.default",
+  "viewport": {
+    "width": 800,
+    "height": 600,
+    "deviceScaleFactor": 2.0
+  },
+  "elements": [
+    {
+      "id": "ui.input.disabled",
+      "sizing": "fixed",
+      "bounds": {
+        "x": 32.0,
+        "y": 188.0,
+        "width": 576.0,
+        "height": 36.0
+      },
+      "style": {
+        "backgroundColor": [
+          32,
+          34,
+          39,
+          255
+        ],
+        "borderColor": [
+          44,
+          45,
+          48,
+          255
+        ],
+        "borderWidth": 1.0,
+        "borderRadius": 6.0,
+        "fontFamily": "system-ui",
+        "fontSize": 14.0,
+        "fontWeight": 400,
+        "lineHeight": 16.8,
+        "color": [
+          204,
+          204,
+          204,
+          255
+        ],
+        "opacity": 0.5,
+        "padding": {
+          "top": 4.0,
+          "right": 12.0,
+          "bottom": 4.0,
+          "left": 12.0
+        },
+        "declaredBackgroundColor": [
+          61,
+          61,
+          61,
+          77
+        ],
+        "declaredBorderColor": [
+          61,
+          61,
+          61,
+          255
+        ]
+      }
+    },
+    {
+      "id": "ui.input.empty",
+      "sizing": "fixed",
+      "bounds": {
+        "x": 32.0,
+        "y": 32.0,
+        "width": 576.0,
+        "height": 36.0
+      },
+      "style": {
+        "backgroundColor": [
+          37,
+          38,
+          42,
+          255
+        ],
+        "borderColor": [
+          61,
+          61,
+          61,
+          255
+        ],
+        "borderWidth": 1.0,
+        "borderRadius": 6.0,
+        "fontFamily": "system-ui",
+        "fontSize": 14.0,
+        "fontWeight": 400,
+        "lineHeight": 16.8,
+        "color": [
+          204,
+          204,
+          204,
+          255
+        ],
+        "opacity": 1.0,
+        "padding": {
+          "top": 4.0,
+          "right": 12.0,
+          "bottom": 4.0,
+          "left": 12.0
+        },
+        "declaredBackgroundColor": [
+          61,
+          61,
+          61,
+          77
+        ],
+        "declaredBorderColor": [
+          61,
+          61,
+          61,
+          255
+        ]
+      }
+    },
+    {
+      "id": "ui.input.focus",
+      "sizing": "fixed",
+      "bounds": {
+        "x": 32.0,
+        "y": 136.0,
+        "width": 576.0,
+        "height": 36.0
+      },
+      "style": {
+        "backgroundColor": [
+          37,
+          38,
+          42,
+          255
+        ],
+        "borderColor": [
+          0,
+          112,
+          204,
+          255
+        ],
+        "borderWidth": 1.0,
+        "borderRadius": 6.0,
+        "fontFamily": "system-ui",
+        "fontSize": 14.0,
+        "fontWeight": 400,
+        "lineHeight": 16.8,
+        "color": [
+          204,
+          204,
+          204,
+          255
+        ],
+        "opacity": 1.0,
+        "padding": {
+          "top": 4.0,
+          "right": 12.0,
+          "bottom": 4.0,
+          "left": 12.0
+        },
+        "declaredBackgroundColor": [
+          61,
+          61,
+          61,
+          77
+        ],
+        "declaredBorderColor": [
+          0,
+          112,
+          204,
+          255
+        ]
+      }
+    },
+    {
+      "id": "ui.input.long",
+      "sizing": "fixed",
+      "bounds": {
+        "x": 32.0,
+        "y": 84.0,
+        "width": 576.0,
+        "height": 36.0
+      },
+      "style": {
+        "backgroundColor": [
+          37,
+          38,
+          42,
+          255
+        ],
+        "borderColor": [
+          61,
+          61,
+          61,
+          255
+        ],
+        "borderWidth": 1.0,
+        "borderRadius": 6.0,
+        "fontFamily": "system-ui",
+        "fontSize": 14.0,
+        "fontWeight": 400,
+        "lineHeight": 16.8,
+        "color": [
+          204,
+          204,
+          204,
+          255
+        ],
+        "opacity": 1.0,
+        "padding": {
+          "top": 4.0,
+          "right": 12.0,
+          "bottom": 4.0,
+          "left": 12.0
+        },
+        "declaredBackgroundColor": [
+          61,
+          61,
+          61,
+          77
+        ],
+        "declaredBorderColor": [
+          61,
+          61,
+          61,
+          255
+        ]
+      }
+    },
+    {
+      "id": "ui.input.screen",
+      "sizing": "fixed",
+      "bounds": {
+        "x": 0.0,
+        "y": 0.0,
+        "width": 800.0,
+        "height": 600.0
+      },
+      "style": {
+        "backgroundColor": [
+          27,
+          29,
+          35,
+          255
+        ],
+        "borderColor": [
+          61,
+          61,
+          61,
+          255
+        ],
+        "borderWidth": 0.0,
+        "borderRadius": 0.0,
+        "fontFamily": "system-ui",
+        "fontSize": 14.0,
+        "fontWeight": 400,
+        "lineHeight": 16.8,
+        "color": [
+          204,
+          204,
+          204,
+          255
+        ],
+        "opacity": 1.0,
+        "padding": {
+          "top": 32.0,
+          "right": 32.0,
+          "bottom": 32.0,
+          "left": 32.0
+        },
+        "declaredBackgroundColor": [
+          27,
+          29,
+          35,
+          255
+        ],
+        "declaredBorderColor": [
+          61,
+          61,
+          61,
+          255
+        ]
+      }
+    }
+  ],
+  "textRegions": []
+}

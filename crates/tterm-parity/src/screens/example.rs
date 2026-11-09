@@ -170,6 +170,7 @@ fn root_style(colors: &Colors) -> StyleSnapshot {
         border_color: hsl_to_rgba(colors.border),
         border_width: 0.0,
         border_radius: 0.0,
+        ring_spread: 0.0,
         font_family: "system-ui".to_owned(),
         font_size: BODY_FONT_SIZE,
         font_weight: 400,
@@ -177,6 +178,7 @@ fn root_style(colors: &Colors) -> StyleSnapshot {
         color: hsl_to_rgba(colors.foreground),
         padding: PaddingSnapshot::all(PAGE_PADDING),
         declared_background_color: None,
+        opacity: 1.0,
         declared_border_color: None,
     }
 }
@@ -187,6 +189,7 @@ fn input_style(colors: &Colors) -> StyleSnapshot {
         border_color: hsl_to_rgba(colors.input),
         border_width: 1.0,
         border_radius: CORNER_RADIUS,
+        ring_spread: 0.0,
         font_family: "system-ui".to_owned(),
         font_size: CONTENT_FONT_SIZE,
         font_weight: 400,
@@ -194,6 +197,7 @@ fn input_style(colors: &Colors) -> StyleSnapshot {
         color: hsl_to_rgba(colors.foreground),
         padding: PaddingSnapshot::symmetric(FIELD_PADDING_Y, FIELD_PADDING_X),
         declared_background_color: None,
+        opacity: 1.0,
         declared_border_color: None,
     }
 }
@@ -204,6 +208,7 @@ fn button_style(colors: &Colors) -> StyleSnapshot {
         border_color: hsl_to_rgba(colors.border),
         border_width: 0.0,
         border_radius: CORNER_RADIUS,
+        ring_spread: 0.0,
         font_family: "system-ui".to_owned(),
         font_size: CONTENT_FONT_SIZE,
         font_weight: 500,
@@ -211,6 +216,7 @@ fn button_style(colors: &Colors) -> StyleSnapshot {
         color: hsl_to_rgba(colors.primary_foreground),
         padding: PaddingSnapshot::symmetric(BUTTON_PADDING_Y, BUTTON_PADDING_X),
         declared_background_color: None,
+        opacity: 1.0,
         declared_border_color: None,
     }
 }

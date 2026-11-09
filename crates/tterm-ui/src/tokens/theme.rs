@@ -10,3 +10,11 @@ pub struct Theme {
     /// The colours the theme declares for the interface.
     pub colors: Colors,
 }
+
+impl Theme {
+    /// Matches the stylesheet's `dark:` variant, active for every theme except
+    /// the explicitly light theme.
+    pub fn uses_dark_variant(self) -> bool {
+        !matches!(self.id, "light")
+    }
+}
