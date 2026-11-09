@@ -1,3 +1,4 @@
+import "@/components/TerminalTab/ServerMonitorPanel.css"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import type { ParityScreenProps } from "@/parity/types"
 import { useEffect } from "react"

@@ -4,8 +4,9 @@ use crate::color::{hsl_to_rgba, to_gpui};
 use crate::layout::{ElementSizing, LayoutSink, PaddingSnapshot, StyleSnapshot};
 use crate::manifest::ScreensManifest;
 use crate::marker::{parity_child, parity_element, parity_text_for};
-use gpui_kit::{IntoElement, ParentElement, Styled, div, px};
-use tterm_ui::components::tabs::{TriggerState, list, trigger};
+use gpui_kit::{Context, IntoElement, ParentElement, Styled, div, px};
+use tterm_ui::components::tabs::{TriggerState, content, list, style, trigger};
+use tterm_ui::tokens::gpui::hsla;
 use tterm_ui::tokens::palette::{DARK, LIGHT};
 use tterm_ui::tokens::theme::Theme;
 
@@ -16,6 +17,7 @@ pub struct TabsScreen {
     layout: LayoutSink,
     theme: Theme,
     server: bool,
+    selected: usize,
 }
 
 impl TabsScreen {
@@ -33,11 +35,13 @@ impl TabsScreen {
             layout,
             theme,
             server,
+            selected: 0,
         })
     }
 
     fn style(&self, active: bool, focused: bool) -> StyleSnapshot {
         let colors = self.theme.colors;
+        let geometry = style(self.server);
         StyleSnapshot {
             background_color: if active {
                 hsl_to_rgba(colors.background)
@@ -46,22 +50,22 @@ impl TabsScreen {
             },
             border_color: hsl_to_rgba(colors.background),
             border_width: 0.0,
-            border_radius: 4.0,
-            ring_spread: if focused { 4.0 } else { 0.0 },
+            border_radius: geometry.radius,
+            ring_spread: if focused { geometry.ring_spread } else { 0.0 },
             font_family: "system-ui".into(),
-            font_size: if self.server { 11.0 } else { 14.0 },
+            font_size: geometry.font_size,
             font_weight: 500,
-            line_height: if self.server { 13.0 } else { 16.8 },
+            line_height: geometry.line_height,
             color: hsl_to_rgba(if active {
                 colors.foreground
             } else {
                 colors.muted_foreground
             }),
             padding: PaddingSnapshot {
-                top: if self.server { 0.0 } else { 6.0 },
-                right: if self.server { 10.0 } else { 12.0 },
-                bottom: if self.server { 0.0 } else { 6.0 },
-                left: if self.server { 10.0 } else { 12.0 },
+                top: geometry.padding_y,
+                right: geometry.padding_x,
+                bottom: geometry.padding_y,
+                left: geometry.padding_x,
             },
             declared_background_color: None,
             declared_border_color: None,
@@ -69,7 +73,49 @@ impl TabsScreen {
         }
     }
 
-    pub fn render(&self) -> impl IntoElement {
+    fn root_style(&self) -> StyleSnapshot {
+        let colors = self.theme.colors;
+        StyleSnapshot {
+            background_color: hsl_to_rgba(colors.background),
+            border_color: hsl_to_rgba(colors.background),
+            border_width: 0.0,
+            border_radius: 0.0,
+            ring_spread: 0.0,
+            font_family: "system-ui".into(),
+            font_size: 13.0,
+            font_weight: 400,
+            line_height: 18.2,
+            color: hsl_to_rgba(colors.foreground),
+            padding: PaddingSnapshot::all(0.0),
+            declared_background_color: None,
+            declared_border_color: None,
+            opacity: 1.0,
+        }
+    }
+
+    fn list_style(&self) -> StyleSnapshot {
+        let colors = self.theme.colors;
+        let geometry = style(self.server);
+        StyleSnapshot {
+            background_color: hsl_to_rgba(colors.muted),
+            border_color: hsl_to_rgba(colors.muted),
+            border_width: 0.0,
+            border_radius: geometry.list_radius,
+            ring_spread: 0.0,
+            font_family: "system-ui".into(),
+            font_size: 13.0,
+            font_weight: 400,
+            line_height: 18.2,
+            color: hsl_to_rgba(colors.muted_foreground),
+            padding: PaddingSnapshot::all(geometry.list_padding),
+            declared_background_color: None,
+            declared_border_color: None,
+            opacity: 1.0,
+        }
+    }
+
+    pub fn render(&self, cx: &mut Context<super::ScreenView>) -> impl IntoElement {
+        let geometry = style(self.server);
         let colors = self.theme.colors;
         let labels = ["Overview", "CPU", "Memory"];
         let prefix = if self.server {
@@ -77,29 +123,18 @@ impl TabsScreen {
         } else {
             "ui.tabs"
         };
-        let list_style = StyleSnapshot {
-            background_color: hsl_to_rgba(colors.muted),
-            border_color: hsl_to_rgba(colors.muted),
-            border_width: 0.0,
-            border_radius: 6.0,
-            ring_spread: 0.0,
-            font_family: "system-ui".into(),
-            font_size: 13.0,
-            font_weight: 400,
-            line_height: 18.2,
-            color: hsl_to_rgba(colors.muted_foreground),
-            padding: PaddingSnapshot::all(4.0),
-            declared_background_color: None,
-            declared_border_color: None,
-            opacity: 1.0,
-        };
+        let list_style = self.list_style();
         let triggers = labels
             .into_iter()
             .enumerate()
             .map(|(index, label)| {
-                let active = index == 0;
+                let active = index == self.selected;
                 let focused = index == 2;
-                let id = format!("{prefix}.{}", ["active", "inactive", "focus"][index]);
+                let id = if self.server {
+                    format!("{prefix}-{}", ["active", "inactive", "focus"][index])
+                } else {
+                    format!("{prefix}.{}", ["active", "inactive", "focus"][index])
+                };
                 parity_child(
                     &self.layout,
                     id,
@@ -114,8 +149,16 @@ impl TabsScreen {
                             disabled: false,
                         },
                         self.theme,
-                        |_event, _window, _cx| {},
-                    ),
+                        cx.listener(move |view, _, _, cx| {
+                            if let super::ScreenView::TabsDefault(tabs)
+                            | super::ScreenView::TabsServer(tabs) = view
+                            {
+                                tabs.selected = index;
+                                cx.notify();
+                            }
+                        }),
+                    )
+                    .geometry(geometry),
                 )
                 .into_any_element()
             })
@@ -141,70 +184,82 @@ impl TabsScreen {
             font_weight: 400,
             line_height: 18.2,
             color: hsl_to_rgba(colors.foreground),
-            padding: PaddingSnapshot::all(0.0),
+            padding: PaddingSnapshot {
+                top: geometry.content_padding.0,
+                bottom: geometry.content_padding.0,
+                left: geometry.content_padding.1,
+                right: geometry.content_padding.1,
+            },
             declared_background_color: None,
             declared_border_color: None,
             opacity: 1.0,
         };
-        let content = parity_element(
+        let text = ["Active overview content", "CPU content", "Memory content"][self.selected];
+        let content_view = parity_child(
             &self.layout,
             content_id,
             ElementSizing::Fixed,
             content_style.clone(),
-            |view| {
-                view.child(parity_text_for(
-                    &self.layout,
-                    "tabs-content-text",
-                    "Active overview content",
-                    &content_style,
-                ))
-            },
+            content(
+                geometry,
+                parity_text_for(&self.layout, "tabs-content-text", text, &content_style),
+            )
+            .h(px(if self.server { 498.0 } else { 18.0 })),
+        )
+        .w_full();
+        let list_view = parity_child(
+            &self.layout,
+            list_id,
+            ElementSizing::Fixed,
+            list_style,
+            list(
+                self.theme,
+                geometry,
+                div().flex().gap(px(geometry.gap)).children(triggers),
+            ),
         );
-        let root_style = StyleSnapshot {
-            background_color: hsl_to_rgba(colors.background),
-            border_color: hsl_to_rgba(colors.background),
-            border_width: 0.0,
-            border_radius: 0.0,
-            ring_spread: 0.0,
-            font_family: "system-ui".into(),
-            font_size: 13.0,
-            font_weight: 400,
-            line_height: 18.2,
-            color: hsl_to_rgba(colors.foreground),
-            padding: PaddingSnapshot::all(0.0),
-            declared_background_color: None,
-            declared_border_color: None,
-            opacity: 1.0,
+        let list_view = if self.server {
+            div()
+                .w_full()
+                .h(px(38.0))
+                .flex_none()
+                .flex()
+                .items_center()
+                .justify_between()
+                .pt(px(5.0))
+                .px(px(8.0))
+                .border_b(px(1.0))
+                .border_color(hsla(colors.border, 0.72))
+                .bg(to_gpui(hsl_to_rgba(colors.titlebar)))
+                .child(div().w(px(28.0)).h(px(28.0)).flex_none())
+                .child(list_view)
+        } else {
+            list_view
         };
+        let root_style = self.root_style();
         let root_id = if self.server {
             "ui.tabs.server"
         } else {
             "ui.tabs.default"
         };
-        parity_element(
-            &self.layout,
-            root_id,
-            ElementSizing::Fixed,
-            root_style,
-            |view| {
-                view.size_full()
-                    .p(px(32.0))
-                    .bg(to_gpui(hsl_to_rgba(colors.background)))
-                    .child(
-                        div()
-                            .flex()
-                            .items_start()
-                            .flex_col()
-                            .child(parity_child(
-                                &self.layout,
-                                list_id,
-                                ElementSizing::Fixed,
-                                list_style,
-                                list(self.theme, div().flex().children(triggers)),
-                            ))
-                            .child(content),
-                    )
-            },
-        )
+        div()
+            .size_full()
+            .p(px(32.0))
+            .bg(to_gpui(hsl_to_rgba(colors.background)))
+            .child(parity_element(
+                &self.layout,
+                root_id,
+                ElementSizing::Fixed,
+                root_style,
+                |view| {
+                    view.w_full()
+                        .h(px(if self.server { 536.0 } else { 66.0 }))
+                        .flex()
+                        .items_start()
+                        .flex_col()
+                        .child(list_view)
+                        .child(content_view)
+                },
+            ))
     }
 }

@@ -80,7 +80,7 @@ impl Render for ScreenView {
             Self::Password(view) => view.render(_window, _cx).into_any_element(),
             Self::Select(view) => view.render(_cx).into_any_element(),
             Self::Switch(view) => view.render().into_any_element(),
-            Self::TabsDefault(view) | Self::TabsServer(view) => view.render().into_any_element(),
+            Self::TabsDefault(view) | Self::TabsServer(view) => view.render(_cx).into_any_element(),
         }
     }
 }

@@ -101,6 +101,35 @@ pub fn shadow_sm(opacity: f32) -> Vec<BoxShadow> {
     ]
 }
 
+/// CSS paints the offset above the outer ring. Both shadows stay hollow,
+/// preserving a trigger's transparent centre and the parent's own backdrop.
+pub fn offset_ring(
+    background: gpui_kit::Hsla,
+    ring: gpui_kit::Hsla,
+    radius: f32,
+    spread: f32,
+) -> impl IntoElement {
+    canvas(
+        |_, _, _| (),
+        move |bounds, (), window, _| {
+            for (color, outset) in [(ring, spread), (background, 2.0)] {
+                let mut clear = color;
+                clear.a = 0.0;
+                window.paint_quad(quad(
+                    bounds.inset(px(-outset)),
+                    px(spread_radius(radius, outset)),
+                    clear,
+                    px(outset),
+                    color,
+                    Default::default(),
+                ));
+            }
+        },
+    )
+    .absolute()
+    .inset_0()
+}
+
 /// The outer corner radius of a CSS spread shadow (CSS Backgrounds 3, 6.1.1):
 /// corners grow by the spread, and small radii stay sharper.
 pub fn spread_radius(radius: f32, spread: f32) -> f32 {
@@ -191,6 +220,19 @@ mod tests {
             css_backdrop_color(DARK.colors.input, 0.0, DARK.colors.background),
             css_color(DARK.colors.background, 1.0)
         );
+    }
+
+    #[test]
+    fn shadow_sm_converts_css_blur_to_sigma_and_group_opacity() {
+        let shadows = shadow_sm(0.5);
+        assert_eq!(shadows.len(), 2);
+        assert_eq!(shadows[0].blur_radius, px(1.5));
+        assert_eq!(shadows[1].blur_radius, px(1.0));
+        assert_eq!(shadows[1].spread_radius, px(-1.0));
+        for shadow in shadows {
+            assert_eq!(shadow.offset.y, px(1.0));
+            assert!((shadow.color.a - 0.1 * css_opacity(0.5)).abs() < 0.00001);
+        }
     }
 
     struct FocusedButton(Variant);
