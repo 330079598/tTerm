@@ -7,6 +7,7 @@
 pub mod button;
 pub mod example;
 pub mod input;
+pub mod p024;
 
 use crate::layout::LayoutSink;
 use crate::manifest::{ScreenSpec, ScreensManifest};
@@ -21,6 +22,7 @@ pub enum ScreenView {
     ButtonVariants(button::ButtonScreen),
     ButtonSizes(button::ButtonScreen),
     Input(input::InputScreen),
+    P024(p024::P024Screen),
 }
 
 impl ScreenView {
@@ -42,6 +44,21 @@ impl ScreenView {
                 manifest, sink, false,
             )?)),
             input::SCREEN_ID => Ok(Self::Input(input::InputScreen::load(manifest, sink)?)),
+            p024::PASSWORD_ID => Ok(Self::P024(p024::P024Screen::load(
+                manifest,
+                sink,
+                p024::Kind::Password,
+            )?)),
+            p024::SELECT_ID => Ok(Self::P024(p024::P024Screen::load(
+                manifest,
+                sink,
+                p024::Kind::Select,
+            )?)),
+            p024::SWITCH_ID => Ok(Self::P024(p024::P024Screen::load(
+                manifest,
+                sink,
+                p024::Kind::Switch,
+            )?)),
             other => Err(format!(
                 "No GPUI view is registered for parity screen \"{other}\""
             )),
@@ -57,6 +74,7 @@ impl Render for ScreenView {
                 view.render().into_any_element()
             }
             Self::Input(view) => view.render(_window, _cx).into_any_element(),
+            Self::P024(view) => view.render(_window, _cx).into_any_element(),
         }
     }
 }
