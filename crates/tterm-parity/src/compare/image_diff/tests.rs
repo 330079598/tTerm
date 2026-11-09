@@ -10,7 +10,7 @@ fn solid(width: u32, height: u32, color: [u8; 4]) -> RgbaImage {
 
 fn layout(text_regions: Vec<BoundsSnapshot>) -> LayoutDocument {
     LayoutDocument {
-        version: 2,
+        version: crate::layout::SCHEMA_VERSION,
         screen: "s".to_owned(),
         viewport: ViewportSnapshot {
             width: 10,
@@ -24,7 +24,7 @@ fn layout(text_regions: Vec<BoundsSnapshot>) -> LayoutDocument {
 
 fn element_layout() -> LayoutDocument {
     LayoutDocument {
-        version: 2,
+        version: crate::layout::SCHEMA_VERSION,
         screen: "s".to_owned(),
         viewport: ViewportSnapshot {
             width: 10,
@@ -40,6 +40,7 @@ fn element_layout() -> LayoutDocument {
                 border_color: [0, 0, 0, 0],
                 border_width: 0.0,
                 border_radius: 0.0,
+                ring_spread: 0.0,
                 font_family: "system-ui".to_owned(),
                 font_size: 14.0,
                 font_weight: 400,
@@ -71,6 +72,43 @@ fn the_screen_mask_extends_the_text_mask_with_the_element_edges() {
     let mask = screen_mask(&layout, &layout, 10, 10, &text);
     assert!(mask[2 * 10 + 2]);
     assert!(!mask[4 * 10 + 4]);
+}
+
+#[test]
+fn ring_mask_only_excludes_the_outer_one_pixel_band_at_both_scales() {
+    for scale in [1.0, 2.0] {
+        let mut layout = element_layout();
+        layout.viewport.device_scale_factor = scale;
+        layout.elements[0].bounds = BoundsSnapshot::new(10.0, 10.0, 20.0, 20.0);
+        layout.elements[0].style.border_radius = 6.0;
+        layout.elements[0].style.ring_spread = 3.0;
+        let width = 40 * scale as u32;
+        let mask = edge_mask(&layout, &layout, width, width);
+        let at = |x: u32, y: u32| mask[(y * width + x) as usize];
+        let top = 7 * scale as u32;
+        let centre = 20 * scale as u32;
+        assert!(at(centre, top - 1), "outside half of outer band");
+        assert!(at(centre, top), "inside half of outer band");
+        assert!(!at(centre, top - 2), "no extra outside dilation");
+        assert!(!at(centre, top + 1), "ring middle still compared");
+        assert!(!at(centre, centre), "button interior still compared");
+        let reference = solid(width, width, [127, 183, 229, 255]);
+        let mut wrong_ring = reference.clone();
+        wrong_ring.put_pixel(centre, top + 1, Rgba([137, 183, 229, 255]));
+        assert_eq!(
+            color_difference(&reference, &wrong_ring, &mask).pixels_above_one,
+            1
+        );
+    }
+}
+
+#[test]
+fn spread_radius_follows_css_for_sharp_small_and_large_corners() {
+    assert_eq!(spread_radius(0.0, 3.0), 0.0);
+    assert_eq!(spread_radius(10.0, 20.0), 27.5);
+    assert_eq!(spread_radius(3.0, 3.0), 6.0);
+    assert_eq!(spread_radius(6.0, 3.0), 9.0);
+    assert_eq!(spread_radius(6.0, 0.0), 6.0);
 }
 
 #[test]

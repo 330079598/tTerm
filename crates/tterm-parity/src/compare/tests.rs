@@ -13,6 +13,7 @@ fn style() -> StyleSnapshot {
         border_color: [61, 61, 61, 255],
         border_width: 0.0,
         border_radius: 4.0,
+        ring_spread: 0.0,
         font_family: "system-ui".to_owned(),
         font_size: 14.0,
         font_weight: 500,
@@ -35,7 +36,7 @@ fn screen() -> ScreenSpec {
 
 fn document(style: StyleSnapshot) -> LayoutDocument {
     LayoutDocument {
-        version: 2,
+        version: crate::layout::SCHEMA_VERSION,
         screen: screen().id,
         viewport: ViewportSnapshot {
             width: 32,

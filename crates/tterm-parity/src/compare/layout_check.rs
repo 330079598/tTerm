@@ -186,6 +186,13 @@ fn compare_style(
         actual.border_width,
         failures,
     );
+    check_number(
+        id,
+        "ring spread",
+        reference.ring_spread,
+        actual.ring_spread,
+        failures,
+    );
     check_number(id, "opacity", reference.opacity, actual.opacity, failures);
     check_number(
         id,

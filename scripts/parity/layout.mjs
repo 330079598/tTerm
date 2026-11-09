@@ -73,6 +73,36 @@ export function collectLayout(screen) {
     context.fillRect(0, 0, 1, 1)
     return Array.from(context.getImageData(0, 0, 1, 1).data)
   }
+  const ringSpread = (boxShadow) => {
+    // Split only outside colour functions: rgb() can itself contain commas.
+    const splitOutside = (text, separator) => {
+      let depth = 0
+      let token = ""
+      const tokens = []
+      for (const char of text) {
+        if (char === "(") depth++
+        if (char === ")") depth--
+        if (depth === 0 && separator.test(char)) {
+          if (token.trim()) tokens.push(token.trim())
+          token = ""
+        } else token += char
+      }
+      if (token.trim()) tokens.push(token.trim())
+      return tokens
+    }
+    let spread = 0
+    for (const layer of splitOutside(boxShadow, /,/)) {
+      const tokens = splitOutside(layer, /\s/)
+      if (tokens.includes("inset") || layer === "none") continue
+      const lengths = tokens.filter((token) => /^-?(?:\d*\.)?\d+(?:px)?$/.test(token)).map(Number.parseFloat)
+      const [x, y, blur = 0, outset = 0] = lengths
+      const color = tokens.find((token) => !/^-?(?:\d*\.)?\d+(?:px)?$/.test(token))
+      // Offset or blurred shadows are intentionally outside this contract.
+      if (lengths.length < 2 || lengths.length > 4 || x !== 0 || y !== 0 || blur !== 0) continue
+      if (outset > 0 && color && toRgba(color)[3] > 0) spread = Math.max(spread, outset)
+    }
+    return spread
+  }
 
   const elements = [...document.querySelectorAll("[data-parity]")].map((element) => {
     const style = getComputedStyle(element)
@@ -91,6 +121,7 @@ export function collectLayout(screen) {
         borderColor: toRgba(style.borderTopColor),
         borderWidth: parsePx(style.borderTopWidth, "border-top-width"),
         borderRadius: parsePx(style.borderTopLeftRadius, "border-top-left-radius"),
+        ringSpread: ringSpread(style.boxShadow),
         fontFamily: canonicalFontFamily(style.fontFamily),
         fontSize: parsePx(style.fontSize, "font-size"),
         fontWeight: parseWeight(style.fontWeight),
@@ -157,7 +188,7 @@ export function collectLayout(screen) {
   )
 
   return {
-    version: 2,
+    version: 3,
     screen,
     viewport: {
       width: window.innerWidth,

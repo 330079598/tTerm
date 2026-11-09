@@ -32,6 +32,7 @@ fn style(
         border_color: border,
         border_width,
         border_radius,
+        ring_spread: 0.0,
         font_family: "system-ui".to_owned(),
         font_size: 14.0,
         font_weight: 400,

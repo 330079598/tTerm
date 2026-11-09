@@ -188,21 +188,46 @@ fn mark_edges(mask: &mut [bool], layout: &LayoutDocument, width: u32, height: u3
         // The border itself changes colour across its width, so the band is the
         // border plus one physical pixel of antialiasing on either side.
         let band = f64::from(element.style.border_width) * scale + 1.0;
-        let start_x = (left.floor() as i32 - 2).max(0);
-        let start_y = (top.floor() as i32 - 2).max(0);
-        let end_x = ((left + element_width).ceil() as i32 + 2).min(width as i32);
-        let end_y = ((top + element_height).ceil() as i32 + 2).min(height as i32);
+        let spread = f64::from(element.style.ring_spread.max(0.0)) * scale;
+        let outer_radius = spread_radius(radius, spread);
+        let margin = spread.ceil() as i32 + 2;
+        let start_x = (left.floor() as i32 - margin).max(0);
+        let start_y = (top.floor() as i32 - margin).max(0);
+        let end_x = ((left + element_width).ceil() as i32 + margin).min(width as i32);
+        let end_y = ((top + element_height).ceil() as i32 + margin).min(height as i32);
         for y in start_y..end_y {
             for x in start_x..end_x {
                 let local_x = f64::from(x) + 0.5 - left;
                 let local_y = f64::from(y) + 0.5 - top;
-                if rounded_rect_sdf(local_x, local_y, element_width, element_height, radius).abs()
-                    <= band
-                {
+                let element_edge =
+                    rounded_rect_sdf(local_x, local_y, element_width, element_height, radius).abs()
+                        <= band;
+                // Only the outer silhouette gets another one-physical-pixel
+                // band. The ring's middle remains subject to colour checks.
+                let ring_edge = spread > 0.0
+                    && rounded_rect_sdf(
+                        local_x + spread,
+                        local_y + spread,
+                        element_width + 2.0 * spread,
+                        element_height + 2.0 * spread,
+                        outer_radius,
+                    )
+                    .abs()
+                        <= 1.0;
+                if element_edge || ring_edge {
                     mask[(y as u32 * width + x as u32) as usize] = true;
                 }
             }
         }
+    }
+}
+
+/// CSS Backgrounds 3 section 6.1.1 preserves sharp corners for small radii.
+fn spread_radius(radius: f64, spread: f64) -> f64 {
+    if spread > 0.0 && radius < spread {
+        radius + spread * (1.0 + (radius / spread - 1.0).powi(3))
+    } else {
+        radius + spread
     }
 }
 
