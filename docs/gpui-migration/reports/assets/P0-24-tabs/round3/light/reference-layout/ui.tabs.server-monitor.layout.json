@@ -1,0 +1,383 @@
+{
+  "version": 5,
+  "screen": "ui.tabs.server-monitor",
+  "viewport": {
+    "width": 800,
+    "height": 600,
+    "deviceScaleFactor": 2.0
+  },
+  "elements": [
+    {
+      "id": "ui.tabs.server",
+      "sizing": "fixed",
+      "bounds": {
+        "x": 32.0,
+        "y": 32.0,
+        "width": 736.0,
+        "height": 536.0
+      },
+      "style": {
+        "backgroundColor": [
+          255,
+          255,
+          255,
+          255
+        ],
+        "borderColor": [
+          226,
+          232,
+          240,
+          255
+        ],
+        "borderWidth": 0.0,
+        "borderRadius": 0.0,
+        "ringSpread": 0.0,
+        "ringSpreads": [],
+        "fontFamily": "system-ui",
+        "fontSize": 13.0,
+        "fontWeight": 400,
+        "lineHeight": 18.2,
+        "color": [
+          2,
+          8,
+          23,
+          255
+        ],
+        "opacity": 1.0,
+        "padding": {
+          "top": 0.0,
+          "right": 0.0,
+          "bottom": 0.0,
+          "left": 0.0
+        },
+        "declaredBackgroundColor": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "declaredBorderColor": [
+          226,
+          232,
+          240,
+          255
+        ]
+      }
+    },
+    {
+      "id": "ui.tabs.server-list",
+      "sizing": "fixed",
+      "bounds": {
+        "x": 575.03,
+        "y": 39.0,
+        "width": 184.97,
+        "height": 28.0
+      },
+      "style": {
+        "backgroundColor": [
+          241,
+          245,
+          249,
+          255
+        ],
+        "borderColor": [
+          226,
+          232,
+          240,
+          255
+        ],
+        "borderWidth": 0.0,
+        "borderRadius": 5.0,
+        "ringSpread": 0.0,
+        "ringSpreads": [],
+        "fontFamily": "system-ui",
+        "fontSize": 13.0,
+        "fontWeight": 400,
+        "lineHeight": 18.2,
+        "color": [
+          100,
+          116,
+          139,
+          255
+        ],
+        "opacity": 1.0,
+        "padding": {
+          "top": 2.0,
+          "right": 2.0,
+          "bottom": 2.0,
+          "left": 2.0
+        },
+        "declaredBackgroundColor": [
+          241,
+          245,
+          249,
+          255
+        ],
+        "declaredBorderColor": [
+          226,
+          232,
+          240,
+          255
+        ]
+      }
+    },
+    {
+      "id": "ui.tabs.server-active",
+      "sizing": "fixed",
+      "bounds": {
+        "x": 577.03,
+        "y": 41.0,
+        "width": 69.92,
+        "height": 24.0
+      },
+      "style": {
+        "backgroundColor": [
+          255,
+          255,
+          255,
+          255
+        ],
+        "borderColor": [
+          226,
+          232,
+          240,
+          255
+        ],
+        "borderWidth": 0.0,
+        "borderRadius": 4.0,
+        "ringSpread": 0.0,
+        "ringSpreads": [],
+        "fontFamily": "system-ui",
+        "fontSize": 11.0,
+        "fontWeight": 500,
+        "lineHeight": 13.2,
+        "color": [
+          2,
+          8,
+          23,
+          255
+        ],
+        "opacity": 1.0,
+        "padding": {
+          "top": 0.0,
+          "right": 10.0,
+          "bottom": 0.0,
+          "left": 10.0
+        },
+        "declaredBackgroundColor": [
+          255,
+          255,
+          255,
+          255
+        ],
+        "declaredBorderColor": [
+          226,
+          232,
+          240,
+          255
+        ]
+      }
+    },
+    {
+      "id": "ui.tabs.server-inactive",
+      "sizing": "fixed",
+      "bounds": {
+        "x": 648.95,
+        "y": 41.0,
+        "width": 43.48,
+        "height": 24.0
+      },
+      "style": {
+        "backgroundColor": [
+          241,
+          245,
+          249,
+          255
+        ],
+        "borderColor": [
+          226,
+          232,
+          240,
+          255
+        ],
+        "borderWidth": 0.0,
+        "borderRadius": 4.0,
+        "ringSpread": 0.0,
+        "ringSpreads": [],
+        "fontFamily": "system-ui",
+        "fontSize": 11.0,
+        "fontWeight": 500,
+        "lineHeight": 13.2,
+        "color": [
+          100,
+          116,
+          139,
+          255
+        ],
+        "opacity": 1.0,
+        "padding": {
+          "top": 0.0,
+          "right": 10.0,
+          "bottom": 0.0,
+          "left": 10.0
+        },
+        "declaredBackgroundColor": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "declaredBorderColor": [
+          226,
+          232,
+          240,
+          255
+        ]
+      }
+    },
+    {
+      "id": "ui.tabs.server-focus",
+      "sizing": "fixed",
+      "bounds": {
+        "x": 694.44,
+        "y": 41.0,
+        "width": 63.56,
+        "height": 24.0
+      },
+      "style": {
+        "backgroundColor": [
+          241,
+          245,
+          249,
+          255
+        ],
+        "borderColor": [
+          226,
+          232,
+          240,
+          255
+        ],
+        "borderWidth": 0.0,
+        "borderRadius": 4.0,
+        "ringSpread": 4.0,
+        "ringSpreads": [
+          2.0,
+          4.0
+        ],
+        "fontFamily": "system-ui",
+        "fontSize": 11.0,
+        "fontWeight": 500,
+        "lineHeight": 13.2,
+        "color": [
+          100,
+          116,
+          139,
+          255
+        ],
+        "opacity": 1.0,
+        "padding": {
+          "top": 0.0,
+          "right": 10.0,
+          "bottom": 0.0,
+          "left": 10.0
+        },
+        "declaredBackgroundColor": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "declaredBorderColor": [
+          226,
+          232,
+          240,
+          255
+        ]
+      }
+    },
+    {
+      "id": "ui.tabs.server-content",
+      "sizing": "fixed",
+      "bounds": {
+        "x": 32.0,
+        "y": 70.0,
+        "width": 736.0,
+        "height": 498.0
+      },
+      "style": {
+        "backgroundColor": [
+          255,
+          255,
+          255,
+          255
+        ],
+        "borderColor": [
+          226,
+          232,
+          240,
+          255
+        ],
+        "borderWidth": 0.0,
+        "borderRadius": 0.0,
+        "ringSpread": 0.0,
+        "ringSpreads": [],
+        "fontFamily": "system-ui",
+        "fontSize": 13.0,
+        "fontWeight": 400,
+        "lineHeight": 18.2,
+        "color": [
+          2,
+          8,
+          23,
+          255
+        ],
+        "opacity": 1.0,
+        "padding": {
+          "top": 14.0,
+          "right": 16.0,
+          "bottom": 14.0,
+          "left": 16.0
+        },
+        "declaredBackgroundColor": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "declaredBorderColor": [
+          226,
+          232,
+          240,
+          255
+        ]
+      }
+    }
+  ],
+  "textRegions": [
+    {
+      "x": 587.03,
+      "y": 46.5,
+      "width": 49.91,
+      "height": 13.0
+    },
+    {
+      "x": 658.95,
+      "y": 46.5,
+      "width": 23.48,
+      "height": 13.0
+    },
+    {
+      "x": 704.45,
+      "y": 46.5,
+      "width": 43.55,
+      "height": 13.0
+    },
+    {
+      "x": 48.0,
+      "y": 85.0,
+      "width": 144.81,
+      "height": 16.0
+    }
+  ],
+  "icons": []
+}

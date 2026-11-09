@@ -8,3 +8,4 @@ pub mod password_input;
 pub mod select;
 mod surface;
 pub mod switch;
+pub mod tabs;

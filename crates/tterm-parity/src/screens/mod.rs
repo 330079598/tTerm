@@ -11,6 +11,7 @@ pub mod input;
 pub mod password;
 pub mod select;
 pub mod switch;
+pub mod tabs;
 
 use crate::layout::LayoutSink;
 use crate::manifest::{ScreenSpec, ScreensManifest};
@@ -28,6 +29,8 @@ pub enum ScreenView {
     Password(password::PasswordScreen),
     Select(select::SelectScreen),
     Switch(switch::SwitchScreen),
+    TabsDefault(tabs::TabsScreen),
+    TabsServer(tabs::TabsScreen),
     ContextMenu(context_menu::ContextMenuScreen),
 }
 
@@ -55,6 +58,12 @@ impl ScreenView {
             )?)),
             select::SCREEN_ID => Ok(Self::Select(select::SelectScreen::load(manifest, sink)?)),
             switch::SCREEN_ID => Ok(Self::Switch(switch::SwitchScreen::load(manifest, sink)?)),
+            tabs::DEFAULT_SCREEN_ID => Ok(Self::TabsDefault(tabs::TabsScreen::load(
+                manifest, sink, false,
+            )?)),
+            tabs::SERVER_SCREEN_ID => Ok(Self::TabsServer(tabs::TabsScreen::load(
+                manifest, sink, true,
+            )?)),
             context_menu::DEFAULT_ID | context_menu::HIGHLIGHTED_ID | context_menu::WRAPPED_ID => {
                 Ok(Self::ContextMenu(context_menu::ContextMenuScreen::load(
                     root, screen, manifest, sink,
@@ -78,6 +87,7 @@ impl Render for ScreenView {
             Self::Password(view) => view.render(_window, _cx).into_any_element(),
             Self::Select(view) => view.render(_cx).into_any_element(),
             Self::Switch(view) => view.render().into_any_element(),
+            Self::TabsDefault(view) | Self::TabsServer(view) => view.render(_cx).into_any_element(),
             Self::ContextMenu(view) => view.render(_window, _cx).into_any_element(),
         }
     }

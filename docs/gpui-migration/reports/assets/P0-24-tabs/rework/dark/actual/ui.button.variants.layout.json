@@ -1,0 +1,685 @@
+{
+  "version": 4,
+  "screen": "ui.button.variants",
+  "viewport": {
+    "width": 800,
+    "height": 600,
+    "deviceScaleFactor": 2.0
+  },
+  "elements": [
+    {
+      "id": "ui.button.variants.default",
+      "sizing": "fixed",
+      "bounds": {
+        "x": 32.0,
+        "y": 32.0,
+        "width": 736.0,
+        "height": 36.0
+      },
+      "style": {
+        "backgroundColor": [
+          0,
+          112,
+          204,
+          255
+        ],
+        "borderColor": [
+          0,
+          112,
+          204,
+          255
+        ],
+        "borderWidth": 0.0,
+        "borderRadius": 6.0,
+        "ringSpread": 0.0,
+        "fontFamily": "system-ui",
+        "fontSize": 14.0,
+        "fontWeight": 500,
+        "lineHeight": 16.8,
+        "color": [
+          255,
+          255,
+          255,
+          255
+        ],
+        "opacity": 1.0,
+        "padding": {
+          "top": 8.0,
+          "right": 16.0,
+          "bottom": 8.0,
+          "left": 16.0
+        },
+        "declaredBackgroundColor": [
+          0,
+          112,
+          204,
+          255
+        ],
+        "declaredBorderColor": [
+          0,
+          112,
+          204,
+          255
+        ]
+      }
+    },
+    {
+      "id": "ui.button.variants.destructive",
+      "sizing": "fixed",
+      "bounds": {
+        "x": 32.0,
+        "y": 80.0,
+        "width": 736.0,
+        "height": 36.0
+      },
+      "style": {
+        "backgroundColor": [
+          154,
+          52,
+          54,
+          255
+        ],
+        "borderColor": [
+          239,
+          67,
+          67,
+          255
+        ],
+        "borderWidth": 0.0,
+        "borderRadius": 6.0,
+        "ringSpread": 0.0,
+        "fontFamily": "system-ui",
+        "fontSize": 14.0,
+        "fontWeight": 500,
+        "lineHeight": 16.8,
+        "color": [
+          255,
+          255,
+          255,
+          255
+        ],
+        "opacity": 1.0,
+        "padding": {
+          "top": 8.0,
+          "right": 16.0,
+          "bottom": 8.0,
+          "left": 16.0
+        },
+        "declaredBackgroundColor": [
+          239,
+          67,
+          67,
+          153
+        ],
+        "declaredBorderColor": [
+          239,
+          67,
+          67,
+          255
+        ]
+      }
+    },
+    {
+      "id": "ui.button.variants.disabled",
+      "sizing": "fixed",
+      "bounds": {
+        "x": 32.0,
+        "y": 416.0,
+        "width": 736.0,
+        "height": 36.0
+      },
+      "style": {
+        "backgroundColor": [
+          14,
+          70,
+          119,
+          255
+        ],
+        "borderColor": [
+          0,
+          112,
+          204,
+          255
+        ],
+        "borderWidth": 0.0,
+        "borderRadius": 6.0,
+        "ringSpread": 0.0,
+        "fontFamily": "system-ui",
+        "fontSize": 14.0,
+        "fontWeight": 500,
+        "lineHeight": 16.8,
+        "color": [
+          255,
+          255,
+          255,
+          255
+        ],
+        "opacity": 0.5,
+        "padding": {
+          "top": 8.0,
+          "right": 16.0,
+          "bottom": 8.0,
+          "left": 16.0
+        },
+        "declaredBackgroundColor": [
+          0,
+          112,
+          204,
+          255
+        ],
+        "declaredBorderColor": [
+          0,
+          112,
+          204,
+          255
+        ]
+      }
+    },
+    {
+      "id": "ui.button.variants.disabled-destructive",
+      "sizing": "fixed",
+      "bounds": {
+        "x": 32.0,
+        "y": 464.0,
+        "width": 736.0,
+        "height": 36.0
+      },
+      "style": {
+        "backgroundColor": [
+          90,
+          40,
+          44,
+          255
+        ],
+        "borderColor": [
+          239,
+          67,
+          67,
+          255
+        ],
+        "borderWidth": 0.0,
+        "borderRadius": 6.0,
+        "ringSpread": 0.0,
+        "fontFamily": "system-ui",
+        "fontSize": 14.0,
+        "fontWeight": 500,
+        "lineHeight": 16.8,
+        "color": [
+          255,
+          255,
+          255,
+          255
+        ],
+        "opacity": 0.5,
+        "padding": {
+          "top": 8.0,
+          "right": 16.0,
+          "bottom": 8.0,
+          "left": 16.0
+        },
+        "declaredBackgroundColor": [
+          239,
+          67,
+          67,
+          153
+        ],
+        "declaredBorderColor": [
+          239,
+          67,
+          67,
+          255
+        ]
+      }
+    },
+    {
+      "id": "ui.button.variants.disabled-outline",
+      "sizing": "fixed",
+      "bounds": {
+        "x": 32.0,
+        "y": 512.0,
+        "width": 736.0,
+        "height": 36.0
+      },
+      "style": {
+        "backgroundColor": [
+          32,
+          33,
+          38,
+          255
+        ],
+        "borderColor": [
+          44,
+          45,
+          48,
+          255
+        ],
+        "borderWidth": 1.0,
+        "borderRadius": 6.0,
+        "ringSpread": 0.0,
+        "fontFamily": "system-ui",
+        "fontSize": 14.0,
+        "fontWeight": 500,
+        "lineHeight": 16.8,
+        "color": [
+          204,
+          204,
+          204,
+          255
+        ],
+        "opacity": 0.5,
+        "padding": {
+          "top": 8.0,
+          "right": 16.0,
+          "bottom": 8.0,
+          "left": 16.0
+        },
+        "declaredBackgroundColor": [
+          61,
+          61,
+          61,
+          77
+        ],
+        "declaredBorderColor": [
+          61,
+          61,
+          61,
+          255
+        ]
+      }
+    },
+    {
+      "id": "ui.button.variants.focus",
+      "sizing": "fixed",
+      "bounds": {
+        "x": 32.0,
+        "y": 368.0,
+        "width": 736.0,
+        "height": 36.0
+      },
+      "style": {
+        "backgroundColor": [
+          0,
+          112,
+          204,
+          255
+        ],
+        "borderColor": [
+          0,
+          112,
+          204,
+          255
+        ],
+        "borderWidth": 0.0,
+        "borderRadius": 6.0,
+        "ringSpread": 3.0,
+        "fontFamily": "system-ui",
+        "fontSize": 14.0,
+        "fontWeight": 500,
+        "lineHeight": 16.8,
+        "color": [
+          255,
+          255,
+          255,
+          255
+        ],
+        "opacity": 1.0,
+        "padding": {
+          "top": 8.0,
+          "right": 16.0,
+          "bottom": 8.0,
+          "left": 16.0
+        },
+        "declaredBackgroundColor": [
+          0,
+          112,
+          204,
+          255
+        ],
+        "declaredBorderColor": [
+          0,
+          112,
+          204,
+          255
+        ]
+      }
+    },
+    {
+      "id": "ui.button.variants.ghost",
+      "sizing": "fixed",
+      "bounds": {
+        "x": 32.0,
+        "y": 224.0,
+        "width": 736.0,
+        "height": 36.0
+      },
+      "style": {
+        "backgroundColor": [
+          27,
+          29,
+          35,
+          255
+        ],
+        "borderColor": [
+          27,
+          29,
+          35,
+          255
+        ],
+        "borderWidth": 0.0,
+        "borderRadius": 6.0,
+        "ringSpread": 0.0,
+        "fontFamily": "system-ui",
+        "fontSize": 14.0,
+        "fontWeight": 500,
+        "lineHeight": 16.8,
+        "color": [
+          204,
+          204,
+          204,
+          255
+        ],
+        "opacity": 1.0,
+        "padding": {
+          "top": 8.0,
+          "right": 16.0,
+          "bottom": 8.0,
+          "left": 16.0
+        },
+        "declaredBackgroundColor": [
+          27,
+          29,
+          35,
+          0
+        ],
+        "declaredBorderColor": [
+          27,
+          29,
+          35,
+          255
+        ]
+      }
+    },
+    {
+      "id": "ui.button.variants.hover",
+      "sizing": "fixed",
+      "bounds": {
+        "x": 32.0,
+        "y": 320.0,
+        "width": 736.0,
+        "height": 36.0
+      },
+      "style": {
+        "backgroundColor": [
+          0,
+          112,
+          204,
+          255
+        ],
+        "borderColor": [
+          0,
+          112,
+          204,
+          255
+        ],
+        "borderWidth": 0.0,
+        "borderRadius": 6.0,
+        "ringSpread": 0.0,
+        "fontFamily": "system-ui",
+        "fontSize": 14.0,
+        "fontWeight": 500,
+        "lineHeight": 16.8,
+        "color": [
+          255,
+          255,
+          255,
+          255
+        ],
+        "opacity": 1.0,
+        "padding": {
+          "top": 8.0,
+          "right": 16.0,
+          "bottom": 8.0,
+          "left": 16.0
+        },
+        "declaredBackgroundColor": [
+          0,
+          112,
+          204,
+          255
+        ],
+        "declaredBorderColor": [
+          0,
+          112,
+          204,
+          255
+        ]
+      }
+    },
+    {
+      "id": "ui.button.variants.link",
+      "sizing": "fixed",
+      "bounds": {
+        "x": 32.0,
+        "y": 272.0,
+        "width": 736.0,
+        "height": 36.0
+      },
+      "style": {
+        "backgroundColor": [
+          27,
+          29,
+          35,
+          255
+        ],
+        "borderColor": [
+          27,
+          29,
+          35,
+          255
+        ],
+        "borderWidth": 0.0,
+        "borderRadius": 6.0,
+        "ringSpread": 0.0,
+        "fontFamily": "system-ui",
+        "fontSize": 14.0,
+        "fontWeight": 500,
+        "lineHeight": 16.8,
+        "color": [
+          0,
+          112,
+          204,
+          255
+        ],
+        "opacity": 1.0,
+        "padding": {
+          "top": 8.0,
+          "right": 16.0,
+          "bottom": 8.0,
+          "left": 16.0
+        },
+        "declaredBackgroundColor": [
+          27,
+          29,
+          35,
+          0
+        ],
+        "declaredBorderColor": [
+          27,
+          29,
+          35,
+          255
+        ]
+      }
+    },
+    {
+      "id": "ui.button.variants.outline",
+      "sizing": "fixed",
+      "bounds": {
+        "x": 32.0,
+        "y": 128.0,
+        "width": 736.0,
+        "height": 36.0
+      },
+      "style": {
+        "backgroundColor": [
+          37,
+          38,
+          42,
+          255
+        ],
+        "borderColor": [
+          61,
+          61,
+          61,
+          255
+        ],
+        "borderWidth": 1.0,
+        "borderRadius": 6.0,
+        "ringSpread": 0.0,
+        "fontFamily": "system-ui",
+        "fontSize": 14.0,
+        "fontWeight": 500,
+        "lineHeight": 16.8,
+        "color": [
+          204,
+          204,
+          204,
+          255
+        ],
+        "opacity": 1.0,
+        "padding": {
+          "top": 8.0,
+          "right": 16.0,
+          "bottom": 8.0,
+          "left": 16.0
+        },
+        "declaredBackgroundColor": [
+          61,
+          61,
+          61,
+          77
+        ],
+        "declaredBorderColor": [
+          61,
+          61,
+          61,
+          255
+        ]
+      }
+    },
+    {
+      "id": "ui.button.variants.screen",
+      "sizing": "fixed",
+      "bounds": {
+        "x": 0.0,
+        "y": 0.0,
+        "width": 800.0,
+        "height": 600.0
+      },
+      "style": {
+        "backgroundColor": [
+          27,
+          29,
+          35,
+          255
+        ],
+        "borderColor": [
+          61,
+          61,
+          61,
+          255
+        ],
+        "borderWidth": 0.0,
+        "borderRadius": 0.0,
+        "ringSpread": 0.0,
+        "fontFamily": "system-ui",
+        "fontSize": 14.0,
+        "fontWeight": 400,
+        "lineHeight": 16.8,
+        "color": [
+          204,
+          204,
+          204,
+          255
+        ],
+        "opacity": 1.0,
+        "padding": {
+          "top": 32.0,
+          "right": 32.0,
+          "bottom": 32.0,
+          "left": 32.0
+        },
+        "declaredBackgroundColor": [
+          27,
+          29,
+          35,
+          255
+        ],
+        "declaredBorderColor": [
+          61,
+          61,
+          61,
+          255
+        ]
+      }
+    },
+    {
+      "id": "ui.button.variants.secondary",
+      "sizing": "fixed",
+      "bounds": {
+        "x": 32.0,
+        "y": 176.0,
+        "width": 736.0,
+        "height": 36.0
+      },
+      "style": {
+        "backgroundColor": [
+          40,
+          44,
+          52,
+          255
+        ],
+        "borderColor": [
+          40,
+          44,
+          52,
+          255
+        ],
+        "borderWidth": 0.0,
+        "borderRadius": 6.0,
+        "ringSpread": 0.0,
+        "fontFamily": "system-ui",
+        "fontSize": 14.0,
+        "fontWeight": 500,
+        "lineHeight": 16.8,
+        "color": [
+          204,
+          204,
+          204,
+          255
+        ],
+        "opacity": 1.0,
+        "padding": {
+          "top": 8.0,
+          "right": 16.0,
+          "bottom": 8.0,
+          "left": 16.0
+        },
+        "declaredBackgroundColor": [
+          40,
+          44,
+          52,
+          255
+        ],
+        "declaredBorderColor": [
+          40,
+          44,
+          52,
+          255
+        ]
+      }
+    }
+  ],
+  "textRegions": [],
+  "icons": []
+}

@@ -175,6 +175,12 @@ fn snapshot(part: PartStyle) -> StyleSnapshot {
         border_width: part.border_width,
         border_radius: part.radius,
         ring_spread: part.ring_spread,
+        // The menu paints a single unoffset ring, so its only contour is the outer one.
+        ring_spreads: if part.ring_spread > 0.0 {
+            vec![part.ring_spread]
+        } else {
+            Vec::new()
+        },
         font_family: part.font_family.into(),
         font_size: part.font_size,
         font_weight: part.font_weight,

@@ -42,6 +42,7 @@ impl ButtonScreen {
             border_width: 0.0,
             border_radius: 0.0,
             ring_spread: 0.0,
+            ring_spreads: Vec::new(),
             font_family: "system-ui".into(),
             font_size: 14.0,
             font_weight: 400,
@@ -174,6 +175,10 @@ impl ButtonScreen {
             border_width: computed.border_width,
             border_radius: 6.0,
             ring_spread: computed.ring.map_or(0.0, |_| computed.ring_spread),
+            ring_spreads: computed
+                .ring
+                .map(|_| vec![computed.ring_spread])
+                .unwrap_or_default(),
             font_family: "system-ui".into(),
             font_size: computed.font_size,
             font_weight: 500,

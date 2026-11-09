@@ -12,6 +12,7 @@ test("computed shadows select visible zero-offset zero-blur outer spread", (t) =
     ["rgba(0, 0, 0, 0) 0px 0px 0px 8px, rgb(0, 112, 204) 0px 0px 0px 3px, rgb(0, 0, 0) 0px 1px 2px 9px", 3],
     ["0px 0px 0px 2px color(srgb 0 0.4 0.8 / 0.5), 0px 0px 0px 3px rgb(0, 112, 204)", 3],
     ["rgb(0, 112, 204) 0px 0px 0px -1px", 0],
+    ["rgb(0, 112, 204) 0px 0px 0px 4px, rgb(27, 29, 35) 0px 0px 0px 2px", 4],
   ]
   const elements = shadows.map(([boxShadow], index) => ({
     nodeType: 1,
@@ -55,8 +56,9 @@ test("computed shadows select visible zero-offset zero-blur outer spread", (t) =
     t.after(() => previous ? Object.defineProperty(globalThis, name, previous) : delete globalThis[name])
   }
   const layout = collectLayout("shadows")
-  assert.equal(layout.version, 4)
+  assert.equal(layout.version, 5)
   assert.deepEqual(layout.elements.map((element) => element.style.ringSpread), shadows.map(([, spread]) => spread))
+  assert.deepEqual(layout.elements.map((element) => element.style.ringSpreads), [[], [3], [], [], [], [3], [2, 3], [], [2, 4]])
 })
 
 test("component parts inside a marked element are recorded as <id>.<slot>", (t) => {

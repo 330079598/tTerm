@@ -80,6 +80,7 @@ impl SelectScreen {
             border_width: 1.0,
             border_radius: 6.0,
             ring_spread: 0.0,
+            ring_spreads: Vec::new(),
             font_family: "system-ui".into(),
             font_size: 14.0,
             font_weight: 400,

@@ -12,7 +12,7 @@ use std::path::Path;
 use std::rc::Rc;
 
 /// Bumped whenever the JSON shape changes incompatibly.
-pub const SCHEMA_VERSION: u32 = 4;
+pub const SCHEMA_VERSION: u32 = 5;
 
 /// The window and pixel density a screen was captured at.
 #[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
@@ -110,6 +110,9 @@ pub struct StyleSnapshot {
     pub border_radius: f32,
     /// Zero-offset, zero-blur outer shadow spread; zero when absent.
     pub ring_spread: f32,
+    /// Every visible zero-offset, zero-blur outer layer, sorted ascending.
+    /// Required so pre-multilayer caches cannot be silently reused.
+    pub ring_spreads: Vec<f32>,
     /// Canonical family; the platform UI font is `system-ui` on both sides.
     pub font_family: String,
     /// Font size in logical pixels.

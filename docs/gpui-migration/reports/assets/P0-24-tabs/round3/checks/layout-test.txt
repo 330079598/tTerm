@@ -1,0 +1,12 @@
+✔ computed shadows select visible zero-offset zero-blur outer spread (2.313375ms)
+✔ component parts inside a marked element are recorded as <id>.<slot> (0.517958ms)
+ℹ tests 2
+ℹ suites 0
+ℹ pass 2
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 40.08675
+
+Rust probes: see workspace-test.txt tests named compare::tests::ring_probes::*.

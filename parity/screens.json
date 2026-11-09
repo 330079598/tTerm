@@ -81,15 +81,25 @@
       ]
     },
     {
+      "id": "ui.tabs.default",
+      "title": "Tabs primitive states",
+      "fixture": "ui.tabs.default.json",
+      "exceptions": [{ "entry": "E-001", "elements": ["ui.tabs.active"], "outset": 4 }]
+    },
+    {
+      "id": "ui.tabs.server-monitor",
+      "title": "Tabs using ServerMonitorPanel classes",
+      "fixture": "ui.tabs.default.json",
+      "exceptions": [{ "entry": "E-001", "elements": ["ui.tabs.server-active"], "outset": 4 }]
+    },
+    {
       "id": "ui.context-menu.default",
       "title": "Tab context menu default",
       "fixture": "ui.context-menu.json",
       "exceptions": [
         {
           "entry": "E-001",
-          "elements": [
-            "ui.context-menu"
-          ],
+          "elements": ["ui.context-menu"],
           "outset": 25
         }
       ]
@@ -101,9 +111,7 @@
       "exceptions": [
         {
           "entry": "E-001",
-          "elements": [
-            "ui.context-menu"
-          ],
+          "elements": ["ui.context-menu"],
           "outset": 25
         }
       ]
@@ -115,9 +123,7 @@
       "exceptions": [
         {
           "entry": "E-001",
-          "elements": [
-            "ui.context-menu"
-          ],
+          "elements": ["ui.context-menu"],
           "outset": 25
         }
       ]
