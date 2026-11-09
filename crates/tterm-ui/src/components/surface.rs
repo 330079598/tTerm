@@ -56,6 +56,24 @@ pub fn css_group_color(color: Hsl, opacity: f32, backdrop: Hsl) -> gpui_kit::Hsl
     .into()
 }
 
+/// Flattens a CSS alpha fill onto its opaque backdrop before adding a shadow.
+/// GPUI shadows also paint beneath the box, so an unflattened fill would let
+/// shadow ink change the interior colour. Preserve CSS premultiplied rounding.
+pub fn css_backdrop_color(color: Hsl, alpha: f32, backdrop: Hsl) -> gpui_kit::Hsla {
+    let front = Rgba::from(css_color(color, alpha));
+    let back = Rgba::from(css_color(backdrop, 1.0));
+    let channel = |front_channel: f32, back_channel: f32| {
+        ((front_channel * front.a + back_channel * (1.0 - front.a)) * 255.0).round() / 255.0
+    };
+    Rgba {
+        r: channel(front.r, back.r),
+        g: channel(front.g, back.g),
+        b: channel(front.b, back.b),
+        a: 1.0,
+    }
+    .into()
+}
+
 /// Tailwind v4's `shadow-xs`: `0 1px 2px 0 rgb(0 0 0 / 0.05)`.
 ///
 /// GPUI's blur radius is the Gaussian sigma while CSS's is twice the sigma,
@@ -71,16 +89,59 @@ pub fn shadow_xs(opacity: f32) -> BoxShadow {
     BoxShadow::new(px(0.0), px(1.0), color.into()).blur_radius(px(1.0))
 }
 
-/// Tailwind v4 `shadow-lg`: CSS blur is twice GPUI's Gaussian sigma.
+/// Tailwind v4's `shadow-sm`: `0 1px 3px 0 rgb(0 0 0 / 0.1),
+/// 0 1px 2px -1px rgb(0 0 0 / 0.1)`.
+pub fn shadow_sm(opacity: f32) -> Vec<BoxShadow> {
+    let alpha = 0.1 * css_opacity(opacity);
+    vec![
+        BoxShadow::new(px(0.0), px(1.0), gpui_kit::black().opacity(alpha)).blur_radius(px(1.5)),
+        BoxShadow::new(px(0.0), px(1.0), gpui_kit::black().opacity(alpha))
+            .blur_radius(px(1.0))
+            .spread_radius(px(-1.0)),
+    ]
+}
+
+/// CSS paints the offset above the outer ring. Both shadows stay hollow,
+/// preserving a trigger's transparent centre and the parent's own backdrop.
+pub fn offset_ring(
+    background: gpui_kit::Hsla,
+    ring: gpui_kit::Hsla,
+    radius: f32,
+    spreads: [f32; 2],
+) -> impl IntoElement {
+    canvas(
+        |_, _, _| (),
+        move |bounds, (), window, _| {
+            for (color, outset) in [(ring, spreads[1]), (background, spreads[0])] {
+                let mut clear = color;
+                clear.a = 0.0;
+                window.paint_quad(quad(
+                    bounds.inset(px(-outset)),
+                    px(spread_radius(radius, outset)),
+                    clear,
+                    px(outset),
+                    color,
+                    Default::default(),
+                ));
+            }
+        },
+    )
+    .absolute()
+    .inset_0()
+}
+
+/// Tailwind v4 `shadow-lg`: CSS blur radii 15/6px become GPUI sigma 7.5/3px.
 pub fn shadow_lg() -> Vec<BoxShadow> {
-    [(10.0, 15.0, -3.0), (4.0, 6.0, -4.0)]
-        .into_iter()
-        .map(|(y, blur, spread)| {
-            BoxShadow::new(px(0.0), px(y), gpui_kit::black().opacity(0.1))
-                .blur_radius(px(blur / 2.0))
-                .spread_radius(px(spread))
-        })
-        .collect()
+    let black = css_color(Hsl::new(0.0, 0.0, 0.0), 0.1);
+    // CSS's first listed shadow is on top; GPUI paints in slice order.
+    vec![
+        BoxShadow::new(px(0.0), px(4.0), black)
+            .blur_radius(px(3.0))
+            .spread_radius(px(-4.0)),
+        BoxShadow::new(px(0.0), px(10.0), black)
+            .blur_radius(px(7.5))
+            .spread_radius(px(-3.0)),
+    ]
 }
 
 /// The outer corner radius of a CSS spread shadow (CSS Backgrounds 3, 6.1.1):
@@ -161,15 +222,45 @@ mod tests {
     use gpui_kit::{ParentElement, Render, TestAppContext, div};
 
     #[test]
-    fn shadow_lg_converts_both_css_layers_to_sigma() {
-        let layers = shadow_lg();
-        assert_eq!(layers.len(), 2);
-        assert_eq!(layers[0].blur_radius, px(7.5));
-        assert_eq!(layers[0].spread_radius, px(-3.0));
-        assert_eq!(layers[0].offset.y, px(10.0));
-        assert_eq!(layers[1].blur_radius, px(3.0));
-        assert_eq!(layers[1].spread_radius, px(-4.0));
-        assert_eq!(layers[1].offset.y, px(4.0));
+    fn translucent_fill_is_flattened_before_shadow_paint() {
+        let rgba = Rgba::from(css_backdrop_color(
+            DARK.colors.input,
+            0.3,
+            DARK.colors.background,
+        ));
+        let bytes = [rgba.r, rgba.g, rgba.b, rgba.a].map(|channel| (channel * 255.0).round() as u8);
+        assert_eq!(bytes, [37, 38, 42, 255]);
+        assert_eq!(
+            css_backdrop_color(DARK.colors.input, 0.0, DARK.colors.background),
+            css_color(DARK.colors.background, 1.0)
+        );
+    }
+
+    #[test]
+    fn shadow_sm_converts_css_blur_to_sigma_and_group_opacity() {
+        let shadows = shadow_sm(0.5);
+        assert_eq!(shadows.len(), 2);
+        assert_eq!(shadows[0].blur_radius, px(1.5));
+        assert_eq!(shadows[1].blur_radius, px(1.0));
+        assert_eq!(shadows[1].spread_radius, px(-1.0));
+        for shadow in shadows {
+            assert_eq!(shadow.offset.y, px(1.0));
+            assert!((shadow.color.a - 0.1 * css_opacity(0.5)).abs() < 0.00001);
+        }
+    }
+
+    #[test]
+    fn large_shadow_halves_css_blur_without_changing_offsets_or_spreads() {
+        let shadows = shadow_lg();
+        assert_eq!(shadows.len(), 2);
+        for (shadow, (y, sigma, spread)) in
+            shadows.iter().zip([(4.0, 3.0, -4.0), (10.0, 7.5, -3.0)])
+        {
+            assert_eq!(shadow.offset, gpui_kit::point(px(0.0), px(y)));
+            assert_eq!(shadow.blur_radius, px(sigma));
+            assert_eq!(shadow.spread_radius, px(spread));
+            assert_eq!(shadow.color, css_color(Hsl::new(0.0, 0.0, 0.0), 0.1));
+        }
     }
 
     struct FocusedButton(Variant);

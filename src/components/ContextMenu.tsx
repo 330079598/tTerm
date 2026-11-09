@@ -51,6 +51,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 
 interface ContextMenuProps {
+  "data-parity"?: string
   x: number
   y: number
   actions: TabContextMenuAction[]
@@ -164,7 +165,14 @@ function getMenuItemIndices(actions: TabContextMenuAction[]) {
   return indices
 }
 
-export const ContextMenu: React.FC<ContextMenuProps> = ({ x, y, actions, onAction, onClose }) => {
+export const ContextMenu: React.FC<ContextMenuProps> = ({
+  x,
+  y,
+  actions,
+  onAction,
+  onClose,
+  "data-parity": parityId,
+}) => {
   const menuRef = useRef<HTMLDivElement>(null)
   const enabledIndices = getMenuItemIndices(actions)
   const shortcutLabel = useShortcutLabel()
@@ -267,24 +275,34 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({ x, y, actions, onActio
       style={{ position: "fixed", left: position.left, top: position.top, zIndex: 9999 }}
     >
       <Card
+        data-parity={parityId}
         data-slot="context-menu-content"
         data-state="open"
         role="menu"
         className="bg-popover w-[min(16rem,calc(100vw-20px))] min-w-52 rounded-md py-1 shadow-lg"
       >
-        <CardContent className="p-1">
+        <CardContent data-slot="body" className="p-1">
           {actions.map((action, index) => {
             if (action.separator) {
-              return <div key={index} role="separator" className="bg-border my-1 h-px" />
+              return (
+                <div
+                  key={index}
+                  data-slot={`separator-${index}`}
+                  role="separator"
+                  className="bg-border my-1 h-px"
+                />
+              )
             }
             const isFocused = focusIndex === index
             const shortcut = shortcutLabel(action.shortcut)
+            const icon = getActionIcon(action.icon)
             return (
               <Button
                 key={index}
                 type="button"
                 variant="ghost"
                 role="menuitem"
+                data-slot={`item-${index}`}
                 data-action-index={index}
                 disabled={action.disabled}
                 tabIndex={isFocused ? 0 : -1}
@@ -310,10 +328,16 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({ x, y, actions, onActio
                 )}
                 aria-label={action.label}
               >
-                {getActionIcon(action.icon)}
-                <span>{action.label}</span>
+                {icon &&
+                  React.cloneElement(icon, {
+                    "data-slot": `icon-${index}`,
+                  } as React.SVGProps<SVGSVGElement>)}
+                <span data-slot={`label-${index}`}>{action.label}</span>
                 {shortcut && (
-                  <kbd className="text-muted-foreground ml-auto shrink-0 pl-3 font-sans text-xs">
+                  <kbd
+                    data-slot={`shortcut-${index}`}
+                    className="text-muted-foreground ml-auto shrink-0 pl-3 font-sans text-xs"
+                  >
                     {shortcut}
                   </kbd>
                 )}

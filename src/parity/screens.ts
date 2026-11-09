@@ -1,3 +1,8 @@
+import {
+  ContextMenuDefault,
+  ContextMenuHighlighted,
+  ContextMenuWrapped,
+} from "@/parity/screens/ContextMenuPrimitive"
 import type { ParityScreenProps } from "@/parity/types"
 import { ExampleButtonInput } from "@/parity/screens/ExampleButtonInput"
 import { ButtonVariants, ButtonSizes } from "@/parity/screens/ButtonPrimitive"
@@ -14,6 +19,7 @@ import {
   DialogMultilinePrimitive,
 } from "@/parity/screens/DialogPrimitive"
 import type { ComponentType } from "react"
+import { TabsPrimitive, TabsServerMonitor } from "@/parity/screens/TabsPrimitive"
 
 /**
  * Every screen the reference capture can open, keyed by the id in
@@ -32,6 +38,11 @@ export const parityScreens: Record<string, ComponentType<ParityScreenProps>> = {
   "ui.dialog.destructive": DialogDestructivePrimitive,
   "ui.dialog.prompt": DialogPromptPrimitive,
   "ui.dialog.multiline": DialogMultilinePrimitive,
+  "ui.tabs.default": TabsPrimitive,
+  "ui.tabs.server-monitor": TabsServerMonitor,
+  "ui.context-menu.default": ContextMenuDefault,
+  "ui.context-menu.highlighted": ContextMenuHighlighted,
+  "ui.context-menu.wrapped": ContextMenuWrapped,
 }
 
 /** The registered ids, for the manifest test. */

@@ -12,6 +12,7 @@ fn style() -> StyleSnapshot {
         border_width: 0.0,
         border_radius: 4.0,
         ring_spread: 0.0,
+        ring_spreads: Vec::new(),
         font_family: "system-ui".to_owned(),
         font_size: 14.0,
         font_weight: 400,
@@ -252,4 +253,27 @@ fn measured_disabled_colours_are_not_composited_again() {
     reference.elements[0].style.background_color = [44, 45, 48, 255];
     actual.elements[0].style.background_color = [47, 48, 50, 255];
     assert!(!compare(&reference, &actual, BACKDROP).passed);
+}
+
+#[test]
+fn a_missing_offset_contour_fails_and_names_the_element() {
+    let mut reference = document(vec![element(
+        "tabs.focus",
+        ElementSizing::Fixed,
+        BoundsSnapshot::new(10.0, 10.0, 100.0, 28.0),
+    )]);
+    reference.elements[0].style.ring_spread = 4.0;
+    reference.elements[0].style.ring_spreads = vec![2.0, 4.0];
+    for spreads in [vec![4.0], vec![1.0, 4.0], vec![4.0, 2.0]] {
+        let mut actual = reference.clone();
+        actual.elements[0].style.ring_spreads = spreads;
+        let report = compare(&reference, &actual, BACKDROP);
+        assert!(!report.passed);
+        assert!(
+            report
+                .failures
+                .iter()
+                .any(|failure| failure.contains("tabs.focus: ring spreads"))
+        );
+    }
 }

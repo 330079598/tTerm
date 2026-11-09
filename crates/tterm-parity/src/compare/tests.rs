@@ -14,6 +14,7 @@ fn style() -> StyleSnapshot {
         border_width: 0.0,
         border_radius: 4.0,
         ring_spread: 0.0,
+        ring_spreads: Vec::new(),
         font_family: "system-ui".to_owned(),
         font_size: 14.0,
         font_weight: 500,
@@ -275,3 +276,5 @@ fn the_html_report_is_deterministic_and_names_the_result() {
     assert!(first.contains("screen-gate pixels"));
     assert!(!first.contains("generated"));
 }
+
+mod ring_probes;

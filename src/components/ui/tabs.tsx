@@ -14,16 +14,26 @@ interface TabsProps {
   onValueChange?: (value: string) => void
   children: React.ReactNode
   className?: string
+  [key: `data-${string}`]: string | undefined
 }
 
-export function Tabs({ defaultValue, value, onValueChange, children, className }: TabsProps) {
+export function Tabs({
+  defaultValue,
+  value,
+  onValueChange,
+  children,
+  className,
+  ...props
+}: TabsProps) {
   const [internalValue, setInternalValue] = React.useState(defaultValue || "")
   const currentValue = value !== undefined ? value : internalValue
   const handleValueChange = onValueChange || setInternalValue
 
   return (
     <TabsContext.Provider value={{ value: currentValue, onValueChange: handleValueChange }}>
-      <div className={cn("w-full", className)}>{children}</div>
+      <div data-slot="tabs" {...props} className={cn("w-full", className)}>
+        {children}
+      </div>
     </TabsContext.Provider>
   )
 }
@@ -31,11 +41,14 @@ export function Tabs({ defaultValue, value, onValueChange, children, className }
 interface TabsListProps {
   children: React.ReactNode
   className?: string
+  [key: `data-${string}`]: string | undefined
 }
 
-export function TabsList({ children, className }: TabsListProps) {
+export function TabsList({ children, className, ...props }: TabsListProps) {
   return (
     <div
+      {...props}
+      data-slot="tabs-list"
       className={cn(
         "bg-muted text-muted-foreground inline-flex h-10 items-center justify-center rounded-md p-1",
         className
@@ -50,9 +63,11 @@ interface TabsTriggerProps {
   value: string
   children: React.ReactNode
   className?: string
+  autoFocus?: boolean
+  [key: `data-${string}`]: string | undefined
 }
 
-export function TabsTrigger({ value, children, className }: TabsTriggerProps) {
+export function TabsTrigger({ value, children, className, autoFocus, ...props }: TabsTriggerProps) {
   const context = React.useContext(TabsContext)
   if (!context) throw new Error("TabsTrigger must be used within Tabs")
 
@@ -61,6 +76,9 @@ export function TabsTrigger({ value, children, className }: TabsTriggerProps) {
   return (
     <button
       type="button"
+      {...props}
+      autoFocus={autoFocus}
+      data-slot="tabs-trigger"
       data-state={isActive ? "active" : "inactive"}
       onClick={() => context.onValueChange(value)}
       className={cn(
@@ -89,6 +107,7 @@ export function TabsContent({ value, children, className, ...props }: TabsConten
   return (
     <div
       {...props}
+      data-slot="tabs-content"
       className={cn(
         "ring-offset-background focus-visible:ring-ring mt-2 focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none",
         className

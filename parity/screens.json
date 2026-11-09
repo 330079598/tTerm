@@ -81,15 +81,73 @@
       ]
     },
     {
+      "id": "ui.tabs.default",
+      "title": "Tabs primitive states",
+      "fixture": "ui.tabs.default.json",
+      "exceptions": [
+        {
+          "entry": "E-001",
+          "elements": ["ui.tabs.active"],
+          "outset": 4
+        }
+      ]
+    },
+    {
+      "id": "ui.tabs.server-monitor",
+      "title": "Tabs using ServerMonitorPanel classes",
+      "fixture": "ui.tabs.default.json",
+      "exceptions": [
+        {
+          "entry": "E-001",
+          "elements": ["ui.tabs.server-active"],
+          "outset": 4
+        }
+      ]
+    },
+    {
+      "id": "ui.context-menu.default",
+      "title": "Tab context menu default",
+      "fixture": "ui.context-menu.json",
+      "exceptions": [
+        {
+          "entry": "E-001",
+          "elements": ["ui.context-menu"],
+          "outset": 25
+        }
+      ]
+    },
+    {
+      "id": "ui.context-menu.highlighted",
+      "title": "Tab context menu highlighted",
+      "fixture": "ui.context-menu.json",
+      "exceptions": [
+        {
+          "entry": "E-001",
+          "elements": ["ui.context-menu"],
+          "outset": 25
+        }
+      ]
+    },
+    {
+      "id": "ui.context-menu.wrapped",
+      "title": "Context menu with a wrapped Chinese label",
+      "fixture": "ui.context-menu.wrapped.json",
+      "exceptions": [
+        {
+          "entry": "E-001",
+          "elements": ["ui.context-menu"],
+          "outset": 25
+        }
+      ]
+    },
+    {
       "id": "ui.dialog.confirm",
       "title": "Dialog confirm",
       "fixture": "ui.dialog.default.json",
       "exceptions": [
         {
           "entry": "E-001",
-          "elements": [
-            "ui.dialog.confirm.content"
-          ],
+          "elements": ["ui.dialog.confirm.content"],
           "outset": 25
         }
       ]
@@ -101,9 +159,7 @@
       "exceptions": [
         {
           "entry": "E-001",
-          "elements": [
-            "ui.dialog.destructive.content"
-          ],
+          "elements": ["ui.dialog.destructive.content"],
           "outset": 25
         }
       ]
@@ -115,9 +171,7 @@
       "exceptions": [
         {
           "entry": "E-001",
-          "elements": [
-            "ui.dialog.prompt.content"
-          ],
+          "elements": ["ui.dialog.prompt.content"],
           "outset": 25
         }
       ]
@@ -129,9 +183,7 @@
       "exceptions": [
         {
           "entry": "E-001",
-          "elements": [
-            "ui.dialog.multiline.content"
-          ],
+          "elements": ["ui.dialog.multiline.content"],
           "outset": 25
         }
       ]

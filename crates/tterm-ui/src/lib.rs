@@ -9,3 +9,9 @@
 
 pub mod components;
 pub mod tokens;
+
+/// Initializes toolkit behavior after `gpui_kit::init` and whenever app bindings are rebuilt.
+/// Keep this explicit: a per-entity lazy marker cannot track a cleared keymap.
+pub fn init(cx: &mut gpui_kit::App) {
+    components::context_menu::init(cx);
+}

@@ -110,6 +110,12 @@ impl DialogScreen {
                     border_width: style.border_width,
                     border_radius: style.radius,
                     ring_spread: style.ring_spread,
+                    // Dialog parts paint at most one unoffset ring, so its outer contour is the only one.
+                    ring_spreads: if style.ring_spread > 0.0 {
+                        vec![style.ring_spread]
+                    } else {
+                        Vec::new()
+                    },
                     font_family: "system-ui".into(),
                     font_size: style.font_size,
                     font_weight: style.weight,

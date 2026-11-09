@@ -138,7 +138,7 @@ pnpm-lock.yaml vite.config.ts tsconfig.json index.html parity.html
 
 `parity/README.md` 和 `docs/` 不参与缓存键，改文档不会触发参考图重生成。
 
-- 干净工作区：同一提交的第二次 `compare` 直接复用 `target/parity/reference/<hash>/`，不重新启动浏览器。复用前校验 `manifest.json` 的 `version` 为 2，且每个布局 JSON 都能按 schema 3 读取；版本不符就当作过期缓存重生成。
+- 干净工作区：同一提交的第二次 `compare` 直接复用 `target/parity/reference/<hash>/`，不重新启动浏览器。复用前校验 `manifest.json` 的 `version` 为 2，且每个布局 JSON 都能按 schema 5 读取；版本不符就当作过期缓存重生成。
 - **前端有未提交改动时不再静默用缓存。** `FRONTEND_PATHS` 下只要有一处改动，参考图写到 `target/parity/reference/<hash>-dirty/`，每次 `compare` 先删掉该目录再重新生成，不复用；终端会打印 `reference: the frontend is dirty; ...` 并说明用的是 dirty 参考。
 - `UPDATE_REFERENCE=1` 会先删掉当前参考目录再重新生成，避免旧屏幕残留；干净与 dirty 都适用。
 - 参考截图、布局 JSON、`manifest.json` 都在该目录；它们不提交。生成后工具会从 PNG 实测每个元素的背景/边框色，把实测值写回布局 JSON，同时保留 `declared*` 字段（见第 6 节）。
@@ -220,6 +220,7 @@ pnpm-lock.yaml vite.config.ts tsconfig.json index.html parity.html
         "borderWidth": 0,
         "borderRadius": 4,
         "ringSpread": 0,
+        "ringSpreads": [],
         "fontFamily": "system-ui",
         "fontSize": 14,
         "fontWeight": 500,
@@ -262,6 +263,8 @@ pnpm-lock.yaml vite.config.ts tsconfig.json index.html parity.html
 整屏颜色门槛的遮罩由 `image_diff::screen_mask` 生成：文字遮罩取两端 `textRegions` 的并集并按 2 物理像素膨胀；元素边缘按两端的 `bounds`/`borderRadius`/`borderWidth` 用圆角矩形 SDF 标记 `|sdf| ≤ 边框宽度 × DPR + 1` 的物理像素，把边框本身和两侧抗锯齿都算进边缘带。门槛是 0 个超限像素（`SCREEN_COLOR_MAX_PIXELS = 0`）；若将来确实需要放宽，必须把理由写进本文档，而不是悄悄改常量。
 
 **Focus ring 外轮廓（决策人 2026-11-09 决定）。** 无偏移、无模糊的外扩 box-shadow 也有抗锯齿边缘，按与元素边缘相同的余量排除其外轮廓两侧各 **1 个物理像素**。布局字段 `ringSpread` 是逻辑像素：参照端从 computed `box-shadow` 解析非 inset、x/y/blur 均为 0、spread 为正且非透明的层，多层取最外的 spread；有偏移或模糊的层保持原样绘制、跳过此轮廓记录。GPUI 从 ButtonStyle 的 ring 存在性和绘制共用的 spread 记录，布局比较要求 spread 相等（0.01px 容差）。无 ring 为 0。布局 schema 升至 3，旧布局缓存重新生成；参考 manifest 与结果报告版本仍为 2。
+
+**有偏移的 ring 补充（2026-11-09，决策人 stone）。** `ring-offset` 由多层零 x/y 偏移、零模糊的外扩阴影组成。新增必填 `ringSpreads` 数组（升序），列出每一层非 inset、spread > 0、颜色 alpha > 0 的轮廓；保留 `ringSpread` 作为最大值，无 ring 时分别为 `[]` 和 0。每层轮廓两侧各排除 1 个物理像素，ring 内部及 offset 填充仍进入颜色门槛。GPUI 从绘制计算样式获取所有 spread。数组长度、顺序和值都比较，数值容差 0.01px，不一致时报告元素名。布局 schema 现为 5，旧版本或缺少 `ringSpreads` 的缓存重新生成；manifest/report 版本仍为 2。有 blur 或 x/y 位移的阴影不参与这项轮廓规则。
 
 外轮廓矩形向外扩 spread，圆角按 [CSS Backgrounds 3 §6.1.1](https://www.w3.org/TR/css-backgrounds-3/#shadow-shape) 计算：r ≥ spread 时为 r + spread；r < spread 时为 `r + spread × (1 + (r/spread - 1)^3)`，再按 DPR 转物理像素。仅外沿抗锯齿带被遮住；ring 中间的填充仍进入颜色门槛，原有 border box 边缘带也保持不变。颜色、SSIM 门槛数值不变，不登记例外，不模仿特定引擎的抗锯齿曲线。反向探测必须能让错误 spread 或 ring 填充触发失败。
 

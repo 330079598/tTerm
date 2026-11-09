@@ -1,3 +1,4 @@
+import contextMenu from "@fixtures/ui.context-menu.json"
 import type { SavedProfile } from "@/types/tab"
 import exampleButtonInput from "@fixtures/example.button-input.default.json"
 import buttonFixture from "@fixtures/ui.button.default.json"
@@ -5,6 +6,7 @@ import inputFixture from "@fixtures/ui.input.default.json"
 import passwordFixture from "@fixtures/ui.password.default.json"
 import selectFixture from "@fixtures/ui.select.default.json"
 import switchFixture from "@fixtures/ui.switch.default.json"
+import tabsFixture from "@fixtures/ui.tabs.default.json"
 
 /** What the mocked `invoke` answers for one screen. */
 export interface ParityFixture {
@@ -34,4 +36,9 @@ export const fixtures: Record<string, ParityFixture> = {
   "ui.dialog.destructive": { commands: {} },
   "ui.dialog.prompt": { commands: {} },
   "ui.dialog.multiline": { commands: {} },
+  "ui.tabs.default": { commands: tabsFixture.commands },
+  "ui.tabs.server-monitor": { commands: tabsFixture.commands },
+  "ui.context-menu.default": { commands: contextMenu.commands },
+  "ui.context-menu.highlighted": { commands: contextMenu.commands },
+  "ui.context-menu.wrapped": { commands: contextMenu.commands },
 }

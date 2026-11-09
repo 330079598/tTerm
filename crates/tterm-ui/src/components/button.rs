@@ -1,7 +1,7 @@
 //! Token-backed Button primitive. Behavior is local to tterm-ui so component
 //! colours never mutate gpui-component's global theme.
 
-use crate::components::surface::{css_color, css_opacity, surface};
+use crate::components::surface::{css_backdrop_color, css_color, css_opacity, shadow_xs, surface};
 use crate::tokens::gpui::hsla;
 use crate::tokens::palette::Colors;
 use crate::tokens::theme::Theme;
@@ -143,6 +143,15 @@ pub fn button(
     theme: Theme,
 ) -> gpui_kit::Stateful<gpui_kit::Div> {
     let computed = style(variant, size, state, theme);
+    let background = if variant == Variant::Outline {
+        css_backdrop_color(
+            computed.background,
+            computed.background_alpha,
+            theme.colors.background,
+        )
+    } else {
+        css_color(computed.background, computed.background_alpha)
+    };
     let mut view = div()
         .id(id)
         .flex()
@@ -157,6 +166,9 @@ pub fn button(
         .rounded(px(computed.radius))
         .border(px(computed.border_width))
         .border_color(gpui_kit::transparent_black())
+        .when(matches!(variant, Variant::Outline), |this| {
+            this.shadow(vec![shadow_xs(computed.opacity)])
+        })
         .relative()
         .text_color(hsla(computed.foreground, 1.0))
         .text_size(px(computed.font_size))
@@ -164,7 +176,7 @@ pub fn button(
         .font_weight(gpui_kit::FontWeight(f32::from(computed.weight)))
         .opacity(css_opacity(computed.opacity))
         .child(surface(
-            css_color(computed.background, computed.background_alpha),
+            background,
             css_color(computed.border, 1.0),
             computed.border_width,
             computed.radius,

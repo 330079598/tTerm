@@ -1,0 +1,70 @@
+{
+  "commands": {
+    "load_config": {
+      "$pending": true
+    },
+    "load_app_state": {
+      "$pending": true
+    }
+  },
+  "actions": [
+    {
+      "label": "New Tab",
+      "action": "new",
+      "icon": "plus",
+      "shortcut": "workspace.newTab"
+    },
+    {
+      "label": "Reopen Closed Tab",
+      "action": "reopen-closed",
+      "icon": "rotate-ccw",
+      "shortcut": "tabs.reopenClosed"
+    },
+    {
+      "separator": true,
+      "label": "",
+      "action": ""
+    },
+    {
+      "label": "Close Tab",
+      "action": "close-tab",
+      "icon": "x",
+      "shortcut": "tabs.closeActive"
+    },
+    {
+      "label": "Close Other Tabs",
+      "action": "close-others",
+      "disabled": false
+    },
+    {
+      "label": "Close Tabs to the Left",
+      "action": "close-left",
+      "disabled": true
+    },
+    {
+      "label": "Close Tabs to the Right",
+      "action": "close-right",
+      "disabled": false
+    }
+  ],
+  "shortcuts": {
+    "macos": [
+      "⌘T",
+      "⌘⇧T",
+      null,
+      "⌘⇧W",
+      null,
+      null,
+      null
+    ],
+    "windows": [
+      "Ctrl+Shift+T",
+      null,
+      null,
+      "Ctrl+Shift+W",
+      null,
+      null,
+      null
+    ]
+  }
+}

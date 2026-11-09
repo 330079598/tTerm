@@ -1,0 +1,1244 @@
+{
+  "version": 4,
+  "screen": "ui.context-menu.default",
+  "viewport": {
+    "width": 800,
+    "height": 600,
+    "deviceScaleFactor": 2.0
+  },
+  "elements": [
+    {
+      "id": "ui.context-menu",
+      "sizing": "fixed",
+      "bounds": {
+        "x": 534.0,
+        "y": 395.0,
+        "width": 256.0,
+        "height": 195.0
+      },
+      "style": {
+        "backgroundColor": [
+          255,
+          255,
+          255,
+          255
+        ],
+        "borderColor": [
+          226,
+          232,
+          240,
+          255
+        ],
+        "borderWidth": 1.0,
+        "borderRadius": 6.0,
+        "ringSpread": 0.0,
+        "fontFamily": ".SystemUIFont",
+        "fontSize": 13.0,
+        "fontWeight": 400,
+        "lineHeight": 18.2,
+        "color": [
+          2,
+          8,
+          23,
+          255
+        ],
+        "opacity": 1.0,
+        "padding": {
+          "top": 4.0,
+          "right": 0.0,
+          "bottom": 4.0,
+          "left": 0.0
+        },
+        "declaredBackgroundColor": [
+          255,
+          255,
+          255,
+          255
+        ],
+        "declaredBorderColor": [
+          226,
+          232,
+          240,
+          255
+        ]
+      }
+    },
+    {
+      "id": "ui.context-menu.body",
+      "sizing": "fixed",
+      "bounds": {
+        "x": 535.0,
+        "y": 400.0,
+        "width": 254.0,
+        "height": 185.0
+      },
+      "style": {
+        "backgroundColor": [
+          255,
+          255,
+          255,
+          255
+        ],
+        "borderColor": [
+          226,
+          232,
+          240,
+          255
+        ],
+        "borderWidth": 0.0,
+        "borderRadius": 0.0,
+        "ringSpread": 0.0,
+        "fontFamily": ".SystemUIFont",
+        "fontSize": 13.0,
+        "fontWeight": 400,
+        "lineHeight": 18.2,
+        "color": [
+          2,
+          8,
+          23,
+          255
+        ],
+        "opacity": 1.0,
+        "padding": {
+          "top": 4.0,
+          "right": 4.0,
+          "bottom": 4.0,
+          "left": 4.0
+        },
+        "declaredBackgroundColor": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "declaredBorderColor": [
+          226,
+          232,
+          240,
+          255
+        ]
+      }
+    },
+    {
+      "id": "ui.context-menu.icon-0",
+      "sizing": "fixed",
+      "bounds": {
+        "x": 551.0,
+        "y": 410.0,
+        "width": 16.0,
+        "height": 16.0
+      },
+      "style": {
+        "backgroundColor": [
+          255,
+          255,
+          255,
+          255
+        ],
+        "borderColor": [
+          226,
+          232,
+          240,
+          255
+        ],
+        "borderWidth": 0.0,
+        "borderRadius": 0.0,
+        "ringSpread": 0.0,
+        "fontFamily": ".SystemUIFont",
+        "fontSize": 14.0,
+        "fontWeight": 400,
+        "lineHeight": 16.8,
+        "color": [
+          2,
+          8,
+          23,
+          255
+        ],
+        "opacity": 1.0,
+        "padding": {
+          "top": 0.0,
+          "right": 0.0,
+          "bottom": 0.0,
+          "left": 0.0
+        },
+        "declaredBackgroundColor": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "declaredBorderColor": [
+          226,
+          232,
+          240,
+          255
+        ]
+      }
+    },
+    {
+      "id": "ui.context-menu.icon-1",
+      "sizing": "fixed",
+      "bounds": {
+        "x": 551.0,
+        "y": 438.0,
+        "width": 16.0,
+        "height": 16.0
+      },
+      "style": {
+        "backgroundColor": [
+          255,
+          255,
+          255,
+          255
+        ],
+        "borderColor": [
+          226,
+          232,
+          240,
+          255
+        ],
+        "borderWidth": 0.0,
+        "borderRadius": 0.0,
+        "ringSpread": 0.0,
+        "fontFamily": ".SystemUIFont",
+        "fontSize": 14.0,
+        "fontWeight": 400,
+        "lineHeight": 16.8,
+        "color": [
+          2,
+          8,
+          23,
+          255
+        ],
+        "opacity": 1.0,
+        "padding": {
+          "top": 0.0,
+          "right": 0.0,
+          "bottom": 0.0,
+          "left": 0.0
+        },
+        "declaredBackgroundColor": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "declaredBorderColor": [
+          226,
+          232,
+          240,
+          255
+        ]
+      }
+    },
+    {
+      "id": "ui.context-menu.icon-3",
+      "sizing": "fixed",
+      "bounds": {
+        "x": 551.0,
+        "y": 475.0,
+        "width": 16.0,
+        "height": 16.0
+      },
+      "style": {
+        "backgroundColor": [
+          255,
+          255,
+          255,
+          255
+        ],
+        "borderColor": [
+          226,
+          232,
+          240,
+          255
+        ],
+        "borderWidth": 0.0,
+        "borderRadius": 0.0,
+        "ringSpread": 0.0,
+        "fontFamily": ".SystemUIFont",
+        "fontSize": 14.0,
+        "fontWeight": 400,
+        "lineHeight": 16.8,
+        "color": [
+          2,
+          8,
+          23,
+          255
+        ],
+        "opacity": 1.0,
+        "padding": {
+          "top": 0.0,
+          "right": 0.0,
+          "bottom": 0.0,
+          "left": 0.0
+        },
+        "declaredBackgroundColor": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "declaredBorderColor": [
+          226,
+          232,
+          240,
+          255
+        ]
+      }
+    },
+    {
+      "id": "ui.context-menu.item-0",
+      "sizing": "fixed",
+      "bounds": {
+        "x": 539.0,
+        "y": 404.0,
+        "width": 246.0,
+        "height": 28.0
+      },
+      "style": {
+        "backgroundColor": [
+          255,
+          255,
+          255,
+          255
+        ],
+        "borderColor": [
+          0,
+          112,
+          204,
+          255
+        ],
+        "borderWidth": 0.0,
+        "borderRadius": 6.0,
+        "ringSpread": 3.0,
+        "fontFamily": ".SystemUIFont",
+        "fontSize": 14.0,
+        "fontWeight": 400,
+        "lineHeight": 16.8,
+        "color": [
+          2,
+          8,
+          23,
+          255
+        ],
+        "opacity": 1.0,
+        "padding": {
+          "top": 6.0,
+          "right": 12.0,
+          "bottom": 6.0,
+          "left": 12.0
+        },
+        "declaredBackgroundColor": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "declaredBorderColor": [
+          0,
+          112,
+          204,
+          255
+        ]
+      }
+    },
+    {
+      "id": "ui.context-menu.item-1",
+      "sizing": "fixed",
+      "bounds": {
+        "x": 539.0,
+        "y": 432.0,
+        "width": 246.0,
+        "height": 28.0
+      },
+      "style": {
+        "backgroundColor": [
+          255,
+          255,
+          255,
+          255
+        ],
+        "borderColor": [
+          226,
+          232,
+          240,
+          255
+        ],
+        "borderWidth": 0.0,
+        "borderRadius": 6.0,
+        "ringSpread": 0.0,
+        "fontFamily": ".SystemUIFont",
+        "fontSize": 14.0,
+        "fontWeight": 400,
+        "lineHeight": 16.8,
+        "color": [
+          2,
+          8,
+          23,
+          255
+        ],
+        "opacity": 1.0,
+        "padding": {
+          "top": 6.0,
+          "right": 12.0,
+          "bottom": 6.0,
+          "left": 12.0
+        },
+        "declaredBackgroundColor": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "declaredBorderColor": [
+          226,
+          232,
+          240,
+          255
+        ]
+      }
+    },
+    {
+      "id": "ui.context-menu.item-3",
+      "sizing": "fixed",
+      "bounds": {
+        "x": 539.0,
+        "y": 469.0,
+        "width": 246.0,
+        "height": 28.0
+      },
+      "style": {
+        "backgroundColor": [
+          255,
+          255,
+          255,
+          255
+        ],
+        "borderColor": [
+          226,
+          232,
+          240,
+          255
+        ],
+        "borderWidth": 0.0,
+        "borderRadius": 6.0,
+        "ringSpread": 0.0,
+        "fontFamily": ".SystemUIFont",
+        "fontSize": 14.0,
+        "fontWeight": 400,
+        "lineHeight": 16.8,
+        "color": [
+          2,
+          8,
+          23,
+          255
+        ],
+        "opacity": 1.0,
+        "padding": {
+          "top": 6.0,
+          "right": 12.0,
+          "bottom": 6.0,
+          "left": 12.0
+        },
+        "declaredBackgroundColor": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "declaredBorderColor": [
+          226,
+          232,
+          240,
+          255
+        ]
+      }
+    },
+    {
+      "id": "ui.context-menu.item-4",
+      "sizing": "fixed",
+      "bounds": {
+        "x": 539.0,
+        "y": 497.0,
+        "width": 246.0,
+        "height": 28.0
+      },
+      "style": {
+        "backgroundColor": [
+          255,
+          255,
+          255,
+          255
+        ],
+        "borderColor": [
+          226,
+          232,
+          240,
+          255
+        ],
+        "borderWidth": 0.0,
+        "borderRadius": 6.0,
+        "ringSpread": 0.0,
+        "fontFamily": ".SystemUIFont",
+        "fontSize": 14.0,
+        "fontWeight": 400,
+        "lineHeight": 16.8,
+        "color": [
+          2,
+          8,
+          23,
+          255
+        ],
+        "opacity": 1.0,
+        "padding": {
+          "top": 6.0,
+          "right": 8.0,
+          "bottom": 6.0,
+          "left": 8.0
+        },
+        "declaredBackgroundColor": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "declaredBorderColor": [
+          226,
+          232,
+          240,
+          255
+        ]
+      }
+    },
+    {
+      "id": "ui.context-menu.item-5",
+      "sizing": "fixed",
+      "bounds": {
+        "x": 539.0,
+        "y": 525.0,
+        "width": 246.0,
+        "height": 28.0
+      },
+      "style": {
+        "backgroundColor": [
+          255,
+          255,
+          255,
+          255
+        ],
+        "borderColor": [
+          226,
+          232,
+          240,
+          255
+        ],
+        "borderWidth": 0.0,
+        "borderRadius": 6.0,
+        "ringSpread": 0.0,
+        "fontFamily": ".SystemUIFont",
+        "fontSize": 14.0,
+        "fontWeight": 400,
+        "lineHeight": 16.8,
+        "color": [
+          2,
+          8,
+          23,
+          255
+        ],
+        "opacity": 0.5,
+        "padding": {
+          "top": 6.0,
+          "right": 8.0,
+          "bottom": 6.0,
+          "left": 8.0
+        },
+        "declaredBackgroundColor": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "declaredBorderColor": [
+          226,
+          232,
+          240,
+          255
+        ]
+      }
+    },
+    {
+      "id": "ui.context-menu.item-6",
+      "sizing": "fixed",
+      "bounds": {
+        "x": 539.0,
+        "y": 553.0,
+        "width": 246.0,
+        "height": 28.0
+      },
+      "style": {
+        "backgroundColor": [
+          255,
+          255,
+          255,
+          255
+        ],
+        "borderColor": [
+          226,
+          232,
+          240,
+          255
+        ],
+        "borderWidth": 0.0,
+        "borderRadius": 6.0,
+        "ringSpread": 0.0,
+        "fontFamily": ".SystemUIFont",
+        "fontSize": 14.0,
+        "fontWeight": 400,
+        "lineHeight": 16.8,
+        "color": [
+          2,
+          8,
+          23,
+          255
+        ],
+        "opacity": 1.0,
+        "padding": {
+          "top": 6.0,
+          "right": 8.0,
+          "bottom": 6.0,
+          "left": 8.0
+        },
+        "declaredBackgroundColor": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "declaredBorderColor": [
+          226,
+          232,
+          240,
+          255
+        ]
+      }
+    },
+    {
+      "id": "ui.context-menu.label-0",
+      "sizing": "fixed",
+      "bounds": {
+        "x": 573.0,
+        "y": 410.0,
+        "width": 56.0,
+        "height": 16.0
+      },
+      "style": {
+        "backgroundColor": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "borderColor": [
+          226,
+          232,
+          240,
+          255
+        ],
+        "borderWidth": 0.0,
+        "borderRadius": 0.0,
+        "ringSpread": 0.0,
+        "fontFamily": ".SystemUIFont",
+        "fontSize": 14.0,
+        "fontWeight": 400,
+        "lineHeight": 16.8,
+        "color": [
+          2,
+          8,
+          23,
+          255
+        ],
+        "opacity": 1.0,
+        "padding": {
+          "top": 0.0,
+          "right": 0.0,
+          "bottom": 0.0,
+          "left": 0.0
+        },
+        "declaredBackgroundColor": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "declaredBorderColor": [
+          226,
+          232,
+          240,
+          255
+        ]
+      }
+    },
+    {
+      "id": "ui.context-menu.label-1",
+      "sizing": "fixed",
+      "bounds": {
+        "x": 573.0,
+        "y": 438.0,
+        "width": 125.0,
+        "height": 16.0
+      },
+      "style": {
+        "backgroundColor": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "borderColor": [
+          226,
+          232,
+          240,
+          255
+        ],
+        "borderWidth": 0.0,
+        "borderRadius": 0.0,
+        "ringSpread": 0.0,
+        "fontFamily": ".SystemUIFont",
+        "fontSize": 14.0,
+        "fontWeight": 400,
+        "lineHeight": 16.8,
+        "color": [
+          2,
+          8,
+          23,
+          255
+        ],
+        "opacity": 1.0,
+        "padding": {
+          "top": 0.0,
+          "right": 0.0,
+          "bottom": 0.0,
+          "left": 0.0
+        },
+        "declaredBackgroundColor": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "declaredBorderColor": [
+          226,
+          232,
+          240,
+          255
+        ]
+      }
+    },
+    {
+      "id": "ui.context-menu.label-3",
+      "sizing": "fixed",
+      "bounds": {
+        "x": 573.0,
+        "y": 475.0,
+        "width": 64.0,
+        "height": 16.0
+      },
+      "style": {
+        "backgroundColor": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "borderColor": [
+          226,
+          232,
+          240,
+          255
+        ],
+        "borderWidth": 0.0,
+        "borderRadius": 0.0,
+        "ringSpread": 0.0,
+        "fontFamily": ".SystemUIFont",
+        "fontSize": 14.0,
+        "fontWeight": 400,
+        "lineHeight": 16.8,
+        "color": [
+          2,
+          8,
+          23,
+          255
+        ],
+        "opacity": 1.0,
+        "padding": {
+          "top": 0.0,
+          "right": 0.0,
+          "bottom": 0.0,
+          "left": 0.0
+        },
+        "declaredBackgroundColor": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "declaredBorderColor": [
+          226,
+          232,
+          240,
+          255
+        ]
+      }
+    },
+    {
+      "id": "ui.context-menu.label-4",
+      "sizing": "fixed",
+      "bounds": {
+        "x": 547.0,
+        "y": 503.0,
+        "width": 112.0,
+        "height": 16.0
+      },
+      "style": {
+        "backgroundColor": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "borderColor": [
+          226,
+          232,
+          240,
+          255
+        ],
+        "borderWidth": 0.0,
+        "borderRadius": 0.0,
+        "ringSpread": 0.0,
+        "fontFamily": ".SystemUIFont",
+        "fontSize": 14.0,
+        "fontWeight": 400,
+        "lineHeight": 16.8,
+        "color": [
+          2,
+          8,
+          23,
+          255
+        ],
+        "opacity": 1.0,
+        "padding": {
+          "top": 0.0,
+          "right": 0.0,
+          "bottom": 0.0,
+          "left": 0.0
+        },
+        "declaredBackgroundColor": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "declaredBorderColor": [
+          226,
+          232,
+          240,
+          255
+        ]
+      }
+    },
+    {
+      "id": "ui.context-menu.label-5",
+      "sizing": "fixed",
+      "bounds": {
+        "x": 547.0,
+        "y": 531.0,
+        "width": 142.0,
+        "height": 16.0
+      },
+      "style": {
+        "backgroundColor": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "borderColor": [
+          226,
+          232,
+          240,
+          255
+        ],
+        "borderWidth": 0.0,
+        "borderRadius": 0.0,
+        "ringSpread": 0.0,
+        "fontFamily": ".SystemUIFont",
+        "fontSize": 14.0,
+        "fontWeight": 400,
+        "lineHeight": 16.8,
+        "color": [
+          2,
+          8,
+          23,
+          255
+        ],
+        "opacity": 0.5,
+        "padding": {
+          "top": 0.0,
+          "right": 0.0,
+          "bottom": 0.0,
+          "left": 0.0
+        },
+        "declaredBackgroundColor": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "declaredBorderColor": [
+          226,
+          232,
+          240,
+          255
+        ]
+      }
+    },
+    {
+      "id": "ui.context-menu.label-6",
+      "sizing": "fixed",
+      "bounds": {
+        "x": 547.0,
+        "y": 559.0,
+        "width": 150.0,
+        "height": 16.0
+      },
+      "style": {
+        "backgroundColor": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "borderColor": [
+          226,
+          232,
+          240,
+          255
+        ],
+        "borderWidth": 0.0,
+        "borderRadius": 0.0,
+        "ringSpread": 0.0,
+        "fontFamily": ".SystemUIFont",
+        "fontSize": 14.0,
+        "fontWeight": 400,
+        "lineHeight": 16.8,
+        "color": [
+          2,
+          8,
+          23,
+          255
+        ],
+        "opacity": 1.0,
+        "padding": {
+          "top": 0.0,
+          "right": 0.0,
+          "bottom": 0.0,
+          "left": 0.0
+        },
+        "declaredBackgroundColor": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "declaredBorderColor": [
+          226,
+          232,
+          240,
+          255
+        ]
+      }
+    },
+    {
+      "id": "ui.context-menu.separator-2",
+      "sizing": "fixed",
+      "bounds": {
+        "x": 539.0,
+        "y": 464.0,
+        "width": 246.0,
+        "height": 1.0
+      },
+      "style": {
+        "backgroundColor": [
+          226,
+          232,
+          240,
+          255
+        ],
+        "borderColor": [
+          226,
+          232,
+          240,
+          255
+        ],
+        "borderWidth": 0.0,
+        "borderRadius": 0.0,
+        "ringSpread": 0.0,
+        "fontFamily": ".SystemUIFont",
+        "fontSize": 13.0,
+        "fontWeight": 400,
+        "lineHeight": 18.2,
+        "color": [
+          2,
+          8,
+          23,
+          255
+        ],
+        "opacity": 1.0,
+        "padding": {
+          "top": 0.0,
+          "right": 0.0,
+          "bottom": 0.0,
+          "left": 0.0
+        },
+        "declaredBackgroundColor": [
+          226,
+          232,
+          240,
+          255
+        ],
+        "declaredBorderColor": [
+          226,
+          232,
+          240,
+          255
+        ]
+      }
+    },
+    {
+      "id": "ui.context-menu.shortcut-0",
+      "sizing": "fixed",
+      "bounds": {
+        "x": 742.0,
+        "y": 411.5,
+        "width": 31.0,
+        "height": 13.0
+      },
+      "style": {
+        "backgroundColor": [
+          255,
+          255,
+          255,
+          255
+        ],
+        "borderColor": [
+          226,
+          232,
+          240,
+          255
+        ],
+        "borderWidth": 0.0,
+        "borderRadius": 0.0,
+        "ringSpread": 0.0,
+        "fontFamily": ".SystemUIFont",
+        "fontSize": 12.0,
+        "fontWeight": 400,
+        "lineHeight": 13.8,
+        "color": [
+          100,
+          116,
+          139,
+          255
+        ],
+        "opacity": 1.0,
+        "padding": {
+          "top": 0.0,
+          "right": 0.0,
+          "bottom": 0.0,
+          "left": 12.0
+        },
+        "declaredBackgroundColor": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "declaredBorderColor": [
+          226,
+          232,
+          240,
+          255
+        ]
+      }
+    },
+    {
+      "id": "ui.context-menu.shortcut-1",
+      "sizing": "fixed",
+      "bounds": {
+        "x": 730.0,
+        "y": 439.5,
+        "width": 43.0,
+        "height": 13.0
+      },
+      "style": {
+        "backgroundColor": [
+          255,
+          255,
+          255,
+          255
+        ],
+        "borderColor": [
+          226,
+          232,
+          240,
+          255
+        ],
+        "borderWidth": 0.0,
+        "borderRadius": 0.0,
+        "ringSpread": 0.0,
+        "fontFamily": ".SystemUIFont",
+        "fontSize": 12.0,
+        "fontWeight": 400,
+        "lineHeight": 13.8,
+        "color": [
+          100,
+          116,
+          139,
+          255
+        ],
+        "opacity": 1.0,
+        "padding": {
+          "top": 0.0,
+          "right": 0.0,
+          "bottom": 0.0,
+          "left": 12.0
+        },
+        "declaredBackgroundColor": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "declaredBorderColor": [
+          226,
+          232,
+          240,
+          255
+        ]
+      }
+    },
+    {
+      "id": "ui.context-menu.shortcut-3",
+      "sizing": "fixed",
+      "bounds": {
+        "x": 726.0,
+        "y": 476.5,
+        "width": 47.0,
+        "height": 13.0
+      },
+      "style": {
+        "backgroundColor": [
+          255,
+          255,
+          255,
+          255
+        ],
+        "borderColor": [
+          226,
+          232,
+          240,
+          255
+        ],
+        "borderWidth": 0.0,
+        "borderRadius": 0.0,
+        "ringSpread": 0.0,
+        "fontFamily": ".SystemUIFont",
+        "fontSize": 12.0,
+        "fontWeight": 400,
+        "lineHeight": 13.8,
+        "color": [
+          100,
+          116,
+          139,
+          255
+        ],
+        "opacity": 1.0,
+        "padding": {
+          "top": 0.0,
+          "right": 0.0,
+          "bottom": 0.0,
+          "left": 12.0
+        },
+        "declaredBackgroundColor": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "declaredBorderColor": [
+          226,
+          232,
+          240,
+          255
+        ]
+      }
+    }
+  ],
+  "textRegions": [
+    {
+      "x": 754.0,
+      "y": 411.5,
+      "width": 19.0,
+      "height": 13.0
+    },
+    {
+      "x": 742.0,
+      "y": 439.5,
+      "width": 31.0,
+      "height": 13.0
+    },
+    {
+      "x": 738.0,
+      "y": 476.5,
+      "width": 35.0,
+      "height": 13.0
+    },
+    {
+      "x": 573.0,
+      "y": 410.0,
+      "width": 55.876953,
+      "height": 16.0
+    },
+    {
+      "x": 573.0,
+      "y": 438.0,
+      "width": 124.762695,
+      "height": 16.0
+    },
+    {
+      "x": 573.0,
+      "y": 475.0,
+      "width": 63.50586,
+      "height": 16.0
+    },
+    {
+      "x": 547.0,
+      "y": 503.0,
+      "width": 111.17285,
+      "height": 16.0
+    },
+    {
+      "x": 547.0,
+      "y": 531.0,
+      "width": 141.02539,
+      "height": 16.0
+    },
+    {
+      "x": 547.0,
+      "y": 559.0,
+      "width": 149.57715,
+      "height": 16.0
+    }
+  ],
+  "icons": []
+}

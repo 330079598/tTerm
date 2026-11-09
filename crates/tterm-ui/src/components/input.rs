@@ -1,6 +1,6 @@
 //! Input primitive backed by gpui-component's editable input state.
 
-use crate::components::surface::{css_color, css_opacity, surface};
+use crate::components::surface::{css_backdrop_color, css_color, css_opacity, shadow_xs, surface};
 use crate::tokens::gpui::hsla;
 use crate::tokens::theme::Theme;
 use gpui_kit::component::input::{Input, InputState};
@@ -66,6 +66,12 @@ pub fn style(options: InputOptions) -> InputStyle {
 /// Creates an editable single-line input from a gpui-component state entity.
 pub fn input(state: &Entity<InputState>, options: InputOptions) -> gpui_kit::Div {
     let computed = style(options);
+    let theme = options.theme.unwrap_or(crate::tokens::palette::DARK);
+    let background = css_backdrop_color(
+        computed.background,
+        computed.background_alpha * css_opacity(computed.opacity),
+        theme.colors.background,
+    );
     div()
         .h(px(36.0))
         .w_full()
@@ -75,11 +81,12 @@ pub fn input(state: &Entity<InputState>, options: InputOptions) -> gpui_kit::Div
         .rounded(px(6.0))
         .border(px(1.0))
         .border_color(gpui_kit::transparent_black())
+        .shadow(vec![shadow_xs(computed.opacity)])
         .relative()
         .text_color(hsla(computed.foreground, 1.0))
         .child(surface(
-            css_color(computed.background, computed.background_alpha),
-            css_color(computed.border, 1.0),
+            background,
+            css_color(computed.border, 1.0).opacity(css_opacity(computed.opacity)),
             1.0,
             6.0,
             None,
@@ -91,9 +98,9 @@ pub fn input(state: &Entity<InputState>, options: InputOptions) -> gpui_kit::Div
                 .appearance(false)
                 .bordered(false)
                 .focus_bordered(false)
-                .text_color(hsla(computed.foreground, 1.0)),
+                .text_color(hsla(computed.foreground, 1.0))
+                .opacity(css_opacity(computed.opacity)),
         )
-        .opacity(css_opacity(computed.opacity))
 }
 
 #[cfg(test)]

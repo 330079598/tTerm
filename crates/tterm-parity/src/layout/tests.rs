@@ -7,6 +7,7 @@ fn style() -> StyleSnapshot {
         border_width: 0.0,
         border_radius: 4.0,
         ring_spread: 0.0,
+        ring_spreads: Vec::new(),
         font_family: "system-ui".to_owned(),
         font_size: 14.0,
         font_weight: 400,
@@ -81,7 +82,7 @@ fn json_uses_the_contracts_field_names() {
         style(),
     );
     let json = serde_json::to_value(sink.finish()).expect("layout serialises");
-    assert_eq!(json["version"], 4);
+    assert_eq!(json["version"], 5);
     // The GPUI side never records icons; the reference side does.
     assert_eq!(json["icons"], serde_json::json!([]));
     assert_eq!(json["viewport"]["deviceScaleFactor"], 2.0);
@@ -141,4 +142,26 @@ fn ring_spread_is_required_so_old_caches_are_not_silently_reused() {
         .expect("style object")
         .remove("ringSpread");
     assert!(serde_json::from_value::<StyleSnapshot>(value).is_err());
+}
+
+#[test]
+fn ring_spreads_are_required_so_old_caches_are_not_silently_reused() {
+    let mut value = serde_json::to_value(style()).expect("style serialises");
+    assert_eq!(value["ringSpreads"], serde_json::json!([]));
+    value
+        .as_object_mut()
+        .expect("style object")
+        .remove("ringSpreads");
+    assert!(serde_json::from_value::<StyleSnapshot>(value).is_err());
+}
+
+#[test]
+fn old_schema_is_rejected_even_when_it_has_no_elements() {
+    let path = std::env::temp_dir().join(format!("tterm-tabs-layout-{}.json", std::process::id()));
+    let mut old = sink().finish();
+    old.version = 4;
+    old.write(&path).expect("write old layout");
+    let error = LayoutDocument::load(&path).expect_err("schema 4 is stale");
+    std::fs::remove_file(path).expect("remove test layout");
+    assert!(error.contains("layout schema 4, expected 5"));
 }

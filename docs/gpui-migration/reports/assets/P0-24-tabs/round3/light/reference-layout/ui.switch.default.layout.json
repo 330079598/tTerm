@@ -1,0 +1,471 @@
+{
+  "version": 5,
+  "screen": "ui.switch.default",
+  "viewport": {
+    "width": 800,
+    "height": 600,
+    "deviceScaleFactor": 2.0
+  },
+  "elements": [
+    {
+      "id": "ui.switch.checked",
+      "sizing": "fixed",
+      "bounds": {
+        "x": 32.0,
+        "y": 32.0,
+        "width": 36.0,
+        "height": 20.0
+      },
+      "style": {
+        "backgroundColor": [
+          0,
+          112,
+          204,
+          255
+        ],
+        "borderColor": [
+          0,
+          112,
+          204,
+          255
+        ],
+        "borderWidth": 1.0,
+        "borderRadius": 10.0,
+        "ringSpread": 0.0,
+        "ringSpreads": [],
+        "fontFamily": "system-ui",
+        "fontSize": 13.0,
+        "fontWeight": 400,
+        "lineHeight": 18.2,
+        "color": [
+          2,
+          8,
+          23,
+          255
+        ],
+        "opacity": 1.0,
+        "padding": {
+          "top": 0.0,
+          "right": 0.0,
+          "bottom": 0.0,
+          "left": 0.0
+        },
+        "declaredBackgroundColor": [
+          0,
+          112,
+          204,
+          255
+        ],
+        "declaredBorderColor": [
+          0,
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "id": "ui.switch.checked.switch-thumb",
+      "sizing": "fixed",
+      "bounds": {
+        "x": 49.0,
+        "y": 34.0,
+        "width": 16.0,
+        "height": 16.0
+      },
+      "style": {
+        "backgroundColor": [
+          255,
+          255,
+          255,
+          255
+        ],
+        "borderColor": [
+          226,
+          232,
+          240,
+          255
+        ],
+        "borderWidth": 0.0,
+        "borderRadius": 8.0,
+        "ringSpread": 0.0,
+        "ringSpreads": [],
+        "fontFamily": "system-ui",
+        "fontSize": 13.0,
+        "fontWeight": 400,
+        "lineHeight": 18.2,
+        "color": [
+          2,
+          8,
+          23,
+          255
+        ],
+        "opacity": 1.0,
+        "padding": {
+          "top": 0.0,
+          "right": 0.0,
+          "bottom": 0.0,
+          "left": 0.0
+        },
+        "declaredBackgroundColor": [
+          255,
+          255,
+          255,
+          255
+        ],
+        "declaredBorderColor": [
+          226,
+          232,
+          240,
+          255
+        ]
+      }
+    },
+    {
+      "id": "ui.switch.unchecked",
+      "sizing": "fixed",
+      "bounds": {
+        "x": 32.0,
+        "y": 68.0,
+        "width": 36.0,
+        "height": 20.0
+      },
+      "style": {
+        "backgroundColor": [
+          226,
+          232,
+          240,
+          255
+        ],
+        "borderColor": [
+          226,
+          232,
+          240,
+          255
+        ],
+        "borderWidth": 1.0,
+        "borderRadius": 10.0,
+        "ringSpread": 0.0,
+        "ringSpreads": [],
+        "fontFamily": "system-ui",
+        "fontSize": 13.0,
+        "fontWeight": 400,
+        "lineHeight": 18.2,
+        "color": [
+          2,
+          8,
+          23,
+          255
+        ],
+        "opacity": 1.0,
+        "padding": {
+          "top": 0.0,
+          "right": 0.0,
+          "bottom": 0.0,
+          "left": 0.0
+        },
+        "declaredBackgroundColor": [
+          226,
+          232,
+          240,
+          255
+        ],
+        "declaredBorderColor": [
+          0,
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "id": "ui.switch.unchecked.switch-thumb",
+      "sizing": "fixed",
+      "bounds": {
+        "x": 33.0,
+        "y": 70.0,
+        "width": 16.0,
+        "height": 16.0
+      },
+      "style": {
+        "backgroundColor": [
+          255,
+          255,
+          255,
+          255
+        ],
+        "borderColor": [
+          226,
+          232,
+          240,
+          255
+        ],
+        "borderWidth": 0.0,
+        "borderRadius": 8.0,
+        "ringSpread": 0.0,
+        "ringSpreads": [],
+        "fontFamily": "system-ui",
+        "fontSize": 13.0,
+        "fontWeight": 400,
+        "lineHeight": 18.2,
+        "color": [
+          2,
+          8,
+          23,
+          255
+        ],
+        "opacity": 1.0,
+        "padding": {
+          "top": 0.0,
+          "right": 0.0,
+          "bottom": 0.0,
+          "left": 0.0
+        },
+        "declaredBackgroundColor": [
+          255,
+          255,
+          255,
+          255
+        ],
+        "declaredBorderColor": [
+          226,
+          232,
+          240,
+          255
+        ]
+      }
+    },
+    {
+      "id": "ui.switch.focus",
+      "sizing": "fixed",
+      "bounds": {
+        "x": 32.0,
+        "y": 104.0,
+        "width": 36.0,
+        "height": 20.0
+      },
+      "style": {
+        "backgroundColor": [
+          0,
+          112,
+          204,
+          255
+        ],
+        "borderColor": [
+          0,
+          112,
+          204,
+          255
+        ],
+        "borderWidth": 1.0,
+        "borderRadius": 10.0,
+        "ringSpread": 3.0,
+        "ringSpreads": [
+          3.0
+        ],
+        "fontFamily": "system-ui",
+        "fontSize": 13.0,
+        "fontWeight": 400,
+        "lineHeight": 18.2,
+        "color": [
+          2,
+          8,
+          23,
+          255
+        ],
+        "opacity": 1.0,
+        "padding": {
+          "top": 0.0,
+          "right": 0.0,
+          "bottom": 0.0,
+          "left": 0.0
+        },
+        "declaredBackgroundColor": [
+          0,
+          112,
+          204,
+          255
+        ],
+        "declaredBorderColor": [
+          0,
+          112,
+          204,
+          255
+        ]
+      }
+    },
+    {
+      "id": "ui.switch.focus.switch-thumb",
+      "sizing": "fixed",
+      "bounds": {
+        "x": 49.0,
+        "y": 106.0,
+        "width": 16.0,
+        "height": 16.0
+      },
+      "style": {
+        "backgroundColor": [
+          255,
+          255,
+          255,
+          255
+        ],
+        "borderColor": [
+          226,
+          232,
+          240,
+          255
+        ],
+        "borderWidth": 0.0,
+        "borderRadius": 8.0,
+        "ringSpread": 0.0,
+        "ringSpreads": [],
+        "fontFamily": "system-ui",
+        "fontSize": 13.0,
+        "fontWeight": 400,
+        "lineHeight": 18.2,
+        "color": [
+          2,
+          8,
+          23,
+          255
+        ],
+        "opacity": 1.0,
+        "padding": {
+          "top": 0.0,
+          "right": 0.0,
+          "bottom": 0.0,
+          "left": 0.0
+        },
+        "declaredBackgroundColor": [
+          255,
+          255,
+          255,
+          255
+        ],
+        "declaredBorderColor": [
+          226,
+          232,
+          240,
+          255
+        ]
+      }
+    },
+    {
+      "id": "ui.switch.disabled",
+      "sizing": "fixed",
+      "bounds": {
+        "x": 32.0,
+        "y": 140.0,
+        "width": 36.0,
+        "height": 20.0
+      },
+      "style": {
+        "backgroundColor": [
+          127,
+          183,
+          229,
+          255
+        ],
+        "borderColor": [
+          127,
+          183,
+          229,
+          255
+        ],
+        "borderWidth": 1.0,
+        "borderRadius": 10.0,
+        "ringSpread": 0.0,
+        "ringSpreads": [],
+        "fontFamily": "system-ui",
+        "fontSize": 13.0,
+        "fontWeight": 400,
+        "lineHeight": 18.2,
+        "color": [
+          2,
+          8,
+          23,
+          255
+        ],
+        "opacity": 0.5,
+        "padding": {
+          "top": 0.0,
+          "right": 0.0,
+          "bottom": 0.0,
+          "left": 0.0
+        },
+        "declaredBackgroundColor": [
+          0,
+          112,
+          204,
+          255
+        ],
+        "declaredBorderColor": [
+          0,
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "id": "ui.switch.disabled.switch-thumb",
+      "sizing": "fixed",
+      "bounds": {
+        "x": 49.0,
+        "y": 142.0,
+        "width": 16.0,
+        "height": 16.0
+      },
+      "style": {
+        "backgroundColor": [
+          255,
+          255,
+          255,
+          255
+        ],
+        "borderColor": [
+          226,
+          232,
+          240,
+          255
+        ],
+        "borderWidth": 0.0,
+        "borderRadius": 8.0,
+        "ringSpread": 0.0,
+        "ringSpreads": [],
+        "fontFamily": "system-ui",
+        "fontSize": 13.0,
+        "fontWeight": 400,
+        "lineHeight": 18.2,
+        "color": [
+          2,
+          8,
+          23,
+          255
+        ],
+        "opacity": 0.5,
+        "padding": {
+          "top": 0.0,
+          "right": 0.0,
+          "bottom": 0.0,
+          "left": 0.0
+        },
+        "declaredBackgroundColor": [
+          255,
+          255,
+          255,
+          255
+        ],
+        "declaredBorderColor": [
+          226,
+          232,
+          240,
+          255
+        ]
+      }
+    }
+  ],
+  "textRegions": [],
+  "icons": []
+}
