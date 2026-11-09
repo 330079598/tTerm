@@ -4,16 +4,16 @@
 //! global theme. This menu instead preserves the production focus ring and
 //! ghost hover colours without changing any global theme.
 
+mod keyboard;
 pub mod placement;
 #[cfg(test)]
 mod tests;
+mod text;
 mod view;
 
 use crate::tokens::theme::Theme;
-use gpui_kit::{
-    App, Bounds, Context, FocusHandle, Hsla, KeyDownEvent, Pixels, SharedString, Window,
-};
-use std::rc::Rc;
+use gpui_kit::{App, Bounds, Context, FocusHandle, Hsla, Pixels, SharedString, Window};
+use std::{cell::Cell, rc::Rc};
 
 /// Only the icons currently used by the page-tab menu are migrated.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -47,6 +47,9 @@ pub struct PartStyle {
     pub line_height: f32,
     pub padding: [f32; 4],
     pub opacity: f32,
+    pub ancestor_opacity: f32,
+    pub font_family: &'static str,
+    pub font_weight: u16,
 }
 
 /// Receives each actual child border box after layout, including internal slots.
@@ -59,6 +62,7 @@ type CloseCallback = Rc<dyn Fn(&mut Window, &mut App)>;
 pub struct ContextMenu {
     id: SharedString,
     origin: (f32, f32),
+    position: Rc<Cell<Option<gpui_kit::Point<Pixels>>>>,
     actions: Vec<MenuAction>,
     theme: Theme,
     highlighted: Option<usize>,
@@ -81,6 +85,7 @@ impl ContextMenu {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) -> Self {
+        keyboard::init(cx);
         let highlighted = actions.iter().position(|a| !a.separator && !a.disabled);
         let previous_focus = window.focused(cx);
         let focus = cx.focus_handle();
@@ -88,6 +93,7 @@ impl ContextMenu {
         Self {
             id: id.into(),
             origin,
+            position: Rc::new(Cell::new(None)),
             actions,
             theme,
             highlighted,
@@ -116,16 +122,13 @@ impl ContextMenu {
         self.observer = Some(observer);
         self
     }
-    /// Chooses an enabled initial row before the first render (e.g. restored keyboard state).
-    pub fn initial_highlight(mut self, index: usize) -> Self {
-        if self
-            .actions
-            .get(index)
-            .is_some_and(|a| !a.separator && !a.disabled)
-        {
-            self.highlighted = Some(index);
+    /// A changed pointer origin starts a new placement measurement, like React's [x, y] effect.
+    pub fn set_origin(&mut self, origin: (f32, f32), cx: &mut Context<Self>) {
+        if self.origin != origin {
+            self.origin = origin;
+            self.position.set(None);
+            cx.notify();
         }
-        self
     }
     pub fn is_open(&self) -> bool {
         self.open
@@ -144,7 +147,8 @@ impl ContextMenu {
         {
             previous.focus(window, cx);
         }
-        (self.on_close)(window, cx);
+        let callback = self.on_close.clone();
+        window.defer(cx, move |window, cx| callback(window, cx));
         cx.notify();
     }
 
@@ -157,7 +161,9 @@ impl ContextMenu {
             .get(index)
             .filter(|a| !a.separator && !a.disabled)
         {
-            (self.on_action)(&action.action, window, cx);
+            let callback = self.on_action.clone();
+            let action = action.action.clone();
+            window.defer(cx, move |window, cx| callback(&action, window, cx));
             self.close(window, cx);
         }
     }
@@ -182,41 +188,5 @@ impl ContextMenu {
         };
         self.highlighted = Some(enabled[next]);
         cx.notify();
-    }
-
-    fn key_down(&mut self, event: &KeyDownEvent, window: &mut Window, cx: &mut Context<Self>) {
-        match event.keystroke.key.as_str() {
-            "down" => self.move_highlight(1, cx),
-            "up" => self.move_highlight(-1, cx),
-            "tab" => self.move_highlight(
-                if event.keystroke.modifiers.shift {
-                    -1
-                } else {
-                    1
-                },
-                cx,
-            ),
-            "home" | "end" => {
-                let mut indices = self
-                    .actions
-                    .iter()
-                    .enumerate()
-                    .filter_map(|(i, a)| (!a.disabled && !a.separator).then_some(i));
-                self.highlighted = if event.keystroke.key == "home" {
-                    indices.next()
-                } else {
-                    indices.next_back()
-                };
-                cx.notify();
-            }
-            "enter" | "space" => {
-                if let Some(index) = self.highlighted {
-                    self.activate(index, window, cx);
-                }
-            }
-            "escape" => self.close(window, cx),
-            _ => return,
-        }
-        cx.stop_propagation();
     }
 }

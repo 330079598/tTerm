@@ -2,11 +2,16 @@ import { useEffect } from "react"
 import { ContextMenu } from "@/components/ContextMenu"
 import { ConfigProvider } from "@/contexts/ConfigContext"
 import { KeymapProvider } from "@/contexts/KeymapContext"
-import { pageTabMenu } from "@/parity/screens/contextMenuFixture"
+import { pageTabMenu, wrappedTabMenu } from "@/parity/screens/contextMenuFixture"
 import type { ParityScreenProps } from "@/parity/types"
 
-function Menu({ onReady, highlighted }: ParityScreenProps & { highlighted: boolean }) {
+function Menu({
+  onReady,
+  highlighted,
+  wrapped,
+}: ParityScreenProps & { highlighted: boolean; wrapped?: boolean }) {
   useEffect(() => {
+    document.dispatchEvent(new KeyboardEvent("keydown", { key: "Home", bubbles: true }))
     if (highlighted)
       document.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true }))
     onReady()
@@ -17,7 +22,7 @@ function Menu({ onReady, highlighted }: ParityScreenProps & { highlighted: boole
         data-parity="ui.context-menu"
         x={760}
         y={550}
-        actions={pageTabMenu()}
+        actions={wrapped ? wrappedTabMenu() : pageTabMenu()}
         onAction={() => {}}
         onClose={() => {}}
       />
@@ -25,7 +30,7 @@ function Menu({ onReady, highlighted }: ParityScreenProps & { highlighted: boole
   )
 }
 
-function Screen(props: ParityScreenProps & { highlighted: boolean }) {
+function Screen(props: ParityScreenProps & { highlighted: boolean; wrapped?: boolean }) {
   return (
     <ConfigProvider>
       <KeymapProvider>
@@ -39,4 +44,8 @@ export function ContextMenuDefault(props: ParityScreenProps) {
 }
 export function ContextMenuHighlighted(props: ParityScreenProps) {
   return <Screen {...props} highlighted />
+}
+
+export function ContextMenuWrapped(props: ParityScreenProps) {
+  return <Screen {...props} highlighted={false} wrapped />
 }

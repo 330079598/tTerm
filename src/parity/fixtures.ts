@@ -33,4 +33,5 @@ export const fixtures: Record<string, ParityFixture> = {
   "ui.switch.default": { commands: switchFixture.commands },
   "ui.context-menu.default": { commands: contextMenu.commands },
   "ui.context-menu.highlighted": { commands: contextMenu.commands },
+  "ui.context-menu.wrapped": { commands: contextMenu.commands },
 }

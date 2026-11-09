@@ -4,7 +4,7 @@ use crate::components::icons::{PLUS, ROTATE_CCW, X, icon};
 use crate::components::surface::{css_color, css_opacity, shadow_lg, surface};
 use gpui_kit::{
     AnyElement, Context, Div, FontWeight, InteractiveElement, IntoElement, ParentElement, Render,
-    SharedString, StatefulInteractiveElement, Styled, Window, div, point, px,
+    SharedString, StatefulInteractiveElement, Styled, Window, anchored, deferred, div, point, px,
 };
 
 impl ContextMenu {
@@ -20,6 +20,9 @@ impl ContextMenu {
             line_height: 18.2,
             padding: [0.0; 4],
             opacity: 1.0,
+            ancestor_opacity: 1.0,
+            font_family: ".SystemUIFont",
+            font_weight: 400,
         }
     }
 
@@ -48,18 +51,18 @@ impl ContextMenu {
             .border(px(style.border_width))
             .border_color(gpui_kit::transparent_black())
             .rounded(px(style.radius))
-            .font_family(".SystemUIFont")
+            .font_family(style.font_family)
             .text_size(px(style.font_size))
             .line_height(px(style.line_height))
-            .font_weight(FontWeight(400.0))
+            .font_weight(FontWeight(f32::from(style.font_weight)))
             .text_color(style.foreground)
             .opacity(css_opacity(style.opacity))
     }
 
-    fn row_style(&self, index: usize) -> PartStyle {
+    pub(super) fn row_style(&self, index: usize, keyboard: bool) -> PartStyle {
         let action = &self.actions[index];
         let base = self.base_style();
-        let focused = self.highlighted == Some(index);
+        let focused = keyboard && self.highlighted == Some(index);
         let hovered = self.hovered == Some(index) && !action.disabled;
         PartStyle {
             background: if hovered {
@@ -119,6 +122,7 @@ impl ContextMenu {
             ring_spread: 0.0,
             padding: [0.0; 4],
             opacity: 1.0,
+            ancestor_opacity: style.ancestor_opacity * style.opacity,
             border: base.border,
             ..style
         };
@@ -143,10 +147,9 @@ impl ContextMenu {
             self.part(
                 format!("label-{index}"),
                 child_style,
-                Self::styled(child_style)
-                    .h(px(16.0))
-                    .child(action.label.clone()),
-            ),
+                Self::styled(child_style).child(super::text::MenuText::new(action.label.clone())),
+            )
+            .min_w(px(0.0)),
         );
         if let Some(shortcut) = &action.shortcut {
             let shortcut_style = PartStyle {
@@ -172,7 +175,7 @@ impl ContextMenu {
         row
     }
 
-    fn row(&self, index: usize, cx: &mut Context<Self>) -> AnyElement {
+    fn row(&self, index: usize, keyboard: bool, cx: &mut Context<Self>) -> AnyElement {
         let action = &self.actions[index];
         let base = self.base_style();
         if action.separator {
@@ -191,12 +194,12 @@ impl ContextMenu {
                 )
                 .into_any_element();
         }
-        let focused = self.highlighted == Some(index);
-        let style = self.row_style(index);
+        let focused = keyboard && self.highlighted == Some(index);
+        let style = self.row_style(index, keyboard);
         let mut row = Self::styled(style)
             .id((self.id.clone(), index))
             .w_full()
-            .h(px(28.0))
+            .min_h(px(28.0))
             .flex()
             .items_center()
             .gap(px(6.0))
@@ -242,7 +245,7 @@ impl Render for ContextMenu {
             ..self.base_style()
         };
         let rows = (0..self.actions.len())
-            .map(|index| self.row(index, cx))
+            .map(|index| self.row(index, window.last_input_was_keyboard(), cx))
             .collect::<Vec<_>>();
         let body = self.part(
             "body".into(),
@@ -256,7 +259,7 @@ impl Render for ContextMenu {
             ))
             .shadow(shadow_lg())
             .track_focus(&self.focus)
-            .on_key_down(cx.listener(Self::key_down))
+            .occlude()
             .on_mouse_down_out(cx.listener(|this, _, window, cx| this.close(window, cx)))
             .child(surface(
                 style.background,
@@ -266,10 +269,17 @@ impl Render for ContextMenu {
                 None,
             ))
             .child(body);
-        PlacedMenu {
-            origin: point(px(self.origin.0), px(self.origin.1)),
-            child: self.part("".into(), style, card).into_any_element(),
-        }
+        let card = self.bindings(card, cx);
+        deferred(
+            anchored()
+                .position(point(px(0.0), px(0.0)))
+                .child(PlacedMenu {
+                    origin: point(px(self.origin.0), px(self.origin.1)),
+                    position: self.position.clone(),
+                    child: self.part("".into(), style, card).into_any_element(),
+                }),
+        )
+        .with_priority(gpui_kit::base::POPUP_PRIORITY)
         .into_any_element()
     }
 }

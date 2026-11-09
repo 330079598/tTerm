@@ -5,6 +5,7 @@ const server = await createServer({ mode: "parity", server: { middlewareMode: tr
 try {
   const { contextMenuFixture } = await server.ssrLoadModule("/src/parity/screens/contextMenuFixture.ts")
   await writeFile("parity/fixtures/ui.context-menu.json", JSON.stringify(contextMenuFixture(), null, 2) + "\n")
+  await writeFile("parity/fixtures/ui.context-menu.wrapped.json", JSON.stringify(contextMenuFixture(true), null, 2) + "\n")
 } finally {
   await server.close()
 }

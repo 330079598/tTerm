@@ -1,4 +1,8 @@
-import { ContextMenuDefault, ContextMenuHighlighted } from "@/parity/screens/ContextMenuPrimitive"
+import {
+  ContextMenuDefault,
+  ContextMenuHighlighted,
+  ContextMenuWrapped,
+} from "@/parity/screens/ContextMenuPrimitive"
 import type { ParityScreenProps } from "@/parity/types"
 import { ExampleButtonInput } from "@/parity/screens/ExampleButtonInput"
 import { ButtonVariants, ButtonSizes } from "@/parity/screens/ButtonPrimitive"
@@ -25,6 +29,7 @@ export const parityScreens: Record<string, ComponentType<ParityScreenProps>> = {
   "ui.switch.default": SwitchPrimitive,
   "ui.context-menu.default": ContextMenuDefault,
   "ui.context-menu.highlighted": ContextMenuHighlighted,
+  "ui.context-menu.wrapped": ContextMenuWrapped,
 }
 
 /** The registered ids, for the manifest test. */

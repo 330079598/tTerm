@@ -9,6 +9,7 @@ use tterm_ui::tokens::palette::{DARK, LIGHT};
 use tterm_ui::tokens::theme::Theme;
 
 pub const DEFAULT_ID: &str = "ui.context-menu.default";
+pub const WRAPPED_ID: &str = "ui.context-menu.wrapped";
 pub const HIGHLIGHTED_ID: &str = "ui.context-menu.highlighted";
 
 #[derive(Deserialize)]
@@ -98,16 +99,8 @@ impl ContextMenuScreen {
     ) -> impl IntoElement {
         if self.menu.is_none() {
             let sink = self.layout.clone();
-            let disabled = self.actions.iter().map(|a| a.disabled).collect::<Vec<_>>();
             let observer = Rc::new(
                 move |slot: &str, bounds: gpui_kit::Bounds<gpui_kit::Pixels>, part: PartStyle| {
-                    let opacity = slot
-                        .rsplit('-')
-                        .next()
-                        .and_then(|s| s.parse::<usize>().ok())
-                        .and_then(|i| disabled.get(i))
-                        .filter(|&&d| d)
-                        .map_or(part.opacity, |_| 0.5);
                     let id = if slot.is_empty() {
                         "ui.context-menu".into()
                     } else {
@@ -133,7 +126,7 @@ impl ContextMenuScreen {
                             bounds.size.width.as_f32(),
                             bounds.size.height.as_f32(),
                         ),
-                        snapshot(part, opacity),
+                        snapshot(part),
                     );
                 },
             );
@@ -141,13 +134,21 @@ impl ContextMenuScreen {
             let theme = self.theme;
             let highlighted = self.highlighted;
             self.menu = Some(cx.new(|cx| {
-                let menu =
-                    ContextMenu::new("parity-menu", (760.0, 550.0), actions, theme, window, cx)
-                        .observe(observer);
-                // The second screen is a controlled initial keyboard highlight;
-                // normal use starts on the first enabled row.
-                menu.initial_highlight(if highlighted { 1 } else { 0 })
+                ContextMenu::new("parity-menu", (760.0, 550.0), actions, theme, window, cx)
+                    .observe(observer)
             }));
+            window.defer(cx, move |window, cx| {
+                // Match React's real keyboard event path, including focus-visible modality.
+                for key in if highlighted {
+                    vec!["home", "down"]
+                } else {
+                    vec!["home"]
+                } {
+                    if let Ok(keystroke) = gpui_kit::Keystroke::parse(key) {
+                        window.dispatch_keystroke(keystroke, cx);
+                    }
+                }
+            });
         }
         div()
             .size_full()
@@ -163,7 +164,7 @@ fn rgba(color: gpui_kit::Hsla) -> [u8; 4] {
     let c = gpui_kit::Rgba::from(color);
     [c.r, c.g, c.b, c.a].map(|v| (v * 255.0).round() as u8)
 }
-fn snapshot(part: PartStyle, opacity: f32) -> StyleSnapshot {
+fn snapshot(part: PartStyle) -> StyleSnapshot {
     let [top, right, bottom, left] = part.padding;
     StyleSnapshot {
         background_color: rgba(part.background),
@@ -171,9 +172,9 @@ fn snapshot(part: PartStyle, opacity: f32) -> StyleSnapshot {
         border_width: part.border_width,
         border_radius: part.radius,
         ring_spread: part.ring_spread,
-        font_family: "system-ui".into(),
+        font_family: part.font_family.into(),
         font_size: part.font_size,
-        font_weight: 400,
+        font_weight: part.font_weight,
         line_height: part.line_height,
         color: rgba(part.foreground),
         padding: PaddingSnapshot {
@@ -182,7 +183,7 @@ fn snapshot(part: PartStyle, opacity: f32) -> StyleSnapshot {
             bottom,
             left,
         },
-        opacity,
+        opacity: part.opacity * part.ancestor_opacity,
         declared_background_color: None,
         declared_border_color: None,
     }

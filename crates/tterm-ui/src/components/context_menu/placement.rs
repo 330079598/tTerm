@@ -4,6 +4,8 @@ use gpui_kit::{
     Pixels, Point, Size, Style, Window, point, px,
 };
 
+use std::{cell::Cell, rc::Rc};
+
 /// Matches React's measure-then-reposition rule, including its strict `>` check.
 pub fn fit_in_viewport(
     origin: Point<Pixels>,
@@ -26,6 +28,7 @@ pub fn fit_in_viewport(
 pub(super) struct PlacedMenu {
     pub child: AnyElement,
     pub origin: Point<Pixels>,
+    pub position: Rc<Cell<Option<Point<Pixels>>>>,
 }
 impl IntoElement for PlacedMenu {
     type Element = Self;
@@ -66,7 +69,11 @@ impl Element for PlacedMenu {
         cx: &mut App,
     ) {
         let size = window.layout_bounds(*child).size;
-        let position = fit_in_viewport(self.origin, size, window.viewport_size());
+        let position = self.position.get().unwrap_or_else(|| {
+            let position = fit_in_viewport(self.origin, size, window.viewport_size());
+            self.position.set(Some(position));
+            position
+        });
         window.with_element_offset(position - bounds.origin, |window| {
             self.child.prepaint(window, cx)
         });

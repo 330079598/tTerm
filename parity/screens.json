@@ -87,7 +87,9 @@
       "exceptions": [
         {
           "entry": "E-001",
-          "elements": ["ui.context-menu"],
+          "elements": [
+            "ui.context-menu"
+          ],
           "outset": 25
         }
       ]
@@ -99,7 +101,23 @@
       "exceptions": [
         {
           "entry": "E-001",
-          "elements": ["ui.context-menu"],
+          "elements": [
+            "ui.context-menu"
+          ],
+          "outset": 25
+        }
+      ]
+    },
+    {
+      "id": "ui.context-menu.wrapped",
+      "title": "Context menu with a wrapped Chinese label",
+      "fixture": "ui.context-menu.wrapped.json",
+      "exceptions": [
+        {
+          "entry": "E-001",
+          "elements": [
+            "ui.context-menu"
+          ],
           "outset": 25
         }
       ]

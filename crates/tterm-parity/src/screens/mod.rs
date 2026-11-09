@@ -55,9 +55,11 @@ impl ScreenView {
             )?)),
             select::SCREEN_ID => Ok(Self::Select(select::SelectScreen::load(manifest, sink)?)),
             switch::SCREEN_ID => Ok(Self::Switch(switch::SwitchScreen::load(manifest, sink)?)),
-            context_menu::DEFAULT_ID | context_menu::HIGHLIGHTED_ID => Ok(Self::ContextMenu(
-                context_menu::ContextMenuScreen::load(root, screen, manifest, sink)?,
-            )),
+            context_menu::DEFAULT_ID | context_menu::HIGHLIGHTED_ID | context_menu::WRAPPED_ID => {
+                Ok(Self::ContextMenu(context_menu::ContextMenuScreen::load(
+                    root, screen, manifest, sink,
+                )?))
+            }
             other => Err(format!(
                 "No GPUI view is registered for parity screen \"{other}\""
             )),

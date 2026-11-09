@@ -6,6 +6,7 @@ import {
   resolveEffectiveKeymap,
   getShortcutLabel,
 } from "@/lib/keymap/keymap"
+import zh from "@/i18n/locales/zh.json"
 import en from "@/i18n/locales/en.json"
 import type { TabContextMenuAction } from "@/types/tab"
 
@@ -28,9 +29,21 @@ export function pageTabMenu() {
   return actions
 }
 
+/** A localized production label repeated to exercise multi-line menu layout. */
+export function wrappedTabMenu(): TabContextMenuAction[] {
+  const translation = createInstance()
+  void translation.init({ resources: { zh: { translation: zh } }, lng: "zh", initAsync: false })
+  return [
+    {
+      label: Array(4).fill(translation.t("contextMenu.closeTabsToRight")).join("，"),
+      action: "close-right",
+    },
+  ]
+}
+
 /** Generated GPUI fixture chords come from the same default resolver as KeymapProvider. */
-export function contextMenuFixture() {
-  const actions = pageTabMenu()
+export function contextMenuFixture(wrapped = false) {
+  const actions = wrapped ? wrappedTabMenu() : pageTabMenu()
   const labels = (isMac: boolean) =>
     actions.map((action) =>
       action.shortcut
