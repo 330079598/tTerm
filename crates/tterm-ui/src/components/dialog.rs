@@ -7,7 +7,7 @@ mod tests;
 use crate::tokens::theme::Theme;
 use gpui_kit::component::input::InputState;
 use gpui_kit::{Context, Entity, FocusHandle, KeyDownEvent, MouseDownEvent, Window};
-use presentation::PartObserver;
+use presentation::{PartObserver, TextObserver};
 use std::rc::Rc;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -95,6 +95,7 @@ pub struct Dialog {
     hovered: [bool; 3],
     outside: Option<OutsideHandler>,
     observer: Option<PartObserver>,
+    text_observer: Option<TextObserver>,
     pub last_action: Option<DialogAction>,
 }
 impl Dialog {
@@ -116,6 +117,7 @@ impl Dialog {
             hovered: [false; 3],
             outside: None,
             observer: None,
+            text_observer: None,
             last_action: None,
         }
     }
@@ -126,6 +128,11 @@ impl Dialog {
     /// Observes actual prepainted part bounds with the style used to draw them.
     pub fn observe_parts(mut self, observer: PartObserver) -> Self {
         self.observer = Some(observer);
+        self
+    }
+    /// Observes the actual laid-out text child for parity's standard text mask.
+    pub fn observe_text(mut self, observer: TextObserver) -> Self {
+        self.text_observer = Some(observer);
         self
     }
     pub fn on_interact_outside(

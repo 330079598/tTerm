@@ -36,6 +36,8 @@ pub struct PartStyle {
 }
 /// A diagnostic hook; coordinates come from the rendered child, never a fixture.
 pub type PartObserver = Rc<dyn Fn(&str, Bounds<Pixels>, &PartStyle)>;
+/// Actual text child bounds, observed through the same layout as painting.
+pub type TextObserver = Rc<dyn Fn(&str, Bounds<Pixels>)>;
 
 impl PartStyle {
     pub(super) fn base(theme: Theme) -> Self {
@@ -90,6 +92,16 @@ impl Dialog {
             })
             .child(child)
     }
+    fn text(&self, slot: &'static str, text: String) -> Div {
+        let observer = self.text_observer.clone();
+        div()
+            .on_children_prepainted(move |bounds, _, _| {
+                if let (Some(observer), Some(bounds)) = (&observer, bounds.first()) {
+                    observer(slot, *bounds);
+                }
+            })
+            .child(text)
+    }
     fn header(&self, narrow: bool) -> Div {
         let mut base = PartStyle::base(self.theme);
         base.centered = narrow;
@@ -142,7 +154,7 @@ impl Dialog {
                         // value. Keep natural wrapping and line count, with the
                         // same used line advance instead of a fixed height.
                         .line_height(px(style.line_height.floor()))
-                        .child(description.clone()),
+                        .child(self.text("description", description.clone())),
                 ),
             );
         }

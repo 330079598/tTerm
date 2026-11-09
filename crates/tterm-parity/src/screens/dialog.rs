@@ -138,8 +138,24 @@ impl DialogScreen {
                 );
             },
         );
+        let text_sink = self.layout.clone();
+        let text_observer = Rc::new(
+            move |slot: &str, bounds: gpui_kit::Bounds<gpui_kit::Pixels>| {
+                text_sink.record_text_region(
+                    &format!("{prefix}.{slot}"),
+                    BoundsSnapshot::new(
+                        bounds.origin.x.into(),
+                        bounds.origin.y.into(),
+                        bounds.size.width.into(),
+                        bounds.size.height.into(),
+                    ),
+                );
+            },
+        );
         self.dialog = Some(cx.new(|cx| {
-            let mut dialog = Dialog::new(options, self.theme, window, cx).observe_parts(observer);
+            let mut dialog = Dialog::new(options, self.theme, window, cx)
+                .observe_parts(observer)
+                .observe_text(text_observer);
             if let Some(input) = input {
                 dialog = dialog.with_input(input);
             }
