@@ -7,6 +7,11 @@ import {
   SelectPrimitive,
   SwitchPrimitive,
 } from "@/parity/screens/P024Primitives"
+import {
+  DialogConfirmPrimitive,
+  DialogDestructivePrimitive,
+  DialogPromptPrimitive,
+} from "@/parity/screens/DialogPrimitive"
 import type { ComponentType } from "react"
 
 /**
@@ -22,6 +27,9 @@ export const parityScreens: Record<string, ComponentType<ParityScreenProps>> = {
   "ui.password.default": PasswordInputPrimitive,
   "ui.select.default": SelectPrimitive,
   "ui.switch.default": SwitchPrimitive,
+  "ui.dialog.confirm": DialogConfirmPrimitive,
+  "ui.dialog.destructive": DialogDestructivePrimitive,
+  "ui.dialog.prompt": DialogPromptPrimitive,
 }
 
 /** The registered ids, for the manifest test. */

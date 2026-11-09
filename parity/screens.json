@@ -1,7 +1,15 @@
 {
   "version": 2,
-  "viewport": { "width": 800, "height": 600, "deviceScaleFactor": 2 },
-  "windowsViewport": { "width": 800, "height": 600, "deviceScaleFactor": 1 },
+  "viewport": {
+    "width": 800,
+    "height": 600,
+    "deviceScaleFactor": 2
+  },
+  "windowsViewport": {
+    "width": 800,
+    "height": 600,
+    "deviceScaleFactor": 1
+  },
   "theme": "dark",
   "uiScalePercent": 100,
   "platform": {
@@ -35,7 +43,11 @@
       "title": "Button variants and states",
       "fixture": "ui.button.default.json"
     },
-    { "id": "ui.button.sizes", "title": "Button sizes", "fixture": "ui.button.default.json" },
+    {
+      "id": "ui.button.sizes",
+      "title": "Button sizes",
+      "fixture": "ui.button.default.json"
+    },
     {
       "id": "ui.input.default",
       "title": "Input primitive states",
@@ -46,7 +58,11 @@
       "title": "Password input states",
       "fixture": "ui.password.default.json"
     },
-    { "id": "ui.select.default", "title": "Select states", "fixture": "ui.select.default.json" },
+    {
+      "id": "ui.select.default",
+      "title": "Select states",
+      "fixture": "ui.select.default.json"
+    },
     {
       "id": "ui.switch.default",
       "title": "Switch states",
@@ -63,6 +79,21 @@
           "outset": 3
         }
       ]
+    },
+    {
+      "id": "ui.dialog.confirm",
+      "title": "Dialog confirm",
+      "fixture": "ui.dialog.default.json"
+    },
+    {
+      "id": "ui.dialog.destructive",
+      "title": "Dialog destructive",
+      "fixture": "ui.dialog.default.json"
+    },
+    {
+      "id": "ui.dialog.prompt",
+      "title": "Dialog prompt",
+      "fixture": "ui.dialog.default.json"
     }
   ]
 }

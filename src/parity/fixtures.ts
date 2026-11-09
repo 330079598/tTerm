@@ -30,4 +30,7 @@ export const fixtures: Record<string, ParityFixture> = {
   "ui.password.default": { commands: passwordFixture.commands },
   "ui.select.default": { commands: selectFixture.commands },
   "ui.switch.default": { commands: switchFixture.commands },
+  "ui.dialog.confirm": { commands: {} },
+  "ui.dialog.destructive": { commands: {} },
+  "ui.dialog.prompt": { commands: {} },
 }
