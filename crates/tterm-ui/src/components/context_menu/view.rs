@@ -56,28 +56,12 @@ impl ContextMenu {
             .opacity(css_opacity(style.opacity))
     }
 
-    fn row(&self, index: usize, cx: &mut Context<Self>) -> AnyElement {
+    fn row_style(&self, index: usize) -> PartStyle {
         let action = &self.actions[index];
         let base = self.base_style();
-        if action.separator {
-            let style = PartStyle {
-                background: css_color(self.theme.colors.border, 1.0),
-                ..base
-            };
-            return self
-                .part(
-                    format!("separator-{index}"),
-                    style,
-                    Self::styled(style)
-                        .h(px(1.0))
-                        .my(px(4.0))
-                        .bg(style.background),
-                )
-                .into_any_element();
-        }
         let focused = self.highlighted == Some(index);
         let hovered = self.hovered == Some(index) && !action.disabled;
-        let style = PartStyle {
+        PartStyle {
             background: if hovered {
                 css_color(
                     self.theme.colors.accent,
@@ -118,21 +102,17 @@ impl ContextMenu {
             ],
             opacity: if action.disabled { 0.5 } else { 1.0 },
             ..base
-        };
-        let mut row = Self::styled(style)
-            .id((self.id.clone(), index))
-            .w_full()
-            .h(px(28.0))
-            .flex()
-            .items_center()
-            .gap(px(6.0))
-            .child(surface(
-                style.background,
-                style.border,
-                0.0,
-                style.radius,
-                focused.then_some((css_color(self.theme.colors.ring, 0.5), style.ring_spread)),
-            ));
+        }
+    }
+
+    fn row_content(
+        &self,
+        index: usize,
+        mut row: gpui_kit::Stateful<Div>,
+        style: PartStyle,
+    ) -> gpui_kit::Stateful<Div> {
+        let action = &self.actions[index];
+        let base = self.base_style();
         let child_style = PartStyle {
             background: gpui_kit::transparent_black(),
             radius: 0.0,
@@ -189,6 +169,45 @@ impl ContextMenu {
                 ),
             );
         }
+        row
+    }
+
+    fn row(&self, index: usize, cx: &mut Context<Self>) -> AnyElement {
+        let action = &self.actions[index];
+        let base = self.base_style();
+        if action.separator {
+            let style = PartStyle {
+                background: css_color(self.theme.colors.border, 1.0),
+                ..base
+            };
+            return self
+                .part(
+                    format!("separator-{index}"),
+                    style,
+                    Self::styled(style)
+                        .h(px(1.0))
+                        .my(px(4.0))
+                        .bg(style.background),
+                )
+                .into_any_element();
+        }
+        let focused = self.highlighted == Some(index);
+        let style = self.row_style(index);
+        let mut row = Self::styled(style)
+            .id((self.id.clone(), index))
+            .w_full()
+            .h(px(28.0))
+            .flex()
+            .items_center()
+            .gap(px(6.0))
+            .child(surface(
+                style.background,
+                style.border,
+                0.0,
+                style.radius,
+                focused.then_some((css_color(self.theme.colors.ring, 0.5), style.ring_spread)),
+            ));
+        row = self.row_content(index, row, style);
         if !action.disabled {
             row = row
                 .on_hover(cx.listener(move |this, hovered: &bool, _, cx| {
