@@ -200,7 +200,7 @@ impl Dialog {
             .track_focus(&self.focus)
             .focusable()
             .on_key_down(cx.listener(Self::handle_key))
-            .on_mouse_down_out(cx.listener(|this, _, window, cx| this.close(None, window, cx)));
+            .on_mouse_down(MouseButton::Left, |_, window, _| window.prevent_default());
 
         let mut header = div()
             .id(ElementId::Name(HEADER_SLOT.into()))
