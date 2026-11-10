@@ -1,0 +1,18 @@
+import {createServer} from 'vite';
+import {webkit} from 'playwright';
+import {writeFile} from 'node:fs/promises';
+const root=process.cwd();
+const server=await createServer({root,mode:'parity',logLevel:'error',server:{port:0,host:'127.0.0.1'}});
+let browser;
+try {
+ await server.listen();browser=await webkit.launch({headless:true});const page=await browser.newPage({deviceScaleFactor:2});const output={engine:browser.version(),titles:[],spaces:[]};
+ await page.route('**/probe.html*',async r=>r.fulfill({contentType:'text/html',body:await server.transformIndexHtml('/probe.html','<html><div id="root"></div><script type="module" src="/target/dialog-leftovers-evidence/probe.tsx"></script></html>')}));
+ for(const width of [500,639,640,800])for(const kind of ['confirm','destructive','info','prompt']) {
+ await page.setViewportSize({width,height:600});await page.goto(server.resolvedUrls.local[0]+'probe.html?kind='+kind);await page.waitForSelector('[data-slot="dialog-title"]');await page.evaluate(()=>document.fonts.ready);
+ output.titles.push(await page.$eval('[data-slot="dialog-title"]',(e,{width,kind})=>{const node=[...e.childNodes].find(n=>n.nodeType===Node.TEXT_NODE);const r=document.createRange();r.selectNodeContents(node);return {width,kind,textAlign:getComputedStyle(e).textAlign,bounds:e.getBoundingClientRect().toJSON(),rows:[...r.getClientRects()].map(x=>x.toJSON())}},{width,kind}));
+ }
+ for(const code of [0xa0,0x2007,0x202f])for(const suffix of ['Beta Gamma','BetaGamma']) {
+ const result=await page.evaluate(({code,suffix})=>{const e=document.createElement('p');e.style.cssText='font:14px/16.8px -apple-system;width:100px;white-space:pre-line';e.textContent='Alpha'+String.fromCodePoint(code)+suffix;document.body.append(e);const r=document.createRange();r.selectNodeContents(e);const result={code:'U+'+code.toString(16).toUpperCase(),text:e.textContent,bounds:e.getBoundingClientRect().toJSON(),rows:[...r.getClientRects()].map(x=>x.toJSON())};e.remove();return result},{code,suffix});output.spaces.push(result);
+ }
+ await writeFile('target/dialog-leftovers-evidence/webkit.json',JSON.stringify(output,null,2)+'\n');console.log('Saved production hook title measurements and pre-line Unicode probes.');
+}finally{await browser?.close();await server.close();}

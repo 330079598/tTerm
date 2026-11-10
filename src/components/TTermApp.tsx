@@ -138,6 +138,7 @@ export const TTermApp: React.FC = () => {
     getPreloadedSession,
     saveSession,
     restoreTerminalContent: config.restore_terminal_content,
+    resumeAgentSessions: config.resume_agent_sessions,
     shellConfig: config,
     openLaunchDirs,
   })
@@ -235,6 +236,20 @@ export const TTermApp: React.FC = () => {
   })
 
   const commandLibrary = useCommandLibraryActions(shell, broadcast)
+  const handleTerminalAgentSessionChange = useCallback(
+    (
+      tabId: string,
+      session: { agent: "claudeCode" | "codex"; sessionId: string; cwd?: string } | null
+    ) => {
+      updateTab(tabId, (current) => ({
+        ...current,
+        connection: current.connection
+          ? { ...current.connection, agentResume: session ?? undefined }
+          : current.connection,
+      }))
+    },
+    [updateTab]
+  )
   // A serial tab has a send bar of its own.
   const activeTab = tabs.find((tab) => tab.id === activeTabId)
   const composerTab = isSessionTab(activeTab) && activeTab.type !== "serial" ? activeTab : null
@@ -304,6 +319,7 @@ export const TTermApp: React.FC = () => {
         onTabContextMenu={handleTabContextMenu}
         onTerminalConnectionStateChange={recents.handleTerminalConnectionStateChange}
         onTerminalCommandExecuted={commandLibrary.handleTerminalCommandExecuted}
+        onTerminalAgentSessionChange={handleTerminalAgentSessionChange}
         onTerminalAttention={handleTerminalAttention}
         onTerminalInput={sending.handleTerminalInput}
         onOpenCommandLibrary={commandLibrary.handleOpenCommandLibrary}

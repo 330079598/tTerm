@@ -118,6 +118,7 @@
 - 已有镜像：`ubuntu:26.04`、`ubuntu:24.04`、`fedora:43`、`alpine:3.22`、`centos:6`。
 - sudo 测试主机：`scripts/sudo-test-host/Containerfile`（sudo 1.9；`SUDO_RS=1` 时为 ubuntu:26.04 的 sudo-rs）。用法：`TTERM_SUDO_TEST_HOST=<ip>:<端口> cargo test --lib -- --ignored real_sudo`。
 - WSL 中已装：tmux、vim、neovim、htop、python3、zsh；未装：fish、fcitx5、ibus、Claude Code、Codex。N-01 的 SSH 续接需要在测试主机上安装并登录 Claude Code 与 Codex，`[人工]`。
+- Mac 上也可以起测试主机（2026-11-10）：OrbStack 的 Docker 构建同一个镜像，`docker build -f scripts/sudo-test-host/Containerfile -t tterm-sudo-host scripts/sudo-test-host`，`docker run -d --name <名> -p 127.0.0.1:<端口>:22 tterm-sudo-host`，从本机用 `127.0.0.1:<端口>` 访问。本机没有开 sshd。
 - 从 Windows 调用 WSL 的注意事项：`wsl.exe -d Ubuntu -- bash -c '...'` 会弄坏 `$变量` 与 `$(...)`，把脚本写成文件再用 `wsl.exe -d Ubuntu -- bash /mnt/...` 运行；在 Git Bash 中调用时加 `MSYS_NO_PATHCONV=1`。
 - P0-14、P0-15 中经 `wsl.exe` 运行的场景走的是 Windows ConPTY，不等于 Linux 原生终端环境。
 
@@ -126,4 +127,4 @@
 | 日期       | 变更                                                                                |
 | ---------- | ----------------------------------------------------------------------------------- |
 | 2026-11-07 | 首次建立：Windows 物理机与 SSH 测试主机由本机采集，Mac 取自各卡报告；Linux 桌面缺失 |
-| 2026-11-08 | P0-01：登记 vtebench 最终 WSL 路径、提交与用法；性能采集条件与结果见任务报告 |
+| 2026-11-08 | P0-01：登记 vtebench 最终 WSL 路径、提交与用法；性能采集条件与结果见任务报告        |

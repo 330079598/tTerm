@@ -1,0 +1,27 @@
+    Blocking waiting for file lock on package cache
+    Blocking waiting for file lock on package cache
+    Blocking waiting for file lock on package cache
+   Compiling tterm-ui v0.1.0 (/Users/stone/Code/rust/tTerm-P0-24-dialog-fix/crates/tterm-ui)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 2.96s
+     Running unittests src/lib.rs (target/debug/deps/tterm_ui-f4d3106180442019)
+
+running 2 tests
+
+thread 'components::dialog::tests::narrow_multiline_info_title_is_centered_per_row' (4047840) panicked at crates/tterm-ui/src/components/dialog/tests.rs:745:9:
+assertion failed: rows.contains_key("title-1")
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+thread 'components::dialog::tests::narrow_multiline_confirm_title_is_centered_per_row' (4047839) panicked at crates/tterm-ui/src/components/dialog/tests.rs:745:9:
+assertion failed: rows.contains_key("title-1")
+test components::dialog::tests::narrow_multiline_info_title_is_centered_per_row ... FAILED
+test components::dialog::tests::narrow_multiline_confirm_title_is_centered_per_row ... FAILED
+
+failures:
+
+failures:
+    components::dialog::tests::narrow_multiline_confirm_title_is_centered_per_row
+    components::dialog::tests::narrow_multiline_info_title_is_centered_per_row
+
+test result: FAILED. 0 passed; 2 failed; 0 ignored; 0 measured; 80 filtered out; finished in 0.01s
+
+error: test failed, to rerun pass `-p tterm-ui --lib`

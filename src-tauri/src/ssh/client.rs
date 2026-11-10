@@ -321,6 +321,7 @@ pub async fn run_single_ssh_connection(
                 early_output = Some(output);
                 shell_integration_status = Some(ShellIntegrationStatus::Active {
                     hostname: prepared.hostname,
+                    shell: prepared.shell,
                 });
             }
             Err(reason) => shell_integration_status = unavailable(reason),

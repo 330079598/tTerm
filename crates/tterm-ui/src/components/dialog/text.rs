@@ -11,13 +11,20 @@ pub(super) struct DialogText {
     text: SharedString,
     lines: Rc<RefCell<Vec<WrappedLine>>>,
     observer: Option<TextObserver>,
+    center_multiline: bool,
 }
 impl DialogText {
-    pub fn new(slot: &'static str, text: SharedString, observer: Option<TextObserver>) -> Self {
+    pub fn new(
+        slot: &'static str,
+        text: SharedString,
+        observer: Option<TextObserver>,
+        center_multiline: bool,
+    ) -> Self {
         Self {
             slot,
             text,
             observer,
+            center_multiline,
             lines: Rc::new(RefCell::new(Vec::new())),
         }
     }
@@ -83,6 +90,7 @@ impl Element for DialogText {
                         let mut end = line.wrap_boundaries.first().map_or(remainder.len(), |b| {
                             line.unwrapped_layout.runs[b.run_ix].glyphs[b.glyph_ix].index
                         });
+                        end = preserve_glued_word(remainder, end);
                         // GPUI tests overflow on the trailing space itself. CSS
                         // pre-line hangs that space, so a word ending within the
                         // available width stays on this row. Keep glyph advances
@@ -91,7 +99,7 @@ impl Element for DialogText {
                             && let Some(width) = width
                         {
                             let word_end = remainder[end..]
-                                .find(char::is_whitespace)
+                                .find(is_breakable_space)
                                 .map_or(remainder.len(), |offset| end + offset);
                             if line.unwrapped_layout.x_for_index(word_end) <= width {
                                 end = word_end;
@@ -148,7 +156,12 @@ impl Element for DialogText {
             return;
         };
         let mut y = bounds.origin.y;
-        let mut index = 0;
+        let mut rows = Vec::new();
+        let align = if self.center_multiline && self.lines.borrow().len() > 1 {
+            TextAlign::Center
+        } else {
+            window.text_style().text_align
+        };
         for line in self.lines.borrow().iter() {
             let layout = &line.unwrapped_layout;
             let mut start = px(0.0);
@@ -159,20 +172,20 @@ impl Element for DialogText {
                 .chain(std::iter::once(layout.width))
             {
                 let width = end - start;
-                let offset = match window.text_style().text_align {
+                let offset = match align {
                     TextAlign::Center => (bounds.size.width - width) / 2.0,
                     TextAlign::Right => bounds.size.width - width,
                     TextAlign::Left => px(0.0),
                 };
-                observer(
-                    &format!("{}-{index}", self.slot),
-                    Bounds::new(point(bounds.origin.x + offset, y), size(width, *height)),
-                );
-                index += 1;
+                rows.push(Bounds::new(
+                    point(bounds.origin.x + offset, y),
+                    size(width, *height),
+                ));
                 y += *height;
                 start = end;
             }
         }
+        observer(self.slot, &rows);
     }
     fn paint(
         &mut self,
@@ -185,16 +198,40 @@ impl Element for DialogText {
         cx: &mut App,
     ) {
         let mut origin = bounds.origin;
+        let align = if self.center_multiline && self.lines.borrow().len() > 1 {
+            TextAlign::Center
+        } else {
+            window.text_style().text_align
+        };
         for line in self.lines.borrow().iter() {
-            let _ = line.paint(
-                origin,
-                *height,
-                window.text_style().text_align,
-                Some(bounds),
-                window,
-                cx,
-            );
+            let _ = line.paint(origin, *height, align, Some(bounds), window, cx);
             origin.y += line.size(*height).height;
         }
+    }
+}
+
+fn is_glue(character: char) -> bool {
+    matches!(character, '\u{00a0}' | '\u{2007}' | '\u{202f}')
+}
+
+fn is_breakable_space(character: char) -> bool {
+    character.is_whitespace() && !is_glue(character)
+}
+
+fn preserve_glued_word(text: &str, end: usize) -> usize {
+    if end == text.len() {
+        return end;
+    }
+    let start = text[..end].rfind(is_breakable_space).map_or(0, |index| {
+        index + text[index..].chars().next().map_or(0, char::len_utf8)
+    });
+    let word_end = text[end..]
+        .find(is_breakable_space)
+        .map_or(text.len(), |offset| end + offset);
+    if start < end && text[start..word_end].chars().any(is_glue) {
+        // WebKit overflows an unbreakable word rather than splitting its glue.
+        if start == 0 { word_end } else { start }
+    } else {
+        end
     }
 }

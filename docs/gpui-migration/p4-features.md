@@ -78,7 +78,7 @@
 
 ## P4-05 SFTP 浏览器
 
-- 依赖：G3、P4-04
+- 依赖：G3、P4-04；P4-05d 另需[决策 011](decisions/011-drag-out-proposal.md) 定稿（P0-19：Windows 部分通过，macOS 只有源码判断，Linux 现有方案做不到延迟导出）
 - 规模：L，拆成以下子卡，可以分给不同执行者
 - 参考：`src/components/SftpDrawer/` 全部文件
 - 子卡：
@@ -105,7 +105,7 @@
 
 ## P4-07 远程文件编辑器
 
-- 依赖：P0-20、P4-05a
+- 依赖：P0-20、P4-05a、[决策 010](decisions/010-remote-editor-proposal.md) 定稿（P0-20：默认依赖组合满足不了七语言高亮，要新增依赖）
 - 规模：L
 - 参考：`src/components/RemoteFileEditor.tsx`、`CodeMirrorEditor.tsx`、`RemoteFileEditor.css`；P0-20 的结论
 - 工作：按 P0-20 选定的方案实现：打开、编辑、保存、保存冲突检测、编码与换行格式保留、查找替换、语法高亮、未保存提示、大文件策略。远程文件以标签打开，标签按“连接、身份与路径”区分：同一文件在 sudo 模式下以 root 打开时是另一个标签，读写都以该身份进行（现有逻辑在 `TTermApp/useTabOpeners.ts`）。

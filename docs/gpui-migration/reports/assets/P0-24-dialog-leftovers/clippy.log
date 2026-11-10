@@ -1,0 +1,18 @@
+    Checking hdrhistogram v7.5.4
+    Checking tterm-terminal v0.1.0 (/Users/stone/Code/rust/tTerm-P0-24-dialog-fix/crates/tterm-terminal)
+   Compiling tTerm v0.8.1 (/Users/stone/Code/rust/tTerm-P0-24-dialog-fix/src-tauri)
+    Checking gpui-pre v0.3.11
+    Checking tterm-platform v0.1.0 (/Users/stone/Code/rust/tTerm-P0-24-dialog-fix/crates/tterm-platform)
+    Checking gpui-pre-apple v0.3.11
+    Checking gpui-pre-macos v0.3.11
+    Checking gpui-base v0.9.0
+    Checking gpui-kit-assets v0.9.0
+    Checking gpui-component v0.9.0
+    Checking gpui-pre-platform v0.3.11
+    Checking tterm-core v0.1.0 (/Users/stone/Code/rust/tTerm-P0-24-dialog-fix/crates/tterm-core)
+    Checking gpui-kit v0.9.0
+    Checking tterm-terminal-view v0.1.0 (/Users/stone/Code/rust/tTerm-P0-24-dialog-fix/crates/tterm-terminal-view)
+    Checking tterm-ui v0.1.0 (/Users/stone/Code/rust/tTerm-P0-24-dialog-fix/crates/tterm-ui)
+    Checking tterm-gpui v0.1.0 (/Users/stone/Code/rust/tTerm-P0-24-dialog-fix/crates/tterm-gpui)
+    Checking tterm-parity v0.1.0 (/Users/stone/Code/rust/tTerm-P0-24-dialog-fix/crates/tterm-parity)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 38.49s

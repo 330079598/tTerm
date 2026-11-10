@@ -1,0 +1,169 @@
+{
+  "payloadExample": {
+    "session_id": "01a1b9d2-ba26-7031-b9b1-c15a87c9fca2",
+    "cwd": "C:\\Users\\stone\\AppData\\Local\\Temp\\tterm-n01-codex-20261108-145210\\空格 中文",
+    "hook_event_name": "SessionEnd"
+  },
+  "results": [
+    {
+      "owner": "otty",
+      "event": "UserPromptSubmit",
+      "command": "\"C:\\Program Files\\otty\\bin\\otty.exe\" --socket \"otty.sock\" agent-hook codex processing",
+      "exitCode": 1,
+      "stdout": "",
+      "stderr": "'\\\"C:\\Program Files\\otty\\bin\\otty.exe\\\"' is not recognized as an internal or external command,\r\noperable program or batch file.\r\n"
+    },
+    {
+      "owner": "orca",
+      "event": "UserPromptSubmit",
+      "command": "C:/Users/stone/.orca/agent-hooks/codex-hook.cmd",
+      "exitCode": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "owner": "tTerm",
+      "event": "UserPromptSubmit",
+      "command": "D:\\code\\rust\\tTerm-N-01\\src-tauri\\target\\debug\\tTerm.exe --agent-report codex processing",
+      "exitCode": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "owner": "otty",
+      "event": "PermissionRequest",
+      "command": "\"C:\\Program Files\\otty\\bin\\otty.exe\" --socket \"otty.sock\" agent-hook codex awaiting",
+      "exitCode": 1,
+      "stdout": "",
+      "stderr": "'\\\"C:\\Program Files\\otty\\bin\\otty.exe\\\"' is not recognized as an internal or external command,\r\noperable program or batch file.\r\n"
+    },
+    {
+      "owner": "orca",
+      "event": "PermissionRequest",
+      "command": "C:/Users/stone/.orca/agent-hooks/codex-hook.cmd",
+      "exitCode": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "owner": "tTerm",
+      "event": "PermissionRequest",
+      "command": "D:\\code\\rust\\tTerm-N-01\\src-tauri\\target\\debug\\tTerm.exe --agent-report codex waiting",
+      "exitCode": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "owner": "otty",
+      "event": "Stop",
+      "command": "\"C:\\Program Files\\otty\\bin\\otty.exe\" --socket \"otty.sock\" agent-hook codex idle",
+      "exitCode": 1,
+      "stdout": "",
+      "stderr": "'\\\"C:\\Program Files\\otty\\bin\\otty.exe\\\"' is not recognized as an internal or external command,\r\noperable program or batch file.\r\n"
+    },
+    {
+      "owner": "orca",
+      "event": "Stop",
+      "command": "C:/Users/stone/.orca/agent-hooks/codex-hook.cmd",
+      "exitCode": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "owner": "tTerm",
+      "event": "Stop",
+      "command": "D:\\code\\rust\\tTerm-N-01\\src-tauri\\target\\debug\\tTerm.exe --agent-report codex done",
+      "exitCode": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "owner": "otty",
+      "event": "SessionStart",
+      "command": "\"C:\\Program Files\\otty\\bin\\otty.exe\" --socket \"otty.sock\" agent-hook codex idle",
+      "exitCode": 1,
+      "stdout": "",
+      "stderr": "'\\\"C:\\Program Files\\otty\\bin\\otty.exe\\\"' is not recognized as an internal or external command,\r\noperable program or batch file.\r\n"
+    },
+    {
+      "owner": "orca",
+      "event": "SessionStart",
+      "command": "C:/Users/stone/.orca/agent-hooks/codex-hook.cmd",
+      "exitCode": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "owner": "otty",
+      "event": "PreToolUse",
+      "command": "\"C:\\Program Files\\otty\\bin\\otty.exe\" --socket \"otty.sock\" agent-hook codex processing",
+      "exitCode": 1,
+      "stdout": "",
+      "stderr": "'\\\"C:\\Program Files\\otty\\bin\\otty.exe\\\"' is not recognized as an internal or external command,\r\noperable program or batch file.\r\n"
+    },
+    {
+      "owner": "orca",
+      "event": "PreToolUse",
+      "command": "C:/Users/stone/.orca/agent-hooks/codex-hook.cmd",
+      "exitCode": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "owner": "orca",
+      "event": "PostToolUse",
+      "command": "C:/Users/stone/.orca/agent-hooks/codex-hook.cmd",
+      "exitCode": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "owner": "tTerm",
+      "event": "PostToolUse",
+      "command": "D:\\code\\rust\\tTerm-N-01\\src-tauri\\target\\debug\\tTerm.exe --agent-report codex processing",
+      "exitCode": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "owner": "orca",
+      "event": "Interrupt",
+      "command": "C:/Users/stone/.orca/agent-hooks/codex-hook.cmd",
+      "exitCode": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "owner": "tTerm",
+      "event": "Interrupt",
+      "command": "D:\\code\\rust\\tTerm-N-01\\src-tauri\\target\\debug\\tTerm.exe --agent-report codex idle",
+      "exitCode": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "owner": "orca",
+      "event": "SubagentStart",
+      "command": "C:/Users/stone/.orca/agent-hooks/codex-hook.cmd",
+      "exitCode": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "owner": "orca",
+      "event": "SubagentStop",
+      "command": "C:/Users/stone/.orca/agent-hooks/codex-hook.cmd",
+      "exitCode": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "owner": "tTerm",
+      "event": "SessionEnd",
+      "command": "D:\\code\\rust\\tTerm-N-01\\src-tauri\\target\\debug\\tTerm.exe --agent-report codex ended",
+      "exitCode": 0,
+      "stdout": "",
+      "stderr": ""
+    }
+  ]
+}

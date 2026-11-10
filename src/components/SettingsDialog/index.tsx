@@ -297,6 +297,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
               handleRestoreTerminalContentChange={
                 settingsHandlers.handleRestoreTerminalContentChange
               }
+              handleResumeAgentSessionsChange={settingsHandlers.handleResumeAgentSessionsChange}
               handleEnableDevtoolsChange={settingsHandlers.handleEnableDevtoolsChange}
               handleZmodemAutoDetectEnabledChange={
                 settingsHandlers.handleZmodemAutoDetectEnabledChange
@@ -308,6 +309,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
               languages={languages}
               restoreAllSessionConnections={config.startup_session_restore_mode === "all"}
               restoreTerminalContent={config.restore_terminal_content}
+              resumeAgentSessions={config.resume_agent_sessions}
               zmodemAutoDetectEnabled={config.zmodem_auto_detect_enabled}
               zmodemDownloadDirectory={config.zmodem_download_directory}
             />

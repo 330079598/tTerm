@@ -23,6 +23,7 @@ import { ConnectionHeader } from "@/components/TerminalTab/ConnectionHeader"
 import { HostKeyPromptDialog } from "@/components/TerminalTab/HostKeyPromptDialog"
 import { SshAuthPromptDialog } from "@/components/TerminalTab/SshAuthPromptDialog"
 import { JumpHostInfoDialog } from "@/components/TerminalTab/JumpHostInfoDialog"
+import { AgentResumeBar } from "@/components/TerminalTab/AgentResumeBar"
 import { LocalShellFailedBar } from "@/components/TerminalTab/LocalShellFailedBar"
 import { RemoteAgentIntegrationDialog } from "@/components/RemoteAgentIntegrationDialog"
 import { PasswordPrompt } from "@/components/TerminalTab/PasswordPrompt"
@@ -57,6 +58,7 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
   onSaveCommand,
   onPidChange,
   onCwdChange,
+  onAgentSessionChange,
   onDistroChange,
   onReconnectRequest,
   onRestartWithShell,
@@ -81,6 +83,7 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
     connection,
     onPidChange,
     onCwdChange,
+    onAgentSessionChange,
     onDistroChange,
     onInput,
     onCommandExecuted,
@@ -161,7 +164,7 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
     sessionNonce,
   })
 
-  useTerminalLifecycle({
+  const { agentResumeNotice } = useTerminalLifecycle({
     ...refs,
     fitTerminalOnly,
     terminalThemeRef,
@@ -421,6 +424,8 @@ export const TerminalTab: React.FC<TerminalTabProps> = ({
             state={savedPasswordPrompt}
           />
         )}
+
+        {agentResumeNotice && <AgentResumeBar notice={agentResumeNotice} />}
 
         {startError && onRestartWithShell && (
           <LocalShellFailedBar

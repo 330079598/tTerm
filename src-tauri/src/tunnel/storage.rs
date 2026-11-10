@@ -1,7 +1,8 @@
-use super::types::{TunnelRule, TunnelTraffic};
+use super::types::TunnelRule;
 use crate::db::sql_error;
 use rusqlite::{params, Connection, OptionalExtension, Row};
 use std::collections::HashMap;
+use tterm_core::events::tunnel::TunnelTraffic;
 
 /// Tunnels in display order.
 pub(crate) fn load_tunnels() -> Result<Vec<TunnelRule>, String> {

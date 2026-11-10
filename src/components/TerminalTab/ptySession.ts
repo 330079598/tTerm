@@ -1,3 +1,5 @@
+import type { AgentResumeController } from "@/components/TerminalTab/agentResume"
+import { detectLocalShellName } from "@/lib/localTabTitle"
 import { Channel, invoke } from "@tauri-apps/api/core"
 import { listen } from "@tauri-apps/api/event"
 
@@ -22,7 +24,7 @@ import {
 
 type PtySessionDeps = ConnectionStateUpdater &
   Pick<SavedPasswordPrompts, "checkPasswordPrompt" | "stopLoginScript" | "startLoginScript"> &
-  Pick<CommandTracking, "agentTracker" | "commandTimer">
+  Pick<CommandTracking, "agentTracker" | "commandTimer"> & { agentResume: AgentResumeController }
 
 /**
  * Starts the session's PTY once the terminal has settled on its size, and
@@ -51,6 +53,7 @@ export function startPtySession(ctx: TerminalSessionContext, deps: PtySessionDep
     onReconnectRequestRef,
     waitingForReconnectRef,
     setStartError,
+    commandMarksEnabledRef,
   } = ctx
   const {
     applyConnectionState,
@@ -60,6 +63,7 @@ export function startPtySession(ctx: TerminalSessionContext, deps: PtySessionDep
     startLoginScript,
     agentTracker,
     commandTimer,
+    agentResume,
   } = deps
   let createdPtySize: { rows: number; cols: number } | null = null
   const waitForStableFit = async () => {
@@ -162,6 +166,7 @@ export function startPtySession(ctx: TerminalSessionContext, deps: PtySessionDep
     listen(`pty-exit-${tabId}`, (event) => {
       outputHold.flush()
       stopLoginScript()
+      agentResume.disconnect()
       agentTracker.reset()
       commandTimer.prompt()
       onSessionUnavailableRef.current?.(tabId, sessionNonce, true)
@@ -194,9 +199,13 @@ export function startPtySession(ctx: TerminalSessionContext, deps: PtySessionDep
       setConnectionProgress(event.payload)
       onConnectionProgressRef.current?.(event.payload)
       if (event.payload.phase === "ready") {
+        const integration = event.payload.shellIntegration
+        agentResume.ready(
+          integration?.status === "active" ? integration.shell : undefined,
+          integration?.status === "active" && commandMarksEnabledRef.current
+        )
         // Tells the connected host's directory reports from those of a host
         // reached from it with ssh.
-        const integration = event.payload.shellIntegration
         setTabRemoteHostname(
           tabId,
           integration?.status === "active" ? (integration.hostname ?? null) : null
@@ -212,6 +221,7 @@ export function startPtySession(ctx: TerminalSessionContext, deps: PtySessionDep
         // Each attempt opens a new shell, so the script runs again.
         startLoginScript()
       } else if (event.payload.phase === "retrying") {
+        agentResume.disconnect()
         stopLoginScript()
         sawRetryingPhase = true
         applyConnectionState("reconnecting")
@@ -306,10 +316,17 @@ export function startPtySession(ctx: TerminalSessionContext, deps: PtySessionDep
       }
       // A local shell is ready once it runs; an SSH shell says so itself.
       if (connectionRef.current?.type === "terminal") startLoginScript()
+      if (connectionRef.current?.type !== "ssh") {
+        void detectLocalShellName(connectionRef.current ?? {}).then((shell) => {
+          if (!session.disposed)
+            agentResume.ready(shell ?? undefined, commandMarksEnabledRef.current)
+        })
+      }
       onPidChangeRef.current?.(pid)
     })
     .catch((error) => {
       if (session.disposed) return
+      agentResume.disconnect()
       outputHold.flush()
       if (isConnection()) {
         applyConnectionState("error")

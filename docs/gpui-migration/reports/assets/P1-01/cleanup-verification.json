@@ -1,0 +1,32 @@
+{
+  "remaining_directories": [],
+  "remaining_processes": [],
+  "keyring": [
+    {
+      "identifier": "com.stone.tTerm.p1-01-before",
+      "account": "key::__secret_data_key__",
+      "status": 44,
+      "absent": true
+    },
+    {
+      "identifier": "com.stone.tTerm.p1-01-before",
+      "account": "__probe__",
+      "status": 44,
+      "absent": true
+    },
+    {
+      "identifier": "com.stone.tTerm.p1-01-after",
+      "account": "key::__secret_data_key__",
+      "status": 44,
+      "absent": true
+    },
+    {
+      "identifier": "com.stone.tTerm.p1-01-after",
+      "account": "__probe__",
+      "status": 44,
+      "absent": true
+    }
+  ],
+  "system": "ProductName:\t\tmacOS\nProductVersion:\t\t27.2\nBuildVersion:\t\t26B123",
+  "process_scope": "Only this worktree temporary P1-01 app bundles and smoke.py; pre-existing installed applications are excluded."
+}

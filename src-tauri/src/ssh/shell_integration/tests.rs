@@ -90,13 +90,18 @@ fn starts_without_marks_when_they_are_off() {
 fn serializes_the_status_for_the_connection_header() {
     assert_eq!(
         serde_json::to_value(ShellIntegrationStatus::Active {
-            hostname: Some("web01".into())
+            hostname: Some("web01".into()),
+            shell: Some("zsh".into())
         })
         .unwrap(),
-        serde_json::json!({ "status": "active", "hostname": "web01" })
+        serde_json::json!({ "status": "active", "hostname": "web01", "shell": "zsh" })
     );
     assert_eq!(
-        serde_json::to_value(ShellIntegrationStatus::Active { hostname: None }).unwrap(),
+        serde_json::to_value(ShellIntegrationStatus::Active {
+            hostname: None,
+            shell: None
+        })
+        .unwrap(),
         serde_json::json!({ "status": "active" })
     );
     assert_eq!(
@@ -115,4 +120,21 @@ fn serializes_the_status_for_the_connection_header() {
         serde_json::to_value(UnavailableReason::NoReply).unwrap(),
         serde_json::json!({ "code": "noReply" })
     );
+}
+
+#[test]
+fn detects_only_the_shell_reported_by_this_connection() {
+    for shell in ["bash", "zsh", "fish"] {
+        let output = format!("banner\r\nTTERM-SHELL-INTEGRATION detected-shell {shell}\r\n");
+        assert_eq!(parse_detected_shell(&output).as_deref(), Some(shell));
+    }
+    for output in [
+        "",
+        "TTERM-SHELL-INTEGRATION host bash\n",
+        "TTERM-SHELL-INTEGRATION detected-shell tcsh\n",
+        "TTERM-SHELL-INTEGRATION detected-shell bash; echo injected\n",
+    ] {
+        assert_eq!(parse_detected_shell(output), None);
+    }
+    assert!(install_script().contains("detected-shell ${SHELL##*/}"));
 }

@@ -1,0 +1,12 @@
+[
+  {
+    "ProcessId": 51876,
+    "ParentProcessId": 19380,
+    "CommandLine": "\"C:\\Users\\stone\\.local\\bin\\claude.exe\" --resume e440c051-5e2e-4c63-a60b-7149960878cb"
+  },
+  {
+    "ProcessId": 45012,
+    "ParentProcessId": 4232,
+    "CommandLine": "\"C:\\Users\\stone\\.local\\bin\\claude.exe\" --resume e78b12e4-b719-4db4-ab28-3f97799816c0"
+  }
+]

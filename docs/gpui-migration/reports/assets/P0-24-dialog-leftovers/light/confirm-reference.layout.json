@@ -1,0 +1,573 @@
+{
+  "version": 5,
+  "screen": "ui.dialog.confirm",
+  "viewport": {
+    "width": 800,
+    "height": 600,
+    "deviceScaleFactor": 2.0
+  },
+  "elements": [
+    {
+      "id": "ui.dialog.confirm.overlay",
+      "sizing": "fixed",
+      "bounds": {
+        "x": 0.0,
+        "y": 0.0,
+        "width": 800.0,
+        "height": 600.0
+      },
+      "style": {
+        "backgroundColor": [
+          255,
+          255,
+          255,
+          255
+        ],
+        "borderColor": [
+          226,
+          232,
+          240,
+          255
+        ],
+        "borderWidth": 0.0,
+        "borderRadius": 0.0,
+        "ringSpread": 0.0,
+        "ringSpreads": [],
+        "fontFamily": "system-ui",
+        "fontSize": 13.0,
+        "fontWeight": 400,
+        "lineHeight": 18.2,
+        "color": [
+          2,
+          8,
+          23,
+          255
+        ],
+        "opacity": 1.0,
+        "padding": {
+          "top": 0.0,
+          "right": 0.0,
+          "bottom": 0.0,
+          "left": 0.0
+        },
+        "declaredBackgroundColor": [
+          255,
+          255,
+          255,
+          204
+        ],
+        "declaredBorderColor": [
+          226,
+          232,
+          240,
+          255
+        ]
+      }
+    },
+    {
+      "id": "ui.dialog.confirm.content",
+      "sizing": "fixed",
+      "bounds": {
+        "x": 176.0,
+        "y": 228.0,
+        "width": 448.0,
+        "height": 144.0
+      },
+      "style": {
+        "backgroundColor": [
+          255,
+          255,
+          255,
+          255
+        ],
+        "borderColor": [
+          226,
+          232,
+          240,
+          255
+        ],
+        "borderWidth": 1.0,
+        "borderRadius": 8.0,
+        "ringSpread": 0.0,
+        "ringSpreads": [],
+        "fontFamily": "system-ui",
+        "fontSize": 13.0,
+        "fontWeight": 400,
+        "lineHeight": 18.2,
+        "color": [
+          2,
+          8,
+          23,
+          255
+        ],
+        "opacity": 1.0,
+        "padding": {
+          "top": 24.0,
+          "right": 24.0,
+          "bottom": 24.0,
+          "left": 24.0
+        },
+        "declaredBackgroundColor": [
+          255,
+          255,
+          255,
+          255
+        ],
+        "declaredBorderColor": [
+          226,
+          232,
+          240,
+          255
+        ]
+      }
+    },
+    {
+      "id": "ui.dialog.confirm.content.dialog-header",
+      "sizing": "fixed",
+      "bounds": {
+        "x": 201.0,
+        "y": 253.0,
+        "width": 398.0,
+        "height": 42.0
+      },
+      "style": {
+        "backgroundColor": [
+          255,
+          255,
+          255,
+          255
+        ],
+        "borderColor": [
+          226,
+          232,
+          240,
+          255
+        ],
+        "borderWidth": 0.0,
+        "borderRadius": 0.0,
+        "ringSpread": 0.0,
+        "ringSpreads": [],
+        "fontFamily": "system-ui",
+        "fontSize": 13.0,
+        "fontWeight": 400,
+        "lineHeight": 18.2,
+        "color": [
+          2,
+          8,
+          23,
+          255
+        ],
+        "opacity": 1.0,
+        "padding": {
+          "top": 0.0,
+          "right": 0.0,
+          "bottom": 0.0,
+          "left": 0.0
+        },
+        "declaredBackgroundColor": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "declaredBorderColor": [
+          226,
+          232,
+          240,
+          255
+        ]
+      }
+    },
+    {
+      "id": "ui.dialog.confirm.content.dialog-title",
+      "sizing": "fixed",
+      "bounds": {
+        "x": 201.0,
+        "y": 253.0,
+        "width": 398.0,
+        "height": 18.0
+      },
+      "style": {
+        "backgroundColor": [
+          255,
+          255,
+          255,
+          255
+        ],
+        "borderColor": [
+          226,
+          232,
+          240,
+          255
+        ],
+        "borderWidth": 0.0,
+        "borderRadius": 0.0,
+        "ringSpread": 0.0,
+        "ringSpreads": [],
+        "fontFamily": "system-ui",
+        "fontSize": 18.0,
+        "fontWeight": 600,
+        "lineHeight": 18.0,
+        "color": [
+          2,
+          8,
+          23,
+          255
+        ],
+        "opacity": 1.0,
+        "padding": {
+          "top": 0.0,
+          "right": 0.0,
+          "bottom": 0.0,
+          "left": 0.0
+        },
+        "declaredBackgroundColor": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "declaredBorderColor": [
+          226,
+          232,
+          240,
+          255
+        ]
+      }
+    },
+    {
+      "id": "ui.dialog.confirm.content.dialog-description",
+      "sizing": "fixed",
+      "bounds": {
+        "x": 201.0,
+        "y": 279.0,
+        "width": 398.0,
+        "height": 16.0
+      },
+      "style": {
+        "backgroundColor": [
+          255,
+          255,
+          255,
+          255
+        ],
+        "borderColor": [
+          226,
+          232,
+          240,
+          255
+        ],
+        "borderWidth": 0.0,
+        "borderRadius": 0.0,
+        "ringSpread": 0.0,
+        "ringSpreads": [],
+        "fontFamily": "system-ui",
+        "fontSize": 14.0,
+        "fontWeight": 400,
+        "lineHeight": 16.8,
+        "color": [
+          100,
+          116,
+          139,
+          255
+        ],
+        "opacity": 1.0,
+        "padding": {
+          "top": 0.0,
+          "right": 0.0,
+          "bottom": 0.0,
+          "left": 0.0
+        },
+        "declaredBackgroundColor": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "declaredBorderColor": [
+          226,
+          232,
+          240,
+          255
+        ]
+      }
+    },
+    {
+      "id": "ui.dialog.confirm.content.dialog-footer",
+      "sizing": "fixed",
+      "bounds": {
+        "x": 201.0,
+        "y": 311.0,
+        "width": 398.0,
+        "height": 36.0
+      },
+      "style": {
+        "backgroundColor": [
+          255,
+          255,
+          255,
+          255
+        ],
+        "borderColor": [
+          226,
+          232,
+          240,
+          255
+        ],
+        "borderWidth": 0.0,
+        "borderRadius": 0.0,
+        "ringSpread": 0.0,
+        "ringSpreads": [],
+        "fontFamily": "system-ui",
+        "fontSize": 13.0,
+        "fontWeight": 400,
+        "lineHeight": 18.2,
+        "color": [
+          2,
+          8,
+          23,
+          255
+        ],
+        "opacity": 1.0,
+        "padding": {
+          "top": 0.0,
+          "right": 0.0,
+          "bottom": 0.0,
+          "left": 0.0
+        },
+        "declaredBackgroundColor": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "declaredBorderColor": [
+          226,
+          232,
+          240,
+          255
+        ]
+      }
+    },
+    {
+      "id": "ui.dialog.confirm.content.dialog-close",
+      "sizing": "fixed",
+      "bounds": {
+        "x": 591.0,
+        "y": 245.0,
+        "width": 16.0,
+        "height": 16.0
+      },
+      "style": {
+        "backgroundColor": [
+          255,
+          255,
+          255,
+          255
+        ],
+        "borderColor": [
+          226,
+          232,
+          240,
+          255
+        ],
+        "borderWidth": 0.0,
+        "borderRadius": 2.0,
+        "ringSpread": 0.0,
+        "ringSpreads": [],
+        "fontFamily": "system-ui",
+        "fontSize": 13.0,
+        "fontWeight": 400,
+        "lineHeight": 18.2,
+        "color": [
+          2,
+          8,
+          23,
+          255
+        ],
+        "opacity": 0.7,
+        "padding": {
+          "top": 0.0,
+          "right": 0.0,
+          "bottom": 0.0,
+          "left": 0.0
+        },
+        "declaredBackgroundColor": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "declaredBorderColor": [
+          226,
+          232,
+          240,
+          255
+        ]
+      }
+    },
+    {
+      "id": "ui.dialog.confirm.cancel",
+      "sizing": "fixed",
+      "bounds": {
+        "x": 426.67,
+        "y": 311.0,
+        "width": 79.36,
+        "height": 36.0
+      },
+      "style": {
+        "backgroundColor": [
+          255,
+          255,
+          255,
+          255
+        ],
+        "borderColor": [
+          226,
+          232,
+          240,
+          255
+        ],
+        "borderWidth": 1.0,
+        "borderRadius": 6.0,
+        "ringSpread": 0.0,
+        "ringSpreads": [],
+        "fontFamily": "system-ui",
+        "fontSize": 14.0,
+        "fontWeight": 500,
+        "lineHeight": 16.8,
+        "color": [
+          2,
+          8,
+          23,
+          255
+        ],
+        "opacity": 1.0,
+        "padding": {
+          "top": 8.0,
+          "right": 16.0,
+          "bottom": 8.0,
+          "left": 16.0
+        },
+        "declaredBackgroundColor": [
+          255,
+          255,
+          255,
+          255
+        ],
+        "declaredBorderColor": [
+          226,
+          232,
+          240,
+          255
+        ]
+      }
+    },
+    {
+      "id": "ui.dialog.confirm.confirm",
+      "sizing": "fixed",
+      "bounds": {
+        "x": 514.03,
+        "y": 311.0,
+        "width": 84.97,
+        "height": 36.0
+      },
+      "style": {
+        "backgroundColor": [
+          0,
+          112,
+          204,
+          255
+        ],
+        "borderColor": [
+          226,
+          232,
+          240,
+          255
+        ],
+        "borderWidth": 0.0,
+        "borderRadius": 6.0,
+        "ringSpread": 0.0,
+        "ringSpreads": [],
+        "fontFamily": "system-ui",
+        "fontSize": 14.0,
+        "fontWeight": 500,
+        "lineHeight": 16.8,
+        "color": [
+          248,
+          250,
+          252,
+          255
+        ],
+        "opacity": 1.0,
+        "padding": {
+          "top": 8.0,
+          "right": 16.0,
+          "bottom": 8.0,
+          "left": 16.0
+        },
+        "declaredBackgroundColor": [
+          0,
+          112,
+          204,
+          255
+        ],
+        "declaredBorderColor": [
+          226,
+          232,
+          240,
+          255
+        ]
+      }
+    }
+  ],
+  "textRegions": [
+    {
+      "x": 201.0,
+      "y": 251.0,
+      "width": 122.01,
+      "height": 21.0
+    },
+    {
+      "x": 598.0,
+      "y": 261.0,
+      "width": 34.13,
+      "height": 16.0
+    },
+    {
+      "x": 201.0,
+      "y": 278.0,
+      "width": 195.35,
+      "height": 17.0
+    },
+    {
+      "x": 443.68,
+      "y": 320.0,
+      "width": 45.35,
+      "height": 17.0
+    },
+    {
+      "x": 530.03,
+      "y": 320.0,
+      "width": 52.96,
+      "height": 17.0
+    }
+  ],
+  "icons": [
+    {
+      "bounds": {
+        "x": 591.0,
+        "y": 245.0,
+        "width": 16.0,
+        "height": 16.0
+      },
+      "color": [
+        2,
+        8,
+        23,
+        255
+      ],
+      "opacity": 0.7
+    }
+  ]
+}

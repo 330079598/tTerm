@@ -1,0 +1,699 @@
+{
+  "version": 5,
+  "screen": "ui.dialog.prompt",
+  "viewport": {
+    "width": 800,
+    "height": 600,
+    "deviceScaleFactor": 2.0
+  },
+  "elements": [
+    {
+      "id": "ui.dialog.prompt.overlay",
+      "sizing": "fixed",
+      "bounds": {
+        "x": 0.0,
+        "y": 0.0,
+        "width": 800.0,
+        "height": 600.0
+      },
+      "style": {
+        "backgroundColor": [
+          26,
+          29,
+          35,
+          255
+        ],
+        "borderColor": [
+          61,
+          61,
+          61,
+          255
+        ],
+        "borderWidth": 0.0,
+        "borderRadius": 0.0,
+        "ringSpread": 0.0,
+        "ringSpreads": [],
+        "fontFamily": "system-ui",
+        "fontSize": 13.0,
+        "fontWeight": 400,
+        "lineHeight": 18.2,
+        "color": [
+          204,
+          204,
+          204,
+          255
+        ],
+        "opacity": 1.0,
+        "padding": {
+          "top": 0.0,
+          "right": 0.0,
+          "bottom": 0.0,
+          "left": 0.0
+        },
+        "declaredBackgroundColor": [
+          26,
+          29,
+          35,
+          204
+        ],
+        "declaredBorderColor": [
+          61,
+          61,
+          61,
+          255
+        ]
+      }
+    },
+    {
+      "id": "ui.dialog.prompt.content",
+      "sizing": "fixed",
+      "bounds": {
+        "x": 176.0,
+        "y": 191.0,
+        "width": 448.0,
+        "height": 218.0
+      },
+      "style": {
+        "backgroundColor": [
+          27,
+          29,
+          35,
+          255
+        ],
+        "borderColor": [
+          61,
+          61,
+          61,
+          255
+        ],
+        "borderWidth": 1.0,
+        "borderRadius": 8.0,
+        "ringSpread": 0.0,
+        "ringSpreads": [],
+        "fontFamily": "system-ui",
+        "fontSize": 13.0,
+        "fontWeight": 400,
+        "lineHeight": 18.2,
+        "color": [
+          204,
+          204,
+          204,
+          255
+        ],
+        "opacity": 1.0,
+        "padding": {
+          "top": 24.0,
+          "right": 24.0,
+          "bottom": 24.0,
+          "left": 24.0
+        },
+        "declaredBackgroundColor": [
+          27,
+          29,
+          35,
+          255
+        ],
+        "declaredBorderColor": [
+          61,
+          61,
+          61,
+          255
+        ]
+      }
+    },
+    {
+      "id": "ui.dialog.prompt.content.dialog-header",
+      "sizing": "fixed",
+      "bounds": {
+        "x": 201.0,
+        "y": 216.0,
+        "width": 398.0,
+        "height": 42.0
+      },
+      "style": {
+        "backgroundColor": [
+          27,
+          29,
+          35,
+          255
+        ],
+        "borderColor": [
+          61,
+          61,
+          61,
+          255
+        ],
+        "borderWidth": 0.0,
+        "borderRadius": 0.0,
+        "ringSpread": 0.0,
+        "ringSpreads": [],
+        "fontFamily": "system-ui",
+        "fontSize": 13.0,
+        "fontWeight": 400,
+        "lineHeight": 18.2,
+        "color": [
+          204,
+          204,
+          204,
+          255
+        ],
+        "opacity": 1.0,
+        "padding": {
+          "top": 0.0,
+          "right": 0.0,
+          "bottom": 0.0,
+          "left": 0.0
+        },
+        "declaredBackgroundColor": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "declaredBorderColor": [
+          61,
+          61,
+          61,
+          255
+        ]
+      }
+    },
+    {
+      "id": "ui.dialog.prompt.content.dialog-title",
+      "sizing": "fixed",
+      "bounds": {
+        "x": 201.0,
+        "y": 216.0,
+        "width": 398.0,
+        "height": 18.0
+      },
+      "style": {
+        "backgroundColor": [
+          27,
+          29,
+          35,
+          255
+        ],
+        "borderColor": [
+          61,
+          61,
+          61,
+          255
+        ],
+        "borderWidth": 0.0,
+        "borderRadius": 0.0,
+        "ringSpread": 0.0,
+        "ringSpreads": [],
+        "fontFamily": "system-ui",
+        "fontSize": 18.0,
+        "fontWeight": 600,
+        "lineHeight": 18.0,
+        "color": [
+          204,
+          204,
+          204,
+          255
+        ],
+        "opacity": 1.0,
+        "padding": {
+          "top": 0.0,
+          "right": 0.0,
+          "bottom": 0.0,
+          "left": 0.0
+        },
+        "declaredBackgroundColor": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "declaredBorderColor": [
+          61,
+          61,
+          61,
+          255
+        ]
+      }
+    },
+    {
+      "id": "ui.dialog.prompt.content.dialog-description",
+      "sizing": "fixed",
+      "bounds": {
+        "x": 201.0,
+        "y": 242.0,
+        "width": 398.0,
+        "height": 16.0
+      },
+      "style": {
+        "backgroundColor": [
+          27,
+          29,
+          35,
+          255
+        ],
+        "borderColor": [
+          61,
+          61,
+          61,
+          255
+        ],
+        "borderWidth": 0.0,
+        "borderRadius": 0.0,
+        "ringSpread": 0.0,
+        "ringSpreads": [],
+        "fontFamily": "system-ui",
+        "fontSize": 14.0,
+        "fontWeight": 400,
+        "lineHeight": 16.8,
+        "color": [
+          150,
+          150,
+          150,
+          255
+        ],
+        "opacity": 1.0,
+        "padding": {
+          "top": 0.0,
+          "right": 0.0,
+          "bottom": 0.0,
+          "left": 0.0
+        },
+        "declaredBackgroundColor": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "declaredBorderColor": [
+          61,
+          61,
+          61,
+          255
+        ]
+      }
+    },
+    {
+      "id": "ui.dialog.prompt.content.label",
+      "sizing": "fixed",
+      "bounds": {
+        "x": 201.0,
+        "y": 274.0,
+        "width": 398.0,
+        "height": 14.0
+      },
+      "style": {
+        "backgroundColor": [
+          27,
+          29,
+          35,
+          255
+        ],
+        "borderColor": [
+          61,
+          61,
+          61,
+          255
+        ],
+        "borderWidth": 0.0,
+        "borderRadius": 0.0,
+        "ringSpread": 0.0,
+        "ringSpreads": [],
+        "fontFamily": "system-ui",
+        "fontSize": 14.0,
+        "fontWeight": 500,
+        "lineHeight": 14.0,
+        "color": [
+          204,
+          204,
+          204,
+          255
+        ],
+        "opacity": 1.0,
+        "padding": {
+          "top": 0.0,
+          "right": 0.0,
+          "bottom": 0.0,
+          "left": 0.0
+        },
+        "declaredBackgroundColor": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "declaredBorderColor": [
+          61,
+          61,
+          61,
+          255
+        ]
+      }
+    },
+    {
+      "id": "ui.dialog.prompt.content.input",
+      "sizing": "fixed",
+      "bounds": {
+        "x": 201.0,
+        "y": 296.0,
+        "width": 398.0,
+        "height": 36.0
+      },
+      "style": {
+        "backgroundColor": [
+          37,
+          38,
+          42,
+          255
+        ],
+        "borderColor": [
+          0,
+          112,
+          204,
+          255
+        ],
+        "borderWidth": 1.0,
+        "borderRadius": 6.0,
+        "ringSpread": 0.0,
+        "ringSpreads": [],
+        "fontFamily": "system-ui",
+        "fontSize": 14.0,
+        "fontWeight": 400,
+        "lineHeight": 16.8,
+        "color": [
+          204,
+          204,
+          204,
+          255
+        ],
+        "opacity": 1.0,
+        "padding": {
+          "top": 4.0,
+          "right": 12.0,
+          "bottom": 4.0,
+          "left": 12.0
+        },
+        "declaredBackgroundColor": [
+          60,
+          60,
+          60,
+          77
+        ],
+        "declaredBorderColor": [
+          0,
+          112,
+          204,
+          255
+        ]
+      }
+    },
+    {
+      "id": "ui.dialog.prompt.content.dialog-footer",
+      "sizing": "fixed",
+      "bounds": {
+        "x": 201.0,
+        "y": 348.0,
+        "width": 398.0,
+        "height": 36.0
+      },
+      "style": {
+        "backgroundColor": [
+          27,
+          29,
+          35,
+          255
+        ],
+        "borderColor": [
+          61,
+          61,
+          61,
+          255
+        ],
+        "borderWidth": 0.0,
+        "borderRadius": 0.0,
+        "ringSpread": 0.0,
+        "ringSpreads": [],
+        "fontFamily": "system-ui",
+        "fontSize": 13.0,
+        "fontWeight": 400,
+        "lineHeight": 18.2,
+        "color": [
+          204,
+          204,
+          204,
+          255
+        ],
+        "opacity": 1.0,
+        "padding": {
+          "top": 0.0,
+          "right": 0.0,
+          "bottom": 0.0,
+          "left": 0.0
+        },
+        "declaredBackgroundColor": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "declaredBorderColor": [
+          61,
+          61,
+          61,
+          255
+        ]
+      }
+    },
+    {
+      "id": "ui.dialog.prompt.content.dialog-close",
+      "sizing": "fixed",
+      "bounds": {
+        "x": 591.0,
+        "y": 208.0,
+        "width": 16.0,
+        "height": 16.0
+      },
+      "style": {
+        "backgroundColor": [
+          27,
+          29,
+          35,
+          255
+        ],
+        "borderColor": [
+          61,
+          61,
+          61,
+          255
+        ],
+        "borderWidth": 0.0,
+        "borderRadius": 2.0,
+        "ringSpread": 0.0,
+        "ringSpreads": [],
+        "fontFamily": "system-ui",
+        "fontSize": 13.0,
+        "fontWeight": 400,
+        "lineHeight": 18.2,
+        "color": [
+          204,
+          204,
+          204,
+          255
+        ],
+        "opacity": 0.7,
+        "padding": {
+          "top": 0.0,
+          "right": 0.0,
+          "bottom": 0.0,
+          "left": 0.0
+        },
+        "declaredBackgroundColor": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "declaredBorderColor": [
+          61,
+          61,
+          61,
+          255
+        ]
+      }
+    },
+    {
+      "id": "ui.dialog.prompt.cancel",
+      "sizing": "fixed",
+      "bounds": {
+        "x": 459.61,
+        "y": 348.0,
+        "width": 79.36,
+        "height": 36.0
+      },
+      "style": {
+        "backgroundColor": [
+          37,
+          38,
+          42,
+          255
+        ],
+        "borderColor": [
+          61,
+          61,
+          61,
+          255
+        ],
+        "borderWidth": 1.0,
+        "borderRadius": 6.0,
+        "ringSpread": 0.0,
+        "ringSpreads": [],
+        "fontFamily": "system-ui",
+        "fontSize": 14.0,
+        "fontWeight": 500,
+        "lineHeight": 16.8,
+        "color": [
+          204,
+          204,
+          204,
+          255
+        ],
+        "opacity": 1.0,
+        "padding": {
+          "top": 8.0,
+          "right": 16.0,
+          "bottom": 8.0,
+          "left": 16.0
+        },
+        "declaredBackgroundColor": [
+          60,
+          60,
+          60,
+          77
+        ],
+        "declaredBorderColor": [
+          61,
+          61,
+          61,
+          255
+        ]
+      }
+    },
+    {
+      "id": "ui.dialog.prompt.confirm",
+      "sizing": "fixed",
+      "bounds": {
+        "x": 546.97,
+        "y": 348.0,
+        "width": 52.03,
+        "height": 36.0
+      },
+      "style": {
+        "backgroundColor": [
+          0,
+          112,
+          204,
+          255
+        ],
+        "borderColor": [
+          61,
+          61,
+          61,
+          255
+        ],
+        "borderWidth": 0.0,
+        "borderRadius": 6.0,
+        "ringSpread": 0.0,
+        "ringSpreads": [],
+        "fontFamily": "system-ui",
+        "fontSize": 14.0,
+        "fontWeight": 500,
+        "lineHeight": 16.8,
+        "color": [
+          255,
+          255,
+          255,
+          255
+        ],
+        "opacity": 1.0,
+        "padding": {
+          "top": 8.0,
+          "right": 16.0,
+          "bottom": 8.0,
+          "left": 16.0
+        },
+        "declaredBackgroundColor": [
+          0,
+          112,
+          204,
+          255
+        ],
+        "declaredBorderColor": [
+          61,
+          61,
+          61,
+          255
+        ]
+      }
+    }
+  ],
+  "textRegions": [
+    {
+      "x": 201.0,
+      "y": 214.0,
+      "width": 126.43,
+      "height": 21.0
+    },
+    {
+      "x": 598.0,
+      "y": 224.0,
+      "width": 34.13,
+      "height": 16.0
+    },
+    {
+      "x": 201.0,
+      "y": 241.0,
+      "width": 227.93,
+      "height": 17.0
+    },
+    {
+      "x": 201.0,
+      "y": 272.0,
+      "width": 82.57,
+      "height": 17.0
+    },
+    {
+      "x": 214.0,
+      "y": 301.0,
+      "width": 372.0,
+      "height": 26.0
+    },
+    {
+      "x": 476.61,
+      "y": 357.0,
+      "width": 45.35,
+      "height": 17.0
+    },
+    {
+      "x": 562.97,
+      "y": 357.0,
+      "width": 20.03,
+      "height": 17.0
+    }
+  ],
+  "icons": [
+    {
+      "bounds": {
+        "x": 591.0,
+        "y": 208.0,
+        "width": 16.0,
+        "height": 16.0
+      },
+      "color": [
+        204,
+        204,
+        204,
+        255
+      ],
+      "opacity": 0.7
+    }
+  ]
+}

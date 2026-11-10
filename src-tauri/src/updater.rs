@@ -2,7 +2,7 @@ use serde::Serialize;
 use std::future::Future;
 use std::path::{Path, PathBuf};
 use std::time::Duration;
-use tauri::{ipc::Channel, Manager};
+use tauri::ipc::Channel;
 use tauri_plugin_updater::UpdaterExt;
 
 const UPDATE_CONNECT_TIMEOUT: Duration = Duration::from_secs(15);
@@ -301,11 +301,7 @@ fn sanitize_update_channel(channel: &str) -> String {
 }
 
 fn pending_update_download_dir(app: &tauri::AppHandle) -> Result<PathBuf, String> {
-    Ok(app
-        .path()
-        .app_cache_dir()
-        .map_err(|e| format!("Failed to resolve app cache dir: {e}"))?
-        .join("updates"))
+    Ok(crate::app_paths::get(app)?.cache_dir.join("updates"))
 }
 
 fn pending_update_download_path(app: &tauri::AppHandle, channel: &str) -> Result<PathBuf, String> {

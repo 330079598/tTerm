@@ -1,6 +1,9 @@
 // What AI coding agents report through the hooks tTerm installs into them
 // (src-tauri/src/agent_integration): OSC 777 ; tterm-agent ; <agent> ; <state>,
-// and ; <session> when the report goes to every terminal running the agent.
+// Reports with sessions add ; <session> ; direct|broadcast ; <encoded-cwd>.
+// Legacy session reports are broadcasts and use the same claim rules.
+
+import { agentResumeCwdMatches } from "@/lib/agentResumeCwd"
 
 /** `idle`: stopped by the user, nothing to announce. `ended`: the agent quit. */
 const REPORT_STATES = ["processing", "waiting", "done", "error", "idle", "ended"] as const
@@ -10,19 +13,44 @@ export type AgentReportState = (typeof REPORT_STATES)[number]
 export interface AgentReport {
   agent: string
   state: AgentReportState
-  /** The session reported on, when this terminal may not be the one running it. */
+  /** Direct reports or an unambiguous broadcast claim can establish a resume session. */
   session?: string
+  scope?: "direct" | "broadcast"
+  cwd?: string
+}
+
+export interface AgentResumeSession {
+  agent: "claudeCode" | "codex"
+  sessionId: string
+  /** Directory at agent start; older records can fall back to the local shell directory. */
+  cwd?: string
 }
 
 /** The payload of an OSC 777, which also carries `notify` and other extensions. */
 export function parseAgentReport(data: string): AgentReport | null {
-  const [command, agent, state, session, ...rest] = data.split(";")
+  const [command, agent, state, session, scope, encodedCwd, ...rest] = data.split(";")
   if (command !== "tterm-agent" || rest.length > 0) return null
   if (!agent || !/^[a-z0-9][a-z0-9-]{0,31}$/.test(agent)) return null
   if (!(REPORT_STATES as readonly string[]).includes(state)) return null
   if (session === undefined) return { agent, state: state as AgentReportState }
   if (!/^[A-Za-z0-9-]{1,64}$/.test(session)) return null
-  return { agent, state: state as AgentReportState, session }
+  if (scope !== undefined && scope !== "direct" && scope !== "broadcast") return null
+  let cwd: string | undefined
+  if (encodedCwd) {
+    try {
+      cwd = decodeURIComponent(encodedCwd)
+      if (cwd.length > 16384 || /[\p{Cc}]/u.test(cwd)) return null
+    } catch {
+      return null
+    }
+  }
+  return {
+    agent,
+    state: state as AgentReportState,
+    session,
+    ...(scope ? { scope } : {}),
+    ...(cwd ? { cwd } : {}),
+  }
 }
 
 const DISPLAY_NAMES: Record<string, string> = {
@@ -74,8 +102,14 @@ const AGENTS_REPORTING_STOPS: ReadonlySet<string> = new Set(["codex", "opencode"
 
 /** The terminal each addressed session was submitted from, across tabs. */
 const sessionOwners = new Map<string, AgentTracker>()
+/** Keep consumed Enter timestamps too: a status claim must not hide competing input. */
+const recentSubmissions = new Map<AgentTracker, number>()
 
 interface AgentTrackerCallbacks {
+  /** A restored record is already owned by this tab; broadcasts cannot create it. */
+  initialSession?: AgentResumeSession
+  /** The directory reported by the live shell at tool start, before hook fallback. */
+  shellCwd?: () => string | undefined
   onStatus: (status: AgentStatus | null) => void
   /** The agent running in the terminal, from its first report until it ends; null for none. */
   onAgent: (agent: string | null) => void
@@ -88,13 +122,21 @@ export class AgentTracker {
   private agent: string | null = null
   private lastReportAt: number | null = null
   private waitTimer: ReturnType<typeof setTimeout> | null = null
+  private resume: AgentResumeSession | null = null
   private submittedAt: number | null = null
   private readonly sessions = new Set<string>()
+  private readonly resumeClaims = new Set<string>()
 
   constructor(
     private readonly callbacks: AgentTrackerCallbacks,
     private readonly waitDelayMs = AGENT_WAIT_ANNOUNCE_DELAY_MS
-  ) {}
+  ) {
+    this.resume = callbacks.initialSession ?? null
+    if (this.resume && !sessionOwners.has(this.resume.sessionId)) {
+      sessionOwners.set(this.resume.sessionId, this)
+      this.sessions.add(this.resume.sessionId)
+    }
+  }
 
   /**
    * An agent is at work, waiting, or has just reported: notifications it
@@ -109,20 +151,62 @@ export class AgentTracker {
   /** Enter typed in the terminal: it may take the next new session it hears of. */
   submit() {
     this.submittedAt = Date.now()
+    recentSubmissions.set(this, this.submittedAt)
   }
 
-  report({ agent, state, session }: AgentReport) {
-    if (session !== undefined && !this.claim(session, state)) return
+  report({ agent, state, session, scope, cwd }: AgentReport): boolean {
+    if (session !== undefined) {
+      const owner = sessionOwners.get(session)
+      if (owner && owner !== this) return false
+      if (scope === "direct") {
+        if (this.resume && this.resume.sessionId !== session) {
+          this.releaseSession(this.resume.sessionId)
+        }
+        sessionOwners.set(session, this)
+        this.sessions.add(session)
+        if (agent === "claude" || agent === "codex") {
+          const same =
+            this.resume?.sessionId === session &&
+            this.resume.agent === (agent === "claude" ? "claudeCode" : agent)
+          const startCwd = same ? this.resume?.cwd : (this.callbacks.shellCwd?.() ?? cwd)
+          this.resume = {
+            agent: agent === "claude" ? "claudeCode" : "codex",
+            sessionId: session,
+            ...(startCwd ? { cwd: startCwd } : {}),
+          }
+        }
+      } else {
+        const restored =
+          this.resume?.sessionId === session &&
+          this.resume.agent === (agent === "claude" ? "claudeCode" : agent)
+        if (!restored && !this.claim(session, state)) return false
+        if (this.resume?.sessionId === session && !restored) return false
+        const shellCwd = this.callbacks.shellCwd?.()
+        if (
+          !restored &&
+          !owner &&
+          this.resumeClaims.has(session) &&
+          agent === "codex" &&
+          agentResumeCwdMatches(cwd, shellCwd)
+        ) {
+          this.resume = { agent, sessionId: session, cwd: shellCwd }
+        }
+      }
+    }
+    if (state === "idle") {
+      this.resume = null
+      if (session) this.resumeClaims.delete(session)
+    }
     this.cancelWait()
     if (state === "ended") {
       this.reset()
-      return
+      return true
     }
     this.lastReportAt = Date.now()
     this.setAgent(agent)
     if (state === "idle") {
       this.setStatus(null)
-      return
+      return true
     }
     if (state === "processing" || state === "waiting") {
       this.setStatus({ agent, activity: state })
@@ -132,10 +216,19 @@ export class AgentTracker {
           this.callbacks.onAnnounce({ agent, state })
         }, this.waitDelayMs)
       }
-      return
+      return true
     }
     this.setStatus(null)
     this.callbacks.onAnnounce({ agent, state })
+    return true
+  }
+
+  resumeSession({ agent, state, session }: AgentReport): AgentResumeSession | null {
+    if (!session || state === "ended" || state === "idle") return null
+    const saved = this.resume
+    if (!saved || saved.sessionId !== session) return null
+    if (saved.agent !== (agent === "claude" ? "claudeCode" : agent)) return null
+    return saved
   }
 
   /**
@@ -164,6 +257,7 @@ export class AgentTracker {
   reset() {
     this.cancelWait()
     this.releaseSessions()
+    this.resume = null
     this.lastReportAt = null
     this.setStatus(null)
     this.setAgent(null)
@@ -191,6 +285,10 @@ export class AgentTracker {
       return false
     }
     this.submittedAt = null
+    const contenders = [...recentSubmissions.values()].filter(
+      (at) => Date.now() - at <= AGENT_CLAIM_WINDOW_MS
+    ).length
+    if (contenders === 1) this.resumeClaims.add(session)
     sessionOwners.set(session, this)
     this.sessions.add(session)
     return true
@@ -199,10 +297,12 @@ export class AgentTracker {
   private releaseSession(session: string) {
     if (sessionOwners.get(session) === this) sessionOwners.delete(session)
     this.sessions.delete(session)
+    this.resumeClaims.delete(session)
   }
 
   private releaseSessions() {
     for (const session of this.sessions) this.releaseSession(session)
+    recentSubmissions.delete(this)
   }
 
   private cancelWait() {

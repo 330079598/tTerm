@@ -1,4 +1,5 @@
 mod agent_integration;
+mod app_paths;
 mod app_state;
 mod background;
 mod backup;
@@ -9,6 +10,7 @@ mod core;
 mod db;
 #[cfg(any(target_os = "windows", target_os = "macos"))]
 mod drag_out;
+mod event_sink;
 mod fonts;
 mod ime_focus;
 mod launch_dir;
@@ -350,12 +352,13 @@ pub fn run() {
             agent_integration::agent_integration_status,
             agent_integration::install_agent_integration,
             agent_integration::uninstall_agent_integration,
+            core::agent_resume::build_agent_resume_command,
             agent_integration::remote::remote_agent_integration_status,
             agent_integration::remote::change_remote_agent_integration,
         ])
         .setup(|app| {
             let app_handle = app.handle().clone();
-            config::paths::init_config_dir(&app_handle)?;
+            app_paths::initialize(&app_handle)?;
             launch_dir::open_from_startup(&app_handle);
 
             if let Err(err) = updater::cleanup_stale_pending_update_files(&app_handle) {
