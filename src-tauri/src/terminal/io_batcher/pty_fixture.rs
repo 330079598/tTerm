@@ -6,7 +6,7 @@ use std::time::Duration;
 pub(super) struct PtyFixture {
     pub reader: Box<dyn Read + Send>,
     pub child: Box<dyn Child + Send + Sync>,
-    master: Box<dyn portable_pty::MasterPty + Send>,
+    _master: Box<dyn portable_pty::MasterPty + Send>,
     watchdog_cancel: Option<std::sync::mpsc::Sender<()>>,
     watchdog: Option<std::thread::JoinHandle<()>>,
 }
@@ -29,7 +29,7 @@ impl PtyFixture {
         Self {
             reader,
             child,
-            master: pair.master,
+            _master: pair.master,
             watchdog_cancel: Some(cancel),
             watchdog: Some(watchdog),
         }
@@ -50,7 +50,5 @@ impl Drop for PtyFixture {
         if let Some(watchdog) = self.watchdog.take() {
             let _ = watchdog.join();
         }
-        // Keep the master open until the child has been reaped.
-        let _ = &self.master;
     }
 }

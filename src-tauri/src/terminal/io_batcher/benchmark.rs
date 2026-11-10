@@ -91,6 +91,7 @@ fn prepare_workload() -> PathBuf {
 #[ignore = "release throughput benchmark; run only when the 1-minute load is <= 2"]
 fn p106_real_pty_cat_throughput() {
     use sha2::Digest;
+    assert!(!cfg!(debug_assertions), "benchmark must run with --release");
     let load = std::process::Command::new("uptime").output().unwrap();
     let uptime = String::from_utf8(load.stdout).unwrap();
     println!("{uptime}");
