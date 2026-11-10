@@ -15,3 +15,31 @@ impl QuitBlockers {
         self.tunnels == 0 && self.unuploaded_files.is_empty()
     }
 }
+
+use super::{EventName, EventTarget};
+
+/// P1-03: typed background notifications with the existing delivery contract.
+#[derive(Debug, Clone, PartialEq)]
+pub enum BackgroundEvent {
+    QuitRequested(QuitBlockers),
+    CloseRequested,
+    WillQuit,
+    OpenTunnels,
+    CheckUpdates,
+}
+impl BackgroundEvent {
+    /// Returns the legacy transport name.
+    pub fn name(&self) -> EventName {
+        match self {
+            Self::QuitRequested(_) => EventName::Static("quit-requested"),
+            Self::CloseRequested => EventName::Static("close-requested"),
+            Self::WillQuit => EventName::Static("app-will-quit"),
+            Self::OpenTunnels => EventName::Static("tray-open-tunnels"),
+            Self::CheckUpdates => EventName::Static("tray-check-updates"),
+        }
+    }
+    /// Returns the event's delivery scope.
+    pub fn target(&self) -> EventTarget {
+        EventTarget::Default
+    }
+}

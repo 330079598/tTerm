@@ -5,13 +5,12 @@
 
 use std::sync::atomic::{AtomicBool, Ordering};
 
-use tauri::{AppHandle, Emitter, Manager, State};
+use tauri::{AppHandle, Manager, State};
 
 use crate::tunnel::commands::TunnelManager;
 
 /// Emitted when the app is asked to quit with something at stake; carries
 /// the [`QuitBlockers`].
-const QUIT_REQUESTED_EVENT: &str = "quit-requested";
 
 /// What a quit would end.
 #[derive(Default)]
@@ -45,9 +44,23 @@ pub fn blockers(app: &AppHandle) -> QuitBlockers {
 /// wait because the UI is asking the user to confirm it.
 pub fn hold_exit_for_confirmation(app: &AppHandle) -> bool {
     let blockers = blockers(app);
-    let hold = app.state::<ExitGuardState>().should_hold(&blockers);
+    emit_confirmation(
+        &app.state::<ExitGuardState>(),
+        blockers,
+        &crate::event_sink::TauriEventSink::new(app.clone()),
+    )
+}
+
+fn emit_confirmation(
+    state: &ExitGuardState,
+    blockers: QuitBlockers,
+    events: &dyn EventSink,
+) -> bool {
+    let hold = state.should_hold(&blockers);
     if hold {
-        let _ = app.emit(QUIT_REQUESTED_EVENT, &blockers);
+        let _ = events.emit(AppEvent::Background(BackgroundEvent::QuitRequested(
+            blockers,
+        )));
     }
     hold
 }
@@ -105,3 +118,6 @@ mod tests {
 mod legacy_contract_tests;
 
 use tterm_core::events::background::QuitBlockers;
+
+use tterm_core::events::background::BackgroundEvent;
+use tterm_core::events::{AppEvent, EventSink};

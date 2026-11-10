@@ -8,6 +8,7 @@ pub mod terminal;
 pub mod tunnel;
 pub mod zmodem;
 
+use background::BackgroundEvent;
 use ssh::SshEvent;
 use tunnel::TunnelEvent;
 
@@ -16,6 +17,8 @@ use tunnel::TunnelEvent;
 pub enum AppEvent {
     /// Tunnel state and traffic changed.
     Tunnel(TunnelEvent),
+    /// P1-03: background event delivery.
+    Background(BackgroundEvent),
     /// P1-03: ssh event delivery.
     Ssh(SshEvent),
 }
@@ -57,7 +60,8 @@ impl AppEvent {
     pub fn target(&self) -> EventTarget {
         match self {
             Self::Tunnel(event) => event.target(),
-            Self::Ssh(event) => event.target(), // P1-03.
+            Self::Background(event) => event.target(), // P1-03.
+            Self::Ssh(event) => event.target(),        // P1-03.
         }
     }
 
@@ -65,7 +69,8 @@ impl AppEvent {
     pub fn name(&self) -> EventName {
         match self {
             Self::Tunnel(event) => event.name(),
-            Self::Ssh(event) => event.name(), // P1-03.
+            Self::Background(event) => event.name(), // P1-03.
+            Self::Ssh(event) => event.name(),        // P1-03.
         }
     }
 }

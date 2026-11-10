@@ -8,11 +8,9 @@ pub(crate) mod tray;
 
 use std::sync::atomic::{AtomicBool, AtomicU8, Ordering};
 
-use tauri::{AppHandle, Emitter, Manager, State, Window};
+use tauri::{AppHandle, Manager, State, Window};
 
 use crate::config::AppConfig;
-
-const CLOSE_REQUESTED_EVENT: &str = "close-requested";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum CloseBehavior {
@@ -150,7 +148,10 @@ pub fn on_close_requested(window: &Window) -> bool {
             true
         }
         CloseBehavior::Ask if state.should_ask() => {
-            if app.emit(CLOSE_REQUESTED_EVENT, ()).is_err() {
+            if crate::event_sink::TauriEventSink::new(app.clone())
+                .emit(AppEvent::Background(BackgroundEvent::CloseRequested))
+                .is_err()
+            {
                 state.prompt_open.store(false, Ordering::SeqCst);
                 quit_unless_held(app);
             }
@@ -227,3 +228,6 @@ mod tests {
         }
     }
 }
+
+use tterm_core::events::background::BackgroundEvent;
+use tterm_core::events::{AppEvent, EventSink};

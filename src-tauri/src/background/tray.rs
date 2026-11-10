@@ -8,7 +8,7 @@ use std::sync::{Mutex, Once};
 use tauri::image::Image;
 use tauri::menu::{CheckMenuItem, Menu, MenuEvent, MenuItem, PredefinedMenuItem, Submenu};
 use tauri::tray::{MouseButton, MouseButtonState, TrayIcon, TrayIconBuilder, TrayIconEvent};
-use tauri::{AppHandle, Emitter, Manager};
+use tauri::{AppHandle, Manager};
 
 use crate::core::state::PtyMap;
 use crate::tunnel::commands::TunnelManager;
@@ -21,10 +21,10 @@ const MENU_CHECK_UPDATES: &str = "tray-updates";
 const MENU_TUNNELS_PAGE: &str = "tray-tunnels-page";
 const MENU_TUNNEL_PREFIX: &str = "tray-tunnel:";
 /// Asks the UI to open the Port Forwarding page.
-const OPEN_TUNNELS_EVENT: &str = "tray-open-tunnels";
+
 /// Tells the UI that an update check asked for from the tray is waiting in
 /// `take_tray_update_check`.
-const CHECK_UPDATES_EVENT: &str = "tray-check-updates";
+
 /// The dot's red, the same as the count on the Windows taskbar.
 const DOT_RGB: [u8; 3] = [0xE8, 0x11, 0x23];
 
@@ -334,7 +334,8 @@ fn on_menu_event(app: &AppHandle, event: MenuEvent) {
 
 fn open_tunnels_page(app: &AppHandle) {
     super::show_main_window(app);
-    let _ = app.emit(OPEN_TUNNELS_EVENT, ());
+    let _ = crate::event_sink::TauriEventSink::new(app.clone())
+        .emit(AppEvent::Background(BackgroundEvent::OpenTunnels));
 }
 
 /// Shows the window first, so the result of the check is in sight.
@@ -343,7 +344,8 @@ fn check_updates(app: &AppHandle) {
     app.state::<TrayState>()
         .update_check_requested
         .store(true, Ordering::SeqCst);
-    let _ = app.emit(CHECK_UPDATES_EVENT, ());
+    let _ = crate::event_sink::TauriEventSink::new(app.clone())
+        .emit(AppEvent::Background(BackgroundEvent::CheckUpdates));
 }
 
 /// Hands the UI an update check asked for from the tray, once. The UI asks
@@ -492,3 +494,6 @@ mod tests {
         );
     }
 }
+
+use tterm_core::events::background::BackgroundEvent;
+use tterm_core::events::{AppEvent, EventSink};
