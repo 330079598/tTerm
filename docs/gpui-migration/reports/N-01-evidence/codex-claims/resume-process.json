@@ -1,0 +1,9 @@
+[
+  {
+    "ProcessId": 35520,
+    "ParentProcessId": 26424,
+    "ExecutablePath": "C:\\Users\\stone\\AppData\\Local\\Programs\\OpenAI\\Codex\\bin\\codex.exe",
+    "CreationDate": "/Date(1794124651762)/",
+    "CommandLine": "\"C:\\Users\\stone\\AppData\\Local\\Programs\\OpenAI\\Codex\\bin\\codex.exe\" resume 01a1ba23-57db-7420-87b2-d12c20df7c05"
+  }
+]

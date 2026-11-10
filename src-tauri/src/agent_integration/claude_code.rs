@@ -30,10 +30,14 @@ pub(super) const HOOKS: HookSet = HookSet {
     command_windows: None,
 };
 
-/// `printf '%s'` so no shell interprets the `\u` escapes, which have to reach
-/// Claude Code's JSON parser as they are.
-fn hook_command(state: &str) -> String {
-    format!(r#"printf '%s' '{{"terminalSequence":"\u001b]777;tterm-agent;claude;{state}\u0007"}}'"#)
+/// Reads and validates Claude's `session_id` from stdin, then prints the OSC
+/// sequence in the JSON shape Claude expects. The ID is reduced to the same
+/// safe alphabet as the Codex hook before it can reach the terminal.
+pub(super) fn hook_command(state: &str) -> String {
+    let input = super::hook_input::script();
+    format!(
+        r#"{input}; if [ -n "$sid" ]; then printf '%s' '{{"terminalSequence":"\u001b]777;tterm-agent;claude;{state};'$sid';direct;'$cwd'\u0007"}}'; else printf '%s' '{{"terminalSequence":"\u001b]777;tterm-agent;claude;{state}\u0007"}}'; fi"#
+    )
 }
 
 #[cfg(all(test, unix))]
@@ -45,12 +49,37 @@ mod tests {
         let output = std::process::Command::new("sh")
             .arg("-c")
             .arg(hook_command("waiting"))
+            .stdin(std::process::Stdio::piped())
             .output()
             .unwrap();
         let value: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
         assert_eq!(
             value["terminalSequence"],
             "\u{1b}]777;tterm-agent;claude;waiting\u{7}"
+        );
+    }
+
+    #[test]
+    fn hook_includes_a_valid_session_id_and_discards_shell_text() {
+        use std::io::Write;
+        let mut child = std::process::Command::new("sh")
+            .arg("-c")
+            .arg(hook_command("processing"))
+            .stdin(std::process::Stdio::piped())
+            .stdout(std::process::Stdio::piped())
+            .spawn()
+            .unwrap();
+        child
+            .stdin
+            .take()
+            .unwrap()
+            .write_all(br#"{"session_id":"abc-123; rm -rf ~","cwd":"/safe"}"#)
+            .unwrap();
+        let output = child.wait_with_output().unwrap();
+        let value: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+        assert_eq!(
+            value["terminalSequence"],
+            "\u{1b}]777;tterm-agent;claude;processing\u{7}"
         );
     }
 }

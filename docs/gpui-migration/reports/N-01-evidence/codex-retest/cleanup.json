@@ -1,0 +1,12 @@
+{
+  "remainingOwnedProcessCount": 0,
+  "deletedPaths": [
+    "C:\\Users\\stone\\AppData\\Roaming\\com.stone.tTerm.n01",
+    "C:\\Users\\stone\\AppData\\Local\\com.stone.tTerm.n01",
+    "C:\\Users\\stone\\AppData\\Local\\Temp\\tterm-n01-codex-20261108-145210"
+  ],
+  "allAbsent": true,
+  "backup": "C:\\Users\\stone\\AppData\\Local\\Temp\\tterm-n01-backup\\20261108-145210",
+  "localappdataUnchanged": true,
+  "cleanupNote": "Initial TEMP deletion encountered a transient directory lock; retried successfully after owned processes had all exited."
+}

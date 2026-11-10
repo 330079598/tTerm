@@ -1,0 +1,45 @@
+
+ RUN  v5.0.2 D:/code/rust/tTerm-N-01
+
+ ✓ src/lib/agentStatus.test.ts > parseAgentReport > reads an agent and its state 2ms
+ ✓ src/lib/agentStatus.test.ts > parseAgentReport > reads the session a report names 0ms
+ ✓ src/lib/agentStatus.test.ts > parseAgentReport > distinguishes direct sessions from broadcasts and rejects unknown scope 0ms
+ ✓ src/lib/agentStatus.test.ts > parseAgentReport > leaves other OSC 777 commands alone 0ms
+ ✓ src/lib/agentStatus.test.ts > parseAgentReport > decodes hook cwd without allowing protocol delimiters or control sequences 0ms
+ ✓ src/lib/agentStatus.test.ts > parseAgentReport > rejects unknown states, odd names and extra fields 0ms
+ ✓ src/lib/agentStatus.test.ts > agentDisplayName > names known agents and keeps others as they are 0ms
+ ✓ src/lib/agentStatus.test.ts > AgentTracker > shows work and announces the end of a turn 2ms
+ ✓ src/lib/agentStatus.test.ts > AgentTracker > announces a wait only once it lasts 1ms
+ ✓ src/lib/agentStatus.test.ts > AgentTracker > forgets a wait answered in time 0ms
+ ✓ src/lib/agentStatus.test.ts > AgentTracker > speaks for an agent at work however long it takes 0ms
+ ✓ src/lib/agentStatus.test.ts > AgentTracker > clears the status on an interrupt 0ms
+ ✓ src/lib/agentStatus.test.ts > AgentTracker > leaves stops to an agent that reports them 0ms
+ ✓ src/lib/agentStatus.test.ts > AgentTracker > works on once a wait is answered 1ms
+ ✓ src/lib/agentStatus.test.ts > AgentTracker > keeps waiting where an answer may be a refusal nobody reports 0ms
+ ✓ src/lib/agentStatus.test.ts > AgentTracker > goes quiet when the agent reports it was stopped 0ms
+ ✓ src/lib/agentStatus.test.ts > AgentTracker > stops on the end of the session or a reset 0ms
+ ✓ src/lib/agentStatus.test.ts > AgentTracker > names the agent running from its first report until it ends 0ms
+ ✓ src/lib/agentStatus.test.ts > direct and broadcast session ownership > records a direct session without Enter and never adopts a broadcast 1ms
+ ✓ src/lib/agentStatus.test.ts > direct and broadcast session ownership > only updates the exact session already restored in this tab 0ms
+ ✓ src/lib/agentStatus.test.ts > direct and broadcast session ownership > uses shell cwd at tool start, falls back to hook cwd, and freezes it for that session 0ms
+ ✓ src/lib/agentStatus.test.ts > direct and broadcast session ownership > two tabs in the same directory ignore each other's broadcast even after typing 0ms
+ ✓ src/lib/agentStatus.test.ts > direct and broadcast session ownership > direct claude session replaces the old record; ended, idle and reset clear it 0ms
+ ✓ src/lib/agentStatus.test.ts > direct and broadcast session ownership > direct codex session replaces the old record; ended, idle and reset clear it 0ms
+ ✓ src/lib/agentStatus.claims.test.ts > broadcast resume claims preserve dev status routing > records a single recent claimant and keeps later broadcasts and its start cwd 4ms
+ ✓ src/lib/agentStatus.claims.test.ts > broadcast resume claims preserve dev status routing > keeps dev first receiver status routing but never records overlapping claimants 1ms
+ ✓ src/lib/agentStatus.claims.test.ts > broadcast resume claims preserve dev status routing > never records or displays another tab's claimed session even after Enter 1ms
+ ✓ src/lib/agentStatus.claims.test.ts > broadcast resume claims preserve dev status routing > does not forget a competing Enter consumed by another session's status claim 1ms
+ ✓ src/lib/agentStatus.claims.test.ts > broadcast resume claims preserve dev status routing > does not replace the current resume with a later report from an older status claim 0ms
+ ✓ src/lib/agentStatus.dev.test.ts > AgentTracker sessions told to every terminal > belongs to the terminal it was submitted from 4ms
+ ✓ src/lib/agentStatus.dev.test.ts > AgentTracker sessions told to every terminal > is nobody's without a recent Enter 1ms
+ ✓ src/lib/agentStatus.dev.test.ts > AgentTracker sessions told to every terminal > takes one session per Enter 1ms
+ ✓ src/lib/agentStatus.dev.test.ts > AgentTracker sessions told to every terminal > is free again once it ends or its terminal resets 1ms
+ ✓ src/components/TerminalTab/attentionReports.test.ts > resume metadata through terminal reports > direct claude reports persist in the receiving tab, broadcasts cannot adopt another session 4ms
+ ✓ src/components/TerminalTab/attentionReports.test.ts > resume metadata through terminal reports > direct codex reports persist in the receiving tab, broadcasts cannot adopt another session 1ms
+ ✓ src/components/TerminalTab/attentionReports.test.ts > resume metadata through terminal reports > unowned broadcasts and malformed cwd never reach persistence 0ms
+ ✓ src/components/TerminalTab/attentionReports.test.ts > resume metadata through terminal reports > persists a sole claimant but not competing claims through the terminal callback 0ms
+
+ Test Files  4 passed (4)
+      Tests  37 passed (37)
+   Start at  16:04:25
+   Duration  352ms (transform 50%, import 26%, tests 15%, worker 9%)

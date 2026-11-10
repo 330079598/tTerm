@@ -45,6 +45,9 @@ pub enum ShellIntegrationStatus {
         /// apart from those of a host reached from it with `ssh`.
         #[serde(skip_serializing_if = "Option::is_none")]
         hostname: Option<String>,
+        /// The login shell detected for this connection, never from a workspace.
+        #[serde(skip_serializing_if = "Option::is_none")]
+        shell: Option<String>,
     },
     /// The session got a plain shell.
     Unavailable { reason: UnavailableReason },
@@ -129,6 +132,7 @@ fi
 touch "$tterm_dir"
 find "$tterm_base" -mindepth 1 -maxdepth 1 -mtime +@KEEP_DAYS@ -exec rm -rf {} \; 2>/dev/null
 echo "@REPLY@host $(uname -n 2>/dev/null)"
+echo "@REPLY@detected-shell ${SHELL##*/}"
 echo "@REPLY@ok $tterm_dir"
 "#;
 
@@ -204,6 +208,17 @@ pub(crate) fn parse_hostname(output: &str) -> Option<&str> {
     })
 }
 
+/// Only names supported by the integration can select resume quoting.
+fn parse_detected_shell(output: &str) -> Option<String> {
+    output.lines().find_map(|line| {
+        let shell = line
+            .trim_end_matches('\r')
+            .strip_prefix(REPLY_PREFIX)?
+            .strip_prefix("detected-shell ")?;
+        matches!(shell, "bash" | "zsh" | "fish").then(|| shell.to_string())
+    })
+}
+
 /// How to start a session's shell with shell integration.
 #[derive(Debug, PartialEq, Eq)]
 pub(crate) struct Prepared {
@@ -211,6 +226,8 @@ pub(crate) struct Prepared {
     pub command: String,
     /// The host's name, for [`ShellIntegrationStatus::Active`].
     pub hostname: Option<String>,
+    /// The shell detected by the installer on this connection.
+    pub shell: Option<String>,
 }
 
 /// The exec command that starts the shell from `dir`, or `None` for a path
@@ -251,6 +268,7 @@ pub(crate) async fn prepare<H: client::Handler>(
                 .map(|command| Prepared {
                     command,
                     hostname: parse_hostname(&output).map(str::to_string),
+                    shell: parse_detected_shell(&output),
                 })
                 .ok_or(UnavailableReason::Path),
             Some(Reply::Shell(shell)) => Err(UnavailableReason::Shell {

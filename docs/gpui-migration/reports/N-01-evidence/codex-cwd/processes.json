@@ -1,0 +1,43 @@
+{
+  "owned": [
+    {
+      "ProcessId": 18848,
+      "ParentProcessId": 30576,
+      "ExecutablePath": "C:\\Users\\stone\\AppData\\Local\\Programs\\OpenAI\\Codex\\bin\\codex.exe",
+      "CreationDate": "/Date(1794126286621)/",
+      "CommandLine": "\"C:\\Users\\stone\\AppData\\Local\\Programs\\OpenAI\\Codex\\bin\\codex.exe\" resume 01a1ba41-d456-7f40-9bc2-04725d651e83"
+    }
+  ],
+  "external": [
+    {
+      "pid": 17860,
+      "parent": 21172,
+      "path": "C:\\Users\\stone\\.codex\\packages\\app-server-daemon\\releases\\0.167.0-x86_64-pc-windows-msvc\\bin\\codex.exe",
+      "running": true
+    },
+    {
+      "pid": 6196,
+      "parent": 21172,
+      "path": "C:\\Users\\stone\\.codex\\packages\\app-server-daemon\\releases\\0.167.0-x86_64-pc-windows-msvc\\bin\\codex.exe",
+      "running": true
+    },
+    {
+      "pid": 4412,
+      "parent": 23680,
+      "path": "C:\\Users\\stone\\AppData\\Local\\OpenAI\\Codex\\bin\\f71a721e0e6193a9\\codex.exe",
+      "running": true
+    },
+    {
+      "pid": 34896,
+      "parent": 45144,
+      "path": "C:\\Users\\stone\\AppData\\Local\\Programs\\OpenAI\\Codex\\bin\\codex.exe",
+      "running": true
+    },
+    {
+      "pid": 4504,
+      "parent": 37432,
+      "path": "C:\\Users\\stone\\AppData\\Local\\Programs\\OpenAI\\Codex\\bin\\codex.exe",
+      "running": true
+    }
+  ]
+}

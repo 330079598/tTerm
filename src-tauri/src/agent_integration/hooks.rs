@@ -290,4 +290,35 @@ mod tests {
             "{\n  \"hooks\": {\n    \"Stop\": {}\n  }\n}\n"
         );
     }
+
+    #[test]
+    fn hooks_without_scoped_session_and_cwd_are_outdated_for_both_agents() {
+        for hooks in [&HOOKS, &crate::agent_integration::codex::HOOKS] {
+            let mut settings = hooks.preview();
+            let Some(Json::Object(events)) = settings.get_mut("hooks") else {
+                panic!()
+            };
+            for groups in events.values_mut() {
+                let Json::Array(groups) = groups else {
+                    panic!()
+                };
+                let Json::Object(group) = &mut groups[0] else {
+                    panic!()
+                };
+                let Some(Json::Array(handlers)) = group.get_mut("hooks") else {
+                    panic!()
+                };
+                let Json::Object(handler) = &mut handlers[0] else {
+                    panic!()
+                };
+                handler.insert(
+                    "command".to_string(),
+                    Json::String("printf '\\033]777;tterm-agent;codex;done\\007'".to_string()),
+                );
+            }
+            assert_eq!(hooks.state(&settings), IntegrationState::Outdated);
+            hooks.install(&mut settings).unwrap();
+            assert_eq!(hooks.state(&settings), IntegrationState::Installed);
+        }
+    }
 }

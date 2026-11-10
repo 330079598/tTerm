@@ -4,9 +4,7 @@ import {
   AgentTracker,
   agentDisplayName,
   parseAgentReport,
-  AGENT_CLAIM_WINDOW_MS,
   type AgentAnnouncement,
-  type AgentReportState,
   type AgentStatus,
 } from "@/lib/agentStatus"
 
@@ -30,9 +28,32 @@ describe("parseAgentReport", () => {
     })
   })
 
+  it("distinguishes direct sessions from broadcasts and rejects unknown scope", () => {
+    for (const scope of ["direct", "broadcast"]) {
+      expect(parseAgentReport(`tterm-agent;codex;done;abc-123;${scope}`)).toEqual({
+        agent: "codex",
+        state: "done",
+        session: "abc-123",
+        scope,
+      })
+    }
+    expect(parseAgentReport("tterm-agent;codex;done;abc-123;other")).toBeNull()
+  })
+
   it("leaves other OSC 777 commands alone", () => {
     expect(parseAgentReport("notify;tterm-agent;done")).toBeNull()
     expect(parseAgentReport("precmd")).toBeNull()
+  })
+
+  it("decodes hook cwd without allowing protocol delimiters or control sequences", () => {
+    expect(
+      parseAgentReport(
+        "tterm-agent;claude;processing;abc-123;direct;C%3A%5CJohn%E2%80%99s%20files%3Bx"
+      )?.cwd
+    ).toBe("C:\\John’s files;x")
+    for (const cwd of ["%0A", "%0D", "%09", "%00", "%1B", "%C2%85", "%FF", "%"]) {
+      expect(parseAgentReport(`tterm-agent;codex;done;abc-123;direct;${cwd}`)).toBeNull()
+    }
   })
 
   it("rejects unknown states, odd names and extra fields", () => {
@@ -195,77 +216,124 @@ describe("AgentTracker", () => {
   })
 })
 
-describe("AgentTracker sessions told to every terminal", () => {
-  let statuses: Array<AgentStatus | null>[]
-  let announcements: AgentAnnouncement[][]
-  let trackers: AgentTracker[]
+describe("direct and broadcast session ownership", () => {
+  const create = () =>
+    new AgentTracker({ onStatus: vi.fn(), onAgent: vi.fn(), onAnnounce: vi.fn() })
 
-  const tracker = (index: number) => {
-    statuses[index] = []
-    announcements[index] = []
-    return new AgentTracker({
-      onStatus: (status) => statuses[index].push(status),
-      onAgent: () => {},
-      onAnnounce: (announcement) => announcements[index].push(announcement),
+  it("records a direct session without Enter and never adopts a broadcast", () => {
+    const a = create()
+    const b = create()
+    const direct = {
+      agent: "codex",
+      state: "processing",
+      session: "own-1",
+      scope: "direct",
+    } as const
+    expect(a.report(direct)).toBe(true)
+    expect(a.resumeSession(direct)).toEqual({ agent: "codex", sessionId: "own-1" })
+    const broadcast = { ...direct, scope: "broadcast" } as const
+    expect(a.report(broadcast)).toBe(true)
+    expect(b.report(broadcast)).toBe(false)
+    expect(b.resumeSession(broadcast)).toBeNull()
+    a.dispose()
+    b.dispose()
+  })
+
+  it("only updates the exact session already restored in this tab", () => {
+    const tracker = new AgentTracker({
+      initialSession: { agent: "codex", sessionId: "restored" },
+      onStatus: vi.fn(),
+      onAgent: vi.fn(),
+      onAnnounce: vi.fn(),
     })
-  }
-  // A report as the shared server's hook sends it, to every terminal.
-  const broadcast = (state: AgentReportState, session: string) => {
-    for (const each of trackers) each.report({ agent: "codex", state, session })
-  }
-
-  beforeEach(() => {
-    vi.useFakeTimers()
-    statuses = []
-    announcements = []
-    trackers = [tracker(0), tracker(1)]
+    expect(
+      tracker.report({
+        agent: "codex",
+        state: "processing",
+        session: "restored",
+        scope: "broadcast",
+      })
+    ).toBe(true)
+    expect(
+      tracker.report({ agent: "codex", state: "processing", session: "other", scope: "broadcast" })
+    ).toBe(false)
+    expect(
+      tracker.report({
+        agent: "claude",
+        state: "processing",
+        session: "restored",
+        scope: "broadcast",
+      })
+    ).toBe(false)
+    tracker.dispose()
   })
 
-  afterEach(() => {
-    for (const each of trackers) each.dispose()
-    vi.useRealTimers()
+  it("uses shell cwd at tool start, falls back to hook cwd, and freezes it for that session", () => {
+    for (const shell of [undefined, "/shell start"]) {
+      let current = shell
+      const tracker = new AgentTracker({
+        shellCwd: () => current,
+        onStatus: vi.fn(),
+        onAgent: vi.fn(),
+        onAnnounce: vi.fn(),
+      })
+      const report = {
+        agent: "claude",
+        state: "processing",
+        session: "start-1",
+        scope: "direct",
+        cwd: "/hook start",
+      } as const
+      tracker.report(report)
+      expect(tracker.resumeSession(report)?.cwd).toBe(shell ?? "/hook start")
+      current = "/changed after start"
+      tracker.report({ ...report, cwd: "/hook later" })
+      expect(tracker.resumeSession(report)?.cwd).toBe(shell ?? "/hook start")
+      tracker.dispose()
+    }
   })
 
-  it("belongs to the terminal it was submitted from", () => {
-    trackers[1].submit()
-    vi.advanceTimersByTime(1500)
-    broadcast("processing", "s1")
-    expect(statuses[0]).toEqual([])
-    expect(statuses[1]).toEqual([{ agent: "codex", activity: "processing" }])
-
-    // Typing in the other terminal does not take it over.
-    trackers[0].submit()
-    broadcast("done", "s1")
-    expect(announcements[0]).toEqual([])
-    expect(announcements[1]).toEqual([{ agent: "codex", state: "done" }])
+  it("two tabs in the same directory ignore each other's broadcast even after typing", () => {
+    const a = create(),
+      b = create()
+    for (const [tracker, session] of [
+      [a, "session-a"],
+      [b, "session-b"],
+    ] as const) {
+      tracker.report({ agent: "codex", state: "processing", session, scope: "direct" })
+      tracker.answer()
+    }
+    for (const scope of ["broadcast", undefined] as const) {
+      const report = { agent: "codex", state: "done", session: "session-a", scope } as const
+      expect(a.report(report)).toBe(true)
+      expect(b.report(report)).toBe(false)
+      expect(b.resumeSession(report)).toBeNull()
+      expect(b.resumeSession({ ...report, session: "session-b" })?.sessionId).toBe("session-b")
+    }
+    a.dispose()
+    b.dispose()
   })
 
-  it("is nobody's without a recent Enter", () => {
-    trackers[0].submit()
-    vi.advanceTimersByTime(AGENT_CLAIM_WINDOW_MS + 1)
-    broadcast("processing", "s1")
-    expect(statuses).toEqual([[], []])
-  })
-
-  it("takes one session per Enter", () => {
-    trackers[0].submit()
-    broadcast("processing", "s1")
-    broadcast("processing", "s2")
-    expect(statuses[0]).toEqual([{ agent: "codex", activity: "processing" }])
-    expect(statuses[1]).toEqual([])
-  })
-
-  it("is free again once it ends or its terminal resets", () => {
-    trackers[0].submit()
-    broadcast("processing", "s1")
-    broadcast("ended", "s1")
-    trackers[1].submit()
-    broadcast("processing", "s1")
-    expect(statuses[1]).toEqual([{ agent: "codex", activity: "processing" }])
-
-    trackers[1].reset()
-    trackers[0].submit()
-    broadcast("done", "s1")
-    expect(announcements[0]).toEqual([{ agent: "codex", state: "done" }])
-  })
+  it.each(["claude", "codex"])(
+    "direct %s session replaces the old record; ended, idle and reset clear it",
+    (agent) => {
+      const tracker = create()
+      const direct = { agent, state: "processing", session: "first", scope: "direct" } as const
+      tracker.report(direct)
+      tracker.report({ ...direct, session: "second" })
+      expect(tracker.report({ ...direct, scope: "broadcast" })).toBe(false)
+      for (const state of ["ended", "idle"] as const) {
+        tracker.report(direct)
+        tracker.report({ ...direct, state, scope: "broadcast" })
+        expect(tracker.resumeSession(direct)).toBeNull()
+        // Idle keeps dev status ownership, but cannot recreate a resume record.
+        expect(tracker.report({ ...direct, scope: "broadcast" })).toBe(state === "idle")
+        expect(tracker.resumeSession(direct)).toBeNull()
+      }
+      tracker.report(direct)
+      tracker.reset()
+      expect(tracker.report({ ...direct, scope: "broadcast" })).toBe(false)
+      tracker.dispose()
+    }
+  )
 })

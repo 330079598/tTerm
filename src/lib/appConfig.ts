@@ -115,6 +115,8 @@ export interface AppConfig extends TabSettings {
   startup_session_restore_mode: "active" | "all"
   /** Whether a restart shows each terminal tab's content from before. */
   restore_terminal_content: boolean
+  /** Reopen a Claude Code or Codex session after a tTerm restart. */
+  resume_agent_sessions: boolean
   show_jump_host_connection_info: boolean
   sftp_paste_upload_enabled: boolean
   /** Where SFTP drawers open; a connection can choose otherwise. */
@@ -267,6 +269,7 @@ export const defaultConfig: AppConfig = {
   terminal_padding_bottom_px: 4,
   startup_session_restore_mode: "active",
   restore_terminal_content: true,
+  resume_agent_sessions: true,
   show_jump_host_connection_info: true,
   sftp_paste_upload_enabled: false,
   sftp_start_directory: "last",
