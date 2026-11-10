@@ -376,6 +376,18 @@ fn status_value(status: IntegrationStatus) -> crate::integration::IntegrationSta
 
 #[cfg(test)]
 mod tests {
+    // Installer helpers run before a client can inject its runtime identity.
+    #[cfg(any(target_os = "windows", target_os = "macos"))]
+    #[test]
+    fn the_identifier_is_the_one_tauri_uses() {
+        let config = include_str!("../../../../../src-tauri/tauri.conf.json");
+        let identifier = config.lines()
+            .find(|line| line.trim_start().starts_with("\"identifier\":"))
+            .and_then(|line| line.split('"').nth(3))
+            .unwrap();
+        assert_eq!(super::APP_IDENTIFIER, identifier);
+    }
+
     #[cfg(any(target_os = "windows", target_os = "macos"))]
     #[test]
     fn the_folder_menu_is_named_in_the_app_language_or_english() {
