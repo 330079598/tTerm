@@ -25,7 +25,7 @@ use std::sync::atomic::{AtomicBool, AtomicU64};
 use std::sync::Mutex;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 use tauri::ipc::Response;
-use tauri::{AppHandle, Emitter, Manager, State};
+use tauri::{AppHandle, Manager, State};
 use tauri_plugin_opener::OpenerExt;
 
 const LOG_FORMAT_RAW: &str = "raw";
@@ -416,25 +416,30 @@ fn now_unix_ms() -> u64 {
 }
 
 fn emit_error(app: &AppHandle, tab_id: &str, message: &str) {
-    let _ = app.emit_to(
-        tauri::EventTarget::any(),
-        "terminal-log-error",
-        serde_json::json!({ "tabId": tab_id, "message": message }),
-    );
+    let _ = crate::event_sink::TauriEventSink::new(app.clone()).emit(AppEvent::SessionLog(
+        SessionLogEvent::Error(LogErrorPayload {
+            tab_id: Some(tab_id.to_string()),
+            message: message.to_string(),
+            phase: None,
+        }),
+    ));
 }
 
 /// A session's log could not start; the session runs without one.
 fn emit_start_error(app: &AppHandle, tab_id: &str, message: &str) {
-    let _ = app.emit_to(
-        tauri::EventTarget::any(),
-        "terminal-log-error",
-        serde_json::json!({ "tabId": tab_id, "message": message, "phase": "start" }),
-    );
+    let _ = crate::event_sink::TauriEventSink::new(app.clone()).emit(AppEvent::SessionLog(
+        SessionLogEvent::Error(LogErrorPayload {
+            tab_id: Some(tab_id.to_string()),
+            message: message.to_string(),
+            phase: Some(LogErrorPhase::Start),
+        }),
+    ));
 }
 
 fn emit_status(app: &AppHandle, state: &SessionLogState) {
     if let Ok(status) = state.status() {
-        let _ = app.emit_to(tauri::EventTarget::any(), "terminal-log-status", status);
+        let _ = crate::event_sink::TauriEventSink::new(app.clone())
+            .emit(AppEvent::SessionLog(SessionLogEvent::Status(status)));
     }
 }
 
@@ -443,3 +448,6 @@ fn emit_status(app: &AppHandle, state: &SessionLogState) {
 mod legacy_contract_tests;
 
 use tterm_core::events::session_log::TerminalLogStatus;
+
+use tterm_core::events::session_log::{LogErrorPayload, LogErrorPhase, SessionLogEvent};
+use tterm_core::events::{AppEvent, EventSink};
