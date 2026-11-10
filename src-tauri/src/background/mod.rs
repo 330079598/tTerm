@@ -82,9 +82,10 @@ pub fn apply_config(app: &AppHandle, cfg: &AppConfig) {
     }
 }
 
-fn sync_tray(app: &AppHandle, behavior: CloseBehavior, language: &str) -> tauri::Result<()> {
+fn sync_tray(app: &AppHandle, behavior: CloseBehavior, language: &str) -> Result<(), String> {
     if behavior == CloseBehavior::Quit {
-        tray::hide(app);
+        app.state::<std::sync::Arc<dyn tterm_platform::tray::Tray>>()
+            .remove()?;
         return Ok(());
     }
     tray::show(app, language)
@@ -116,7 +117,11 @@ fn request_quit(app: &AppHandle) {
 /// not be created, e.g. no tray on this Linux desktop) the window is only
 /// minimized so it can still be found.
 fn send_to_background(window: &Window) {
-    if window.app_handle().tray_by_id(tray::TRAY_ID).is_some() {
+    if window
+        .app_handle()
+        .state::<std::sync::Arc<dyn tterm_platform::tray::Tray>>()
+        .is_present()
+    {
         let _ = window.hide();
     } else {
         let _ = window.minimize();

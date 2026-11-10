@@ -35,7 +35,12 @@ impl QuitState {
 /// Quits the app once the UI has saved, or once it took too long to.
 pub fn quit(app: &AppHandle) {
     if !quit_after_save(app) {
-        app.exit(0);
+        if let Err(error) = app
+            .state::<std::sync::Arc<dyn tterm_platform::process::ProcessControl>>()
+            .exit(0)
+        {
+            eprintln!("Failed to exit tTerm: {error}");
+        }
     }
 }
 
@@ -50,7 +55,12 @@ pub fn quit_after_save(app: &AppHandle) -> bool {
     tauri::async_runtime::spawn(async move {
         let state = app.state::<QuitState>();
         let _ = tokio::time::timeout(SAVE_TIMEOUT, state.saved.notified()).await;
-        app.exit(0);
+        if let Err(error) = app
+            .state::<std::sync::Arc<dyn tterm_platform::process::ProcessControl>>()
+            .exit(0)
+        {
+            eprintln!("Failed to exit tTerm: {error}");
+        }
     });
     true
 }
