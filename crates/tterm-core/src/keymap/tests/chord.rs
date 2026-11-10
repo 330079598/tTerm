@@ -18,9 +18,9 @@ fn normalize_event_key_aliases_keys_that_would_break_plus_serialization() {
 }
 #[test]
 fn normalize_event_key_keeps_bindable_punctuation() {
-    for key in ["\\", "`", "]"] {
-        assert!(normalize_event_key(key).is_some(), "key={key}");
-    }
+    assert_eq!(normalize_event_key("\\"), Some("\\".into()));
+    assert_eq!(normalize_event_key("`"), Some("`".into()));
+    assert_eq!(normalize_event_key("]"), Some("]".into()));
 }
 #[test]
 fn normalize_event_key_rejects_modifiers_and_unbindable_keys() {
@@ -251,8 +251,8 @@ fn event_to_chord_does_not_dispatch_ime_composition_or_dead_key_intermediates() 
     };
     assert_eq!(event_to_chord(b, false), None);
     let b = KeyEventData {
-        key: "x",
-        code: Some("KeyT"),
+        key: "p",
+        code: None,
         composing: true,
         ..b
     };
@@ -295,14 +295,34 @@ fn format_chord_falls_back_to_raw_serialization_for_unparseable_chords() {
 }
 #[test]
 fn is_editable_target_detects_input_textarea_and_contenteditable() {
-    assert!(is_editable_target(EditableTarget { editable: true }));
+    assert!(is_editable_target(EditableTarget {
+        form_control: true,
+        content_editable: false,
+        editable_ancestor: false
+    }));
 }
 #[test]
 fn is_editable_target_detects_editable_ancestors() {
-    assert!(is_editable_target(EditableTarget { editable: true }));
+    assert!(is_editable_target(EditableTarget {
+        form_control: false,
+        content_editable: false,
+        editable_ancestor: true
+    }));
 }
 #[test]
 fn is_editable_target_rejects_plain_elements() {
-    assert!(!is_editable_target(EditableTarget { editable: false }));
-    assert!(!is_editable_target(EditableTarget { editable: false }));
+    for target in [
+        EditableTarget {
+            form_control: false,
+            content_editable: false,
+            editable_ancestor: false,
+        },
+        EditableTarget {
+            form_control: false,
+            content_editable: false,
+            editable_ancestor: false,
+        },
+    ] {
+        assert!(!is_editable_target(target));
+    }
 }

@@ -1,4 +1,5 @@
-use crate::keymap::KeymapActionId as A;
+use crate::keymap::actions::KeymapActionId as A;
+use crate::keymap::chord::parse_chord;
 use crate::keymap::config::*;
 use serde_json::json;
 
@@ -260,4 +261,75 @@ fn get_cli_conflict_hint_warns_for_ctrl_t_and_ctrl_f_readline_chords() {
 #[test]
 fn get_cli_conflict_hint_returns_none_for_unknown_chords() {
     assert_eq!(get_cli_conflict_hint("mod+shift+k", false), None);
+}
+
+#[test]
+fn find_keymap_conflicts_deduplicates_repeated_chords_on_one_action() {
+    let mut config = default_keymap_config();
+    config.bindings.insert(
+        "terminal.find".into(),
+        Some(vec!["mod+j".into(), "MOD+J".into()]),
+    );
+    let effective = resolve_effective_keymap(&config, false);
+    assert!(find_keymap_conflicts(&effective).get("mod+j").is_none());
+}
+
+#[test]
+fn keymap_config_deserializes_and_serializes_legacy_single_string_bindings_byte_for_byte() {
+    let source = r#"{"bindings":{"terminal.find":"mod+j","editor.save":["mod+s"]}}"#;
+    let config: KeymapConfig = serde_json::from_str(source).expect("legacy keymap JSON parses");
+    let encoded = serde_json::to_string(&config).expect("keymap JSON serializes");
+    assert_eq!(
+        encoded,
+        r#"{"bindings":{"editor.save":["mod+s"],"terminal.find":["mod+j"]}}"#
+    );
+}
+
+#[test]
+fn parse_chord_uses_ecmascript_whitespace_trim() {
+    assert_eq!(
+        parse_chord("\u{FEFF}mod+a"),
+        Some(crate::keymap::chord::Chord {
+            key: "a".into(),
+            mod_key: true,
+            ..Default::default()
+        })
+    );
+    assert_eq!(parse_chord("mod+\u{85}a"), None);
+}
+
+#[test]
+fn with_shortcut_treats_empty_shortcut_as_missing() {
+    assert_eq!(with_shortcut("L", Some("")), "L");
+}
+
+#[test]
+fn action_groups_preserve_order_strings_and_members() {
+    use crate::keymap::actions::{
+        KEYMAP_ACTION_GROUPS, KeymapActionGroup, action_group_id, get_actions_by_group,
+    };
+    assert_eq!(
+        KEYMAP_ACTION_GROUPS,
+        &[
+            KeymapActionGroup::Workspace,
+            KeymapActionGroup::Tabs,
+            KeymapActionGroup::Terminal,
+            KeymapActionGroup::Sftp,
+            KeymapActionGroup::Zmodem,
+            KeymapActionGroup::Editor
+        ]
+    );
+    assert_eq!(action_group_id(KeymapActionGroup::Workspace), "workspace");
+    assert_eq!(
+        get_actions_by_group(KeymapActionGroup::Sftp),
+        vec![
+            A::SftpToggle,
+            A::SftpSelectAll,
+            A::SftpFocusPath,
+            A::SftpPasteUpload,
+            A::SftpBack,
+            A::SftpForward,
+            A::SftpUp
+        ]
+    );
 }

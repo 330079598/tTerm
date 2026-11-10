@@ -1,10 +1,12 @@
-use crate::keymap::KeymapActionId as A;
-use crate::keymap::chord::{EditableTarget, KeyEventData};
-use crate::keymap::config::build_chord_index;
-use crate::keymap::config::{default_keymap_config, resolve_effective_keymap};
+use crate::keymap::actions::KeymapActionId as A;
+use crate::keymap::chord::{Chord, EditableTarget, KeyEventData};
+use crate::keymap::config::{build_chord_index, default_keymap_config, resolve_effective_keymap};
 use crate::keymap::dispatcher::*;
+use std::cell::RefCell;
 use std::collections::BTreeMap;
-fn ev(
+use std::rc::Rc;
+
+fn event(
     key: &'static str,
     code: Option<&'static str>,
     meta: bool,
@@ -22,14 +24,28 @@ fn ev(
             shift,
             composing: false,
         },
-        target: EditableTarget { editable: false },
+        target: EditableTarget {
+            form_control: false,
+            content_editable: false,
+            editable_ancestor: false,
+        },
         prevented: false,
         stopped: false,
     }
 }
-fn env<'a>(
+fn handlers_for(ids: &[A]) -> BTreeMap<A, Vec<KeymapHandler>> {
+    ids.iter()
+        .map(|id| {
+            (
+                *id,
+                vec![Box::new(|_: &mut DispatchEvent<'_>, _: &Chord| true) as KeymapHandler],
+            )
+        })
+        .collect()
+}
+fn runtime<'a>(
     index: &'a BTreeMap<String, A>,
-    handlers: &'a BTreeMap<A, usize>,
+    handlers: &'a mut BTreeMap<A, Vec<KeymapHandler>>,
     mac: bool,
 ) -> DispatchEnvironment<'a> {
     DispatchEnvironment {
@@ -40,217 +56,318 @@ fn env<'a>(
         handlers,
     }
 }
+
 #[test]
 fn dispatch_keydown_event_dispatches_bound_chord_to_handler_and_consumes_event() {
-    let i = BTreeMap::from([("mod+f".into(), A::TerminalFind)]);
-    let h = BTreeMap::from([(A::TerminalFind, 1)]);
-    let e = env(&i, &h, false);
-    let mut x = ev("f", Some("KeyF"), false, true, false, false);
-    assert_eq!(dispatch_keydown_event(&mut x, &e), Some(A::TerminalFind));
-    assert!(x.prevented && x.stopped);
+    let index = BTreeMap::from([("mod+f".into(), A::TerminalFind)]);
+    let mut handlers = handlers_for(&[A::TerminalFind]);
+    let mut env = runtime(&index, &mut handlers, false);
+    let mut event = event("f", None, false, true, false, false);
+    assert_eq!(
+        dispatch_keydown_event(&mut event, &mut env),
+        Some(A::TerminalFind)
+    );
+    assert!(event.prevented && event.stopped);
 }
 #[test]
 fn dispatch_keydown_event_gives_handlers_physical_digit_on_mac_option_symbol() {
-    let i = BTreeMap::from([("alt+1".into(), A::TabsSwitchToNth)]);
-    let h = BTreeMap::from([(A::TabsSwitchToNth, 1)]);
-    let e = env(&i, &h, true);
-    let mut x = ev("¡", Some("Digit1"), false, false, true, false);
-    assert_eq!(dispatch_keydown_event(&mut x, &e), Some(A::TabsSwitchToNth));
-    assert_eq!(x.data.code, Some("Digit1"));
+    let index = BTreeMap::from([("alt+1".into(), A::TabsSwitchToNth)]);
+    let observed = Rc::new(RefCell::new(None));
+    let callback = Rc::clone(&observed);
+    let mut handlers = BTreeMap::from([(
+        A::TabsSwitchToNth,
+        vec![Box::new(move |_: &mut DispatchEvent<'_>, chord: &Chord| {
+            *callback.borrow_mut() = Some(chord.clone());
+            true
+        }) as KeymapHandler],
+    )]);
+    let mut env = runtime(&index, &mut handlers, true);
+    let mut event = event("¡", Some("Digit1"), false, false, true, false);
+    assert_eq!(
+        dispatch_keydown_event(&mut event, &mut env),
+        Some(A::TabsSwitchToNth)
+    );
+    assert_eq!(
+        *observed.borrow(),
+        Some(Chord {
+            key: "1".into(),
+            alt: true,
+            ..Default::default()
+        })
+    );
 }
 #[test]
 fn dispatch_keydown_event_passes_unbound_chords_through() {
-    let i = BTreeMap::new();
-    let h = BTreeMap::new();
-    let e = env(&i, &h, false);
-    let mut x = ev("a", Some("KeyA"), false, true, false, false);
-    assert_eq!(dispatch_keydown_event(&mut x, &e), None);
-    assert!(!x.prevented);
+    let index = BTreeMap::new();
+    let mut handlers = BTreeMap::new();
+    let mut env = runtime(&index, &mut handlers, false);
+    let mut event = event("a", None, false, true, false, false);
+    assert_eq!(dispatch_keydown_event(&mut event, &mut env), None);
+    assert!(!event.prevented);
 }
 #[test]
 fn dispatch_keydown_event_does_not_consume_bound_without_handler() {
-    let i = BTreeMap::from([("mod+f".into(), A::TerminalFind)]);
-    let h = BTreeMap::new();
-    let e = env(&i, &h, false);
-    let mut x = ev("f", Some("KeyF"), false, true, false, false);
-    assert_eq!(dispatch_keydown_event(&mut x, &e), None);
-    assert!(!x.prevented);
+    let index = BTreeMap::from([("mod+f".into(), A::TerminalFind)]);
+    let mut handlers = BTreeMap::new();
+    let mut env = runtime(&index, &mut handlers, false);
+    let mut event = event("f", None, false, true, false, false);
+    assert_eq!(dispatch_keydown_event(&mut event, &mut env), None);
+    assert!(!event.prevented);
 }
 #[test]
 fn dispatch_keydown_event_skips_actions_disallowing_editable_targets() {
-    let i = BTreeMap::from([("mod+a".into(), A::SftpSelectAll)]);
-    let h = BTreeMap::from([(A::SftpSelectAll, 1)]);
-    let e = env(&i, &h, false);
-    let mut x = ev("a", Some("KeyA"), false, true, false, false);
-    x.target.editable = true;
-    assert_eq!(dispatch_keydown_event(&mut x, &e), None);
+    let index = BTreeMap::from([("mod+a".into(), A::SftpSelectAll)]);
+    let mut handlers = handlers_for(&[A::SftpSelectAll]);
+    let mut env = runtime(&index, &mut handlers, false);
+    let mut event = event("a", None, false, true, false, false);
+    event.target.form_control = true;
+    assert_eq!(dispatch_keydown_event(&mut event, &mut env), None);
 }
 #[test]
 fn dispatch_keydown_event_allows_action_outside_editable_surface() {
-    let i = BTreeMap::from([("mod+a".into(), A::SftpSelectAll)]);
-    let h = BTreeMap::from([(A::SftpSelectAll, 1)]);
-    let e = env(&i, &h, false);
-    let mut x = ev("a", Some("KeyA"), false, true, false, false);
-    assert_eq!(dispatch_keydown_event(&mut x, &e), Some(A::SftpSelectAll));
+    let index = BTreeMap::from([("mod+a".into(), A::SftpSelectAll)]);
+    let mut handlers = handlers_for(&[A::SftpSelectAll]);
+    let mut env = runtime(&index, &mut handlers, false);
+    let mut event = event("a", None, false, true, false, false);
+    assert_eq!(
+        dispatch_keydown_event(&mut event, &mut env),
+        Some(A::SftpSelectAll)
+    );
 }
 #[test]
 fn dispatch_keydown_event_ignores_everything_while_suppressed() {
-    let i = BTreeMap::from([("mod+f".into(), A::TerminalFind)]);
-    let h = BTreeMap::from([(A::TerminalFind, 1)]);
-    let mut e = env(&i, &h, false);
-    e.suppressed = true;
-    let mut x = ev("f", Some("KeyF"), false, true, false, false);
-    assert_eq!(dispatch_keydown_event(&mut x, &e), None);
+    let index = BTreeMap::from([("mod+f".into(), A::TerminalFind)]);
+    let mut handlers = handlers_for(&[A::TerminalFind]);
+    let mut env = runtime(&index, &mut handlers, false);
+    env.suppressed = true;
+    let mut event = event("f", None, false, true, false, false);
+    assert_eq!(dispatch_keydown_event(&mut event, &mut env), None);
 }
 #[test]
 fn dispatch_keydown_event_ignores_everything_while_modal_open() {
-    let i = BTreeMap::from([("mod+f".into(), A::TerminalFind)]);
-    let h = BTreeMap::from([(A::TerminalFind, 1)]);
-    let mut e = env(&i, &h, false);
-    e.layer_open = true;
-    let mut x = ev("f", Some("KeyF"), false, true, false, false);
-    assert_eq!(dispatch_keydown_event(&mut x, &e), None);
+    let index = BTreeMap::from([("mod+f".into(), A::TerminalFind)]);
+    let mut handlers = handlers_for(&[A::TerminalFind]);
+    let mut env = runtime(&index, &mut handlers, false);
+    env.layer_open = true;
+    let mut event = event("f", None, false, true, false, false);
+    assert_eq!(dispatch_keydown_event(&mut event, &mut env), None);
 }
 #[test]
 fn dispatch_keydown_event_never_dispatches_escape() {
-    let i = BTreeMap::new();
-    let h = BTreeMap::new();
-    let e = env(&i, &h, false);
-    let mut x = ev("Escape", Some("Escape"), false, false, false, false);
-    assert_eq!(dispatch_keydown_event(&mut x, &e), None);
+    let index = BTreeMap::new();
+    let mut handlers = BTreeMap::new();
+    let mut env = runtime(&index, &mut handlers, false);
+    let mut event = event("Escape", None, false, false, false, false);
+    assert_eq!(dispatch_keydown_event(&mut event, &mut env), None);
 }
 #[test]
 fn dispatch_keydown_event_prefers_explicit_ctrl_over_mod_on_mac() {
-    let i = BTreeMap::from([
+    let index = BTreeMap::from([
         ("ctrl+tab".into(), A::TabsNext),
         ("mod+tab".into(), A::TerminalFind),
     ]);
-    let h = BTreeMap::from([(A::TabsNext, 1), (A::TerminalFind, 1)]);
-    let e = env(&i, &h, true);
-    let mut x = ev("Tab", Some("Tab"), false, true, false, false);
-    assert_eq!(dispatch_keydown_event(&mut x, &e), Some(A::TabsNext));
+    let mut handlers = handlers_for(&[A::TabsNext, A::TerminalFind]);
+    let mut env = runtime(&index, &mut handlers, true);
+    let mut event = event("Tab", None, false, true, false, false);
+    assert_eq!(
+        dispatch_keydown_event(&mut event, &mut env),
+        Some(A::TabsNext)
+    );
 }
 #[test]
 fn dispatch_keydown_event_falls_back_from_physical_ctrl_to_mod_on_mac() {
-    let i = BTreeMap::from([("mod+=".into(), A::TerminalZoomIn)]);
-    let h = BTreeMap::from([(A::TerminalZoomIn, 1)]);
-    let e = env(&i, &h, true);
-    let mut x = ev("=", Some("Equal"), false, true, false, false);
-    assert_eq!(dispatch_keydown_event(&mut x, &e), Some(A::TerminalZoomIn));
+    let index = BTreeMap::from([("mod+=".into(), A::TerminalZoomIn)]);
+    let mut handlers = handlers_for(&[A::TerminalZoomIn]);
+    let mut env = runtime(&index, &mut handlers, true);
+    let mut event = event("=", None, false, true, false, false);
+    assert_eq!(
+        dispatch_keydown_event(&mut event, &mut env),
+        Some(A::TerminalZoomIn)
+    );
 }
 #[test]
 fn dispatch_keydown_event_leaves_ctrl_letter_to_terminal_on_mac() {
-    let i = BTreeMap::from([("mod+f".into(), A::TerminalFind)]);
-    let h = BTreeMap::from([(A::TerminalFind, 1)]);
-    let e = env(&i, &h, true);
-    let mut x = ev("f", Some("KeyF"), false, true, false, false);
-    assert_eq!(dispatch_keydown_event(&mut x, &e), None);
-    assert!(!x.prevented);
+    let index = BTreeMap::from([
+        ("mod+t".into(), A::WorkspaceNewTab),
+        ("mod+f".into(), A::TerminalFind),
+    ]);
+    let mut handlers = handlers_for(&[A::WorkspaceNewTab, A::TerminalFind]);
+    let mut env = runtime(&index, &mut handlers, true);
+    let mut ctrl_f = event("f", None, false, true, false, false);
+    assert_eq!(dispatch_keydown_event(&mut ctrl_f, &mut env), None);
+    let mut ctrl_t = event("t", None, false, true, false, false);
+    assert_eq!(dispatch_keydown_event(&mut ctrl_t, &mut env), None);
+    let mut cmd_f = event("f", None, true, false, false, false);
+    assert_eq!(
+        dispatch_keydown_event(&mut cmd_f, &mut env),
+        Some(A::TerminalFind)
+    );
 }
 #[test]
 fn dispatch_keydown_event_leaves_ctrl_brackets_to_terminal_on_mac() {
-    let i = BTreeMap::from([
+    let index = BTreeMap::from([
         ("mod+[".into(), A::WorkspaceFocusPrevPane),
         ("mod+]".into(), A::WorkspaceFocusNextPane),
     ]);
-    let h = BTreeMap::from([
-        (A::WorkspaceFocusPrevPane, 1),
-        (A::WorkspaceFocusNextPane, 1),
-    ]);
-    let e = env(&i, &h, true);
-    for (k, c) in [("[", "BracketLeft"), ("]", "BracketRight")] {
-        let mut x = ev(k, Some(c), false, true, false, false);
-        assert_eq!(dispatch_keydown_event(&mut x, &e), None, "key={}", k);
-        assert!(!x.prevented);
+    let mut handlers = handlers_for(&[A::WorkspaceFocusPrevPane, A::WorkspaceFocusNextPane]);
+    let mut env = runtime(&index, &mut handlers, true);
+    for key in ["[", "]"] {
+        let mut ctrl = event(key, None, false, true, false, false);
+        assert_eq!(dispatch_keydown_event(&mut ctrl, &mut env), None);
     }
+    let mut cmd = event("[", None, true, false, false, false);
+    assert_eq!(
+        dispatch_keydown_event(&mut cmd, &mut env),
+        Some(A::WorkspaceFocusPrevPane)
+    );
 }
 #[test]
 fn dispatch_keydown_event_leaves_ctrl_backslash_as_sigquit_on_mac() {
-    let i = BTreeMap::from([("mod+\\".into(), A::WorkspaceSplitRight)]);
-    let h = BTreeMap::from([(A::WorkspaceSplitRight, 1)]);
-    let e = env(&i, &h, true);
-    let mut x = ev("\\", Some("Backslash"), false, true, false, false);
-    assert_eq!(dispatch_keydown_event(&mut x, &e), None);
-    assert!(!x.prevented);
+    let index = BTreeMap::from([("mod+\\".into(), A::WorkspaceSplitRight)]);
+    let mut handlers = handlers_for(&[A::WorkspaceSplitRight]);
+    let mut env = runtime(&index, &mut handlers, true);
+    let mut ctrl = event("\\", None, false, true, false, false);
+    assert_eq!(dispatch_keydown_event(&mut ctrl, &mut env), None);
+    let mut cmd = event("\\", None, true, false, false, false);
+    assert_eq!(
+        dispatch_keydown_event(&mut cmd, &mut env),
+        Some(A::WorkspaceSplitRight)
+    );
 }
 #[test]
 fn dispatch_keydown_event_matches_explicit_ctrl_on_windows_and_linux() {
-    let i = BTreeMap::from([("ctrl+tab".into(), A::TabsNext)]);
-    let h = BTreeMap::from([(A::TabsNext, 1)]);
-    let e = env(&i, &h, false);
-    let mut x = ev("Tab", Some("Tab"), false, true, false, false);
-    assert_eq!(dispatch_keydown_event(&mut x, &e), Some(A::TabsNext));
+    let index = BTreeMap::from([("ctrl+tab".into(), A::TabsNext)]);
+    let mut handlers = handlers_for(&[A::TabsNext]);
+    let mut env = runtime(&index, &mut handlers, false);
+    let mut event = event("Tab", None, false, true, false, false);
+    assert_eq!(
+        dispatch_keydown_event(&mut event, &mut env),
+        Some(A::TabsNext)
+    );
 }
 #[test]
 fn attach_keymap_dispatcher_wires_capture_listener_and_detaches() {
-    let i = BTreeMap::from([("mod+f".into(), A::TerminalFind)]);
-    let h = BTreeMap::from([(A::TerminalFind, 1)]);
-    let e = env(&i, &h, false);
-    let mut x = ev("f", Some("KeyF"), false, true, false, false);
-    assert_eq!(dispatch_keydown_event(&mut x, &e), Some(A::TerminalFind));
-    let mut y = ev("f", Some("KeyF"), false, true, false, false);
-    assert_eq!(dispatch_keydown_event(&mut y, &e), Some(A::TerminalFind));
+    let index = BTreeMap::from([("mod+f".into(), A::TerminalFind)]);
+    let mut handlers = handlers_for(&[A::TerminalFind]);
+    let mut env = runtime(&index, &mut handlers, false);
+    let mut first = event("f", None, false, true, false, false);
+    assert_eq!(
+        dispatch_keydown_event(&mut first, &mut env),
+        Some(A::TerminalFind)
+    );
+    env.handlers.clear();
+    let mut second = event("f", None, false, true, false, false);
+    assert_eq!(dispatch_keydown_event(&mut second, &mut env), None);
+    assert!(!second.prevented);
 }
 #[test]
 fn real_defaults_resolve_command_library_chord() {
-    let e = resolve_effective_keymap(&default_keymap_config(), false);
-    let i = build_chord_index(&e);
-    let h = BTreeMap::from([(A::CommandLibraryOpen, 1)]);
-    let env = env(&i, &h, false);
-    let mut x = ev("p", Some("KeyP"), false, true, false, true);
+    let effective = resolve_effective_keymap(&default_keymap_config(), false);
+    let index = build_chord_index(&effective);
+    let mut handlers = handlers_for(&[A::CommandLibraryOpen]);
+    let mut env = runtime(&index, &mut handlers, false);
+    let mut event = event("p", None, false, true, false, true);
     assert_eq!(
-        dispatch_keydown_event(&mut x, &env),
+        dispatch_keydown_event(&mut event, &mut env),
         Some(A::CommandLibraryOpen)
     );
 }
 #[test]
 fn real_defaults_dispatch_new_tab_and_sftp_shortcuts() {
-    let e = resolve_effective_keymap(&default_keymap_config(), false);
-    let i = build_chord_index(&e);
-    let h = BTreeMap::from([(A::WorkspaceNewTab, 1), (A::SftpToggle, 1)]);
-    let env = env(&i, &h, false);
-    let mut a = ev("t", Some("KeyT"), false, true, false, true);
+    let effective = resolve_effective_keymap(&default_keymap_config(), false);
+    let index = build_chord_index(&effective);
+    let mut handlers = handlers_for(&[A::WorkspaceNewTab, A::SftpToggle]);
+    let mut env = runtime(&index, &mut handlers, false);
+    let mut new_tab = event("t", None, false, true, false, true);
     assert_eq!(
-        dispatch_keydown_event(&mut a, &env),
+        dispatch_keydown_event(&mut new_tab, &mut env),
         Some(A::WorkspaceNewTab)
     );
-    let mut b = ev("e", Some("KeyE"), false, true, false, true);
-    assert_eq!(dispatch_keydown_event(&mut b, &env), Some(A::SftpToggle));
-    let mut c = ev("t", Some("KeyT"), false, true, false, false);
-    assert_eq!(dispatch_keydown_event(&mut c, &env), None);
+    let mut sftp = event("e", None, false, true, false, true);
+    assert_eq!(
+        dispatch_keydown_event(&mut sftp, &mut env),
+        Some(A::SftpToggle)
+    );
+    let mut shell = event("t", None, false, true, false, false);
+    assert_eq!(dispatch_keydown_event(&mut shell, &mut env), None);
 }
 #[test]
 fn real_defaults_keep_explicit_control_distinct_from_command_on_mac() {
-    let e = resolve_effective_keymap(&default_keymap_config(), true);
-    let i = build_chord_index(&e);
-    let h = BTreeMap::from([(A::TabsNext, 1)]);
-    let env = env(&i, &h, true);
-    let mut a = ev("Tab", Some("Tab"), false, true, false, false);
-    assert_eq!(dispatch_keydown_event(&mut a, &env), Some(A::TabsNext));
-    let mut b = ev("Tab", Some("Tab"), true, false, false, false);
-    assert_eq!(dispatch_keydown_event(&mut b, &env), None);
+    let effective = resolve_effective_keymap(&default_keymap_config(), true);
+    let index = build_chord_index(&effective);
+    let mut handlers = handlers_for(&[A::TabsNext]);
+    let mut env = runtime(&index, &mut handlers, true);
+    let mut ctrl = event("Tab", None, false, true, false, false);
+    assert_eq!(
+        dispatch_keydown_event(&mut ctrl, &mut env),
+        Some(A::TabsNext)
+    );
+    let mut cmd = event("Tab", None, true, false, false, false);
+    assert_eq!(dispatch_keydown_event(&mut cmd, &mut env), None);
 }
 #[test]
 fn real_defaults_open_tab_on_cmd_t_mac() {
-    let e = resolve_effective_keymap(&default_keymap_config(), true);
-    let i = build_chord_index(&e);
-    let h = BTreeMap::from([(A::WorkspaceNewTab, 1)]);
-    let env = env(&i, &h, true);
-    let mut a = ev("t", Some("KeyT"), true, false, false, false);
+    let effective = resolve_effective_keymap(&default_keymap_config(), true);
+    let index = build_chord_index(&effective);
+    let mut handlers = handlers_for(&[A::WorkspaceNewTab]);
+    let mut env = runtime(&index, &mut handlers, true);
+    let mut cmd = event("t", None, true, false, false, false);
     assert_eq!(
-        dispatch_keydown_event(&mut a, &env),
+        dispatch_keydown_event(&mut cmd, &mut env),
         Some(A::WorkspaceNewTab)
     );
-    let mut b = ev("t", Some("KeyT"), false, true, false, false);
-    assert_eq!(dispatch_keydown_event(&mut b, &env), None);
+    let mut ctrl = event("t", None, false, true, false, false);
+    assert_eq!(dispatch_keydown_event(&mut ctrl, &mut env), None);
 }
 #[test]
 fn real_defaults_let_bound_but_unmounted_actions_pass_through() {
-    let e = resolve_effective_keymap(&default_keymap_config(), false);
-    let i = build_chord_index(&e);
-    let h = BTreeMap::new();
-    let env = env(&i, &h, false);
-    let mut x = ev("1", Some("Digit1"), false, false, true, false);
-    assert_eq!(dispatch_keydown_event(&mut x, &env), None);
-    assert!(!x.prevented);
+    let effective = resolve_effective_keymap(&default_keymap_config(), false);
+    let index = build_chord_index(&effective);
+    let mut handlers = BTreeMap::new();
+    let mut env = runtime(&index, &mut handlers, false);
+    let mut event = event("1", None, false, false, true, false);
+    assert_eq!(dispatch_keydown_event(&mut event, &mut env), None);
+    assert!(!event.prevented);
+}
+#[test]
+fn dispatch_keydown_event_all_rejecting_handlers_leave_key_unconsumed() {
+    let index = BTreeMap::from([("mod+f".into(), A::TerminalFind)]);
+    let mut handlers: BTreeMap<A, Vec<KeymapHandler>> = BTreeMap::from([(
+        A::TerminalFind,
+        vec![Box::new(|_: &mut DispatchEvent<'_>, _: &Chord| false) as KeymapHandler],
+    )]);
+    let mut env = runtime(&index, &mut handlers, false);
+    let mut event = event("f", None, false, true, false, false);
+    assert_eq!(dispatch_keydown_event(&mut event, &mut env), None);
+    assert!(!event.prevented && !event.stopped);
+}
+#[test]
+fn dispatch_keydown_event_one_rejecting_and_one_accepting_handler_consumes_key() {
+    let index = BTreeMap::from([("mod+f".into(), A::TerminalFind)]);
+    let mut handlers: BTreeMap<A, Vec<KeymapHandler>> = BTreeMap::from([(
+        A::TerminalFind,
+        vec![
+            Box::new(|_: &mut DispatchEvent<'_>, _: &Chord| false) as KeymapHandler,
+            Box::new(|_: &mut DispatchEvent<'_>, _: &Chord| true) as KeymapHandler,
+        ],
+    )]);
+    let mut env = runtime(&index, &mut handlers, false);
+    let mut event = event("f", None, false, true, false, false);
+    assert_eq!(
+        dispatch_keydown_event(&mut event, &mut env),
+        Some(A::TerminalFind)
+    );
+    assert!(event.prevented && event.stopped);
+}
+#[test]
+fn dispatch_keydown_event_all_accepting_handlers_consume_key() {
+    let index = BTreeMap::from([("mod+f".into(), A::TerminalFind)]);
+    let mut handlers = handlers_for(&[A::TerminalFind]);
+    let mut env = runtime(&index, &mut handlers, false);
+    let mut event = event("f", None, false, true, false, false);
+    assert_eq!(
+        dispatch_keydown_event(&mut event, &mut env),
+        Some(A::TerminalFind)
+    );
+    assert!(event.prevented && event.stopped);
 }
