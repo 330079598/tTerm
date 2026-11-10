@@ -1,8 +1,10 @@
+use crate::event_sink::TauriEventSink;
+use tterm_core::events::sftp::SftpEvent;
+use tterm_core::events::{AppEvent, EventSink};
+mod items;
 use crate::core::session::types::PtyConnectionOptions;
 use crate::core::state::HostPromptMap;
-use crate::sftp::internal::api::conflict::{
-    self, ConflictPolicy, ConflictReport, TransferConflict,
-};
+use crate::sftp::internal::api::conflict::{self, ConflictReport, TransferConflict};
 use crate::sftp::internal::api::prepare_transfer;
 use crate::sftp::internal::connection::ensure_ssh_plan;
 use crate::sftp::internal::transfer::{
@@ -10,11 +12,12 @@ use crate::sftp::internal::transfer::{
 };
 use crate::sftp::internal::types::{SftpConnectionPool, TransferCancelMap};
 use crate::ssh::secret_store::types::SecretStoreState;
-use serde::Serialize;
 use std::path::PathBuf;
 use std::sync::Arc;
-use tauri::{AppHandle, Emitter, State};
+use tauri::{AppHandle, State};
 use tokio::sync::watch;
+use tterm_core::events::sftp::download::DownloadProgressEvent;
+use tterm_core::sftp::conflict::ConflictPolicy;
 
 mod directory;
 
@@ -22,64 +25,6 @@ use directory::{
     collect_download_plan, download_directory_with_progress, remote_basename,
     DirectoryDownloadRequest, DownloadTarget,
 };
-
-#[derive(Clone, Serialize)]
-#[serde(rename_all = "camelCase")]
-struct DownloadProgressEvent {
-    transfer_id: String,
-    local_path: String,
-    remote_path: String,
-    transferred: u64,
-    total: u64,
-    progress: u32,
-    resumed_from: u64,
-    parallelism: u32,
-    completed_chunks: u64,
-    chunk_count: u64,
-}
-
-#[derive(Clone, Serialize)]
-#[serde(rename_all = "camelCase")]
-struct DownloadItemStartEvent {
-    transfer_id: String,
-    batch_id: String,
-    file_name: String,
-    file_size: u64,
-    local_path: String,
-    remote_path: String,
-}
-
-#[derive(Clone, Serialize)]
-#[serde(rename_all = "camelCase")]
-struct DownloadItemCompleteEvent {
-    transfer_id: String,
-    error: Option<String>,
-    local_path: String,
-    remote_path: String,
-    cancelled: bool,
-    success: bool,
-    /// The local file already held the remote bytes, so no bytes moved in
-    /// this run. Reported so the UI does not derive a speed from them.
-    skipped: bool,
-}
-
-#[derive(Clone, Serialize)]
-#[serde(rename_all = "camelCase")]
-struct DownloadBatchCompleteEvent {
-    batch_id: String,
-    cancelled: bool,
-    error: Option<String>,
-    transferred: u64,
-    total: u64,
-    /// Bytes of files the run skipped because the local copy was already
-    /// current. They are included in `transferred` so the bar reaches 100%,
-    /// but no bytes moved for them — reported separately so the UI does not
-    /// derive a speed from them.
-    skipped: u64,
-    /// Bytes of files this run resumed from a previous partial attempt: they
-    /// are part of `transferred` as well, but only the remainder was fetched.
-    resumed: u64,
-}
 
 fn is_cancelled(cancel_rx: &mut watch::Receiver<bool>) -> bool {
     *cancel_rx.borrow_and_update()
@@ -120,7 +65,7 @@ fn transfer_result_message(
 /// Downloads one file through the transfer engine, reporting progress to
 /// the tab and cancellable under `transfer_id`.
 pub(crate) async fn download_file_with_progress(
-    app: &AppHandle,
+    events: &Arc<dyn EventSink>,
     tab_id: &str,
     channels: RemoteChannels,
     cancel_map: &TransferCancelMap,
@@ -134,7 +79,7 @@ pub(crate) async fn download_file_with_progress(
         .await
         .insert(transfer_id.to_string(), cancel_tx);
 
-    let app_for_progress = app.clone();
+    let events_for_progress = events.clone();
     let tab_id_for_progress = tab_id.to_string();
     let transfer_id_for_progress = transfer_id.to_string();
     let local_path_for_progress = local_path.to_string();
@@ -145,9 +90,9 @@ pub(crate) async fn download_file_with_progress(
         } else {
             100
         };
-        let _ = app_for_progress.emit(
-            &format!("sftp-download-progress-{}", tab_id_for_progress),
-            DownloadProgressEvent {
+        let _ = events_for_progress.emit(AppEvent::Sftp(SftpEvent::DownloadProgress {
+            tab_id: tab_id_for_progress.to_string(),
+            payload: DownloadProgressEvent {
                 transfer_id: transfer_id_for_progress.clone(),
                 local_path: local_path_for_progress.clone(),
                 remote_path: remote_path_for_progress.clone(),
@@ -159,7 +104,7 @@ pub(crate) async fn download_file_with_progress(
                 completed_chunks: update.completed_chunks,
                 chunk_count: update.chunk_count,
             },
-        );
+        }));
     });
 
     let result = transfer::download_file(
@@ -193,6 +138,7 @@ pub async fn sftp_download_file(
     pool_state: State<'_, SftpConnectionPool>,
     cancel_map: State<'_, TransferCancelMap>,
 ) -> Result<(), String> {
+    let events: Arc<dyn EventSink> = Arc::new(TauriEventSink::new(app.clone()));
     let plan = ensure_ssh_plan(&app, &secret_state, connection)?;
 
     let (_sftp, channels) = prepare_transfer(
@@ -205,7 +151,7 @@ pub async fn sftp_download_file(
     .await?;
 
     download_file_with_progress(
-        &app,
+        &events,
         &tab_id,
         channels,
         cancel_map.inner(),
@@ -237,6 +183,7 @@ pub async fn sftp_download_paths(
     pool_state: State<'_, SftpConnectionPool>,
     cancel_map: State<'_, TransferCancelMap>,
 ) -> Result<(), String> {
+    let events: Arc<dyn EventSink> = Arc::new(TauriEventSink::new(app.clone()));
     let plan = ensure_ssh_plan(&app, &secret_state, connection)?;
 
     let (sftp, channels) = prepare_transfer(
@@ -250,7 +197,7 @@ pub async fn sftp_download_paths(
 
     download_directory_with_progress(
         DownloadTarget {
-            app: &app,
+            events: &events,
             tab_id: &tab_id,
             cancel_map: cancel_map.inner(),
         },
@@ -339,3 +286,6 @@ pub async fn get_file_size(local_path: String) -> Result<u64, String> {
     .await
     .map_err(|err| format!("Task join error: {err}"))?
 }
+
+#[cfg(test)]
+mod contract_tests;

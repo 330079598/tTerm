@@ -1,6 +1,5 @@
 use std::cmp::Ordering;
-
-use crate::sftp::internal::types::SftpDirectoryEntry;
+use tterm_core::sftp::entry::SftpDirectoryEntry;
 
 pub fn normalize_remote_path(path: &str) -> String {
     let trimmed = path.trim();

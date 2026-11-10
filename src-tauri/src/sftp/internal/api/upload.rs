@@ -1,3 +1,7 @@
+use tterm_core::events::sftp::SftpEvent;
+use tterm_core::events::{AppEvent, EventSink};
+mod batch;
+mod items;
 use crate::sftp::internal::transfer::{
     self, ProgressSink, RemoteChannels, TransferOptions, TransferProgress,
 };
@@ -8,9 +12,10 @@ use std::future::Future;
 use std::path::{Path, PathBuf};
 use std::pin::Pin;
 use std::sync::Arc;
-use tauri::{AppHandle, Emitter};
+
 use tokio::fs;
 use tokio::sync::watch;
+use tterm_core::events::sftp::upload::UploadItemProgressEvent;
 #[derive(Clone)]
 struct UploadFilePlanItem {
     file_name: String,
@@ -25,69 +30,6 @@ struct UploadFilePlanItem {
 struct UploadPlan {
     directories: Vec<String>,
     files: Vec<UploadFilePlanItem>,
-}
-
-#[derive(Clone, Serialize)]
-#[serde(rename_all = "camelCase")]
-struct UploadItemStartEvent {
-    transfer_id: String,
-    batch_id: Option<String>,
-    file_name: String,
-    file_size: u64,
-    local_path: String,
-    remote_path: String,
-}
-
-#[derive(Clone, Serialize)]
-#[serde(rename_all = "camelCase")]
-struct UploadBatchStartEvent {
-    batch_id: String,
-    display_name: String,
-    local_path: String,
-    /// Every path the batch was started with, so a retry can re-run exactly
-    /// this batch instead of whatever batch happens to be the latest one.
-    local_paths: Vec<String>,
-    remote_base_path: String,
-    /// Echoed back so a retry re-runs the batch under the same policy.
-    conflict_policy: super::conflict::ConflictPolicy,
-}
-
-#[derive(Clone, Serialize)]
-#[serde(rename_all = "camelCase")]
-struct UploadBatchCompleteEvent {
-    batch_id: String,
-    cancelled: bool,
-    error: Option<String>,
-    failed: usize,
-    succeeded: usize,
-}
-
-#[derive(Clone, Serialize)]
-#[serde(rename_all = "camelCase")]
-struct UploadItemProgressEvent {
-    transfer_id: String,
-    local_path: String,
-    transferred: u64,
-    total: u64,
-    progress: u32,
-    resumed_from: u64,
-    parallelism: u32,
-    completed_chunks: u64,
-    chunk_count: u64,
-}
-
-#[derive(Clone, Serialize)]
-#[serde(rename_all = "camelCase")]
-struct UploadItemCompleteEvent {
-    transfer_id: String,
-    error: Option<String>,
-    local_path: String,
-    remote_path: String,
-    cancelled: bool,
-    success: bool,
-    /// The destination already held the source bytes, so no bytes moved in
-    /// this run. Reported so the UI does not derive a speed from them.
-    skipped: bool,
 }
 
 #[derive(Serialize)]
@@ -364,7 +306,7 @@ async fn inspect_upload_roots(local_paths: &[String]) -> Result<UploadRootSummar
 }
 
 async fn upload_single_file_with_progress(
-    app: &AppHandle,
+    events: &Arc<dyn EventSink>,
     tab_id: &str,
     channels: RemoteChannels,
     cancel_map: &TransferCancelMap,
@@ -378,7 +320,7 @@ async fn upload_single_file_with_progress(
         .await
         .insert(transfer_id.to_string(), cancel_tx.clone());
 
-    let app_for_progress = app.clone();
+    let events_for_progress = events.clone();
     let tab_id_for_progress = tab_id.to_string();
     let transfer_id_for_progress = transfer_id.to_string();
     let local_path_for_progress = plan_item.local_path.clone();
@@ -395,9 +337,9 @@ async fn upload_single_file_with_progress(
             100
         };
 
-        let _ = app_for_progress.emit(
-            &format!("sftp-upload-progress-{}", tab_id_for_progress),
-            UploadItemProgressEvent {
+        let _ = events_for_progress.emit(AppEvent::Sftp(SftpEvent::UploadProgress {
+            tab_id: tab_id_for_progress.to_string(),
+            payload: UploadItemProgressEvent {
                 transfer_id: transfer_id_for_progress.clone(),
                 local_path: local_path_for_progress.clone(),
                 transferred: update.transferred,
@@ -408,7 +350,7 @@ async fn upload_single_file_with_progress(
                 completed_chunks: update.completed_chunks,
                 chunk_count: update.chunk_count,
             },
-        );
+        }));
     });
 
     let options = TransferOptions {
@@ -441,3 +383,9 @@ async fn upload_single_file_with_progress(
 }
 
 pub mod commands;
+
+#[cfg(test)]
+mod contract_tests;
+
+#[cfg(test)]
+mod event_tests;

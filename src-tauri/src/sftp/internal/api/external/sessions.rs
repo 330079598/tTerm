@@ -4,11 +4,13 @@
 use super::local::Fingerprint;
 use super::remote::RemoteStamp;
 use super::watch::{Look, Watched};
-use super::{EditSession, EditStatus, ExternalEdit, ExternalEditState};
+use super::{EditSession, ExternalEditState};
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::atomic::Ordering;
 use std::sync::{MutexGuard, PoisonError};
+use tterm_core::events::sftp::external::EditStatus;
+use tterm_core::events::sftp::external::ExternalEdit;
 
 /// What an upload needs from its session.
 pub(super) struct UploadSource {

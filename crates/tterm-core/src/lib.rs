@@ -10,3 +10,6 @@ pub mod events;
 pub mod keymap;
 /// Application directories resolved by the client at startup.
 pub mod paths;
+
+/// Shared SFTP value and streaming types (P1-04).
+pub mod sftp;
