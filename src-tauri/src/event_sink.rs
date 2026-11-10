@@ -1,7 +1,8 @@
 //! Tauri's event transport for typed core business events.
 
+// P1-04 owns the SFTP notification and search transports.
 pub(crate) mod search;
-mod sftp; // P1-04. // P1-04.
+mod sftp;
 
 use serde::Serialize;
 use serde_json::Value;
