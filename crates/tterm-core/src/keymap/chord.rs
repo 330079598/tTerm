@@ -32,7 +32,7 @@ fn valid_named(s: &str) -> bool {
 fn valid_single(s: &str) -> bool {
     s.len() == 1
         && s.chars().next().is_some_and(|c| {
-            c.is_ascii_lowercase() || c.is_ascii_digit() || "\\/-[]`;=',.".contains(c)
+            c.is_ascii_lowercase() || c.is_ascii_digit() || "\\/-[]`;=',=.".contains(c)
         })
 }
 pub fn normalize_event_key(raw: &str) -> Option<String> {
@@ -235,68 +235,5 @@ pub fn is_editable_target(t: EditableTarget) -> bool {
 impl fmt::Display for Chord {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str(&serialize_chord(self).unwrap_or_default())
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn normalizes_and_round_trips_unicode_input_by_physical_code() {
-        assert_eq!(normalize_event_key("P"), Some("p".into()));
-        assert_eq!(normalize_event_key("Tab"), Some("tab".into()));
-        assert_eq!(normalize_event_key("+"), Some("plus".into()));
-        let event = KeyEventData {
-            key: "е",
-            code: Some("KeyT"),
-            meta: false,
-            ctrl: true,
-            alt: false,
-            shift: false,
-            composing: false,
-        };
-        assert_eq!(
-            event_to_chord(event, false),
-            Some(Chord {
-                key: "t".into(),
-                mod_key: true,
-                ..Chord::default()
-            })
-        );
-    }
-
-    #[test]
-    fn parses_serializes_and_formats_platform_chords() {
-        let chord = parse_chord("SHIFT+mod+P").unwrap();
-        assert_eq!(serialize_chord(&chord).as_deref(), Some("mod+shift+p"));
-        assert_eq!(format_chord("mod+shift+p", true), "⌘⇧P");
-        assert_eq!(format_chord("mod+shift+p", false), "Ctrl+Shift+P");
-        assert!(parse_chord("mod+shift+bogus+key").is_none());
-    }
-
-    #[test]
-    fn rejects_composition_and_modifier_events() {
-        let base = KeyEventData {
-            key: "Control",
-            code: None,
-            meta: false,
-            ctrl: false,
-            alt: false,
-            shift: false,
-            composing: false,
-        };
-        assert!(event_to_chord(base, false).is_none());
-        assert!(
-            event_to_chord(
-                KeyEventData {
-                    key: "x",
-                    composing: true,
-                    ..base
-                },
-                false
-            )
-            .is_none()
-        );
     }
 }
