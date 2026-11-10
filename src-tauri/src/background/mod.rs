@@ -2,17 +2,18 @@
 //! background behind a tray icon (the menu bar on macOS), as the user chose in
 //! `close_behavior`. "ask" lets the UI decide on each close.
 
+use tterm_core::events::background::BackgroundEvent;
+use tterm_core::events::{AppEvent, EventSink};
+
 pub(crate) mod exit_guard;
 pub(crate) mod quit;
 pub(crate) mod tray;
 
 use std::sync::atomic::{AtomicBool, AtomicU8, Ordering};
 
-use tauri::{AppHandle, Emitter, Manager, State, Window};
+use tauri::{AppHandle, Manager, State, Window};
 
 use crate::config::AppConfig;
-
-const CLOSE_REQUESTED_EVENT: &str = "close-requested";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum CloseBehavior {
@@ -155,8 +156,7 @@ pub fn on_close_requested(window: &Window) -> bool {
             true
         }
         CloseBehavior::Ask if state.should_ask() => {
-            if app.emit(CLOSE_REQUESTED_EVENT, ()).is_err() {
-                state.prompt_open.store(false, Ordering::SeqCst);
+            if !emit_close_request(&state, &crate::event_sink::TauriEventSink::new(app.clone())) {
                 quit_unless_held(app);
             }
             true
@@ -166,6 +166,17 @@ pub fn on_close_requested(window: &Window) -> bool {
             true
         }
     }
+}
+
+fn emit_close_request(state: &CloseBehaviorState, events: &dyn EventSink) -> bool {
+    if events
+        .emit(AppEvent::Background(BackgroundEvent::CloseRequested))
+        .is_err()
+    {
+        state.prompt_open.store(false, Ordering::SeqCst);
+        return false;
+    }
+    true
 }
 
 /// Quits, unless what the quit would end holds the exit for the user's
@@ -232,3 +243,7 @@ mod tests {
         }
     }
 }
+
+#[cfg(test)]
+#[path = "close_order_tests.rs"]
+mod close_order_tests;

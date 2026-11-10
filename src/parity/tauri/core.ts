@@ -12,6 +12,7 @@
 
 import type { InvokeArgs, InvokeOptions } from "@tauri-apps/api/core"
 import type { ParityFixture } from "@/parity/fixtures"
+import { declareParityEvents, emit, expandParityEventName } from "@/parity/tauri/event"
 
 /** Matches Tauri's key for custom IPC serialisation. */
 export const SERIALIZE_TO_IPC_FN = "__TAURI_TO_IPC_KEY__"
@@ -35,11 +36,22 @@ let activeFixture: ParityFixture | null = null
 const invoked: string[] = []
 const channels = new Map<number, Channel<unknown>>()
 let nextChannelId = 1
+let nextFixtureChannel = 0
 
 /** Makes `fixture` the answers the next `invoke` calls return. */
 export function activateFixture(fixture: ParityFixture): void {
   activeFixture = fixture
   invoked.length = 0
+  window.__PARITY_MISSING_EVENTS__ = []
+  const events = (fixture.events ?? []).map((event) => ({
+    ...event,
+    name: expandParityEventName(event.name, fixture.eventVars),
+  }))
+  declareParityEvents(events.map((event) => event.name))
+  for (const event of events) {
+    queueMicrotask(() => void emit(event.name, event.payload))
+  }
+  nextFixtureChannel = 0
 }
 
 /** The distinct commands the screen called, sorted, for the layout JSON. */
@@ -53,6 +65,7 @@ export function resetParityCore(): void {
   invoked.length = 0
   channels.clear()
   nextChannelId = 1
+  nextFixtureChannel = 0
   if (typeof window !== "undefined") window.__PARITY_MISSING__ = []
 }
 
@@ -69,6 +82,10 @@ export class Channel<T = unknown> {
     this.id = nextChannelId++
     channels.set(this.id, this as unknown as Channel<unknown>)
     if (onmessage) this.#onmessage = onmessage
+    const sequence = activeFixture?.channels?.[nextFixtureChannel++]
+    for (const message of sequence?.messages ?? []) {
+      queueMicrotask(() => this.#onmessage(structuredClone(message) as T))
+    }
   }
 
   set onmessage(handler: (response: T) => void) {

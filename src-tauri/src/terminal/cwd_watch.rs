@@ -3,19 +3,15 @@
 //! A shell started inside the first one (a nested shell, tmux, ssh) is not
 //! followed: the outer shell's directory is what gets restored.
 
-use serde::Serialize;
+use tterm_core::events::terminal::CwdPayload;
+use tterm_core::events::terminal::TerminalEvent;
+use tterm_core::events::{AppEvent, EventSink};
+
 use std::time::Duration;
-use tauri::{AppHandle, Emitter};
+use tauri::AppHandle;
 use tokio::sync::watch;
 
 const POLL_INTERVAL: Duration = Duration::from_secs(2);
-
-#[derive(Clone, Serialize)]
-#[serde(rename_all = "camelCase")]
-struct CwdPayload {
-    session_nonce: u32,
-    cwd: String,
-}
 
 /// Emits `pty-cwd-<tab id>` whenever the shell's directory changes, until the
 /// session stops or the shell exits.
@@ -29,7 +25,7 @@ pub fn spawn_cwd_watcher(
     if pid == 0 {
         return;
     }
-    let event_name = format!("pty-cwd-{tab_id}");
+    let events = crate::event_sink::TauriEventSink::new(app);
     std::thread::spawn(move || {
         let mut last: Option<String> = None;
         while !*stop_rx.borrow() {
@@ -37,17 +33,30 @@ pub fn spawn_cwd_watcher(
             let Some(cwd) = process_cwd(pid) else {
                 break;
             };
-            if last.as_deref() != Some(cwd.as_str()) {
-                let payload = CwdPayload {
-                    session_nonce,
-                    cwd: cwd.clone(),
-                };
-                let _ = app.emit_to(tauri::EventTarget::any(), &event_name, payload);
-                last = Some(cwd);
-            }
+            emit_changed_cwd(&events, &tab_id, session_nonce, &mut last, cwd);
             std::thread::sleep(POLL_INTERVAL);
         }
     });
+}
+
+fn emit_changed_cwd(
+    events: &dyn EventSink,
+    tab_id: &str,
+    session_nonce: u32,
+    last: &mut Option<String>,
+    cwd: String,
+) {
+    if last.as_deref() != Some(cwd.as_str()) {
+        let payload = CwdPayload {
+            session_nonce,
+            cwd: cwd.clone(),
+        };
+        let _ = events.emit(AppEvent::Terminal(TerminalEvent::Cwd {
+            tab_id: tab_id.to_string(),
+            payload,
+        }));
+        *last = Some(cwd);
+    }
 }
 
 #[cfg(target_os = "linux")]
@@ -114,3 +123,7 @@ mod tests {
         assert_eq!(cwd.as_deref(), dir.to_str());
     }
 }
+
+#[cfg(test)]
+#[path = "cwd_watch_legacy_tests.rs"]
+mod legacy_contract_tests;

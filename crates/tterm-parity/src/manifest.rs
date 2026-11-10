@@ -8,6 +8,10 @@ use std::path::{Path, PathBuf};
 /// The manifest schema this tool understands.
 pub const MANIFEST_VERSION: u32 = 2;
 
+fn default_ui_style() -> String {
+    "classic".to_owned()
+}
+
 /// The window every screen is captured at.
 #[derive(Clone, Copy, Debug, PartialEq, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -30,6 +34,21 @@ pub struct ScreenSpec {
     pub title: String,
     /// Fixture file under `parity/fixtures/`.
     pub fixture: String,
+    /// Optional style override for this screen (`classic` or `islands`).
+    #[serde(default)]
+    pub ui_style: Option<String>,
+    /// Optional list limiting the styles captured for this screen.
+    #[serde(default)]
+    pub ui_styles: Option<Vec<String>>,
+    /// Optional scale override for this screen.
+    #[serde(default)]
+    pub ui_scale_percent: Option<u32>,
+    /// Optional list limiting the scales captured for this screen.
+    #[serde(default)]
+    pub ui_scale_percents: Option<Vec<u32>>,
+    /// Actions executed by the reference capture before the screenshot.
+    #[serde(default)]
+    pub actions: Vec<ActionSpec>,
     /// Regions registered in `parity/exceptions.md` (ui-parity 5.2): they are
     /// left out of the image comparison and judged by a person instead.
     #[serde(default)]
@@ -47,6 +66,26 @@ pub struct ExceptionSpec {
     /// How far outside each element's border box the region reaches, in
     /// logical pixels. The element itself is still compared.
     pub outset: f32,
+}
+
+/// A deterministic browser action declared by a screen.
+#[derive(Clone, Debug, PartialEq, Deserialize)]
+#[serde(tag = "type", rename_all = "camelCase")]
+pub enum ActionSpec {
+    /// Click a marked element or action target.
+    Click { target: String },
+    /// Move the pointer over a marked element or action target.
+    Hover { target: String },
+    /// Press a key, optionally with modifiers.
+    Key {
+        key: String,
+        #[serde(default)]
+        modifiers: Vec<String>,
+    },
+    /// Drag one marked element or action target to another.
+    Drag { from: String, to: String },
+    /// Wait until a marked element or action target exists.
+    WaitFor { target: String },
 }
 
 /// The platform the reference side is told it runs on.
@@ -87,6 +126,15 @@ pub struct ScreensManifest {
     pub theme: String,
     /// Interface scale in percent, as the settings express it.
     pub ui_scale_percent: u32,
+    /// Default window style used when no list is supplied.
+    #[serde(default = "default_ui_style")]
+    pub ui_style: String,
+    /// Styles to capture globally. A screen may narrow this list.
+    #[serde(default)]
+    pub ui_styles: Option<Vec<String>>,
+    /// Scales to capture globally. A screen may narrow this list.
+    #[serde(default)]
+    pub ui_scale_percents: Option<Vec<u32>>,
     /// What `plugin-os` answers in parity mode.
     pub platform: PlatformSpec,
     /// Optional platform overrides used by the Windows parity channel.
@@ -97,12 +145,65 @@ pub struct ScreensManifest {
 }
 
 impl ScreensManifest {
+    /// Returns the Cartesian product of the style and scale dimensions for a screen.
+    pub fn variants(&self, screen: &ScreenSpec) -> Vec<(String, u32)> {
+        let styles: Vec<String> = screen
+            .ui_styles
+            .clone()
+            .or_else(|| self.ui_styles.clone())
+            .or_else(|| screen.ui_style.clone().map(|style| vec![style]))
+            .unwrap_or_else(|| vec![self.ui_style.clone()]);
+        let scales: Vec<u32> = screen
+            .ui_scale_percents
+            .clone()
+            .or_else(|| self.ui_scale_percents.clone())
+            .or_else(|| screen.ui_scale_percent.map(|scale| vec![scale]))
+            .unwrap_or_else(|| vec![self.ui_scale_percent]);
+        styles
+            .iter()
+            .flat_map(|style| scales.iter().map(move |scale| (style.clone(), *scale)))
+            .collect()
+    }
+
     pub fn selected_viewport(&self) -> ViewportSpec {
         if std::env::var("PARITY_PLATFORM").as_deref() == Ok("windows") {
             self.windows_viewport.unwrap_or(self.viewport)
         } else {
             self.viewport
         }
+    }
+
+    /// The style selected for this process, after checking the manifest list.
+    pub fn selected_ui_style(&self) -> Result<String, String> {
+        let style = std::env::var("PARITY_UI_STYLE").unwrap_or_else(|_| self.ui_style.clone());
+        let allowed = self
+            .ui_styles
+            .as_deref()
+            .unwrap_or(std::slice::from_ref(&self.ui_style));
+        if !allowed.iter().any(|value| value == &style) {
+            return Err(format!(
+                "ui_style \"{style}\" is not enabled in parity/screens.json"
+            ));
+        }
+        Ok(style)
+    }
+
+    /// The scale selected for this process, after checking the manifest list.
+    pub fn selected_ui_scale(&self) -> Result<u32, String> {
+        let scale = std::env::var("PARITY_UI_SCALE")
+            .ok()
+            .and_then(|value| value.parse().ok())
+            .unwrap_or(self.ui_scale_percent);
+        let allowed = self
+            .ui_scale_percents
+            .as_deref()
+            .unwrap_or(std::slice::from_ref(&self.ui_scale_percent));
+        if !allowed.contains(&scale) {
+            return Err(format!(
+                "ui_scale {scale} is not enabled in parity/screens.json"
+            ));
+        }
+        Ok(scale)
     }
 }
 
@@ -152,10 +253,16 @@ impl ScreensManifest {
             ));
         }
         if self.ui_scale_percent != 100 {
-            return Err(format!(
-                "parity/screens.json uiScalePercent is {}; the W0-04 example screen only supports 100",
-                self.ui_scale_percent
-            ));
+            validate_scale(self.ui_scale_percent)?;
+        }
+        validate_style(&self.ui_style)?;
+        if let Some(styles) = &self.ui_styles {
+            validate_styles(styles)?;
+        }
+        if let Some(scales) = &self.ui_scale_percents {
+            for scale in scales {
+                validate_scale(*scale)?;
+            }
         }
         for (field, value) in [
             ("os", self.platform.os.as_str()),
@@ -188,6 +295,20 @@ impl ScreensManifest {
                     screen.id
                 ));
             }
+            if let Some(style) = &screen.ui_style {
+                validate_style(style)?;
+            }
+            if let Some(styles) = &screen.ui_styles {
+                validate_styles(styles)?;
+            }
+            if let Some(scale) = screen.ui_scale_percent {
+                validate_scale(scale)?;
+            }
+            if let Some(scales) = &screen.ui_scale_percents {
+                for scale in scales {
+                    validate_scale(*scale)?;
+                }
+            }
             for exception in &screen.exceptions {
                 if exception.entry.trim().is_empty() || exception.elements.is_empty() {
                     return Err(format!(
@@ -211,6 +332,34 @@ impl ScreensManifest {
         }
         Ok(())
     }
+}
+
+fn validate_style(style: &str) -> Result<(), String> {
+    if style != "classic" && style != "islands" {
+        return Err(format!(
+            "parity uiStyle is \"{style}\"; expected classic or islands"
+        ));
+    }
+    Ok(())
+}
+
+fn validate_styles(styles: &[String]) -> Result<(), String> {
+    if styles.is_empty() {
+        return Err("parity uiStyles must not be empty".to_owned());
+    }
+    for style in styles {
+        validate_style(style)?;
+    }
+    Ok(())
+}
+
+fn validate_scale(scale: u32) -> Result<(), String> {
+    if scale != 100 && scale != 125 {
+        return Err(format!(
+            "parity uiScalePercent is {scale}; expected 100 or 125"
+        ));
+    }
+    Ok(())
 }
 
 impl ScreensManifest {

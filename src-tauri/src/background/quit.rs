@@ -2,15 +2,15 @@
 //! such as the terminals' content, which `app.exit` would otherwise end with
 //! the window.
 
+use tterm_core::events::background::BackgroundEvent;
+use tterm_core::events::{AppEvent, EventSink};
+
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
 
-use tauri::{AppHandle, Emitter, Manager, State};
+use tauri::{AppHandle, Manager, State};
 use tokio::sync::Notify;
 
-/// Told to the UI when the app is about to quit; it answers with
-/// `ready_to_quit` once it has saved.
-const WILL_QUIT_EVENT: &str = "app-will-quit";
 /// How long a quit waits for the UI. A webview that hangs or is gone must
 /// not keep the app from quitting.
 const SAVE_TIMEOUT: Duration = Duration::from_millis(1500);
@@ -48,13 +48,13 @@ pub fn quit<R: tauri::Runtime>(app: &AppHandle<R>) {
 /// is nothing to wait for, and the caller is to exit at once.
 pub fn quit_after_save<R: tauri::Runtime>(app: &AppHandle<R>) -> bool {
     let state = app.state::<QuitState>();
-    if !state.should_wait() || app.emit(WILL_QUIT_EVENT, ()).is_err() {
+    if !begin_save(&state, &crate::event_sink::TauriEventSink::new(app.clone())) {
         return false;
     }
     let app = app.clone();
     tauri::async_runtime::spawn(async move {
         let state = app.state::<QuitState>();
-        let _ = tokio::time::timeout(SAVE_TIMEOUT, state.saved.notified()).await;
+        wait_for_save(&state).await;
         if let Err(error) = app
             .state::<std::sync::Arc<dyn tterm_platform::process::ProcessControl>>()
             .exit(0)
@@ -63,6 +63,17 @@ pub fn quit_after_save<R: tauri::Runtime>(app: &AppHandle<R>) -> bool {
         }
     });
     true
+}
+
+fn begin_save(state: &QuitState, events: &dyn EventSink) -> bool {
+    state.should_wait()
+        && events
+            .emit(AppEvent::Background(BackgroundEvent::WillQuit))
+            .is_ok()
+}
+
+async fn wait_for_save(state: &QuitState) {
+    let _ = tokio::time::timeout(SAVE_TIMEOUT, state.saved.notified()).await;
 }
 
 /// The UI tells whether it has something to save before a quit.
@@ -140,3 +151,7 @@ mod tests {
         assert!(!state.should_wait());
     }
 }
+
+#[cfg(test)]
+#[path = "quit_tests.rs"]
+mod order_tests;

@@ -355,3 +355,30 @@ cargo run -p tterm-parity -- compare
 ```
 
 示例的参考布局、GPUI 布局、实际截图和热力图在 `docs/gpui-migration/reports/assets/W0-04/` 有一份证据副本；完整的 HTML 报告与 `result.json` 在 `target/parity/report/`。
+
+## W0-05 B0 工具批
+
+B0 为后续页面状态批次增加两个可选 manifest 维度。根级 `uiStyle`/`uiStyles` 接受 `classic`、`islands`，根级 `uiScalePercent`/`uiScalePercents` 接受 `100`、`125`；单屏可以用同名字段缩小组合范围。捕获时用 `PARITY_UI_STYLE`、`PARITY_UI_SCALE`，或脚本参数 `--ui-style`、`--ui-scale` 选择一组组合。例如：
+
+```sh
+PARITY_UI_STYLE=islands PARITY_UI_SCALE=125 UPDATE_REFERENCE=1 \
+  node scripts/parity/capture.mjs --theme dark
+```
+
+入口按生产路径调用 `applyUiScalePercent` 和 `applyUiStyle`，不会复制 token 或颜色。默认 `classic/100` 保持原来的目录名；其他组合会把 `islands-125` 等后缀加入 reference、actual 和 report 目录，并写入 `result.json.variant`。GPUI 端暂未实现非默认组合，`compare` 会明确写入“GPUI 端未实现 ui_style=..., ui_scale=...”并失败，不会静默跳过。
+
+屏幕可声明截图前动作：
+
+```json
+"actions": [
+  { "type": "click", "target": "ui.select.default" },
+  { "type": "hover", "target": "ui.context-menu.item-2" },
+  { "type": "key", "target": "ui.context-menu", "key": "ArrowDown", "modifiers": ["Shift"] },
+  { "type": "drag", "from": "source", "to": "destination" },
+  { "type": "waitFor", "target": "dialog.content" }
+]
+```
+
+`target` 只能匹配 `data-parity` 或 `data-parity-action`，不能写 CSS 选择器或坐标。动作按顺序执行；动作失败会带屏幕 ID 和步骤号退出。动作完成并且屏幕调用 `onReady` 后才会设置 `__PARITY_READY__`。`key` 可以没有 target，此时发送到页面键盘。当前选择器使用稳定的属性值，重复列表项应在 fixture 中提供稳定的 `data-parity` ID。
+
+夹具可声明 `events` 和 `channels` 字段；事件 fixture 会在屏幕订阅后按声明顺序投递，事件监听但没有声明时会写入 `missingEvents` 警告。未知 `invoke` 命令仍写入 `__PARITY_MISSING__` 并使 capture 失败。Channel 的声明字段已固定 schema，业务批次接入时再按真实 Channel 返回类型补 `messages`，不使用 `any`。

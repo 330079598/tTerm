@@ -12,14 +12,13 @@ function Menu({
 }: ParityScreenProps & { highlighted: boolean; wrapped?: boolean }) {
   useEffect(() => {
     document.dispatchEvent(new KeyboardEvent("keydown", { key: "Home", bubbles: true }))
-    if (highlighted)
-      document.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true }))
     onReady()
   }, [onReady, highlighted])
   return (
     <main className="bg-background text-foreground h-full w-full">
       <ContextMenu
         data-parity="ui.context-menu"
+        data-parity-action="ui.context-menu"
         x={760}
         y={550}
         actions={wrapped ? wrappedTabMenu() : pageTabMenu()}
