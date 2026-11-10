@@ -355,6 +355,10 @@ fn resolve_palette_names_and_hex_colors() {
         Some("#ff0000".into())
     );
     assert_eq!(resolve_highlight_color(Some(" red"), &palette()), None);
+    assert_eq!(
+        resolve_highlight_color(Some("red"), &HashMap::new()),
+        Some("#cc0000".into())
+    );
 }
 #[test]
 fn resolve_uses_xterm_fallback_colors() {
