@@ -369,7 +369,7 @@ pub fn run() {
             app_paths::initialize(&app_handle)?;
             app_identity::initialize(&app_handle);
             platform::initialize(&app_handle);
-            system_integration::initialize(&app_handle)?;
+            system_integration::initialize(&app_handle);
             launch_dir::open_from_startup(&app_handle);
 
             if let Err(err) = updater::cleanup_stale_pending_update_files(&app_handle) {
