@@ -6,7 +6,6 @@ use crate::ssh;
 use serde::de::DeserializeOwned;
 use serde::Serialize;
 use std::path::{Path, PathBuf};
-use tauri::Manager;
 
 const MIGRATED_CONFIG_FILES: &[&str] = &[
     "config.json",
@@ -71,11 +70,7 @@ pub fn migrate_legacy_config_files(app: &tauri::AppHandle) -> Result<(), String>
 
 /// Where older versions kept the app vault.
 fn secrets_dir(app: &tauri::AppHandle) -> Result<PathBuf, String> {
-    Ok(app
-        .path()
-        .app_data_dir()
-        .map_err(|e| format!("Failed to resolve app data dir: {}", e))?
-        .join("secrets"))
+    Ok(crate::app_paths::get(app).data_dir.join("secrets"))
 }
 
 /// How long the `*.migrated` copies of files whose data moved into the

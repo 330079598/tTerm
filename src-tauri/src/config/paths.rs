@@ -1,15 +1,12 @@
 use std::fs;
 use std::path::PathBuf;
 use std::sync::OnceLock;
-use tauri::{AppHandle, Manager};
+use tterm_core::paths::AppPaths;
 
 static CONFIG_DIR: OnceLock<PathBuf> = OnceLock::new();
 
-pub fn init_config_dir(app: &AppHandle) -> Result<PathBuf, String> {
-    let config_dir = app
-        .path()
-        .app_config_dir()
-        .map_err(|e| format!("Failed to resolve app config directory: {}", e))?;
+pub fn init_config_dir(paths: &AppPaths) -> Result<PathBuf, String> {
+    let config_dir = paths.config_dir.clone();
 
     if let Some(existing) = CONFIG_DIR.get() {
         if existing != &config_dir {
