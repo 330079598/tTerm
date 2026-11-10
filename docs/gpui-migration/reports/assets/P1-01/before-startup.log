@@ -1,0 +1,10 @@
+$ tauri dev --no-watch --no-dev-server --config /Users/stone/Code/rust/tTerm-P1-01/target/p1-01/before/tauri.json
+     Running DevCommand (`cargo  run --no-default-features --color always --`)
+   Compiling tTerm v0.8.1 (/Users/stone/Code/rust/tTerm-P1-01/src-tauri)
+    Building [=======================> ] 642/645: tTerm(build)
+    Building [=======================> ] 643/645: tTerm
+    Building [=======================> ] 644/645: tTerm(bin)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 5.97s
+     Running `/Users/stone/Code/rust/tTerm-P1-01/scripts/macos-dev-bundle.sh /Users/stone/Code/rust/tTerm-P1-01/target/debug/tTerm`
+Moved 0 saved passwords into the database (system mode)
+[ELIFECYCLE] Command failed.

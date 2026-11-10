@@ -22,6 +22,7 @@ workspace = true
 tauri-build = { version = "2", features = [] }
 
 [dependencies]
+tterm-core = { path = "../crates/tterm-core" }
 tauri = { version = "2", features = ["macos-private-api", "devtools", "tray-icon"] }
 tauri-plugin-opener = "2"
 serde = { version = "1", features = ["derive"] }
@@ -110,4 +111,5 @@ libc = "0.2"
 zbus = "5"
 
 [dev-dependencies]
+tauri = { version = "2", features = ["test"] }
 tokio = { version = "1", features = ["test-util"] }

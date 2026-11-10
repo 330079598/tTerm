@@ -1,0 +1,62 @@
+{
+  "profiles_before": [],
+  "profiles_after": [],
+  "normalized_directory_trees_equal": true,
+  "normalization": [
+    "replace isolated identifier with <ID>",
+    "replace WebKit 40-hex origin/resource cache hashes with <runtime-hash>"
+  ],
+  "directories": {
+    "/Users/stone/Library/Application Support/<ID>": [
+      "bin/",
+      "bin/tterm",
+      "config.json",
+      "tterm.db",
+      "tterm.db-shm",
+      "tterm.db-wal"
+    ],
+    "/Users/stone/Library/Caches/<ID>": [
+      "WebKit/",
+      "WebKit/AlternativeServices/",
+      "WebKit/AlternativeServices/AlternativeService.sqlite",
+      "WebKit/AlternativeServices/AlternativeService.sqlite-shm",
+      "WebKit/AlternativeServices/AlternativeService.sqlite-wal",
+      "WebKit/CacheStorage/",
+      "WebKit/CacheStorage/salt",
+      "WebKit/HSTS/",
+      "WebKit/NetworkCache/",
+      "WebKit/NetworkCache/Version 17/",
+      "WebKit/NetworkCache/Version 17/Blobs/",
+      "WebKit/NetworkCache/Version 17/Records/",
+      "WebKit/NetworkCache/Version 17/Records/<runtime-hash>/",
+      "WebKit/NetworkCache/Version 17/Records/<runtime-hash>/Resource/",
+      "WebKit/NetworkCache/Version 17/Records/<runtime-hash>/Resource/<runtime-hash>",
+      "WebKit/NetworkCache/Version 17/salt"
+    ],
+    "/Users/stone/Library/Logs/<ID>": null,
+    "/Users/stone/Library/WebKit/<ID>": [
+      "WebsiteData/",
+      "WebsiteData/Default/",
+      "WebsiteData/Default/salt",
+      "WebsiteData/DeviceIdHashSalts/",
+      "WebsiteData/EnhancedSecurity/",
+      "WebsiteData/EnhancedSecurity/EnhancedSecuritySites.db",
+      "WebsiteData/EnhancedSecurity/EnhancedSecuritySites.db-shm",
+      "WebsiteData/EnhancedSecurity/EnhancedSecuritySites.db-wal",
+      "WebsiteData/IndexedDB/",
+      "WebsiteData/LocalStorage/",
+      "WebsiteData/MediaKeys/",
+      "WebsiteData/MediaKeys/v1/",
+      "WebsiteData/MediaKeys/v1/salt",
+      "WebsiteData/MediaKeysHashSalts/",
+      "WebsiteData/ResourceLoadStatistics/",
+      "WebsiteData/ResourceLoadStatistics/observations.db",
+      "WebsiteData/ResourceLoadStatistics/observations.db-shm",
+      "WebsiteData/ResourceLoadStatistics/observations.db-wal",
+      "WebsiteData/ResourceMonitorThrottler/",
+      "WebsiteData/SearchHistory/"
+    ],
+    "/Users/stone/Library/HTTPStorages/<ID>": null,
+    "/Users/stone/Library/Saved Application State/<ID>": null
+  }
+}
