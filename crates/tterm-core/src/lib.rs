@@ -10,3 +10,6 @@ pub mod events;
 pub mod keymap;
 /// Application directories resolved by the client at startup.
 pub mod paths;
+
+/// Keyword highlight configuration and editing.
+pub mod keyword_highlight;

@@ -14,6 +14,7 @@ workspace = true
 # selection and search all come from the official crate pinned in P0-06. No
 # patch, no fork and no git source may replace it (decision 007).
 alacritty_terminal.workspace = true
+tterm-core = { path = "../tterm-core" }
 # The default hint pattern is Alacritty's URL regex. The lock file already
 # carries regex 1.13.1 through src-tauri, so this adds no new package and no
 # new version; P0-28's report records it as a new direct dependency.
