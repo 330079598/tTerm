@@ -1,9 +1,9 @@
 use super::{finish_output, SshExitSignal};
 use crate::core::session::types::SessionPlan;
 use crate::ssh::jump::pool::PooledSession;
-use crate::ssh::shell_integration::ShellIntegrationStatus;
 use crate::ssh::types::SshClientHandler;
 use tokio::sync::mpsc;
+use tterm_core::events::ssh::ShellIntegrationStatus;
 
 /// Opens a session channel with a PTY, ready for a shell or command.
 async fn open_terminal_channel(

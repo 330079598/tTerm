@@ -1,10 +1,11 @@
 //! Where files received from a serial device are written.
 
+use tterm_core::events::zmodem::TransferEmitter;
+
 use super::protocol::{Result, TransferError};
 use super::receive::{self, FileSink};
 use super::transfer::{cancel_on_failure, FileInfo, FileRows, PortClaim, TapLink};
 use super::XmodemProtocol;
-use crate::zmodem::events::EmitFn;
 use std::fs::File;
 use std::io::{BufWriter, Write};
 use std::path::{Path, PathBuf};
@@ -198,7 +199,7 @@ impl DiskSink<'_> {
 
 /// Receives over `protocol` into `destination`, then gives the port back.
 pub(super) fn run_receive(
-    emit: EmitFn,
+    emit: TransferEmitter,
     claim: PortClaim,
     mut link: TapLink,
     protocol: XmodemProtocol,

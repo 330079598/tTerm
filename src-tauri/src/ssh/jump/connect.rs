@@ -1,3 +1,5 @@
+use tterm_core::events::ssh::SshConnectionProgressPayload;
+
 use super::config::{compatibility_client_config, unverifiable_host_key_error};
 use super::hop::{ChainHops, RouteError};
 use super::pool::{chain_keys, Relay};
@@ -10,7 +12,7 @@ use crate::ssh::auth::{authenticate, AuthMethod, AuthPrompter, AuthTarget};
 use crate::ssh::openssh_known_hosts::request_host_certificates;
 use crate::ssh::types::{
     emit_connection_progress, ConnectionStatusOptions, HostKeyVerificationMode, SshClientHandler,
-    SshConnectError, SshConnectionProgressPayload,
+    SshConnectError,
 };
 use russh::{client, Disconnect};
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -372,13 +374,15 @@ pub async fn open_target_ssh_session_with_forwarding(
             app,
             tab_id,
             status_options,
-            SshConnectionProgressPayload::new(
-                "target_authenticated",
-                format!("Authenticated target as {}", target_username),
-            )
-            .host(target_host.to_string(), target_port)
-            .username(target_username.to_string())
-            .auth_used(&used),
+            crate::ssh::types::with_auth_used(
+                SshConnectionProgressPayload::new(
+                    "target_authenticated",
+                    format!("Authenticated target as {}", target_username),
+                )
+                .host(target_host.to_string(), target_port)
+                .username(target_username.to_string()),
+                &used,
+            ),
         );
     }
 

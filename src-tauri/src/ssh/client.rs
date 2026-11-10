@@ -2,10 +2,7 @@ mod output;
 mod reader;
 mod setup;
 
-use super::types::{
-    emit_connection_progress, ConnectionStatusOptions, SshClientHandler,
-    SshConnectionProgressPayload,
-};
+use super::types::{emit_connection_progress, ConnectionStatusOptions, SshClientHandler};
 use crate::core::session::types::SessionPlan;
 use crate::core::state::{ChannelContext, HostPromptMap};
 use crate::ssh::jump::connect::JumpChain;
@@ -17,6 +14,7 @@ use russh::Disconnect;
 use setup::{prepare_terminal, PreparedTerminal};
 use std::sync::Arc;
 use tokio::sync::{mpsc, watch};
+use tterm_core::events::ssh::SshConnectionProgressPayload;
 
 const LATENCY_PROBE_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(5);
 

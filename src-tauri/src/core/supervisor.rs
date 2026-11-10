@@ -1,3 +1,5 @@
+use tterm_core::events::ssh::SshConnectionProgressPayload;
+
 use super::session::types::SessionPlan;
 use super::state::{
     ActiveSession, ActiveSsh, ChannelContext, HostPromptMap, SessionExitSignal, SessionKind,
@@ -5,7 +7,6 @@ use super::state::{
 use crate::ssh::client::SshChannelIo;
 use crate::ssh::{
     client::SshExitSignal, types::emit_connection_progress, types::ConnectionStatusOptions,
-    types::SshConnectionProgressPayload,
 };
 use crate::zmodem::session::ZmodemSettings;
 use std::sync::Arc;
