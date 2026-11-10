@@ -2,10 +2,13 @@
 use tauri::ipc::Channel;
 use tterm_core::sftp::search::{SearchEvent, SearchResultSink};
 
+/// Forwards search updates directly to the existing IPC Channel without a queue
+/// or UI acknowledgement. Search callers retain their send-error policy.
 pub(crate) struct TauriSearchResultSink {
     channel: Channel<SearchEvent>,
 }
 impl TauriSearchResultSink {
+    /// Wraps the command's Channel without changing its payload protocol.
     pub(crate) fn new(channel: Channel<SearchEvent>) -> Self {
         Self { channel }
     }

@@ -22,54 +22,67 @@ use upload::UploadItemStartEvent;
 /// SFTP notifications owned by P1-04.
 #[derive(Debug, Clone, PartialEq)]
 pub enum SftpEvent {
+    /// Announces the original inputs and conflict policy of an upload batch.
     UploadBatchStart {
         tab_id: String,
         payload: UploadBatchStartEvent,
     },
+    /// Reports final upload batch counters, cancellation and errors.
     UploadBatchComplete {
         tab_id: String,
         payload: UploadBatchCompleteEvent,
     },
+    /// Announces an upload item with its resolved remote destination.
     UploadItemStart {
         tab_id: String,
         payload: UploadItemStartEvent,
     },
+    /// Reports an upload item's outcome, including skipped destinations.
     UploadItemComplete {
         tab_id: String,
         payload: UploadItemCompleteEvent,
     },
+    /// Reports sampled byte and chunk progress for an upload item.
     UploadProgress {
         tab_id: String,
         payload: UploadItemProgressEvent,
     },
+    /// Reports single-file or aggregate download progress under its transfer ID.
     DownloadProgress {
         tab_id: String,
         payload: DownloadProgressEvent,
     },
+    /// Announces a download item with its resolved local destination.
     DownloadItemStart {
         tab_id: String,
         payload: DownloadItemStartEvent,
     },
+    /// Reports a download item's outcome, including skipped local copies.
     DownloadItemComplete {
         tab_id: String,
         payload: DownloadItemCompleteEvent,
     },
+    /// Reports final download totals, including skipped and resumed bytes.
     DownloadBatchComplete {
         tab_id: String,
         payload: DownloadBatchCompleteEvent,
     },
+    /// Announces selected deletion entries and their bounded pre-scan totals.
     DeleteBatchStart {
         tab_id: String,
         payload: DeleteBatchStartEvent,
     },
+    /// Reports sampled deletion counters and the current path.
     DeleteProgress {
         tab_id: String,
         payload: DeleteProgressEvent,
     },
+    /// Reports final deletion counters and any error.
     DeleteBatchComplete {
         tab_id: String,
         payload: DeleteBatchCompleteEvent,
     },
+    /// Publishes a complete external-edit snapshot on the shared event name.
     ExternalEditChanged(ExternalEdit),
 }
 impl SftpEvent {

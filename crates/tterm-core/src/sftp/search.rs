@@ -23,5 +23,9 @@ pub enum SearchEvent {
 /// This interface has no acknowledgement or backpressure. The existing search
 /// counts results even if the client transport returns an error.
 pub trait SearchResultSink: Send + Sync {
+    /// Submits one update without waiting for UI acknowledgement.
+    ///
+    /// Transport errors are returned to the caller; the existing search ignores
+    /// them and continues counting matches without cancelling the search.
     fn send(&self, event: SearchEvent) -> Result<(), String>;
 }

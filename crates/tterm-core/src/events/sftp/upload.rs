@@ -5,10 +5,13 @@ use serde::Serialize;
 #[serde(rename_all = "camelCase")]
 pub struct UploadItemStartEvent {
     pub transfer_id: String,
+    /// The containing batch, if this item belongs to a batch upload.
     pub batch_id: Option<String>,
     pub file_name: String,
+    /// The source file size in bytes.
     pub file_size: u64,
     pub local_path: String,
+    /// The destination after applying the conflict policy.
     pub remote_path: String,
 }
 
@@ -17,7 +20,9 @@ pub struct UploadItemStartEvent {
 #[serde(rename_all = "camelCase")]
 pub struct UploadBatchStartEvent {
     pub batch_id: String,
+    /// The batch label shown in the transfer list.
     pub display_name: String,
+    /// The primary source path retained alongside the full retry inputs.
     pub local_path: String,
     /// Every path the batch was started with, so a retry can re-run exactly
     /// this batch instead of whatever batch happens to be the latest one.
@@ -44,12 +49,19 @@ pub struct UploadBatchCompleteEvent {
 pub struct UploadItemProgressEvent {
     pub transfer_id: String,
     pub local_path: String,
+    /// Accounted bytes, including bytes retained from an earlier attempt.
     pub transferred: u64,
+    /// The source file size in bytes.
     pub total: u64,
+    /// Integer completion percentage in the range 0 through 100.
     pub progress: u32,
+    /// Bytes retained from an earlier attempt, excluded from this run's speed.
     pub resumed_from: u64,
+    /// The number of transfer lanes selected by the engine.
     pub parallelism: u32,
+    /// Completed chunks, including those recovered from a previous attempt.
     pub completed_chunks: u64,
+    /// The total number of chunks planned for this file.
     pub chunk_count: u64,
 }
 
