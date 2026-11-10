@@ -1,0 +1,399 @@
+//! Registry of user-bindable keymap actions.
+
+use std::fmt;
+use std::str::FromStr;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum KeymapActionGroup {
+    Workspace,
+    Tabs,
+    Terminal,
+    Sftp,
+    Zmodem,
+    Editor,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
+#[repr(u8)]
+pub enum KeymapActionId {
+    WorkspaceNewTab,
+    WorkspaceSplitRight,
+    WorkspaceSplitBelow,
+    WorkspaceFocusNextPane,
+    WorkspaceFocusPrevPane,
+    WorkspaceFocusPaneLeft,
+    WorkspaceFocusPaneRight,
+    WorkspaceFocusPaneUp,
+    WorkspaceFocusPaneDown,
+    WorkspaceRestoreSingleGroup,
+    WorkspaceTogglePaneZoom,
+    WorkspaceMovePaneToNewTab,
+    WorkspaceChooseLayout,
+    CommandLibraryOpen,
+    BroadcastTogglePanel,
+    TabsNext,
+    TabsPrev,
+    TabsSwitchToNth,
+    TabsRenameActive,
+    TabsDuplicateActive,
+    TabsCloseActive,
+    TabsReopenClosed,
+    TabsSaveConnection,
+    TerminalFind,
+    TerminalClear,
+    TerminalReset,
+    TerminalSaveSelection,
+    TerminalFillSavedPassword,
+    TerminalZoomIn,
+    TerminalZoomOut,
+    TerminalZoomReset,
+    TerminalPreviousCommand,
+    TerminalNextCommand,
+    TerminalCopyLastCommandOutput,
+    TerminalCopy,
+    TerminalPaste,
+    TerminalToggleComposer,
+    SftpToggle,
+    SftpSelectAll,
+    SftpFocusPath,
+    SftpPasteUpload,
+    SftpBack,
+    SftpForward,
+    SftpUp,
+    ZmodemSendFiles,
+    ZmodemReceiveFiles,
+    EditorSave,
+}
+
+pub const KEYMAP_ACTIONS: &[(KeymapActionId, KeymapActionGroup, bool)] = &[
+    (
+        KeymapActionId::WorkspaceNewTab,
+        KeymapActionGroup::Workspace,
+        true,
+    ),
+    (
+        KeymapActionId::WorkspaceSplitRight,
+        KeymapActionGroup::Workspace,
+        true,
+    ),
+    (
+        KeymapActionId::WorkspaceSplitBelow,
+        KeymapActionGroup::Workspace,
+        true,
+    ),
+    (
+        KeymapActionId::WorkspaceFocusNextPane,
+        KeymapActionGroup::Workspace,
+        true,
+    ),
+    (
+        KeymapActionId::WorkspaceFocusPrevPane,
+        KeymapActionGroup::Workspace,
+        true,
+    ),
+    (
+        KeymapActionId::WorkspaceFocusPaneLeft,
+        KeymapActionGroup::Workspace,
+        true,
+    ),
+    (
+        KeymapActionId::WorkspaceFocusPaneRight,
+        KeymapActionGroup::Workspace,
+        true,
+    ),
+    (
+        KeymapActionId::WorkspaceFocusPaneUp,
+        KeymapActionGroup::Workspace,
+        true,
+    ),
+    (
+        KeymapActionId::WorkspaceFocusPaneDown,
+        KeymapActionGroup::Workspace,
+        true,
+    ),
+    (
+        KeymapActionId::WorkspaceRestoreSingleGroup,
+        KeymapActionGroup::Workspace,
+        true,
+    ),
+    (
+        KeymapActionId::WorkspaceTogglePaneZoom,
+        KeymapActionGroup::Workspace,
+        true,
+    ),
+    (
+        KeymapActionId::WorkspaceMovePaneToNewTab,
+        KeymapActionGroup::Workspace,
+        true,
+    ),
+    (
+        KeymapActionId::WorkspaceChooseLayout,
+        KeymapActionGroup::Workspace,
+        true,
+    ),
+    (
+        KeymapActionId::CommandLibraryOpen,
+        KeymapActionGroup::Workspace,
+        true,
+    ),
+    (
+        KeymapActionId::BroadcastTogglePanel,
+        KeymapActionGroup::Workspace,
+        true,
+    ),
+    (KeymapActionId::TabsNext, KeymapActionGroup::Tabs, true),
+    (KeymapActionId::TabsPrev, KeymapActionGroup::Tabs, true),
+    (
+        KeymapActionId::TabsSwitchToNth,
+        KeymapActionGroup::Tabs,
+        true,
+    ),
+    (
+        KeymapActionId::TabsRenameActive,
+        KeymapActionGroup::Tabs,
+        true,
+    ),
+    (
+        KeymapActionId::TabsDuplicateActive,
+        KeymapActionGroup::Tabs,
+        true,
+    ),
+    (
+        KeymapActionId::TabsCloseActive,
+        KeymapActionGroup::Tabs,
+        true,
+    ),
+    (
+        KeymapActionId::TabsReopenClosed,
+        KeymapActionGroup::Tabs,
+        true,
+    ),
+    (
+        KeymapActionId::TabsSaveConnection,
+        KeymapActionGroup::Tabs,
+        true,
+    ),
+    (
+        KeymapActionId::TerminalFind,
+        KeymapActionGroup::Terminal,
+        true,
+    ),
+    (
+        KeymapActionId::TerminalClear,
+        KeymapActionGroup::Terminal,
+        true,
+    ),
+    (
+        KeymapActionId::TerminalReset,
+        KeymapActionGroup::Terminal,
+        true,
+    ),
+    (
+        KeymapActionId::TerminalSaveSelection,
+        KeymapActionGroup::Terminal,
+        true,
+    ),
+    (
+        KeymapActionId::TerminalFillSavedPassword,
+        KeymapActionGroup::Terminal,
+        true,
+    ),
+    (
+        KeymapActionId::TerminalZoomIn,
+        KeymapActionGroup::Terminal,
+        true,
+    ),
+    (
+        KeymapActionId::TerminalZoomOut,
+        KeymapActionGroup::Terminal,
+        true,
+    ),
+    (
+        KeymapActionId::TerminalZoomReset,
+        KeymapActionGroup::Terminal,
+        true,
+    ),
+    (
+        KeymapActionId::TerminalPreviousCommand,
+        KeymapActionGroup::Terminal,
+        true,
+    ),
+    (
+        KeymapActionId::TerminalNextCommand,
+        KeymapActionGroup::Terminal,
+        true,
+    ),
+    (
+        KeymapActionId::TerminalCopyLastCommandOutput,
+        KeymapActionGroup::Terminal,
+        true,
+    ),
+    (
+        KeymapActionId::TerminalCopy,
+        KeymapActionGroup::Terminal,
+        true,
+    ),
+    (
+        KeymapActionId::TerminalPaste,
+        KeymapActionGroup::Terminal,
+        true,
+    ),
+    (
+        KeymapActionId::TerminalToggleComposer,
+        KeymapActionGroup::Terminal,
+        true,
+    ),
+    (KeymapActionId::SftpToggle, KeymapActionGroup::Sftp, true),
+    (
+        KeymapActionId::SftpSelectAll,
+        KeymapActionGroup::Sftp,
+        false,
+    ),
+    (
+        KeymapActionId::SftpFocusPath,
+        KeymapActionGroup::Sftp,
+        false,
+    ),
+    (
+        KeymapActionId::SftpPasteUpload,
+        KeymapActionGroup::Sftp,
+        false,
+    ),
+    (KeymapActionId::SftpBack, KeymapActionGroup::Sftp, false),
+    (KeymapActionId::SftpForward, KeymapActionGroup::Sftp, false),
+    (KeymapActionId::SftpUp, KeymapActionGroup::Sftp, false),
+    (
+        KeymapActionId::ZmodemSendFiles,
+        KeymapActionGroup::Zmodem,
+        true,
+    ),
+    (
+        KeymapActionId::ZmodemReceiveFiles,
+        KeymapActionGroup::Zmodem,
+        true,
+    ),
+    (KeymapActionId::EditorSave, KeymapActionGroup::Editor, true),
+];
+
+impl KeymapActionId {
+    pub const ALL: &'static [Self] = &[
+        Self::WorkspaceNewTab,
+        Self::WorkspaceSplitRight,
+        Self::WorkspaceSplitBelow,
+        Self::WorkspaceFocusNextPane,
+        Self::WorkspaceFocusPrevPane,
+        Self::WorkspaceFocusPaneLeft,
+        Self::WorkspaceFocusPaneRight,
+        Self::WorkspaceFocusPaneUp,
+        Self::WorkspaceFocusPaneDown,
+        Self::WorkspaceRestoreSingleGroup,
+        Self::WorkspaceTogglePaneZoom,
+        Self::WorkspaceMovePaneToNewTab,
+        Self::WorkspaceChooseLayout,
+        Self::CommandLibraryOpen,
+        Self::BroadcastTogglePanel,
+        Self::TabsNext,
+        Self::TabsPrev,
+        Self::TabsSwitchToNth,
+        Self::TabsRenameActive,
+        Self::TabsDuplicateActive,
+        Self::TabsCloseActive,
+        Self::TabsReopenClosed,
+        Self::TabsSaveConnection,
+        Self::TerminalFind,
+        Self::TerminalClear,
+        Self::TerminalReset,
+        Self::TerminalSaveSelection,
+        Self::TerminalFillSavedPassword,
+        Self::TerminalZoomIn,
+        Self::TerminalZoomOut,
+        Self::TerminalZoomReset,
+        Self::TerminalPreviousCommand,
+        Self::TerminalNextCommand,
+        Self::TerminalCopyLastCommandOutput,
+        Self::TerminalCopy,
+        Self::TerminalPaste,
+        Self::TerminalToggleComposer,
+        Self::SftpToggle,
+        Self::SftpSelectAll,
+        Self::SftpFocusPath,
+        Self::SftpPasteUpload,
+        Self::SftpBack,
+        Self::SftpForward,
+        Self::SftpUp,
+        Self::ZmodemSendFiles,
+        Self::ZmodemReceiveFiles,
+        Self::EditorSave,
+    ];
+    pub fn as_str(self) -> &'static str {
+        ACTION_NAMES[self as usize]
+    }
+    pub fn definition(self) -> (KeymapActionGroup, bool) {
+        let (_, g, a) = KEYMAP_ACTIONS[self as usize];
+        (g, a)
+    }
+}
+const ACTION_NAMES: [&str; 47] = [
+    "workspace.newTab",
+    "workspace.splitRight",
+    "workspace.splitBelow",
+    "workspace.focusNextPane",
+    "workspace.focusPrevPane",
+    "workspace.focusPaneLeft",
+    "workspace.focusPaneRight",
+    "workspace.focusPaneUp",
+    "workspace.focusPaneDown",
+    "workspace.restoreSingleGroup",
+    "workspace.togglePaneZoom",
+    "workspace.movePaneToNewTab",
+    "workspace.chooseLayout",
+    "commandLibrary.open",
+    "broadcast.togglePanel",
+    "tabs.next",
+    "tabs.prev",
+    "tabs.switchToNth",
+    "tabs.renameActive",
+    "tabs.duplicateActive",
+    "tabs.closeActive",
+    "tabs.reopenClosed",
+    "tabs.saveConnection",
+    "terminal.find",
+    "terminal.clear",
+    "terminal.reset",
+    "terminal.saveSelection",
+    "terminal.fillSavedPassword",
+    "terminal.zoomIn",
+    "terminal.zoomOut",
+    "terminal.zoomReset",
+    "terminal.previousCommand",
+    "terminal.nextCommand",
+    "terminal.copyLastCommandOutput",
+    "terminal.copy",
+    "terminal.paste",
+    "terminal.toggleComposer",
+    "sftp.toggle",
+    "sftp.selectAll",
+    "sftp.focusPath",
+    "sftp.pasteUpload",
+    "sftp.back",
+    "sftp.forward",
+    "sftp.up",
+    "zmodem.sendFiles",
+    "zmodem.receiveFiles",
+    "editor.save",
+];
+impl fmt::Display for KeymapActionId {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(self.as_str())
+    }
+}
+impl FromStr for KeymapActionId {
+    type Err = ();
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Self::ALL
+            .iter()
+            .copied()
+            .find(|a| a.as_str() == s)
+            .ok_or(())
+    }
+}
