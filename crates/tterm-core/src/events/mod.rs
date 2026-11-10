@@ -1,6 +1,7 @@
 //! Typed business events and delivery interfaces shared by the Tauri and GPUI clients.
 
 pub mod background;
+pub mod launch_dir;
 pub mod notification;
 pub mod serial;
 pub mod session_log;
@@ -10,6 +11,7 @@ pub mod tunnel;
 pub mod zmodem;
 
 use background::BackgroundEvent;
+use launch_dir::LaunchDirEvent;
 use notification::NotificationEvent;
 use serial::SerialEvent;
 use session_log::SessionLogEvent;
@@ -23,6 +25,8 @@ use zmodem::ZmodemEvent;
 pub enum AppEvent {
     /// Tunnel state and traffic changed.
     Tunnel(TunnelEvent),
+    /// P1-03: launch_dir event delivery.
+    LaunchDir(LaunchDirEvent),
     /// P1-03: notification event delivery.
     Notification(NotificationEvent),
     /// P1-03: terminal event delivery.
@@ -76,13 +80,14 @@ impl AppEvent {
     pub fn target(&self) -> EventTarget {
         match self {
             Self::Tunnel(event) => event.target(),
+            Self::LaunchDir(event) => event.target(), // P1-03.
             Self::Notification(event) => event.target(), // P1-03.
-            Self::Terminal(event) => event.target(),     // P1-03.
-            Self::SessionLog(event) => event.target(),   // P1-03.
-            Self::Serial(event) => event.target(),       // P1-03.
-            Self::Zmodem(event) => event.target(),       // P1-03.
-            Self::Background(event) => event.target(),   // P1-03.
-            Self::Ssh(event) => event.target(),          // P1-03.
+            Self::Terminal(event) => event.target(),  // P1-03.
+            Self::SessionLog(event) => event.target(), // P1-03.
+            Self::Serial(event) => event.target(),    // P1-03.
+            Self::Zmodem(event) => event.target(),    // P1-03.
+            Self::Background(event) => event.target(), // P1-03.
+            Self::Ssh(event) => event.target(),       // P1-03.
         }
     }
 
@@ -90,13 +95,14 @@ impl AppEvent {
     pub fn name(&self) -> EventName {
         match self {
             Self::Tunnel(event) => event.name(),
+            Self::LaunchDir(event) => event.name(), // P1-03.
             Self::Notification(event) => event.name(), // P1-03.
-            Self::Terminal(event) => event.name(),     // P1-03.
-            Self::SessionLog(event) => event.name(),   // P1-03.
-            Self::Serial(event) => event.name(),       // P1-03.
-            Self::Zmodem(event) => event.name(),       // P1-03.
-            Self::Background(event) => event.name(),   // P1-03.
-            Self::Ssh(event) => event.name(),          // P1-03.
+            Self::Terminal(event) => event.name(),  // P1-03.
+            Self::SessionLog(event) => event.name(), // P1-03.
+            Self::Serial(event) => event.name(),    // P1-03.
+            Self::Zmodem(event) => event.name(),    // P1-03.
+            Self::Background(event) => event.name(), // P1-03.
+            Self::Ssh(event) => event.name(),       // P1-03.
         }
     }
 }

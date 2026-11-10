@@ -1,6 +1,7 @@
 //! Tauri's event transport for typed core business events.
 
 mod background; // P1-03.
+mod launch_dir; // P1-03.
 mod notification; // P1-03.
 mod serial; // P1-03.
 mod session_log; // P1-03.
@@ -31,13 +32,14 @@ impl TauriEventSink {
     pub(crate) fn wire(event: &AppEvent) -> Result<(EventName, EventTarget, Value), String> {
         let payload = match event {
             AppEvent::Tunnel(event) => tunnel::wire(event)?,
+            AppEvent::LaunchDir(event) => launch_dir::wire(event)?, // P1-03.
             AppEvent::Notification(event) => notification::wire(event)?, // P1-03.
-            AppEvent::Terminal(event) => terminal::wire(event)?,         // P1-03.
-            AppEvent::SessionLog(event) => session_log::wire(event)?,    // P1-03.
-            AppEvent::Serial(event) => serial::wire(event)?,             // P1-03.
-            AppEvent::Zmodem(event) => zmodem::wire(event)?,             // P1-03.
-            AppEvent::Background(event) => background::wire(event)?,     // P1-03.
-            AppEvent::Ssh(event) => ssh::wire(event)?,                   // P1-03.
+            AppEvent::Terminal(event) => terminal::wire(event)?,    // P1-03.
+            AppEvent::SessionLog(event) => session_log::wire(event)?, // P1-03.
+            AppEvent::Serial(event) => serial::wire(event)?,        // P1-03.
+            AppEvent::Zmodem(event) => zmodem::wire(event)?,        // P1-03.
+            AppEvent::Background(event) => background::wire(event)?, // P1-03.
+            AppEvent::Ssh(event) => ssh::wire(event)?,              // P1-03.
         };
         Ok((event.name(), event.target(), payload))
     }

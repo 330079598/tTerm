@@ -4,10 +4,9 @@
 use serde::Serialize;
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;
-use tauri::{AppHandle, Emitter, Manager};
+use tauri::{AppHandle, Manager};
 
 /// Tells the frontend that [`take_launch_dirs`] has directories for it.
-const LAUNCH_DIRS_EVENT: &str = "launch-dirs";
 
 /// Kept while an instance started with a directory runs. A restart, after an
 /// update or from the app, starts tTerm with the arguments it was started
@@ -28,7 +27,7 @@ pub struct LaunchDir {
 pub struct LaunchDirs(Mutex<Vec<LaunchDir>>);
 
 /// Takes the directories waiting to be opened. The frontend calls it once it
-/// has restored the session and again on every [`LAUNCH_DIRS_EVENT`].
+/// has restored the session and again on every `launch-dirs`.
 #[tauri::command]
 pub fn take_launch_dirs(state: tauri::State<'_, LaunchDirs>) -> Vec<LaunchDir> {
     std::mem::take(&mut *state.0.lock().unwrap_or_else(|e| e.into_inner()))
@@ -130,7 +129,9 @@ fn queue(app: &AppHandle, dirs: Vec<LaunchDir>) {
         .unwrap_or_else(|e| e.into_inner())
         .extend(dirs);
     // Before the frontend listens, the directories wait for it to take them.
-    if let Err(error) = app.emit(LAUNCH_DIRS_EVENT, ()) {
+    if let Err(error) = crate::event_sink::TauriEventSink::new(app.clone())
+        .emit(AppEvent::LaunchDir(LaunchDirEvent::Queued))
+    {
         eprintln!("Failed to announce a directory to open: {error}");
     }
 }
@@ -213,3 +214,6 @@ mod tests {
         assert!(dirs[0].exists);
     }
 }
+
+use tterm_core::events::launch_dir::LaunchDirEvent;
+use tterm_core::events::{AppEvent, EventSink};
