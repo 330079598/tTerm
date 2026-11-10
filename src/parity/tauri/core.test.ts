@@ -138,4 +138,16 @@ describe("parity Channel", () => {
   it("throws for an unknown channel id", () => {
     expect(() => sendChannelMessage(999, "lost")).toThrow("no channel with id 999")
   })
+
+  it("delivers declarative channel messages in fixture order", async () => {
+    activateFixture({
+      commands: {},
+      channels: [{ name: "progress", messages: [{ step: 1 }, { step: 2 }] }],
+    })
+    const received: unknown[] = []
+    new Channel((message) => received.push(message))
+    await Promise.resolve()
+    await Promise.resolve()
+    expect(received).toEqual([{ step: 1 }, { step: 2 }])
+  })
 })
