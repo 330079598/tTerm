@@ -109,3 +109,11 @@ CARGO_BUILD_JOBS=3 cargo test --workspace
 - Windows 通道：**未验证（需 Windows，决策 016 待补）**。
 - [人工] 入场动画、真实中文输入法、系统辅助功能、真实 Tauri 窗口交叉截图：沿用 P0-24 既有待补项，本轮没有条件完成。
 - 仓库已有 52 个 ignored 测试需要其原本要求的外部服务或设备，未执行，不将它们计为通过。
+
+## 评估
+
+结论（2026-11-10，Claude）：通过，可以合并。
+
+- 代码审查：`preserve_glued_word` 只在 GPUI 的断点落进含 U+00A0、U+2007、U+202F 的词时才移动断点，普通词的断行不变；超宽的整词溢出，与 WebKit 实测（`webkit.json`）一致。标题居中的原因找对了：`dialog.tsx` 的 header 是 `text-center sm:text-left`，单行时标题元素收缩到文字宽度，看起来是左对齐，多行时撑满宽度后逐行居中；GPUI 端只在窄窗口且多于一行时改为居中，单行各变体的已有测试不变。行区域记录改为每次 prepaint 整体替换。
+- 评估者复跑（`tTerm-dispatch/P0-24-dialog-fix-eval-*`）：`PARITY_THEME=dark|light UPDATE_REFERENCE=1 cargo run -p tterm-parity -- compare` 深浅各 16/16 通过，`reference.dirty` 为 false；`cargo test -p tterm-ui -p tterm-parity` 169 项通过；两个 crate 的 clippy 无告警。全仓库检查以执行者沙箱外的结果为准，合并后在 `GPUI` 上随下一张卡复跑。
+- 遗留：Windows 通道待补（决策 016），与 P0-24 的其他 Windows 项一起做。
