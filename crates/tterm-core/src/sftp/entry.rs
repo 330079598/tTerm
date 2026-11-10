@@ -1,5 +1,6 @@
 use serde::Serialize;
 
+/// One file, directory or symbolic link in a remote listing.
 #[derive(Debug, Clone, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SftpDirectoryEntry {

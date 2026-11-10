@@ -184,3 +184,6 @@ pub async fn sftp_search_entries(
 
 #[cfg(test)]
 mod contract_tests;
+
+#[cfg(test)]
+mod container_tests;

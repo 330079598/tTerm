@@ -111,3 +111,14 @@ fn legacy_r03_wire_contract() {
         serde_json::json!({"batchId": "batch-1", "cancelled": false, "deletedDirectories": 2, "deletedFiles": 2, "error": null, "failed": 2, "method": "sftp", "totalDirectories": 2, "totalEntries": 2, "totalFiles": 2, "totalTruncated": false})
     );
 }
+
+#[test]
+fn delete_sampling_stays_at_twenty_five_items() {
+    for (count, expected) in [(0, true), (24, false), (25, true), (26, false), (50, true)] {
+        let progress = super::DeleteProgress {
+            deleted_files: count,
+            ..Default::default()
+        };
+        assert_eq!(super::should_emit_delete_progress(&progress), expected);
+    }
+}

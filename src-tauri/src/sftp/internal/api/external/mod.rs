@@ -494,3 +494,6 @@ pub fn shutdown(app: &AppHandle) {
 
 #[cfg(test)]
 mod contract_tests;
+
+#[cfg(test)]
+mod container_tests;

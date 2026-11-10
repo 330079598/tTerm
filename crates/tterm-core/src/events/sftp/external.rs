@@ -1,5 +1,6 @@
 use serde::Serialize;
 
+/// The state of a local copy opened in an external editor.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub enum EditStatus {

@@ -386,3 +386,6 @@ pub mod commands;
 
 #[cfg(test)]
 mod contract_tests;
+
+#[cfg(test)]
+mod event_tests;

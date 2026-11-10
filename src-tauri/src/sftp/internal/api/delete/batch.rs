@@ -185,7 +185,7 @@ async fn run_remote_delete_command(
     }
 }
 
-async fn delete_entries_with_sftp(
+pub(super) async fn delete_entries_with_sftp(
     events: &Arc<dyn EventSink>,
     tab_id: &str,
     sftp: &SftpSession,

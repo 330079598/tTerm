@@ -1,5 +1,6 @@
 use serde::Serialize;
 
+/// A planned upload item, including its resolved destination.
 #[derive(Clone, Serialize, Debug, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct UploadItemStartEvent {
@@ -11,6 +12,7 @@ pub struct UploadItemStartEvent {
     pub remote_path: String,
 }
 
+/// The original inputs and conflict policy of an upload batch.
 #[derive(Clone, Serialize, Debug, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct UploadBatchStartEvent {
@@ -25,6 +27,7 @@ pub struct UploadBatchStartEvent {
     pub conflict_policy: crate::sftp::conflict::ConflictPolicy,
 }
 
+/// The final counters and cancellation state of an upload batch.
 #[derive(Clone, Serialize, Debug, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct UploadBatchCompleteEvent {
@@ -35,6 +38,7 @@ pub struct UploadBatchCompleteEvent {
     pub succeeded: usize,
 }
 
+/// A sampled upload progress snapshot from the transfer engine.
 #[derive(Clone, Serialize, Debug, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct UploadItemProgressEvent {
@@ -49,6 +53,7 @@ pub struct UploadItemProgressEvent {
     pub chunk_count: u64,
 }
 
+/// The outcome of one upload, including skipped destinations.
 #[derive(Clone, Serialize, Debug, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct UploadItemCompleteEvent {

@@ -1,5 +1,6 @@
 use serde::Serialize;
 
+/// The existing deletion method reported to the client.
 #[derive(Clone, Copy, Serialize, Debug, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub enum DeleteMethod {
@@ -7,6 +8,7 @@ pub enum DeleteMethod {
     Command,
 }
 
+/// The selected entry names and bounded deletion statistics.
 #[derive(Clone, Serialize, Debug, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct DeleteBatchStartEvent {
@@ -19,6 +21,7 @@ pub struct DeleteBatchStartEvent {
     pub total_truncated: bool,
 }
 
+/// Sampled deletion counters and the current path.
 #[derive(Clone, Serialize, Debug, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct DeleteProgressEvent {
@@ -34,6 +37,7 @@ pub struct DeleteProgressEvent {
     pub total_truncated: bool,
 }
 
+/// The final deletion counters and error, if any.
 #[derive(Clone, Serialize, Debug, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct DeleteBatchCompleteEvent {

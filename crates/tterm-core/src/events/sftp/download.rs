@@ -1,5 +1,6 @@
 use serde::Serialize;
 
+/// A single-file or aggregate download progress snapshot.
 #[derive(Clone, Serialize, Debug, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct DownloadProgressEvent {
@@ -15,6 +16,7 @@ pub struct DownloadProgressEvent {
     pub chunk_count: u64,
 }
 
+/// A download item with its resolved local destination.
 #[derive(Clone, Serialize, Debug, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct DownloadItemStartEvent {
@@ -26,6 +28,7 @@ pub struct DownloadItemStartEvent {
     pub remote_path: String,
 }
 
+/// The outcome of one download item.
 #[derive(Clone, Serialize, Debug, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct DownloadItemCompleteEvent {
@@ -40,6 +43,7 @@ pub struct DownloadItemCompleteEvent {
     pub skipped: bool,
 }
 
+/// Download batch totals, including bytes already present locally.
 #[derive(Clone, Serialize, Debug, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct DownloadBatchCompleteEvent {

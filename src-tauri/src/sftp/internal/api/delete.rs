@@ -188,3 +188,6 @@ pub mod commands;
 
 #[cfg(test)]
 mod contract_tests;
+
+#[cfg(test)]
+mod container_tests;

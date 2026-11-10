@@ -6,6 +6,8 @@ pub mod internal {
     pub mod launcher;
     pub mod paths;
     pub mod sudo;
+    #[cfg(test)]
+    pub(crate) mod test_support;
     pub mod transfer;
     pub mod types;
 }

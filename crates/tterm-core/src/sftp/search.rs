@@ -1,6 +1,7 @@
 use crate::sftp::entry::SftpDirectoryEntry;
 use serde::Serialize;
 
+/// Incremental matches and directory counts from a recursive search.
 #[derive(Serialize, Debug, Clone, PartialEq)]
 #[serde(
     tag = "kind",
