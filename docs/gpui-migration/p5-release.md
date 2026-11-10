@@ -36,7 +36,7 @@
      - 全平台：第三方许可声明（见 P4-25 补充）。
   5. 构建目标与现有发布一致：macOS 同时构建 `aarch64-apple-darwin` 与 `x86_64-apple-darwin`；Linux 在 `ubuntu-24.04` 上构建，glibc 最低版本与现在相同，记录 GPUI 新增的系统库依赖并写进 deb 与 rpm 的依赖声明。
   6. Windows 代码签名与 macOS 签名、公证 `[人工：证书与账号]`。现有流程没有 Apple 签名，按 README 第 9 节的决定执行。
-- 验收：在干净的系统上安装、启动、卸载；覆盖安装在现有 Tauri 版之上时，开始菜单、快捷方式与系统集成不重复、不残留。
+- 验收：在干净的系统上安装、启动、卸载；覆盖安装在现有 Tauri 版之上时，开始菜单、快捷方式与系统集成不重复、不残留（P0-26 在 Windows 上开始菜单快捷方式重复，未通过，本卡要修掉）。
 
 ## P5-03 更新器
 
@@ -44,7 +44,7 @@
 - 规模：L
 - 参考：`src-tauri/src/updater.rs`、`src/lib/updater.ts`、`src/components/AppUpdateManager.tsx`、`config/update_channel.rs`
 - 工作：
-  1. 原生版实现更新器：读取同一格式的 `latest.json`，用同一个 minisign 公钥验证签名，下载、安装、重启。支持现有的更新渠道。
+  1. 原生版实现更新器：读取同一格式的 `latest.json`，用同一个 minisign 公钥验证签名，下载、安装、重启。支持现有的更新渠道。P0-26 发现 `cargo-packager-updater 0.2.3` 读不了原始清单（缺 `format` 字段），补字段后同一种签名能验过：选型时决定是在清单里补字段还是自己解析。
   2. **从 Tauri 版升级到 GPUI 版的路径。** 最后一个 Tauri 版本通过现有更新器安装 GPUI 版的安装包。逐平台确认：
      - Windows：NSIS 安装包覆盖安装后，旧的 WebView 版文件被清理。
      - macOS：`.app` 被原位替换，路径与权限不变。

@@ -76,7 +76,7 @@
 - 规模：L
 - 参考：`src/components/ui/`、`ContextMenu.tsx`、`RenameDialog.tsx`、`src/hooks/use-toast.ts`；gpui-kit 的组件
 - 工作：
-  1. 对照 `src/components/ui/` 的组件清单，在 `tterm-gpui` 中建立对应的组件：按钮、输入框、密码输入框（显示切换，内容不留在日志与撤销历史中）、文本域、选择框与可搜索选择框、复选框、开关、滑块、标签页、徽标、卡片、提示、弹出层、对话框、确认框、提示条（toast）、虚拟列表、表格、树、滚动区域、颜色选择器与色板、快捷键录入框、路径输入框（`ShellPathInput`，带存在性检查）。
+  1. 对照 `src/components/ui/` 的组件清单，在 `crates/tterm-ui` 中建立对应的组件。P0-24 已完成 Button、Input、PasswordInput、Select、Switch、Tabs、Dialog、右键菜单 8 个，并有对比屏，本卡从它们开始，清单中标为“已完成（P0-24）”；其余组件：按钮、输入框、密码输入框（显示切换，内容不留在日志与撤销历史中）、文本域、选择框与可搜索选择框、复选框、开关、滑块、标签页、徽标、卡片、提示、弹出层、对话框、确认框、提示条（toast）、虚拟列表、表格、树、滚动区域、颜色选择器与色板、快捷键录入框、路径输入框（`ShellPathInput`，带存在性检查）。
   2. 加载与等待用户的状态动画：螃蟹在加载时夹钳、等待用户操作时敲击，小尺寸时使用简化图形（`src/components/Crab/`，图形来自 `src/assets/crab/` 与 `scripts/app-icon/crab.mjs`）；以及设置中可选的其他加载动画风格（`src/lib/spinnerStyle.ts`）。
   3. 优先封装 gpui-kit 的组件，统一 tTerm 的外观；gpui-kit 没有的再自行实现。
   4. 每个组件支持键盘操作与焦点样式。

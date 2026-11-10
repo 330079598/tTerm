@@ -55,8 +55,8 @@
 ## P2-03 键盘输入编码
 
 - 依赖：P2-01
-- 规模：M
-- 参考：`src/components/TerminalTab/terminalInput.ts`、`useTerminalShortcuts.ts`；xterm.js 的按键编码行为
+- 规模：S（P0-22：P0-28 已移植按键编码并有测试，本卡把它接入正式视图，补齐下面的差异）
+- 参考：`src/components/TerminalTab/terminalInput.ts`、`useTerminalShortcuts.ts`；xterm.js 的按键编码行为；P0-28 的键盘编码与测试
 - 工作：
   1. 覆盖所有按键与修饰键组合的编码：应用光标键与应用小键盘模式、功能键、Alt 作为 Meta（macOS 上由 `macOptionIsMeta` 设置控制）、Ctrl 组合键、Windows 上的 AltGr。
   2. 应用快捷键与终端输入的优先级与 Tauri 版一致：哪些组合键先被应用截获，哪些送进终端。
@@ -66,8 +66,8 @@
 ## P2-04 鼠标与选区
 
 - 依赖：P2-01
-- 规模：M
-- 参考：`mouseReportingGuard.ts`、`src/lib/terminalText.ts`
+- 规模：S（P0-22：P0-13 与 P0-28 已有选区、点击与鼠标上报编码，本卡接入正式视图并补齐其余项）
+- 参考：`mouseReportingGuard.ts`、`src/lib/terminalText.ts`；P0-13、P0-28 的实现与测试
 - 工作：单击、双击选词、三击选行、矩形选择；鼠标上报模式（1000、1002、1003、1006）；按住 Shift 或 macOS 上按住 Option 强制选择；鼠标上报保护（OSC 133 命令结束后自动关闭残留的鼠标上报）；Linux 中键粘贴。
 - 验收：在 vim、tmux、htop 中验证鼠标；选词的分隔符规则与 Tauri 版一致。
 
@@ -77,12 +77,12 @@
 - 规模：M
 - 参考：`useTerminalClipboard.tsx`、`src/lib/pasteGuard.ts`、`src/lib/osc52.ts`、`useTerminalFileDrop.ts`、`src/lib/droppedPaths.ts`
 - 工作：选中即复制等设置；括号粘贴；多行粘贴确认；OSC 52 写剪贴板及其设置；拖入文件时插入经过转义的路径（按目标 shell 的规则）。
-- 验收：粘贴确认的触发条件与 `pasteGuard` 的测试一致；拖入路径的转义覆盖空格、引号与非 ASCII 字符。
+- 验收：粘贴确认的触发条件与 `pasteGuard` 的测试一致；拖入路径的转义覆盖空格、引号与非 ASCII 字符；粘贴的换行与 Tauri 版一样发送 CR（`0d`），P0-15 中原型发的是 LF。
 
 ## P2-06 滚动、滚动条与回滚内存
 
 - 依赖：P0-12、P2-02
-- 规模：M
+- 规模：S（P0-22：P0-12 已有显示偏移、滚动条几何与拖拽，本卡接入并补搜索标记与命令标记的数据）
 - 参考：`scrollbackMemory.ts`、`ScrollbackLinesField.tsx`、`src/lib/scrollback.ts`
 - 工作：把 P0-12 的滚动模块接入正式视图；概览标尺显示搜索结果与命令标记；回滚行数设置与动态调整；清除回滚区后释放内存。
 - 验收：回滚区写满后浏览历史不闪烁、不跳行（P0-12 的回归测试继续通过）；修改回滚行数后不需要重开会话。
@@ -109,7 +109,7 @@
 - 规模：M
 - 参考：`src/components/SettingsDialog/FontSettingsTab.tsx`、`FontFamilyPicker.tsx`、`CursorStylePicker.tsx`、`TerminalPaddingFields.tsx`、`src/lib/terminalFont.ts`、`src/hooks/useTerminalFontZoom.ts`、`src-tauri/src/fonts/`
 - 工作：字体族与回退链（中文、emoji、Nerd Font 符号）、字号、字间距、行高、粗体字重；光标样式与闪烁；内边距；字号缩放快捷键；系统字体列表。
-- 验收：每个设置修改后即时生效；与 Tauri 版并排截图对比同一内容。
+- 验收：每个设置修改后即时生效；与 Tauri 版并排截图对比同一内容；P0-15 与 P0-11 V1 的两处绘制差异修复：韩文组合字母合成为一个字，圆角框线（`╭╮╰╯`）画成圆角。
 - 评估重点：字体回退时的字形宽度与对齐。
 
 ## P2-10 终端主题与调色板
@@ -141,7 +141,7 @@
   1. 列出所有需要终端回复的查询：DA1、DA2、DSR、CPR、DECRQM、XTVERSION、OSC 10、11、12 颜色查询、窗口尺寸查询等。
   2. 对每个查询确定唯一的回复方：后端的 `ssh_query_handler`，或终端模型。Tauri 版中 xterm.js 负责回复的那部分，在原生版中由终端模型负责。
   3. 增加测试，确保同一查询不会被回复两次，且回复内容与屏幕状态一致。
-- 验收：查询表与测试；在 vim、tmux、neovim 中不出现多余字符。
+- 验收：查询表与测试；在 vim、tmux、neovim 中不出现多余字符；DA1、DA2、CPR、XTGETTCAP 的应答值逐项给出与 Tauri 版的对照，以哪一方为准写明理由（P0-09、P0-11 A2、P0-15 发现两边不同）。
 
 ## P2-13 Shell 集成与终端报告
 
@@ -225,7 +225,7 @@
 
 - 依赖：P2-02
 - 规模：S
-- 参考：`useTerminalFit.ts`、`src-tauri/src/core/state.rs` 中的 `AtomicTerminalSize`
+- 参考：`useTerminalFit.ts`、`src-tauri/src/core/state.rs` 中的 `AtomicTerminalSize`；P0-09 的 `GridSize::clamped`（至少 2 列，避开 Alacritty 0.26 重排到 1 列时的死循环）与 P0-10 的行列数计算
 - 工作：窗口与分屏尺寸变化时的重排，向 PTY 与 SSH 发送尺寸变化，拖动分隔条时的节流。
 - 验收：拖动分隔条时不卡顿；vim 与 tmux 在尺寸变化后显示正确。
 
@@ -241,7 +241,7 @@
 
 - 依赖：P0-11、P2-12
 - 规模：M
-- 工作：把 P0-11 的夹具扩展为回归套件：回放字节流后比较屏幕文本与属性的快照。覆盖宽字符、组合字符、emoji、备用屏幕、滚动区域、真彩色、自动换行、重排、超链接，以及 P0-15 发现的问题。在 CI 中无界面运行。
+- 工作：把 P0-11 的夹具扩展为回归套件：回放字节流后比较屏幕文本与属性的快照。覆盖宽字符、组合字符、emoji、备用屏幕、滚动区域、真彩色、自动换行、重排、超链接，以及 P0-15 发现的问题：滚动区域内 CUU、CUD 越过边界，英国字符集的 `£`；原型比 Tauri 版好的两处（没有 1006 时也能上报鼠标，切换 132 列时清屏）写成回归测试保留。新 emoji 的宽度（Alacritty 用 Unicode 17，xterm.js 用 Unicode 11，P0-11 U1）由本卡决定是否对齐，结论写进报告。在 CI 中无界面运行。
 - 验收：套件在三平台 CI 中运行；修改终端代码时快照变化必须在审查中说明。
 
 ## P2-25 终端性能与内存自检
