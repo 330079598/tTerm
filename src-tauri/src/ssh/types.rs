@@ -526,12 +526,9 @@ impl SshClientHandler {
             return;
         }
 
-        let payload = format!("\r\n\x1b[{}m[{}]\x1b[0m\r\n", color, message);
+        let payload = crate::terminal::legacy_events::status_line(color, message);
         crate::session_log::record_output(&self.app, &self.tab_id, payload.as_bytes());
-        let event_name = format!("pty-output-{}", self.tab_id);
-        let _ = self
-            .app
-            .emit_to(tauri::EventTarget::any(), &event_name, payload);
+        crate::terminal::legacy_events::emit_output(&self.app, &self.tab_id, payload);
     }
 }
 

@@ -6,7 +6,7 @@ use crate::zmodem::session::ZmodemSettings;
 use std::io::{Read, Write};
 use std::sync::PoisonError;
 use std::thread;
-use tauri::{AppHandle, Emitter};
+use tauri::AppHandle;
 use tokio::sync::mpsc;
 
 /// Result of reading a PTY reader to end-of-stream.
@@ -188,6 +188,5 @@ pub fn spawn_reader_thread(
 }
 
 fn emit_pty_output(app: &AppHandle, tab_id: &str, payload: String) {
-    let event_name = format!("pty-output-{}", tab_id);
-    let _ = app.emit_to(tauri::EventTarget::any(), &event_name, payload);
+    crate::terminal::legacy_events::emit_output(app, tab_id, payload);
 }

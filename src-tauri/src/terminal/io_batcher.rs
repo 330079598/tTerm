@@ -432,3 +432,6 @@ fn flush_final(pending: &mut Vec<u8>, channel: &TerminalOutput) {
 
 #[cfg(test)]
 mod tests;
+
+#[cfg(test)]
+mod contracts;

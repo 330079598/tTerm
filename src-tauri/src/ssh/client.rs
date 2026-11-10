@@ -10,7 +10,6 @@ use crate::ssh::jump::pool::{self, chain_keys, PooledSession, RouteKey};
 use crate::zmodem::session::{ZmodemReceiveDriver, ZmodemSettings};
 use russh::{ChannelMsg, Disconnect};
 use std::sync::Arc;
-use tauri::Emitter;
 use tokio::io::AsyncWriteExt;
 use tokio::sync::{mpsc, watch};
 
@@ -132,8 +131,7 @@ fn deliver_output(
 }
 
 fn emit_pty_output(app: &tauri::AppHandle, tab_id: &str, payload: String) {
-    let event_name = format!("pty-output-{}", tab_id);
-    let _ = app.emit_to(tauri::EventTarget::any(), &event_name, payload);
+    crate::terminal::legacy_events::emit_output(app, tab_id, payload);
 }
 
 /// Opens a session channel with a PTY, ready for a shell or command.

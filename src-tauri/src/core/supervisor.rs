@@ -11,7 +11,7 @@ use crate::zmodem::session::ZmodemSettings;
 use std::sync::Arc;
 use std::sync::PoisonError;
 use std::time::Duration;
-use tauri::{AppHandle, Emitter};
+use tauri::AppHandle;
 use tokio::sync::{mpsc, watch};
 
 /// Nominal delay before the first reconnect attempt.
@@ -26,19 +26,17 @@ const RECONNECT_MAX_DELAY_SECS: u64 = 30;
 const RECONNECT_STABLE_RESET: Duration = Duration::from_secs(60);
 
 pub fn emit_pty_exit(app: &AppHandle, tab_id: &str, reason: Option<&str>) {
-    let event_name = format!("pty-exit-{}", tab_id);
-    let _ = app.emit_to(tauri::EventTarget::any(), &event_name, reason);
+    crate::terminal::legacy_events::emit_exit(app, tab_id, reason);
 }
 
 fn emit_status_line(app: &AppHandle, tab_id: &str, color: &str, message: &str) {
-    let payload = format!("\r\n\x1b[{}m[{}]\x1b[0m\r\n", color, message);
+    let payload = crate::terminal::legacy_events::status_line(color, message);
     emit_pty_output(app, tab_id, payload);
 }
 
 fn emit_pty_output(app: &AppHandle, tab_id: &str, payload: String) {
     crate::session_log::record_output(app, tab_id, payload.as_bytes());
-    let event_name = format!("pty-output-{}", tab_id);
-    let _ = app.emit_to(tauri::EventTarget::any(), &event_name, payload);
+    crate::terminal::legacy_events::emit_output(app, tab_id, payload);
 }
 
 /// Map the raw SSH task outcome onto the supervisor's exit taxonomy.
