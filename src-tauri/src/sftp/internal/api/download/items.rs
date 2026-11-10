@@ -4,6 +4,8 @@ use std::path::Path;
 use tterm_core::events::sftp::download::{
     DownloadItemCompleteEvent, DownloadItemStartEvent, DownloadProgressEvent,
 };
+use tterm_core::events::sftp::SftpEvent;
+use tterm_core::events::{AppEvent, EventSink};
 use tterm_core::sftp::conflict::ConflictPolicy;
 
 #[derive(Default)]
@@ -38,7 +40,7 @@ pub(super) async fn download_item(
         skip_existing,
         total_size,
     } = context;
-    let DownloadTarget { app, tab_id, .. } = target;
+    let DownloadTarget { events, tab_id, .. } = target;
     let local_path = local_parent.join(&item.relative_path);
     if let Some(parent) = local_path.parent() {
         tokio::fs::create_dir_all(parent).await.map_err(|err| {
@@ -60,9 +62,9 @@ pub(super) async fn download_item(
         _ => local_path,
     };
     let local_path_string = local_path.display().to_string();
-    let _ = app.emit(
-        &format!("sftp-download-item-start-{}", tab_id),
-        DownloadItemStartEvent {
+    let _ = events.emit(AppEvent::Sftp(SftpEvent::DownloadItemStart {
+        tab_id: tab_id.to_string(),
+        payload: DownloadItemStartEvent {
             transfer_id: item_transfer_id.clone(),
             batch_id: transfer_id.to_string(),
             file_name: item.file_name.clone(),
@@ -70,14 +72,14 @@ pub(super) async fn download_item(
             local_path: local_path_string.clone(),
             remote_path: item.remote_path.clone(),
         },
-    );
+    }));
 
     let resolved = match resolved {
         Ok(resolved) => resolved,
         Err(error) => {
-            let _ = app.emit(
-                &format!("sftp-download-item-complete-{}", tab_id),
-                DownloadItemCompleteEvent {
+            let _ = events.emit(AppEvent::Sftp(SftpEvent::DownloadItemComplete {
+                tab_id: tab_id.to_string(),
+                payload: DownloadItemCompleteEvent {
                     transfer_id: item_transfer_id,
                     error: Some(error.clone()),
                     local_path: local_path_string,
@@ -86,7 +88,7 @@ pub(super) async fn download_item(
                     success: false,
                     skipped: false,
                 },
-            );
+            }));
             return Err(error);
         }
     };
@@ -118,9 +120,9 @@ pub(super) async fn download_item(
         Ok(item_resumed) => {
             counts.resumed_bytes = counts.resumed_bytes.saturating_add(item_resumed);
             counts.aggregate_transferred = counts.aggregate_transferred.saturating_add(item.size);
-            let _ = app.emit(
-                &format!("sftp-download-item-complete-{}", tab_id),
-                DownloadItemCompleteEvent {
+            let _ = events.emit(AppEvent::Sftp(SftpEvent::DownloadItemComplete {
+                tab_id: tab_id.to_string(),
+                payload: DownloadItemCompleteEvent {
                     transfer_id: item_transfer_id,
                     error: None,
                     local_path: local_path_string,
@@ -129,13 +131,13 @@ pub(super) async fn download_item(
                     success: true,
                     skipped: false,
                 },
-            );
+            }));
         }
         Err(error) => {
             let cancelled = error.contains("cancelled");
-            let _ = app.emit(
-                &format!("sftp-download-item-complete-{}", tab_id),
-                DownloadItemCompleteEvent {
+            let _ = events.emit(AppEvent::Sftp(SftpEvent::DownloadItemComplete {
+                tab_id: tab_id.to_string(),
+                payload: DownloadItemCompleteEvent {
                     transfer_id: item_transfer_id,
                     error: if cancelled { None } else { Some(error.clone()) },
                     local_path: local_path_string,
@@ -144,7 +146,7 @@ pub(super) async fn download_item(
                     success: false,
                     skipped: false,
                 },
-            );
+            }));
             return Err(error);
         }
     }
@@ -164,12 +166,12 @@ fn report_skipped(
         total_size,
         ..
     } = *context;
-    let DownloadTarget { app, tab_id, .. } = target;
+    let DownloadTarget { events, tab_id, .. } = target;
     counts.aggregate_transferred = counts.aggregate_transferred.saturating_add(item.size);
     counts.skipped_bytes = counts.skipped_bytes.saturating_add(item.size);
-    let _ = app.emit(
-        &format!("sftp-download-item-complete-{}", tab_id),
-        DownloadItemCompleteEvent {
+    let _ = events.emit(AppEvent::Sftp(SftpEvent::DownloadItemComplete {
+        tab_id: tab_id.to_string(),
+        payload: DownloadItemCompleteEvent {
             transfer_id: item_transfer_id,
             error: None,
             local_path: local_path_string.clone(),
@@ -178,15 +180,15 @@ fn report_skipped(
             success: true,
             skipped: true,
         },
-    );
+    }));
     let progress = if total_size > 0 {
         ((counts.aggregate_transferred as f64 / total_size as f64) * 100.0).min(100.0) as u32
     } else {
         0
     };
-    let _ = app.emit(
-        &format!("sftp-download-progress-{}", tab_id),
-        DownloadProgressEvent {
+    let _ = events.emit(AppEvent::Sftp(SftpEvent::DownloadProgress {
+        tab_id: tab_id.to_string(),
+        payload: DownloadProgressEvent {
             transfer_id: transfer_id.to_string(),
             local_path: local_path_string,
             remote_path: item.remote_path.clone(),
@@ -202,5 +204,5 @@ fn report_skipped(
             completed_chunks: 0,
             chunk_count: 0,
         },
-    );
+    }));
 }

@@ -8,7 +8,9 @@ use crate::sftp::internal::types::TransferCancelMap;
 use russh_sftp::client::SftpSession;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
-use tauri::{AppHandle, Emitter};
+use tterm_core::events::sftp::SftpEvent;
+use tterm_core::events::{AppEvent, EventSink};
+
 use tokio::sync::watch;
 use tterm_core::events::sftp::download::{DownloadBatchCompleteEvent, DownloadProgressEvent};
 use tterm_core::sftp::conflict::ConflictPolicy;
@@ -173,7 +175,7 @@ async fn collect_directory_download_plan(
 /// Where a download reports: the tab's events and the transfer cancel map.
 #[derive(Clone, Copy)]
 pub(super) struct DownloadTarget<'a> {
-    pub app: &'a AppHandle,
+    pub events: &'a Arc<dyn EventSink>,
     pub tab_id: &'a str,
     pub cancel_map: &'a TransferCancelMap,
 }
@@ -211,7 +213,7 @@ pub(super) async fn download_file_into_directory(
     local_path: &Path,
 ) -> Result<u64, String> {
     let DownloadTarget {
-        app,
+        events,
         tab_id,
         cancel_map,
     } = target;
@@ -227,7 +229,7 @@ pub(super) async fn download_file_into_directory(
         .await
         .insert(item_transfer_id.to_string(), cancel_tx.clone());
 
-    let app_for_progress = app.clone();
+    let events_for_progress = events.clone();
     let tab_id_for_progress = tab_id.to_string();
     let item_transfer_id_for_progress = item_transfer_id.to_string();
     let batch_transfer_id_for_progress = batch_transfer_id.to_string();
@@ -246,9 +248,9 @@ pub(super) async fn download_file_into_directory(
         } else {
             100
         };
-        let _ = app_for_progress.emit(
-            &format!("sftp-download-progress-{}", tab_id_for_progress),
-            DownloadProgressEvent {
+        let _ = events_for_progress.emit(AppEvent::Sftp(SftpEvent::DownloadProgress {
+            tab_id: tab_id_for_progress.to_string(),
+            payload: DownloadProgressEvent {
                 transfer_id: item_transfer_id_for_progress.clone(),
                 local_path: local_path_for_progress.clone(),
                 remote_path: remote_path_for_progress.clone(),
@@ -260,7 +262,7 @@ pub(super) async fn download_file_into_directory(
                 completed_chunks: update.completed_chunks,
                 chunk_count: update.chunk_count,
             },
-        );
+        }));
 
         let aggregate = aggregate_base.saturating_add(update.transferred);
         let aggregate_progress = if total_size > 0 {
@@ -268,9 +270,9 @@ pub(super) async fn download_file_into_directory(
         } else {
             0
         };
-        let _ = app_for_progress.emit(
-            &format!("sftp-download-progress-{}", tab_id_for_progress),
-            DownloadProgressEvent {
+        let _ = events_for_progress.emit(AppEvent::Sftp(SftpEvent::DownloadProgress {
+            tab_id: tab_id_for_progress.to_string(),
+            payload: DownloadProgressEvent {
                 transfer_id: batch_transfer_id_for_progress.clone(),
                 local_path: local_path_for_progress.clone(),
                 remote_path: remote_path_for_progress.clone(),
@@ -285,7 +287,7 @@ pub(super) async fn download_file_into_directory(
                 completed_chunks: update.completed_chunks,
                 chunk_count: update.chunk_count,
             },
-        );
+        }));
     });
 
     let result = transfer::download_file(
@@ -311,7 +313,7 @@ pub(super) async fn download_directory_with_progress(
     request: DirectoryDownloadRequest<'_>,
 ) -> Result<(), String> {
     let DownloadTarget {
-        app,
+        events,
         tab_id,
         cancel_map,
     } = target;
@@ -383,9 +385,9 @@ pub(super) async fn download_directory_with_progress(
             [only] => (local_parent.join(remote_basename(only)?), only.clone()),
             _ => (local_parent.clone(), remote_paths.join(", ")),
         };
-        let _ = app.emit(
-            &format!("sftp-download-progress-{}", tab_id),
-            DownloadProgressEvent {
+        let _ = events.emit(AppEvent::Sftp(SftpEvent::DownloadProgress {
+            tab_id: tab_id.to_string(),
+            payload: DownloadProgressEvent {
                 transfer_id: transfer_id.to_string(),
                 local_path: root_local_path.display().to_string(),
                 remote_path: root_remote_path,
@@ -399,15 +401,15 @@ pub(super) async fn download_directory_with_progress(
                 completed_chunks: 0,
                 chunk_count: 0,
             },
-        );
+        }));
 
         Ok(())
     }
     .await;
 
-    let _ = app.emit(
-        &format!("sftp-download-batch-complete-{}", tab_id),
-        DownloadBatchCompleteEvent {
+    let _ = events.emit(AppEvent::Sftp(SftpEvent::DownloadBatchComplete {
+        tab_id: tab_id.to_string(),
+        payload: DownloadBatchCompleteEvent {
             batch_id: transfer_id.to_string(),
             cancelled: result
                 .as_ref()
@@ -426,7 +428,7 @@ pub(super) async fn download_directory_with_progress(
             skipped: counts.skipped_bytes,
             resumed: counts.resumed_bytes,
         },
-    );
+    }));
 
     cancel_map.write().await.remove(transfer_id);
     result

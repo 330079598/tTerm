@@ -149,8 +149,10 @@ impl Host<'_> {
         if metadata.is_dir() {
             return Err(remote::FOLDER_ERROR.to_string());
         }
+        let events: std::sync::Arc<dyn tterm_core::events::EventSink> =
+            std::sync::Arc::new(crate::event_sink::TauriEventSink::new(self.app.clone()));
         download_file_with_progress(
-            self.app,
+            &events,
             self.tab_id,
             channels,
             self.cancel_map,
