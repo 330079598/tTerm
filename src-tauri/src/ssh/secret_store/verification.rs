@@ -11,7 +11,7 @@ use super::types::{SecretStorageMode, SecretStoreRuntime};
 use super::{open_with_password, os_verifier, store, types::SecretStoreState};
 use serde::Deserialize;
 use std::time::{Duration, Instant};
-use tauri::AppHandle;
+use tterm_platform::verification::UserVerification;
 
 /// Prefix of the error asking the UI to verify and retry. The method
 /// (`system` or `masterPassword`) follows it.
@@ -131,13 +131,13 @@ impl SecretStoreState {
     /// master password, then allows `purpose` for a short while. Blocks.
     pub fn verify_user(
         &self,
-        app: &AppHandle,
+        verifier: &dyn UserVerification,
         purpose: VerificationPurpose,
         password: Option<&str>,
     ) -> Result<(), String> {
         match self.verification_method()? {
             VerificationMethod::System => {
-                if let Err(error) = os_verifier::platform::verify(app, prompt_message(purpose)) {
+                if let Err(error) = verifier.verify(prompt_message(purpose)) {
                     if error != os_verifier::CANCELED {
                         // The OS check may have been turned off since.
                         self.runtime()?.os_verifier_available = None;
