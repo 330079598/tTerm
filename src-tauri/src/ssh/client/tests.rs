@@ -1,4 +1,4 @@
-use super::latest_queued_size;
+use super::setup::latest_queued_size;
 use tokio::sync::mpsc;
 
 #[test]
