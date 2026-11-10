@@ -3,3 +3,6 @@
 //!
 //! The code lives in `src-tauri/src` today and moves here in P1, so this crate
 //! is empty until then.
+
+/// Typed events and delivery interfaces shared by client adapters.
+pub mod events;

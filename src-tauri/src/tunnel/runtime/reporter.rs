@@ -1,12 +1,13 @@
 //! A tunnel's status and traffic, reported to the frontend and saved.
 
-use super::{STATUS_EVENT, TRAFFIC_SAVE_INTERVAL};
+use super::TRAFFIC_SAVE_INTERVAL;
 use crate::tunnel::storage::{add_tunnel_traffic, reset_tunnel_traffic, tunnel_traffic};
-use crate::tunnel::types::{TunnelState, TunnelStats, TunnelStatus, TunnelTraffic};
+use crate::tunnel::types::TunnelStats;
 use std::sync::atomic::Ordering;
 use std::sync::{Arc, Mutex};
 use std::time::Instant;
 use tauri::{AppHandle, Emitter};
+use tterm_core::events::tunnel::{TunnelState, TunnelStatus, TunnelTraffic};
 
 /// active, total, failed, bytes up, bytes down.
 type Counters = (u64, u64, u64, u64, u64);
@@ -174,7 +175,7 @@ impl TunnelReporter {
             let mut inner = self.inner.lock().unwrap_or_else(|e| e.into_inner());
             inner.last_emitted_counters = self.counters();
         }
-        let _ = self.app.emit(STATUS_EVENT, self.snapshot());
+        let _ = self.app.emit("tunnel-status", self.snapshot());
     }
 
     pub fn set_state(&self, state: TunnelState, message: Option<String>) {

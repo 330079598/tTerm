@@ -1,5 +1,5 @@
 use super::hub::{Lease, RouteGuard, SessionHub, SessionKey, SshConnection, SshHandle};
-use super::types::{TunnelKind, TunnelRule, TunnelState};
+use super::types::{TunnelKind, TunnelRule};
 use crate::core::session::types::SessionPlan;
 use crate::core::state::HostPromptMap;
 use crate::ssh::{
@@ -17,6 +17,7 @@ use std::time::Duration;
 use tauri::AppHandle;
 use tokio::sync::watch;
 use tokio::task::JoinSet;
+use tterm_core::events::tunnel::TunnelState;
 
 mod connections;
 pub(super) mod reporter;
@@ -24,7 +25,6 @@ pub(super) mod reporter;
 /// Event tab id shared by every tunnel; host-key prompts arrive on
 /// `ssh-hostkey-prompt-tunnels`.
 pub const TUNNEL_EVENT_TAB_ID: &str = "tunnels";
-pub const STATUS_EVENT: &str = "tunnel-status";
 
 const CONNECT_TIMEOUT: Duration = Duration::from_secs(45);
 const CHANNEL_OPEN_TIMEOUT: Duration = Duration::from_secs(15);

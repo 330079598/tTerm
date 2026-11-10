@@ -6,7 +6,7 @@ use super::storage::{
     delete_tunnel as delete_tunnel_rule, list_tunnel_traffic, load_tunnels, reset_tunnel_traffic,
     upsert_tunnel,
 };
-use super::types::{TunnelRule, TunnelState, TunnelStatus, TunnelTraffic};
+use super::types::TunnelRule;
 use crate::core::blocking::run_blocking;
 use crate::core::session::saved_hops::load_saved_hop_password;
 use crate::core::session::{
@@ -22,6 +22,7 @@ use std::time::Duration;
 use tauri::{AppHandle, Manager, State};
 use tokio::sync::{watch, Mutex};
 use tokio::task::JoinHandle;
+use tterm_core::events::tunnel::{TunnelState, TunnelStatus, TunnelTraffic};
 
 const STOP_TIMEOUT: Duration = Duration::from_secs(5);
 
