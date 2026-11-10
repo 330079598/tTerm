@@ -10,3 +10,5 @@ pub mod events;
 pub mod keymap;
 /// Application directories resolved by the client at startup.
 pub mod paths;
+/// Session output endpoints shared by client adapters (P1-06).
+pub mod session;
