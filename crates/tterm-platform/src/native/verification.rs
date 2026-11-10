@@ -4,25 +4,24 @@
 //! to the master password.
 
 #[cfg(target_os = "macos")]
-pub(crate) mod platform {
+pub mod platform {
     use block2::RcBlock;
     use objc2::runtime::Bool;
     use objc2_foundation::{NSError, NSString};
     use objc2_local_authentication::{LAContext, LAError, LAPolicy};
     use std::sync::mpsc;
-    use tauri::AppHandle;
 
     /// Touch ID when the Mac has it set up, else the login password.
     const POLICY: LAPolicy = LAPolicy::DeviceOwnerAuthentication;
 
-    pub(crate) fn available() -> bool {
+    pub fn available() -> bool {
         let context = unsafe { LAContext::new() };
         unsafe { context.canEvaluatePolicy_error(POLICY) }.is_ok()
     }
 
     /// Shows the system prompt and waits for it. Blocks, so it must not run
     /// on the main thread.
-    pub(crate) fn verify(_app: &AppHandle, message: &str) -> Result<(), String> {
+    pub fn verify(message: &str) -> Result<(), String> {
         let context = unsafe { LAContext::new() };
         let (sender, receiver) = mpsc::channel();
         let reply = RcBlock::new(move |success: Bool, error: *mut NSError| {
@@ -56,17 +55,16 @@ pub(crate) mod platform {
 }
 
 #[cfg(target_os = "windows")]
-pub(crate) mod platform {
-    use tauri::{AppHandle, Manager};
-    use windows::core::HSTRING;
+pub mod platform {
     use windows::Security::Credentials::UI::{
         UserConsentVerificationResult, UserConsentVerifier, UserConsentVerifierAvailability,
     };
     use windows::Win32::Foundation::HWND;
     use windows::Win32::System::WinRT::IUserConsentVerifierInterop;
+    use windows::core::HSTRING;
     use windows_future::IAsyncOperation;
 
-    pub(crate) fn available() -> bool {
+    pub fn available() -> bool {
         UserConsentVerifier::CheckAvailabilityAsync()
             .and_then(|operation| operation.join())
             .is_ok_and(|availability| availability == UserConsentVerifierAvailability::Available)
@@ -74,18 +72,8 @@ pub(crate) mod platform {
 
     /// Shows the Windows Hello prompt over the main window and waits for it.
     /// Blocks, so it must not run on the main thread.
-    pub(crate) fn verify(app: &AppHandle, message: &str) -> Result<(), String> {
-        let window = app
-            .get_webview_window("main")
-            .ok_or_else(|| "The main window is not available.".to_string())?;
-        // Tauri links another version of the `windows` crate; only the raw
-        // handle is shared.
-        let hwnd = HWND(
-            window
-                .hwnd()
-                .map_err(|e| format!("Failed to get the window handle: {e}"))?
-                .0,
-        );
+    pub fn verify(hwnd: isize, message: &str) -> Result<(), String> {
+        let hwnd = HWND(hwnd as _);
         let interop = windows::core::factory::<UserConsentVerifier, IUserConsentVerifierInterop>()
             .map_err(|e| format!("Windows Hello is unavailable: {e}"))?;
         let operation: IAsyncOperation<UserConsentVerificationResult> =
@@ -114,16 +102,15 @@ pub(crate) mod platform {
 }
 
 #[cfg(not(any(target_os = "windows", target_os = "macos")))]
-pub(crate) mod platform {
-    use tauri::AppHandle;
+pub mod platform {
 
-    pub(crate) fn available() -> bool {
+    pub fn available() -> bool {
         false
     }
 
-    pub(crate) fn verify(_app: &AppHandle, _message: &str) -> Result<(), String> {
+    pub fn verify(_message: &str) -> Result<(), String> {
         Err("System verification is not supported on this platform.".to_string())
     }
 }
 
-pub(crate) const CANCELED: &str = "Verification was canceled.";
+pub const CANCELED: &str = "Verification was canceled.";

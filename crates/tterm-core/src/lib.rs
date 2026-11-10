@@ -6,9 +6,13 @@
 
 /// Typed events and delivery interfaces shared by client adapters.
 pub mod events;
-/// Keyboard shortcut parsing, display, conflicts and dispatch.
-pub mod keymap;
-/// Application directories resolved by the client at startup.
-pub mod paths;
 /// Application identity supplied by the client.
 pub mod identity;
+/// Keyboard shortcut parsing, display, conflicts and dispatch.
+pub mod keymap;
+/// Shared launch forwarding entry point.
+pub mod launch;
+/// Application directories resolved by the client at startup.
+pub mod paths;
+/// Update routing and cache policy.
+pub mod updates;

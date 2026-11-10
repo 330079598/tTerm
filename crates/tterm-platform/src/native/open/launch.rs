@@ -2,20 +2,11 @@
 
 use std::path::Path;
 use std::process::{Command, Stdio};
-use tauri::AppHandle;
-use tauri_plugin_opener::OpenerExt;
-
-pub(super) fn open_default(app: &AppHandle, path: &Path) -> Result<(), String> {
-    app.opener()
-        .open_path(path.to_string_lossy().into_owned(), None::<&str>)
-        .map_err(|error| format!("Failed to open '{}': {error}", path.display()))
-}
-
 /// Opens `path` in `program`: an application name or bundle on macOS, an
 /// executable anywhere. The opener plugin is not used for this because on
 /// Windows it passes the path to the program unquoted, so a path with a
 /// space in it reaches the program as several arguments.
-pub(super) fn open_with(program: &str, path: &Path) -> Result<(), String> {
+pub fn open_with(program: &str, path: &Path) -> Result<(), String> {
     #[cfg(target_os = "macos")]
     if !Path::new(program).is_file() {
         return open_macos_application(program, path);
@@ -50,16 +41,16 @@ fn open_macos_application(application: &str, path: &Path) -> Result<(), String> 
 /// the program picked there. Returns `false` when the user cancelled it.
 /// The dialog is modal and runs a message loop of its own on this thread.
 #[cfg(windows)]
-pub(super) fn open_with_system_chooser(path: &Path) -> Result<bool, String> {
+pub fn open_with_system_chooser(path: &Path) -> Result<bool, String> {
     use std::os::windows::ffi::OsStrExt;
-    use windows::core::{HRESULT, PCWSTR};
     use windows::Win32::Foundation::ERROR_CANCELLED;
     use windows::Win32::System::Com::{
-        CoInitializeEx, CoUninitialize, COINIT_APARTMENTTHREADED, COINIT_DISABLE_OLE1DDE,
+        COINIT_APARTMENTTHREADED, COINIT_DISABLE_OLE1DDE, CoInitializeEx, CoUninitialize,
     };
     use windows::Win32::UI::Shell::{
-        SHOpenWithDialog, OAIF_ALLOW_REGISTRATION, OAIF_EXEC, OAIF_REGISTER_EXT, OPENASINFO,
+        OAIF_ALLOW_REGISTRATION, OAIF_EXEC, OAIF_REGISTER_EXT, OPENASINFO, SHOpenWithDialog,
     };
+    use windows::core::{HRESULT, PCWSTR};
 
     let wide: Vec<u16> = path.as_os_str().encode_wide().chain([0]).collect();
     let info = OPENASINFO {
@@ -111,4 +102,9 @@ fn spawn_detached(program: &str, path: &Path) -> Result<(), String> {
         let _ = child.wait();
     });
     Ok(())
+}
+
+#[cfg(not(windows))]
+pub fn open_with_system_chooser(_path: &Path) -> Result<bool, String> {
+    Err("This system has no Open With dialog".into())
 }

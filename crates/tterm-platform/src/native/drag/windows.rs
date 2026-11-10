@@ -8,29 +8,31 @@ use std::path::{Path, PathBuf};
 use std::sync::{Mutex, Once};
 use std::time::Duration;
 
-use tauri::WebviewWindow;
+use crate::window::WindowHost;
+use std::sync::Arc;
 use tokio::sync::oneshot;
-use windows::core::{w, HSTRING, PCWSTR};
 use windows::Win32::Foundation::{HANDLE, HWND, LPARAM, LRESULT, POINT, WPARAM};
 use windows::Win32::System::Com::IDataObject;
 use windows::Win32::System::LibraryLoader::GetModuleHandleW;
 use windows::Win32::System::Ole::{DROPEFFECT_COPY, DROPEFFECT_NONE};
 use windows::Win32::UI::Shell::Common::ITEMIDLIST;
 use windows::Win32::UI::Shell::{
-    BHID_DataObject, ILFree, SHCNRF_NewDelivery, SHCNRF_ShellLevel, SHChangeNotification_Lock,
-    SHChangeNotification_Unlock, SHChangeNotify, SHChangeNotifyDeregister, SHChangeNotifyEntry,
-    SHChangeNotifyRegister, SHCreateShellItemArrayFromIDLists, SHDoDragDrop, SHGetPathFromIDListEx,
-    SHGetSpecialFolderLocation, SHParseDisplayName, CSIDL_DESKTOP, GPFIDL_DEFAULT, SHCNE_CREATE,
-    SHCNE_DELETE, SHCNE_ID, SHCNE_MKDIR, SHCNE_RMDIR, SHCNE_UPDATEDIR, SHCNF_FLUSHNOWAIT,
-    SHCNF_PATHW,
+    BHID_DataObject, CSIDL_DESKTOP, GPFIDL_DEFAULT, ILFree, SHCNE_CREATE, SHCNE_DELETE, SHCNE_ID,
+    SHCNE_MKDIR, SHCNE_RMDIR, SHCNE_UPDATEDIR, SHCNF_FLUSHNOWAIT, SHCNF_PATHW, SHCNRF_NewDelivery,
+    SHCNRF_ShellLevel, SHChangeNotification_Lock, SHChangeNotification_Unlock, SHChangeNotify,
+    SHChangeNotifyDeregister, SHChangeNotifyEntry, SHChangeNotifyRegister,
+    SHCreateShellItemArrayFromIDLists, SHDoDragDrop, SHGetPathFromIDListEx,
+    SHGetSpecialFolderLocation, SHParseDisplayName,
 };
 use windows::Win32::UI::WindowsAndMessaging::{
-    CreateWindowExW, DefWindowProcW, DestroyWindow, GetAncestor, GetCursorPos, RegisterClassW,
-    WindowFromPoint, GA_ROOT, HWND_MESSAGE, WINDOW_EX_STYLE, WINDOW_STYLE, WM_APP, WNDCLASSW,
+    CreateWindowExW, DefWindowProcW, DestroyWindow, GA_ROOT, GetAncestor, GetCursorPos,
+    HWND_MESSAGE, RegisterClassW, WINDOW_EX_STYLE, WINDOW_STYLE, WM_APP, WNDCLASSW,
+    WindowFromPoint,
 };
+use windows::core::{HSTRING, PCWSTR, w};
 
-use super::{DragOutItem, DragOutResult};
-use crate::core::blocking::run_blocking;
+use crate::drag::{DragOutItem, DragOutResult};
+use crate::native::run_blocking;
 
 const WATCHER_CLASS: PCWSTR = w!("tTermDragOutWatcher");
 const WM_SHELL_CHANGE: u32 = WM_APP + 0x31;
@@ -92,7 +94,7 @@ struct DragEnd {
 }
 
 pub async fn drag_out(
-    window: WebviewWindow,
+    window: Arc<dyn WindowHost>,
     items: Vec<DragOutItem>,
 ) -> Result<DragOutResult, String> {
     let token = uuid::Uuid::new_v4().simple().to_string();
@@ -159,17 +161,18 @@ fn create_placeholders(
 }
 
 async fn drag_placeholders(
-    window: &WebviewWindow,
+    window: &Arc<dyn WindowHost>,
     placeholders: Vec<PathBuf>,
 ) -> Result<DragOutResult, String> {
     let (first_sender, first) = oneshot::channel();
     let (ended_sender, ended) = oneshot::channel();
-    let target = window.clone();
     let expected = placeholders.len();
     window
-        .run_on_main_thread(move || {
-            let _ = ended_sender.send(run_drag(&target, &placeholders, first_sender));
-        })
+        .dispatch(Box::new(move |handles| {
+            let _ = ended_sender.send(
+                handles.and_then(|handles| run_drag(handles.hwnd, &placeholders, first_sender)),
+            );
+        }))
         .map_err(|e| format!("Failed to start the drag: {e}"))?;
     let end = ended
         .await
@@ -191,7 +194,7 @@ async fn drag_placeholders(
     }
     let copies = take_copies(end.watcher.hwnd);
     let watcher = end.watcher;
-    let _ = window.run_on_main_thread(move || watcher.stop());
+    let _ = window.dispatch(Box::new(move |_| watcher.stop()));
 
     let Some(directory) = copies
         .first()
@@ -287,18 +290,13 @@ fn notify_shell(event: SHCNE_ID, path: &Path) {
 /// Runs on the main thread, which OLE has initialized for drag and drop.
 /// Blocks in the system's drag loop until the mouse button is released.
 fn run_drag(
-    window: &WebviewWindow,
+    hwnd: isize,
     placeholders: &[PathBuf],
     first: oneshot::Sender<()>,
 ) -> Result<DragEnd, String> {
     // Tauri links another version of the `windows` crate; only the raw
     // handle is shared.
-    let hwnd = HWND(
-        window
-            .hwnd()
-            .map_err(|e| format!("Failed to get the window handle: {e}"))?
-            .0,
-    );
+    let hwnd = HWND(hwnd as _);
     let data = data_object(placeholders).map_err(|e| format!("Failed to start the drag: {e}"))?;
     let names = placeholders
         .iter()

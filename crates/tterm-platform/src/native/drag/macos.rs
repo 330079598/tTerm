@@ -6,11 +6,12 @@ use std::cell::RefCell;
 use std::ffi::c_void;
 use std::time::Duration;
 
+use crate::window::WindowHost;
 use block2::DynBlock;
 use objc2::rc::Retained;
 use objc2::runtime::ProtocolObject;
 use objc2::{
-    define_class, msg_send, AllocAnyThread, DefinedClass, MainThreadMarker, MainThreadOnly,
+    AllocAnyThread, DefinedClass, MainThreadMarker, MainThreadOnly, define_class, msg_send,
 };
 use objc2_app_kit::{
     NSDragOperation, NSDraggingContext, NSDraggingItem, NSDraggingSession, NSDraggingSource,
@@ -22,10 +23,10 @@ use objc2_foundation::{
     NSProcessInfo, NSRect, NSSize, NSString, NSURL,
 };
 use objc2_uniform_type_identifiers::UTType;
-use tauri::WebviewWindow;
+use std::sync::Arc;
 use tokio::sync::{mpsc, oneshot};
 
-use super::{DragOutItem, DragOutResult};
+use crate::drag::{DragOutItem, DragOutResult};
 
 /// How long Finder gets to ask for the files once it took the drop.
 const WRITE_TIMEOUT: Duration = Duration::from_secs(10);
@@ -142,20 +143,17 @@ thread_local! {
 }
 
 pub async fn drag_out(
-    window: WebviewWindow,
+    window: Arc<dyn WindowHost>,
     items: Vec<DragOutItem>,
 ) -> Result<DragOutResult, String> {
     let (events_sender, events) = mpsc::unbounded_channel();
     let (started_sender, started) = oneshot::channel();
-    let target = window.clone();
     window
-        .run_on_main_thread(move || {
-            let result = target
-                .ns_view()
-                .map_err(|e| format!("Failed to get the window's view: {e}"))
-                .and_then(|view| begin_drag(view, &items, events_sender));
+        .dispatch(Box::new(move |handles| {
+            let result = handles
+                .and_then(|handles| begin_drag(handles.view as *mut c_void, &items, events_sender));
             let _ = started_sender.send(result);
-        })
+        }))
         .map_err(|e| format!("Failed to start the drag: {e}"))?;
     started
         .await
@@ -210,7 +208,7 @@ fn begin_drag(
     events: mpsc::UnboundedSender<DragEvent>,
 ) -> Result<(), String> {
     let mtm = MainThreadMarker::new().ok_or("The drag must start on the main thread")?;
-    // SAFETY: Tauri hands out the window's content view, which lives as long
+    // SAFETY: The client dispatcher hands out the window's content view, which lives as long
     // as the window, and this runs on the main thread that owns it.
     let view = unsafe { view.cast::<NSView>().as_ref() }.ok_or("The window has no view")?;
     let window = view.window().ok_or("The view is not in a window")?;

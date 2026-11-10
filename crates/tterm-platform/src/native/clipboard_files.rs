@@ -1,6 +1,5 @@
 use std::path::PathBuf;
 
-#[tauri::command]
 pub fn read_clipboard_file_paths() -> Result<Vec<String>, String> {
     platform::read_clipboard_file_paths()
 }
@@ -233,7 +232,7 @@ return outputText
 
     #[cfg(test)]
     mod tests {
-        use super::{Command, APPKIT_CLIPBOARD_SCRIPT};
+        use super::{APPKIT_CLIPBOARD_SCRIPT, Command};
 
         #[test]
         fn appkit_clipboard_script_compiles() {
