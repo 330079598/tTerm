@@ -375,13 +375,15 @@ pub async fn open_target_ssh_session_with_forwarding(
             app,
             tab_id,
             status_options,
-            SshConnectionProgressPayload::new(
-                "target_authenticated",
-                format!("Authenticated target as {}", target_username),
-            )
-            .host(target_host.to_string(), target_port)
-            .username(target_username.to_string())
-            .auth_used(&used),
+            crate::ssh::types::with_auth_used(
+                SshConnectionProgressPayload::new(
+                    "target_authenticated",
+                    format!("Authenticated target as {}", target_username),
+                )
+                .host(target_host.to_string(), target_port)
+                .username(target_username.to_string()),
+                &used,
+            ),
         );
     }
 

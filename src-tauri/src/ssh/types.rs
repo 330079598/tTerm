@@ -196,15 +196,6 @@ impl SshConnectionProgressPayload {
         }
     }
 
-    pub fn auth_used(mut self, used: &super::auth::AuthUsed) -> Self {
-        self.auth = Some(AuthUsedPayload {
-            method: used.method_name(),
-            private_key_path: used.key_path().map(str::to_string),
-            reusable: used.reusable(),
-        });
-        self
-    }
-
     pub fn host(mut self, host: impl Into<String>, port: u16) -> Self {
         self.host = Some(host.into());
         self.port = Some(port);
@@ -253,6 +244,19 @@ impl SshConnectionProgressPayload {
         self.reason = Some(reason.into());
         self
     }
+}
+
+/// Attaches the authentication result without coupling the shared payload to SSH services.
+pub fn with_auth_used(
+    mut payload: SshConnectionProgressPayload,
+    used: &super::auth::AuthUsed,
+) -> SshConnectionProgressPayload {
+    payload.auth = Some(AuthUsedPayload {
+        method: used.method_name(),
+        private_key_path: used.key_path().map(str::to_string),
+        reusable: used.reusable(),
+    });
+    payload
 }
 
 pub fn emit_connection_progress(
