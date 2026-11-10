@@ -1,3 +1,5 @@
+use tterm_core::events::sftp::SftpEvent;
+use tterm_core::events::{AppEvent, EventSink};
 mod batch;
 mod items;
 use crate::sftp::internal::transfer::{
@@ -10,7 +12,7 @@ use std::future::Future;
 use std::path::{Path, PathBuf};
 use std::pin::Pin;
 use std::sync::Arc;
-use tauri::{AppHandle, Emitter};
+
 use tokio::fs;
 use tokio::sync::watch;
 use tterm_core::events::sftp::upload::UploadItemProgressEvent;
@@ -304,7 +306,7 @@ async fn inspect_upload_roots(local_paths: &[String]) -> Result<UploadRootSummar
 }
 
 async fn upload_single_file_with_progress(
-    app: &AppHandle,
+    events: &Arc<dyn EventSink>,
     tab_id: &str,
     channels: RemoteChannels,
     cancel_map: &TransferCancelMap,
@@ -318,7 +320,7 @@ async fn upload_single_file_with_progress(
         .await
         .insert(transfer_id.to_string(), cancel_tx.clone());
 
-    let app_for_progress = app.clone();
+    let events_for_progress = events.clone();
     let tab_id_for_progress = tab_id.to_string();
     let transfer_id_for_progress = transfer_id.to_string();
     let local_path_for_progress = plan_item.local_path.clone();
@@ -335,9 +337,9 @@ async fn upload_single_file_with_progress(
             100
         };
 
-        let _ = app_for_progress.emit(
-            &format!("sftp-upload-progress-{}", tab_id_for_progress),
-            UploadItemProgressEvent {
+        let _ = events_for_progress.emit(AppEvent::Sftp(SftpEvent::UploadProgress {
+            tab_id: tab_id_for_progress.to_string(),
+            payload: UploadItemProgressEvent {
                 transfer_id: transfer_id_for_progress.clone(),
                 local_path: local_path_for_progress.clone(),
                 transferred: update.transferred,
@@ -348,7 +350,7 @@ async fn upload_single_file_with_progress(
                 completed_chunks: update.completed_chunks,
                 chunk_count: update.chunk_count,
             },
-        );
+        }));
     });
 
     let options = TransferOptions {

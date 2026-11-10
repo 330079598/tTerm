@@ -1,10 +1,12 @@
 use super::commands::resolve_upload_target;
 use super::*;
 use tterm_core::events::sftp::upload::{UploadItemCompleteEvent, UploadItemStartEvent};
+use tterm_core::events::sftp::SftpEvent;
+use tterm_core::events::{AppEvent, EventSink};
 use tterm_core::sftp::conflict::ConflictPolicy;
 
 pub(super) struct UploadItems<'a> {
-    pub app: &'a AppHandle,
+    pub events: &'a Arc<dyn EventSink>,
     pub tab_id: &'a str,
     pub sftp: &'a SftpSession,
     pub channels: &'a RemoteChannels,
@@ -27,7 +29,7 @@ pub(super) async fn upload_item(
     batch_cancel_rx: Option<watch::Receiver<bool>>,
 ) -> ItemOutcome {
     let UploadItems {
-        app,
+        events,
         tab_id,
         sftp,
         channels,
@@ -49,9 +51,9 @@ pub(super) async fn upload_item(
         },
         _ => plan_item,
     };
-    let _ = app.emit(
-        &format!("sftp-upload-item-start-{}", tab_id),
-        UploadItemStartEvent {
+    let _ = events.emit(AppEvent::Sftp(SftpEvent::UploadItemStart {
+        tab_id: tab_id.to_string(),
+        payload: UploadItemStartEvent {
             transfer_id: transfer_id.clone(),
             batch_id: if batch_enabled {
                 Some(batch_id.to_string())
@@ -63,14 +65,14 @@ pub(super) async fn upload_item(
             local_path: plan_item.local_path.clone(),
             remote_path: plan_item.remote_path.clone(),
         },
-    );
+    }));
 
     let resolved = match resolved {
         Ok(resolved) => resolved,
         Err(error) => {
-            let _ = app.emit(
-                &format!("sftp-upload-item-complete-{}", tab_id),
-                UploadItemCompleteEvent {
+            let _ = events.emit(AppEvent::Sftp(SftpEvent::UploadItemComplete {
+                tab_id: tab_id.to_string(),
+                payload: UploadItemCompleteEvent {
                     transfer_id,
                     error: Some(error),
                     local_path: plan_item.local_path,
@@ -79,15 +81,15 @@ pub(super) async fn upload_item(
                     success: false,
                     skipped: false,
                 },
-            );
+            }));
             return ItemOutcome::Failed;
         }
     };
 
     if resolved.is_none() {
-        let _ = app.emit(
-            &format!("sftp-upload-item-complete-{}", tab_id),
-            UploadItemCompleteEvent {
+        let _ = events.emit(AppEvent::Sftp(SftpEvent::UploadItemComplete {
+            tab_id: tab_id.to_string(),
+            payload: UploadItemCompleteEvent {
                 transfer_id,
                 error: None,
                 local_path: plan_item.local_path.clone(),
@@ -96,12 +98,12 @@ pub(super) async fn upload_item(
                 success: true,
                 skipped: true,
             },
-        );
+        }));
         return ItemOutcome::Succeeded;
     }
 
     let result = upload_single_file_with_progress(
-        app,
+        events,
         tab_id,
         channels.instance(),
         cancel_map,
@@ -113,9 +115,9 @@ pub(super) async fn upload_item(
 
     match result {
         Ok(()) => {
-            let _ = app.emit(
-                &format!("sftp-upload-item-complete-{}", tab_id),
-                UploadItemCompleteEvent {
+            let _ = events.emit(AppEvent::Sftp(SftpEvent::UploadItemComplete {
+                tab_id: tab_id.to_string(),
+                payload: UploadItemCompleteEvent {
                     transfer_id,
                     error: None,
                     local_path: plan_item.local_path,
@@ -124,14 +126,14 @@ pub(super) async fn upload_item(
                     success: true,
                     skipped: false,
                 },
-            );
+            }));
         }
         Err(error) => {
             let item_cancelled = error.contains("cancelled");
 
-            let _ = app.emit(
-                &format!("sftp-upload-item-complete-{}", tab_id),
-                UploadItemCompleteEvent {
+            let _ = events.emit(AppEvent::Sftp(SftpEvent::UploadItemComplete {
+                tab_id: tab_id.to_string(),
+                payload: UploadItemCompleteEvent {
                     transfer_id,
                     error: Some(error),
                     local_path: plan_item.local_path,
@@ -140,7 +142,7 @@ pub(super) async fn upload_item(
                     success: false,
                     skipped: false,
                 },
-            );
+            }));
 
             return if item_cancelled {
                 ItemOutcome::Cancelled

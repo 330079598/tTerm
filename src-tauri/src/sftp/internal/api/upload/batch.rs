@@ -1,9 +1,10 @@
 use super::*;
+use tterm_core::events::EventSink;
 use tterm_core::sftp::conflict::ConflictPolicy;
 
 pub(super) struct UploadBatch {
     pub cancel_map: TransferCancelMap,
-    pub app: AppHandle,
+    pub events: Arc<dyn EventSink>,
     pub tab_id: String,
     pub batch_id: String,
     pub directories: Vec<String>,
@@ -20,7 +21,7 @@ pub(super) async fn run(
 ) -> Result<UploadBatchResult, String> {
     let UploadBatch {
         cancel_map,
-        app,
+        events,
         tab_id,
         batch_id,
         directories,
@@ -62,7 +63,7 @@ pub(super) async fn run(
 
             match super::items::upload_item(
                 &super::items::UploadItems {
-                    app: &app,
+                    events: &events,
                     tab_id: &tab_id,
                     sftp,
                     channels,

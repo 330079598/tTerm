@@ -1,6 +1,7 @@
 use super::*;
 use crate::core::session::types::PtyConnectionOptions;
 use crate::core::state::HostPromptMap;
+use crate::event_sink::TauriEventSink;
 use crate::sftp::internal::api::conflict::{
     self, CandidateDecision, ConflictReport, SourceStat, TransferConflict,
 };
@@ -9,9 +10,11 @@ use crate::sftp::internal::connection::ensure_ssh_plan;
 use crate::sftp::internal::types::{SftpConnectionPool, TransferCancelMap};
 use crate::ssh::secret_store::types::SecretStoreState;
 use std::collections::HashMap;
-use tauri::{AppHandle, Emitter, State};
+use tauri::{AppHandle, State};
 use tokio::sync::watch;
 use tterm_core::events::sftp::upload::{UploadBatchCompleteEvent, UploadBatchStartEvent};
+use tterm_core::events::sftp::SftpEvent;
+use tterm_core::events::{AppEvent, EventSink};
 use tterm_core::sftp::conflict::ConflictPolicy;
 
 /// Where a planned upload should land under `policy`, or `None` to skip it.
@@ -159,6 +162,7 @@ pub async fn sftp_upload_file(
     pool_state: State<'_, SftpConnectionPool>,
     cancel_map: State<'_, TransferCancelMap>,
 ) -> Result<(), String> {
+    let events: Arc<dyn EventSink> = Arc::new(TauriEventSink::new(app.clone()));
     let plan = ensure_ssh_plan(&app, &secret_state, connection)?;
 
     let metadata = fs::metadata(&local_path)
@@ -184,7 +188,7 @@ pub async fn sftp_upload_file(
     .await?;
 
     upload_single_file_with_progress(
-        &app,
+        &events,
         &tab_id,
         channels,
         cancel_map.inner(),
@@ -213,6 +217,7 @@ pub async fn sftp_upload_paths(
     pool_state: State<'_, SftpConnectionPool>,
     cancel_map: State<'_, TransferCancelMap>,
 ) -> Result<UploadBatchResult, String> {
+    let events: Arc<dyn EventSink> = Arc::new(TauriEventSink::new(app.clone()));
     let plan = ensure_ssh_plan(&app, &secret_state, connection)?;
     let root_summary = inspect_upload_roots(&local_paths).await?;
     let batch_id = next_transfer_id();
@@ -226,9 +231,9 @@ pub async fn sftp_upload_paths(
             .insert(batch_id.clone(), batch_cancel_tx);
         batch_cancel_rx = Some(next_batch_cancel_rx);
 
-        let _ = app.emit(
-            &format!("sftp-upload-batch-start-{}", tab_id),
-            UploadBatchStartEvent {
+        let _ = events.emit(AppEvent::Sftp(SftpEvent::UploadBatchStart {
+            tab_id: tab_id.to_string(),
+            payload: UploadBatchStartEvent {
                 batch_id: batch_id.clone(),
                 display_name: root_summary.label.clone(),
                 local_path: root_summary.local_path.clone(),
@@ -236,7 +241,7 @@ pub async fn sftp_upload_paths(
                 remote_base_path: remote_base_path.clone(),
                 conflict_policy: conflict_policy.unwrap_or_default(),
             },
-        );
+        }));
     }
 
     let upload_plan =
@@ -245,16 +250,16 @@ pub async fn sftp_upload_paths(
             Err(error) => {
                 if root_summary.has_directories {
                     let cancelled = error.contains("cancelled");
-                    let _ = app.emit(
-                        &format!("sftp-upload-batch-complete-{}", tab_id),
-                        UploadBatchCompleteEvent {
+                    let _ = events.emit(AppEvent::Sftp(SftpEvent::UploadBatchComplete {
+                        tab_id: tab_id.to_string(),
+                        payload: UploadBatchCompleteEvent {
                             batch_id: batch_id.clone(),
                             cancelled,
                             error: if cancelled { None } else { Some(error.clone()) },
                             failed: 0,
                             succeeded: 0,
                         },
-                    );
+                    }));
                     cancel_map.write().await.remove(&batch_id);
 
                     if cancelled {
@@ -281,7 +286,7 @@ pub async fn sftp_upload_paths(
     {
         Ok((sftp, channels)) => {
             let cancel_map = cancel_map.inner().clone();
-            let app = app.clone();
+            let events = events.clone();
             let tab_id = tab_id.clone();
             let batch_id = batch_id.clone();
             let directories = upload_plan.directories.clone();
@@ -293,7 +298,7 @@ pub async fn sftp_upload_paths(
             super::batch::run(
                 super::batch::UploadBatch {
                     cancel_map,
-                    app,
+                    events,
                     tab_id,
                     batch_id,
                     directories,
@@ -329,7 +334,10 @@ pub async fn sftp_upload_paths(
             },
         };
 
-        let _ = app.emit(&format!("sftp-upload-batch-complete-{}", tab_id), event);
+        let _ = events.emit(AppEvent::Sftp(SftpEvent::UploadBatchComplete {
+            tab_id: tab_id.to_string(),
+            payload: event,
+        }));
         cancel_map.write().await.remove(&batch_id);
     }
 
