@@ -4,6 +4,7 @@ pub mod tunnel;
 // P1-04 owns the SFTP event domain.
 pub mod sftp;
 
+use sftp::SftpEvent;
 use tunnel::TunnelEvent;
 
 /// A business event emitted by a core service.
@@ -11,6 +12,8 @@ use tunnel::TunnelEvent;
 pub enum AppEvent {
     /// Tunnel state and traffic changed.
     Tunnel(TunnelEvent),
+    /// SFTP transfers and external edits (P1-04).
+    Sftp(SftpEvent),
 }
 
 /// The logical delivery scope of an event.
@@ -50,6 +53,7 @@ impl AppEvent {
     pub fn target(&self) -> EventTarget {
         match self {
             Self::Tunnel(event) => event.target(),
+            Self::Sftp(event) => event.target(), // P1-04.
         }
     }
 
@@ -57,6 +61,7 @@ impl AppEvent {
     pub fn name(&self) -> EventName {
         match self {
             Self::Tunnel(event) => event.name(),
+            Self::Sftp(event) => event.name(), // P1-04.
         }
     }
 }

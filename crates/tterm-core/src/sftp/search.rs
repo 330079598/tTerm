@@ -16,3 +16,11 @@ pub enum SearchEvent {
         scanned_folders: usize,
     },
 }
+
+/// Submits updates without waiting for the UI to consume them.
+///
+/// This interface has no acknowledgement or backpressure. The existing search
+/// counts results even if the client transport returns an error.
+pub trait SearchResultSink: Send + Sync {
+    fn send(&self, event: SearchEvent) -> Result<(), String>;
+}

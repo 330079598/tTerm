@@ -1,4 +1,7 @@
-//! Legacy wire contracts captured before P1-04 transport changes.
+use crate::event_sink::TauriEventSink;
+use tterm_core::events::sftp::SftpEvent;
+use tterm_core::events::{AppEvent, EventTarget};
+// Legacy wire contracts captured before P1-04 transport changes.
 use tterm_core::events::sftp::delete::{
     DeleteBatchCompleteEvent, DeleteBatchStartEvent, DeleteMethod, DeleteProgressEvent,
 };
@@ -25,6 +28,18 @@ fn legacy_r01_wire_contract() {
         format!("sftp-delete-progress-{}", "tab-中文-7"),
         "sftp-delete-progress-tab-中文-7"
     );
+    let event = AppEvent::Sftp(SftpEvent::DeleteProgress {
+        tab_id: "tab-中文-7".into(),
+        payload,
+    });
+    let (name, target, json) = TauriEventSink::wire(&event).unwrap();
+    assert_eq!(name.as_string(), "sftp-delete-progress-tab-中文-7");
+    assert_eq!(target, EventTarget::Default);
+    assert_eq!(target, event.target());
+    assert_eq!(
+        json,
+        serde_json::json!({"batchId": "batch-1", "currentPath": "current_path-value", "deletedDirectories": 2, "deletedFiles": 2, "failed": 2, "method": "sftp", "totalDirectories": 2, "totalEntries": 2, "totalFiles": 2, "totalTruncated": false})
+    );
 }
 
 #[test]
@@ -45,6 +60,18 @@ fn legacy_r02_wire_contract() {
     assert_eq!(
         format!("sftp-delete-batch-start-{}", "tab-中文-7"),
         "sftp-delete-batch-start-tab-中文-7"
+    );
+    let event = AppEvent::Sftp(SftpEvent::DeleteBatchStart {
+        tab_id: "tab-中文-7".into(),
+        payload,
+    });
+    let (name, target, json) = TauriEventSink::wire(&event).unwrap();
+    assert_eq!(name.as_string(), "sftp-delete-batch-start-tab-中文-7");
+    assert_eq!(target, EventTarget::Default);
+    assert_eq!(target, event.target());
+    assert_eq!(
+        json,
+        serde_json::json!({"batchId": "batch-1", "entries": ["first", "中文 second"], "method": "sftp", "totalDirectories": 2, "totalEntries": 2, "totalFiles": 2, "totalTruncated": false})
     );
 }
 
@@ -70,5 +97,17 @@ fn legacy_r03_wire_contract() {
     assert_eq!(
         format!("sftp-delete-batch-complete-{}", "tab-中文-7"),
         "sftp-delete-batch-complete-tab-中文-7"
+    );
+    let event = AppEvent::Sftp(SftpEvent::DeleteBatchComplete {
+        tab_id: "tab-中文-7".into(),
+        payload,
+    });
+    let (name, target, json) = TauriEventSink::wire(&event).unwrap();
+    assert_eq!(name.as_string(), "sftp-delete-batch-complete-tab-中文-7");
+    assert_eq!(target, EventTarget::Default);
+    assert_eq!(target, event.target());
+    assert_eq!(
+        json,
+        serde_json::json!({"batchId": "batch-1", "cancelled": false, "deletedDirectories": 2, "deletedFiles": 2, "error": null, "failed": 2, "method": "sftp", "totalDirectories": 2, "totalEntries": 2, "totalFiles": 2, "totalTruncated": false})
     );
 }

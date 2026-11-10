@@ -1,5 +1,8 @@
 //! Tauri's event transport for typed core business events.
 
+pub(crate) mod search;
+mod sftp; // P1-04. // P1-04.
+
 use serde::Serialize;
 use serde_json::Value;
 use tauri::{AppHandle, Emitter};
@@ -22,6 +25,8 @@ impl TauriEventSink {
     /// separate makes the compatibility contract testable without a window.
     pub(crate) fn wire(event: &AppEvent) -> Result<(EventName, EventTarget, Value), String> {
         match event {
+            // P1-04 owns SFTP serialization; routing comes from the core event.
+            AppEvent::Sftp(payload) => Ok((event.name(), event.target(), sftp::wire(payload)?)),
             AppEvent::Tunnel(TunnelEvent::Status(status)) => Ok((
                 event.name(),
                 event.target(),

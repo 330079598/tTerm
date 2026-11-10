@@ -1,4 +1,7 @@
-//! Legacy wire contracts captured before P1-04 transport changes.
+use crate::event_sink::TauriEventSink;
+use tterm_core::events::sftp::SftpEvent;
+use tterm_core::events::{AppEvent, EventTarget};
+// Legacy wire contracts captured before P1-04 transport changes.
 use tterm_core::events::sftp::upload::{
     UploadBatchCompleteEvent, UploadBatchStartEvent, UploadItemCompleteEvent,
     UploadItemProgressEvent, UploadItemStartEvent,
@@ -22,6 +25,18 @@ fn legacy_u01_wire_contract() {
         format!("sftp-upload-batch-start-{}", "tab-中文-7"),
         "sftp-upload-batch-start-tab-中文-7"
     );
+    let event = AppEvent::Sftp(SftpEvent::UploadBatchStart {
+        tab_id: "tab-中文-7".into(),
+        payload,
+    });
+    let (name, target, json) = TauriEventSink::wire(&event).unwrap();
+    assert_eq!(name.as_string(), "sftp-upload-batch-start-tab-中文-7");
+    assert_eq!(target, EventTarget::Default);
+    assert_eq!(target, event.target());
+    assert_eq!(
+        json,
+        serde_json::json!({"batchId": "batch-1", "displayName": "display_name-value", "localPath": "/tmp/中文 file.txt", "localPaths": ["first", "中文 second"], "remoteBasePath": "remote_base_path-value", "conflictPolicy": "rename"})
+    );
 }
 
 #[test]
@@ -40,6 +55,18 @@ fn legacy_u02_wire_contract() {
     assert_eq!(
         format!("sftp-upload-batch-complete-{}", "tab-中文-7"),
         "sftp-upload-batch-complete-tab-中文-7"
+    );
+    let event = AppEvent::Sftp(SftpEvent::UploadBatchComplete {
+        tab_id: "tab-中文-7".into(),
+        payload,
+    });
+    let (name, target, json) = TauriEventSink::wire(&event).unwrap();
+    assert_eq!(name.as_string(), "sftp-upload-batch-complete-tab-中文-7");
+    assert_eq!(target, EventTarget::Default);
+    assert_eq!(target, event.target());
+    assert_eq!(
+        json,
+        serde_json::json!({"batchId": "batch-1", "cancelled": true, "error": null, "failed": 0, "succeeded": 0})
     );
 }
 
@@ -60,6 +87,18 @@ fn legacy_u03_wire_contract() {
     assert_eq!(
         format!("sftp-upload-item-start-{}", "tab-中文-7"),
         "sftp-upload-item-start-tab-中文-7"
+    );
+    let event = AppEvent::Sftp(SftpEvent::UploadItemStart {
+        tab_id: "tab-中文-7".into(),
+        payload,
+    });
+    let (name, target, json) = TauriEventSink::wire(&event).unwrap();
+    assert_eq!(name.as_string(), "sftp-upload-item-start-tab-中文-7");
+    assert_eq!(target, EventTarget::Default);
+    assert_eq!(target, event.target());
+    assert_eq!(
+        json,
+        serde_json::json!({"transferId": "transfer-1", "batchId": "batch-1", "fileName": "file_name-value", "fileSize": 2, "localPath": "/tmp/中文 file.txt", "remotePath": "/home/alice/中文 file.txt"})
     );
 }
 
@@ -82,6 +121,18 @@ fn legacy_u04_wire_contract() {
         format!("sftp-upload-item-complete-{}", "tab-中文-7"),
         "sftp-upload-item-complete-tab-中文-7"
     );
+    let event = AppEvent::Sftp(SftpEvent::UploadItemComplete {
+        tab_id: "tab-中文-7".into(),
+        payload,
+    });
+    let (name, target, json) = TauriEventSink::wire(&event).unwrap();
+    assert_eq!(name.as_string(), "sftp-upload-item-complete-tab-中文-7");
+    assert_eq!(target, EventTarget::Default);
+    assert_eq!(target, event.target());
+    assert_eq!(
+        json,
+        serde_json::json!({"transferId": "transfer-1", "error": "resolve failed", "localPath": "/tmp/中文 file.txt", "remotePath": "/home/alice/中文 file.txt", "cancelled": false, "success": false, "skipped": false})
+    );
 }
 
 #[test]
@@ -102,6 +153,18 @@ fn legacy_u05_wire_contract() {
     assert_eq!(
         format!("sftp-upload-item-complete-{}", "tab-中文-7"),
         "sftp-upload-item-complete-tab-中文-7"
+    );
+    let event = AppEvent::Sftp(SftpEvent::UploadItemComplete {
+        tab_id: "tab-中文-7".into(),
+        payload,
+    });
+    let (name, target, json) = TauriEventSink::wire(&event).unwrap();
+    assert_eq!(name.as_string(), "sftp-upload-item-complete-tab-中文-7");
+    assert_eq!(target, EventTarget::Default);
+    assert_eq!(target, event.target());
+    assert_eq!(
+        json,
+        serde_json::json!({"transferId": "transfer-1", "error": null, "localPath": "/tmp/中文 file.txt", "remotePath": "/home/alice/中文 file.txt", "cancelled": false, "success": true, "skipped": true})
     );
 }
 
@@ -124,6 +187,18 @@ fn legacy_u06_wire_contract() {
         format!("sftp-upload-item-complete-{}", "tab-中文-7"),
         "sftp-upload-item-complete-tab-中文-7"
     );
+    let event = AppEvent::Sftp(SftpEvent::UploadItemComplete {
+        tab_id: "tab-中文-7".into(),
+        payload,
+    });
+    let (name, target, json) = TauriEventSink::wire(&event).unwrap();
+    assert_eq!(name.as_string(), "sftp-upload-item-complete-tab-中文-7");
+    assert_eq!(target, EventTarget::Default);
+    assert_eq!(target, event.target());
+    assert_eq!(
+        json,
+        serde_json::json!({"transferId": "transfer-1", "error": null, "localPath": "/tmp/中文 file.txt", "remotePath": "/home/alice/中文 file.txt", "cancelled": false, "success": true, "skipped": false})
+    );
 }
 
 #[test]
@@ -145,6 +220,18 @@ fn legacy_u07_wire_contract() {
         format!("sftp-upload-item-complete-{}", "tab-中文-7"),
         "sftp-upload-item-complete-tab-中文-7"
     );
+    let event = AppEvent::Sftp(SftpEvent::UploadItemComplete {
+        tab_id: "tab-中文-7".into(),
+        payload,
+    });
+    let (name, target, json) = TauriEventSink::wire(&event).unwrap();
+    assert_eq!(name.as_string(), "sftp-upload-item-complete-tab-中文-7");
+    assert_eq!(target, EventTarget::Default);
+    assert_eq!(target, event.target());
+    assert_eq!(
+        json,
+        serde_json::json!({"transferId": "transfer-1", "error": "Upload cancelled by user", "localPath": "/tmp/中文 file.txt", "remotePath": "/home/alice/中文 file.txt", "cancelled": true, "success": false, "skipped": false})
+    );
 }
 
 #[test]
@@ -163,6 +250,18 @@ fn legacy_u08_wire_contract() {
     assert_eq!(
         format!("sftp-upload-batch-complete-{}", "tab-中文-7"),
         "sftp-upload-batch-complete-tab-中文-7"
+    );
+    let event = AppEvent::Sftp(SftpEvent::UploadBatchComplete {
+        tab_id: "tab-中文-7".into(),
+        payload,
+    });
+    let (name, target, json) = TauriEventSink::wire(&event).unwrap();
+    assert_eq!(name.as_string(), "sftp-upload-batch-complete-tab-中文-7");
+    assert_eq!(target, EventTarget::Default);
+    assert_eq!(target, event.target());
+    assert_eq!(
+        json,
+        serde_json::json!({"batchId": "batch-1", "cancelled": false, "error": null, "failed": 2, "succeeded": 2})
     );
 }
 
@@ -186,5 +285,17 @@ fn legacy_u09_wire_contract() {
     assert_eq!(
         format!("sftp-upload-progress-{}", "tab-中文-7"),
         "sftp-upload-progress-tab-中文-7"
+    );
+    let event = AppEvent::Sftp(SftpEvent::UploadProgress {
+        tab_id: "tab-中文-7".into(),
+        payload,
+    });
+    let (name, target, json) = TauriEventSink::wire(&event).unwrap();
+    assert_eq!(name.as_string(), "sftp-upload-progress-tab-中文-7");
+    assert_eq!(target, EventTarget::Default);
+    assert_eq!(target, event.target());
+    assert_eq!(
+        json,
+        serde_json::json!({"transferId": "transfer-1", "localPath": "/tmp/中文 file.txt", "transferred": 100, "total": 200, "progress": 50, "resumedFrom": 2, "parallelism": 4, "completedChunks": 2, "chunkCount": 2})
     );
 }
