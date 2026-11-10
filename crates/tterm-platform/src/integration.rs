@@ -18,8 +18,8 @@ pub trait SystemIntegration: Send + Sync {
     ) -> PlatformFuture<'_, IntegrationStatus>;
     /// Queries whether the file-manager integration is installed.
     fn folder_status(&self) -> PlatformFuture<'_, IntegrationStatus>;
-    /// Installs or removes the localized file-manager entry.
-    fn set_folder(&self, installed: bool, label: String) -> PlatformFuture<'_, IntegrationStatus>;
-    /// Refreshes already-installed integration without broadening its support.
-    fn refresh(&self, label: String) -> PlatformFuture<'_, ()>;
+    /// Installs or removes the file-manager entry using a language code (unknown codes use English).
+    fn set_folder(&self, installed: bool, language: String) -> PlatformFuture<'_, IntegrationStatus>;
+    /// Refreshes existing integration using a language code (unknown codes use English).
+    fn refresh(&self, language: String) -> PlatformFuture<'_, ()>;
 }

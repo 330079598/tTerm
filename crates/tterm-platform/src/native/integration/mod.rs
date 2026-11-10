@@ -44,7 +44,6 @@ pub struct IntegrationConfig {
 }
 
 /// The folder menu's item in each of tTerm's languages, English first.
-#[cfg(any(target_os = "windows", target_os = "macos"))]
 const FOLDER_MENU_LABELS: [(&str, &str); 2] = [("en", "Open in tTerm"), ("zh", "在 tTerm 中打开")];
 
 /// The argument tTerm's installer starts it with, to add what the user wants
@@ -307,7 +306,6 @@ fn helper_data_dir() -> Option<std::path::PathBuf> {
     std::env::var_os("LOCALAPPDATA").map(|dir| std::path::PathBuf::from(dir).join(APP_IDENTIFIER))
 }
 
-#[cfg(any(target_os = "windows", target_os = "macos"))]
 fn folder_menu_label(language: &str) -> &'static str {
     FOLDER_MENU_LABELS
         .iter()
@@ -348,10 +346,10 @@ impl crate::integration::SystemIntegration for IntegrationContext {
     fn set_folder(
         &self,
         installed: bool,
-        label: String,
+        language: String,
     ) -> crate::PlatformFuture<'_, crate::integration::IntegrationStatus> {
         Box::pin(async move {
-            set_folder_menu(self.clone(), installed, label)
+            set_folder_menu(self.clone(), installed, folder_menu_label(&language).into())
                 .await
                 .map(status_value)
         })

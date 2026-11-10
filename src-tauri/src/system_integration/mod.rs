@@ -84,13 +84,8 @@ pub async fn set_folder_menu(app: AppHandle, installed: bool) -> Result<Integrat
     let language = crate::config::load_config_file()
         .map(|c| c.language)
         .unwrap_or_default();
-    let label = if language == "zh" {
-        "在 tTerm 中打开"
-    } else {
-        "Open in tTerm"
-    };
     integration(&app)?
-        .set_folder(installed, label.into())
+        .set_folder(installed, language)
         .await
         .map(Into::into)
 }
