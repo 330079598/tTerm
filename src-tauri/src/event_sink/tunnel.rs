@@ -1,9 +1,5 @@
-#[cfg(test)]
-use super::TauriEventSink;
 use serde_json::Value;
 use tterm_core::events::tunnel::TunnelEvent;
-#[cfg(test)]
-use tterm_core::events::{AppEvent, EventTarget};
 
 pub(super) fn wire(event: &TunnelEvent) -> Result<Value, String> {
     match event {
@@ -16,7 +12,9 @@ pub(super) fn wire(event: &TunnelEvent) -> Result<Value, String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::event_sink::TauriEventSink;
     use tterm_core::events::tunnel::{TunnelFailure, TunnelState, TunnelStatus, TunnelTraffic};
+    use tterm_core::events::{AppEvent, EventTarget};
 
     #[test]
     fn tunnel_status_wire_contract_matches_existing_tauri_event() {

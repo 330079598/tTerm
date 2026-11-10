@@ -1,3 +1,5 @@
+use tterm_core::events::zmodem::TransferEmitter;
+
 use super::disk::{safe_file_name, unused_path};
 use super::protocol::{
     crc16, send_xmodem, send_ymodem, Link, OutgoingFile, Received, Result, TransferError,
@@ -11,7 +13,6 @@ use std::io::Cursor;
 use std::sync::mpsc::{channel, Receiver, RecvTimeoutError, Sender};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
-use tterm_core::events::zmodem::TransferEmitter;
 
 /// One end of an in-memory line, for running a sender against a receiver.
 struct Pipe {

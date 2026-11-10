@@ -1,8 +1,9 @@
 //! Reads which system an SSH host runs, so its tab can show the
 //! distribution's icon.
 
-use tterm_core::events::ssh::LinuxDistributionInfo;
 use tterm_core::events::ssh::RemoteOsPayload;
+use tterm_core::events::ssh::SshEvent;
+use tterm_core::events::{AppEvent, EventSink};
 
 use crate::monitor::metrics::parse_os_identity;
 
@@ -10,11 +11,6 @@ use crate::sftp::internal::exec::RemoteScript;
 use russh::client::{Handle, Handler};
 use std::time::Duration;
 use tauri::AppHandle;
-use tterm_core::events::ssh::SshEvent;
-use tterm_core::events::{AppEvent, EventSink};
-
-/// Reports what a host runs; `distribution` is null for a host that says
-/// nothing about it, such as OpenBSD or a network device.
 
 /// Bounds starting the script and, separately, reading its output, so a
 /// server that never answers costs the terminal nothing.

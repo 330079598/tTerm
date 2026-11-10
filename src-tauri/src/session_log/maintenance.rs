@@ -2,6 +2,9 @@
 //! settings no longer keep, measuring how much space the directory takes,
 //! and cleaning up after compression a quit cut short.
 
+use tterm_core::events::session_log::{LogErrorPayload, SessionLogEvent};
+use tterm_core::events::{AppEvent, EventSink};
+
 use super::{emit_status, retention, rotating, SessionLogState, CLEANUP_INTERVAL};
 use std::fs;
 use std::path::Path;
@@ -127,6 +130,3 @@ fn directory_size(path: &Path) -> u64 {
         })
         .sum()
 }
-
-use tterm_core::events::session_log::{LogErrorPayload, SessionLogEvent};
-use tterm_core::events::{AppEvent, EventSink};

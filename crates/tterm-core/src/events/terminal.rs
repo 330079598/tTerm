@@ -1,5 +1,6 @@
 use serde::Serialize;
 
+/// A local shell directory update scoped to the current session nonce.
 #[derive(Clone, Debug, Serialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct CwdPayload {

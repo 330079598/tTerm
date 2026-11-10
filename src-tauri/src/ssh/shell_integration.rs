@@ -16,7 +16,6 @@
 //! single-quoted path and a plain word, which bash, zsh, fish, csh and ksh
 //! all read the same way.
 
-use tterm_core::events::ssh::ShellIntegrationStatus;
 use tterm_core::events::ssh::UnavailableReason;
 
 use std::collections::HashMap;

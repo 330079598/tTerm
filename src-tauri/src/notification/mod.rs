@@ -2,6 +2,10 @@
 //! notification a program asked for, a bell. Clicking one brings the window
 //! forward on the tab that raised it.
 
+use tterm_core::events::notification::ActivatedPayload;
+use tterm_core::events::notification::NotificationEvent;
+use tterm_core::events::{AppEvent, EventSink};
+
 pub mod badge;
 #[cfg(all(unix, not(target_os = "macos")))]
 mod launcher_entry;
@@ -16,8 +20,6 @@ mod windows;
 use serde::{Deserialize, Serialize};
 use tauri::ipc::Response;
 use tauri::AppHandle;
-
-/// Sent to the frontend when a notification is clicked.
 
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -60,10 +62,18 @@ pub enum NotificationPermission {
 
 /// A notification was clicked: show the window and the tab it came from.
 fn activated(app: &AppHandle, tab_id: Option<String>) {
-    crate::background::show_main_window(app);
-    if let Err(error) = crate::event_sink::TauriEventSink::new(app.clone()).emit(
-        AppEvent::Notification(NotificationEvent::Activated(ActivatedPayload { tab_id })),
-    ) {
+    activate_with_events(
+        || crate::background::show_main_window(app),
+        &crate::event_sink::TauriEventSink::new(app.clone()),
+        tab_id,
+    );
+}
+
+fn activate_with_events(show: impl FnOnce(), events: &dyn EventSink, tab_id: Option<String>) {
+    show();
+    if let Err(error) = events.emit(AppEvent::Notification(NotificationEvent::Activated(
+        ActivatedPayload { tab_id },
+    ))) {
         eprintln!("Failed to report a clicked notification: {error}");
     }
 }
@@ -124,8 +134,3 @@ pub async fn read_notification_sound() -> Result<Response, String> {
 #[cfg(test)]
 #[path = "mod_legacy_tests.rs"]
 mod legacy_contract_tests;
-
-use tterm_core::events::notification::ActivatedPayload;
-
-use tterm_core::events::notification::NotificationEvent;
-use tterm_core::events::{AppEvent, EventSink};

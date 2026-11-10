@@ -2,6 +2,10 @@
 //! leave tTerm running: it brings the window back, starts and stops tunnels,
 //! and quits. It carries a red dot while system notifications wait unseen.
 
+use tterm_core::events::background::BackgroundEvent;
+use tterm_core::events::tunnel::TunnelState;
+use tterm_core::events::{AppEvent, EventSink};
+
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Mutex, Once};
 
@@ -12,7 +16,6 @@ use tauri::{AppHandle, Manager};
 
 use crate::core::state::PtyMap;
 use crate::tunnel::commands::TunnelManager;
-use tterm_core::events::tunnel::TunnelState;
 
 pub(super) const TRAY_ID: &str = "main";
 const MENU_SHOW: &str = "tray-show";
@@ -20,11 +23,6 @@ const MENU_QUIT: &str = "tray-quit";
 const MENU_CHECK_UPDATES: &str = "tray-updates";
 const MENU_TUNNELS_PAGE: &str = "tray-tunnels-page";
 const MENU_TUNNEL_PREFIX: &str = "tray-tunnel:";
-/// Asks the UI to open the Port Forwarding page.
-
-/// Tells the UI that an update check asked for from the tray is waiting in
-/// `take_tray_update_check`.
-
 /// The dot's red, the same as the count on the Windows taskbar.
 const DOT_RGB: [u8; 3] = [0xE8, 0x11, 0x23];
 
@@ -494,6 +492,3 @@ mod tests {
         );
     }
 }
-
-use tterm_core::events::background::BackgroundEvent;
-use tterm_core::events::{AppEvent, EventSink};

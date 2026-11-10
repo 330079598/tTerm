@@ -1,3 +1,8 @@
+use tterm_core::events::zmodem::{
+    TransferCompletePayload, TransferProgressPayload, TransferStartPayload,
+};
+use tterm_core::events::zmodem::{TransferEmitter, TransferEvent};
+
 use super::protocol::{self, Link, OutgoingFile, Received, TransferError};
 use super::XmodemProtocol;
 use crate::core::state::ZmodemMap;
@@ -297,9 +302,3 @@ pub(super) fn run(params: TransferParams) {
     }
     claim.release();
 }
-
-use tterm_core::events::zmodem::{
-    TransferCompletePayload, TransferProgressPayload, TransferStartPayload,
-};
-
-use tterm_core::events::zmodem::{TransferEmitter, TransferEvent};

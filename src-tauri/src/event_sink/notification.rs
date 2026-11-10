@@ -1,5 +1,6 @@
-use serde_json::Value;
 use tterm_core::events::notification::NotificationEvent;
+
+use serde_json::Value;
 
 pub(super) fn wire(event: &NotificationEvent) -> Result<Value, String> {
     match event {

@@ -1,5 +1,6 @@
-use serde_json::Value;
 use tterm_core::events::session_log::SessionLogEvent;
+
+use serde_json::Value;
 
 pub(super) fn wire(event: &SessionLogEvent) -> Result<Value, String> {
     match event {

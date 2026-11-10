@@ -1,12 +1,13 @@
 //! Opens a local terminal in the directory tTerm is started with, the way
 //! `tterm .` in a shell or a file manager's "Open in tTerm" asks for one.
 
+use tterm_core::events::launch_dir::LaunchDirEvent;
+use tterm_core::events::{AppEvent, EventSink};
+
 use serde::Serialize;
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;
 use tauri::{AppHandle, Manager};
-
-/// Tells the frontend that [`take_launch_dirs`] has directories for it.
 
 /// Kept while an instance started with a directory runs. A restart, after an
 /// update or from the app, starts tTerm with the arguments it was started
@@ -123,15 +124,21 @@ fn unquoted(arg: &str) -> String {
 }
 
 fn queue(app: &AppHandle, dirs: Vec<LaunchDir>) {
-    app.state::<LaunchDirs>()
+    queue_with_events(
+        &app.state::<LaunchDirs>(),
+        dirs,
+        &crate::event_sink::TauriEventSink::new(app.clone()),
+    );
+}
+
+fn queue_with_events(state: &LaunchDirs, dirs: Vec<LaunchDir>, events: &dyn EventSink) {
+    state
         .0
         .lock()
         .unwrap_or_else(|e| e.into_inner())
         .extend(dirs);
-    // Before the frontend listens, the directories wait for it to take them.
-    if let Err(error) = crate::event_sink::TauriEventSink::new(app.clone())
-        .emit(AppEvent::LaunchDir(LaunchDirEvent::Queued))
-    {
+    // A listener can take the complete queue synchronously without holding this lock.
+    if let Err(error) = events.emit(AppEvent::LaunchDir(LaunchDirEvent::Queued)) {
         eprintln!("Failed to announce a directory to open: {error}");
     }
 }
@@ -215,5 +222,6 @@ mod tests {
     }
 }
 
-use tterm_core::events::launch_dir::LaunchDirEvent;
-use tterm_core::events::{AppEvent, EventSink};
+#[cfg(test)]
+#[path = "launch_dir_event_tests.rs"]
+mod event_tests;

@@ -1,10 +1,12 @@
+use tterm_core::events::ssh::AuthUsedPayload;
+use tterm_core::events::ssh::SshConnectionProgressPayload;
+use tterm_core::events::EventSink;
+
 use crate::ssh::openssh_known_hosts::verify::KnownHostVerdict;
 use crate::ssh::openssh_known_hosts::{check_presented_key, listed_record};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use tauri::Emitter;
-use tterm_core::events::ssh::AuthUsedPayload;
-use tterm_core::events::ssh::SshConnectionProgressPayload;
 
 pub const HOST_KEY_PROMPT_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(120);
 pub const HOST_KEY_REJECTED_REASON: &str = "SSH host fingerprint rejected by user";
@@ -512,5 +514,3 @@ mod tests {
 #[cfg(test)]
 #[path = "types_legacy_tests.rs"]
 mod legacy_contract_tests;
-
-use tterm_core::events::EventSink;

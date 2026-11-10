@@ -1,4 +1,7 @@
-use super::*;
+use tterm_core::events::zmodem::{
+    TransferCompletePayload, TransferProgressPayload, TransferStartPayload,
+};
+
 use serde_json::Value;
 fn check(key: &str, actual: Value) {
     let fixtures: Value = serde_json::from_str(include_str!(concat!(
@@ -52,7 +55,3 @@ fn legacy_transfer_contract() {
         );
     }
 }
-
-use tterm_core::events::zmodem::{
-    TransferCompletePayload, TransferProgressPayload, TransferStartPayload,
-};

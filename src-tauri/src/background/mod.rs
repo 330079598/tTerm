@@ -2,6 +2,9 @@
 //! background behind a tray icon (the menu bar on macOS), as the user chose in
 //! `close_behavior`. "ask" lets the UI decide on each close.
 
+use tterm_core::events::background::BackgroundEvent;
+use tterm_core::events::{AppEvent, EventSink};
+
 pub(crate) mod exit_guard;
 pub(crate) mod quit;
 pub(crate) mod tray;
@@ -148,11 +151,7 @@ pub fn on_close_requested(window: &Window) -> bool {
             true
         }
         CloseBehavior::Ask if state.should_ask() => {
-            if crate::event_sink::TauriEventSink::new(app.clone())
-                .emit(AppEvent::Background(BackgroundEvent::CloseRequested))
-                .is_err()
-            {
-                state.prompt_open.store(false, Ordering::SeqCst);
+            if !emit_close_request(&state, &crate::event_sink::TauriEventSink::new(app.clone())) {
                 quit_unless_held(app);
             }
             true
@@ -162,6 +161,17 @@ pub fn on_close_requested(window: &Window) -> bool {
             true
         }
     }
+}
+
+fn emit_close_request(state: &CloseBehaviorState, events: &dyn EventSink) -> bool {
+    if events
+        .emit(AppEvent::Background(BackgroundEvent::CloseRequested))
+        .is_err()
+    {
+        state.prompt_open.store(false, Ordering::SeqCst);
+        return false;
+    }
+    true
 }
 
 /// Quits, unless what the quit would end holds the exit for the user's
@@ -229,5 +239,6 @@ mod tests {
     }
 }
 
-use tterm_core::events::background::BackgroundEvent;
-use tterm_core::events::{AppEvent, EventSink};
+#[cfg(test)]
+#[path = "close_order_tests.rs"]
+mod close_order_tests;

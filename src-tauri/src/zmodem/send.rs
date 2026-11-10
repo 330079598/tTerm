@@ -17,6 +17,11 @@
 //! paired `Sender` fails — that failure is the signal it uses to fall back
 //! to normal processing without any extra coordination.
 
+use tterm_core::events::zmodem::{
+    TransferCompletePayload, TransferProgressPayload, TransferStartPayload,
+};
+use tterm_core::events::zmodem::{TransferEmitter, TransferEvent};
+
 use std::fs::File;
 use std::io::{Read as _, Seek, SeekFrom, Write as _};
 use std::path::{Path, PathBuf};
@@ -430,9 +435,3 @@ fn write_back(active: &Arc<TokioMutex<Option<ActiveSession>>>, bytes: &[u8]) {
         None => {}
     }
 }
-
-use tterm_core::events::zmodem::{
-    TransferCompletePayload, TransferProgressPayload, TransferStartPayload,
-};
-
-use tterm_core::events::zmodem::{TransferEmitter, TransferEvent};

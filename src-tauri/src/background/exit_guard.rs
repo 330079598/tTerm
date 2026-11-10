@@ -3,16 +3,17 @@
 //! The backend holds the exit and tells the UI what is at stake; the answer
 //! comes back as `confirm_quit_app` or `cancel_quit_prompt`.
 
+use tterm_core::events::background::BackgroundEvent;
+use tterm_core::events::background::QuitBlockers;
+use tterm_core::events::{AppEvent, EventSink};
+
 use std::sync::atomic::{AtomicBool, Ordering};
 
 use tauri::{AppHandle, Manager, State};
 
 use crate::tunnel::commands::TunnelManager;
 
-/// Emitted when the app is asked to quit with something at stake; carries
-/// the [`QuitBlockers`].
-
-/// What a quit would end.
+/// Tracks confirmation without holding the window or application lifetime.
 #[derive(Default)]
 pub struct ExitGuardState {
     /// The user agreed to quit despite what is at stake.
@@ -116,8 +117,3 @@ mod tests {
 #[cfg(test)]
 #[path = "exit_guard_legacy_tests.rs"]
 mod legacy_contract_tests;
-
-use tterm_core::events::background::QuitBlockers;
-
-use tterm_core::events::background::BackgroundEvent;
-use tterm_core::events::{AppEvent, EventSink};

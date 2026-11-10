@@ -19,3 +19,22 @@ fn legacy_cwd_contract() {
         .unwrap(),
     );
 }
+
+#[test]
+fn cwd_changes_are_deduplicated_even_after_delivery_failure() {
+    use std::sync::Mutex;
+    struct Sink(Mutex<Vec<AppEvent>>);
+    impl EventSink for Sink {
+        fn emit(&self, event: AppEvent) -> Result<(), String> {
+            self.0.lock().unwrap().push(event);
+            Err("closed".into())
+        }
+    }
+    let sink = Sink(Mutex::new(Vec::new()));
+    let mut last = None;
+    emit_changed_cwd(&sink, "tab", 7, &mut last, "/first".into());
+    emit_changed_cwd(&sink, "tab", 7, &mut last, "/first".into());
+    emit_changed_cwd(&sink, "tab", 7, &mut last, "/second".into());
+    assert_eq!(sink.0.lock().unwrap().len(), 2);
+    assert_eq!(last.as_deref(), Some("/second"));
+}

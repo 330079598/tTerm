@@ -1,5 +1,6 @@
 use serde::Serialize;
 
+/// What a quit would end before the user confirms it.
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct QuitBlockers {

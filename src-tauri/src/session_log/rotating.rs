@@ -1,6 +1,9 @@
 //! A log file that moves on to a new part once it is full, and compresses
 //! the parts it finishes.
 
+use tterm_core::events::session_log::{LogErrorPayload, SessionLogEvent};
+use tterm_core::events::{AppEvent, EventSink};
+
 use super::naming::{compressed_path, part_path, partial_path};
 use super::SessionLogState;
 use flate2::write::GzEncoder;
@@ -267,6 +270,3 @@ pub(super) fn recover_compression(directory: &Path) {
         }
     }
 }
-
-use tterm_core::events::session_log::{LogErrorPayload, SessionLogEvent};
-use tterm_core::events::{AppEvent, EventSink};

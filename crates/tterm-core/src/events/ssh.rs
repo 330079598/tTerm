@@ -167,6 +167,7 @@ pub struct LinuxDistributionInfo {
     pub version_id: Option<String>,
 }
 
+/// Reports a host's distribution, or null when it cannot be identified.
 #[derive(Clone, Debug, Serialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct RemoteOsPayload {

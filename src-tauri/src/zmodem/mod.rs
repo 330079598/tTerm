@@ -5,11 +5,11 @@
 //! channel task; each call site stays responsible for actually writing the
 //! bytes these produce back to its own channel.
 
+use tterm_core::events::EventSink;
+
 use std::sync::atomic::AtomicBool;
 use std::sync::mpsc::Sender;
 use std::sync::Arc;
-
-use tterm_core::events::EventSink;
 
 use crate::core::state::ChannelContext;
 use crate::core::{state::ZmodemArmedSend, state::ZmodemTabHandle};
@@ -106,3 +106,6 @@ pub fn arm_send(channel: &ChannelContext, trigger_bytes: Vec<u8>) -> Sender<Vec<
     );
     tx
 }
+
+#[cfg(test)]
+mod container_tests;

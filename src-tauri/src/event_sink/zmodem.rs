@@ -1,5 +1,6 @@
-use serde_json::Value;
 use tterm_core::events::zmodem::ZmodemEvent;
+
+use serde_json::Value;
 
 pub(super) fn wire(event: &ZmodemEvent) -> Result<Value, String> {
     match event {

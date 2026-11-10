@@ -1,5 +1,8 @@
 //! Tauri's event transport for typed core business events.
 
+use tterm_core::events::EventName;
+use tterm_core::events::{AppEvent, EventSink, EventTarget};
+
 mod background; // P1-03.
 mod launch_dir; // P1-03.
 mod notification; // P1-03.
@@ -13,8 +16,6 @@ pub(crate) mod zmodem; // P1-03.
 use serde::Serialize;
 use serde_json::Value;
 use tauri::{AppHandle, Emitter};
-use tterm_core::events::EventName;
-use tterm_core::events::{AppEvent, EventSink, EventTarget};
 
 /// Sends typed core events through Tauri while preserving existing event names,
 /// JSON payloads and delivery targets consumed by the WebView.
@@ -72,3 +73,6 @@ impl EventSink for TauriEventSink {
 
 #[cfg(test)]
 mod legacy_contract_tests;
+
+#[cfg(test)]
+mod p1_03_tests;

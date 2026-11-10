@@ -1,5 +1,6 @@
 use super::*;
 use serde_json::Value;
+use tterm_core::events::ssh::LinuxDistributionInfo;
 fn check(key: &str, actual: Value) {
     let fixtures: Value = serde_json::from_str(include_str!(concat!(
         env!("CARGO_MANIFEST_DIR"),

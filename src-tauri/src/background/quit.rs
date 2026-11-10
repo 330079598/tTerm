@@ -2,14 +2,14 @@
 //! such as the terminals' content, which `app.exit` would otherwise end with
 //! the window.
 
+use tterm_core::events::background::BackgroundEvent;
+use tterm_core::events::{AppEvent, EventSink};
+
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
 
 use tauri::{AppHandle, Manager, State};
 use tokio::sync::Notify;
-
-/// Told to the UI when the app is about to quit; it answers with
-/// `ready_to_quit` once it has saved.
 
 /// How long a quit waits for the UI. A webview that hangs or is gone must
 /// not keep the app from quitting.
@@ -100,9 +100,6 @@ mod tests {
         assert!(!state.should_wait());
     }
 }
-
-use tterm_core::events::background::BackgroundEvent;
-use tterm_core::events::{AppEvent, EventSink};
 
 #[cfg(test)]
 #[path = "quit_tests.rs"]

@@ -1,5 +1,6 @@
-use serde_json::Value;
 use tterm_core::events::background::BackgroundEvent;
+
+use serde_json::Value;
 
 pub(super) fn wire(event: &BackgroundEvent) -> Result<Value, String> {
     match event {

@@ -1,3 +1,5 @@
+use tterm_core::events::ssh::SshConnectionProgressPayload;
+
 use super::config::{compatibility_client_config, unverifiable_host_key_error};
 use super::hop::{ChainHops, RouteError};
 use super::pool::{chain_keys, Relay};
@@ -16,7 +18,6 @@ use russh::{client, Disconnect};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use tauri::{AppHandle, Emitter};
-use tterm_core::events::ssh::SshConnectionProgressPayload;
 
 /// What every hop of one connection shares: where it reports progress and how
 /// it asks the user about host keys and credentials.

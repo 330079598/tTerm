@@ -3,6 +3,9 @@
 //! input goes to it instead of the terminal, and typing is held back as it
 //! is during ZMODEM, whose cancel and transfer rows it shares.
 
+use tterm_core::events::zmodem::TransferEmitter;
+use tterm_core::events::EventSink;
+
 mod disk;
 mod protocol;
 mod receive;
@@ -18,8 +21,6 @@ use serde::Deserialize;
 use std::sync::atomic::AtomicBool;
 use std::sync::{mpsc, Arc, PoisonError};
 use tauri::{AppHandle, State};
-use tterm_core::events::zmodem::TransferEmitter;
-use tterm_core::events::EventSink;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
 #[serde(rename_all = "lowercase")]
@@ -65,15 +66,14 @@ async fn claim_port(
     *tap.lock().unwrap_or_else(PoisonError::into_inner) = Some(sender);
 
     let emit_tab_id = tab_id.clone();
+    let events = crate::event_sink::TauriEventSink::new(app);
     let emit: TransferEmitter = Box::new(move |event| {
-        let _ = crate::event_sink::TauriEventSink::new(app.clone()).emit(
-            tterm_core::events::AppEvent::Serial(
-                tterm_core::events::serial::SerialEvent::Transfer {
-                    tab_id: emit_tab_id.clone(),
-                    event,
-                },
-            ),
-        );
+        let _ = events.emit(tterm_core::events::AppEvent::Serial(
+            tterm_core::events::serial::SerialEvent::Transfer {
+                tab_id: emit_tab_id.clone(),
+                event,
+            },
+        ));
     });
     let claim = transfer::PortClaim {
         tab_id,

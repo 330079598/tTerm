@@ -1,3 +1,5 @@
+use tterm_core::events::ssh::SshConnectionProgressPayload;
+
 use crate::core::state::HostPromptMap;
 use crate::ssh::openssh_known_hosts::verify::KnownHostVerdict;
 use crate::ssh::openssh_known_hosts::{check_presented_key, listed_record};
@@ -15,7 +17,6 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use tauri::{AppHandle, Emitter};
 use tokio::sync::oneshot;
-use tterm_core::events::ssh::SshConnectionProgressPayload;
 
 /// russh handler for the jump host leg of the connection.
 /// Performs the same host-key verification as `SshClientHandler`:

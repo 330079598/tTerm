@@ -20,3 +20,24 @@ fn legacy_activation_contract() {
         );
     }
 }
+
+#[test]
+fn activation_shows_window_before_emitting_even_when_delivery_fails() {
+    use std::sync::{Arc, Mutex};
+    struct Sink(Arc<Mutex<Vec<&'static str>>>);
+    impl EventSink for Sink {
+        fn emit(&self, event: AppEvent) -> Result<(), String> {
+            assert!(matches!(event, AppEvent::Notification(_)));
+            self.0.lock().unwrap().push("emit");
+            Err("closed".into())
+        }
+    }
+    let trace = Arc::new(Mutex::new(Vec::new()));
+    let shown = trace.clone();
+    activate_with_events(
+        move || shown.lock().unwrap().push("show"),
+        &Sink(trace.clone()),
+        None,
+    );
+    assert_eq!(*trace.lock().unwrap(), vec!["show", "emit"]);
+}

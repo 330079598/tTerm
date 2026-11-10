@@ -1,5 +1,6 @@
-use serde_json::Value;
 use tterm_core::events::launch_dir::LaunchDirEvent;
+
+use serde_json::Value;
 
 pub(super) fn wire(event: &LaunchDirEvent) -> Result<Value, String> {
     match event {

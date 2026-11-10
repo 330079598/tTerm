@@ -3,6 +3,10 @@
 //! A shell started inside the first one (a nested shell, tmux, ssh) is not
 //! followed: the outer shell's directory is what gets restored.
 
+use tterm_core::events::terminal::CwdPayload;
+use tterm_core::events::terminal::TerminalEvent;
+use tterm_core::events::{AppEvent, EventSink};
+
 use std::time::Duration;
 use tauri::AppHandle;
 use tokio::sync::watch;
@@ -29,20 +33,30 @@ pub fn spawn_cwd_watcher(
             let Some(cwd) = process_cwd(pid) else {
                 break;
             };
-            if last.as_deref() != Some(cwd.as_str()) {
-                let payload = CwdPayload {
-                    session_nonce,
-                    cwd: cwd.clone(),
-                };
-                let _ = events.emit(AppEvent::Terminal(TerminalEvent::Cwd {
-                    tab_id: tab_id.clone(),
-                    payload,
-                }));
-                last = Some(cwd);
-            }
+            emit_changed_cwd(&events, &tab_id, session_nonce, &mut last, cwd);
             std::thread::sleep(POLL_INTERVAL);
         }
     });
+}
+
+fn emit_changed_cwd(
+    events: &dyn EventSink,
+    tab_id: &str,
+    session_nonce: u32,
+    last: &mut Option<String>,
+    cwd: String,
+) {
+    if last.as_deref() != Some(cwd.as_str()) {
+        let payload = CwdPayload {
+            session_nonce,
+            cwd: cwd.clone(),
+        };
+        let _ = events.emit(AppEvent::Terminal(TerminalEvent::Cwd {
+            tab_id: tab_id.to_string(),
+            payload,
+        }));
+        *last = Some(cwd);
+    }
 }
 
 #[cfg(target_os = "linux")]
@@ -113,8 +127,3 @@ mod tests {
 #[cfg(test)]
 #[path = "cwd_watch_legacy_tests.rs"]
 mod legacy_contract_tests;
-
-use tterm_core::events::terminal::CwdPayload;
-
-use tterm_core::events::terminal::TerminalEvent;
-use tterm_core::events::{AppEvent, EventSink};

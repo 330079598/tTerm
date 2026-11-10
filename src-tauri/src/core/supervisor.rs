@@ -1,3 +1,5 @@
+use tterm_core::events::ssh::SshConnectionProgressPayload;
+
 use super::session::types::SessionPlan;
 use super::state::{
     ActiveSession, ActiveSsh, ChannelContext, HostPromptMap, SessionExitSignal, SessionKind,
@@ -12,7 +14,6 @@ use std::sync::PoisonError;
 use std::time::Duration;
 use tauri::{AppHandle, Emitter};
 use tokio::sync::{mpsc, watch};
-use tterm_core::events::ssh::SshConnectionProgressPayload;
 
 /// Nominal delay before the first reconnect attempt.
 const RECONNECT_INITIAL_DELAY_SECS: u64 = 1;

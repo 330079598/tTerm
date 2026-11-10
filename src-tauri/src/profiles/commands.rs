@@ -1,3 +1,5 @@
+use tterm_core::events::ssh::SshConnectionProgressPayload;
+
 use super::groups::{group_paths, list_groups, resolve_path};
 use super::parser::{build_ssh_config_import_preview, resolve_config_host};
 use super::storage::{
@@ -15,7 +17,6 @@ use crate::proxy::command::CommandTarget;
 use crate::ssh::jump::connect::{
     connect_first_hop, connect_via_jump_chain, open_proxy_stream, ConnectContext,
 };
-use tterm_core::events::ssh::SshConnectionProgressPayload;
 
 use crate::ssh::{
     secret_store::types::SecretLocation, types::ConnectionStatusOptions,

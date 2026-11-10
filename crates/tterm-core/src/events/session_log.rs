@@ -1,5 +1,6 @@
 use serde::Serialize;
 
+/// A snapshot of logging state consumed by both commands and events.
 #[derive(Clone, Debug, Serialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct TerminalLogStatus {

@@ -1,5 +1,6 @@
 use serde::Serialize;
 
+/// The tab requested by a system notification click.
 #[derive(Clone, Debug, Serialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct ActivatedPayload {

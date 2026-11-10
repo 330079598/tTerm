@@ -1,5 +1,6 @@
-use serde_json::Value;
 use tterm_core::events::terminal::TerminalEvent;
+
+use serde_json::Value;
 
 pub(super) fn wire(event: &TerminalEvent) -> Result<Value, String> {
     match event {

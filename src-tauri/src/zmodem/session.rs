@@ -5,6 +5,12 @@
 //! async SSH channel task (later milestone, `AsyncWriteExt::write_all`)
 //! need to send them back through completely different mechanisms.
 
+use tterm_core::events::zmodem::{
+    TransferCompletePayload, TransferProgressPayload, TransferStartPayload,
+};
+use tterm_core::events::zmodem::{TransferEmitter, TransferEvent};
+use tterm_core::events::EventSink;
+
 use std::fs::{File, OpenOptions};
 use std::io::Write as _;
 use std::path::{Path, PathBuf};
@@ -12,8 +18,6 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::sync::PoisonError;
 use std::time::{Duration, Instant};
-
-use tterm_core::events::EventSink;
 
 use super::detect;
 use super::events;
@@ -104,18 +108,16 @@ pub struct ZmodemReceiveDriver {
 
 impl ZmodemReceiveDriver {
     pub fn new(channel: &ChannelContext, settings: ZmodemSettings) -> Self {
-        let app = channel.app.clone();
+        let events = crate::event_sink::TauriEventSink::new(channel.app.clone());
         let emit_tab_id = channel.tab_id.clone();
         Self::with_emit(
             Box::new(move |event| {
-                let _ = crate::event_sink::TauriEventSink::new(app.clone()).emit(
-                    tterm_core::events::AppEvent::Zmodem(
-                        tterm_core::events::zmodem::ZmodemEvent::Transfer {
-                            tab_id: emit_tab_id.clone(),
-                            event,
-                        },
-                    ),
-                );
+                let _ = events.emit(tterm_core::events::AppEvent::Zmodem(
+                    tterm_core::events::zmodem::ZmodemEvent::Transfer {
+                        tab_id: emit_tab_id.clone(),
+                        event,
+                    },
+                ));
             }),
             channel.tab_id.clone(),
             channel.session_nonce,
@@ -298,7 +300,7 @@ impl ZmodemReceiveDriver {
                     .outgoing
                     .extend_from_slice(&transfer.engine.accept_file(0));
                 let transfer_id = transfer.transfer_id.clone();
-                (&self.emit)(TransferEvent::Start(TransferStartPayload {
+                (self.emit)(TransferEvent::Start(TransferStartPayload {
                     transfer_id,
                     direction: "download",
                     file_name: name,
@@ -340,7 +342,7 @@ impl ZmodemReceiveDriver {
         let speed = (file.written as f64 / elapsed) as u64;
         let transferred = file.written;
         let transfer_id = transfer.transfer_id.clone();
-        (&self.emit)(TransferEvent::Progress(TransferProgressPayload {
+        (self.emit)(TransferEvent::Progress(TransferProgressPayload {
             transfer_id,
             transferred,
             speed,
@@ -365,7 +367,7 @@ impl ZmodemReceiveDriver {
             handle.transfer_id = next_id;
         }
         if let Some(transfer_id) = completed_transfer_id {
-            (&self.emit)(TransferEvent::Complete(TransferCompletePayload {
+            (self.emit)(TransferEvent::Complete(TransferCompletePayload {
                 transfer_id,
                 success: true,
                 cancelled: false,
@@ -385,7 +387,7 @@ impl ZmodemReceiveDriver {
     fn on_peer_cancelled(&mut self) {
         if let Some(transfer) = self.transfer.as_ref() {
             if transfer.file.is_some() {
-                (&self.emit)(TransferEvent::Complete(TransferCompletePayload {
+                (self.emit)(TransferEvent::Complete(TransferCompletePayload {
                     transfer_id: transfer.transfer_id.clone(),
                     success: false,
                     cancelled: true,
@@ -403,7 +405,7 @@ impl ZmodemReceiveDriver {
     fn on_local_cancel(&mut self) {
         if let Some(transfer) = self.transfer.as_ref() {
             if transfer.file.is_some() {
-                (&self.emit)(TransferEvent::Complete(TransferCompletePayload {
+                (self.emit)(TransferEvent::Complete(TransferCompletePayload {
                     transfer_id: transfer.transfer_id.clone(),
                     success: false,
                     cancelled: true,
@@ -591,9 +593,3 @@ mod tests {
         assert_eq!(outcome.passthrough, trigger);
     }
 }
-
-use tterm_core::events::zmodem::{
-    TransferCompletePayload, TransferProgressPayload, TransferStartPayload,
-};
-
-use tterm_core::events::zmodem::{TransferEmitter, TransferEvent};

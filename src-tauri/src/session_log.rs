@@ -1,3 +1,7 @@
+use tterm_core::events::session_log::TerminalLogStatus;
+use tterm_core::events::session_log::{LogErrorPayload, LogErrorPhase, SessionLogEvent};
+use tterm_core::events::{AppEvent, EventSink};
+
 mod library;
 mod maintenance;
 mod manager;
@@ -446,8 +450,3 @@ fn emit_status(app: &AppHandle, state: &SessionLogState) {
 #[cfg(test)]
 #[path = "session_log_legacy_tests.rs"]
 mod legacy_contract_tests;
-
-use tterm_core::events::session_log::TerminalLogStatus;
-
-use tterm_core::events::session_log::{LogErrorPayload, LogErrorPhase, SessionLogEvent};
-use tterm_core::events::{AppEvent, EventSink};

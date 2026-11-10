@@ -1,3 +1,5 @@
+use tterm_core::events::ssh::LinuxDistributionInfo;
+
 use super::metrics::percent;
 use crate::ssh::jump::connect::JumpChain;
 use russh::client;
@@ -5,7 +7,6 @@ use serde::Serialize;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 use tokio::time::Instant;
-use tterm_core::events::ssh::LinuxDistributionInfo;
 
 pub(crate) const MONITOR_SESSION_IDLE_TIMEOUT: std::time::Duration =
     std::time::Duration::from_secs(5 * 60);
