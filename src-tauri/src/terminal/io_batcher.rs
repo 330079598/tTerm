@@ -435,3 +435,10 @@ mod tests;
 
 #[cfg(test)]
 mod contracts;
+
+#[cfg(all(test, unix))]
+mod benchmark;
+#[cfg(all(test, unix))]
+mod pty_fixture;
+#[cfg(all(test, unix))]
+mod real_pty_tests;
