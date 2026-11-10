@@ -1,11 +1,13 @@
 //! Reads which system an SSH host runs, so its tab can show the
 //! distribution's icon.
 
+use tterm_core::events::ssh::LinuxDistributionInfo;
+use tterm_core::events::ssh::RemoteOsPayload;
+
 use crate::monitor::metrics::parse_os_identity;
-use crate::monitor::types::LinuxDistributionInfo;
+
 use crate::sftp::internal::exec::RemoteScript;
 use russh::client::{Handle, Handler};
-use serde::Serialize;
 use std::time::Duration;
 use tauri::{AppHandle, Emitter};
 
@@ -22,13 +24,6 @@ const TIMEOUT: Duration = Duration::from_secs(3);
 /// `2>/dev/null` as an argument, does not matter.
 const SCRIPT: &str = "if [ -r /etc/os-release ]; then cat /etc/os-release; \
                       elif command -v sw_vers >/dev/null 2>&1; then sw_vers; fi\n";
-
-#[derive(Clone, Serialize)]
-#[serde(rename_all = "camelCase")]
-struct RemoteOsPayload {
-    tab_id: String,
-    distribution: Option<LinuxDistributionInfo>,
-}
 
 /// Asks the host what it runs on a channel of its own, and reports the
 /// answer for `tab_id` in the background. A server that refuses another

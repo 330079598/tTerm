@@ -5,7 +5,6 @@ use super::state::{
 use crate::ssh::client::SshChannelIo;
 use crate::ssh::{
     client::SshExitSignal, types::emit_connection_progress, types::ConnectionStatusOptions,
-    types::SshConnectionProgressPayload,
 };
 use crate::zmodem::session::ZmodemSettings;
 use std::sync::Arc;
@@ -13,6 +12,7 @@ use std::sync::PoisonError;
 use std::time::Duration;
 use tauri::{AppHandle, Emitter};
 use tokio::sync::{mpsc, watch};
+use tterm_core::events::ssh::SshConnectionProgressPayload;
 
 /// Nominal delay before the first reconnect attempt.
 const RECONNECT_INITIAL_DELAY_SECS: u64 = 1;

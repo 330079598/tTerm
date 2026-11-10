@@ -5,6 +5,7 @@ use serde::Serialize;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 use tokio::time::Instant;
+use tterm_core::events::ssh::LinuxDistributionInfo;
 
 pub(crate) const MONITOR_SESSION_IDLE_TIMEOUT: std::time::Duration =
     std::time::Duration::from_secs(5 * 60);
@@ -22,16 +23,6 @@ pub struct MonitorSession {
 
 /// What a host says it runs, in `/etc/os-release` terms. Linux and FreeBSD
 /// have that file; the monitor fills it in from `sw_vers` on macOS.
-#[derive(Debug, Clone, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct LinuxDistributionInfo {
-    pub id: String,
-    pub id_like: Vec<String>,
-    pub name: String,
-    pub pretty_name: String,
-    pub version_id: Option<String>,
-}
-
 #[derive(Debug, Clone, Default, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CpuTimes {

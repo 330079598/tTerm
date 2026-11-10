@@ -15,7 +15,8 @@ use crate::proxy::command::CommandTarget;
 use crate::ssh::jump::connect::{
     connect_first_hop, connect_via_jump_chain, open_proxy_stream, ConnectContext,
 };
-use crate::ssh::types::SshConnectionProgressPayload;
+use tterm_core::events::ssh::SshConnectionProgressPayload;
+
 use crate::ssh::{
     secret_store::types::SecretLocation, types::ConnectionStatusOptions,
     types::HostKeyVerificationMode,

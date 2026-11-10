@@ -1,5 +1,6 @@
 //! Typed business events and delivery interfaces shared by the Tauri and GPUI clients.
 
+pub mod ssh;
 pub mod tunnel;
 
 use tunnel::TunnelEvent;

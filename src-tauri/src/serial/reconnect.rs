@@ -1,10 +1,9 @@
 use super::session::{serial_options, spawn_serial_attempt, ActiveSerial};
 use crate::core::supervisor::TabConnection;
-use crate::ssh::types::{
-    emit_connection_progress, ConnectionStatusOptions, SshConnectionProgressPayload,
-};
+use crate::ssh::types::{emit_connection_progress, ConnectionStatusOptions};
 use std::time::Duration;
 use tokio::sync::watch;
+use tterm_core::events::ssh::SshConnectionProgressPayload;
 
 /// How often a tab whose device is gone looks for it again. USB serial
 /// adapters come back within a second or two of a board's reset or replug.

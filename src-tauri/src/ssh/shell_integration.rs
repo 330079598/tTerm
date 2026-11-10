@@ -16,13 +16,15 @@
 //! single-quoted path and a plain word, which bash, zsh, fish, csh and ksh
 //! all read the same way.
 
+use tterm_core::events::ssh::ShellIntegrationStatus;
+use tterm_core::events::ssh::UnavailableReason;
+
 use std::collections::HashMap;
 use std::sync::{Mutex, MutexGuard, OnceLock};
 use std::time::Duration;
 
 use russh::client::{self, Msg};
 use russh::{Channel, ChannelMsg};
-use serde::Serialize;
 use sha2::{Digest, Sha256};
 
 use crate::terminal::shell_scripts::{lf, UNIX_SCRIPTS};
@@ -35,45 +37,6 @@ const REPLY_PREFIX: &str = "TTERM-SHELL-INTEGRATION ";
 const HEREDOC_END: &str = "TTERM_SCRIPT_END";
 /// Installed versions no session has started from for this many days are removed.
 const KEEP_UNUSED_DAYS: u32 = 30;
-
-/// How shell integration went for a session, shown in its connection header.
-#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
-#[serde(tag = "status", rename_all = "camelCase")]
-pub enum ShellIntegrationStatus {
-    Active {
-        /// The host's name (`uname -n`), which tells its directory reports
-        /// apart from those of a host reached from it with `ssh`.
-        #[serde(skip_serializing_if = "Option::is_none")]
-        hostname: Option<String>,
-        /// The login shell detected for this connection, never from a workspace.
-        #[serde(skip_serializing_if = "Option::is_none")]
-        shell: Option<String>,
-    },
-    /// The session got a plain shell.
-    Unavailable { reason: UnavailableReason },
-}
-
-/// Why a session got a plain shell.
-#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
-#[serde(tag = "code", rename_all = "camelCase")]
-pub enum UnavailableReason {
-    /// The login shell is not bash, zsh or fish.
-    Shell {
-        shell: String,
-    },
-    /// Nothing ran the installer: no POSIX `sh` (a network device, a Windows
-    /// server) or a forced command.
-    NoReply,
-    /// The scripts could not be written to the cache directory.
-    WriteFailed,
-    /// The cache directory's path holds a single quote.
-    Path,
-    /// The server refused to run the start script.
-    Rejected,
-    TimedOut,
-    /// The SSH channel failed.
-    Failed,
-}
 
 /// An answer about the host itself, which a reconnect would get again.
 fn is_lasting(reason: &UnavailableReason) -> bool {

@@ -7,7 +7,7 @@ use crate::ssh::store::{
 };
 use crate::ssh::types::{
     emit_connection_progress, ConnectionStatusOptions, HostKeyVerificationMode,
-    SshConnectionProgressPayload, HOST_KEY_PROMPT_TIMEOUT, HOST_KEY_REJECTED_REASON,
+    HOST_KEY_PROMPT_TIMEOUT, HOST_KEY_REJECTED_REASON,
 };
 use russh::client;
 use russh::keys::ssh_key::HashAlg;
@@ -15,6 +15,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use tauri::{AppHandle, Emitter};
 use tokio::sync::oneshot;
+use tterm_core::events::ssh::SshConnectionProgressPayload;
 
 /// russh handler for the jump host leg of the connection.
 /// Performs the same host-key verification as `SshClientHandler`:

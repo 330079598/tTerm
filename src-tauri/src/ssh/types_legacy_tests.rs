@@ -21,7 +21,7 @@ fn legacy_progress_contract() {
         .retry_max(4)
         .reason("drop")
         .shell_integration(Some(
-            crate::ssh::shell_integration::ShellIntegrationStatus::Active {
+            tterm_core::events::ssh::ShellIntegrationStatus::Active {
                 hostname: Some("test".into()),
                 shell: Some("bash".into()),
             },

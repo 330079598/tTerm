@@ -10,12 +10,13 @@ use crate::ssh::auth::{authenticate, AuthMethod, AuthPrompter, AuthTarget};
 use crate::ssh::openssh_known_hosts::request_host_certificates;
 use crate::ssh::types::{
     emit_connection_progress, ConnectionStatusOptions, HostKeyVerificationMode, SshClientHandler,
-    SshConnectError, SshConnectionProgressPayload,
+    SshConnectError,
 };
 use russh::{client, Disconnect};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use tauri::{AppHandle, Emitter};
+use tterm_core::events::ssh::SshConnectionProgressPayload;
 
 /// What every hop of one connection shares: where it reports progress and how
 /// it asks the user about host keys and credentials.
