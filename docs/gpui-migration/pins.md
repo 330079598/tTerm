@@ -31,3 +31,5 @@
 ## 打补丁退路
 
 需要给 GPUI 打补丁时用 Cargo 的 `[patch.crates-io]` 指向同版本源码，不 fork 整个 Zed（[决策 007](decisions/007-official-sources-and-terminal-route.md) 第 4 条）。P0-06 实测过的步骤与实际输出写在 [P0-06 报告](reports/P0-06.md#打补丁退路的实测步骤)，本次没有提交任何补丁。
+
+| regress | crates.io | `=0.12.0` | 不适用 | MIT OR Apache-2.0 | 2026-11-10 | ECMAScript 2018 正则引擎；用于关键词高亮以保持 JS 的环视、反向引用、ASCII `\w`/`\b`/`\d` 与大小写折叠语义。选择 `regress` 而不是 `regex` 是因为用户保存的规则本来就是 JavaScript RegExp。项目由个人 ridiculousfish 维护，需关注维护风险。 |
