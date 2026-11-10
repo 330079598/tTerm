@@ -8,6 +8,7 @@ use std::sync::PoisonError;
 use std::thread;
 use tauri::AppHandle;
 use tokio::sync::mpsc;
+use tterm_core::events::{terminal::TerminalEvent, AppEvent};
 
 /// Result of reading a PTY reader to end-of-stream.
 #[derive(Debug, PartialEq, Eq)]
@@ -82,6 +83,14 @@ pub trait OutputFilter: Send {
     fn filter(&mut self, output: Vec<u8>) -> FilteredOutput;
 }
 
+pub(crate) type ReaderLog = Box<dyn Fn(&[u8]) + Send>;
+
+pub(crate) fn reader_log(app: &AppHandle, tab_id: &str) -> ReaderLog {
+    let app = app.clone();
+    let tab_id = tab_id.to_string();
+    Box::new(move |bytes| crate::session_log::record_output(&app, &tab_id, bytes))
+}
+
 pub fn spawn_reader_thread(
     reader: Box<dyn Read + Send>,
     channel: ChannelContext,
@@ -89,13 +98,12 @@ pub fn spawn_reader_thread(
     sender: Option<super::io_batcher::TerminalOutputSender>,
     settings: ZmodemSettings,
     mut filter: Option<Box<dyn OutputFilter>>,
+    log_output: ReaderLog,
 ) {
     thread::spawn(move || {
         // Shared between the deliver closure and the final flush: the sender
         // must outlive both, so route it through interior mutability.
         let sender = std::sync::Mutex::new(sender);
-        let log_app = channel.app.clone();
-        let log_tab_id = channel.tab_id.clone();
         // Owned solely by this thread: detection state and, once triggered,
         // the protocol engine + open destination file. Only the thin
         // `ZmodemTabHandle` published into `zmodem_map` is ever touched from
@@ -113,7 +121,7 @@ pub fn spawn_reader_thread(
             reader,
             |chunk| {
                 if log_raw_output {
-                    crate::session_log::record_output(&log_app, &log_tab_id, chunk);
+                    log_output(chunk);
                 }
             },
             |chunk| {
@@ -145,7 +153,7 @@ pub fn spawn_reader_thread(
                     Some(filter) => {
                         let filtered = filter.filter(step.passthrough);
                         let log = filtered.log.as_deref().unwrap_or(&filtered.display);
-                        crate::session_log::record_output(&channel.app, &channel.tab_id, log);
+                        log_output(log);
                         filtered.display
                     }
                     None => step.passthrough,
@@ -159,11 +167,12 @@ pub fn spawn_reader_thread(
                     .as_mut()
                 {
                     Some(sender) => sender.send(display),
-                    None => emit_pty_output(
-                        &channel.app,
-                        &channel.tab_id,
-                        String::from_utf8_lossy(&display).into_owned(),
-                    ),
+                    None => {
+                        let _ = channel.sink.emit(AppEvent::Terminal(TerminalEvent::Output {
+                            tab_id: channel.tab_id.clone(),
+                            text: String::from_utf8_lossy(&display).into_owned(),
+                        }));
+                    }
                 }
             },
             || {
@@ -185,8 +194,4 @@ pub fn spawn_reader_thread(
             },
         });
     });
-}
-
-fn emit_pty_output(app: &AppHandle, tab_id: &str, payload: String) {
-    crate::terminal::legacy_events::emit_output(app, tab_id, payload);
 }

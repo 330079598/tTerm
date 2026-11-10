@@ -18,7 +18,7 @@ fn binary_channel_keeps_nul_non_utf8_and_capped_messages() {
         }),
         flow,
     );
-    let mut sender = TerminalOutputSender::spawn("contract", output);
+    let mut sender = TerminalOutputSender::spawn("contract", test_sink(output));
     let mut expected = vec![b'x'; MAX_CHUNK_BYTES + 1];
     expected.extend_from_slice(b"\0\xff\x1b[31m\r\n");
     expected.extend_from_slice("中文😀".as_bytes());

@@ -11,6 +11,8 @@ mod local_integration;
 pub(crate) mod output_tail;
 pub(crate) mod pty;
 pub(crate) mod reader;
+#[cfg(test)]
+mod reader_tests;
 mod shell_args;
 #[cfg(target_os = "windows")]
 mod shell_integration;

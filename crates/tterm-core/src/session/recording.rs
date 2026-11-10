@@ -11,6 +11,7 @@ pub enum SessionRecord {
     Bytes(Vec<u8>),
     Event(AppEvent),
     Exit(Option<String>),
+    State(crate::events::ssh::SshConnectionProgressPayload),
     Ack(usize),
     Close,
     Input,
@@ -60,6 +61,14 @@ impl EventSink for RecordingSessionSink {
 impl SessionSink for RecordingSessionSink {
     fn send_bytes(&self, bytes: Vec<u8>) -> Result<(), String> {
         self.record(SessionRecord::Bytes(bytes));
+        Ok(())
+    }
+
+    fn state_changed(
+        &self,
+        progress: crate::events::ssh::SshConnectionProgressPayload,
+    ) -> Result<(), String> {
+        self.record(SessionRecord::State(progress));
         Ok(())
     }
 

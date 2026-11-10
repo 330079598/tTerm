@@ -11,6 +11,7 @@ use tokio::io::AsyncWriteExt;
 
 struct IncomingOutput<'a> {
     tab: &'a ChannelContext,
+    app: &'a tauri::AppHandle,
     sender: &'a Option<crate::terminal::io_batcher::TerminalOutputSender>,
     output_decoder: &'a mut Option<crate::terminal::encoding::OutputDecoder>,
     zmodem_driver: &'a mut ZmodemReceiveDriver,
@@ -26,7 +27,7 @@ impl IncomingOutput<'_> {
         writer_stream: &mut (impl tokio::io::AsyncWrite + Unpin),
     ) -> Result<(), String> {
         if self.record_raw_output {
-            crate::session_log::record_output(&self.tab.app, &self.tab.tab_id, data);
+            crate::session_log::record_output(self.app, &self.tab.tab_id, data);
         }
 
         if self.zmodem_send_pipe.try_forward(data) {
@@ -64,9 +65,9 @@ impl IncomingOutput<'_> {
             }
             if !outcome.passthrough.is_empty() {
                 deliver_output(
-                    &self.tab.app,
+                    self.app,
                     &self.tab.tab_id,
-                    self.sender.as_ref(),
+                    (self.sender.as_ref(), self.tab.sink.as_ref()),
                     self.output_decoder.as_mut(),
                     outcome.passthrough,
                 );
@@ -78,6 +79,7 @@ impl IncomingOutput<'_> {
 
 pub(super) struct ConnectedSession {
     pub(super) tab: ChannelContext,
+    pub(super) app: tauri::AppHandle,
     pub(super) settings: ZmodemSettings,
     pub(super) plan: SessionPlan,
     pub(super) route: Option<RouteKey>,
@@ -90,6 +92,7 @@ pub(super) struct ConnectedSession {
 pub(super) async fn read_connection(connection: ConnectedSession) -> SshExitSignal {
     let ConnectedSession {
         tab,
+        app,
         settings,
         plan,
         route,
@@ -104,7 +107,6 @@ pub(super) async fn read_connection(connection: ConnectedSession) -> SshExitSign
         mut resize_rx,
         mut sender,
     } = io;
-    let app = tab.app.clone();
     let tab_id = tab.tab_id.clone();
     let (mut reader, writer) = channel.split();
     let mut writer_stream = writer.make_writer();
@@ -128,7 +130,7 @@ pub(super) async fn read_connection(connection: ConnectedSession) -> SshExitSign
         deliver_output(
             &app,
             &tab_id,
-            sender.as_ref(),
+            (sender.as_ref(), tab.sink.as_ref()),
             output_decoder.as_mut(),
             output,
         );
@@ -179,7 +181,7 @@ pub(super) async fn read_connection(connection: ConnectedSession) -> SshExitSign
                 match event {
                     Some(ChannelMsg::Data { data }) => {
                         let result = IncomingOutput {
-                            tab: &tab, sender: &sender, output_decoder: &mut output_decoder,
+                            tab: &tab, app: &app, sender: &sender, output_decoder: &mut output_decoder,
                             zmodem_driver: &mut zmodem_driver, zmodem_send_pipe: &mut zmodem_send_pipe,
                             ssh_query_pending: &mut ssh_query_pending, record_raw_output,
                         }.data(data.as_ref(), &mut writer_stream).await;
@@ -200,7 +202,7 @@ pub(super) async fn read_connection(connection: ConnectedSession) -> SshExitSign
                         deliver_output(
                             &app,
                             &tab_id,
-                            sender.as_ref(),
+                            (sender.as_ref(), tab.sink.as_ref()),
                             output_decoder.as_mut(),
                             data.as_ref().to_vec(),
                         );

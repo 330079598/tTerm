@@ -40,7 +40,7 @@ fn real_pty_output_pauses_until_ack_then_drains_before_exit() {
     let (done_tx, done_rx) = std::sync::mpsc::channel();
     let reader = std::thread::spawn(move || {
         let mut fixture = fixture;
-        let mut sender = TerminalOutputSender::spawn("real-pty", output);
+        let mut sender = TerminalOutputSender::spawn("real-pty", test_sink(output));
         let outcome = crate::terminal::reader::run_pty_reader(
             fixture.reader(),
             |_| {},

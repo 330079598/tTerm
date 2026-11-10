@@ -1,7 +1,7 @@
 use super::*;
 use std::sync::{Arc, Mutex};
 use tauri::test::{mock_builder, mock_context, noop_assets};
-use tauri::Listener;
+use tauri::{Emitter, Listener};
 
 #[test]
 fn legacy_output_name_target_and_json_are_frozen_before_migration() {
@@ -21,7 +21,8 @@ fn legacy_output_name_target_and_json_are_frozen_before_migration() {
         ("bad:�", r#""bad:�""#),
     ];
     for (text, _) in cases {
-        emit_output(app.handle(), "tab-with-hyphens", text.to_string());
+        app.emit_to(TARGET, "pty-output-tab-with-hyphens", text.to_string())
+            .unwrap();
     }
     assert_eq!(TARGET, tauri::EventTarget::Any);
     assert_eq!(
@@ -39,7 +40,7 @@ fn legacy_exit_preserves_null_empty_and_error_reasons() {
         captured.lock().unwrap().push(event.payload().to_string());
     });
     for reason in [None, Some(""), Some("SSH channel closed")] {
-        emit_exit(app.handle(), "tab-6", reason);
+        app.emit_to(TARGET, "pty-exit-tab-6", reason).unwrap();
     }
     assert_eq!(TARGET, tauri::EventTarget::Any);
     assert_eq!(

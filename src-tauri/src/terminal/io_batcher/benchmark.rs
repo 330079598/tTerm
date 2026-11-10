@@ -142,7 +142,7 @@ fn p106_real_pty_cat_throughput() {
         Ok(())
     });
     let output = TerminalOutput::with_flow(channel, flow);
-    let mut sender = TerminalOutputSender::spawn("p106-benchmark", output);
+    let mut sender = TerminalOutputSender::spawn("p106-benchmark", test_sink(output));
     let command = format!(
         "stty -echo -opost; exec /bin/bash '{}' cat '{}'",
         root.join("scripts/perf/workload.sh").display(),

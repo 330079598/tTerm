@@ -68,7 +68,7 @@ pub struct TabZmodem {
 /// session it writes ZMODEM replies into, and the tab's ZMODEM state.
 #[derive(Clone)]
 pub struct ChannelContext {
-    pub app: tauri::AppHandle,
+    pub sink: Arc<dyn tterm_core::session::sink::SessionSink>,
     pub tab_id: String,
     pub session_nonce: u32,
     pub active: Arc<TokioMutex<Option<ActiveSession>>>,
@@ -134,6 +134,7 @@ pub struct PtySession {
     /// The frontend's output channel. Its flow control is acknowledged by
     /// `ack_pty_output` as xterm.js parses.
     pub output: crate::terminal::io_batcher::TerminalOutput,
+    pub sink: Arc<dyn tterm_core::session::sink::SessionSink>,
     /// Serial: how the tab shows what it receives, which its bar can change
     /// while the device is away too.
     pub serial_view: Option<Arc<crate::serial::SerialView>>,

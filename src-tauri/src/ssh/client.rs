@@ -2,7 +2,7 @@ mod output;
 mod reader;
 mod setup;
 
-use super::types::{emit_connection_progress, ConnectionStatusOptions, SshClientHandler};
+use super::types::{ConnectionStatusOptions, SshClientHandler};
 use crate::core::session::types::SessionPlan;
 use crate::core::state::{ChannelContext, HostPromptMap};
 use crate::ssh::jump::connect::JumpChain;
@@ -98,7 +98,7 @@ pub struct SshChannelIo {
 }
 
 pub async fn run_single_ssh_connection(
-    tab: ChannelContext,
+    context: (ChannelContext, tauri::AppHandle),
     settings: ZmodemSettings,
     plan: SessionPlan,
     prompts: HostPromptMap,
@@ -112,7 +112,7 @@ pub async fn run_single_ssh_connection(
         mut resize_rx,
         mut sender,
     } = io;
-    let app = tab.app.clone();
+    let (tab, app) = context;
     let tab_id = tab.tab_id.clone();
     let host: String = match &plan.host {
         Some(host) => host.clone(),
@@ -192,10 +192,7 @@ pub async fn run_single_ssh_connection(
         Err(signal) => return signal,
     };
 
-    emit_connection_progress(
-        &app,
-        &tab_id,
-        ConnectionStatusOptions::VERBOSE,
+    let _ = tab.sink.state_changed(
         SshConnectionProgressPayload::new(
             "ready",
             format!("Connected to {}@{}:{}", username, host, plan.port),
@@ -214,6 +211,7 @@ pub async fn run_single_ssh_connection(
 
     read_connection(ConnectedSession {
         tab,
+        app,
         settings,
         plan,
         route,
