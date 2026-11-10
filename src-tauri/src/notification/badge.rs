@@ -40,78 +40,28 @@ pub async fn set_unseen_notifications(
     overlay: Option<OverlayImage>,
 ) -> Result<(), String> {
     let overlay = overlay.map(OverlayImage::check).transpose()?;
-    crate::background::tray::set_attention(&app, count > 0);
-    #[cfg(target_os = "windows")]
-    return windows_overlay::set(&app, overlay.filter(|_| count > 0));
-    #[cfg(target_os = "macos")]
-    {
-        let _ = overlay;
-        set_badge_count(&app, count)
-    }
-    #[cfg(all(unix, not(target_os = "macos")))]
-    {
-        let _ = overlay;
-        super::launcher_entry::set_count(&app, count).await
-    }
-}
-
-#[cfg(target_os = "macos")]
-fn set_badge_count(app: &AppHandle, count: u32) -> Result<(), String> {
     use tauri::Manager;
-
-    let Some(window) = app.get_webview_window("main") else {
-        return Ok(());
-    };
-    window
-        .set_badge_count((count > 0).then_some(i64::from(count)))
-        .map_err(|error| format!("Failed to show the notification count: {error}"))
+    let _ = app
+        .state::<std::sync::Arc<dyn tterm_platform::window::MainWindow>>()
+        .set_attention(count > 0);
+    let overlay = overlay.map(|image| tterm_platform::notifications::RgbaImage {
+        rgba: image.rgba,
+        width: image.width,
+        height: image.height,
+    });
+    app.state::<std::sync::Arc<dyn tterm_platform::notifications::AppBadge>>()
+        .set_unseen(count, overlay)
+        .await
 }
-
-/// Puts the overlay back on a taskbar button made anew, as one is when the
-/// window comes back from the tray.
+/// Restores a taskbar overlay after the main window is shown again.
 pub fn restore(app: &AppHandle) {
-    #[cfg(target_os = "windows")]
-    if let Err(error) = windows_overlay::restore(app) {
-        eprintln!("{error}");
-    }
-    #[cfg(not(target_os = "windows"))]
-    let _ = app;
-}
-
-#[cfg(target_os = "windows")]
-mod windows_overlay {
-    use std::sync::Mutex;
-
-    use tauri::image::Image;
-    use tauri::{AppHandle, Manager};
-
-    use super::OverlayImage;
-
-    /// The overlay shown now, kept to put back on a new taskbar button.
-    static SHOWN: Mutex<Option<OverlayImage>> = Mutex::new(None);
-
-    pub(super) fn set(app: &AppHandle, overlay: Option<OverlayImage>) -> Result<(), String> {
-        let mut shown = SHOWN.lock().unwrap_or_else(|e| e.into_inner());
-        *shown = overlay;
-        apply(app, shown.as_ref())
-    }
-
-    pub(super) fn restore(app: &AppHandle) -> Result<(), String> {
-        let shown = SHOWN.lock().unwrap_or_else(|e| e.into_inner());
-        if shown.is_none() {
-            return Ok(());
+    use tauri::Manager;
+    if let Some(badge) =
+        app.try_state::<std::sync::Arc<dyn tterm_platform::notifications::AppBadge>>()
+    {
+        if let Err(error) = badge.restore() {
+            eprintln!("{error}");
         }
-        apply(app, shown.as_ref())
-    }
-
-    fn apply(app: &AppHandle, overlay: Option<&OverlayImage>) -> Result<(), String> {
-        let Some(window) = app.get_webview_window("main") else {
-            return Ok(());
-        };
-        let icon = overlay.map(|image| Image::new(&image.rgba, image.width, image.height));
-        window
-            .set_overlay_icon(icon)
-            .map_err(|error| format!("Failed to show the notification count: {error}"))
     }
 }
 
