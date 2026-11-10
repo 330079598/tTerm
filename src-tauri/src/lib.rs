@@ -459,3 +459,6 @@ pub fn run() {
             }
         });
 }
+
+#[cfg(test)]
+mod prompt_contract_tests;
