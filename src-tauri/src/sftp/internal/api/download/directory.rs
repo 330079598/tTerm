@@ -1,6 +1,6 @@
 //! Downloading folders, and several remote paths as one transfer.
 
-use super::{is_cancelled, next_transfer_id, transfer_options, transfer_outcome};
+use super::{is_cancelled, transfer_options, transfer_outcome};
 use crate::sftp::internal::api::conflict::{self, CandidateDecision, SourceStat};
 use crate::sftp::internal::connection::map_sftp_error;
 use crate::sftp::internal::transfer::{self, ProgressSink, RemoteChannels, TransferProgress};
@@ -10,10 +10,7 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use tauri::{AppHandle, Emitter};
 use tokio::sync::watch;
-use tterm_core::events::sftp::download::{
-    DownloadBatchCompleteEvent, DownloadItemCompleteEvent, DownloadItemStartEvent,
-    DownloadProgressEvent,
-};
+use tterm_core::events::sftp::download::{DownloadBatchCompleteEvent, DownloadProgressEvent};
 use tterm_core::sftp::conflict::ConflictPolicy;
 
 /// Where a remote file should land locally under `policy`, or `None` to
@@ -22,7 +19,7 @@ use tterm_core::sftp::conflict::ConflictPolicy;
 /// `skip_existing` is set by a directory-download retry, so files an earlier
 /// attempt already finished are passed over instead of fetched again (see
 /// [`conflict::decide_candidate`]).
-async fn resolve_download_target(
+pub(super) async fn resolve_download_target(
     local_path: &Path,
     item: &DirectoryDownloadItem,
     policy: ConflictPolicy,
@@ -193,18 +190,18 @@ pub(super) struct DirectoryDownloadRequest<'a> {
 
 /// Where one file of a batch sits in the batch's aggregate progress.
 #[derive(Clone, Copy)]
-struct BatchProgress<'a> {
-    batch_transfer_id: &'a str,
-    total_size: u64,
-    aggregate_base: u64,
+pub(super) struct BatchProgress<'a> {
+    pub batch_transfer_id: &'a str,
+    pub total_size: u64,
+    pub aggregate_base: u64,
     /// Bytes already on disk before this item started (earlier skipped files
     /// plus resumed bytes of earlier files). Reported as part of the aggregate
     /// event's `resumed_from` so the UI measures throughput from the bytes
     /// this run actually fetched.
-    existing_base: u64,
+    pub existing_base: u64,
 }
 
-async fn download_file_into_directory(
+pub(super) async fn download_file_into_directory(
     target: DownloadTarget<'_>,
     channels: RemoteChannels,
     batch_cancel_rx: Option<watch::Receiver<bool>>,
@@ -307,10 +304,6 @@ async fn download_file_into_directory(
     transfer_outcome(result).map(|outcome| outcome.resumed_from)
 }
 
-#[expect(
-    clippy::too_many_lines,
-    reason = "predates the 150-line limit; split it when it next changes"
-)]
 pub(super) async fn download_directory_with_progress(
     target: DownloadTarget<'_>,
     sftp: &SftpSession,
@@ -340,10 +333,9 @@ pub(super) async fn download_directory_with_progress(
     // Bytes of files this run skipped because the local copy was already
     // current: tracked across the loop so the batch-complete event can report
     // them even when the run is cancelled partway.
-    let mut skipped_bytes = 0u64;
+    let mut counts = super::items::DownloadCounts::default();
     // Bytes of files this run resumed from a previous partial attempt: like
     // the skipped ones they are part of the final size but moved no bytes.
-    let mut resumed_bytes = 0u64;
 
     let result = async {
         let plan = collect_download_plan(sftp, remote_paths).await?;
@@ -364,162 +356,28 @@ pub(super) async fn download_directory_with_progress(
             })?;
         }
 
-        let mut aggregate_transferred = 0u64;
         for item in &plan.files {
             if is_cancelled(&mut cancel_rx) {
                 return Err("Download cancelled by user".to_string());
             }
 
-            let local_path = local_parent.join(&item.relative_path);
-            if let Some(parent) = local_path.parent() {
-                tokio::fs::create_dir_all(parent).await.map_err(|err| {
-                    format!(
-                        "Failed to create local directory '{}': {err}",
-                        parent.display()
-                    )
-                })?;
-            }
-
-            let item_transfer_id = next_transfer_id();
-            let resolved =
-                resolve_download_target(&local_path, item, policy, skip_existing.unwrap_or(false))
-                    .await;
-            // The start event already carries the resolved name, so the
-            // transfer list and a per-item retry both use the path the file
-            // actually lands on.
-            let local_path = match &resolved {
-                Ok(Some(resolved_path)) => resolved_path.clone(),
-                _ => local_path,
-            };
-            let local_path_string = local_path.display().to_string();
-            let _ = app.emit(
-                &format!("sftp-download-item-start-{}", tab_id),
-                DownloadItemStartEvent {
-                    transfer_id: item_transfer_id.clone(),
-                    batch_id: transfer_id.to_string(),
-                    file_name: item.file_name.clone(),
-                    file_size: item.size,
-                    local_path: local_path_string.clone(),
-                    remote_path: item.remote_path.clone(),
-                },
-            );
-
-            let resolved = match resolved {
-                Ok(resolved) => resolved,
-                Err(error) => {
-                    let _ = app.emit(
-                        &format!("sftp-download-item-complete-{}", tab_id),
-                        DownloadItemCompleteEvent {
-                            transfer_id: item_transfer_id,
-                            error: Some(error.clone()),
-                            local_path: local_path_string,
-                            remote_path: item.remote_path.clone(),
-                            cancelled: false,
-                            success: false,
-                            skipped: false,
-                        },
-                    );
-                    return Err(error);
-                }
-            };
-
-            // Skipped by the conflict policy, or by a retry because the local
-            // file provably already holds the remote bytes.
-            if resolved.is_none() {
-                aggregate_transferred = aggregate_transferred.saturating_add(item.size);
-                skipped_bytes = skipped_bytes.saturating_add(item.size);
-                let _ = app.emit(
-                    &format!("sftp-download-item-complete-{}", tab_id),
-                    DownloadItemCompleteEvent {
-                        transfer_id: item_transfer_id,
-                        error: None,
-                        local_path: local_path_string.clone(),
-                        remote_path: item.remote_path.clone(),
-                        cancelled: false,
-                        success: true,
-                        skipped: true,
-                    },
-                );
-                let progress = if plan.total_size > 0 {
-                    ((aggregate_transferred as f64 / plan.total_size as f64) * 100.0).min(100.0)
-                        as u32
-                } else {
-                    0
-                };
-                let _ = app.emit(
-                    &format!("sftp-download-progress-{}", tab_id),
-                    DownloadProgressEvent {
-                        transfer_id: transfer_id.to_string(),
-                        local_path: local_path_string,
-                        remote_path: item.remote_path.clone(),
-                        transferred: aggregate_transferred,
-                        total: plan.total_size,
-                        progress,
-                        // Counted in `transferred` for the progress bar, but no
-                        // bytes moved for it in this run. Earlier resumed bytes
-                        // are just as absent, hence the same sum as the
-                        // aggregate events.
-                        resumed_from: skipped_bytes.saturating_add(resumed_bytes),
-                        parallelism: 0,
-                        completed_chunks: 0,
-                        chunk_count: 0,
-                    },
-                );
-                continue;
-            }
-
-            let item_result = download_file_into_directory(
-                target,
-                channels.instance(),
-                Some(cancel_rx.clone()),
-                BatchProgress {
-                    batch_transfer_id: transfer_id,
+            super::items::download_item(
+                super::items::DownloadItemContext {
+                    target,
+                    channels,
+                    cancel_rx: &cancel_rx,
+                    transfer_id,
+                    local_parent: &local_parent,
+                    policy,
+                    skip_existing,
                     total_size: plan.total_size,
-                    aggregate_base: aggregate_transferred,
-                    existing_base: skipped_bytes.saturating_add(resumed_bytes),
                 },
-                &item_transfer_id,
                 item,
-                &local_path,
+                &mut counts,
             )
-            .await;
-
-            match item_result {
-                Ok(item_resumed) => {
-                    resumed_bytes = resumed_bytes.saturating_add(item_resumed);
-                    aggregate_transferred = aggregate_transferred.saturating_add(item.size);
-                    let _ = app.emit(
-                        &format!("sftp-download-item-complete-{}", tab_id),
-                        DownloadItemCompleteEvent {
-                            transfer_id: item_transfer_id,
-                            error: None,
-                            local_path: local_path_string,
-                            remote_path: item.remote_path.clone(),
-                            cancelled: false,
-                            success: true,
-                            skipped: false,
-                        },
-                    );
-                }
-                Err(error) => {
-                    let cancelled = error.contains("cancelled");
-                    let _ = app.emit(
-                        &format!("sftp-download-item-complete-{}", tab_id),
-                        DownloadItemCompleteEvent {
-                            transfer_id: item_transfer_id,
-                            error: if cancelled { None } else { Some(error.clone()) },
-                            local_path: local_path_string,
-                            remote_path: item.remote_path.clone(),
-                            cancelled,
-                            success: false,
-                            skipped: false,
-                        },
-                    );
-                    return Err(error);
-                }
-            }
+            .await?;
         }
-        final_transferred = aggregate_transferred;
+        final_transferred = counts.aggregate_transferred;
 
         let (root_local_path, root_remote_path) = match remote_paths {
             [only] => (local_parent.join(remote_basename(only)?), only.clone()),
@@ -531,12 +389,12 @@ pub(super) async fn download_directory_with_progress(
                 transfer_id: transfer_id.to_string(),
                 local_path: root_local_path.display().to_string(),
                 remote_path: root_remote_path,
-                transferred: aggregate_transferred,
+                transferred: counts.aggregate_transferred,
                 total: plan.total_size,
                 progress: 100,
                 // Same accounting as the aggregate events: everything skipped
                 // or resumed is already on disk, only the rest was fetched.
-                resumed_from: skipped_bytes.saturating_add(resumed_bytes),
+                resumed_from: counts.skipped_bytes.saturating_add(counts.resumed_bytes),
                 parallelism: 0,
                 completed_chunks: 0,
                 chunk_count: 0,
@@ -565,8 +423,8 @@ pub(super) async fn download_directory_with_progress(
             }),
             transferred: final_transferred,
             total: final_total,
-            skipped: skipped_bytes,
-            resumed: resumed_bytes,
+            skipped: counts.skipped_bytes,
+            resumed: counts.resumed_bytes,
         },
     );
 

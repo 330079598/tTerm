@@ -11,9 +11,7 @@ use crate::ssh::secret_store::types::SecretStoreState;
 use std::collections::HashMap;
 use tauri::{AppHandle, Emitter, State};
 use tokio::sync::watch;
-use tterm_core::events::sftp::upload::{
-    UploadBatchCompleteEvent, UploadBatchStartEvent, UploadItemCompleteEvent, UploadItemStartEvent,
-};
+use tterm_core::events::sftp::upload::{UploadBatchCompleteEvent, UploadBatchStartEvent};
 use tterm_core::sftp::conflict::ConflictPolicy;
 
 /// Where a planned upload should land under `policy`, or `None` to skip it.
@@ -22,7 +20,7 @@ use tterm_core::sftp::conflict::ConflictPolicy;
 /// already finished are passed over instead of re-sent (see
 /// [`conflict::decide_candidate`]). A stat error is treated as "nothing
 /// there" and the transfer itself surfaces the real problem.
-async fn resolve_upload_target(
+pub(super) async fn resolve_upload_target(
     sftp: &SftpSession,
     plan_item: &UploadFilePlanItem,
     policy: ConflictPolicy,
@@ -202,10 +200,6 @@ pub async fn sftp_upload_file(
     clippy::too_many_arguments,
     reason = "a Tauri command's arguments are its IPC fields and injected state"
 )]
-#[expect(
-    clippy::too_many_lines,
-    reason = "predates the 150-line limit; split it when it next changes"
-)]
 pub async fn sftp_upload_paths(
     app: AppHandle,
     tab_id: String,
@@ -292,173 +286,26 @@ pub async fn sftp_upload_paths(
             let batch_id = batch_id.clone();
             let directories = upload_plan.directories.clone();
             let files = upload_plan.files.clone();
-            let mut batch_cancel_rx = batch_cancel_rx.clone();
+            let batch_cancel_rx = batch_cancel_rx.clone();
             let batch_enabled = root_summary.has_directories;
             let policy = conflict_policy.unwrap_or_default();
 
-            async move {
-                let mut succeeded = 0usize;
-                let mut failed = 0usize;
-                let mut cancelled = false;
-
-                for directory in directories {
-                    if batch_cancel_rx.as_mut().map(is_cancelled).unwrap_or(false) {
-                        cancelled = true;
-                        break;
-                    }
-
-                    match ensure_remote_dir_all(&sftp, &directory, batch_cancel_rx.clone()).await {
-                        Ok(()) => {}
-                        Err(error) => {
-                            if error.contains("cancelled") {
-                                cancelled = true;
-                                break;
-                            }
-                            return Err(error);
-                        }
-                    }
-                }
-
-                if !cancelled {
-                    for plan_item in files {
-                        if batch_cancel_rx.as_mut().map(is_cancelled).unwrap_or(false) {
-                            cancelled = true;
-                            break;
-                        }
-
-                        let transfer_id = next_transfer_id();
-                        let resolved = resolve_upload_target(
-                            &sftp,
-                            &plan_item,
-                            policy,
-                            skip_existing.unwrap_or(false),
-                        )
-                        .await;
-                        // The start event already carries the resolved name, so
-                        // the transfer list and a per-item retry both use the
-                        // path the file actually lands on.
-                        let plan_item = match &resolved {
-                            Ok(Some(remote_path)) => UploadFilePlanItem {
-                                remote_path: remote_path.clone(),
-                                ..plan_item
-                            },
-                            _ => plan_item,
-                        };
-                        let _ = app.emit(
-                            &format!("sftp-upload-item-start-{}", tab_id),
-                            UploadItemStartEvent {
-                                transfer_id: transfer_id.clone(),
-                                batch_id: if batch_enabled {
-                                    Some(batch_id.clone())
-                                } else {
-                                    None
-                                },
-                                file_name: plan_item.file_name.clone(),
-                                file_size: plan_item.file_size,
-                                local_path: plan_item.local_path.clone(),
-                                remote_path: plan_item.remote_path.clone(),
-                            },
-                        );
-
-                        let resolved = match resolved {
-                            Ok(resolved) => resolved,
-                            Err(error) => {
-                                failed += 1;
-                                let _ = app.emit(
-                                    &format!("sftp-upload-item-complete-{}", tab_id),
-                                    UploadItemCompleteEvent {
-                                        transfer_id,
-                                        error: Some(error),
-                                        local_path: plan_item.local_path,
-                                        remote_path: plan_item.remote_path,
-                                        cancelled: false,
-                                        success: false,
-                                        skipped: false,
-                                    },
-                                );
-                                continue;
-                            }
-                        };
-
-                        if resolved.is_none() {
-                            succeeded += 1;
-                            let _ = app.emit(
-                                &format!("sftp-upload-item-complete-{}", tab_id),
-                                UploadItemCompleteEvent {
-                                    transfer_id,
-                                    error: None,
-                                    local_path: plan_item.local_path.clone(),
-                                    remote_path: plan_item.remote_path.clone(),
-                                    cancelled: false,
-                                    success: true,
-                                    skipped: true,
-                                },
-                            );
-                            continue;
-                        }
-
-                        let result = upload_single_file_with_progress(
-                            &app,
-                            &tab_id,
-                            channels.instance(),
-                            &cancel_map,
-                            batch_cancel_rx.clone(),
-                            &plan_item,
-                            &transfer_id,
-                        )
-                        .await;
-
-                        match result {
-                            Ok(()) => {
-                                succeeded += 1;
-                                let _ = app.emit(
-                                    &format!("sftp-upload-item-complete-{}", tab_id),
-                                    UploadItemCompleteEvent {
-                                        transfer_id,
-                                        error: None,
-                                        local_path: plan_item.local_path,
-                                        remote_path: plan_item.remote_path,
-                                        cancelled: false,
-                                        success: true,
-                                        skipped: false,
-                                    },
-                                );
-                            }
-                            Err(error) => {
-                                let item_cancelled = error.contains("cancelled");
-                                if item_cancelled {
-                                    cancelled = true;
-                                } else {
-                                    failed += 1;
-                                }
-
-                                let _ = app.emit(
-                                    &format!("sftp-upload-item-complete-{}", tab_id),
-                                    UploadItemCompleteEvent {
-                                        transfer_id,
-                                        error: Some(error),
-                                        local_path: plan_item.local_path,
-                                        remote_path: plan_item.remote_path,
-                                        cancelled: item_cancelled,
-                                        success: false,
-                                        skipped: false,
-                                    },
-                                );
-
-                                if item_cancelled {
-                                    break;
-                                }
-                            }
-                        }
-                    }
-                }
-
-                Ok(UploadBatchResult {
-                    cancelled,
-                    failed,
-                    succeeded,
-                })
-            }
+            super::batch::run(
+                super::batch::UploadBatch {
+                    cancel_map,
+                    app,
+                    tab_id,
+                    batch_id,
+                    directories,
+                    files,
+                    batch_cancel_rx,
+                    batch_enabled,
+                    policy,
+                    skip_existing,
+                },
+                &sftp,
+                &channels,
+            )
             .await
         }
         Err(error) => Err(error),

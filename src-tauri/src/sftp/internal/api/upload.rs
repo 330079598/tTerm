@@ -1,3 +1,5 @@
+mod batch;
+mod items;
 use crate::sftp::internal::transfer::{
     self, ProgressSink, RemoteChannels, TransferOptions, TransferProgress,
 };

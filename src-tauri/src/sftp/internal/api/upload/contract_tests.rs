@@ -1,10 +1,8 @@
 //! Legacy wire contracts captured before P1-04 transport changes.
-use super::*;
 use tterm_core::events::sftp::upload::{
     UploadBatchCompleteEvent, UploadBatchStartEvent, UploadItemCompleteEvent,
     UploadItemProgressEvent, UploadItemStartEvent,
 };
-use tterm_core::sftp::conflict::ConflictPolicy;
 
 #[test]
 fn legacy_u01_wire_contract() {

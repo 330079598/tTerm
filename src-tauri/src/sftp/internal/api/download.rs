@@ -1,3 +1,4 @@
+mod items;
 use crate::core::session::types::PtyConnectionOptions;
 use crate::core::state::HostPromptMap;
 use crate::sftp::internal::api::conflict::{self, ConflictReport, TransferConflict};

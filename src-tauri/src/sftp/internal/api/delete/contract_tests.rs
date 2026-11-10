@@ -1,5 +1,4 @@
 //! Legacy wire contracts captured before P1-04 transport changes.
-use super::*;
 use tterm_core::events::sftp::delete::{
     DeleteBatchCompleteEvent, DeleteBatchStartEvent, DeleteMethod, DeleteProgressEvent,
 };
