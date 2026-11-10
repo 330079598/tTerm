@@ -13,6 +13,7 @@ use background::BackgroundEvent;
 use serial::SerialEvent;
 use session_log::SessionLogEvent;
 use ssh::SshEvent;
+use terminal::TerminalEvent;
 use tunnel::TunnelEvent;
 use zmodem::ZmodemEvent;
 
@@ -21,6 +22,8 @@ use zmodem::ZmodemEvent;
 pub enum AppEvent {
     /// Tunnel state and traffic changed.
     Tunnel(TunnelEvent),
+    /// P1-03: terminal event delivery.
+    Terminal(TerminalEvent),
     /// P1-03: session_log event delivery.
     SessionLog(SessionLogEvent),
     /// P1-03: serial event delivery.
@@ -70,11 +73,12 @@ impl AppEvent {
     pub fn target(&self) -> EventTarget {
         match self {
             Self::Tunnel(event) => event.target(),
+            Self::Terminal(event) => event.target(), // P1-03.
             Self::SessionLog(event) => event.target(), // P1-03.
-            Self::Serial(event) => event.target(),     // P1-03.
-            Self::Zmodem(event) => event.target(),     // P1-03.
+            Self::Serial(event) => event.target(),   // P1-03.
+            Self::Zmodem(event) => event.target(),   // P1-03.
             Self::Background(event) => event.target(), // P1-03.
-            Self::Ssh(event) => event.target(),        // P1-03.
+            Self::Ssh(event) => event.target(),      // P1-03.
         }
     }
 
@@ -82,6 +86,7 @@ impl AppEvent {
     pub fn name(&self) -> EventName {
         match self {
             Self::Tunnel(event) => event.name(),
+            Self::Terminal(event) => event.name(),   // P1-03.
             Self::SessionLog(event) => event.name(), // P1-03.
             Self::Serial(event) => event.name(),     // P1-03.
             Self::Zmodem(event) => event.name(),     // P1-03.

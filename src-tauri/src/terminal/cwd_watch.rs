@@ -4,7 +4,7 @@
 //! followed: the outer shell's directory is what gets restored.
 
 use std::time::Duration;
-use tauri::{AppHandle, Emitter};
+use tauri::AppHandle;
 use tokio::sync::watch;
 
 const POLL_INTERVAL: Duration = Duration::from_secs(2);
@@ -21,7 +21,7 @@ pub fn spawn_cwd_watcher(
     if pid == 0 {
         return;
     }
-    let event_name = format!("pty-cwd-{tab_id}");
+    let events = crate::event_sink::TauriEventSink::new(app);
     std::thread::spawn(move || {
         let mut last: Option<String> = None;
         while !*stop_rx.borrow() {
@@ -34,7 +34,10 @@ pub fn spawn_cwd_watcher(
                     session_nonce,
                     cwd: cwd.clone(),
                 };
-                let _ = app.emit_to(tauri::EventTarget::any(), &event_name, payload);
+                let _ = events.emit(AppEvent::Terminal(TerminalEvent::Cwd {
+                    tab_id: tab_id.clone(),
+                    payload,
+                }));
                 last = Some(cwd);
             }
             std::thread::sleep(POLL_INTERVAL);
@@ -112,3 +115,6 @@ mod tests {
 mod legacy_contract_tests;
 
 use tterm_core::events::terminal::CwdPayload;
+
+use tterm_core::events::terminal::TerminalEvent;
+use tterm_core::events::{AppEvent, EventSink};
