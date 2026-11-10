@@ -84,7 +84,9 @@ pub mod platform {
             .map_err(|e| format!("Windows Hello failed: {e}"))?;
         match result {
             UserConsentVerificationResult::Verified => Ok(()),
-            UserConsentVerificationResult::Canceled => Err(crate::verification::CANCELED.to_string()),
+            UserConsentVerificationResult::Canceled => {
+                Err(crate::verification::CANCELED.to_string())
+            }
             UserConsentVerificationResult::DeviceNotPresent
             | UserConsentVerificationResult::NotConfiguredForUser
             | UserConsentVerificationResult::DisabledByPolicy => {
@@ -112,4 +114,3 @@ pub mod platform {
         Err("System verification is not supported on this platform.".to_string())
     }
 }
-

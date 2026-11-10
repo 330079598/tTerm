@@ -21,11 +21,15 @@ impl From<tterm_platform::integration::IntegrationStatus> for IntegrationStatus 
 }
 struct IntegrationState(Result<Arc<dyn SystemIntegration>, String>);
 
+/// Records either the integration capability or its error without aborting startup.
 pub fn initialize(app: &AppHandle) {
     initialize_with(app, context(app));
 }
 
-fn initialize_with<R: tauri::Runtime>(app: &AppHandle<R>, context: Result<IntegrationContext, String>) {
+fn initialize_with<R: tauri::Runtime>(
+    app: &AppHandle<R>,
+    context: Result<IntegrationContext, String>,
+) {
     let integration = context
         .map(|context| Arc::new(context) as Arc<dyn SystemIntegration>)
         .map_err(|error| {
@@ -37,9 +41,13 @@ fn initialize_with<R: tauri::Runtime>(app: &AppHandle<R>, context: Result<Integr
     app.manage(IntegrationState(integration));
 }
 
-fn integration<R: tauri::Runtime>(app: &AppHandle<R>) -> Result<Arc<dyn SystemIntegration>, String> {
+fn integration<R: tauri::Runtime>(
+    app: &AppHandle<R>,
+) -> Result<Arc<dyn SystemIntegration>, String> {
     app.try_state::<IntegrationState>()
-        .ok_or_else(|| "System integration is not ready yet. Restart tTerm and try again.".to_string())?
+        .ok_or_else(|| {
+            "System integration is not ready yet. Restart tTerm and try again.".to_string()
+        })?
         .0
         .clone()
 }
@@ -56,10 +64,7 @@ fn context(app: &AppHandle) -> Result<IntegrationContext, String> {
 }
 #[tauri::command]
 pub async fn shell_command_status(app: AppHandle) -> Result<IntegrationStatus, String> {
-    integration(&app)?
-        .shell_status()
-        .await
-        .map(Into::into)
+    integration(&app)?.shell_status().await.map(Into::into)
 }
 #[tauri::command]
 pub async fn set_shell_command(
@@ -74,10 +79,7 @@ pub async fn set_shell_command(
 }
 #[tauri::command]
 pub async fn folder_menu_status(app: AppHandle) -> Result<IntegrationStatus, String> {
-    integration(&app)?
-        .folder_status()
-        .await
-        .map(Into::into)
+    integration(&app)?.folder_status().await.map(Into::into)
 }
 #[tauri::command]
 pub async fn set_folder_menu(app: AppHandle, installed: bool) -> Result<IntegrationStatus, String> {
@@ -125,6 +127,9 @@ mod tests {
         let error = super::integration(app.handle()).err().unwrap();
         assert!(error.contains("Failed to find your home folder"));
         assert!(error.contains("restart tTerm"));
-        assert!(app.handle().try_state::<super::IntegrationState>().is_some());
+        assert!(app
+            .handle()
+            .try_state::<super::IntegrationState>()
+            .is_some());
     }
 }

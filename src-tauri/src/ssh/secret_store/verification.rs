@@ -201,17 +201,27 @@ mod tests {
     fn canceling_os_verification_preserves_availability_without_granting_access() {
         struct Cancel;
         impl UserVerification for Cancel {
-            fn available(&self) -> bool { true }
-            fn verify(&self, _: &str) -> Result<(), String> { Err(CANCELED.into()) }
+            fn available(&self) -> bool {
+                true
+            }
+            fn verify(&self, _: &str) -> Result<(), String> {
+                Err(CANCELED.into())
+            }
         }
         let state = SecretStoreState {
             inner: std::sync::Arc::new(std::sync::Mutex::new(SecretStoreRuntime {
                 os_verifier_available: Some(true),
                 ..SecretStoreRuntime::default()
             })),
-            starting: std::sync::Arc::new((std::sync::Mutex::new(false), std::sync::Condvar::new())),
+            starting: std::sync::Arc::new((
+                std::sync::Mutex::new(false),
+                std::sync::Condvar::new(),
+            )),
         };
-        assert_eq!(state.verify_system_user(&Cancel, VerificationPurpose::Reveal), Err(CANCELED.into()));
+        assert_eq!(
+            state.verify_system_user(&Cancel, VerificationPurpose::Reveal),
+            Err(CANCELED.into())
+        );
         let mut runtime = state.runtime().unwrap();
         assert_eq!(runtime.os_verifier_available, Some(true));
         assert!(!runtime.take_grant(VerificationPurpose::Reveal, Instant::now()));

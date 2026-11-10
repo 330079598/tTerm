@@ -52,7 +52,8 @@ fn activated(app: &AppHandle, tab_id: Option<String>) {
     activate_with_events(
         || {
             use tauri::Manager;
-            let _ = app.state::<std::sync::Arc<dyn tterm_platform::window::MainWindow>>()
+            let _ = app
+                .state::<std::sync::Arc<dyn tterm_platform::window::MainWindow>>()
                 .show_and_focus();
         },
         &crate::event_sink::TauriEventSink::new(app.clone()),

@@ -1,6 +1,6 @@
+use std::sync::{Arc, Mutex};
 use tauri::AppHandle;
 use tterm_platform::tray::{Tray, TrayModel};
-use std::sync::{Arc, Mutex};
 
 #[derive(Default)]
 struct RemovalState {
@@ -35,12 +35,18 @@ pub(super) struct TauriTray {
 }
 impl TauriTray {
     pub(super) fn new(app: AppHandle) -> Self {
-        Self { app, removal: Arc::default() }
+        Self {
+            app,
+            removal: Arc::default(),
+        }
     }
 }
 impl Tray for TauriTray {
     fn present(&self, model: TrayModel) -> Result<(), String> {
-        let model = self.removal.lock().unwrap_or_else(|error| error.into_inner())
+        let model = self
+            .removal
+            .lock()
+            .unwrap_or_else(|error| error.into_inner())
             .defer_present(model);
         if let Some(model) = model {
             present(&self.app, model)?;
@@ -48,7 +54,12 @@ impl Tray for TauriTray {
         Ok(())
     }
     fn remove(&self) -> Result<(), String> {
-        if !self.removal.lock().unwrap_or_else(|error| error.into_inner()).begin_remove() {
+        if !self
+            .removal
+            .lock()
+            .unwrap_or_else(|error| error.into_inner())
+            .begin_remove()
+        {
             return Ok(());
         }
         // The final status-item reference is destroyed on its owning UI thread.
@@ -65,7 +76,10 @@ impl Tray for TauriTray {
             }
             removal.removing = false;
         }) {
-            let mut removal = self.removal.lock().unwrap_or_else(|error| error.into_inner());
+            let mut removal = self
+                .removal
+                .lock()
+                .unwrap_or_else(|error| error.into_inner());
             removal.removing = false;
             removal.deferred = None;
             return Err(error.to_string());
@@ -73,8 +87,14 @@ impl Tray for TauriTray {
         Ok(())
     }
     fn is_present(&self) -> bool {
-        self.removal.lock().unwrap_or_else(|error| error.into_inner())
-            .is_present(self.app.tray_by_id(crate::background::tray::TRAY_ID).is_some())
+        self.removal
+            .lock()
+            .unwrap_or_else(|error| error.into_inner())
+            .is_present(
+                self.app
+                    .tray_by_id(crate::background::tray::TRAY_ID)
+                    .is_some(),
+            )
     }
     fn set_tooltip(&self, text: String) -> Result<(), String> {
         if let Some(tray) = self.app.tray_by_id(crate::background::tray::TRAY_ID) {
@@ -149,9 +169,14 @@ mod tests {
     use tterm_platform::tray::MenuEntry;
 
     fn model(label: &str) -> TrayModel {
-        TrayModel { entries: vec![MenuEntry::Item {
-            id: "show".into(), label: label.into(), enabled: true, checked: None,
-        }] }
+        TrayModel {
+            entries: vec![MenuEntry::Item {
+                id: "show".into(),
+                label: label.into(),
+                enabled: true,
+                checked: None,
+            }],
+        }
     }
     #[test]
     fn a_pending_removal_hides_presence_and_replays_only_the_latest_menu() {
@@ -161,7 +186,10 @@ mod tests {
         assert!(!state.is_present(true));
         assert!(state.defer_present(model("first")).is_none());
         assert!(state.defer_present(model("second")).is_none());
-        assert_eq!(state.deferred.take().unwrap().entries, model("second").entries);
+        assert_eq!(
+            state.deferred.take().unwrap().entries,
+            model("second").entries
+        );
         state.removing = false;
         assert!(state.defer_present(model("third")).is_some());
         assert!(state.is_present(true));
