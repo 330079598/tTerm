@@ -11,6 +11,7 @@ use std::sync::Arc;
 use tauri::{AppHandle, Manager};
 use tterm_platform::{clipboard::Clipboard, open::OpenTargets};
 
+/// Registers each Tauri-bound capability separately for later service assembly.
 pub fn initialize(app: &AppHandle) {
     app.manage(Arc::new(badge::TauriBadge(app.clone()))
         as Arc<dyn tterm_platform::notifications::AppBadge>);

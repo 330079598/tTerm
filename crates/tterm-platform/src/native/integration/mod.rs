@@ -34,12 +34,16 @@ use std::path::PathBuf;
 /// Paths and identity supplied by the client, never resolved through a UI runtime.
 #[derive(Clone)]
 pub struct IntegrationContext {
+    /// The client-specific directory for launchers and installer choices.
     pub local_data_dir: PathBuf,
+    /// The runtime identifier used to keep development integration isolated.
     pub identifier: String,
+    /// The user home directory used for per-user file-manager services.
     pub home_dir: PathBuf,
 }
 /// Configuration used when refreshing existing integration.
 pub struct IntegrationConfig {
+    /// The language code used to choose the file-manager menu label.
     pub language: String,
 }
 
@@ -71,29 +75,7 @@ const BIN: &str = "bin";
 #[cfg(target_os = "macos")]
 static TAB_BIN: std::sync::OnceLock<std::path::PathBuf> = std::sync::OnceLock::new();
 
-/// Whether one of tTerm's additions to the system is in place.
-#[derive(Debug)]
-pub struct IntegrationStatus {
-    /// Whether tTerm can add it on this system; not on Linux yet.
-    pub supported: bool,
-    pub installed: bool,
-}
-
-impl IntegrationStatus {
-    #[cfg(any(target_os = "windows", target_os = "macos"))]
-    fn supported(installed: bool) -> Self {
-        Self {
-            supported: true,
-            installed,
-        }
-    }
-
-    #[cfg(not(any(target_os = "windows", target_os = "macos")))]
-    const UNSUPPORTED: Self = Self {
-        supported: false,
-        installed: false,
-    };
-}
+use crate::integration::IntegrationStatus;
 
 /// Whether new shells run tTerm as `tterm`.
 pub async fn shell_command_status(app: IntegrationContext) -> Result<IntegrationStatus, String> {
@@ -327,21 +309,17 @@ fn bin_dir(app: &IntegrationContext) -> Result<std::path::PathBuf, String> {
 
 impl crate::integration::SystemIntegration for IntegrationContext {
     fn shell_status(&self) -> crate::PlatformFuture<'_, crate::integration::IntegrationStatus> {
-        Box::pin(async { shell_command_status(self.clone()).await.map(status_value) })
+        Box::pin(async { shell_command_status(self.clone()).await })
     }
     fn set_shell(
         &self,
         installed: bool,
         prompt: String,
     ) -> crate::PlatformFuture<'_, crate::integration::IntegrationStatus> {
-        Box::pin(async move {
-            set_shell_command(self.clone(), installed, prompt)
-                .await
-                .map(status_value)
-        })
+        Box::pin(async move { set_shell_command(self.clone(), installed, prompt).await })
     }
     fn folder_status(&self) -> crate::PlatformFuture<'_, crate::integration::IntegrationStatus> {
-        Box::pin(async { folder_menu_status(self.clone()).await.map(status_value) })
+        Box::pin(async { folder_menu_status(self.clone()).await })
     }
     fn set_folder(
         &self,
@@ -349,9 +327,7 @@ impl crate::integration::SystemIntegration for IntegrationContext {
         language: String,
     ) -> crate::PlatformFuture<'_, crate::integration::IntegrationStatus> {
         Box::pin(async move {
-            set_folder_menu(self.clone(), installed, folder_menu_label(&language).into())
-                .await
-                .map(status_value)
+            set_folder_menu(self.clone(), installed, folder_menu_label(&language).into()).await
         })
     }
     fn refresh(&self, language: String) -> crate::PlatformFuture<'_, ()> {
@@ -365,13 +341,6 @@ impl crate::integration::SystemIntegration for IntegrationContext {
         })
     }
 }
-fn status_value(status: IntegrationStatus) -> crate::integration::IntegrationStatus {
-    crate::integration::IntegrationStatus {
-        supported: status.supported,
-        installed: status.installed,
-    }
-}
-
 #[cfg(test)]
 mod tests {
     // Installer helpers run before a client can inject its runtime identity.
@@ -379,7 +348,8 @@ mod tests {
     #[test]
     fn the_identifier_is_the_one_tauri_uses() {
         let config = include_str!("../../../../../src-tauri/tauri.conf.json");
-        let identifier = config.lines()
+        let identifier = config
+            .lines()
             .find(|line| line.trim_start().starts_with("\"identifier\":"))
             .and_then(|line| line.split('"').nth(3))
             .unwrap();

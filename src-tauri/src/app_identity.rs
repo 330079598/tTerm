@@ -3,6 +3,7 @@
 use tauri::{AppHandle, Manager, Runtime, State};
 use tterm_core::identity::AppIdentity;
 
+/// Captures Tauri identity at startup without changing storage or keyring naming.
 pub fn initialize(app: &AppHandle) {
     app.manage(AppIdentity {
         identifier: app.config().identifier.clone(),
@@ -11,6 +12,7 @@ pub fn initialize(app: &AppHandle) {
     });
 }
 
+/// Returns the startup identity or an actionable error before initialization.
 pub fn get<R: Runtime>(app: &AppHandle<R>) -> Result<State<'_, AppIdentity>, String> {
     app.try_state::<AppIdentity>()
         .ok_or_else(|| "Application identity is not ready yet".to_string())

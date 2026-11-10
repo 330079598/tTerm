@@ -13,7 +13,9 @@ pub trait MainWindow: Send + Sync {
 /// Native handles valid only for the duration of a task dispatched by WindowHost.
 #[derive(Clone, Copy)]
 pub struct NativeHandles {
+    /// The live macOS NSView address; zero on other platforms.
     pub view: usize,
+    /// The live Windows HWND value; zero on other platforms.
     pub hwnd: isize,
 }
 

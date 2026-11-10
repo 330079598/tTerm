@@ -2,20 +2,30 @@
 /// A client-rendered menu without native toolkit types or business state.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum MenuEntry {
+    /// An actionable or disabled menu row, optionally with a check mark.
     Item {
+        /// The stable client action identifier.
         id: String,
+        /// The already-localized display text.
         label: String,
+        /// Whether the user can activate the row.
         enabled: bool,
+        /// None is a plain row; Some selects its check-mark state.
         checked: Option<bool>,
     },
+    /// A visual separator between menu groups.
     Separator,
+    /// A nested menu group.
     Submenu {
+        /// The already-localized display text.
         label: String,
+        /// Rows displayed when the submenu opens.
         entries: Vec<MenuEntry>,
     },
 }
 /// A menu presentation prepared by the application using its existing labels.
 pub struct TrayModel {
+    /// The ordered menu rows prepared by application policy.
     pub entries: Vec<MenuEntry>,
 }
 /// Lifecycle operations dispatch to the owning UI thread.
