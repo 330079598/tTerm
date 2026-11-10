@@ -65,7 +65,10 @@
       "id": "ui.select.default",
       "title": "Select states",
       "fixture": "ui.select.default.json",
-      "actions": [{ "type": "click", "target": "ui.select.default" }]
+      "actions": [
+        { "type": "click", "target": "ui.select.default" },
+        { "type": "click", "target": "ui.select.focus" }
+      ]
     },
     {
       "id": "ui.switch.default",
