@@ -11,6 +11,9 @@ fn manifest() -> ScreensManifest {
         windows_viewport: None,
         theme: "dark".to_owned(),
         ui_scale_percent: 100,
+        ui_style: "classic".to_owned(),
+        ui_styles: None,
+        ui_scale_percents: None,
         platform: PlatformSpec {
             os: "macos".to_owned(),
             version: "14.5.0".to_owned(),
@@ -25,6 +28,11 @@ fn manifest() -> ScreensManifest {
             id: "example.button-input.default".to_owned(),
             title: "Example".to_owned(),
             fixture: "example.button-input.default.json".to_owned(),
+            ui_style: None,
+            ui_styles: None,
+            ui_scale_percent: None,
+            ui_scale_percents: None,
+            actions: Vec::new(),
             exceptions: Vec::new(),
         }],
     }
@@ -75,10 +83,26 @@ fn the_wrong_schema_is_rejected() {
 }
 
 #[test]
-fn a_scale_other_than_one_hundred_is_rejected() {
+fn a_scale_other_than_supported_values_is_rejected() {
     let mut value = manifest();
-    value.ui_scale_percent = 125;
-    expect_error(value, "only supports 100");
+    value.ui_scale_percent = 110;
+    expect_error(value, "expected 100 or 125");
+}
+
+#[test]
+fn variants_expand_style_and_scale_dimensions() {
+    let mut value = manifest();
+    value.ui_styles = Some(vec!["classic".to_owned(), "islands".to_owned()]);
+    value.ui_scale_percents = Some(vec![100, 125]);
+    assert_eq!(
+        value.variants(&value.screens[0]),
+        vec![
+            ("classic".to_owned(), 100),
+            ("classic".to_owned(), 125),
+            ("islands".to_owned(), 100),
+            ("islands".to_owned(), 125),
+        ]
+    );
 }
 
 fn expect_error(manifest: ScreensManifest, fragment: &str) {
