@@ -6,5 +6,7 @@
 
 /// Typed events and delivery interfaces shared by client adapters.
 pub mod events;
+/// Keyboard shortcut parsing, display, conflicts and dispatch.
+pub mod keymap;
 /// Application directories resolved by the client at startup.
 pub mod paths;
