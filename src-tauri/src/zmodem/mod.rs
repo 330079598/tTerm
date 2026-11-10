@@ -9,7 +9,7 @@ use std::sync::atomic::AtomicBool;
 use std::sync::mpsc::Sender;
 use std::sync::Arc;
 
-use tauri::Emitter;
+use tterm_core::events::EventSink;
 
 use crate::core::state::ChannelContext;
 use crate::core::{state::ZmodemArmedSend, state::ZmodemTabHandle};
@@ -97,7 +97,12 @@ pub fn arm_send(channel: &ChannelContext, trigger_bytes: Vec<u8>) -> Sender<Vec<
         },
     );
     let _ = tx.send(trigger_bytes);
-    let event = format!("zmodem-send-requested-{tab_id}");
-    let _ = app.emit_to(tauri::EventTarget::any(), &event, ());
+    let _ = crate::event_sink::TauriEventSink::new(app.clone()).emit(
+        tterm_core::events::AppEvent::Zmodem(
+            tterm_core::events::zmodem::ZmodemEvent::SendRequested {
+                tab_id: tab_id.clone(),
+            },
+        ),
+    );
     tx
 }

@@ -9,7 +9,7 @@ use std::io::Write;
 use std::path::PathBuf;
 use std::sync::atomic::Ordering;
 use std::sync::PoisonError;
-use tauri::{AppHandle, Emitter, State};
+use tauri::{AppHandle, State};
 
 use crate::core::state::ActiveSession;
 use crate::core::{
@@ -116,9 +116,15 @@ pub fn zmodem_start_send(
     let paths: Vec<PathBuf> = local_paths.into_iter().map(PathBuf::from).collect();
     let zmodem_map_for_thread = zmodem_state.inner().clone();
     let emit_tab_id = tab_id.clone();
-    let emit: super::events::EmitFn = Box::new(move |kind, payload| {
-        let event = format!("zmodem-{kind}-{emit_tab_id}");
-        let _ = app.emit_to(tauri::EventTarget::any(), &event, payload);
+    let emit: tterm_core::events::zmodem::TransferEmitter = Box::new(move |event| {
+        let _ = crate::event_sink::TauriEventSink::new(app.clone()).emit(
+            tterm_core::events::AppEvent::Zmodem(
+                tterm_core::events::zmodem::ZmodemEvent::Transfer {
+                    tab_id: emit_tab_id.clone(),
+                    event,
+                },
+            ),
+        );
     });
 
     std::thread::spawn(move || {
@@ -166,3 +172,5 @@ pub fn zmodem_arm_manual_detect(
 
     Ok(())
 }
+
+use tterm_core::events::EventSink;

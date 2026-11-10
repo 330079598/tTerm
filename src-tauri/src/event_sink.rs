@@ -3,6 +3,7 @@
 mod background; // P1-03.
 mod ssh; // P1-03.
 mod tunnel;
+pub(crate) mod zmodem; // P1-03.
 
 use serde::Serialize;
 use serde_json::Value;
@@ -26,8 +27,9 @@ impl TauriEventSink {
     pub(crate) fn wire(event: &AppEvent) -> Result<(EventName, EventTarget, Value), String> {
         let payload = match event {
             AppEvent::Tunnel(event) => tunnel::wire(event)?,
+            AppEvent::Zmodem(event) => zmodem::wire(event)?, // P1-03.
             AppEvent::Background(event) => background::wire(event)?, // P1-03.
-            AppEvent::Ssh(event) => ssh::wire(event)?,               // P1-03.
+            AppEvent::Ssh(event) => ssh::wire(event)?,       // P1-03.
         };
         Ok((event.name(), event.target(), payload))
     }

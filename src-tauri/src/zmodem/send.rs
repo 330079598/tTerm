@@ -28,7 +28,7 @@ use std::time::{Duration, Instant};
 
 use tokio::sync::Mutex as TokioMutex;
 
-use super::events::{self, EmitFn};
+use super::events;
 use super::protocol::{consts::ZmodemDirection, engine::ZmodemAction, engine::ZmodemEngine};
 use crate::core::state::ActiveSession;
 use crate::core::state::ZmodemMap;
@@ -118,7 +118,7 @@ const FEED_TIMEOUT: Duration = Duration::from_secs(30);
 const PROGRESS_EMIT_INTERVAL: Duration = Duration::from_millis(120);
 
 pub struct ZmodemSendParams {
-    pub emit: EmitFn,
+    pub emit: TransferEmitter,
     pub tab_id: String,
     pub zmodem_map: ZmodemMap,
     pub incoming: Receiver<Vec<u8>>,
@@ -202,7 +202,7 @@ struct SendLink<'a> {
     incoming: &'a Receiver<Vec<u8>>,
     active: &'a Arc<TokioMutex<Option<ActiveSession>>>,
     cancel_requested: &'a AtomicBool,
-    emit: &'a EmitFn,
+    emit: &'a TransferEmitter,
 }
 
 /// Sends one file: waits for the peer to be ready for it, announces it,
@@ -253,58 +253,42 @@ fn send_one_file(
     {
         handle.transfer_id = transfer_id.clone();
     }
-    events::emit(
-        emit,
-        "transfer-start",
-        TransferStartPayload {
-            transfer_id: transfer_id.clone(),
-            direction: "upload",
-            file_name,
-            file_size,
-            local_path: path.display().to_string(),
-            size_unknown: false,
-        },
-    );
+    (emit)(TransferEvent::Start(TransferStartPayload {
+        transfer_id: transfer_id.clone(),
+        direction: "upload",
+        file_name,
+        file_size,
+        local_path: path.display().to_string(),
+        size_unknown: false,
+    }));
 
     let Some(offset) = feed_until_pos(engine, incoming, active, cancel_requested) else {
-        events::emit(
-            emit,
-            "transfer-complete",
-            TransferCompletePayload {
-                transfer_id,
-                success: false,
-                cancelled: cancel_requested.load(Ordering::Relaxed),
-                error: None,
-            },
-        );
+        (emit)(TransferEvent::Complete(TransferCompletePayload {
+            transfer_id,
+            success: false,
+            cancelled: cancel_requested.load(Ordering::Relaxed),
+            error: None,
+        }));
         return false;
     };
 
     match push_file(engine, link, &mut file, offset, file_size, &transfer_id) {
         Some(_) => {
-            events::emit(
-                emit,
-                "transfer-complete",
-                TransferCompletePayload {
-                    transfer_id,
-                    success: true,
-                    cancelled: false,
-                    error: None,
-                },
-            );
+            (emit)(TransferEvent::Complete(TransferCompletePayload {
+                transfer_id,
+                success: true,
+                cancelled: false,
+                error: None,
+            }));
             true
         }
         None => {
-            events::emit(
-                emit,
-                "transfer-complete",
-                TransferCompletePayload {
-                    transfer_id,
-                    success: false,
-                    cancelled: true,
-                    error: None,
-                },
-            );
+            (emit)(TransferEvent::Complete(TransferCompletePayload {
+                transfer_id,
+                success: false,
+                cancelled: true,
+                error: None,
+            }));
             false
         }
     }
@@ -351,15 +335,11 @@ fn push_file(
             last_progress_at = now;
             let elapsed = now.duration_since(started_at).as_secs_f64().max(0.001);
             let speed = (offset as f64 / elapsed) as u64;
-            events::emit(
-                emit,
-                "transfer-progress",
-                TransferProgressPayload {
-                    transfer_id: transfer_id.to_string(),
-                    transferred: offset,
-                    speed,
-                },
-            );
+            (emit)(TransferEvent::Progress(TransferProgressPayload {
+                transfer_id: transfer_id.to_string(),
+                transferred: offset,
+                speed,
+            }));
         }
         if is_last {
             return Some(offset);
@@ -454,3 +434,5 @@ fn write_back(active: &Arc<TokioMutex<Option<ActiveSession>>>, bytes: &[u8]) {
 use tterm_core::events::zmodem::{
     TransferCompletePayload, TransferProgressPayload, TransferStartPayload,
 };
+
+use tterm_core::events::zmodem::{TransferEmitter, TransferEvent};

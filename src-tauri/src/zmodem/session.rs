@@ -13,10 +13,10 @@ use std::sync::Arc;
 use std::sync::PoisonError;
 use std::time::{Duration, Instant};
 
-use tauri::Emitter;
+use tterm_core::events::EventSink;
 
 use super::detect;
-use super::events::{self, EmitFn};
+use super::events;
 use super::protocol::consts::ZDLE;
 use super::protocol::{consts::ZmodemDirection, engine::ZmodemAction, engine::ZmodemEngine};
 use crate::core::state::ChannelContext;
@@ -85,7 +85,7 @@ struct InFlightTransfer {
 /// real windowed `AppHandle` (Tauri's `MockRuntime` test handle is a
 /// different, incompatible type from the `AppHandle` production code uses).
 pub struct ZmodemReceiveDriver {
-    emit: EmitFn,
+    emit: TransferEmitter,
     tab_id: String,
     session_nonce: u32,
     zmodem_map: ZmodemMap,
@@ -107,9 +107,15 @@ impl ZmodemReceiveDriver {
         let app = channel.app.clone();
         let emit_tab_id = channel.tab_id.clone();
         Self::with_emit(
-            Box::new(move |kind, payload| {
-                let event = format!("zmodem-{kind}-{emit_tab_id}");
-                let _ = app.emit_to(tauri::EventTarget::any(), &event, payload);
+            Box::new(move |event| {
+                let _ = crate::event_sink::TauriEventSink::new(app.clone()).emit(
+                    tterm_core::events::AppEvent::Zmodem(
+                        tterm_core::events::zmodem::ZmodemEvent::Transfer {
+                            tab_id: emit_tab_id.clone(),
+                            event,
+                        },
+                    ),
+                );
             }),
             channel.tab_id.clone(),
             channel.session_nonce,
@@ -132,7 +138,12 @@ impl ZmodemReceiveDriver {
         download_dir: PathBuf,
     ) -> Self {
         Self::with_emit(
-            Box::new(emit),
+            Box::new(move |event| {
+                let name = event.name("").as_string();
+                let kind = name.strip_prefix("zmodem-").unwrap().trim_end_matches('-');
+                let payload = crate::event_sink::zmodem::transfer_wire(&event).unwrap();
+                emit(kind, payload);
+            }),
             tab_id,
             session_nonce,
             zmodem_map,
@@ -143,7 +154,7 @@ impl ZmodemReceiveDriver {
     }
 
     fn with_emit(
-        emit: EmitFn,
+        emit: TransferEmitter,
         tab_id: String,
         session_nonce: u32,
         zmodem_map: ZmodemMap,
@@ -169,10 +180,6 @@ impl ZmodemReceiveDriver {
     #[cfg(test)]
     pub fn force_manual_override(&self) {
         self.manual_override.store(true, Ordering::Relaxed);
-    }
-
-    fn emit_event<T: serde::Serialize>(&self, kind: &str, payload: T) {
-        events::emit(&self.emit, kind, payload);
     }
 
     /// Processes one chunk of incoming bytes.
@@ -291,17 +298,14 @@ impl ZmodemReceiveDriver {
                     .outgoing
                     .extend_from_slice(&transfer.engine.accept_file(0));
                 let transfer_id = transfer.transfer_id.clone();
-                self.emit_event(
-                    "transfer-start",
-                    TransferStartPayload {
-                        transfer_id,
-                        direction: "download",
-                        file_name: name,
-                        file_size: size,
-                        local_path: dest_path.to_string_lossy().into_owned(),
-                        size_unknown: false,
-                    },
-                );
+                (&self.emit)(TransferEvent::Start(TransferStartPayload {
+                    transfer_id,
+                    direction: "download",
+                    file_name: name,
+                    file_size: size,
+                    local_path: dest_path.to_string_lossy().into_owned(),
+                    size_unknown: false,
+                }));
             }
             Err(err) => {
                 eprintln!(
@@ -336,14 +340,11 @@ impl ZmodemReceiveDriver {
         let speed = (file.written as f64 / elapsed) as u64;
         let transferred = file.written;
         let transfer_id = transfer.transfer_id.clone();
-        self.emit_event(
-            "transfer-progress",
-            TransferProgressPayload {
-                transfer_id,
-                transferred,
-                speed,
-            },
-        );
+        (&self.emit)(TransferEvent::Progress(TransferProgressPayload {
+            transfer_id,
+            transferred,
+            speed,
+        }));
     }
 
     fn on_file_complete(&mut self) {
@@ -364,15 +365,12 @@ impl ZmodemReceiveDriver {
             handle.transfer_id = next_id;
         }
         if let Some(transfer_id) = completed_transfer_id {
-            self.emit_event(
-                "transfer-complete",
-                TransferCompletePayload {
-                    transfer_id,
-                    success: true,
-                    cancelled: false,
-                    error: None,
-                },
-            );
+            (&self.emit)(TransferEvent::Complete(TransferCompletePayload {
+                transfer_id,
+                success: true,
+                cancelled: false,
+                error: None,
+            }));
         }
     }
 
@@ -387,15 +385,12 @@ impl ZmodemReceiveDriver {
     fn on_peer_cancelled(&mut self) {
         if let Some(transfer) = self.transfer.as_ref() {
             if transfer.file.is_some() {
-                self.emit_event(
-                    "transfer-complete",
-                    TransferCompletePayload {
-                        transfer_id: transfer.transfer_id.clone(),
-                        success: false,
-                        cancelled: true,
-                        error: Some("Cancelled by the remote rz/sz process".to_string()),
-                    },
-                );
+                (&self.emit)(TransferEvent::Complete(TransferCompletePayload {
+                    transfer_id: transfer.transfer_id.clone(),
+                    success: false,
+                    cancelled: true,
+                    error: Some("Cancelled by the remote rz/sz process".to_string()),
+                }));
             }
         }
         self.zmodem_map
@@ -408,15 +403,12 @@ impl ZmodemReceiveDriver {
     fn on_local_cancel(&mut self) {
         if let Some(transfer) = self.transfer.as_ref() {
             if transfer.file.is_some() {
-                self.emit_event(
-                    "transfer-complete",
-                    TransferCompletePayload {
-                        transfer_id: transfer.transfer_id.clone(),
-                        success: false,
-                        cancelled: true,
-                        error: None,
-                    },
-                );
+                (&self.emit)(TransferEvent::Complete(TransferCompletePayload {
+                    transfer_id: transfer.transfer_id.clone(),
+                    success: false,
+                    cancelled: true,
+                    error: None,
+                }));
             }
         }
         self.zmodem_map
@@ -603,3 +595,5 @@ mod tests {
 use tterm_core::events::zmodem::{
     TransferCompletePayload, TransferProgressPayload, TransferStartPayload,
 };
+
+use tterm_core::events::zmodem::{TransferEmitter, TransferEvent};
