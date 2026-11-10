@@ -12,6 +12,7 @@ pub struct QuitBlockers {
 }
 
 impl QuitBlockers {
+    /// Returns whether quitting would leave no running tunnels or unuploaded files.
     pub fn is_empty(&self) -> bool {
         self.tunnels == 0 && self.unuploaded_files.is_empty()
     }
@@ -22,10 +23,15 @@ use super::{EventName, EventTarget};
 /// P1-03: typed background notifications with the existing delivery contract.
 #[derive(Debug, Clone, PartialEq)]
 pub enum BackgroundEvent {
+    /// Asks the user to confirm quitting with the listed blockers.
     QuitRequested(QuitBlockers),
+    /// Asks the user how to handle a window close request.
     CloseRequested,
+    /// Gives the frontend a chance to save before the application exits.
     WillQuit,
+    /// Requests the tunnels panel from the tray menu.
     OpenTunnels,
+    /// Requests an update check from the tray menu.
     CheckUpdates,
 }
 impl BackgroundEvent {

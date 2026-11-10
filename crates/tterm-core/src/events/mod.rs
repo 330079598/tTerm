@@ -25,21 +25,21 @@ use zmodem::ZmodemEvent;
 pub enum AppEvent {
     /// Tunnel state and traffic changed.
     Tunnel(TunnelEvent),
-    /// P1-03: launch_dir event delivery.
+    /// P1-03: directories queued for the frontend to open.
     LaunchDir(LaunchDirEvent),
-    /// P1-03: notification event delivery.
+    /// P1-03: activation of a desktop notification and its optional tab.
     Notification(NotificationEvent),
-    /// P1-03: terminal event delivery.
+    /// P1-03: terminal working directory updates.
     Terminal(TerminalEvent),
-    /// P1-03: session_log event delivery.
+    /// P1-03: session logging state and errors.
     SessionLog(SessionLogEvent),
-    /// P1-03: serial event delivery.
+    /// P1-03: serial file transfer lifecycle updates.
     Serial(SerialEvent),
-    /// P1-03: zmodem event delivery.
+    /// P1-03: ZMODEM send requests and transfer lifecycle updates.
     Zmodem(ZmodemEvent),
-    /// P1-03: background event delivery.
+    /// P1-03: close and quit coordination and tray menu requests.
     Background(BackgroundEvent),
-    /// P1-03: ssh event delivery.
+    /// P1-03: SSH connection progress and remote operating system reports.
     Ssh(SshEvent),
 }
 

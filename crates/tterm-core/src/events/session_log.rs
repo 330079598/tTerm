@@ -26,6 +26,7 @@ pub struct LogErrorPayload {
 #[derive(Debug, Clone, PartialEq, serde::Serialize)]
 #[serde(rename_all = "lowercase")]
 pub enum LogErrorPhase {
+    /// The log could not be started for the session.
     Start,
 }
 
@@ -34,7 +35,9 @@ use super::{EventName, EventTarget};
 /// P1-03: typed session_log notifications with the existing delivery contract.
 #[derive(Debug, Clone, PartialEq)]
 pub enum SessionLogEvent {
+    /// Reports a session logging or background log maintenance error.
     Error(LogErrorPayload),
+    /// Reports the current session logging state and storage usage.
     Status(TerminalLogStatus),
 }
 impl SessionLogEvent {

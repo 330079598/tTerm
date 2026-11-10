@@ -13,6 +13,7 @@ use super::{EventName, EventTarget};
 /// P1-03: typed terminal notifications with the existing delivery contract.
 #[derive(Debug, Clone, PartialEq)]
 pub enum TerminalEvent {
+    /// Reports the local shell's working directory for a tab and session nonce.
     Cwd { tab_id: String, payload: CwdPayload },
 }
 impl TerminalEvent {

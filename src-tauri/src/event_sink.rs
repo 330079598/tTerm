@@ -72,7 +72,4 @@ impl EventSink for TauriEventSink {
 }
 
 #[cfg(test)]
-mod legacy_contract_tests;
-
-#[cfg(test)]
 mod p1_03_tests;

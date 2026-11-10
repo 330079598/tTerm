@@ -1,20 +1,29 @@
 use serde::Serialize;
 
+/// A connection phase update with optional host, authentication and retry details.
 #[derive(Clone, Debug, Serialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct SshConnectionProgressPayload {
+    /// The connection phase understood by the frontend.
     pub phase: String,
+    /// The status message associated with this phase.
     pub message: String,
+    /// The current hop's index when connecting through jump hosts.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub hop_index: Option<usize>,
+    /// The total number of hops in the connection chain.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub total_hops: Option<usize>,
+    /// The host associated with this phase.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub host: Option<String>,
+    /// The SSH port of the host associated with this phase.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub port: Option<u16>,
+    /// The login name associated with this phase.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub username: Option<String>,
+    /// The measured network latency, in milliseconds, when available.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub network_latency_ms: Option<u64>,
     /// 1-indexed reconnect attempt for the `retrying` phase.
@@ -40,6 +49,7 @@ pub struct SshConnectionProgressPayload {
     pub auth: Option<AuthUsedPayload>,
 }
 
+/// The authentication method that succeeded during automatic authentication.
 #[derive(Clone, Debug, Serialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct AuthUsedPayload {
@@ -52,6 +62,7 @@ pub struct AuthUsedPayload {
 }
 
 impl SshConnectionProgressPayload {
+    /// Creates a phase update with no optional connection details attached.
     pub fn new(phase: impl Into<String>, message: impl Into<String>) -> Self {
         Self {
             phase: phase.into(),
@@ -71,28 +82,33 @@ impl SshConnectionProgressPayload {
         }
     }
 
+    /// Attaches the host and SSH port for this phase.
     pub fn host(mut self, host: impl Into<String>, port: u16) -> Self {
         self.host = Some(host.into());
         self.port = Some(port);
         self
     }
 
+    /// Attaches the login name for this phase.
     pub fn username(mut self, username: impl Into<String>) -> Self {
         self.username = Some(username.into());
         self
     }
 
+    /// Attaches the current hop index and total hop count.
     pub fn hop(mut self, hop_index: usize, total_hops: usize) -> Self {
         self.hop_index = Some(hop_index);
         self.total_hops = Some(total_hops);
         self
     }
 
+    /// Attaches the measured latency, or clears it when unavailable.
     pub fn network_latency(mut self, network_latency_ms: Option<u64>) -> Self {
         self.network_latency_ms = network_latency_ms;
         self
     }
 
+    /// Attaches the shell integration result, or clears it when unavailable.
     pub fn shell_integration(mut self, status: Option<ShellIntegrationStatus>) -> Self {
         self.shell_integration = status;
         self
@@ -122,6 +138,7 @@ impl SshConnectionProgressPayload {
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 #[serde(tag = "status", rename_all = "camelCase")]
 pub enum ShellIntegrationStatus {
+    /// Shell integration was installed for the connected session.
     Active {
         /// The host's name (`uname -n`), which tells its directory reports
         /// apart from those of a host reached from it with `ssh`.
@@ -140,9 +157,7 @@ pub enum ShellIntegrationStatus {
 #[serde(tag = "code", rename_all = "camelCase")]
 pub enum UnavailableReason {
     /// The login shell is not bash, zsh or fish.
-    Shell {
-        shell: String,
-    },
+    Shell { shell: String },
     /// Nothing ran the installer: no POSIX `sh` (a network device, a Windows
     /// server) or a forced command.
     NoReply,
@@ -152,11 +167,14 @@ pub enum UnavailableReason {
     Path,
     /// The server refused to run the start script.
     Rejected,
+    /// The shell integration setup did not finish before its deadline.
     TimedOut,
     /// The SSH channel failed.
     Failed,
 }
 
+/// What a host says it runs, in `/etc/os-release` terms. Linux and FreeBSD
+/// have that file; the monitor fills it in from `sw_vers` on macOS.
 #[derive(Debug, Clone, Serialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct LinuxDistributionInfo {
@@ -180,10 +198,12 @@ use super::{EventName, EventTarget};
 /// P1-03: typed ssh notifications with the existing delivery contract.
 #[derive(Debug, Clone, PartialEq)]
 pub enum SshEvent {
+    /// Reports a tab's connection phase and its associated details.
     ConnectionProgress {
         tab_id: String,
         payload: SshConnectionProgressPayload,
     },
+    /// Reports the operating system identified for a connected host.
     RemoteOs(RemoteOsPayload),
 }
 impl SshEvent {

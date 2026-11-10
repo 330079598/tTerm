@@ -12,6 +12,7 @@ use super::{EventName, EventTarget};
 /// P1-03: typed notification notifications with the existing delivery contract.
 #[derive(Debug, Clone, PartialEq)]
 pub enum NotificationEvent {
+    /// A desktop notification was clicked, optionally requesting a specific tab.
     Activated(ActivatedPayload),
 }
 impl NotificationEvent {

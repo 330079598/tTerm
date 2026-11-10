@@ -5,6 +5,7 @@ use super::{EventName, EventTarget};
 /// P1-03: typed serial notifications with the existing delivery contract.
 #[derive(Debug, Clone, PartialEq)]
 pub enum SerialEvent {
+    /// Reports a tab's serial file transfer through the shared transfer contract.
     Transfer {
         tab_id: String,
         event: TransferEvent,

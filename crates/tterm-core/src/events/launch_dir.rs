@@ -3,6 +3,7 @@ use super::{EventName, EventTarget};
 /// P1-03: typed launch_dir notifications with the existing delivery contract.
 #[derive(Debug, Clone, PartialEq)]
 pub enum LaunchDirEvent {
+    /// Directories are queued for the frontend to retrieve and open.
     Queued,
 }
 impl LaunchDirEvent {

@@ -22,8 +22,7 @@ pub struct MonitorSession {
     pub ssh: client::Handle<crate::ssh::types::SshClientHandler>,
 }
 
-/// What a host says it runs, in `/etc/os-release` terms. Linux and FreeBSD
-/// have that file; the monitor fills it in from `sw_vers` on macOS.
+/// Cumulative CPU time counters used to calculate usage between samples.
 #[derive(Debug, Clone, Default, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CpuTimes {
