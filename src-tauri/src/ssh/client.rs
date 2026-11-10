@@ -191,10 +191,6 @@ pub struct SshChannelIo {
     pub sender: Option<crate::terminal::io_batcher::TerminalOutputSender>,
 }
 
-#[expect(
-    clippy::too_many_lines,
-    reason = "predates the 150-line limit; split it when it next changes"
-)]
 pub async fn run_single_ssh_connection(
     tab: ChannelContext,
     settings: ZmodemSettings,
@@ -205,24 +201,17 @@ pub async fn run_single_ssh_connection(
     io: SshChannelIo,
 ) -> SshExitSignal {
     let SshChannelIo {
-        mut stop_rx,
-        mut input_rx,
+        stop_rx,
+        input_rx,
         mut resize_rx,
         mut sender,
     } = io;
     let app = tab.app.clone();
     let tab_id = tab.tab_id.clone();
-    macro_rules! finish_output {
-        () => {
-            if let Some(sender) = sender.as_mut() {
-                run_blocking(|| sender.finish());
-            }
-        };
-    }
     let host: String = match &plan.host {
         Some(host) => host.clone(),
         None => {
-            finish_output!();
+            finish_output(&mut sender);
             return SshExitSignal {
                 terminated: true,
                 recoverable: false,
@@ -234,7 +223,7 @@ pub async fn run_single_ssh_connection(
     let username: String = match &plan.username {
         Some(username) => username.clone(),
         None => {
-            finish_output!();
+            finish_output(&mut sender);
             return SshExitSignal {
                 terminated: true,
                 recoverable: false,
@@ -261,7 +250,7 @@ pub async fn run_single_ssh_connection(
     {
         Ok(result) => result,
         Err(err) => {
-            finish_output!();
+            finish_output(&mut sender);
             // Auth failures and host-key rejections are permanent: automatic
             // reconnect must not loop on them.
             let recoverable = err.is_retryable();
@@ -277,6 +266,87 @@ pub async fn run_single_ssh_connection(
     let route = target_route(&plan, &host, &username);
     let session = share_session(route.as_ref(), session, jump_chain);
 
+    let PreparedTerminal {
+        channel,
+        early_output,
+        shell_integration_status,
+        network_latency_ms,
+    } = match prepare_terminal(
+        &session,
+        &plan,
+        &host,
+        &username,
+        (rows, cols),
+        &mut resize_rx,
+        &mut sender,
+    )
+    .await
+    {
+        Ok(prepared) => prepared,
+        Err(signal) => return signal,
+    };
+
+    emit_connection_progress(
+        &app,
+        &tab_id,
+        ConnectionStatusOptions::VERBOSE,
+        SshConnectionProgressPayload::new(
+            "ready",
+            format!("Connected to {}@{}:{}", username, host, plan.port),
+        )
+        .host(host.clone(), plan.port)
+        .username(username.clone())
+        .network_latency(Some(network_latency_ms))
+        .shell_integration(shell_integration_status),
+    );
+
+    // Asked once the shell is requested, so its answer travels alongside the
+    // first prompt instead of ahead of it.
+    if crate::config::tab_icons_enabled() {
+        super::remote_os::probe(&app, &tab_id, &session.handle).await;
+    }
+
+    read_connection(ConnectedSession {
+        tab,
+        settings,
+        plan,
+        route,
+        session,
+        channel,
+        early_output,
+        io: SshChannelIo {
+            stop_rx,
+            input_rx,
+            resize_rx,
+            sender,
+        },
+    })
+    .await
+}
+
+fn finish_output(sender: &mut Option<crate::terminal::io_batcher::TerminalOutputSender>) {
+    if let Some(sender) = sender.as_mut() {
+        run_blocking(|| sender.finish());
+    }
+}
+
+struct PreparedTerminal {
+    channel: russh::Channel<russh::client::Msg>,
+    early_output: Option<Vec<u8>>,
+    shell_integration_status: Option<ShellIntegrationStatus>,
+    network_latency_ms: u64,
+}
+
+async fn prepare_terminal(
+    session: &PooledSession<SshClientHandler>,
+    plan: &SessionPlan,
+    host: &str,
+    username: &str,
+    size: (u16, u16),
+    resize_rx: &mut mpsc::UnboundedReceiver<(u16, u16)>,
+    sender: &mut Option<crate::terminal::io_batcher::TerminalOutputSender>,
+) -> Result<PreparedTerminal, SshExitSignal> {
+    let (rows, cols) = size;
     // The command that starts the shell with shell integration, and how
     // integration went for the connection header.
     let unavailable = |reason| Some(ShellIntegrationStatus::Unavailable { reason });
@@ -291,18 +361,18 @@ pub async fn run_single_ssh_connection(
         }
     };
 
-    let (mut rows, mut cols) = latest_queued_size(&mut resize_rx, (rows, cols));
+    let (mut rows, mut cols) = latest_queued_size(resize_rx, (rows, cols));
     let channel_open_started_at = tokio::time::Instant::now();
-    let mut channel = match open_terminal_channel(&session.handle, &plan, rows, cols).await {
+    let mut channel = match open_terminal_channel(&session.handle, plan, rows, cols).await {
         Ok(channel) => channel,
         Err(reason) => {
-            finish_output!();
-            return SshExitSignal {
+            finish_output(sender);
+            return Err(SshExitSignal {
                 terminated: false,
                 recoverable: true,
                 reason: Some(reason),
                 connected_duration: None,
-            };
+            });
         }
     };
     let network_latency_ms = channel_open_started_at
@@ -326,17 +396,17 @@ pub async fn run_single_ssh_connection(
         }
         if early_output.is_none() {
             // That channel is closed; the plain shell gets a fresh one.
-            (rows, cols) = latest_queued_size(&mut resize_rx, (rows, cols));
-            channel = match open_terminal_channel(&session.handle, &plan, rows, cols).await {
+            (rows, cols) = latest_queued_size(resize_rx, (rows, cols));
+            channel = match open_terminal_channel(&session.handle, plan, rows, cols).await {
                 Ok(channel) => channel,
                 Err(reason) => {
-                    finish_output!();
-                    return SshExitSignal {
+                    finish_output(sender);
+                    return Err(SshExitSignal {
                         terminated: false,
                         recoverable: true,
                         reason: Some(reason),
                         connected_duration: None,
-                    };
+                    });
                 }
             };
         }
@@ -344,36 +414,127 @@ pub async fn run_single_ssh_connection(
 
     if early_output.is_none() {
         if let Err(err) = channel.request_shell(false).await {
-            finish_output!();
-            return SshExitSignal {
+            finish_output(sender);
+            return Err(SshExitSignal {
                 terminated: false,
                 recoverable: true,
                 reason: Some(format!("Failed to request SSH shell: {err}")),
                 connected_duration: None,
-            };
+            });
         }
     }
 
-    emit_connection_progress(
-        &app,
-        &tab_id,
-        ConnectionStatusOptions::VERBOSE,
-        SshConnectionProgressPayload::new(
-            "ready",
-            format!("Connected to {}@{}:{}", username, host, plan.port),
+    Ok(PreparedTerminal {
+        channel,
+        early_output,
+        shell_integration_status,
+        network_latency_ms,
+    })
+}
+
+struct IncomingOutput<'a> {
+    tab: &'a ChannelContext,
+    sender: &'a Option<crate::terminal::io_batcher::TerminalOutputSender>,
+    output_decoder: &'a mut Option<crate::terminal::encoding::OutputDecoder>,
+    zmodem_driver: &'a mut ZmodemReceiveDriver,
+    zmodem_send_pipe: &'a mut crate::zmodem::ZmodemSendPipe,
+    ssh_query_pending: &'a mut Vec<u8>,
+    connected_at: std::time::Instant,
+    record_raw_output: bool,
+}
+
+impl IncomingOutput<'_> {
+    async fn data(
+        &mut self,
+        data: &[u8],
+        writer_stream: &mut (impl tokio::io::AsyncWrite + Unpin),
+    ) -> Result<(), SshExitSignal> {
+        if self.record_raw_output {
+            crate::session_log::record_output(&self.tab.app, &self.tab.tab_id, data);
+        }
+
+        if self.zmodem_send_pipe.try_forward(data) {
+            return Ok(());
+        }
+
+        // Process terminal queries (vim t_u7, t_RV, etc.) before forwarding to UI
+        // This is critical for SSH connections where vim waits for responses
+        let processed = crate::terminal::ssh_query_handler::process_ssh_output_for_ui(
+            data,
+            &mut self.ssh_query_pending,
+            writer_stream,
         )
-        .host(host.clone(), plan.port)
-        .username(username.clone())
-        .network_latency(Some(network_latency_ms))
-        .shell_integration(shell_integration_status),
-    );
+        .await;
 
-    // Asked once the shell is requested, so its answer travels alongside the
-    // first prompt instead of ahead of it.
-    if crate::config::tab_icons_enabled() {
-        super::remote_os::probe(&app, &tab_id, &session.handle).await;
+        let bytes = match processed {
+            Ok(bytes) => bytes,
+            Err(e) => {
+                // Fallback: use raw data if processing fails
+                eprintln!("SSH output processing failed: {}", e);
+                data.to_vec()
+            }
+        };
+        if !bytes.is_empty() {
+            let outcome = self.zmodem_driver.process(&bytes);
+            if !outcome.outgoing.is_empty() {
+                if let Err(err) = writer_stream.write_all(&outcome.outgoing).await {
+                    return Err(SshExitSignal {
+                        terminated: false,
+                        recoverable: true,
+                        reason: Some(format!("SSH write failed: {err}")),
+                        connected_duration: Some(self.connected_at.elapsed()),
+                    });
+                }
+            }
+            if let Some(remainder) = outcome.send_requested {
+                let tx = crate::zmodem::arm_send(self.tab, remainder);
+                self.zmodem_send_pipe.arm(tx);
+                return Ok(());
+            }
+            if !outcome.passthrough.is_empty() {
+                deliver_output(
+                    &self.tab.app,
+                    &self.tab.tab_id,
+                    self.sender.as_ref(),
+                    self.output_decoder.as_mut(),
+                    outcome.passthrough,
+                );
+            }
+        }
+        Ok(())
     }
+}
 
+struct ConnectedSession {
+    tab: ChannelContext,
+    settings: ZmodemSettings,
+    plan: SessionPlan,
+    route: Option<RouteKey>,
+    session: Arc<PooledSession<SshClientHandler>>,
+    channel: russh::Channel<russh::client::Msg>,
+    early_output: Option<Vec<u8>>,
+    io: SshChannelIo,
+}
+
+async fn read_connection(connection: ConnectedSession) -> SshExitSignal {
+    let ConnectedSession {
+        tab,
+        settings,
+        plan,
+        route,
+        session,
+        channel,
+        early_output,
+        io,
+    } = connection;
+    let SshChannelIo {
+        mut stop_rx,
+        mut input_rx,
+        mut resize_rx,
+        mut sender,
+    } = io;
+    let app = tab.app.clone();
+    let tab_id = tab.tab_id.clone();
     let (mut reader, writer) = channel.split();
     let mut writer_stream = writer.make_writer();
     let mut ssh_query_pending = Vec::new();
@@ -408,7 +569,7 @@ pub async fn run_single_ssh_connection(
                 if *stop_rx.borrow() {
                     let _ = writer.close().await;
                     close_session(route.as_ref(), &session, "Session closed").await;
-                    finish_output!();
+                    finish_output(&mut sender);
                     return SshExitSignal {
                         terminated: true,
                         recoverable: false,
@@ -420,7 +581,7 @@ pub async fn run_single_ssh_connection(
             incoming = input_rx.recv() => {
                 if let Some(data) = incoming {
                     if let Err(err) = writer_stream.write_all(&data).await {
-                        finish_output!();
+                        finish_output(&mut sender);
                         return SshExitSignal {
                             terminated: false,
                             recoverable: true,
@@ -433,7 +594,7 @@ pub async fn run_single_ssh_connection(
             resize = resize_rx.recv() => {
                 if let Some((next_rows, next_cols)) = resize {
                     if let Err(err) = writer.window_change(next_cols as u32, next_rows as u32, 0, 0).await {
-                        finish_output!();
+                        finish_output(&mut sender);
                         return SshExitSignal {
                             terminated: false,
                             recoverable: true,
@@ -446,57 +607,14 @@ pub async fn run_single_ssh_connection(
             event = reader.wait() => {
                 match event {
                     Some(ChannelMsg::Data { data }) => {
-                        if record_raw_output {
-                            crate::session_log::record_output(&app, &tab_id, data.as_ref());
-                        }
-
-                        if zmodem_send_pipe.try_forward(data.as_ref()) {
-                            continue;
-                        }
-
-                        // Process terminal queries (vim t_u7, t_RV, etc.) before forwarding to UI
-                        // This is critical for SSH connections where vim waits for responses
-                        let processed = crate::terminal::ssh_query_handler::process_ssh_output_for_ui(
-                            data.as_ref(),
-                            &mut ssh_query_pending,
-                            &mut writer_stream,
-                        ).await;
-
-                        let bytes = match processed {
-                            Ok(bytes) => bytes,
-                            Err(e) => {
-                                // Fallback: use raw data if processing fails
-                                eprintln!("SSH output processing failed: {}", e);
-                                data.as_ref().to_vec()
-                            }
-                        };
-                        if !bytes.is_empty() {
-                            let outcome = zmodem_driver.process(&bytes);
-                            if !outcome.outgoing.is_empty() {
-                                if let Err(err) = writer_stream.write_all(&outcome.outgoing).await {
-                                    finish_output!();
-                                    return SshExitSignal {
-                                        terminated: false,
-                                        recoverable: true,
-                                        reason: Some(format!("SSH write failed: {err}")),
-                                        connected_duration: Some(connected_at.elapsed()),
-                                    };
-                                }
-                            }
-                            if let Some(remainder) = outcome.send_requested {
-                                let tx = crate::zmodem::arm_send(&tab, remainder);
-                                zmodem_send_pipe.arm(tx);
-                                continue;
-                            }
-                            if !outcome.passthrough.is_empty() {
-                                deliver_output(
-                                    &app,
-                                    &tab_id,
-                                    sender.as_ref(),
-                                    output_decoder.as_mut(),
-                                    outcome.passthrough,
-                                );
-                            }
+                        let result = IncomingOutput {
+                            tab: &tab, sender: &sender, output_decoder: &mut output_decoder,
+                            zmodem_driver: &mut zmodem_driver, zmodem_send_pipe: &mut zmodem_send_pipe,
+                            ssh_query_pending: &mut ssh_query_pending, connected_at, record_raw_output,
+                        }.data(data.as_ref(), &mut writer_stream).await;
+                        if let Err(signal) = result {
+                            finish_output(&mut sender);
+                            return signal;
                         }
                     }
                     Some(ChannelMsg::ExtendedData { data, .. }) => {
@@ -513,7 +631,7 @@ pub async fn run_single_ssh_connection(
                     }
                     Some(ChannelMsg::ExitStatus { .. }) => {
                         close_session(route.as_ref(), &session, "Shell exited").await;
-                        finish_output!();
+                        finish_output(&mut sender);
                         return SshExitSignal {
                             terminated: true,
                             recoverable: false,
@@ -522,7 +640,7 @@ pub async fn run_single_ssh_connection(
                         };
                     }
                     Some(ChannelMsg::Eof) | Some(ChannelMsg::Close) | None => {
-                        finish_output!();
+                        finish_output(&mut sender);
                         return SshExitSignal {
                             terminated: false,
                             recoverable: true,
