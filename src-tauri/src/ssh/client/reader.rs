@@ -16,7 +16,6 @@ struct IncomingOutput<'a> {
     zmodem_driver: &'a mut ZmodemReceiveDriver,
     zmodem_send_pipe: &'a mut crate::zmodem::ZmodemSendPipe,
     ssh_query_pending: &'a mut Vec<u8>,
-    connected_at: std::time::Instant,
     record_raw_output: bool,
 }
 
@@ -25,7 +24,7 @@ impl IncomingOutput<'_> {
         &mut self,
         data: &[u8],
         writer_stream: &mut (impl tokio::io::AsyncWrite + Unpin),
-    ) -> Result<(), SshExitSignal> {
+    ) -> Result<(), String> {
         if self.record_raw_output {
             crate::session_log::record_output(&self.tab.app, &self.tab.tab_id, data);
         }
@@ -38,7 +37,7 @@ impl IncomingOutput<'_> {
         // This is critical for SSH connections where vim waits for responses
         let processed = crate::terminal::ssh_query_handler::process_ssh_output_for_ui(
             data,
-            &mut self.ssh_query_pending,
+            self.ssh_query_pending,
             writer_stream,
         )
         .await;
@@ -55,12 +54,7 @@ impl IncomingOutput<'_> {
             let outcome = self.zmodem_driver.process(&bytes);
             if !outcome.outgoing.is_empty() {
                 if let Err(err) = writer_stream.write_all(&outcome.outgoing).await {
-                    return Err(SshExitSignal {
-                        terminated: false,
-                        recoverable: true,
-                        reason: Some(format!("SSH write failed: {err}")),
-                        connected_duration: Some(self.connected_at.elapsed()),
-                    });
+                    return Err(format!("SSH write failed: {err}"));
                 }
             }
             if let Some(remainder) = outcome.send_requested {
@@ -187,11 +181,16 @@ pub(super) async fn read_connection(connection: ConnectedSession) -> SshExitSign
                         let result = IncomingOutput {
                             tab: &tab, sender: &sender, output_decoder: &mut output_decoder,
                             zmodem_driver: &mut zmodem_driver, zmodem_send_pipe: &mut zmodem_send_pipe,
-                            ssh_query_pending: &mut ssh_query_pending, connected_at, record_raw_output,
+                            ssh_query_pending: &mut ssh_query_pending, record_raw_output,
                         }.data(data.as_ref(), &mut writer_stream).await;
-                        if let Err(signal) = result {
+                        if let Err(reason) = result {
                             finish_output(&mut sender);
-                            return signal;
+                            return SshExitSignal {
+                                terminated: false,
+                                recoverable: true,
+                                reason: Some(reason),
+                                connected_duration: Some(connected_at.elapsed()),
+                            };
                         }
                     }
                     Some(ChannelMsg::ExtendedData { data, .. }) => {
