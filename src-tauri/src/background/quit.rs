@@ -33,7 +33,7 @@ impl QuitState {
 }
 
 /// Quits the app once the UI has saved, or once it took too long to.
-pub fn quit(app: &AppHandle) {
+pub fn quit<R: tauri::Runtime>(app: &AppHandle<R>) {
     if !quit_after_save(app) {
         if let Err(error) = app
             .state::<std::sync::Arc<dyn tterm_platform::process::ProcessControl>>()
@@ -46,7 +46,7 @@ pub fn quit(app: &AppHandle) {
 
 /// Starts a quit that waits for the UI to save. Returns `false` when there
 /// is nothing to wait for, and the caller is to exit at once.
-pub fn quit_after_save(app: &AppHandle) -> bool {
+pub fn quit_after_save<R: tauri::Runtime>(app: &AppHandle<R>) -> bool {
     let state = app.state::<QuitState>();
     if !state.should_wait() || app.emit(WILL_QUIT_EVENT, ()).is_err() {
         return false;
@@ -82,6 +82,47 @@ pub fn ready_to_quit(state: State<'_, QuitState>) {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    struct RecordingProcess(std::sync::atomic::AtomicUsize);
+    impl tterm_platform::process::ProcessControl for RecordingProcess {
+        fn exit(&self, code: i32) -> Result<(), String> {
+            assert_eq!(code, 0);
+            self.0.fetch_add(1, Ordering::SeqCst);
+            Ok(())
+        }
+        fn restart(&self) -> Result<(), String> {
+            panic!("quit must never restart");
+        }
+    }
+    #[tokio::test]
+    async fn final_exit_happens_after_ack_or_timeout_and_repeat_quit_is_not_trapped() {
+        for answer in [true, false] {
+            let process =
+                std::sync::Arc::new(RecordingProcess(std::sync::atomic::AtomicUsize::new(0)));
+            let app = tauri::test::mock_builder()
+                .manage(QuitState::default())
+                .manage(
+                    process.clone() as std::sync::Arc<dyn tterm_platform::process::ProcessControl>
+                )
+                .build(tauri::test::mock_context(tauri::test::noop_assets()))
+                .unwrap();
+            app.state::<QuitState>()
+                .save_before_quit
+                .store(true, Ordering::SeqCst);
+            quit(app.handle());
+            tokio::task::yield_now().await;
+            assert_eq!(process.0.load(Ordering::SeqCst), 0);
+            if answer {
+                app.state::<QuitState>().saved.notify_one();
+            } else {
+                tokio::time::sleep(SAVE_TIMEOUT + Duration::from_millis(100)).await;
+            }
+            tokio::time::sleep(Duration::from_millis(50)).await;
+            assert_eq!(process.0.load(Ordering::SeqCst), 1);
+            quit(app.handle());
+            assert_eq!(process.0.load(Ordering::SeqCst), 2);
+        }
+    }
 
     #[test]
     fn a_quit_waits_only_when_the_ui_has_something_to_save() {

@@ -131,3 +131,37 @@ pub fn cleanup_stale_pending_update_files(paths: &crate::paths::AppPaths) -> Res
 
     Ok(())
 }
+
+#[cfg(test)]
+mod tests {
+    #[tokio::test]
+    async fn cache_preserves_verified_bytes_and_only_removes_installer_files() {
+        let root = std::env::temp_dir().join(format!("p1-08-update-{}", uuid::Uuid::new_v4()));
+        let mut paths = crate::paths::AppPaths::native("com.stone.tTerm.p1-08-unit").unwrap();
+        paths.cache_dir = root.clone();
+        let path = super::pending_update_download_path(&paths, "../beta:dev").unwrap();
+        assert_eq!(path.parent().unwrap(), root.join("updates"));
+        assert!(
+            path.file_name()
+                .unwrap()
+                .to_string_lossy()
+                .starts_with("___beta_dev-")
+        );
+        super::write_pending_update_download("beta-dev", &path, b"verified release A")
+            .await
+            .unwrap();
+        assert_eq!(tokio::fs::read(&path).await.unwrap(), b"verified release A");
+        let unrelated = root.join("updates/keep.txt");
+        tokio::fs::write(&unrelated, b"keep").await.unwrap();
+        super::cleanup_stale_pending_update_files(&paths).unwrap();
+        assert!(!path.exists());
+        assert_eq!(tokio::fs::read(&unrelated).await.unwrap(), b"keep");
+        super::remove_pending_update_file(&path).await;
+        std::fs::remove_dir_all(root).unwrap();
+    }
+    #[test]
+    fn channels_preserve_existing_stable_fallback() {
+        assert!(super::update_endpoint("beta-dev").contains("/beta-dev/"));
+        assert!(super::update_endpoint("unknown").contains("/stable/"));
+    }
+}

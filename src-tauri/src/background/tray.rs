@@ -449,6 +449,31 @@ mod tests {
     }
 
     #[test]
+    fn model_keeps_actions_and_tunnel_checked_state_across_rebuilds() {
+        use tterm_platform::tray::MenuEntry;
+        let model = menu_model(labels("en"), &[tunnel("db", TunnelState::Running)]);
+        assert!(matches!(&model[0], MenuEntry::Item { id, .. } if id == MENU_SHOW));
+        assert!(matches!(&model[5], MenuEntry::Item { id, .. } if id == MENU_QUIT));
+        let MenuEntry::Submenu { entries, .. } = &model[2] else {
+            panic!("missing tunnel submenu");
+        };
+        assert!(
+            matches!(&entries[0], MenuEntry::Item { id, checked: Some(true), .. } if id == "tray-tunnel:t1")
+        );
+        let stopped = menu_model(labels("zh"), &[tunnel("db", TunnelState::Stopped)]);
+        let MenuEntry::Submenu { entries, .. } = &stopped[2] else {
+            panic!("missing tunnel submenu");
+        };
+        assert!(matches!(
+            &entries[0],
+            MenuEntry::Item {
+                checked: Some(false),
+                ..
+            }
+        ));
+    }
+
+    #[test]
     fn tunnel_labels_say_what_is_not_plainly_on_or_off() {
         let en = labels("en");
         assert_eq!(tunnel_label(en, &tunnel("db", TunnelState::Running)), "db");

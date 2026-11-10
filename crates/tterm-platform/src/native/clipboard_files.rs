@@ -317,3 +317,26 @@ mod platform {
         Ok(Vec::new())
     }
 }
+
+#[cfg(all(test, not(target_os = "windows")))]
+mod parsing_tests {
+    #[test]
+    fn copied_file_formats_ignore_markers_and_decode_paths() {
+        let parsed = super::parse_file_uri_lines(
+            "copy\n# ignored\nfile:///tmp/a%20b\nfile://localhost/tmp/%E4%B8%AD\ncut\n1\n0\nfile:///bad%ZZ\nhttps://example.test/a\n",
+        );
+        assert_eq!(parsed, ["/tmp/a b", "/tmp/中"]);
+    }
+    #[test]
+    fn filters_deleted_files_without_reordering_existing_files() {
+        let path = std::env::temp_dir().join(format!("p1-08-clipboard-{}", uuid::Uuid::new_v4()));
+        std::fs::write(&path, b"fixture").unwrap();
+        let missing = path.with_extension("missing");
+        let found = super::existing_paths(vec![
+            missing.to_string_lossy().into_owned(),
+            path.to_string_lossy().into_owned(),
+        ]);
+        std::fs::remove_file(&path).unwrap();
+        assert_eq!(found, [path.to_string_lossy()]);
+    }
+}
