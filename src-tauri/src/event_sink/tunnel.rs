@@ -1,18 +1,14 @@
+#[cfg(test)]
 use super::TauriEventSink;
 use serde_json::Value;
 use tterm_core::events::tunnel::TunnelEvent;
-use tterm_core::events::{AppEvent, EventName, EventTarget};
+#[cfg(test)]
+use tterm_core::events::{AppEvent, EventTarget};
 
-impl TauriEventSink {
-    /// Returns the wire representation used by Tauri. Keeping this mapping
-    /// separate makes the compatibility contract testable without a window.
-    pub(crate) fn wire(event: &AppEvent) -> Result<(EventName, EventTarget, Value), String> {
-        match event {
-            AppEvent::Tunnel(TunnelEvent::Status(status)) => Ok((
-                event.name(),
-                event.target(),
-                serde_json::to_value(status).map_err(|error| error.to_string())?,
-            )),
+pub(super) fn wire(event: &TunnelEvent) -> Result<Value, String> {
+    match event {
+        TunnelEvent::Status(status) => {
+            serde_json::to_value(status).map_err(|error| error.to_string())
         }
     }
 }

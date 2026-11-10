@@ -9,11 +9,12 @@ use crate::monitor::metrics::parse_os_identity;
 use crate::sftp::internal::exec::RemoteScript;
 use russh::client::{Handle, Handler};
 use std::time::Duration;
-use tauri::{AppHandle, Emitter};
+use tauri::AppHandle;
+use tterm_core::events::ssh::SshEvent;
+use tterm_core::events::{AppEvent, EventSink};
 
 /// Reports what a host runs; `distribution` is null for a host that says
 /// nothing about it, such as OpenBSD or a network device.
-const REMOTE_OS_EVENT: &str = "ssh-remote-os";
 
 /// Bounds starting the script and, separately, reading its output, so a
 /// server that never answers costs the terminal nothing.
@@ -43,7 +44,9 @@ pub(crate) async fn probe<H: Handler>(app: &AppHandle, tab_id: &str, session: &H
             tab_id,
             distribution: parse_os_identity(&output),
         };
-        if let Err(error) = app.emit(REMOTE_OS_EVENT, payload) {
+        if let Err(error) = crate::event_sink::TauriEventSink::new(app.clone())
+            .emit(AppEvent::Ssh(SshEvent::RemoteOs(payload)))
+        {
             eprintln!("Failed to report the remote OS: {error}");
         }
     });

@@ -1,9 +1,12 @@
 //! Tauri's event transport for typed core business events.
 
+mod ssh; // P1-03.
 mod tunnel;
 
 use serde::Serialize;
+use serde_json::Value;
 use tauri::{AppHandle, Emitter};
+use tterm_core::events::EventName;
 use tterm_core::events::{AppEvent, EventSink, EventTarget};
 
 /// Sends typed core events through Tauri while preserving existing event names,
@@ -16,6 +19,15 @@ pub(crate) struct TauriEventSink {
 impl TauriEventSink {
     pub(crate) fn new(app: AppHandle) -> Self {
         Self { app }
+    }
+
+    /// Maps domain payloads without touching the window or transport.
+    pub(crate) fn wire(event: &AppEvent) -> Result<(EventName, EventTarget, Value), String> {
+        let payload = match event {
+            AppEvent::Tunnel(event) => tunnel::wire(event)?,
+            AppEvent::Ssh(event) => ssh::wire(event)?, // P1-03.
+        };
+        Ok((event.name(), event.target(), payload))
     }
 
     fn emit_payload<T: Serialize + Clone>(

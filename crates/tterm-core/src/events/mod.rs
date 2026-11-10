@@ -8,6 +8,7 @@ pub mod terminal;
 pub mod tunnel;
 pub mod zmodem;
 
+use ssh::SshEvent;
 use tunnel::TunnelEvent;
 
 /// A business event emitted by a core service.
@@ -15,6 +16,8 @@ use tunnel::TunnelEvent;
 pub enum AppEvent {
     /// Tunnel state and traffic changed.
     Tunnel(TunnelEvent),
+    /// P1-03: ssh event delivery.
+    Ssh(SshEvent),
 }
 
 /// The logical delivery scope of an event.
@@ -54,6 +57,7 @@ impl AppEvent {
     pub fn target(&self) -> EventTarget {
         match self {
             Self::Tunnel(event) => event.target(),
+            Self::Ssh(event) => event.target(), // P1-03.
         }
     }
 
@@ -61,6 +65,7 @@ impl AppEvent {
     pub fn name(&self) -> EventName {
         match self {
             Self::Tunnel(event) => event.name(),
+            Self::Ssh(event) => event.name(), // P1-03.
         }
     }
 }

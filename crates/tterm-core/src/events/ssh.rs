@@ -1,6 +1,6 @@
 use serde::Serialize;
 
-#[derive(Clone, Debug, Serialize)]
+#[derive(Clone, Debug, Serialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct SshConnectionProgressPayload {
     pub phase: String,
@@ -40,7 +40,7 @@ pub struct SshConnectionProgressPayload {
     pub auth: Option<AuthUsedPayload>,
 }
 
-#[derive(Clone, Debug, Serialize)]
+#[derive(Clone, Debug, Serialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct AuthUsedPayload {
     /// The `auth_method` a profile would store for it.
@@ -157,7 +157,7 @@ pub enum UnavailableReason {
     Failed,
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct LinuxDistributionInfo {
     pub id: String,
@@ -167,9 +167,40 @@ pub struct LinuxDistributionInfo {
     pub version_id: Option<String>,
 }
 
-#[derive(Clone, Serialize)]
+#[derive(Clone, Debug, Serialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct RemoteOsPayload {
     pub tab_id: String,
     pub distribution: Option<LinuxDistributionInfo>,
+}
+
+use super::{EventName, EventTarget};
+
+/// P1-03: typed ssh notifications with the existing delivery contract.
+#[derive(Debug, Clone, PartialEq)]
+pub enum SshEvent {
+    ConnectionProgress {
+        tab_id: String,
+        payload: SshConnectionProgressPayload,
+    },
+    RemoteOs(RemoteOsPayload),
+}
+impl SshEvent {
+    /// Returns the legacy transport name.
+    pub fn name(&self) -> EventName {
+        match self {
+            Self::ConnectionProgress { tab_id, .. } => EventName::TabScoped {
+                prefix: "ssh-connection-progress",
+                tab_id: tab_id.clone(),
+            },
+            Self::RemoteOs(_) => EventName::Static("ssh-remote-os"),
+        }
+    }
+    /// Returns the event's delivery scope.
+    pub fn target(&self) -> EventTarget {
+        match self {
+            Self::ConnectionProgress { .. } => EventTarget::Any,
+            Self::RemoteOs(_) => EventTarget::Default,
+        }
+    }
 }

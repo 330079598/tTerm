@@ -149,8 +149,12 @@ pub fn emit_connection_progress(
         return;
     }
 
-    let event_name = format!("ssh-connection-progress-{tab_id}");
-    let _ = app.emit_to(tauri::EventTarget::any(), &event_name, payload);
+    let _ = crate::event_sink::TauriEventSink::new(app.clone()).emit(
+        tterm_core::events::AppEvent::Ssh(tterm_core::events::ssh::SshEvent::ConnectionProgress {
+            tab_id: tab_id.to_string(),
+            payload,
+        }),
+    );
 }
 
 /// A connection the server opened back to us for a remote (`-R`) port forward.
@@ -508,3 +512,5 @@ mod tests {
 #[cfg(test)]
 #[path = "types_legacy_tests.rs"]
 mod legacy_contract_tests;
+
+use tterm_core::events::EventSink;
