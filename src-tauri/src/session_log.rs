@@ -202,18 +202,6 @@ pub struct SessionLogState {
     recovered_directory: Mutex<Option<PathBuf>>,
 }
 
-#[derive(Clone, Debug, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct TerminalLogStatus {
-    /// Sessions are logged unless their connection or tab says otherwise.
-    enabled: bool,
-    directory: String,
-    active_sessions: usize,
-    recording_tab_ids: Vec<String>,
-    total_size_bytes: u64,
-    last_error: Option<String>,
-}
-
 pub fn start_session(
     app: &AppHandle,
     tab_id: &str,
@@ -453,3 +441,5 @@ fn emit_status(app: &AppHandle, state: &SessionLogState) {
 #[cfg(test)]
 #[path = "session_log_legacy_tests.rs"]
 mod legacy_contract_tests;
+
+use tterm_core::events::session_log::TerminalLogStatus;
