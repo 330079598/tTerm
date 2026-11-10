@@ -25,7 +25,8 @@
 - P0-10-mac-test 已通过并合并（2026-11-09）：macOS 上 `cargo test --workspace` 不再有失败项。
 - **P0 收窄**（[决策 015](decisions/015-trim-p0.md)、[决策 016](decisions/016-mac-windows-either.md)，2026-11-09）：P0-02、03、05、16、17、18、21 推迟，G0 取消；与 Tauri 版的性能对比在迁移完成后统一做一次（决策 015 第 5 条），各自的去向见决策 015。P0-24 已在 macOS 达标，满足 G1；Windows 通道改为待补。
 - **G1 通过**（2026-11-10，[决策 003](decisions/003-g1.md)）：P0-22 精简版与 U-03（dev 的 N-01 同步进 GPUI）已合并，P1-13 无内容。
-- 已合并（2026-11-10）：P1-01、P1-02。进行中（Mac）：P1-03 至 P1-06 第 1 轮计划、P1-08 第 1 轮设计、P1-11e（第 3 轮返工：handler 拒绝按键、测试转写不忠实等 17 项）、W0-05 B0 工具批（拆分计划已通过）。P0-24 Dialog 遗留已合并。
+- 已合并（2026-11-10）：P1-01、P1-02、P1-03、P1-04、P1-11e、W0-05 B0、P0-24 Dialog 遗留。进行中（Mac）：P1-05（broker 本体完成，等 P1-06 合并后接线）、P1-06（接线中，性能基线等空闲时段）、P1-08（第 3 轮）、P1-11b（第 2 轮，改用 `regress`，stone 决定）。分工与合并顺序见 `tTerm-dispatch/P1-split-decision.md`：P1-03 → P1-04 → P1-06 → P1-05。
+- 界面人工验收（P1-02 隧道面板、P1-03 SSH/ZMODEM/退出/通知、P1-04 SFTP 操作、P1-08 托盘与通知）：执行者与评估者都不能操作 GUI，攒到 P1-03 至 P1-08 合并后整理成一份清单，由 stone 集中验收。
 - 排队：P1-02（关键路径起点）、P1-01，以及 P1-11 中互不依赖的组，按机器负载分批派。关键路径是 P1-02 → P1-03 至 P1-06 → P1-07a–d → P1-09 → P1-12，P1-08 等 P1-01；P1-12 完成后开始 P2，以及 P3-01 与 P3-07。
 - 平台按[决策 016](decisions/016-mac-windows-either.md)：macOS 与 Windows 同等，有哪台用哪台，另一个平台记为“待补（决策 016）”，在该平台发布前补齐；Linux 的验证全部推迟到 Linux 发布前。CI 仍跑三平台。
 - 待补清单：P0-24 的 Windows 通道对比与 [人工] 项；P0-26 的 macOS 升级验证；P0-14、P0-15 的 macOS 原型验证。
@@ -153,3 +154,10 @@ scripts/migration/run-codex.ps1 -Card <ID> -Worktree ..\tTerm-<ID> -PromptFile <
 - GPUI 的 `BoxShadow` 会画在盒子下方，透过半透明的底色露出来；CSS 的阴影只画在盒子外。有阴影的半透明控件，要先把底色合成到背景上（`css_backdrop_color`）。
 - 并行的卡各写各的报告文件（`reports/P0-24-<组件>.md`），共用的 `P0-24.md` 会冲突。合并时 `screens.json`、`exceptions.md`、`surface.rs`、`screens/mod.rs` 一定会冲突：评估者先把 `GPUI` 合进卡的分支，解决冲突、重跑全部检查和对比，再合回 `GPUI`。
 - 每张卡在像素对比通过以后，再另开一个只读审查，看真实窗口里的行为（Root 下的按键、遮挡、浮层、回调重入）。这一批每张卡都靠这一步查出了对比查不出的问题。
+- **P1 的经验（2026-11-10）**：
+  - 并行四五张卡时，cargo 用 `CARGO_BUILD_JOBS=3` 限住了，但 `pnpm test` 的 vitest 默认按核数起 worker，负载到过 70。提示词里要求用 `pnpm exec vitest run src --maxWorkers=3 && node --test scripts/parity/layout.test.mjs`，同时最多四张卡在编译。
+  - 移植与迁移卡的第 1 轮，Codex 几乎都会漏：测试只转写一部分、放宽断言、改输入、用近似实现绕开语言差异（例如 JS 正则的环视）。评估者另派一个只读审查 subagent，按“逐函数对照源头、用 node 实跑 TS 取期望值”的要求审，每张卡都查出了评估者自己抽查漏掉的问题。把上一张卡的问题清单写进下一张卡的提示词，能少一轮。
+  - L 卡先出计划很值：P1-03 至 P1-06 的计划暴露了跨卡归属冲突，在实施前定下分工与合并顺序。
+  - 执行者常在沙箱里跑 `cargo test` 遇到已知的 `macos_lists_the_applications_for_text_with_icons` 失败就停，不去沙箱外复跑；提示词里要明确要求沙箱外复跑。
+  - 执行者和评估者都不能操作 GUI（Computer Use 不能用于隔离应用），界面验收只能交给 stone。
+  - 这台 Mac 可以用 OrbStack 跑 `scripts/sudo-test-host` 作为一次性 SSH 测试主机（environments.md 第 5 节）。
