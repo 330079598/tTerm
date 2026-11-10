@@ -1,0 +1,11 @@
+import '/src/App.css'
+import React, {useEffect} from 'react'
+import {createRoot} from 'react-dom/client'
+import {useConfirmDialog,useInfoDialog,usePromptDialog} from '/src/components/ui/app-dialog'
+function Probe(){
+ const c=useConfirmDialog(),i=useInfoDialog(),p=usePromptDialog()
+ const params=new URLSearchParams(location.search),kind=params.get('kind')
+ useEffect(()=>{const title='This confirmation title is definitely long enough to wrap on a narrow window in every renderer';if(kind==='info')void i.info({title,description:'Description'});else if(kind==='prompt')void p.prompt({title});else void c.confirm({title,description:'Description',variant:kind==='destructive'?'destructive':'default'})},[])
+ return <><c.ConfirmDialog/><i.InfoDialog/><p.PromptDialog/></>
+}
+createRoot(document.getElementById('root')!).render(<Probe/>);

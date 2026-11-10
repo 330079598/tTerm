@@ -1,0 +1,42 @@
+   Compiling tterm-ui v0.1.0 (/Users/stone/Code/rust/tTerm-P0-24-dialog-fix/crates/tterm-ui)
+warning: field `center_multiline` is never read
+  --> crates/tterm-ui/src/components/dialog/text.rs:14:5
+   |
+ 9 | pub(super) struct DialogText {
+   |                   ---------- field in this struct
+...
+14 |     center_multiline: bool,
+   |     ^^^^^^^^^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `tterm-ui` (lib test) generated 1 warning
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 2.92s
+     Running unittests src/lib.rs (target/debug/deps/tterm_ui-f4d3106180442019)
+
+running 4 tests
+
+thread 'components::dialog::tests::narrow_multiline_info_title_is_centered_per_row' (4137054) panicked at crates/tterm-ui/src/components/dialog/tests.rs:758:21:
+assertion failed: (f32::from(first.center().x - row.center().x)).abs() < 0.01
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+thread 'components::dialog::tests::narrow_multiline_destructive_title_is_centered_per_row' (4137053) panicked at crates/tterm-ui/src/components/dialog/tests.rs:758:21:
+assertion failed: (f32::from(first.center().x - row.center().x)).abs() < 0.01
+
+thread 'components::dialog::tests::narrow_multiline_confirm_title_is_centered_per_row' (4137052) panicked at crates/tterm-ui/src/components/dialog/tests.rs:758:21:
+assertion failed: (f32::from(first.center().x - row.center().x)).abs() < 0.01
+test components::dialog::tests::narrow_multiline_confirm_title_is_centered_per_row ... FAILED
+test components::dialog::tests::narrow_multiline_info_title_is_centered_per_row ... FAILED
+test components::dialog::tests::narrow_multiline_destructive_title_is_centered_per_row ... FAILED
+test components::dialog::tests::narrow_multiline_prompt_title_is_centered_per_row ... ok
+
+failures:
+
+failures:
+    components::dialog::tests::narrow_multiline_confirm_title_is_centered_per_row
+    components::dialog::tests::narrow_multiline_destructive_title_is_centered_per_row
+    components::dialog::tests::narrow_multiline_info_title_is_centered_per_row
+
+test result: FAILED. 1 passed; 3 failed; 0 ignored; 0 measured; 81 filtered out; finished in 0.01s
+
+error: test failed, to rerun pass `-p tterm-ui --lib`

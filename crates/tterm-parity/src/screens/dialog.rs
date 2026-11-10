@@ -146,16 +146,19 @@ impl DialogScreen {
         );
         let text_sink = self.layout.clone();
         let text_observer = Rc::new(
-            move |slot: &str, bounds: gpui_kit::Bounds<gpui_kit::Pixels>| {
-                text_sink.record_text_region(
-                    &format!("{prefix}.{slot}"),
-                    BoundsSnapshot::new(
-                        bounds.origin.x.into(),
-                        bounds.origin.y.into(),
-                        bounds.size.width.into(),
-                        bounds.size.height.into(),
-                    ),
-                );
+            move |slot: &str, rows: &[gpui_kit::Bounds<gpui_kit::Pixels>]| {
+                let rows: Vec<_> = rows
+                    .iter()
+                    .map(|bounds| {
+                        BoundsSnapshot::new(
+                            bounds.origin.x.into(),
+                            bounds.origin.y.into(),
+                            bounds.size.width.into(),
+                            bounds.size.height.into(),
+                        )
+                    })
+                    .collect();
+                text_sink.replace_text_regions(&format!("{prefix}.{slot}"), &rows);
             },
         );
         self.dialog = Some(cx.new(|cx| {

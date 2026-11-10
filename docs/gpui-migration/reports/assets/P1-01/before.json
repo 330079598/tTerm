@@ -1,0 +1,58 @@
+{
+  "profiles": [],
+  "identifier": "com.stone.tTerm.p1-01-before",
+  "commit": "cbee6951ecf724618dde76dd9323fc3143ae9dbb",
+  "directories": {
+    "/Users/stone/Library/Application Support/com.stone.tTerm.p1-01-before": [
+      "bin/",
+      "bin/tterm",
+      "config.json",
+      "tterm.db",
+      "tterm.db-shm",
+      "tterm.db-wal"
+    ],
+    "/Users/stone/Library/Caches/com.stone.tTerm.p1-01-before": [
+      "WebKit/",
+      "WebKit/AlternativeServices/",
+      "WebKit/AlternativeServices/AlternativeService.sqlite",
+      "WebKit/AlternativeServices/AlternativeService.sqlite-shm",
+      "WebKit/AlternativeServices/AlternativeService.sqlite-wal",
+      "WebKit/CacheStorage/",
+      "WebKit/CacheStorage/salt",
+      "WebKit/HSTS/",
+      "WebKit/NetworkCache/",
+      "WebKit/NetworkCache/Version 17/",
+      "WebKit/NetworkCache/Version 17/Blobs/",
+      "WebKit/NetworkCache/Version 17/Records/",
+      "WebKit/NetworkCache/Version 17/Records/D73A1ED8AAABF4C10E6768BCCBAB35EF70A87A8E/",
+      "WebKit/NetworkCache/Version 17/Records/D73A1ED8AAABF4C10E6768BCCBAB35EF70A87A8E/Resource/",
+      "WebKit/NetworkCache/Version 17/Records/D73A1ED8AAABF4C10E6768BCCBAB35EF70A87A8E/Resource/0632916C2054B13C75A267293785CEC51BB93C51",
+      "WebKit/NetworkCache/Version 17/salt"
+    ],
+    "/Users/stone/Library/Logs/com.stone.tTerm.p1-01-before": null,
+    "/Users/stone/Library/WebKit/com.stone.tTerm.p1-01-before": [
+      "WebsiteData/",
+      "WebsiteData/Default/",
+      "WebsiteData/Default/salt",
+      "WebsiteData/DeviceIdHashSalts/",
+      "WebsiteData/EnhancedSecurity/",
+      "WebsiteData/EnhancedSecurity/EnhancedSecuritySites.db",
+      "WebsiteData/EnhancedSecurity/EnhancedSecuritySites.db-shm",
+      "WebsiteData/EnhancedSecurity/EnhancedSecuritySites.db-wal",
+      "WebsiteData/IndexedDB/",
+      "WebsiteData/LocalStorage/",
+      "WebsiteData/MediaKeys/",
+      "WebsiteData/MediaKeys/v1/",
+      "WebsiteData/MediaKeys/v1/salt",
+      "WebsiteData/MediaKeysHashSalts/",
+      "WebsiteData/ResourceLoadStatistics/",
+      "WebsiteData/ResourceLoadStatistics/observations.db",
+      "WebsiteData/ResourceLoadStatistics/observations.db-shm",
+      "WebsiteData/ResourceLoadStatistics/observations.db-wal",
+      "WebsiteData/ResourceMonitorThrottler/",
+      "WebsiteData/SearchHistory/"
+    ],
+    "/Users/stone/Library/HTTPStorages/com.stone.tTerm.p1-01-before": null,
+    "/Users/stone/Library/Saved Application State/com.stone.tTerm.p1-01-before": null
+  }
+}

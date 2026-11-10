@@ -72,6 +72,18 @@ fn text_regions_are_sorted_by_key() {
 }
 
 #[test]
+fn replacing_text_rows_removes_old_rows_and_preserves_other_slots() {
+    let sink = sink();
+    let row = BoundsSnapshot::new(0.0, 0.0, 10.0, 16.0);
+    sink.replace_text_regions("description", &[row, row]);
+    sink.replace_text_regions("title", &[row]);
+    sink.replace_text_regions("description", &[row]);
+    assert_eq!(sink.finish().text_regions.len(), 2);
+    sink.replace_text_regions("description", &[]);
+    assert_eq!(sink.finish().text_regions.len(), 1);
+}
+
+#[test]
 fn json_uses_the_contracts_field_names() {
     let sink = sink();
     sink.record_text_region("label", BoundsSnapshot::new(32.0, 32.0, 80.0, 16.0));

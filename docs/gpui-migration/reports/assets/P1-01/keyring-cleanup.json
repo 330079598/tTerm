@@ -1,0 +1,26 @@
+[
+  {
+    "identifier": "com.stone.tTerm.p1-01-before",
+    "account": "key::__secret_data_key__",
+    "status": 0,
+    "output": "keychain: \"/Users/stone/Library/Keychains/login.keychain-db\"\nversion: 512\nclass: \"genp\"\nattributes:\n    0x00000007 <blob>=\"tterm (com.stone.tTerm.p1-01-before)\"\n    0x00000008 <blob>=<NULL>\n    \"acct\"<blob>=\"key::__secret_data_key__\"\n    \"cdat\"<timedate>=0x32303236313131303031353633375A00  \"20261110015637Z\\000\"\n    \"crtr\"<uint32>=\"aapl\"\n    \"cusi\"<sint32>=<NULL>\n    \"desc\"<blob>=<NULL>\n    \"gena\"<blob>=<NULL>\n    \"icmt\"<blob>=<NULL>\n    \"invi\"<sint32>=<NULL>\n    \"mdat\"<timedate>=0x32303236313131303031353633375A00  \"20261110015637Z\\000\"\n    \"nega\"<sint32>=<NULL>\n    \"prot\"<blob>=<NULL>\n    \"scrp\"<sint32>=<NULL>\n    \"svce\"<blob>=\"tterm (com.stone.tTerm.p1-01-before)\"\n    \"type\"<uint32>=<NULL>\npassword has been deleted."
+  },
+  {
+    "identifier": "com.stone.tTerm.p1-01-before",
+    "account": "__probe__",
+    "status": 44,
+    "output": "security: SecKeychainSearchCopyNext: The specified item could not be found in the keychain."
+  },
+  {
+    "identifier": "com.stone.tTerm.p1-01-after",
+    "account": "key::__secret_data_key__",
+    "status": 0,
+    "output": "keychain: \"/Users/stone/Library/Keychains/login.keychain-db\"\nversion: 512\nclass: \"genp\"\nattributes:\n    0x00000007 <blob>=\"tterm (com.stone.tTerm.p1-01-after)\"\n    0x00000008 <blob>=<NULL>\n    \"acct\"<blob>=\"key::__secret_data_key__\"\n    \"cdat\"<timedate>=0x32303236313131303032303630325A00  \"20261110020602Z\\000\"\n    \"crtr\"<uint32>=\"aapl\"\n    \"cusi\"<sint32>=<NULL>\n    \"desc\"<blob>=<NULL>\n    \"gena\"<blob>=<NULL>\n    \"icmt\"<blob>=<NULL>\n    \"invi\"<sint32>=<NULL>\n    \"mdat\"<timedate>=0x32303236313131303032303630325A00  \"20261110020602Z\\000\"\n    \"nega\"<sint32>=<NULL>\n    \"prot\"<blob>=<NULL>\n    \"scrp\"<sint32>=<NULL>\n    \"svce\"<blob>=\"tterm (com.stone.tTerm.p1-01-after)\"\n    \"type\"<uint32>=<NULL>\npassword has been deleted."
+  },
+  {
+    "identifier": "com.stone.tTerm.p1-01-after",
+    "account": "__probe__",
+    "status": 44,
+    "output": "security: SecKeychainSearchCopyNext: The specified item could not be found in the keychain."
+  }
+]

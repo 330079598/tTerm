@@ -11,7 +11,8 @@ use tauri::tray::{MouseButton, MouseButtonState, TrayIcon, TrayIconBuilder, Tray
 use tauri::{AppHandle, Emitter, Manager};
 
 use crate::core::state::PtyMap;
-use crate::tunnel::{commands::TunnelManager, types::TunnelState};
+use crate::tunnel::commands::TunnelManager;
+use tterm_core::events::tunnel::TunnelState;
 
 pub(super) const TRAY_ID: &str = "main";
 const MENU_SHOW: &str = "tray-show";
