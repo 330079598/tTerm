@@ -7,8 +7,12 @@ impl Tray for TauriTray {
         crate::background::tray::present_menu(&self.0, menu).map_err(|e| e.to_string())
     }
     fn remove(&self) -> Result<(), String> {
-        crate::background::tray::hide(&self.0);
-        Ok(())
+        // Dropping the last macOS status-item reference must happen on the UI
+        // thread, including when save_config called this from a blocking worker.
+        let app = self.0.clone();
+        self.0
+            .run_on_main_thread(move || crate::background::tray::hide(&app))
+            .map_err(|error| error.to_string())
     }
     fn is_present(&self) -> bool {
         self.0
