@@ -10,6 +10,24 @@ type AnyHandler = (event: AnyEvent) => void
 
 const listeners = new Map<string, Set<AnyHandler>>()
 let nextEventId = 1
+const declaredEvents = new Set<string>()
+const missingEvents = new Set<string>()
+
+export function declareParityEvents(events: string[]): void {
+  declaredEvents.clear()
+  for (const event of events) declaredEvents.add(event)
+}
+
+export function expandParityEventName(
+  template: string,
+  values: Record<string, string> = {}
+): string {
+  return template.replace(/\{([A-Za-z0-9_]+)\}/g, (match, key: string) => values[key] ?? match)
+}
+
+export function missingParityEvents(): string[] {
+  return [...missingEvents].sort()
+}
 
 /** Registers `handler` for `event` and returns the function that removes it. */
 export async function listen<T>(
@@ -20,6 +38,10 @@ export async function listen<T>(
   // Plugin targets do not exist in the reference capture.
   void options
   const key = String(event)
+  if (declaredEvents.size > 0 && !declaredEvents.has(key)) {
+    missingEvents.add(key)
+    if (typeof window !== "undefined") window.__PARITY_MISSING_EVENTS__ = missingParityEvents()
+  }
   const handlers = listeners.get(key) ?? new Set<AnyHandler>()
   const wrapped = handler as AnyHandler
   handlers.add(wrapped)
@@ -82,6 +104,9 @@ export const TauriEvent = {
 export function resetParityEvents(): void {
   listeners.clear()
   nextEventId = 1
+  declaredEvents.clear()
+  missingEvents.clear()
+  if (typeof window !== "undefined") window.__PARITY_MISSING_EVENTS__ = []
 }
 
 function deliver(event: string, payload: unknown): void {

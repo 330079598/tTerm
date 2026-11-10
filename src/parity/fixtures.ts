@@ -12,6 +12,12 @@ import tabsFixture from "@fixtures/ui.tabs.default.json"
 export interface ParityFixture {
   /** Fixture values keyed by the Tauri command name the screen calls. */
   commands: Record<string, unknown>
+  /** Events emitted after the screen subscribes. */
+  events?: Array<{ name: string; payload?: unknown; afterMs?: number }>
+  /** Values used to expand `{key}` placeholders in event names. */
+  eventVars?: Record<string, string>
+  /** Declarative channel messages reserved for later business screens. */
+  channels?: Array<{ name: string; messages: unknown[] }>
 }
 
 // `satisfies` is the type check the task card asks for: the JSON file keeps the
