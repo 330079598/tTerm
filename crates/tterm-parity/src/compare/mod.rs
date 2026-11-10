@@ -143,12 +143,21 @@ pub struct Report {
     pub schema_version: u32,
     /// Which reference was compared.
     pub reference: ReferenceInfo,
+    /// The style and scale compared in this report.
+    pub variant: VariantInfo,
     /// The thresholds that were applied.
     pub thresholds: Thresholds,
     /// Per-screen results.
     pub screens: Vec<ScreenReport>,
     /// Overall result.
     pub passed: bool,
+}
+
+#[derive(Clone, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct VariantInfo {
+    pub ui_style: String,
+    pub ui_scale_percent: u32,
 }
 
 /// Reference identity in the report.
@@ -206,6 +215,14 @@ pub fn run(
         let actual_side = load_side(actual_dir, screen)?;
         let (mut report, heatmap) =
             compare_screen(screen, &reference_side, &actual_side, reference_name);
+        let style = manifest.selected_ui_style()?;
+        let scale = manifest.selected_ui_scale()?;
+        if style != "classic" || scale != 100 {
+            report
+                .failures
+                .push(format!("GPUI 端未实现 ui_style={style}, ui_scale={scale}"));
+            report.passed = false;
+        }
         if let Some(heatmap) = heatmap {
             let relative = format!("heatmaps/{}.png", screen.id);
             let path = report_dir.join(&relative);
@@ -223,6 +240,10 @@ pub fn run(
         reference: ReferenceInfo {
             frontend_commit: commit,
             dirty,
+        },
+        variant: VariantInfo {
+            ui_style: manifest.selected_ui_style()?,
+            ui_scale_percent: manifest.selected_ui_scale()?,
         },
         thresholds: Thresholds {
             fixed_px: layout_check::FIXED_TOLERANCE,
