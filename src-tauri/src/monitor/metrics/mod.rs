@@ -3,6 +3,8 @@
 //! sources, so each has its own section of the script and its own parser;
 //! what they report the same way is read here.
 
+use tterm_core::events::ssh::LinuxDistributionInfo;
+
 mod bsd;
 mod darwin;
 mod freebsd;
@@ -12,7 +14,7 @@ mod real_sshd_tests;
 #[cfg(test)]
 mod tests;
 
-use super::types::{DiskMetrics, LinuxDistributionInfo, LoadAverageMetrics, ServerMetricsSnapshot};
+use super::types::{DiskMetrics, LoadAverageMetrics, ServerMetricsSnapshot};
 
 /// Prints the metrics between `__TTERM_*__` markers. Run it under `sh -s`
 /// with the script on standard input, which works whatever the account's

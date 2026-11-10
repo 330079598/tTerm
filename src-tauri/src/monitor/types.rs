@@ -1,3 +1,5 @@
+use tterm_core::events::ssh::LinuxDistributionInfo;
+
 use super::metrics::percent;
 use crate::ssh::jump::connect::JumpChain;
 use russh::client;
@@ -20,18 +22,7 @@ pub struct MonitorSession {
     pub ssh: client::Handle<crate::ssh::types::SshClientHandler>,
 }
 
-/// What a host says it runs, in `/etc/os-release` terms. Linux and FreeBSD
-/// have that file; the monitor fills it in from `sw_vers` on macOS.
-#[derive(Debug, Clone, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct LinuxDistributionInfo {
-    pub id: String,
-    pub id_like: Vec<String>,
-    pub name: String,
-    pub pretty_name: String,
-    pub version_id: Option<String>,
-}
-
+/// Cumulative CPU time counters used to calculate usage between samples.
 #[derive(Debug, Clone, Default, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CpuTimes {

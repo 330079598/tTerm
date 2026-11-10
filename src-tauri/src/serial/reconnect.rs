@@ -1,8 +1,8 @@
+use tterm_core::events::ssh::SshConnectionProgressPayload;
+
 use super::session::{serial_options, spawn_serial_attempt, ActiveSerial};
 use crate::core::supervisor::TabConnection;
-use crate::ssh::types::{
-    emit_connection_progress, ConnectionStatusOptions, SshConnectionProgressPayload,
-};
+use crate::ssh::types::{emit_connection_progress, ConnectionStatusOptions};
 use std::time::Duration;
 use tokio::sync::watch;
 
