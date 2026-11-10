@@ -3,19 +3,11 @@
 //! A shell started inside the first one (a nested shell, tmux, ssh) is not
 //! followed: the outer shell's directory is what gets restored.
 
-use serde::Serialize;
 use std::time::Duration;
 use tauri::{AppHandle, Emitter};
 use tokio::sync::watch;
 
 const POLL_INTERVAL: Duration = Duration::from_secs(2);
-
-#[derive(Clone, Serialize)]
-#[serde(rename_all = "camelCase")]
-struct CwdPayload {
-    session_nonce: u32,
-    cwd: String,
-}
 
 /// Emits `pty-cwd-<tab id>` whenever the shell's directory changes, until the
 /// session stops or the shell exits.
@@ -118,3 +110,5 @@ mod tests {
 #[cfg(test)]
 #[path = "cwd_watch_legacy_tests.rs"]
 mod legacy_contract_tests;
+
+use tterm_core::events::terminal::CwdPayload;

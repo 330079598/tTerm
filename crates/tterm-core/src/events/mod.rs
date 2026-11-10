@@ -2,6 +2,7 @@
 
 pub mod session_log;
 pub mod ssh;
+pub mod terminal;
 pub mod tunnel;
 pub mod zmodem;
 
