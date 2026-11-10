@@ -1,17 +1,16 @@
 //! Reads which system an SSH host runs, so its tab can show the
 //! distribution's icon.
 
+use tterm_core::events::ssh::RemoteOsPayload;
+use tterm_core::events::ssh::SshEvent;
+use tterm_core::events::{AppEvent, EventSink};
+
 use crate::monitor::metrics::parse_os_identity;
-use crate::monitor::types::LinuxDistributionInfo;
+
 use crate::sftp::internal::exec::RemoteScript;
 use russh::client::{Handle, Handler};
-use serde::Serialize;
 use std::time::Duration;
-use tauri::{AppHandle, Emitter};
-
-/// Reports what a host runs; `distribution` is null for a host that says
-/// nothing about it, such as OpenBSD or a network device.
-const REMOTE_OS_EVENT: &str = "ssh-remote-os";
+use tauri::AppHandle;
 
 /// Bounds starting the script and, separately, reading its output, so a
 /// server that never answers costs the terminal nothing.
@@ -22,13 +21,6 @@ const TIMEOUT: Duration = Duration::from_secs(3);
 /// `2>/dev/null` as an argument, does not matter.
 const SCRIPT: &str = "if [ -r /etc/os-release ]; then cat /etc/os-release; \
                       elif command -v sw_vers >/dev/null 2>&1; then sw_vers; fi\n";
-
-#[derive(Clone, Serialize)]
-#[serde(rename_all = "camelCase")]
-struct RemoteOsPayload {
-    tab_id: String,
-    distribution: Option<LinuxDistributionInfo>,
-}
 
 /// Asks the host what it runs on a channel of its own, and reports the
 /// answer for `tab_id` in the background. A server that refuses another
@@ -48,7 +40,9 @@ pub(crate) async fn probe<H: Handler>(app: &AppHandle, tab_id: &str, session: &H
             tab_id,
             distribution: parse_os_identity(&output),
         };
-        if let Err(error) = app.emit(REMOTE_OS_EVENT, payload) {
+        if let Err(error) = crate::event_sink::TauriEventSink::new(app.clone())
+            .emit(AppEvent::Ssh(SshEvent::RemoteOs(payload)))
+        {
             eprintln!("Failed to report the remote OS: {error}");
         }
     });
@@ -90,3 +84,7 @@ mod tests {
         }
     }
 }
+
+#[cfg(test)]
+#[path = "remote_os_legacy_tests.rs"]
+mod legacy_contract_tests;

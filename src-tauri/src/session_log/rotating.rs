@@ -1,6 +1,9 @@
 //! A log file that moves on to a new part once it is full, and compresses
 //! the parts it finishes.
 
+use tterm_core::events::session_log::{LogErrorPayload, SessionLogEvent};
+use tterm_core::events::{AppEvent, EventSink};
+
 use super::naming::{compressed_path, part_path, partial_path};
 use super::SessionLogState;
 use flate2::write::GzEncoder;
@@ -10,7 +13,7 @@ use std::fs::{self, File, OpenOptions};
 use std::io::{BufWriter, Write};
 use std::path::{Path, PathBuf};
 use std::sync::{LazyLock, Mutex};
-use tauri::{AppHandle, Emitter, Manager};
+use tauri::{AppHandle, Manager};
 
 /// Logs being written or compressed, and the archives being written; cleanup,
 /// deletion and recovery leave them alone. A file is added before it is
@@ -196,10 +199,12 @@ fn spawn_compression(app: AppHandle, path: PathBuf) {
                         path.display()
                     );
                     state.set_error(message.clone());
-                    let _ = app.emit_to(
-                        tauri::EventTarget::any(),
-                        "terminal-log-error",
-                        serde_json::json!({ "tabId": null, "message": message }),
+                    let _ = crate::event_sink::TauriEventSink::new(app.clone()).emit(
+                        AppEvent::SessionLog(SessionLogEvent::Error(LogErrorPayload {
+                            tab_id: None,
+                            message: message.to_string(),
+                            phase: None,
+                        })),
                     );
                 }
             }

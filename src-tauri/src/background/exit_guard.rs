@@ -3,34 +3,17 @@
 //! The backend holds the exit and tells the UI what is at stake; the answer
 //! comes back as `confirm_quit_app` or `cancel_quit_prompt`.
 
+use tterm_core::events::background::BackgroundEvent;
+use tterm_core::events::background::QuitBlockers;
+use tterm_core::events::{AppEvent, EventSink};
+
 use std::sync::atomic::{AtomicBool, Ordering};
 
-use serde::Serialize;
-use tauri::{AppHandle, Emitter, Manager, State};
+use tauri::{AppHandle, Manager, State};
 
 use crate::tunnel::commands::TunnelManager;
 
-/// Emitted when the app is asked to quit with something at stake; carries
-/// the [`QuitBlockers`].
-const QUIT_REQUESTED_EVENT: &str = "quit-requested";
-
-/// What a quit would end.
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct QuitBlockers {
-    /// Port-forwarding tunnels running.
-    pub tunnels: usize,
-    /// Files opened from SFTP with changes not uploaded; their copies stay
-    /// on disk, but nothing uploads them any more.
-    pub unuploaded_files: Vec<String>,
-}
-
-impl QuitBlockers {
-    pub fn is_empty(&self) -> bool {
-        self.tunnels == 0 && self.unuploaded_files.is_empty()
-    }
-}
-
+/// Tracks confirmation without holding the window or application lifetime.
 #[derive(Default)]
 pub struct ExitGuardState {
     /// The user agreed to quit despite what is at stake.
@@ -62,9 +45,23 @@ pub fn blockers(app: &AppHandle) -> QuitBlockers {
 /// wait because the UI is asking the user to confirm it.
 pub fn hold_exit_for_confirmation(app: &AppHandle) -> bool {
     let blockers = blockers(app);
-    let hold = app.state::<ExitGuardState>().should_hold(&blockers);
+    emit_confirmation(
+        &app.state::<ExitGuardState>(),
+        blockers,
+        &crate::event_sink::TauriEventSink::new(app.clone()),
+    )
+}
+
+fn emit_confirmation(
+    state: &ExitGuardState,
+    blockers: QuitBlockers,
+    events: &dyn EventSink,
+) -> bool {
+    let hold = state.should_hold(&blockers);
     if hold {
-        let _ = app.emit(QUIT_REQUESTED_EVENT, &blockers);
+        let _ = events.emit(AppEvent::Background(BackgroundEvent::QuitRequested(
+            blockers,
+        )));
     }
     hold
 }
@@ -116,3 +113,7 @@ mod tests {
         assert!(ExitGuardState::default().should_hold(&files));
     }
 }
+
+#[cfg(test)]
+#[path = "exit_guard_legacy_tests.rs"]
+mod legacy_contract_tests;

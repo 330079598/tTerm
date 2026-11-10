@@ -1,8 +1,7 @@
-use super::shell_integration::ShellIntegrationStatus;
-use super::types::{
-    emit_connection_progress, ConnectionStatusOptions, SshClientHandler,
-    SshConnectionProgressPayload,
-};
+use tterm_core::events::ssh::ShellIntegrationStatus;
+use tterm_core::events::ssh::SshConnectionProgressPayload;
+
+use super::types::{emit_connection_progress, ConnectionStatusOptions, SshClientHandler};
 use crate::core::session::types::SessionPlan;
 use crate::core::state::{ChannelContext, HostPromptMap};
 use crate::ssh::jump::connect::JumpChain;

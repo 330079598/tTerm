@@ -1,3 +1,7 @@
+use tterm_core::events::session_log::TerminalLogStatus;
+use tterm_core::events::session_log::{LogErrorPayload, LogErrorPhase, SessionLogEvent};
+use tterm_core::events::{AppEvent, EventSink};
+
 mod library;
 mod maintenance;
 mod manager;
@@ -25,7 +29,7 @@ use std::sync::atomic::{AtomicBool, AtomicU64};
 use std::sync::Mutex;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 use tauri::ipc::Response;
-use tauri::{AppHandle, Emitter, Manager, State};
+use tauri::{AppHandle, Manager, State};
 use tauri_plugin_opener::OpenerExt;
 
 const LOG_FORMAT_RAW: &str = "raw";
@@ -200,18 +204,6 @@ pub struct SessionLogState {
     maintenance_again: AtomicBool,
     /// The log directory last checked for interrupted compression.
     recovered_directory: Mutex<Option<PathBuf>>,
-}
-
-#[derive(Clone, Debug, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct TerminalLogStatus {
-    /// Sessions are logged unless their connection or tab says otherwise.
-    enabled: bool,
-    directory: String,
-    active_sessions: usize,
-    recording_tab_ids: Vec<String>,
-    total_size_bytes: u64,
-    last_error: Option<String>,
 }
 
 pub fn start_session(
@@ -428,24 +420,33 @@ fn now_unix_ms() -> u64 {
 }
 
 fn emit_error(app: &AppHandle, tab_id: &str, message: &str) {
-    let _ = app.emit_to(
-        tauri::EventTarget::any(),
-        "terminal-log-error",
-        serde_json::json!({ "tabId": tab_id, "message": message }),
-    );
+    let _ = crate::event_sink::TauriEventSink::new(app.clone()).emit(AppEvent::SessionLog(
+        SessionLogEvent::Error(LogErrorPayload {
+            tab_id: Some(tab_id.to_string()),
+            message: message.to_string(),
+            phase: None,
+        }),
+    ));
 }
 
 /// A session's log could not start; the session runs without one.
 fn emit_start_error(app: &AppHandle, tab_id: &str, message: &str) {
-    let _ = app.emit_to(
-        tauri::EventTarget::any(),
-        "terminal-log-error",
-        serde_json::json!({ "tabId": tab_id, "message": message, "phase": "start" }),
-    );
+    let _ = crate::event_sink::TauriEventSink::new(app.clone()).emit(AppEvent::SessionLog(
+        SessionLogEvent::Error(LogErrorPayload {
+            tab_id: Some(tab_id.to_string()),
+            message: message.to_string(),
+            phase: Some(LogErrorPhase::Start),
+        }),
+    ));
 }
 
 fn emit_status(app: &AppHandle, state: &SessionLogState) {
     if let Ok(status) = state.status() {
-        let _ = app.emit_to(tauri::EventTarget::any(), "terminal-log-status", status);
+        let _ = crate::event_sink::TauriEventSink::new(app.clone())
+            .emit(AppEvent::SessionLog(SessionLogEvent::Status(status)));
     }
 }
+
+#[cfg(test)]
+#[path = "session_log_legacy_tests.rs"]
+mod legacy_contract_tests;

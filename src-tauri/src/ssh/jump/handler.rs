@@ -1,3 +1,5 @@
+use tterm_core::events::ssh::SshConnectionProgressPayload;
+
 use crate::core::state::HostPromptMap;
 use crate::ssh::openssh_known_hosts::verify::KnownHostVerdict;
 use crate::ssh::openssh_known_hosts::{check_presented_key, listed_record};
@@ -7,7 +9,7 @@ use crate::ssh::store::{
 };
 use crate::ssh::types::{
     emit_connection_progress, ConnectionStatusOptions, HostKeyVerificationMode,
-    SshConnectionProgressPayload, HOST_KEY_PROMPT_TIMEOUT, HOST_KEY_REJECTED_REASON,
+    HOST_KEY_PROMPT_TIMEOUT, HOST_KEY_REJECTED_REASON,
 };
 use russh::client;
 use russh::keys::ssh_key::HashAlg;
