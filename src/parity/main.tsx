@@ -9,9 +9,11 @@ import "@/App.css"
 import "@/parity/parity.css"
 
 import { applyUiScalePercent } from "@/lib/uiPlatform"
+import { applyUiStyle } from "@/lib/uiStyle"
 import { fixtures } from "@/parity/fixtures"
 import { parityScreens } from "@/parity/screens"
 import { activateFixture, invokedCommands } from "@/parity/tauri/core"
+import { missingParityEvents } from "@/parity/tauri/event"
 import type { ParityScreenProps } from "@/parity/types"
 import { createRoot } from "react-dom/client"
 import type { ComponentType } from "react"
@@ -20,10 +22,14 @@ const params = new URLSearchParams(window.location.search)
 const screenId = params.get("screen") ?? ""
 const theme = params.get("theme") ?? "dark"
 const scale = Number(params.get("scale") ?? "100")
+const uiStyle = params.get("uiStyle") ?? "classic"
+const actionsRequired = params.get("actionsRequired") === "true"
 
 window.__PARITY_READY__ = false
 window.__PARITY_INVOKES__ = []
 window.__PARITY_MISSING__ = []
+window.__PARITY_MISSING_EVENTS__ = []
+window.__PARITY_ACTIONS_DONE__ = !actionsRequired
 
 // `--ui-font-scale` and the `--text-*` variables are normally written by the
 // application after it loads the configuration; the capture sets them before
@@ -34,8 +40,10 @@ if (theme === "light") {
 } else {
   delete document.documentElement.dataset.theme
 }
+applyUiStyle(uiStyle === "islands" ? "islands" : "classic")
 
 let readySent = false
+let screenReady = false
 
 /**
  * Resolves after fonts are ready and two frames have been painted. Screens
@@ -43,17 +51,26 @@ let readySent = false
  * data call it from an effect so the first paint is still complete.
  */
 function markReady(): void {
-  if (readySent) return
+  if (screenReady) return
+  screenReady = true
+  maybeFinishReady()
+}
+
+function maybeFinishReady(): void {
+  if (!screenReady || window.__PARITY_ACTIONS_DONE__ !== true || readySent) return
   readySent = true
   void document.fonts.ready.then(() => {
     requestAnimationFrame(() => {
       requestAnimationFrame(() => {
         window.__PARITY_INVOKES__ = invokedCommands()
+        window.__PARITY_MISSING_EVENTS__ = missingParityEvents()
         window.__PARITY_READY__ = true
       })
     })
   })
 }
+
+window.addEventListener("parity-actions-done", maybeFinishReady)
 
 const rootElement = document.getElementById("root")
 if (!rootElement) {
