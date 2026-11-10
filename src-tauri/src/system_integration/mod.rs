@@ -81,9 +81,12 @@ pub async fn folder_menu_status(app: AppHandle) -> Result<IntegrationStatus, Str
 }
 #[tauri::command]
 pub async fn set_folder_menu(app: AppHandle, installed: bool) -> Result<IntegrationStatus, String> {
-    let language = crate::config::load_config_file()
-        .map(|c| c.language)
-        .unwrap_or_default();
+    let language = crate::core::blocking::run_blocking(|| {
+        Ok(crate::config::load_config_file()
+            .map(|config| config.language)
+            .unwrap_or_default())
+    })
+    .await?;
     integration(&app)?
         .set_folder(installed, language)
         .await
