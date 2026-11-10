@@ -24,7 +24,7 @@ impl TauriEventSink {
         match event {
             AppEvent::Tunnel(TunnelEvent::Status(status)) => Ok((
                 event.name(),
-                EventTarget::Default,
+                event.target(),
                 serde_json::to_value(status).map_err(|error| error.to_string())?,
             )),
         }
