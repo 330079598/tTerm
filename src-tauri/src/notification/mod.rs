@@ -59,12 +59,6 @@ pub enum NotificationPermission {
     Fallback,
 }
 
-#[derive(Clone, Serialize)]
-#[serde(rename_all = "camelCase")]
-struct ActivatedPayload {
-    tab_id: Option<String>,
-}
-
 /// A notification was clicked: show the window and the tab it came from.
 fn activated(app: &AppHandle, tab_id: Option<String>) {
     crate::background::show_main_window(app);
@@ -129,3 +123,5 @@ pub async fn read_notification_sound() -> Result<Response, String> {
 #[cfg(test)]
 #[path = "mod_legacy_tests.rs"]
 mod legacy_contract_tests;
+
+use tterm_core::events::notification::ActivatedPayload;
