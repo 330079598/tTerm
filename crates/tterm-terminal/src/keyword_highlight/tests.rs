@@ -325,7 +325,7 @@ fn pattern_errors() {
     );
 }
 #[test]
-fn resolve_colors() {
+fn resolve_palette_names_and_hex_colors() {
     assert_eq!(
         resolve_highlight_color(Some("brightRed"), &palette()),
         Some("#ff5555".into())
@@ -336,10 +336,6 @@ fn resolve_colors() {
     );
     assert_eq!(resolve_highlight_color(Some("nonsense"), &palette()), None);
     assert_eq!(resolve_highlight_color(None, &palette()), None);
-    assert_eq!(
-        resolve_highlight_color(Some("red"), &HashMap::new()),
-        Some("#cc0000".into())
-    );
     let mut invalid = HashMap::new();
     invalid.insert("red".into(), "bad".into());
     assert_eq!(
@@ -359,6 +355,13 @@ fn resolve_colors() {
         Some("#ff0000".into())
     );
     assert_eq!(resolve_highlight_color(Some(" red"), &palette()), None);
+}
+#[test]
+fn resolve_uses_xterm_fallback_colors() {
+    assert_eq!(
+        resolve_highlight_color(Some("red"), &HashMap::new()),
+        Some("#cc0000".into())
+    );
 }
 fn terminal(columns: usize, lines: usize) -> Terminal {
     Terminal::new(
