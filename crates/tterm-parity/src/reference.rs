@@ -81,15 +81,31 @@ pub fn reference_dir(root: &Path, commit: &str, dirty: bool) -> PathBuf {
         .filter(|theme| !theme.trim().is_empty() && theme != "dark")
         .map(|theme| format!("-{theme}"))
         .unwrap_or_default();
+    let variant_suffix = variant_suffix();
     let name = if dirty {
         format!("{commit}{theme_suffix}-dirty")
     } else {
         format!("{commit}{theme_suffix}")
     };
+    let name = if variant_suffix.is_empty() {
+        name
+    } else {
+        format!("{name}-{variant_suffix}")
+    };
     root.join("target")
         .join("parity")
         .join("reference")
         .join(name)
+}
+
+fn variant_suffix() -> String {
+    let style = std::env::var("PARITY_UI_STYLE").unwrap_or_else(|_| "classic".to_owned());
+    let scale = std::env::var("PARITY_UI_SCALE").unwrap_or_else(|_| "100".to_owned());
+    if style == "classic" && scale == "100" {
+        String::new()
+    } else {
+        format!("{style}-{scale}")
+    }
 }
 
 /// Whether `UPDATE_REFERENCE=1` (or any value other than 0/false) is set.

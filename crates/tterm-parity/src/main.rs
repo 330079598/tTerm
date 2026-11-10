@@ -53,6 +53,17 @@ fn capture() -> Result<(), String> {
 
 fn compare() -> Result<(), String> {
     let root = repo_root();
+    let manifest = tterm_parity::manifest::ScreensManifest::load(&root)?;
+    let variant = format!(
+        "{}-{}",
+        manifest.selected_ui_style()?,
+        manifest.selected_ui_scale()?
+    );
+    let variant_dir = if variant == "classic-100" {
+        String::new()
+    } else {
+        variant
+    };
     let commit = reference::frontend_commit(&root)?;
     let dirty = reference::frontend_dirty(&root)?;
     let reference_dir =
@@ -63,7 +74,11 @@ fn compare() -> Result<(), String> {
             reference_dir.display()
         );
     }
-    let actual_dir = root.join("target").join("parity").join("actual");
+    let actual_dir = root
+        .join("target")
+        .join("parity")
+        .join("actual")
+        .join(&variant_dir);
     let captured = capture_all(&root, &actual_dir)?;
     for screen in &captured {
         println!(
@@ -74,7 +89,11 @@ fn compare() -> Result<(), String> {
         );
     }
 
-    let report_dir = root.join("target").join("parity").join("report");
+    let report_dir = root
+        .join("target")
+        .join("parity")
+        .join("report")
+        .join(&variant_dir);
     let outcome = compare::run(&root, &reference_dir, &actual_dir, &report_dir, dirty)?;
     println!();
     for screen in &outcome.screens {
