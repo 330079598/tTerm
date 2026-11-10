@@ -104,99 +104,101 @@ pub fn normalize_event_code(raw: &str) -> Option<String> {
     a.map(str::to_owned).or_else(|| normalize_event_key(raw))
 }
 /// Converts platform-neutral event data into a canonical chord.
-pub fn event_to_chord(e: KeyEventData<'_>, mac: bool) -> Option<Chord> {
-    if e.composing
+pub fn event_to_chord(event: KeyEventData<'_>, mac: bool) -> Option<Chord> {
+    if event.composing
         || matches!(
-            e.key,
+            event.key,
             "Dead" | "Unidentified" | "Process" | "Compose" | "Shift" | "Control" | "Alt" | "Meta"
         )
     {
         return None;
     }
-    let key = e
+    let key = event
         .code
         .and_then(normalize_event_code)
-        .or_else(|| normalize_event_key(e.key))?;
+        .or_else(|| normalize_event_key(event.key))?;
     Some(Chord {
         key,
-        mod_key: if mac { e.meta } else { e.ctrl },
-        ctrl: mac && e.ctrl,
-        alt: e.alt,
-        shift: e.shift,
+        mod_key: if mac { event.meta } else { event.ctrl },
+        ctrl: mac && event.ctrl,
+        alt: event.alt,
+        shift: event.shift,
     })
 }
 /// Serializes a chord using the persisted modifier order.
-pub fn serialize_chord(c: &Chord) -> Option<String> {
-    if c.key.is_empty() {
+pub fn serialize_chord(chord: &Chord) -> Option<String> {
+    if chord.key.is_empty() {
         return None;
     }
     let mut p = Vec::new();
-    if c.mod_key {
+    if chord.mod_key {
         p.push("mod")
     }
-    if c.ctrl {
+    if chord.ctrl {
         p.push("ctrl")
     }
-    if c.alt {
+    if chord.alt {
         p.push("alt")
     }
-    if c.shift {
+    if chord.shift {
         p.push("shift")
     }
-    p.push(&c.key);
+    p.push(&chord.key);
     Some(p.join("+"))
 }
 /// Parses a persisted chord string using ECMAScript-compatible trimming.
-pub fn parse_chord(s: &str) -> Option<Chord> {
-    let p: Vec<_> = s
+pub fn parse_chord(serialized: &str) -> Option<Chord> {
+    let parts: Vec<_> = serialized
         .split('+')
         .map(js_trim)
         .map(|part| part.to_lowercase())
         .filter(|x| !x.is_empty())
         .collect();
-    if p.is_empty() {
+    if parts.is_empty() {
         return None;
     }
-    let mut c = Chord::default();
-    for x in &p[..p.len() - 1] {
+    let mut chord = Chord::default();
+    for x in &parts[..parts.len() - 1] {
         match x.as_str() {
             "mod" => {
-                if c.mod_key {
+                if chord.mod_key {
                     return None;
                 } else {
-                    c.mod_key = true
+                    chord.mod_key = true
                 }
             }
             "ctrl" => {
-                if c.ctrl {
+                if chord.ctrl {
                     return None;
                 } else {
-                    c.ctrl = true
+                    chord.ctrl = true
                 }
             }
             "alt" => {
-                if c.alt {
+                if chord.alt {
                     return None;
                 } else {
-                    c.alt = true
+                    chord.alt = true
                 }
             }
             "shift" => {
-                if c.shift {
+                if chord.shift {
                     return None;
                 } else {
-                    c.shift = true
+                    chord.shift = true
                 }
             }
             _ => return None,
         }
     }
-    let k = &p[p.len() - 1];
-    if MODIFIERS.contains(&k.as_str()) || !(valid_single(k) || valid_named(k)) {
+    let key_token = &parts[parts.len() - 1];
+    if MODIFIERS.contains(&key_token.as_str())
+        || !(valid_single(key_token) || valid_named(key_token))
+    {
         return None;
     }
-    c.key = k.clone();
-    Some(c)
+    chord.key = key_token.clone();
+    Some(chord)
 }
 fn display_key(k: &str) -> String {
     match k {
@@ -229,27 +231,31 @@ fn display_key(k: &str) -> String {
     }
 }
 /// Formats a persisted chord for the requested platform.
-pub fn format_chord(s: &str, mac: bool) -> String {
-    let Some(c) = parse_chord(s) else {
-        return s.into();
+pub fn format_chord(serialized: &str, mac: bool) -> String {
+    let Some(chord) = parse_chord(serialized) else {
+        return serialized.into();
     };
-    let k = display_key(&c.key);
+    let key_label = display_key(&chord.key);
     if mac {
         format!(
             "{}{}{}{}{}",
-            if c.mod_key { "⌘" } else { "" },
-            if c.ctrl { "⌃" } else { "" },
-            if c.alt { "⌥" } else { "" },
-            if c.shift { "⇧" } else { "" },
-            k
+            if chord.mod_key { "⌘" } else { "" },
+            if chord.ctrl { "⌃" } else { "" },
+            if chord.alt { "⌥" } else { "" },
+            if chord.shift { "⇧" } else { "" },
+            key_label
         )
     } else {
         format!(
             "{}{}{}{}",
-            if c.mod_key || c.ctrl { "Ctrl+" } else { "" },
-            if c.alt { "Alt+" } else { "" },
-            if c.shift { "Shift+" } else { "" },
-            k
+            if chord.mod_key || chord.ctrl {
+                "Ctrl+"
+            } else {
+                ""
+            },
+            if chord.alt { "Alt+" } else { "" },
+            if chord.shift { "Shift+" } else { "" },
+            key_label
         )
     }
 }

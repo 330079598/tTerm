@@ -142,23 +142,30 @@ fn normalize_binding(v: &[String]) -> Option<Vec<String>> {
 }
 /// Resolves platform defaults and sparse overrides.
 pub fn resolve_effective_keymap(config: &KeymapConfig, mac: bool) -> EffectiveKeymap {
-    let d = defaults(mac);
+    let defaults_map = defaults(mac);
     KeymapActionId::ALL
         .iter()
         .map(|id| {
-            let v = config.bindings.get(id.as_str());
-            let e = match v {
+            let override_value = config.bindings.get(id.as_str());
+            let e = match override_value {
                 Some(None) => None,
-                Some(Some(x)) => normalize_binding(x).or_else(|| d.get(id).cloned().flatten()),
-                None => d.get(id).cloned().unwrap_or(None),
+                Some(Some(x)) => {
+                    normalize_binding(x).or_else(|| defaults_map.get(id).cloned().flatten())
+                }
+                None => defaults_map.get(id).cloned().unwrap_or(None),
             };
             (*id, e)
         })
         .collect()
 }
 /// Returns the display label for an action’s first active chord.
-pub fn get_shortcut_label(e: &EffectiveKeymap, id: KeymapActionId, mac: bool) -> Option<String> {
-    e.get(&id)
+pub fn get_shortcut_label(
+    effective: &EffectiveKeymap,
+    action_id: KeymapActionId,
+    mac: bool,
+) -> Option<String> {
+    effective
+        .get(&action_id)
         .and_then(|v| v.as_ref())
         .and_then(|v| v.first())
         .map(|s| format_chord(s, mac))
@@ -171,11 +178,16 @@ pub fn with_shortcut(label: &str, shortcut: Option<&str>) -> String {
     }
 }
 /// Finds chords owned by more than one distinct action.
-pub fn find_keymap_conflicts(e: &EffectiveKeymap) -> BTreeMap<String, Vec<KeymapActionId>> {
+pub fn find_keymap_conflicts(effective: &EffectiveKeymap) -> BTreeMap<String, Vec<KeymapActionId>> {
     let mut owners: BTreeMap<String, Vec<KeymapActionId>> = BTreeMap::new();
     for id in KeymapActionId::ALL {
-        for c in e.get(id).and_then(|v| v.as_ref()).into_iter().flatten() {
-            let action_owners = owners.entry(c.clone()).or_default();
+        for chord in effective
+            .get(id)
+            .and_then(|v| v.as_ref())
+            .into_iter()
+            .flatten()
+        {
+            let action_owners = owners.entry(chord.clone()).or_default();
             if !action_owners.contains(id) {
                 action_owners.push(*id);
             }
@@ -185,11 +197,16 @@ pub fn find_keymap_conflicts(e: &EffectiveKeymap) -> BTreeMap<String, Vec<Keymap
     owners
 }
 /// Builds the deterministic serialized-chord lookup index.
-pub fn build_chord_index(e: &EffectiveKeymap) -> BTreeMap<String, KeymapActionId> {
+pub fn build_chord_index(effective: &EffectiveKeymap) -> BTreeMap<String, KeymapActionId> {
     let mut out = BTreeMap::new();
     for id in KeymapActionId::ALL {
-        for c in e.get(id).and_then(|v| v.as_ref()).into_iter().flatten() {
-            out.entry(c.clone()).or_insert(*id);
+        for chord in effective
+            .get(id)
+            .and_then(|v| v.as_ref())
+            .into_iter()
+            .flatten()
+        {
+            out.entry(chord.clone()).or_insert(*id);
         }
     }
     out
