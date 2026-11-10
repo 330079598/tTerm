@@ -6,8 +6,10 @@ use crate::tunnel::types::TunnelStats;
 use std::sync::atomic::Ordering;
 use std::sync::{Arc, Mutex};
 use std::time::Instant;
-use tauri::{AppHandle, Emitter};
+use tauri::AppHandle;
+use tterm_core::events::tunnel::TunnelEvent;
 use tterm_core::events::tunnel::{TunnelState, TunnelStatus, TunnelTraffic};
+use tterm_core::events::{AppEvent, EventSink};
 
 /// active, total, failed, bytes up, bytes down.
 type Counters = (u64, u64, u64, u64, u64);
@@ -33,6 +35,7 @@ struct TrafficLedger {
 /// Holds a tunnel's live state and pushes changes to the UI.
 pub struct TunnelReporter {
     app: AppHandle,
+    sink: Arc<dyn EventSink>,
     id: String,
     pub stats: Arc<TunnelStats>,
     inner: Mutex<StatusInner>,
@@ -40,7 +43,7 @@ pub struct TunnelReporter {
 }
 
 impl TunnelReporter {
-    pub fn new(app: AppHandle, id: String) -> Arc<Self> {
+    pub fn new(app: AppHandle, sink: Arc<dyn EventSink>, id: String) -> Arc<Self> {
         let saved =
             crate::db::read(|connection| tunnel_traffic(connection, &id)).unwrap_or_else(|error| {
                 eprintln!("Failed to load traffic of tunnel {id}: {error}");
@@ -48,6 +51,7 @@ impl TunnelReporter {
             });
         Arc::new(Self {
             app,
+            sink,
             id,
             stats: Arc::new(TunnelStats::default()),
             inner: Mutex::new(StatusInner {
@@ -175,7 +179,9 @@ impl TunnelReporter {
             let mut inner = self.inner.lock().unwrap_or_else(|e| e.into_inner());
             inner.last_emitted_counters = self.counters();
         }
-        let _ = self.app.emit("tunnel-status", self.snapshot());
+        let _ = self
+            .sink
+            .emit(AppEvent::Tunnel(TunnelEvent::Status(self.snapshot())));
     }
 
     pub fn set_state(&self, state: TunnelState, message: Option<String>) {

@@ -9,6 +9,7 @@ mod core;
 mod db;
 #[cfg(any(target_os = "windows", target_os = "macos"))]
 mod drag_out;
+mod event_sink;
 mod fonts;
 mod ime_focus;
 mod launch_dir;

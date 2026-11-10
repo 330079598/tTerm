@@ -14,6 +14,7 @@ use crate::core::session::{
     types::PtyConnectionOptions,
 };
 use crate::core::state::HostPromptMap;
+use crate::event_sink::TauriEventSink;
 use crate::profiles::types::SavedProfile;
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -42,11 +43,13 @@ pub struct TunnelManager {
 
 impl TunnelManager {
     fn reporter_for(&self, app: &AppHandle, id: &str) -> Arc<TunnelReporter> {
+        let sink: Arc<dyn tterm_core::events::EventSink> =
+            Arc::new(TauriEventSink::new(app.clone()));
         self.reporters
             .lock()
             .unwrap_or_else(|e| e.into_inner())
             .entry(id.to_string())
-            .or_insert_with(|| TunnelReporter::new(app.clone(), id.to_string()))
+            .or_insert_with(|| TunnelReporter::new(app.clone(), sink, id.to_string()))
             .clone()
     }
 

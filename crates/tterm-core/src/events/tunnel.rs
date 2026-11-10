@@ -1,4 +1,4 @@
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 
 #[derive(Debug, Serialize, Clone, Copy, PartialEq, Eq)]
 #[serde(rename_all = "lowercase")]
@@ -93,6 +93,29 @@ impl TunnelStatus {
             retry_attempt: 0,
             last_failure: None,
             lifetime,
+        }
+    }
+}
+
+/// Tunnel events emitted to the application shell.
+#[derive(Debug, Clone, PartialEq)]
+pub enum TunnelEvent {
+    /// A live status snapshot changed.
+    Status(TunnelStatus),
+}
+
+impl TunnelEvent {
+    /// Tunnel status historically used `AppHandle::emit`, which targets the
+    /// application default and is intentionally different from `emit_to(any)`.
+    pub fn target(&self) -> super::EventTarget {
+        match self {
+            Self::Status(_) => super::EventTarget::Default,
+        }
+    }
+
+    pub fn name(&self) -> super::EventName {
+        match self {
+            Self::Status(_) => super::EventName::Static("tunnel-status"),
         }
     }
 }
