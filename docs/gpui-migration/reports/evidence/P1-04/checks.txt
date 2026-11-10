@@ -1,0 +1,141 @@
+# Legacy contracts before extraction
+$ CARGO_BUILD_JOBS=3 cargo test --workspace legacy_
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 14.80s
+test sftp::internal::api::delete::contract_tests::legacy_r01_wire_contract ... ok
+test sftp::internal::api::delete::contract_tests::legacy_r02_wire_contract ... ok
+test sftp::internal::api::delete::contract_tests::legacy_r03_wire_contract ... ok
+test sftp::internal::api::download::contract_tests::legacy_d01_wire_contract ... ok
+test sftp::internal::api::download::contract_tests::legacy_d02_wire_contract ... ok
+test sftp::internal::api::download::contract_tests::legacy_d03_wire_contract ... ok
+test sftp::internal::api::download::contract_tests::legacy_d04_wire_contract ... ok
+test sftp::internal::api::download::contract_tests::legacy_d05_wire_contract ... ok
+test sftp::internal::api::download::contract_tests::legacy_d06_wire_contract ... ok
+test sftp::internal::api::download::contract_tests::legacy_d07_wire_contract ... ok
+test sftp::internal::api::download::contract_tests::legacy_d08_wire_contract ... ok
+test sftp::internal::api::download::contract_tests::legacy_d09_wire_contract ... ok
+test sftp::internal::api::download::contract_tests::legacy_d10_wire_contract ... ok
+test sftp::internal::api::download::contract_tests::legacy_d11_wire_contract ... ok
+test sftp::internal::api::external::contract_tests::legacy_e01_wire_contract ... ok
+test sftp::internal::api::external::contract_tests::legacy_e02_wire_contract ... ok
+test sftp::internal::api::upload::contract_tests::legacy_u02_wire_contract ... ok
+test sftp::internal::api::upload::contract_tests::legacy_u01_wire_contract ... ok
+test sftp::internal::api::search::contract_tests::legacy_search_ignores_channel_errors_and_counts_results ... ok
+test sftp::internal::api::upload::contract_tests::legacy_u03_wire_contract ... ok
+test sftp::internal::api::upload::contract_tests::legacy_u04_wire_contract ... ok
+test sftp::internal::api::upload::contract_tests::legacy_u05_wire_contract ... ok
+test sftp::internal::api::search::contract_tests::legacy_search_channel_json_and_limit ... ok
+test sftp::internal::api::upload::contract_tests::legacy_u06_wire_contract ... ok
+test sftp::internal::api::upload::contract_tests::legacy_u07_wire_contract ... ok
+test sftp::internal::api::upload::contract_tests::legacy_u08_wire_contract ... ok
+test sftp::internal::api::upload::contract_tests::legacy_u09_wire_contract ... ok
+test result: ok. 46 passed; 0 failed; 1 ignored; 0 measured; 871 filtered out; finished in 0.16s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 79 filtered out; finished in 0.00s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 12 filtered out; finished in 0.00s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 2 filtered out; finished in 0.00s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 6 filtered out; finished in 0.00s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 84 filtered out; finished in 0.00s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 77 filtered out; finished in 0.00s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 2 filtered out; finished in 0.00s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 137 filtered out; finished in 0.00s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 85 filtered out; finished in 0.00s
+Summed harness totals: [47, 0, 1]
+
+# Container workflows
+$ CARGO_BUILD_JOBS=3 TTERM_P104_CONTAINER=1 cargo test --workspace container_ -- --ignored
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 2m 20s
+test sftp::internal::api::search::container_tests::container_recursive_find_walk_and_cancel ... ok
+test sftp::internal::api::external::container_tests::container_external_edit_upload_and_remote_change ... ok
+test sftp::internal::api::upload::event_tests::container_upload_download_and_cancel_record_events ... ok
+test sftp::internal::api::delete::container_tests::container_recursive_delete_preserves_sampled_events ... ok
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 921 filtered out; finished in 0.29s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 80 filtered out; finished in 0.00s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 12 filtered out; finished in 0.00s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 2 filtered out; finished in 0.00s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 6 filtered out; finished in 0.00s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 84 filtered out; finished in 0.00s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 77 filtered out; finished in 0.00s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 2 filtered out; finished in 0.00s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 137 filtered out; finished in 0.00s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 85 filtered out; finished in 0.00s
+Summed harness totals: [4, 0, 0]
+
+# Full workspace
+$ CARGO_BUILD_JOBS=3 cargo test --workspace
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 5m 12s
+test sftp::internal::api::delete::container_tests::container_recursive_delete_preserves_sampled_events ... ignored, requires the P1-04 disposable Docker host on port 22404
+test sftp::internal::api::delete::contract_tests::legacy_r01_wire_contract ... ok
+test sftp::internal::api::delete::contract_tests::legacy_r02_wire_contract ... ok
+test sftp::internal::api::delete::contract_tests::legacy_r03_wire_contract ... ok
+test sftp::internal::api::download::contract_tests::legacy_d01_wire_contract ... ok
+test sftp::internal::api::download::contract_tests::legacy_d02_wire_contract ... ok
+test sftp::internal::api::download::contract_tests::legacy_d03_wire_contract ... ok
+test sftp::internal::api::download::contract_tests::legacy_d04_wire_contract ... ok
+test sftp::internal::api::download::contract_tests::legacy_d05_wire_contract ... ok
+test sftp::internal::api::download::contract_tests::legacy_d06_wire_contract ... ok
+test sftp::internal::api::download::contract_tests::legacy_d07_wire_contract ... ok
+test sftp::internal::api::download::contract_tests::legacy_d08_wire_contract ... ok
+test sftp::internal::api::download::contract_tests::legacy_d09_wire_contract ... ok
+test sftp::internal::api::download::contract_tests::legacy_d10_wire_contract ... ok
+test sftp::internal::api::download::contract_tests::legacy_d11_wire_contract ... ok
+test sftp::internal::api::external::container_tests::container_external_edit_upload_and_remote_change ... ignored, requires the P1-04 disposable Docker host on port 22404
+test sftp::internal::api::external::contract_tests::legacy_e01_wire_contract ... ok
+test sftp::internal::api::external::contract_tests::legacy_e02_wire_contract ... ok
+test sftp::internal::api::search::container_tests::container_recursive_find_walk_and_cancel ... ignored, requires the P1-04 disposable Docker host on port 22404
+test sftp::internal::api::search::contract_tests::legacy_search_channel_json_and_limit ... ok
+test sftp::internal::api::search::contract_tests::legacy_search_ignores_channel_errors_and_counts_results ... ok
+test sftp::internal::api::upload::contract_tests::legacy_u01_wire_contract ... ok
+test sftp::internal::api::upload::contract_tests::legacy_u02_wire_contract ... ok
+test sftp::internal::api::upload::contract_tests::legacy_u03_wire_contract ... ok
+test sftp::internal::api::upload::contract_tests::legacy_u04_wire_contract ... ok
+test sftp::internal::api::upload::contract_tests::legacy_u05_wire_contract ... ok
+test sftp::internal::api::upload::contract_tests::legacy_u06_wire_contract ... ok
+test sftp::internal::api::upload::contract_tests::legacy_u07_wire_contract ... ok
+test sftp::internal::api::upload::contract_tests::legacy_u08_wire_contract ... ok
+test sftp::internal::api::upload::contract_tests::legacy_u09_wire_contract ... ok
+test sftp::internal::api::upload::event_tests::container_upload_download_and_cancel_record_events ... ignored, requires the P1-04 disposable Docker host on port 22404
+test sftp::internal::transfer::lanes::cadence_tests::default_progress_interval_preserves_first_sample_gate_and_forced_final ... ok
+test sftp::internal::transfer::tests::checkpoint_cadence_ignores_chunk_counts_below_byte_threshold ... ok
+test result: ok. 869 passed; 0 failed; 56 ignored; 0 measured; 0 filtered out; finished in 14.12s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 80 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.39s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 20.76s
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.51s
+test result: ok. 84 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.06s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 77 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 5.98s
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+test result: ok. 137 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.25s
+test result: ok. 85 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.10s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+Summed harness totals: [1354, 0, 56]
+
+# Clippy
+$ CARGO_BUILD_JOBS=3 cargo clippy --workspace --all-targets -- -D warnings
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 2m 42s
+
+# Isolation and cleanup
+Bundle CFBundleIdentifier: com.stone.tTerm.gpui-dev.p1-04
+CUA: Computer Use was not approved to use tTerm P1-04 Test
+docker inspect tterm-P1-04-host: [] / error: no such object
+Port 14404: no listener; port 22404: connection refused (nc exit 1).
+PIDs 41777,42128,42146,60000: absent.
+P1-04 paths removed
+security find-generic-password -s tterm (com.stone.tTerm.gpui-dev.p1-04): item could not be found (exit 44).
