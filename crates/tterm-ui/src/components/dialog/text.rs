@@ -156,7 +156,7 @@ impl Element for DialogText {
             return;
         };
         let mut y = bounds.origin.y;
-        let mut index = 0;
+        let mut rows = Vec::new();
         let align = if self.center_multiline && self.lines.borrow().len() > 1 {
             TextAlign::Center
         } else {
@@ -177,15 +177,15 @@ impl Element for DialogText {
                     TextAlign::Right => bounds.size.width - width,
                     TextAlign::Left => px(0.0),
                 };
-                observer(
-                    &format!("{}-{index}", self.slot),
-                    Bounds::new(point(bounds.origin.x + offset, y), size(width, *height)),
-                );
-                index += 1;
+                rows.push(Bounds::new(
+                    point(bounds.origin.x + offset, y),
+                    size(width, *height),
+                ));
                 y += *height;
                 start = end;
             }
         }
+        observer(self.slot, &rows);
     }
     fn paint(
         &mut self,

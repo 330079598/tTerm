@@ -74,7 +74,10 @@ fn configured_harness(
             opener.focus(window, cx);
             let bounds = Rc::new(RefCell::new(HashMap::new()));
             let styles = Rc::new(RefCell::new(HashMap::new()));
-            let texts = Rc::new(RefCell::new(HashMap::new()));
+            let texts = Rc::new(RefCell::new(HashMap::<
+                String,
+                gpui_kit::Bounds<gpui_kit::Pixels>,
+            >::new()));
             let observed_texts = texts.clone();
             let observed = bounds.clone();
             let observed_styles = styles.clone();
@@ -88,8 +91,13 @@ fn configured_harness(
                             .borrow_mut()
                             .insert(slot.to_owned(), style.clone());
                     }))
-                    .observe_text(Rc::new(move |slot, bounds| {
-                        observed_texts.borrow_mut().insert(slot.to_owned(), bounds);
+                    .observe_text(Rc::new(move |slot, rows| {
+                        let prefix = format!("{slot}-");
+                        let mut texts = observed_texts.borrow_mut();
+                        texts.retain(|key, _| !key.starts_with(&prefix));
+                        for (index, bounds) in rows.iter().enumerate() {
+                            texts.insert(format!("{prefix}{index}"), *bounds);
+                        }
                     }))
                     .on_interact_outside(move |event| {
                         if prevent {
@@ -778,6 +786,26 @@ fn narrow_multiline_prompt_title_is_centered_per_row(cx: &mut TestAppContext) {
     assert_multiline_title_alignment(cx, prompt_options());
 }
 
+#[gpui_kit::test]
+fn text_rows_are_replaced_when_description_shrinks(cx: &mut TestAppContext) {
+    let mut options = options();
+    options.description = Some("First line.\nSecond line.".into());
+    let (probe, visual) = configured_harness(cx, false, options);
+    visual.read(|cx| assert!(probe.read(cx).texts.borrow().contains_key("description-1")));
+    let dialog = visual.read(|cx| probe.read(cx).dialog.clone());
+    visual.update(|_, cx| {
+        dialog.update(cx, |dialog, cx| {
+            dialog.options.description = Some("Only line.".into());
+            cx.notify();
+        });
+    });
+    redraw(visual);
+    visual.read(|cx| {
+        let rows = probe.read(cx).texts.borrow();
+        assert!(rows.contains_key("description-0"));
+        assert!(!rows.contains_key("description-1"));
+    });
+}
 #[gpui_kit::test]
 fn all_mouse_buttons_dismiss_the_overlay(cx: &mut TestAppContext) {
     let (probe, visual) = harness(cx, false);

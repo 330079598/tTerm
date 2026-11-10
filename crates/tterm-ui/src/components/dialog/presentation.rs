@@ -37,8 +37,8 @@ pub struct PartStyle {
 }
 /// A diagnostic hook; coordinates come from the rendered child, never a fixture.
 pub type PartObserver = Rc<dyn Fn(&str, Bounds<Pixels>, &PartStyle)>;
-/// Actual text child bounds, observed through the same layout as painting.
-pub type TextObserver = Rc<dyn Fn(&str, Bounds<Pixels>)>;
+/// Replaces a slot's text rows with the current prepainted layout.
+pub type TextObserver = Rc<dyn Fn(&str, &[Bounds<Pixels>])>;
 
 impl PartStyle {
     pub(super) fn base(theme: Theme) -> Self {
