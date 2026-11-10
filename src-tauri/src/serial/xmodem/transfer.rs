@@ -3,9 +3,7 @@ use super::XmodemProtocol;
 use crate::core::state::ZmodemMap;
 use crate::serial::io::SerialTap;
 use crate::terminal::types::PtyWriter;
-use crate::zmodem::events::{
-    self, EmitFn, TransferCompletePayload, TransferProgressPayload, TransferStartPayload,
-};
+use crate::zmodem::events::{self, EmitFn};
 use std::collections::VecDeque;
 use std::fs::File;
 use std::io::Write;
@@ -311,3 +309,7 @@ pub(super) fn run(params: TransferParams) {
     }
     claim.release();
 }
+
+use tterm_core::events::zmodem::{
+    TransferCompletePayload, TransferProgressPayload, TransferStartPayload,
+};

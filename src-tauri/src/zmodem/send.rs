@@ -28,9 +28,7 @@ use std::time::{Duration, Instant};
 
 use tokio::sync::Mutex as TokioMutex;
 
-use super::events::{
-    self, EmitFn, TransferCompletePayload, TransferProgressPayload, TransferStartPayload,
-};
+use super::events::{self, EmitFn};
 use super::protocol::{consts::ZmodemDirection, engine::ZmodemAction, engine::ZmodemEngine};
 use crate::core::state::ActiveSession;
 use crate::core::state::ZmodemMap;
@@ -452,3 +450,7 @@ fn write_back(active: &Arc<TokioMutex<Option<ActiveSession>>>, bytes: &[u8]) {
         None => {}
     }
 }
+
+use tterm_core::events::zmodem::{
+    TransferCompletePayload, TransferProgressPayload, TransferStartPayload,
+};

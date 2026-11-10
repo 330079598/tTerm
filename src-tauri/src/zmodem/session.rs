@@ -16,9 +16,7 @@ use std::time::{Duration, Instant};
 use tauri::Emitter;
 
 use super::detect;
-use super::events::{
-    self, EmitFn, TransferCompletePayload, TransferProgressPayload, TransferStartPayload,
-};
+use super::events::{self, EmitFn};
 use super::protocol::consts::ZDLE;
 use super::protocol::{consts::ZmodemDirection, engine::ZmodemAction, engine::ZmodemEngine};
 use crate::core::state::ChannelContext;
@@ -601,3 +599,7 @@ mod tests {
         assert_eq!(outcome.passthrough, trigger);
     }
 }
+
+use tterm_core::events::zmodem::{
+    TransferCompletePayload, TransferProgressPayload, TransferStartPayload,
+};

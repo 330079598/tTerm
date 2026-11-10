@@ -52,3 +52,7 @@ fn legacy_transfer_contract() {
         );
     }
 }
+
+use tterm_core::events::zmodem::{
+    TransferCompletePayload, TransferProgressPayload, TransferStartPayload,
+};

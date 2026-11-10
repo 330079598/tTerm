@@ -2,6 +2,7 @@
 
 pub mod ssh;
 pub mod tunnel;
+pub mod zmodem;
 
 use tunnel::TunnelEvent;
 
