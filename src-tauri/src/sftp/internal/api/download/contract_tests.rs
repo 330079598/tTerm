@@ -1,5 +1,9 @@
 //! Legacy wire contracts captured before P1-04 transport changes.
 use super::*;
+use tterm_core::events::sftp::download::{
+    DownloadBatchCompleteEvent, DownloadItemCompleteEvent, DownloadItemStartEvent,
+    DownloadProgressEvent,
+};
 
 #[test]
 fn legacy_d01_wire_contract() {

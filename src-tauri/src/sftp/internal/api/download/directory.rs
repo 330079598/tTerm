@@ -1,10 +1,7 @@
 //! Downloading folders, and several remote paths as one transfer.
 
-use super::{
-    is_cancelled, next_transfer_id, transfer_options, transfer_outcome, DownloadBatchCompleteEvent,
-    DownloadItemCompleteEvent, DownloadItemStartEvent, DownloadProgressEvent,
-};
-use crate::sftp::internal::api::conflict::{self, CandidateDecision, ConflictPolicy, SourceStat};
+use super::{is_cancelled, next_transfer_id, transfer_options, transfer_outcome};
+use crate::sftp::internal::api::conflict::{self, CandidateDecision, SourceStat};
 use crate::sftp::internal::connection::map_sftp_error;
 use crate::sftp::internal::transfer::{self, ProgressSink, RemoteChannels, TransferProgress};
 use crate::sftp::internal::types::TransferCancelMap;
@@ -13,6 +10,11 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use tauri::{AppHandle, Emitter};
 use tokio::sync::watch;
+use tterm_core::events::sftp::download::{
+    DownloadBatchCompleteEvent, DownloadItemCompleteEvent, DownloadItemStartEvent,
+    DownloadProgressEvent,
+};
+use tterm_core::sftp::conflict::ConflictPolicy;
 
 /// Where a remote file should land locally under `policy`, or `None` to
 /// skip it.

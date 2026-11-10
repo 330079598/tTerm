@@ -1,5 +1,6 @@
 //! Legacy wire contracts captured before P1-04 transport changes.
 use super::*;
+use tterm_core::events::sftp::external::{EditStatus, ExternalEdit};
 
 #[test]
 fn legacy_e01_wire_contract() {

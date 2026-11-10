@@ -2,6 +2,8 @@
 //! `find` does the walking where it can; otherwise the walk runs over SFTP.
 //! Matches stream to the drawer as they are found.
 
+use tterm_core::sftp::entry::SftpDirectoryEntry;
+use tterm_core::sftp::search::SearchEvent;
 mod find;
 mod matcher;
 #[cfg(all(test, unix))]
@@ -12,9 +14,7 @@ use crate::core::session::types::PtyConnectionOptions;
 use crate::core::state::HostPromptMap;
 use crate::sftp::internal::api::{with_cancel, SftpHost};
 use crate::sftp::internal::connection::map_sftp_error;
-use crate::sftp::internal::types::{
-    SftpConnectionPool, SftpDirectoryEntry, SftpHandles, TransferCancelMap,
-};
+use crate::sftp::internal::types::{SftpConnectionPool, SftpHandles, TransferCancelMap};
 use crate::ssh::secret_store::types::SecretStoreState;
 use find::{FindOutcome, FindSearch};
 use matcher::NameMatcher;
@@ -35,22 +35,6 @@ pub struct SearchRequest {
     regex: bool,
     /// Whether names starting with `.` are searched, and searched in.
     include_hidden: bool,
-}
-
-#[derive(Serialize, Debug, Clone, PartialEq)]
-#[serde(
-    tag = "kind",
-    rename_all = "camelCase",
-    rename_all_fields = "camelCase"
-)]
-pub enum SearchEvent {
-    Matches {
-        entries: Vec<SftpDirectoryEntry>,
-    },
-    /// Only the SFTP walk knows how far it got.
-    Progress {
-        scanned_folders: usize,
-    },
 }
 
 #[derive(Serialize, Clone, Copy)]

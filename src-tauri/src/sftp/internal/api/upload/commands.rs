@@ -2,7 +2,7 @@ use super::*;
 use crate::core::session::types::PtyConnectionOptions;
 use crate::core::state::HostPromptMap;
 use crate::sftp::internal::api::conflict::{
-    self, CandidateDecision, ConflictPolicy, ConflictReport, SourceStat, TransferConflict,
+    self, CandidateDecision, ConflictReport, SourceStat, TransferConflict,
 };
 use crate::sftp::internal::api::prepare_transfer;
 use crate::sftp::internal::connection::ensure_ssh_plan;
@@ -11,6 +11,10 @@ use crate::ssh::secret_store::types::SecretStoreState;
 use std::collections::HashMap;
 use tauri::{AppHandle, Emitter, State};
 use tokio::sync::watch;
+use tterm_core::events::sftp::upload::{
+    UploadBatchCompleteEvent, UploadBatchStartEvent, UploadItemCompleteEvent, UploadItemStartEvent,
+};
+use tterm_core::sftp::conflict::ConflictPolicy;
 
 /// Where a planned upload should land under `policy`, or `None` to skip it.
 ///

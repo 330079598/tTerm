@@ -1,6 +1,8 @@
 //! Typed business events and delivery interfaces shared by the Tauri and GPUI clients.
 
 pub mod tunnel;
+// P1-04 owns the SFTP event domain.
+pub mod sftp;
 
 use tunnel::TunnelEvent;
 

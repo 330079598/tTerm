@@ -2,6 +2,7 @@
 use super::*;
 use std::sync::{Arc, Mutex};
 use tauri::ipc::InvokeResponseBody;
+use tterm_core::sftp::entry::SftpDirectoryEntry;
 
 #[test]
 fn legacy_search_channel_json_and_limit() {

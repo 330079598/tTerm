@@ -1,5 +1,10 @@
 //! Legacy wire contracts captured before P1-04 transport changes.
 use super::*;
+use tterm_core::events::sftp::upload::{
+    UploadBatchCompleteEvent, UploadBatchStartEvent, UploadItemCompleteEvent,
+    UploadItemProgressEvent, UploadItemStartEvent,
+};
+use tterm_core::sftp::conflict::ConflictPolicy;
 
 #[test]
 fn legacy_u01_wire_contract() {
@@ -9,7 +14,7 @@ fn legacy_u01_wire_contract() {
         local_path: "/tmp/中文 file.txt".into(),
         local_paths: vec!["first".into(), "中文 second".into()],
         remote_base_path: "remote_base_path-value".into(),
-        conflict_policy: super::super::conflict::ConflictPolicy::Rename,
+        conflict_policy: tterm_core::sftp::conflict::ConflictPolicy::Rename,
     };
     assert_eq!(
         serde_json::to_value(&payload).unwrap(),
