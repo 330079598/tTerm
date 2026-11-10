@@ -1,0 +1,24 @@
+{
+  "UserPromptSubmit": [
+    "C:\\Users\\stone\\AppData\\Local\\tTerm\\tTerm.exe --agent-report codex processing"
+  ],
+  "PermissionRequest": [
+    "C:\\Users\\stone\\AppData\\Local\\tTerm\\tTerm.exe --agent-report codex waiting"
+  ],
+  "Stop": [
+    "C:\\Users\\stone\\AppData\\Local\\tTerm\\tTerm.exe --agent-report codex done"
+  ],
+  "SessionStart": [],
+  "PreToolUse": [],
+  "PostToolUse": [
+    "C:\\Users\\stone\\AppData\\Local\\tTerm\\tTerm.exe --agent-report codex processing"
+  ],
+  "Interrupt": [
+    "C:\\Users\\stone\\AppData\\Local\\tTerm\\tTerm.exe --agent-report codex idle"
+  ],
+  "SubagentStart": [],
+  "SubagentStop": [],
+  "SessionEnd": [
+    "C:\\Users\\stone\\AppData\\Local\\tTerm\\tTerm.exe --agent-report codex ended"
+  ]
+}

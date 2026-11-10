@@ -1,0 +1,57 @@
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - import "./src/lib/xtermWebglPatches" without a file extension (vite.config.ts:9:40). Add the file extension
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+ RUN  v5.0.2 D:/code/rust/tTerm-N-01
+
+ ✓ src/components/TerminalTab/agentResume.test.ts > agent resume timing and manual fallback > waits through SSH authentication and MOTD until ready and an OSC prompt 4ms
+ ✓ src/components/TerminalTab/agentResume.test.ts > agent resume timing and manual fallback > uses the agent start directory and the live SSH shell rather than a saved shell 1ms
+ ✓ src/components/TerminalTab/agentResume.test.ts > agent resume timing and manual fallback > after 15 seconds shows a button and never sends on a late prompt 2ms
+ ✓ src/components/TerminalTab/agentResume.test.ts > agent resume timing and manual fallback > without integration cmd only sends when clicked 0ms
+ ✓ src/components/TerminalTab/agentResume.test.ts > agent resume timing and manual fallback > without integration pwsh only sends when clicked 0ms
+ ✓ src/components/TerminalTab/agentResume.test.ts > agent resume timing and manual fallback > unknown SSH shell disables manual resume and never guesses bash 0ms
+ ✓ src/components/TerminalTab/agentResume.test.ts > agent resume timing and manual fallback > typing cancels the notice and a pending command 0ms
+ ✓ src/components/TerminalTab/agentResume.test.ts > agent resume timing and manual fallback > key cancels the notice and a pending command 0ms
+ ✓ src/components/TerminalTab/agentResume.test.ts > agent resume timing and manual fallback > paste cancels the notice and a pending command 0ms
+ ✓ src/components/TerminalTab/agentResume.test.ts > agent resume timing and manual fallback > typing after a notice also invalidates a previously captured button 1ms
+ ✓ src/components/TerminalTab/agentResume.test.ts > agent resume timing and manual fallback > terminal focus replies do not cancel waiting 0ms
+ ✓ src/components/TerminalTab/agentResume.test.ts > agent resume timing and manual fallback > rejects a null Rust command on both automatic and button paths 1ms
+ ✓ src/components/TerminalTab/agentResume.test.ts > agent resume timing and manual fallback > cancels pending automatic input on disconnect 0ms
+ ✓ src/components/TerminalTab/agentResume.test.ts > agent resume timing and manual fallback > cancels pending automatic input on dispose 0ms
+ ✓ src/components/TerminalTab/agentResume.test.ts > agent resume timing and manual fallback > cancels pending automatic input on sensitive prompt 0ms
+ ✓ src/components/TerminalTab/agentResume.test.ts > agent resume timing and manual fallback > cancels pending automatic input on busy 0ms
+ ✓ src/components/TerminalTab/agentResume.test.ts > agent resume timing and manual fallback > does nothing without a saved resume field 0ms
+ ✓ src/lib/agentStatus.test.ts > parseAgentReport > reads an agent and its state 2ms
+ ✓ src/lib/agentStatus.test.ts > parseAgentReport > reads the session a report names 0ms
+ ✓ src/lib/agentStatus.test.ts > parseAgentReport > distinguishes direct sessions from broadcasts and rejects unknown scope 0ms
+ ✓ src/lib/agentStatus.test.ts > parseAgentReport > leaves other OSC 777 commands alone 0ms
+ ✓ src/lib/agentStatus.test.ts > parseAgentReport > decodes hook cwd without allowing protocol delimiters or control sequences 1ms
+ ✓ src/lib/agentStatus.test.ts > parseAgentReport > rejects unknown states, odd names and extra fields 0ms
+ ✓ src/lib/agentStatus.test.ts > agentDisplayName > names known agents and keeps others as they are 0ms
+ ✓ src/lib/agentStatus.test.ts > AgentTracker > shows work and announces the end of a turn 2ms
+ ✓ src/lib/agentStatus.test.ts > AgentTracker > announces a wait only once it lasts 1ms
+ ✓ src/lib/agentStatus.test.ts > AgentTracker > forgets a wait answered in time 0ms
+ ✓ src/lib/agentStatus.test.ts > AgentTracker > speaks for an agent at work however long it takes 0ms
+ ✓ src/lib/agentStatus.test.ts > AgentTracker > clears the status on an interrupt 0ms
+ ✓ src/lib/agentStatus.test.ts > AgentTracker > leaves stops to an agent that reports them 0ms
+ ✓ src/lib/agentStatus.test.ts > AgentTracker > works on once a wait is answered 1ms
+ ✓ src/lib/agentStatus.test.ts > AgentTracker > keeps waiting where an answer may be a refusal nobody reports 1ms
+ ✓ src/lib/agentStatus.test.ts > AgentTracker > goes quiet when the agent reports it was stopped 0ms
+ ✓ src/lib/agentStatus.test.ts > AgentTracker > stops on the end of the session or a reset 0ms
+ ✓ src/lib/agentStatus.test.ts > AgentTracker > names the agent running from its first report until it ends 0ms
+ ✓ src/lib/agentStatus.test.ts > direct and broadcast session ownership > records a direct session without Enter and never adopts a broadcast 1ms
+ ✓ src/lib/agentStatus.test.ts > direct and broadcast session ownership > only updates the exact session already restored in this tab 0ms
+ ✓ src/lib/agentStatus.test.ts > direct and broadcast session ownership > uses shell cwd at tool start, falls back to hook cwd, and freezes it for that session 0ms
+ ✓ src/lib/agentStatus.test.ts > direct and broadcast session ownership > two tabs in the same directory ignore each other's broadcast even after typing 0ms
+ ✓ src/lib/agentStatus.test.ts > direct and broadcast session ownership > direct claude session replaces the old record; ended, idle and reset clear it 0ms
+ ✓ src/lib/agentStatus.test.ts > direct and broadcast session ownership > direct codex session replaces the old record; ended, idle and reset clear it 0ms
+ ✓ src/components/TerminalTab/attentionReports.test.ts > resume metadata through terminal reports > direct claude reports persist in the receiving tab, broadcasts cannot adopt another session 3ms
+ ✓ src/components/TerminalTab/attentionReports.test.ts > resume metadata through terminal reports > direct codex reports persist in the receiving tab, broadcasts cannot adopt another session 1ms
+ ✓ src/components/TerminalTab/attentionReports.test.ts > resume metadata through terminal reports > unowned broadcasts and malformed cwd never reach persistence 0ms
+ ✓ src/components/TerminalTab/AgentResumeBar.test.tsx > shows the manual button without sending until clicked 90ms
+ ✓ src/components/TerminalTab/AgentResumeBar.test.tsx > explains unknown shell and disables the resume button 6ms
+
+ Test Files  4 passed (4)
+      Tests  46 passed (46)
+   Start at  14:05:55
+   Duration  1.24s (environment 63%, import 15%, tests 10%, transform 10%, worker 1%)

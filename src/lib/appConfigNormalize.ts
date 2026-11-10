@@ -197,6 +197,7 @@ export function normalizeConfig(config: Partial<AppConfig>): AppConfig {
       : [],
     startup_session_restore_mode: config.startup_session_restore_mode === "all" ? "all" : "active",
     restore_terminal_content: config.restore_terminal_content !== false,
+    resume_agent_sessions: config.resume_agent_sessions !== false,
     show_jump_host_connection_info: config.show_jump_host_connection_info !== false,
     sftp_paste_upload_enabled: config.sftp_paste_upload_enabled === true,
     sftp_start_directory: normalizeSftpStartDirectory(config.sftp_start_directory) ?? "last",

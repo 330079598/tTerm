@@ -1,0 +1,33 @@
+{
+  "id": 1,
+  "result": {
+    "result": {
+      "type": "object",
+      "value": {
+        "reports": [
+          "tterm-agent;codex;processing;01a1b9f0-2da3-7be3-8046-7029464245df;broadcast;C%3A%5CUsers%5Cstone%5CAppData%5CLocal%5CTemp%5Ctterm%2Dn01%2Dcodex%2D20261108%2D145210%5C%E7%A9%BA%E6%A0%BC%20%E4%B8%AD%E6%96%87",
+          "tterm-agent;codex;done;01a1b9f0-2da3-7be3-8046-7029464245df;broadcast;C%3A%5CUsers%5Cstone%5CAppData%5CLocal%5CTemp%5Ctterm%2Dn01%2Dcodex%2D20261108%2D145210%5C%E7%A9%BA%E6%A0%BC%20%E4%B8%AD%E6%96%87"
+        ],
+        "tabs": [
+          {
+            "id": "tab-201",
+            "title": "N01 Codex retest",
+            "type": "terminal",
+            "isModified": false,
+            "isActive": true,
+            "hasConnected": true,
+            "sessionNonce": 0,
+            "connection": {
+              "type": "terminal",
+              "terminalShell": "pwsh",
+              "cwd": "C:\\Users\\stone\\AppData\\Local\\Temp\\tterm-n01-codex-20261108-145210\\空格 中文"
+            },
+            "connectionHeaderPinned": true
+          }
+        ],
+        "screen": "› reply with OK N01 Codex retest\n• Hook failed\n  └ hook exited with code 1\n \n• OK N01 Codex retest\n \n• Hook failed\n  └ hook exited with code 1\n \n  Worked for 9s • 14:55                                                                        \n \n \n› reply with OK\n \n \n• Hook failed\n  └ hook exited with code 1\n \n• OK\n \n• Hook failed\n  └ hook exited with code 1\n \n  Worked for 7s • 14:57                                                                        \n \n \n› Ask Codex to do anything\n \n  GPT-6.1 Sol · sunline-gpt high · ~\\AppData\\Local\\Temp\\tterm-n01-codex-20261108-145210\\空格 …\n  ← for agents · ? for shortcuts                                      ⚠ 1 warning · f2 to view",
+        "note": "Only this test session OSCs retained; unrelated shared-server broadcasts omitted."
+      }
+    }
+  }
+}

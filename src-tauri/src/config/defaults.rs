@@ -281,6 +281,7 @@ impl Default for AppConfig {
             terminal_padding_bottom_px: default_terminal_padding_bottom_px(),
             startup_session_restore_mode: default_startup_session_restore_mode(),
             restore_terminal_content: true,
+            resume_agent_sessions: true,
             show_jump_host_connection_info: default_show_jump_host_connection_info(),
             sftp_paste_upload_enabled: false,
             sftp_start_directory: default_sftp_start_directory(),

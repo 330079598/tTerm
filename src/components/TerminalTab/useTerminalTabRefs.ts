@@ -22,6 +22,7 @@ type UseTerminalTabRefsOptions = Pick<
   | "connection"
   | "onPidChange"
   | "onCwdChange"
+  | "onAgentSessionChange"
   | "onDistroChange"
   | "onInput"
   | "onCommandExecuted"
@@ -44,6 +45,7 @@ export function useTerminalTabRefs({
   connection,
   onPidChange,
   onCwdChange,
+  onAgentSessionChange,
   onDistroChange,
   onInput,
   onCommandExecuted,
@@ -77,6 +79,7 @@ export function useTerminalTabRefs({
   const waitingForReconnectRef = useRef(false)
   const onPidChangeRef = useStableRef(onPidChange)
   const onCwdChangeRef = useStableRef(onCwdChange)
+  const onAgentSessionChangeRef = useStableRef(onAgentSessionChange)
   const onDistroChangeRef = useStableRef(onDistroChange)
   const onInputRef = useStableRef(onInput)
   const onCommandExecutedRef = useStableRef(onCommandExecuted)
@@ -157,6 +160,7 @@ export function useTerminalTabRefs({
     waitingForReconnectRef,
     onPidChangeRef,
     onCwdChangeRef,
+    onAgentSessionChangeRef,
     onDistroChangeRef,
     onInputRef,
     onCommandExecutedRef,
