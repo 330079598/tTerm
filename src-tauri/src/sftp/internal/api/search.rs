@@ -37,7 +37,7 @@ pub struct SearchRequest {
     include_hidden: bool,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Debug, Clone, PartialEq)]
 #[serde(
     tag = "kind",
     rename_all = "camelCase",

@@ -51,16 +51,16 @@ pub enum EditStatus {
 }
 
 /// A remote file open in a program here, as the drawer lists it.
-#[derive(Clone, Debug, Serialize)]
+#[derive(Clone, Debug, Serialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct ExternalEdit {
-    id: String,
-    tab_id: String,
-    remote_path: String,
-    file_name: String,
-    local_path: String,
-    status: EditStatus,
-    error: Option<String>,
+    pub id: String,
+    pub tab_id: String,
+    pub remote_path: String,
+    pub file_name: String,
+    pub local_path: String,
+    pub status: EditStatus,
+    pub error: Option<String>,
 }
 
 struct EditSession {

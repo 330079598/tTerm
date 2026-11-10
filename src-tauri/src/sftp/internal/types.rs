@@ -13,7 +13,7 @@ use crate::ssh::{jump::connect::JumpChain, types::SshClientHandler};
 pub type CancelSender = watch::Sender<bool>;
 pub type TransferCancelMap = Arc<RwLock<HashMap<String, CancelSender>>>;
 
-#[derive(Serialize)]
+#[derive(Debug, Clone, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SftpDirectoryEntry {
     pub name: String,

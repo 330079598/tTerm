@@ -57,54 +57,54 @@ struct DeletePlan {
     stats: DeleteStats,
 }
 
-#[derive(Clone, Copy, Serialize)]
+#[derive(Clone, Copy, Serialize, Debug, PartialEq)]
 #[serde(rename_all = "camelCase")]
-enum DeleteMethod {
+pub enum DeleteMethod {
     Sftp,
     Command,
 }
 
-#[derive(Clone, Serialize)]
+#[derive(Clone, Serialize, Debug, PartialEq)]
 #[serde(rename_all = "camelCase")]
-struct DeleteBatchStartEvent {
-    batch_id: String,
-    entries: Vec<String>,
-    method: DeleteMethod,
-    total_directories: usize,
-    total_entries: usize,
-    total_files: usize,
-    total_truncated: bool,
+pub struct DeleteBatchStartEvent {
+    pub batch_id: String,
+    pub entries: Vec<String>,
+    pub method: DeleteMethod,
+    pub total_directories: usize,
+    pub total_entries: usize,
+    pub total_files: usize,
+    pub total_truncated: bool,
 }
 
-#[derive(Clone, Serialize)]
+#[derive(Clone, Serialize, Debug, PartialEq)]
 #[serde(rename_all = "camelCase")]
-struct DeleteProgressEvent {
-    batch_id: String,
-    current_path: String,
-    deleted_directories: usize,
-    deleted_files: usize,
-    failed: usize,
-    method: DeleteMethod,
-    total_directories: usize,
-    total_entries: usize,
-    total_files: usize,
-    total_truncated: bool,
+pub struct DeleteProgressEvent {
+    pub batch_id: String,
+    pub current_path: String,
+    pub deleted_directories: usize,
+    pub deleted_files: usize,
+    pub failed: usize,
+    pub method: DeleteMethod,
+    pub total_directories: usize,
+    pub total_entries: usize,
+    pub total_files: usize,
+    pub total_truncated: bool,
 }
 
-#[derive(Clone, Serialize)]
+#[derive(Clone, Serialize, Debug, PartialEq)]
 #[serde(rename_all = "camelCase")]
-struct DeleteBatchCompleteEvent {
-    batch_id: String,
-    cancelled: bool,
-    deleted_directories: usize,
-    deleted_files: usize,
-    error: Option<String>,
-    failed: usize,
-    method: DeleteMethod,
-    total_directories: usize,
-    total_entries: usize,
-    total_files: usize,
-    total_truncated: bool,
+pub struct DeleteBatchCompleteEvent {
+    pub batch_id: String,
+    pub cancelled: bool,
+    pub deleted_directories: usize,
+    pub deleted_files: usize,
+    pub error: Option<String>,
+    pub failed: usize,
+    pub method: DeleteMethod,
+    pub total_directories: usize,
+    pub total_entries: usize,
+    pub total_files: usize,
+    pub total_truncated: bool,
 }
 
 const DELETE_COMMAND_PROMPT_THRESHOLD: usize = 300;

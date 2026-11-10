@@ -23,62 +23,62 @@ use directory::{
     DirectoryDownloadRequest, DownloadTarget,
 };
 
-#[derive(Clone, Serialize)]
+#[derive(Clone, Serialize, Debug, PartialEq)]
 #[serde(rename_all = "camelCase")]
-struct DownloadProgressEvent {
-    transfer_id: String,
-    local_path: String,
-    remote_path: String,
-    transferred: u64,
-    total: u64,
-    progress: u32,
-    resumed_from: u64,
-    parallelism: u32,
-    completed_chunks: u64,
-    chunk_count: u64,
+pub struct DownloadProgressEvent {
+    pub transfer_id: String,
+    pub local_path: String,
+    pub remote_path: String,
+    pub transferred: u64,
+    pub total: u64,
+    pub progress: u32,
+    pub resumed_from: u64,
+    pub parallelism: u32,
+    pub completed_chunks: u64,
+    pub chunk_count: u64,
 }
 
-#[derive(Clone, Serialize)]
+#[derive(Clone, Serialize, Debug, PartialEq)]
 #[serde(rename_all = "camelCase")]
-struct DownloadItemStartEvent {
-    transfer_id: String,
-    batch_id: String,
-    file_name: String,
-    file_size: u64,
-    local_path: String,
-    remote_path: String,
+pub struct DownloadItemStartEvent {
+    pub transfer_id: String,
+    pub batch_id: String,
+    pub file_name: String,
+    pub file_size: u64,
+    pub local_path: String,
+    pub remote_path: String,
 }
 
-#[derive(Clone, Serialize)]
+#[derive(Clone, Serialize, Debug, PartialEq)]
 #[serde(rename_all = "camelCase")]
-struct DownloadItemCompleteEvent {
-    transfer_id: String,
-    error: Option<String>,
-    local_path: String,
-    remote_path: String,
-    cancelled: bool,
-    success: bool,
+pub struct DownloadItemCompleteEvent {
+    pub transfer_id: String,
+    pub error: Option<String>,
+    pub local_path: String,
+    pub remote_path: String,
+    pub cancelled: bool,
+    pub success: bool,
     /// The local file already held the remote bytes, so no bytes moved in
     /// this run. Reported so the UI does not derive a speed from them.
-    skipped: bool,
+    pub skipped: bool,
 }
 
-#[derive(Clone, Serialize)]
+#[derive(Clone, Serialize, Debug, PartialEq)]
 #[serde(rename_all = "camelCase")]
-struct DownloadBatchCompleteEvent {
-    batch_id: String,
-    cancelled: bool,
-    error: Option<String>,
-    transferred: u64,
-    total: u64,
+pub struct DownloadBatchCompleteEvent {
+    pub batch_id: String,
+    pub cancelled: bool,
+    pub error: Option<String>,
+    pub transferred: u64,
+    pub total: u64,
     /// Bytes of files the run skipped because the local copy was already
     /// current. They are included in `transferred` so the bar reaches 100%,
     /// but no bytes moved for them — reported separately so the UI does not
     /// derive a speed from them.
-    skipped: u64,
+    pub skipped: u64,
     /// Bytes of files this run resumed from a previous partial attempt: they
     /// are part of `transferred` as well, but only the remainder was fetched.
-    resumed: u64,
+    pub resumed: u64,
 }
 
 fn is_cancelled(cancel_rx: &mut watch::Receiver<bool>) -> bool {
