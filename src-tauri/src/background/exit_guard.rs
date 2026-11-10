@@ -5,7 +5,6 @@
 
 use std::sync::atomic::{AtomicBool, Ordering};
 
-use serde::Serialize;
 use tauri::{AppHandle, Emitter, Manager, State};
 
 use crate::tunnel::commands::TunnelManager;
@@ -15,22 +14,6 @@ use crate::tunnel::commands::TunnelManager;
 const QUIT_REQUESTED_EVENT: &str = "quit-requested";
 
 /// What a quit would end.
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct QuitBlockers {
-    /// Port-forwarding tunnels running.
-    pub tunnels: usize,
-    /// Files opened from SFTP with changes not uploaded; their copies stay
-    /// on disk, but nothing uploads them any more.
-    pub unuploaded_files: Vec<String>,
-}
-
-impl QuitBlockers {
-    pub fn is_empty(&self) -> bool {
-        self.tunnels == 0 && self.unuploaded_files.is_empty()
-    }
-}
-
 #[derive(Default)]
 pub struct ExitGuardState {
     /// The user agreed to quit despite what is at stake.
@@ -120,3 +103,5 @@ mod tests {
 #[cfg(test)]
 #[path = "exit_guard_legacy_tests.rs"]
 mod legacy_contract_tests;
+
+use tterm_core::events::background::QuitBlockers;

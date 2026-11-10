@@ -1,5 +1,6 @@
 //! Typed business events and delivery interfaces shared by the Tauri and GPUI clients.
 
+pub mod background;
 pub mod notification;
 pub mod session_log;
 pub mod ssh;
