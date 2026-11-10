@@ -4,10 +4,10 @@ use super::protocol::{Result, TransferError};
 use super::receive::{self, FileSink};
 use super::transfer::{cancel_on_failure, FileInfo, FileRows, PortClaim, TapLink};
 use super::XmodemProtocol;
-use crate::zmodem::events::EmitFn;
 use std::fs::File;
 use std::io::{BufWriter, Write};
 use std::path::{Path, PathBuf};
+use tterm_core::events::zmodem::TransferEmitter;
 
 /// The name a file gets when its sender gives none that can be used.
 const FALLBACK_NAME: &str = "received.bin";
@@ -198,7 +198,7 @@ impl DiskSink<'_> {
 
 /// Receives over `protocol` into `destination`, then gives the port back.
 pub(super) fn run_receive(
-    emit: EmitFn,
+    emit: TransferEmitter,
     claim: PortClaim,
     mut link: TapLink,
     protocol: XmodemProtocol,
@@ -221,3 +221,5 @@ pub(super) fn run_receive(
     }
     claim.release();
 }
+
+use tterm_core::events::zmodem::TransferEvent;

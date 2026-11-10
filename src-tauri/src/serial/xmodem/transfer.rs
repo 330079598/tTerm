@@ -3,7 +3,7 @@ use super::XmodemProtocol;
 use crate::core::state::ZmodemMap;
 use crate::serial::io::SerialTap;
 use crate::terminal::types::PtyWriter;
-use crate::zmodem::events::{self, EmitFn};
+use crate::zmodem::events;
 use std::collections::VecDeque;
 use std::fs::File;
 use std::io::Write;
@@ -147,7 +147,7 @@ pub(super) fn cancel_on_failure(link: &mut TapLink, result: &Result<(), Transfer
 }
 
 pub(super) struct TransferParams {
-    pub emit: EmitFn,
+    pub emit: TransferEmitter,
     pub claim: PortClaim,
     pub link: TapLink,
     pub protocol: XmodemProtocol,
@@ -166,7 +166,7 @@ pub(super) struct FileInfo {
 
 /// Reports the files' rows in the transfer list.
 pub(super) struct FileRows<'a> {
-    emit: &'a EmitFn,
+    emit: &'a TransferEmitter,
     files: Vec<FileInfo>,
     ids: Vec<String>,
     started: Vec<Option<Instant>>,
@@ -174,7 +174,7 @@ pub(super) struct FileRows<'a> {
 }
 
 impl<'a> FileRows<'a> {
-    pub(super) fn new(emit: &'a EmitFn, files: Vec<FileInfo>) -> Self {
+    pub(super) fn new(emit: &'a TransferEmitter, files: Vec<FileInfo>) -> Self {
         Self {
             emit,
             ids: files.iter().map(|_| events::new_transfer_id()).collect(),
@@ -198,18 +198,14 @@ impl<'a> FileRows<'a> {
         }
         self.started[index] = Some(Instant::now());
         let file = &self.files[index];
-        events::emit(
-            self.emit,
-            "transfer-start",
-            TransferStartPayload {
-                transfer_id: self.ids[index].clone(),
-                direction: file.direction,
-                file_name: file.name.clone(),
-                file_size: file.size.unwrap_or(0),
-                local_path: file.path.clone(),
-                size_unknown: file.size.is_none(),
-            },
-        );
+        (self.emit)(TransferEvent::Start(TransferStartPayload {
+            transfer_id: self.ids[index].clone(),
+            direction: file.direction,
+            file_name: file.name.clone(),
+            file_size: file.size.unwrap_or(0),
+            local_path: file.path.clone(),
+            size_unknown: file.size.is_none(),
+        }));
     }
 
     pub(super) fn progress(&mut self, index: usize, sent: u64, finished: bool) {
@@ -224,29 +220,21 @@ impl<'a> FileRows<'a> {
         let elapsed = self.started[index]
             .map_or(0.0, |started| now.duration_since(started).as_secs_f64())
             .max(0.001);
-        events::emit(
-            self.emit,
-            "transfer-progress",
-            TransferProgressPayload {
-                transfer_id: self.ids[index].clone(),
-                transferred: sent,
-                speed: (sent as f64 / elapsed) as u64,
-            },
-        );
+        (self.emit)(TransferEvent::Progress(TransferProgressPayload {
+            transfer_id: self.ids[index].clone(),
+            transferred: sent,
+            speed: (sent as f64 / elapsed) as u64,
+        }));
     }
 
     pub(super) fn complete(&self, index: usize, result: &Result<(), TransferError>) {
         let cancelled = matches!(result, Err(TransferError::Cancelled));
-        events::emit(
-            self.emit,
-            "transfer-complete",
-            TransferCompletePayload {
-                transfer_id: self.ids[index].clone(),
-                success: result.is_ok(),
-                cancelled,
-                error: result.as_ref().err().map(TransferError::message),
-            },
-        );
+        (self.emit)(TransferEvent::Complete(TransferCompletePayload {
+            transfer_id: self.ids[index].clone(),
+            success: result.is_ok(),
+            cancelled,
+            error: result.as_ref().err().map(TransferError::message),
+        }));
     }
 
     /// Ends the rows of the files from `from` up to, not including, `to` as
@@ -313,3 +301,5 @@ pub(super) fn run(params: TransferParams) {
 use tterm_core::events::zmodem::{
     TransferCompletePayload, TransferProgressPayload, TransferStartPayload,
 };
+
+use tterm_core::events::zmodem::{TransferEmitter, TransferEvent};
