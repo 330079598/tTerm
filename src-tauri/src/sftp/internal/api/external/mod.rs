@@ -3,9 +3,9 @@
 //! there, and the copy is watched. The drawer hears of each save that
 //! differs from the server and uploads it, at once or after asking.
 
-#[cfg(target_os = "macos")]
-mod apps;
-mod launch;
+#[cfg(all(test, target_os = "macos"))]
+use tterm_platform::native::open::apps;
+
 mod local;
 #[cfg(all(test, unix))]
 mod real_sshd_tests;
@@ -24,15 +24,20 @@ use crate::sftp::internal::connection::{ensure_ssh_plan, map_sftp_error};
 use crate::sftp::internal::paths::normalize_remote_path;
 use crate::sftp::internal::types::{SftpConnectionPool, TransferCancelMap};
 use crate::ssh::secret_store::types::SecretStoreState;
+#[cfg(target_os = "macos")]
+use base64::Engine;
 use local::{FileStamp, Fingerprint};
 use remote::RemoteStamp;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::AtomicBool;
+use std::sync::Arc;
 use std::sync::Mutex;
 use tauri::{AppHandle, Emitter, Manager, State};
-use tauri_plugin_opener::OpenerExt;
+#[cfg(target_os = "macos")]
+use tterm_platform::open::ApplicationChoice;
+use tterm_platform::open::OpenTargets;
 
 /// Tells the drawer that an open file changed state; carries an
 /// [`ExternalEdit`].
@@ -282,14 +287,19 @@ async fn end_sessions(sessions: Vec<EditSession>) -> Vec<ExternalEdit> {
 
 /// Opens the file at `local` as `open_in` says. Returns `false` when the
 /// user cancelled the system's dialog.
-fn launch(app: &AppHandle, open_in: OpenIn, local: &Path) -> Result<bool, String> {
+async fn launch(app: &AppHandle, open_in: OpenIn, local: &Path) -> Result<bool, String> {
+    let opener = app.state::<Arc<dyn OpenTargets>>();
     match open_in {
-        OpenIn::Default => launch::open_default(app, local).map(|()| true),
-        OpenIn::Program { program } => launch::open_with(&program, local).map(|()| true),
-        #[cfg(windows)]
-        OpenIn::Chooser => launch::open_with_system_chooser(local),
-        #[cfg(not(windows))]
-        OpenIn::Chooser => Err("This system has no Open With dialog".to_string()),
+        OpenIn::Default => opener
+            .open_file(local.to_path_buf())
+            .await
+            .map(|()| true)
+            .map_err(|e| format!("Failed to open '{}': {e}", local.display())),
+        OpenIn::Program { program } => opener
+            .open_with(program, local.to_path_buf())
+            .await
+            .map(|()| true),
+        OpenIn::Chooser => opener.choose_application(local.to_path_buf()).await,
     }
 }
 
@@ -355,8 +365,7 @@ pub async fn sftp_external_edit_open(
     };
 
     let local = PathBuf::from(&edit.local_path);
-    let opener = app.clone();
-    let launched = run_blocking(move || launch(&opener, open_in, &local)).await;
+    let launched = launch(&app, open_in, &local).await;
     if !matches!(launched, Ok(true)) && started {
         if let Some(session) = state.remove(&edit.id) {
             end_sessions(vec![session]).await;
@@ -367,11 +376,20 @@ pub async fn sftp_external_edit_open(
 
 /// How the user can pick a program for `file_name` here.
 #[tauri::command]
-pub async fn sftp_external_open_with_choices(file_name: String) -> Result<OpenWithChoices, String> {
+pub async fn sftp_external_open_with_choices(
+    app: AppHandle,
+    file_name: String,
+) -> Result<OpenWithChoices, String> {
     #[cfg(target_os = "macos")]
-    let apps = run_blocking(move || Ok(apps::apps_for(&file_name))).await?;
+    let apps = app
+        .state::<Arc<dyn OpenTargets>>()
+        .applications_for(file_name)
+        .await?
+        .into_iter()
+        .map(AppChoice::from)
+        .collect();
     #[cfg(not(target_os = "macos"))]
-    let _ = file_name;
+    let _ = (app, file_name);
     Ok(OpenWithChoices {
         #[cfg(target_os = "macos")]
         apps,
@@ -471,8 +489,9 @@ pub async fn sftp_external_edit_reveal(app: AppHandle, id: String) -> Result<(),
         .state::<ExternalEditState>()
         .get(&id)
         .ok_or("This file is no longer open in another program")?;
-    app.opener()
-        .reveal_item_in_dir(&edit.local_path)
+    app.state::<Arc<dyn OpenTargets>>()
+        .reveal(PathBuf::from(&edit.local_path))
+        .await
         .map_err(|error| format!("Failed to show '{}': {error}", edit.local_path))
 }
 
@@ -480,13 +499,20 @@ pub async fn sftp_external_edit_reveal(app: AppHandle, id: String) -> Result<(),
 /// none outside macOS, which is the only system listing applications.
 #[tauri::command]
 pub async fn sftp_external_app_icons(
+    app: AppHandle,
     paths: Vec<String>,
 ) -> Result<HashMap<String, Option<String>>, String> {
     #[cfg(target_os = "macos")]
-    return run_blocking(move || Ok(apps::icons_for(paths))).await;
+    return Ok(app
+        .state::<Arc<dyn OpenTargets>>()
+        .application_icons(paths)
+        .await?
+        .into_iter()
+        .map(|(path, bytes)| (path, bytes.map(png_data_url)))
+        .collect());
     #[cfg(not(target_os = "macos"))]
     {
-        let _ = paths;
+        let _ = (app, paths);
         Ok(HashMap::new())
     }
 }
@@ -510,6 +536,25 @@ pub fn shutdown(app: &AppHandle) {
     for session in app.state::<ExternalEditState>().remove_all() {
         if !session.has_changes() {
             local::remove_session_dir(&session.dir);
+        }
+    }
+}
+
+#[cfg(target_os = "macos")]
+fn png_data_url(bytes: Vec<u8>) -> String {
+    format!(
+        "data:image/png;base64,{}",
+        base64::engine::general_purpose::STANDARD.encode(bytes)
+    )
+}
+#[cfg(target_os = "macos")]
+impl From<ApplicationChoice> for AppChoice {
+    fn from(app: ApplicationChoice) -> Self {
+        Self {
+            name: app.name,
+            path: app.path,
+            is_default: app.is_default,
+            icon: app.icon.map(png_data_url),
         }
     }
 }

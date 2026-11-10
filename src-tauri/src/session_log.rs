@@ -22,11 +22,12 @@ use serde::Serialize;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, AtomicU64};
+use std::sync::Arc;
 use std::sync::Mutex;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 use tauri::ipc::Response;
 use tauri::{AppHandle, Emitter, Manager, State};
-use tauri_plugin_opener::OpenerExt;
+use tterm_platform::open::OpenTargets;
 
 const LOG_FORMAT_RAW: &str = "raw";
 const LOG_FORMAT_PLAIN: &str = "plain";
@@ -370,8 +371,9 @@ pub async fn delete_terminal_logs(
 pub async fn reveal_terminal_log(app: AppHandle, id: String) -> Result<(), String> {
     let (directory, _, _) = app.state::<SessionLogState>().directory_state()?;
     let path = run_blocking(move || library::first_file(&directory, &id)).await?;
-    app.opener()
-        .reveal_item_in_dir(path)
+    app.state::<Arc<dyn OpenTargets>>()
+        .reveal(path)
+        .await
         .map_err(|error| format!("Failed to show terminal log: {error}"))
 }
 
@@ -399,8 +401,9 @@ pub async fn open_terminal_log_directory(app: AppHandle) -> Result<(), String> {
         Ok(directory)
     })
     .await?;
-    app.opener()
-        .open_path(directory.to_string_lossy().into_owned(), None::<&str>)
+    app.state::<Arc<dyn OpenTargets>>()
+        .open_file(directory)
+        .await
         .map_err(|error| format!("Failed to open terminal log directory: {error}"))
 }
 
