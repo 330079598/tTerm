@@ -18,7 +18,7 @@ fn legacy_search_channel_json_and_limit() {
         Ok(())
     });
     let mut sink = ResultSink {
-        channel,
+        channel: Arc::new(TauriSearchResultSink::new(channel)),
         found: 999,
         truncated: false,
     };
@@ -40,7 +40,7 @@ fn legacy_search_channel_json_and_limit() {
 fn legacy_search_ignores_channel_errors_and_counts_results() {
     let channel = Channel::new(|_| Err(tauri::Error::FailedToReceiveMessage));
     let mut sink = ResultSink {
-        channel,
+        channel: Arc::new(TauriSearchResultSink::new(channel)),
         found: 0,
         truncated: false,
     };

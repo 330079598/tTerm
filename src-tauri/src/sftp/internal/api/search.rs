@@ -2,8 +2,10 @@
 //! `find` does the walking where it can; otherwise the walk runs over SFTP.
 //! Matches stream to the drawer as they are found.
 
+use crate::event_sink::search::TauriSearchResultSink;
+use std::sync::Arc;
 use tterm_core::sftp::entry::SftpDirectoryEntry;
-use tterm_core::sftp::search::SearchEvent;
+use tterm_core::sftp::search::{SearchEvent, SearchResultSink};
 mod find;
 mod matcher;
 #[cfg(all(test, unix))]
@@ -57,7 +59,7 @@ pub struct SearchSummary {
 
 /// Where matches go, up to `MAX_RESULTS`.
 pub(super) struct ResultSink {
-    channel: Channel<SearchEvent>,
+    channel: Arc<dyn SearchResultSink>,
     found: usize,
     truncated: bool,
 }
@@ -89,7 +91,7 @@ impl ResultSink {
 async fn search(
     host: SftpHost<'_>,
     request: SearchRequest,
-    channel: Channel<SearchEvent>,
+    channel: Arc<dyn SearchResultSink>,
     mut cancel: watch::Receiver<bool>,
 ) -> Result<SearchSummary, String> {
     let matcher = NameMatcher::new(&request.query, request.regex)?;
@@ -170,7 +172,12 @@ pub async fn sftp_search_entries(
         pool: pool_state.inner(),
     };
     with_cancel(cancel_map.inner(), &search_id, |cancel| {
-        search(host, request, on_event, cancel)
+        search(
+            host,
+            request,
+            Arc::new(TauriSearchResultSink::new(on_event)),
+            cancel,
+        )
     })
     .await
 }
