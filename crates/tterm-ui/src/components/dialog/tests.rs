@@ -729,6 +729,55 @@ fn narrow_info_title_stays_left_after_icon(cx: &mut TestAppContext) {
 fn narrow_prompt_title_is_centered(cx: &mut TestAppContext) {
     assert_narrow_title(cx, prompt_options(), true, false);
 }
+fn assert_multiline_title_alignment(cx: &mut TestAppContext, mut options: DialogOptions) {
+    options.title = "This confirmation title is definitely long enough to wrap on a narrow window in every renderer".into();
+    let (probe, visual) = configured_harness(cx, false, options);
+    for width in [500.0, 639.0, 640.0, 800.0] {
+        visual.simulate_resize(gpui_kit::size(px(width), px(600.0)));
+        redraw(visual);
+        visual.read(|cx| {
+            let probe = probe.read(cx);
+            let rows = probe.texts.borrow();
+            let mut title_rows: Vec<_> = rows
+                .iter()
+                .filter(|(key, _)| key.starts_with("title-"))
+                .collect();
+            title_rows.sort_by_key(|(key, _)| *key);
+            assert!(title_rows.len() >= 2);
+            let first = title_rows[0].1;
+            for (_, row) in title_rows {
+                if width < 640.0 {
+                    assert!((f32::from(first.center().x - row.center().x)).abs() < 0.01);
+                } else {
+                    assert_eq!(first.origin.x, row.origin.x);
+                }
+            }
+        });
+    }
+}
+
+#[gpui_kit::test]
+fn narrow_multiline_confirm_title_is_centered_per_row(cx: &mut TestAppContext) {
+    assert_multiline_title_alignment(cx, options());
+}
+
+#[gpui_kit::test]
+fn narrow_multiline_destructive_title_is_centered_per_row(cx: &mut TestAppContext) {
+    let mut options = options();
+    options.destructive = true;
+    assert_multiline_title_alignment(cx, options);
+}
+
+#[gpui_kit::test]
+fn narrow_multiline_info_title_is_centered_per_row(cx: &mut TestAppContext) {
+    assert_multiline_title_alignment(cx, DialogOptions::info("Information", "Description"));
+}
+
+#[gpui_kit::test]
+fn narrow_multiline_prompt_title_is_centered_per_row(cx: &mut TestAppContext) {
+    assert_multiline_title_alignment(cx, prompt_options());
+}
+
 #[gpui_kit::test]
 fn all_mouse_buttons_dismiss_the_overlay(cx: &mut TestAppContext) {
     let (probe, visual) = harness(cx, false);

@@ -95,7 +95,7 @@ impl Dialog {
             .child(child)
     }
     fn text(&self, slot: &'static str, text: String) -> DialogText {
-        DialogText::new(slot, text.into(), self.text_observer.clone())
+        DialogText::new(slot, text.into(), self.text_observer.clone(), false)
     }
     fn header(&self, narrow: bool) -> Div {
         let mut base = PartStyle::base(self.theme);
@@ -130,7 +130,12 @@ impl Dialog {
             .child(self.part(
                 "dialog-title",
                 title_style,
-                title.child(self.text("title", self.options.title.clone())),
+                title.child(div().flex_1().min_w_0().child(DialogText::new(
+                    "title",
+                    self.options.title.clone().into(),
+                    self.text_observer.clone(),
+                    narrow,
+                ))),
             ));
         if let Some(description) = &self.options.description {
             let mut style = base.clone();

@@ -11,13 +11,20 @@ pub(super) struct DialogText {
     text: SharedString,
     lines: Rc<RefCell<Vec<WrappedLine>>>,
     observer: Option<TextObserver>,
+    center_multiline: bool,
 }
 impl DialogText {
-    pub fn new(slot: &'static str, text: SharedString, observer: Option<TextObserver>) -> Self {
+    pub fn new(
+        slot: &'static str,
+        text: SharedString,
+        observer: Option<TextObserver>,
+        center_multiline: bool,
+    ) -> Self {
         Self {
             slot,
             text,
             observer,
+            center_multiline,
             lines: Rc::new(RefCell::new(Vec::new())),
         }
     }
@@ -150,6 +157,11 @@ impl Element for DialogText {
         };
         let mut y = bounds.origin.y;
         let mut index = 0;
+        let align = if self.center_multiline && self.lines.borrow().len() > 1 {
+            TextAlign::Center
+        } else {
+            window.text_style().text_align
+        };
         for line in self.lines.borrow().iter() {
             let layout = &line.unwrapped_layout;
             let mut start = px(0.0);
@@ -160,7 +172,7 @@ impl Element for DialogText {
                 .chain(std::iter::once(layout.width))
             {
                 let width = end - start;
-                let offset = match window.text_style().text_align {
+                let offset = match align {
                     TextAlign::Center => (bounds.size.width - width) / 2.0,
                     TextAlign::Right => bounds.size.width - width,
                     TextAlign::Left => px(0.0),
@@ -186,15 +198,13 @@ impl Element for DialogText {
         cx: &mut App,
     ) {
         let mut origin = bounds.origin;
+        let align = if self.center_multiline && self.lines.borrow().len() > 1 {
+            TextAlign::Center
+        } else {
+            window.text_style().text_align
+        };
         for line in self.lines.borrow().iter() {
-            let _ = line.paint(
-                origin,
-                *height,
-                window.text_style().text_align,
-                Some(bounds),
-                window,
-                cx,
-            );
+            let _ = line.paint(origin, *height, align, Some(bounds), window, cx);
             origin.y += line.size(*height).height;
         }
     }
