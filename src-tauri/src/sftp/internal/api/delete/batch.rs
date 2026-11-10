@@ -9,7 +9,9 @@ use russh_sftp::client::SftpSession;
 use std::future::Future;
 use std::pin::Pin;
 use std::sync::Arc;
-use tauri::{AppHandle, Emitter};
+use tauri::AppHandle;
+use tterm_core::events::sftp::SftpEvent;
+use tterm_core::events::{AppEvent, EventSink};
 pub(super) async fn preview_delete_entries(
     app: &AppHandle,
     tab_id: &str,
@@ -157,7 +159,7 @@ async fn run_remote_delete_command(
             failed: 0,
         };
         emit_delete_progress(
-            app,
+            &batch.events,
             tab_id,
             batch_id,
             DeleteMethod::Command,
@@ -184,7 +186,7 @@ async fn run_remote_delete_command(
 }
 
 async fn delete_entries_with_sftp(
-    app: &AppHandle,
+    events: &Arc<dyn EventSink>,
     tab_id: &str,
     sftp: &SftpSession,
     batch_id: &str,
@@ -195,7 +197,7 @@ async fn delete_entries_with_sftp(
     for entry in entries {
         let result = if entry.is_dir {
             delete_directory_recursive_with_progress(
-                app,
+                events,
                 tab_id,
                 sftp,
                 batch_id,
@@ -214,7 +216,7 @@ async fn delete_entries_with_sftp(
                     progress.deleted_files += 1;
                     if should_emit_delete_progress(&progress) {
                         emit_delete_progress(
-                            app,
+                            events,
                             tab_id,
                             batch_id,
                             DeleteMethod::Sftp,
@@ -232,7 +234,7 @@ async fn delete_entries_with_sftp(
         if result.is_err() {
             progress.failed += 1;
             emit_delete_progress(
-                app,
+                events,
                 tab_id,
                 batch_id,
                 DeleteMethod::Sftp,
@@ -244,7 +246,7 @@ async fn delete_entries_with_sftp(
     }
 
     emit_delete_progress(
-        app,
+        events,
         tab_id,
         batch_id,
         DeleteMethod::Sftp,
@@ -256,7 +258,7 @@ async fn delete_entries_with_sftp(
 }
 
 fn delete_directory_recursive_with_progress<'a>(
-    app: &'a AppHandle,
+    events: &'a Arc<dyn EventSink>,
     tab_id: &'a str,
     sftp: &'a SftpSession,
     batch_id: &'a str,
@@ -272,7 +274,7 @@ fn delete_directory_recursive_with_progress<'a>(
 
             if entry.metadata().is_dir() {
                 delete_directory_recursive_with_progress(
-                    app, tab_id, sftp, batch_id, entry_path, stats, progress,
+                    events, tab_id, sftp, batch_id, entry_path, stats, progress,
                 )
                 .await?;
             } else {
@@ -282,7 +284,7 @@ fn delete_directory_recursive_with_progress<'a>(
                 progress.deleted_files += 1;
                 if should_emit_delete_progress(progress) {
                     emit_delete_progress(
-                        app,
+                        events,
                         tab_id,
                         batch_id,
                         DeleteMethod::Sftp,
@@ -300,7 +302,7 @@ fn delete_directory_recursive_with_progress<'a>(
         progress.deleted_directories += 1;
         if should_emit_delete_progress(progress) {
             emit_delete_progress(
-                app,
+                events,
                 tab_id,
                 batch_id,
                 DeleteMethod::Sftp,
@@ -316,6 +318,7 @@ fn delete_directory_recursive_with_progress<'a>(
 /// One delete the user started: what to delete, how, and on which connection.
 pub(super) struct DeleteBatch {
     pub(super) app: AppHandle,
+    pub(super) events: Arc<dyn EventSink>,
     pub(super) tab_id: String,
     pub(super) plan: crate::core::session::types::SessionPlan,
     pub(super) prompts: HostPromptMap,
@@ -343,28 +346,30 @@ pub(super) async fn run_delete_batch(batch: DeleteBatch) {
         method = delete_plan.method;
         stats = delete_plan.stats;
 
-        let _ = batch.app.emit(
-            &format!("sftp-delete-batch-start-{}", batch.tab_id),
-            DeleteBatchStartEvent {
-                batch_id: batch.batch_id.clone(),
-                entries: batch
-                    .entries
-                    .iter()
-                    .map(|entry| entry.name.clone())
-                    .collect(),
-                method,
-                total_directories: stats.directories,
-                total_entries: stats.entries,
-                total_files: stats.files,
-                total_truncated: stats.truncated,
-            },
-        );
+        let _ = batch
+            .events
+            .emit(AppEvent::Sftp(SftpEvent::DeleteBatchStart {
+                tab_id: batch.tab_id.to_string(),
+                payload: DeleteBatchStartEvent {
+                    batch_id: batch.batch_id.clone(),
+                    entries: batch
+                        .entries
+                        .iter()
+                        .map(|entry| entry.name.clone())
+                        .collect(),
+                    method,
+                    total_directories: stats.directories,
+                    total_entries: stats.entries,
+                    total_files: stats.files,
+                    total_truncated: stats.truncated,
+                },
+            }));
 
         progress = match method {
             DeleteMethod::Command => run_remote_delete_command(&batch, &stats).await?,
             DeleteMethod::Sftp => {
                 delete_entries_with_sftp(
-                    &batch.app,
+                    &batch.events,
                     &batch.tab_id,
                     &sftp,
                     &batch.batch_id,
@@ -384,10 +389,19 @@ pub(super) async fn run_delete_batch(batch: DeleteBatch) {
         progress.failed += 1;
     }
 
-    let _ = batch.app.emit(
-        &format!("sftp-delete-batch-complete-{}", batch.tab_id),
-        build_delete_complete_event(batch.batch_id, method, &stats, &progress, false, error),
-    );
+    let _ = batch
+        .events
+        .emit(AppEvent::Sftp(SftpEvent::DeleteBatchComplete {
+            tab_id: batch.tab_id.to_string(),
+            payload: build_delete_complete_event(
+                batch.batch_id,
+                method,
+                &stats,
+                &progress,
+                false,
+                error,
+            ),
+        }));
 }
 
 /// Runs the delete command as root on the tab's sudo-mode connection. The

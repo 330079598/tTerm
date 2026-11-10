@@ -5,7 +5,7 @@ use tterm_core::events::sftp::download::{
     DownloadItemCompleteEvent, DownloadItemStartEvent, DownloadProgressEvent,
 };
 use tterm_core::events::sftp::SftpEvent;
-use tterm_core::events::{AppEvent, EventSink};
+use tterm_core::events::AppEvent;
 use tterm_core::sftp::conflict::ConflictPolicy;
 
 #[derive(Default)]

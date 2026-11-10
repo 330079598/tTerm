@@ -4,10 +4,12 @@ use russh_sftp::client::SftpSession;
 use serde::{Deserialize, Serialize};
 use std::future::Future;
 use std::pin::Pin;
-use tauri::{AppHandle, Emitter};
+use std::sync::Arc;
 use tterm_core::events::sftp::delete::{
     DeleteBatchCompleteEvent, DeleteBatchStartEvent, DeleteMethod, DeleteProgressEvent,
 };
+use tterm_core::events::sftp::SftpEvent;
+use tterm_core::events::{AppEvent, EventSink};
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct DeleteEntryRequest {
@@ -120,7 +122,7 @@ fn build_delete_complete_event(
 }
 
 fn emit_delete_progress(
-    app: &AppHandle,
+    events: &Arc<dyn EventSink>,
     tab_id: &str,
     batch_id: &str,
     method: DeleteMethod,
@@ -128,9 +130,9 @@ fn emit_delete_progress(
     progress: &DeleteProgress,
     current_path: String,
 ) {
-    let _ = app.emit(
-        &format!("sftp-delete-progress-{tab_id}"),
-        DeleteProgressEvent {
+    let _ = events.emit(AppEvent::Sftp(SftpEvent::DeleteProgress {
+        tab_id: tab_id.to_string(),
+        payload: DeleteProgressEvent {
             batch_id: batch_id.to_string(),
             current_path,
             deleted_directories: progress.deleted_directories,
@@ -142,7 +144,7 @@ fn emit_delete_progress(
             total_files: stats.files,
             total_truncated: stats.truncated,
         },
-    );
+    }));
 }
 
 fn collect_delete_stats<'a>(
