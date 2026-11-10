@@ -13,4 +13,5 @@ workspace = true
 test-support = []
 
 [dependencies]
+dirs = "=7.0.0"
 serde = { version = "1", features = ["derive"] }

@@ -1,4 +1,5 @@
 mod agent_integration;
+mod app_paths;
 mod app_state;
 mod background;
 mod backup;
@@ -357,7 +358,7 @@ pub fn run() {
         ])
         .setup(|app| {
             let app_handle = app.handle().clone();
-            config::paths::init_config_dir(&app_handle)?;
+            app_paths::initialize(&app_handle)?;
             launch_dir::open_from_startup(&app_handle);
 
             if let Err(err) = updater::cleanup_stale_pending_update_files(&app_handle) {

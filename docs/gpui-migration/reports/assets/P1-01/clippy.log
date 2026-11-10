@@ -1,0 +1,9 @@
+    Checking gpui-component v0.9.0
+    Checking gpui-pre-platform v0.3.11
+    Checking tTerm v0.8.1 (/Users/stone/Code/rust/tTerm-P1-01/src-tauri)
+    Checking gpui-kit v0.9.0
+    Checking tterm-terminal-view v0.1.0 (/Users/stone/Code/rust/tTerm-P1-01/crates/tterm-terminal-view)
+    Checking tterm-gpui v0.1.0 (/Users/stone/Code/rust/tTerm-P1-01/crates/tterm-gpui)
+    Checking tterm-ui v0.1.0 (/Users/stone/Code/rust/tTerm-P1-01/crates/tterm-ui)
+    Checking tterm-parity v0.1.0 (/Users/stone/Code/rust/tTerm-P1-01/crates/tterm-parity)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 11.96s

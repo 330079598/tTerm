@@ -6,3 +6,5 @@
 
 /// Typed events and delivery interfaces shared by client adapters.
 pub mod events;
+/// Application directories resolved by the client at startup.
+pub mod paths;

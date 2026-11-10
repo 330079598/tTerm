@@ -1,0 +1,12 @@
+   Compiling tterm-ui v0.1.0 (/Users/stone/Code/rust/tTerm-P0-24-dialog-fix/crates/tterm-ui)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1.85s
+     Running unittests src/lib.rs (target/debug/deps/tterm_ui-f4d3106180442019)
+
+running 4 tests
+test components::dialog::tests::narrow_multiline_prompt_title_is_centered_per_row ... ok
+test components::dialog::tests::narrow_multiline_info_title_is_centered_per_row ... ok
+test components::dialog::tests::narrow_multiline_destructive_title_is_centered_per_row ... ok
+test components::dialog::tests::narrow_multiline_confirm_title_is_centered_per_row ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 81 filtered out; finished in 0.01s
+

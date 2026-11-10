@@ -111,4 +111,5 @@ libc = "0.2"
 zbus = "5"
 
 [dev-dependencies]
+tauri = { version = "2", features = ["test"] }
 tokio = { version = "1", features = ["test-util"] }

@@ -1,0 +1,21 @@
+   Compiling tterm-ui v0.1.0 (/Users/stone/Code/rust/tTerm-P0-24-dialog-fix/crates/tterm-ui)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 3.62s
+     Running unittests src/lib.rs (target/debug/deps/tterm_ui-f4d3106180442019)
+
+running 3 tests
+
+thread 'components::dialog::tests::oversized_non_breaking_words_overflow_without_splitting' (4039451) panicked at crates/tterm-ui/src/components/dialog/tests.rs:628:13:
+assertion failed: rows["description-0"].size.width > description.size.width
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test components::dialog::tests::non_breaking_spaces_stay_with_the_adjacent_word ... ok
+test components::dialog::tests::oversized_non_breaking_words_overflow_without_splitting ... FAILED
+test components::dialog::tests::other_non_breaking_spaces_stay_with_the_adjacent_word ... ok
+
+failures:
+
+failures:
+    components::dialog::tests::oversized_non_breaking_words_overflow_without_splitting
+
+test result: FAILED. 2 passed; 1 failed; 0 ignored; 0 measured; 77 filtered out; finished in 0.01s
+
+error: test failed, to rerun pass `-p tterm-ui --lib`
