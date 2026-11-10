@@ -10,3 +10,6 @@ pub mod events;
 pub mod keymap;
 /// Application directories resolved by the client at startup.
 pub mod paths;
+
+/// One-shot interactive requests with scoped cancellation.
+pub mod prompts;
