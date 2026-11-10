@@ -38,6 +38,10 @@ interface SshAuthPromptDialogProps {
   remembersPasswords?: boolean
 }
 
+/** Prefixes used by the backend events for one terminal tab. */
+export const SSH_AUTH_PROMPT_EVENT_PREFIX = "ssh-auth-prompt-"
+export const SSH_AUTH_PROMPT_EXPIRED_EVENT_PREFIX = "ssh-auth-prompt-expired-"
+
 /**
  * Shows the authentication prompts of one tab's SSH sessions, one at a time,
  * in the middle of the window like the connection dialog. Listens on its own
@@ -61,13 +65,13 @@ export const SshAuthPromptDialog: React.FC<SshAuthPromptDialogProps> = ({
     }
 
     register(
-      listen<SshAuthPrompt>(`ssh-auth-prompt-${tabId}`, (event) => {
+      listen<SshAuthPrompt>(`${SSH_AUTH_PROMPT_EVENT_PREFIX}${tabId}`, (event) => {
         setQueue((current) => [...current, event.payload])
       })
     )
     // The backend gave up waiting; answering now would go nowhere.
     register(
-      listen<string>(`ssh-auth-prompt-expired-${tabId}`, (event) => {
+      listen<string>(`${SSH_AUTH_PROMPT_EXPIRED_EVENT_PREFIX}${tabId}`, (event) => {
         setQueue((current) => current.filter((prompt) => prompt.requestId !== event.payload))
       })
     )
