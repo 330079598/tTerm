@@ -230,6 +230,7 @@ export function collectLayout(screen) {
     elements,
     textRegions,
     icons,
+    missingEvents: [...new Set(window.__PARITY_MISSING_EVENTS__ ?? [])].sort(),
     invokedCommands: [...new Set(window.__PARITY_INVOKES__ ?? [])].sort(),
   }
 }

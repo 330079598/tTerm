@@ -12,6 +12,7 @@
 
 import type { InvokeArgs, InvokeOptions } from "@tauri-apps/api/core"
 import type { ParityFixture } from "@/parity/fixtures"
+import { declareParityEvents, emit, expandParityEventName } from "@/parity/tauri/event"
 
 /** Matches Tauri's key for custom IPC serialisation. */
 export const SERIALIZE_TO_IPC_FN = "__TAURI_TO_IPC_KEY__"
@@ -40,6 +41,15 @@ let nextChannelId = 1
 export function activateFixture(fixture: ParityFixture): void {
   activeFixture = fixture
   invoked.length = 0
+  window.__PARITY_MISSING_EVENTS__ = []
+  const events = (fixture.events ?? []).map((event) => ({
+    ...event,
+    name: expandParityEventName(event.name, fixture.eventVars),
+  }))
+  declareParityEvents(events.map((event) => event.name))
+  for (const event of events) {
+    queueMicrotask(() => void emit(event.name, event.payload))
+  }
 }
 
 /** The distinct commands the screen called, sorted, for the layout JSON. */
