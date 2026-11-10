@@ -43,7 +43,7 @@ pub mod platform {
         }
         match code.map(LAError) {
             Some(LAError::UserCancel | LAError::SystemCancel | LAError::AppCancel) => {
-                Err(super::CANCELED.to_string())
+                Err(crate::verification::CANCELED.to_string())
             }
             Some(LAError::PasscodeNotSet) => Err("This Mac has no login password set.".to_string()),
             Some(LAError::BiometryLockout) => {
@@ -84,7 +84,7 @@ pub mod platform {
             .map_err(|e| format!("Windows Hello failed: {e}"))?;
         match result {
             UserConsentVerificationResult::Verified => Ok(()),
-            UserConsentVerificationResult::Canceled => Err(super::CANCELED.to_string()),
+            UserConsentVerificationResult::Canceled => Err(crate::verification::CANCELED.to_string()),
             UserConsentVerificationResult::DeviceNotPresent
             | UserConsentVerificationResult::NotConfiguredForUser
             | UserConsentVerificationResult::DisabledByPolicy => {
@@ -113,4 +113,3 @@ pub mod platform {
     }
 }
 
-pub const CANCELED: &str = "Verification was canceled.";
