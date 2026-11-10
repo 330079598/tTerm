@@ -1,0 +1,44 @@
+   Compiling tterm-ui v0.1.0 (/Users/stone/Code/rust/tTerm-P0-24-dialog-fix/crates/tterm-ui)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 2.90s
+     Running unittests src/lib.rs (target/debug/deps/tterm_ui-f4d3106180442019)
+
+running 36 tests
+test components::dialog::tests::confirm_default_action_focuses_confirm ... ok
+test components::dialog::tests::default_action_sets_initial_focus_and_overrides_enter ... ok
+test components::dialog::tests::description_preserves_newlines_and_wraps ... ok
+test components::dialog::tests::close_button_closes_dialog ... ok
+test components::dialog::tests::closing_restores_the_saved_focus_handle ... ok
+test components::dialog::tests::all_mouse_buttons_dismiss_the_overlay ... ok
+test components::dialog::tests::escape_closes_dialog ... ok
+test components::dialog::tests::content_click_keeps_dialog_open ... ok
+test components::dialog::tests::escape_closes_prompt_from_autofocused_input ... ok
+test components::dialog::tests::narrow_confirm_title_stays_left ... ok
+test components::dialog::tests::info_renders_one_action_and_cycles_with_close ... ok
+test components::dialog::tests::narrow_destructive_title_stays_left_after_icon ... ok
+test components::dialog::tests::modal_occludes_background_mouse_hover_and_scroll ... ok
+test components::dialog::tests::enter_submits_prompt_from_autofocused_input ... ok
+test components::dialog::tests::narrow_info_title_stays_left_after_icon ... ok
+test components::dialog::tests::keyboard_activates_each_dialog_button ... ok
+test components::dialog::tests::action_and_close_hover_are_painted_and_observed ... ok
+test components::dialog::tests::narrow_prompt_title_is_centered ... ok
+test components::dialog::tests::narrow_multiline_destructive_title_is_centered_per_row ... ok
+test components::dialog::tests::narrow_multiline_info_title_is_centered_per_row ... ok
+test components::dialog::tests::close_and_reopen_clear_hover_state ... ok
+test components::dialog::tests::overlay_click_closes_dialog ... ok
+test components::dialog::tests::narrow_window_stacks_footer_and_centers_header ... ok
+test components::dialog::tests::non_breaking_spaces_stay_with_the_adjacent_word ... ok
+test components::dialog::tests::narrow_multiline_prompt_title_is_centered_per_row ... ok
+test components::dialog::tests::other_non_breaking_spaces_stay_with_the_adjacent_word ... ok
+test components::dialog::tests::outside_hook_can_prevent_dismissal ... ok
+test components::dialog::tests::narrow_multiline_confirm_title_is_centered_per_row ... ok
+test components::dialog::tests::oversized_non_breaking_words_overflow_without_splitting ... ok
+test components::dialog::tests::tab_and_shift_tab_cycle_focus ... ok
+test components::dialog::tests::prompt_placeholder_and_label_use_public_options ... ok
+test components::dialog::tests::short_description_newline_creates_two_separate_rows ... ok
+test components::dialog::tests::prompt_tab_cycle_includes_editable_input ... ok
+test components::dialog::tests::trailing_space_does_not_move_a_fitting_word_to_the_next_row ... ok
+test components::dialog::tests::text_rows_are_replaced_when_description_shrinks ... ok
+test components::dialog::tests::rendering_two_dialog_themes_does_not_mutate_global_theme ... ok
+
+test result: ok. 36 passed; 0 failed; 0 ignored; 0 measured; 49 filtered out; finished in 0.02s
+

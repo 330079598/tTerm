@@ -263,6 +263,20 @@ impl LayoutSink {
             .insert(key.to_owned(), bounds);
     }
 
+    /// Replaces all text rows belonging to one observed slot.
+    pub fn replace_text_regions(&self, slot: &str, rows: &[BoundsSnapshot]) {
+        let prefix = format!("{slot}-");
+        let mut state = self.0.borrow_mut();
+        state
+            .text_regions
+            .retain(|key, _| !key.starts_with(&prefix));
+        for (index, bounds) in rows.iter().enumerate() {
+            state
+                .text_regions
+                .insert(format!("{prefix}{index}"), *bounds);
+        }
+    }
+
     /// Takes a consistent snapshot of everything recorded so far.
     pub fn finish(&self) -> LayoutDocument {
         let state = self.0.borrow();
