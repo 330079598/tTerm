@@ -551,6 +551,88 @@ fn description_preserves_newlines_and_wraps(cx: &mut TestAppContext) {
 }
 
 #[gpui_kit::test]
+fn non_breaking_spaces_stay_with_the_adjacent_word(cx: &mut TestAppContext) {
+    let mut options = options();
+    options.description = Some("Alpha\u{00a0}Beta Gamma".into());
+    let (probe, visual) = configured_harness(cx, false, options);
+    let width = visual.update(|window, _| {
+        let style = gpui_kit::TextStyle {
+            font_family: ".SystemUIFont".into(),
+            ..Default::default()
+        };
+        window
+            .text_system()
+            .shape_line(
+                "Alpha\u{00a0}Beta".into(),
+                px(14.0),
+                &[style.to_run(10)],
+                None,
+            )
+            .width
+    });
+    visual.simulate_resize(gpui_kit::size(width.ceil() + px(83.0), px(600.0)));
+    redraw(visual);
+    visual.read(|cx| {
+        let rows = probe.read(cx).texts.borrow();
+        assert!(rows["description-0"].size.width >= width);
+        assert!(rows["description-0"].size.width < px(100.0));
+        assert!(rows["description-1"].size.width < px(100.0));
+        assert!(!rows.contains_key("description-2"));
+    });
+}
+
+#[gpui_kit::test]
+fn other_non_breaking_spaces_stay_with_the_adjacent_word(cx: &mut TestAppContext) {
+    for character in ['\u{2007}', '\u{202f}'] {
+        let mut options = options();
+        options.description = Some(format!("Alpha{character}Beta Gamma"));
+        let (probe, visual) = configured_harness(cx, false, options);
+        let width = visual.update(|window, _| {
+            let style = gpui_kit::TextStyle {
+                font_family: ".SystemUIFont".into(),
+                ..Default::default()
+            };
+            window
+                .text_system()
+                .shape_line(
+                    format!("Alpha{character}Beta").into(),
+                    px(14.0),
+                    &[style.to_run(10)],
+                    None,
+                )
+                .width
+        });
+        visual.simulate_resize(gpui_kit::size(width.ceil() + px(83.0), px(600.0)));
+        redraw(visual);
+        visual.read(|cx| {
+            let rows = probe.read(cx).texts.borrow();
+            assert!(rows["description-0"].size.width >= width);
+            assert!(!rows.contains_key("description-2"));
+        });
+    }
+}
+
+#[gpui_kit::test]
+fn oversized_non_breaking_words_overflow_without_splitting(cx: &mut TestAppContext) {
+    for character in ['\u{00a0}', '\u{2007}', '\u{202f}'] {
+        let mut options = options();
+        options.title = "Title".into();
+        options.description = Some(format!("Alpha{character}BetaGamma"));
+        let (probe, visual) = configured_harness(cx, false, options);
+        visual.simulate_resize(gpui_kit::size(px(182.0), px(600.0)));
+        redraw(visual);
+        visual.read(|cx| {
+            let probe = probe.read(cx);
+            let rows = probe.texts.borrow();
+            let description = probe.bounds.borrow()["dialog-description"];
+            assert!(rows["description-0"].size.width > description.size.width);
+            assert_eq!(description.size.height, px(16.0));
+            assert!(!rows.contains_key("description-1"));
+        });
+    }
+}
+
+#[gpui_kit::test]
 fn short_description_newline_creates_two_separate_rows(cx: &mut TestAppContext) {
     let mut options = options();
     options.description = Some("Alpha\nBeta".into());

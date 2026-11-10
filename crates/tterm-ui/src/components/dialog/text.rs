@@ -83,6 +83,7 @@ impl Element for DialogText {
                         let mut end = line.wrap_boundaries.first().map_or(remainder.len(), |b| {
                             line.unwrapped_layout.runs[b.run_ix].glyphs[b.glyph_ix].index
                         });
+                        end = preserve_glued_word(remainder, end);
                         // GPUI tests overflow on the trailing space itself. CSS
                         // pre-line hangs that space, so a word ending within the
                         // available width stays on this row. Keep glyph advances
@@ -91,7 +92,7 @@ impl Element for DialogText {
                             && let Some(width) = width
                         {
                             let word_end = remainder[end..]
-                                .find(char::is_whitespace)
+                                .find(is_breakable_space)
                                 .map_or(remainder.len(), |offset| end + offset);
                             if line.unwrapped_layout.x_for_index(word_end) <= width {
                                 end = word_end;
@@ -196,5 +197,31 @@ impl Element for DialogText {
             );
             origin.y += line.size(*height).height;
         }
+    }
+}
+
+fn is_glue(character: char) -> bool {
+    matches!(character, '\u{00a0}' | '\u{2007}' | '\u{202f}')
+}
+
+fn is_breakable_space(character: char) -> bool {
+    character.is_whitespace() && !is_glue(character)
+}
+
+fn preserve_glued_word(text: &str, end: usize) -> usize {
+    if end == text.len() {
+        return end;
+    }
+    let start = text[..end].rfind(is_breakable_space).map_or(0, |index| {
+        index + text[index..].chars().next().map_or(0, char::len_utf8)
+    });
+    let word_end = text[end..]
+        .find(is_breakable_space)
+        .map_or(text.len(), |offset| end + offset);
+    if start < end && text[start..word_end].chars().any(is_glue) {
+        // WebKit overflows an unbreakable word rather than splitting its glue.
+        if start == 0 { word_end } else { start }
+    } else {
+        end
     }
 }
