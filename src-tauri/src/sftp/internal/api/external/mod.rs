@@ -513,3 +513,6 @@ pub fn shutdown(app: &AppHandle) {
         }
     }
 }
+
+#[cfg(test)]
+mod contract_tests;

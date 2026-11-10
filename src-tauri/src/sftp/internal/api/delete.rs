@@ -230,3 +230,6 @@ fn collect_delete_stats<'a>(
 
 mod batch;
 pub mod commands;
+
+#[cfg(test)]
+mod contract_tests;

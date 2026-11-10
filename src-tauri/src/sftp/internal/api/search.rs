@@ -190,3 +190,6 @@ pub async fn sftp_search_entries(
     })
     .await
 }
+
+#[cfg(test)]
+mod contract_tests;

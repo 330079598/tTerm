@@ -339,3 +339,6 @@ pub async fn get_file_size(local_path: String) -> Result<u64, String> {
     .await
     .map_err(|err| format!("Task join error: {err}"))?
 }
+
+#[cfg(test)]
+mod contract_tests;
