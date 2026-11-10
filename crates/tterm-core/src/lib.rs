@@ -10,3 +10,5 @@ pub mod events;
 pub mod keymap;
 /// Application directories resolved by the client at startup.
 pub mod paths;
+/// Application identity supplied by the client.
+pub mod identity;

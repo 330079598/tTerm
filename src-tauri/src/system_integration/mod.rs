@@ -198,7 +198,7 @@ pub fn apply_config(app: &AppHandle, cfg: &AppConfig) {
         }
         // Every copy of tTerm shares the folder menu, and a development build
         // would take it over each time it starts.
-        if app.config().identifier != APP_IDENTIFIER {
+        if !crate::app_identity::get(app).is_ok_and(|id| id.identifier == APP_IDENTIFIER) {
             return;
         }
         let label = folder_menu_label(&cfg.language);

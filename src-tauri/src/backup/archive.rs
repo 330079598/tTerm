@@ -38,7 +38,7 @@ pub(super) fn build_archive(
     password: Option<&str>,
 ) -> Result<Vec<u8>, String> {
     build_archive_for_version(
-        &app.package_info().version.to_string(),
+        &crate::app_identity::get(app)?.version.clone(),
         selection,
         payload,
         password,

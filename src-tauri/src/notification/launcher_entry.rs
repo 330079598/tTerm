@@ -27,7 +27,7 @@ pub async fn set_count(app: &AppHandle, count: u32) -> Result<(), String> {
         .await
         .map_err(|error| format!("Failed to reach the session bus to show the count: {error}"))?;
     // The desktop file the deb and rpm packages install, as Tauri names it.
-    let app_uri = format!("application://{}.desktop", app.package_info().name);
+    let app_uri = format!("application://{}.desktop", crate::app_identity::get(app)?.name);
     connection
         .emit_signal(
             None::<BusName<'_>>,
