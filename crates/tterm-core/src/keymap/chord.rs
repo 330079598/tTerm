@@ -20,9 +20,25 @@ pub struct KeyEventData<'a> {
 }
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct EditableTarget {
-    pub editable: bool,
+    /// Whether the target itself is an input or textarea control.
+    pub form_control: bool,
+    /// Whether the target itself has contenteditable or textbox semantics.
+    pub content_editable: bool,
+    /// Whether an ancestor supplies editable semantics.
+    pub editable_ancestor: bool,
 }
 const MODIFIERS: &[&str] = &["mod", "ctrl", "alt", "shift"];
+fn js_trim(value: &str) -> String {
+    value
+        .trim_matches(|character: char| {
+            matches!(character,
+        '\u{0009}'..='\u{000D}' | '\u{0020}' | '\u{00A0}' | '\u{1680}' |
+        '\u{2000}'..='\u{200A}' | '\u{2028}' | '\u{2029}' | '\u{202F}' |
+        '\u{205F}' | '\u{3000}' | '\u{FEFF}')
+        })
+        .to_owned()
+}
+
 fn valid_named(s: &str) -> bool {
     !s.is_empty()
         && s.bytes().next().is_some_and(|b| b.is_ascii_lowercase())
@@ -127,8 +143,8 @@ pub fn serialize_chord(c: &Chord) -> Option<String> {
 pub fn parse_chord(s: &str) -> Option<Chord> {
     let p: Vec<_> = s
         .split('+')
-        .map(str::trim)
-        .map(str::to_lowercase)
+        .map(js_trim)
+        .map(|part| part.to_lowercase())
         .filter(|x| !x.is_empty())
         .collect();
     if p.is_empty() {
@@ -229,8 +245,8 @@ pub fn format_chord(s: &str, mac: bool) -> String {
         )
     }
 }
-pub fn is_editable_target(t: EditableTarget) -> bool {
-    t.editable
+pub fn is_editable_target(target: EditableTarget) -> bool {
+    target.form_control || target.content_editable || target.editable_ancestor
 }
 impl fmt::Display for Chord {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {

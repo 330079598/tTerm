@@ -3,6 +3,7 @@
 use std::fmt;
 use std::str::FromStr;
 
+/// Functional group for a keymap action.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum KeymapActionGroup {
     Workspace,
@@ -13,6 +14,7 @@ pub enum KeymapActionGroup {
     Editor,
 }
 
+/// Stable identifier for a user-bindable action.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
 #[repr(u8)]
 pub enum KeymapActionId {
@@ -65,6 +67,7 @@ pub enum KeymapActionId {
     EditorSave,
 }
 
+/// Ordered action registry: `(id, group, allow_in_editable)`.
 pub const KEYMAP_ACTIONS: &[(KeymapActionId, KeymapActionGroup, bool)] = &[
     (
         KeymapActionId::WorkspaceNewTab,
@@ -274,6 +277,37 @@ pub const KEYMAP_ACTIONS: &[(KeymapActionId, KeymapActionGroup, bool)] = &[
     ),
     (KeymapActionId::EditorSave, KeymapActionGroup::Editor, true),
 ];
+
+/// Stable ordered action groups used by the settings UI.
+pub const KEYMAP_ACTION_GROUPS: &[KeymapActionGroup] = &[
+    KeymapActionGroup::Workspace,
+    KeymapActionGroup::Tabs,
+    KeymapActionGroup::Terminal,
+    KeymapActionGroup::Sftp,
+    KeymapActionGroup::Zmodem,
+    KeymapActionGroup::Editor,
+];
+
+/// Returns the string id used to persist and display an action group.
+pub const fn action_group_id(group: KeymapActionGroup) -> &'static str {
+    match group {
+        KeymapActionGroup::Workspace => "workspace",
+        KeymapActionGroup::Tabs => "tabs",
+        KeymapActionGroup::Terminal => "terminal",
+        KeymapActionGroup::Sftp => "sftp",
+        KeymapActionGroup::Zmodem => "zmodem",
+        KeymapActionGroup::Editor => "editor",
+    }
+}
+
+/// Returns all action definitions in the requested group, preserving registry order.
+pub fn get_actions_by_group(group: KeymapActionGroup) -> Vec<KeymapActionId> {
+    KEYMAP_ACTIONS
+        .iter()
+        .filter(|(_, action_group, _)| *action_group == group)
+        .map(|(id, _, _)| *id)
+        .collect()
+}
 
 impl KeymapActionId {
     pub const ALL: &'static [Self] = &[

@@ -1,13 +1,24 @@
 use super::actions::KeymapActionId;
 use super::chord::{format_chord, parse_chord, serialize_chord};
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 use std::collections::BTreeMap;
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Default)]
 pub struct KeymapConfig {
     #[serde(default)]
     pub bindings: BTreeMap<String, Option<Vec<String>>>,
 }
+impl<'de> serde::Deserialize<'de> for KeymapConfig {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let value = serde_json::Value::deserialize(deserializer)?;
+        let normalized = normalize_keymap(Some(&value));
+        Ok(normalized)
+    }
+}
+
 pub type EffectiveKeymap = BTreeMap<KeymapActionId, Option<Vec<String>>>;
 pub fn default_keymap_config() -> KeymapConfig {
     KeymapConfig::default()
@@ -147,9 +158,9 @@ pub fn get_shortcut_label(e: &EffectiveKeymap, id: KeymapActionId, mac: bool) ->
         .and_then(|v| v.first())
         .map(|s| format_chord(s, mac))
 }
-pub fn with_shortcut(label: &str, s: Option<&str>) -> String {
-    match s {
-        Some(x) => format!("{label} ({x})"),
+pub fn with_shortcut(label: &str, shortcut: Option<&str>) -> String {
+    match shortcut.filter(|value| !value.is_empty()) {
+        Some(value) => format!("{label} ({value})"),
         None => label.into(),
     }
 }
@@ -157,7 +168,10 @@ pub fn find_keymap_conflicts(e: &EffectiveKeymap) -> BTreeMap<String, Vec<Keymap
     let mut owners: BTreeMap<String, Vec<KeymapActionId>> = BTreeMap::new();
     for id in KeymapActionId::ALL {
         for c in e.get(id).and_then(|v| v.as_ref()).into_iter().flatten() {
-            owners.entry(c.clone()).or_default().push(*id)
+            let action_owners = owners.entry(c.clone()).or_default();
+            if !action_owners.contains(id) {
+                action_owners.push(*id);
+            }
         }
     }
     owners.retain(|_, v| v.len() > 1);
