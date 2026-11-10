@@ -4,6 +4,7 @@ use serde::Serialize;
 use std::collections::BTreeMap;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Default)]
+/// Persisted sparse keymap overrides.
 pub struct KeymapConfig {
     #[serde(default)]
     pub bindings: BTreeMap<String, Option<Vec<String>>>,
@@ -19,7 +20,9 @@ impl<'de> serde::Deserialize<'de> for KeymapConfig {
     }
 }
 
+/// Resolved action id to canonical chord list.
 pub type EffectiveKeymap = BTreeMap<KeymapActionId, Option<Vec<String>>>;
+/// Returns an empty sparse override configuration.
 pub fn default_keymap_config() -> KeymapConfig {
     KeymapConfig::default()
 }
@@ -137,6 +140,7 @@ fn normalize_binding(v: &[String]) -> Option<Vec<String>> {
         .collect();
     if out.is_empty() { None } else { Some(out) }
 }
+/// Resolves platform defaults and sparse overrides.
 pub fn resolve_effective_keymap(config: &KeymapConfig, mac: bool) -> EffectiveKeymap {
     let d = defaults(mac);
     KeymapActionId::ALL
@@ -152,18 +156,21 @@ pub fn resolve_effective_keymap(config: &KeymapConfig, mac: bool) -> EffectiveKe
         })
         .collect()
 }
+/// Returns the display label for an action’s first active chord.
 pub fn get_shortcut_label(e: &EffectiveKeymap, id: KeymapActionId, mac: bool) -> Option<String> {
     e.get(&id)
         .and_then(|v| v.as_ref())
         .and_then(|v| v.first())
         .map(|s| format_chord(s, mac))
 }
+/// Appends a non-empty shortcut to a label.
 pub fn with_shortcut(label: &str, shortcut: Option<&str>) -> String {
     match shortcut.filter(|value| !value.is_empty()) {
         Some(value) => format!("{label} ({value})"),
         None => label.into(),
     }
 }
+/// Finds chords owned by more than one distinct action.
 pub fn find_keymap_conflicts(e: &EffectiveKeymap) -> BTreeMap<String, Vec<KeymapActionId>> {
     let mut owners: BTreeMap<String, Vec<KeymapActionId>> = BTreeMap::new();
     for id in KeymapActionId::ALL {
@@ -177,6 +184,7 @@ pub fn find_keymap_conflicts(e: &EffectiveKeymap) -> BTreeMap<String, Vec<Keymap
     owners.retain(|_, v| v.len() > 1);
     owners
 }
+/// Builds the deterministic serialized-chord lookup index.
 pub fn build_chord_index(e: &EffectiveKeymap) -> BTreeMap<String, KeymapActionId> {
     let mut out = BTreeMap::new();
     for id in KeymapActionId::ALL {
@@ -186,6 +194,7 @@ pub fn build_chord_index(e: &EffectiveKeymap) -> BTreeMap<String, KeymapActionId
     }
     out
 }
+/// Advisory conflicts with readline, tmux and shell flow control.
 pub const KNOWN_CLI_CONFLICT_HINTS: &[(&str, &str)] = &[
     ("mod+s", "xoff"),
     ("mod+q", "xon"),
@@ -209,6 +218,7 @@ pub const KNOWN_CLI_CONFLICT_HINTS: &[(&str, &str)] = &[
     ("alt+f", "wordForward"),
     ("alt+d", "wordKill"),
 ];
+/// Returns an advisory remote-side conflict id for a chord.
 pub fn get_cli_conflict_hint(chord: &str, mac: bool) -> Option<&'static str> {
     if mac && chord.starts_with("mod+") {
         return None;
@@ -220,6 +230,7 @@ pub fn get_cli_conflict_hint(chord: &str, mac: bool) -> Option<&'static str> {
         .find(|(k, _)| *k == key)
         .map(|(_, v)| *v)
 }
+/// Normalizes arbitrary persisted JSON into known action overrides.
 pub fn normalize_keymap(value: Option<&serde_json::Value>) -> KeymapConfig {
     let Some(v) = value.and_then(|v| v.as_object()) else {
         return default_keymap_config();

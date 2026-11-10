@@ -1,5 +1,6 @@
 //! Platform-neutral keyboard chord parsing and formatting.
 use std::fmt;
+/// Canonical keyboard chord with normalized key and modifier flags.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Default)]
 pub struct Chord {
     pub key: String,
@@ -8,6 +9,7 @@ pub struct Chord {
     pub alt: bool,
     pub shift: bool,
 }
+/// Platform-neutral keyboard event data supplied by an adapter.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct KeyEventData<'a> {
     pub key: &'a str,
@@ -51,6 +53,7 @@ fn valid_single(s: &str) -> bool {
             c.is_ascii_lowercase() || c.is_ascii_digit() || "\\/-[]`;=',=.".contains(c)
         })
 }
+/// Normalizes a logical key into the persisted key token.
 pub fn normalize_event_key(raw: &str) -> Option<String> {
     if raw.is_empty()
         || matches!(
@@ -75,6 +78,7 @@ pub fn normalize_event_key(raw: &str) -> Option<String> {
         }
     })
 }
+/// Normalizes a physical keyboard code into the persisted key token.
 pub fn normalize_event_code(raw: &str) -> Option<String> {
     if raw.starts_with("Key") && raw.len() == 4 && raw.as_bytes()[3].is_ascii_uppercase() {
         return Some(raw[3..].to_lowercase());
@@ -99,6 +103,7 @@ pub fn normalize_event_code(raw: &str) -> Option<String> {
     };
     a.map(str::to_owned).or_else(|| normalize_event_key(raw))
 }
+/// Converts platform-neutral event data into a canonical chord.
 pub fn event_to_chord(e: KeyEventData<'_>, mac: bool) -> Option<Chord> {
     if e.composing
         || matches!(
@@ -120,6 +125,7 @@ pub fn event_to_chord(e: KeyEventData<'_>, mac: bool) -> Option<Chord> {
         shift: e.shift,
     })
 }
+/// Serializes a chord using the persisted modifier order.
 pub fn serialize_chord(c: &Chord) -> Option<String> {
     if c.key.is_empty() {
         return None;
@@ -140,6 +146,7 @@ pub fn serialize_chord(c: &Chord) -> Option<String> {
     p.push(&c.key);
     Some(p.join("+"))
 }
+/// Parses a persisted chord string using ECMAScript-compatible trimming.
 pub fn parse_chord(s: &str) -> Option<Chord> {
     let p: Vec<_> = s
         .split('+')
@@ -221,6 +228,7 @@ fn display_key(k: &str) -> String {
         }
     }
 }
+/// Formats a persisted chord for the requested platform.
 pub fn format_chord(s: &str, mac: bool) -> String {
     let Some(c) = parse_chord(s) else {
         return s.into();
@@ -245,6 +253,7 @@ pub fn format_chord(s: &str, mac: bool) -> String {
         )
     }
 }
+/// Reports whether any editable target facet is present.
 pub fn is_editable_target(target: EditableTarget) -> bool {
     target.form_control || target.content_editable || target.editable_ancestor
 }

@@ -11,7 +11,9 @@ pub struct DispatchEvent<'a> {
     pub stopped: bool,
 }
 /// Result returned by a keymap handler. `true` consumes the key.
+/// Result returned by a keymap handler. `true` consumes the key.
 pub type HandlerResult = bool;
+/// A mounted action handler.
 /// A mounted action handler.
 pub type KeymapHandler = Box<dyn FnMut(&mut DispatchEvent<'_>, &Chord) -> HandlerResult>;
 /// Runtime state used by the pure dispatcher.

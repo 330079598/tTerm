@@ -271,7 +271,7 @@ fn find_keymap_conflicts_deduplicates_repeated_chords_on_one_action() {
         Some(vec!["mod+j".into(), "MOD+J".into()]),
     );
     let effective = resolve_effective_keymap(&config, false);
-    assert!(find_keymap_conflicts(&effective).get("mod+j").is_none());
+    assert!(!find_keymap_conflicts(&effective).contains_key("mod+j"));
 }
 
 #[test]
