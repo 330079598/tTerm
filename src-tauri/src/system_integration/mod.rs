@@ -316,7 +316,7 @@ fn folder_menu_label(language: &str) -> &'static str {
 /// tTerm's local data directory, which is this computer's alone.
 #[cfg(any(target_os = "windows", target_os = "macos"))]
 fn data_dir(app: &AppHandle) -> Result<std::path::PathBuf, String> {
-    Ok(crate::app_paths::get(app).local_data_dir.clone())
+    Ok(crate::app_paths::get(app)?.local_data_dir.clone())
 }
 
 /// The directory that holds tTerm's `tterm` launchers.

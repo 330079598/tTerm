@@ -136,7 +136,7 @@ fn queue(app: &AppHandle, dirs: Vec<LaunchDir>) {
 }
 
 fn marker_path(app: &AppHandle) -> Option<PathBuf> {
-    let dir = crate::app_paths::get(app).cache_dir.clone();
+    let dir = crate::app_paths::get(app).ok()?.cache_dir.clone();
     std::fs::create_dir_all(&dir).ok()?;
     Some(dir.join(STARTED_WITH_DIR_MARKER))
 }

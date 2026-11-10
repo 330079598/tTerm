@@ -91,7 +91,7 @@ pub(super) struct Fingerprint {
 
 /// The folder holding every local copy.
 pub(super) fn edit_root(app: &AppHandle) -> Result<PathBuf, String> {
-    Ok(crate::app_paths::get(app).cache_dir.join("sftp-edit"))
+    Ok(crate::app_paths::get(app)?.cache_dir.join("sftp-edit"))
 }
 
 /// Creates the folder of one opened file, readable only by this user: the

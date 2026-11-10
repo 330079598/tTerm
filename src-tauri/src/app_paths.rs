@@ -33,14 +33,25 @@ pub(crate) fn initialize(app: &AppHandle) -> Result<(), String> {
     Ok(())
 }
 
-pub(crate) fn get(app: &AppHandle) -> State<'_, AppPaths> {
-    app.state::<AppPaths>()
+/// Reports unavailable startup state without panicking in early callbacks.
+pub(crate) fn get<R: Runtime>(app: &AppHandle<R>) -> Result<State<'_, AppPaths>, String> {
+    app.try_state::<AppPaths>()
+        .ok_or_else(|| "Application directories are not ready yet".to_string())
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use tauri::test::{mock_builder, mock_context, noop_assets};
+
+    #[test]
+    fn paths_before_initialization_return_an_error() {
+        let app = mock_builder()
+            .build(mock_context(noop_assets()))
+            .expect("build mock app without initializing paths");
+        let error = get(app.handle()).expect_err("paths must not be registered yet");
+        assert_eq!(error, "Application directories are not ready yet");
+    }
 
     #[test]
     fn native_and_tauri_resolve_identical_paths_for_each_identity() {

@@ -447,7 +447,7 @@ impl SecretStoreState {
         database: &Database,
         password: Option<&str>,
     ) -> Result<(), String> {
-        let secrets_dir = crate::app_paths::get(app).data_dir.join("secrets");
+        let secrets_dir = crate::app_paths::get(app)?.data_dir.join("secrets");
         let vault = legacy::LegacyVault::load(&secrets_dir)?;
         let old_mode = load_config_file()?.secret_storage_mode;
         let plaintext = crate::ssh::store::load_legacy_password_store()?

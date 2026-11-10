@@ -301,7 +301,7 @@ fn sanitize_update_channel(channel: &str) -> String {
 }
 
 fn pending_update_download_dir(app: &tauri::AppHandle) -> Result<PathBuf, String> {
-    Ok(crate::app_paths::get(app).cache_dir.join("updates"))
+    Ok(crate::app_paths::get(app)?.cache_dir.join("updates"))
 }
 
 fn pending_update_download_path(app: &tauri::AppHandle, channel: &str) -> Result<PathBuf, String> {

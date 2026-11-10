@@ -70,7 +70,7 @@ pub fn migrate_legacy_config_files(app: &tauri::AppHandle) -> Result<(), String>
 
 /// Where older versions kept the app vault.
 fn secrets_dir(app: &tauri::AppHandle) -> Result<PathBuf, String> {
-    Ok(crate::app_paths::get(app).data_dir.join("secrets"))
+    Ok(crate::app_paths::get(app)?.data_dir.join("secrets"))
 }
 
 /// How long the `*.migrated` copies of files whose data moved into the
