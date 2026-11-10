@@ -6,7 +6,7 @@ use super::storage::{
     delete_tunnel as delete_tunnel_rule, list_tunnel_traffic, load_tunnels, reset_tunnel_traffic,
     upsert_tunnel,
 };
-use super::types::{TunnelRule, TunnelState, TunnelStatus, TunnelTraffic};
+use super::types::TunnelRule;
 use crate::core::blocking::run_blocking;
 use crate::core::session::saved_hops::load_saved_hop_password;
 use crate::core::session::{
@@ -14,6 +14,7 @@ use crate::core::session::{
     types::PtyConnectionOptions,
 };
 use crate::core::state::HostPromptMap;
+use crate::event_sink::TauriEventSink;
 use crate::profiles::types::SavedProfile;
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -22,6 +23,7 @@ use std::time::Duration;
 use tauri::{AppHandle, Manager, State};
 use tokio::sync::{watch, Mutex};
 use tokio::task::JoinHandle;
+use tterm_core::events::tunnel::{TunnelState, TunnelStatus, TunnelTraffic};
 
 const STOP_TIMEOUT: Duration = Duration::from_secs(5);
 
@@ -41,11 +43,13 @@ pub struct TunnelManager {
 
 impl TunnelManager {
     fn reporter_for(&self, app: &AppHandle, id: &str) -> Arc<TunnelReporter> {
+        let sink: Arc<dyn tterm_core::events::EventSink> =
+            Arc::new(TauriEventSink::new(app.clone()));
         self.reporters
             .lock()
             .unwrap_or_else(|e| e.into_inner())
             .entry(id.to_string())
-            .or_insert_with(|| TunnelReporter::new(app.clone(), id.to_string()))
+            .or_insert_with(|| TunnelReporter::new(app.clone(), sink, id.to_string()))
             .clone()
     }
 
