@@ -43,3 +43,6 @@ impl EventSink for TauriEventSink {
         self.emit_payload(&name.as_string(), target, payload)
     }
 }
+
+#[cfg(test)]
+mod legacy_contract_tests;

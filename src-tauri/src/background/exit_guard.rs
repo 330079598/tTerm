@@ -116,3 +116,7 @@ mod tests {
         assert!(ExitGuardState::default().should_hold(&files));
     }
 }
+
+#[cfg(test)]
+#[path = "exit_guard_legacy_tests.rs"]
+mod legacy_contract_tests;

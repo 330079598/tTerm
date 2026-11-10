@@ -449,3 +449,7 @@ fn emit_status(app: &AppHandle, state: &SessionLogState) {
         let _ = app.emit_to(tauri::EventTarget::any(), "terminal-log-status", status);
     }
 }
+
+#[cfg(test)]
+#[path = "session_log_legacy_tests.rs"]
+mod legacy_contract_tests;

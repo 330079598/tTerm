@@ -1,0 +1,118 @@
+{
+  "progress_min": {
+    "phase": "ready",
+    "message": "ok"
+  },
+  "progress_full": {
+    "phase": "retrying",
+    "message": "retry",
+    "hopIndex": 1,
+    "totalHops": 2,
+    "host": "localhost",
+    "port": 22303,
+    "username": "alice",
+    "networkLatencyMs": 3,
+    "retryAttempt": 2,
+    "retryDelaySecs": 1.5,
+    "retryMaxAttempts": 4,
+    "reason": "drop",
+    "shellIntegration": {
+      "status": "active",
+      "hostname": "test",
+      "shell": "bash"
+    },
+    "auth": {
+      "method": "key",
+      "privateKeyPath": "/test/key",
+      "reusable": true
+    }
+  },
+  "os_none": {
+    "tabId": "tab-测试",
+    "distribution": null
+  },
+  "os_full": {
+    "tabId": "tab-测试",
+    "distribution": {
+      "id": "ubuntu",
+      "idLike": [
+        "debian"
+      ],
+      "name": "Ubuntu",
+      "prettyName": "Ubuntu Test",
+      "versionId": null
+    }
+  },
+  "blockers": {
+    "tunnels": 2,
+    "unuploadedFiles": [
+      "test.conf"
+    ]
+  },
+  "start": {
+    "transferId": "transfer-1",
+    "direction": "upload",
+    "fileName": "测试.bin",
+    "fileSize": 42,
+    "localPath": "/test/file"
+  },
+  "start_unknown": {
+    "transferId": "transfer-1",
+    "direction": "download",
+    "fileName": "测试.bin",
+    "fileSize": 0,
+    "localPath": "/test/file",
+    "sizeUnknown": true
+  },
+  "progress": {
+    "transferId": "transfer-1",
+    "transferred": 42,
+    "speed": 21
+  },
+  "complete": {
+    "transferId": "transfer-1",
+    "success": true,
+    "cancelled": false,
+    "error": null
+  },
+  "cancelled": {
+    "transferId": "transfer-1",
+    "success": false,
+    "cancelled": true,
+    "error": "cancel"
+  },
+  "log_global": {
+    "tabId": null,
+    "message": "disk"
+  },
+  "log_error": {
+    "tabId": "tab-测试",
+    "message": "disk"
+  },
+  "log_start": {
+    "tabId": "tab-测试",
+    "message": "disk",
+    "phase": "start"
+  },
+  "log_status": {
+    "enabled": true,
+    "directory": "/test/logs",
+    "activeSessions": 1,
+    "recordingTabIds": [
+      "tab-测试"
+    ],
+    "totalSizeBytes": 42,
+    "lastError": null
+  },
+  "cwd": {
+    "sessionNonce": 7,
+    "cwd": "/test/目录"
+  },
+  "activated": {
+    "tabId": "tab-测试"
+  },
+  "activated_none": {
+    "tabId": null
+  },
+  "unit": null
+}

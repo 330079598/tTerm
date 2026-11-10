@@ -114,3 +114,7 @@ mod tests {
         assert_eq!(cwd.as_deref(), dir.to_str());
     }
 }
+
+#[cfg(test)]
+#[path = "cwd_watch_legacy_tests.rs"]
+mod legacy_contract_tests;

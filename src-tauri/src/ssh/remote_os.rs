@@ -90,3 +90,7 @@ mod tests {
         }
     }
 }
+
+#[cfg(test)]
+#[path = "remote_os_legacy_tests.rs"]
+mod legacy_contract_tests;

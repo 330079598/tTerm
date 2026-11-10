@@ -56,3 +56,7 @@ pub struct TransferCompletePayload {
     pub cancelled: bool,
     pub error: Option<String>,
 }
+
+#[cfg(test)]
+#[path = "events_legacy_tests.rs"]
+mod legacy_contract_tests;

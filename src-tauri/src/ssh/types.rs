@@ -620,3 +620,7 @@ mod tests {
             .is_host_key_rejected());
     }
 }
+
+#[cfg(test)]
+#[path = "types_legacy_tests.rs"]
+mod legacy_contract_tests;

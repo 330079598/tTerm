@@ -125,3 +125,7 @@ pub async fn read_notification_sound() -> Result<Response, String> {
         .await
         .map(Response::new)
 }
+
+#[cfg(test)]
+#[path = "mod_legacy_tests.rs"]
+mod legacy_contract_tests;
