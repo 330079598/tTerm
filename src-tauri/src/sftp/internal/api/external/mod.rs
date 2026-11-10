@@ -19,6 +19,7 @@ mod watch;
 use crate::core::blocking::run_blocking;
 use crate::core::session::types::{PtyConnectionOptions, SessionPlan};
 use crate::core::state::HostPromptMap;
+use crate::event_sink::TauriEventSink;
 use crate::sftp::internal::api::download::download_file_with_progress;
 use crate::sftp::internal::api::prepare_transfer;
 use crate::sftp::internal::connection::{ensure_ssh_plan, map_sftp_error};
@@ -32,12 +33,10 @@ use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::AtomicBool;
 use std::sync::Mutex;
-use tauri::{AppHandle, Emitter, Manager, State};
+use tauri::{AppHandle, Manager, State};
 use tauri_plugin_opener::OpenerExt;
-
-/// Tells the drawer that an open file changed state; carries an
-/// [`ExternalEdit`].
-const EDIT_EVENT: &str = "sftp-external-edit";
+use tterm_core::events::sftp::SftpEvent;
+use tterm_core::events::{AppEvent, EventSink};
 
 struct EditSession {
     edit: ExternalEdit,
@@ -188,8 +187,8 @@ async fn fingerprint(path: PathBuf) -> Result<Fingerprint, String> {
     run_blocking(move || local::fingerprint(&path)).await
 }
 
-fn emit(app: &AppHandle, edit: &ExternalEdit) {
-    let _ = app.emit(EDIT_EVENT, edit);
+fn emit(events: &dyn EventSink, edit: &ExternalEdit) {
+    let _ = events.emit(AppEvent::Sftp(SftpEvent::ExternalEditChanged(edit.clone())));
 }
 
 /// Downloads the file into a new session's folder and starts watching it.
@@ -374,10 +373,11 @@ pub async fn sftp_external_edit_upload(
     pool_state: State<'_, SftpConnectionPool>,
     cancel_map: State<'_, TransferCancelMap>,
 ) -> Result<UploadOutcome, String> {
+    let events = TauriEventSink::new(app.clone());
     let state = app.state::<ExternalEditState>();
     let plan = ensure_ssh_plan(&app, &secret_state, connection)?;
     let (source, edit) = state.begin_upload(&id)?;
-    emit(&app, &edit);
+    emit(&events, &edit);
 
     let host = Host {
         app: &app,
@@ -412,7 +412,7 @@ pub async fn sftp_external_edit_upload(
         Err(error) => (state.upload_stopped(&id, Some(error.clone())), Err(error)),
     };
     if let Some(edit) = edit {
-        emit(&app, &edit);
+        emit(&events, &edit);
     }
     outcome
 }
