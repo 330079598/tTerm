@@ -22,9 +22,11 @@ pub struct TrayModel {
 pub trait Tray: Send + Sync {
     /// Installs or updates the prepared menu.
     fn present(&self, model: TrayModel) -> Result<(), String>;
-    /// Removes the tray while retaining application policy state.
+    /// Schedules removal on the owning UI thread; success acknowledges dispatch.
+    /// Until removal completes, is_present is false and a later present must
+    /// be applied after removal rather than updating the outgoing icon.
     fn remove(&self) -> Result<(), String>;
-    /// Reports actual tray installation for the minimize fallback.
+    /// Reports usable installation, excluding an icon awaiting removal.
     fn is_present(&self) -> bool;
     /// Updates the native tray tooltip.
     fn set_tooltip(&self, text: String) -> Result<(), String>;

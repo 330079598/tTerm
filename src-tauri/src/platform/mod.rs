@@ -14,7 +14,7 @@ use tterm_platform::{clipboard::Clipboard, open::OpenTargets};
 pub fn initialize(app: &AppHandle) {
     app.manage(Arc::new(badge::TauriBadge(app.clone()))
         as Arc<dyn tterm_platform::notifications::AppBadge>);
-    app.manage(Arc::new(tray::TauriTray(app.clone())) as Arc<dyn tterm_platform::tray::Tray>);
+    app.manage(Arc::new(tray::TauriTray::new(app.clone())) as Arc<dyn tterm_platform::tray::Tray>);
     app.manage(
         Arc::new(tterm_platform::native::drag::NativeFileDrag(Arc::new(
             window::TauriWindow(app.clone()),
