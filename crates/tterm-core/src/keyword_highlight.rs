@@ -1,7 +1,6 @@
 //! Keyword highlight configuration and immutable editing helpers.
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use std::sync::atomic::{AtomicU64, Ordering};
 
 /// Palette names accepted by keyword highlight rules.
 pub const HIGHLIGHT_PALETTE_COLORS: [&str; 16] = [
@@ -187,12 +186,18 @@ fn normalize_rule(value: &Value) -> Option<HighlightRule> {
     if id.is_empty() || !object.get("pattern")?.is_string() {
         return None;
     }
-    let pattern = object
-        .get("pattern")?
-        .as_str()?
-        .chars()
-        .take(MAX_HIGHLIGHT_PATTERN_LENGTH)
-        .collect();
+    let source = object.get("pattern")?.as_str()?;
+    let mut units = 0;
+    let mut end = 0;
+    for (index, character) in source.char_indices() {
+        let next = units + character.len_utf16();
+        if next > MAX_HIGHLIGHT_PATTERN_LENGTH {
+            break;
+        }
+        units = next;
+        end = index + character.len_utf8();
+    }
+    let pattern = source[..end].to_string();
     Some(HighlightRule {
         id,
         enabled: object.get("enabled").and_then(Value::as_bool) != Some(false),
@@ -260,10 +265,10 @@ pub fn normalize_keyword_highlight_config(value: &Value) -> KeywordHighlightConf
         sets,
     }
 }
-static NEXT_ID: AtomicU64 = AtomicU64::new(1);
+
 /// Creates a unique id for a newly inserted rule or set.
 pub fn new_highlight_id() -> String {
-    format!("rust-highlight-{}", NEXT_ID.fetch_add(1, Ordering::Relaxed))
+    uuid::Uuid::new_v4().to_string()
 }
 fn with_sets(config: &KeywordHighlightConfig, sets: Vec<HighlightSet>) -> KeywordHighlightConfig {
     KeywordHighlightConfig {
@@ -452,11 +457,11 @@ pub fn remove_highlight_rule(set: &HighlightSet, rule_id: &str) -> HighlightSet 
     }
 }
 /// Moves a rule by one position, preserving the set when out of bounds.
-pub fn move_highlight_rule(set: &HighlightSet, rule_id: &str, offset: i8) -> HighlightSet {
+pub fn move_highlight_rule(set: &HighlightSet, rule_id: &str, offset: isize) -> HighlightSet {
     let Some(index) = set.rules.iter().position(|r| r.id == rule_id) else {
         return set.clone();
     };
-    let target = index as i8 + offset;
+    let target = index as isize + offset;
     if target < 0 || target as usize >= set.rules.len() {
         return set.clone();
     }

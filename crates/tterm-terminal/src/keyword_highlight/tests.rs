@@ -4,7 +4,6 @@ use crate::{
     terminal::{Config, Terminal},
 };
 use std::collections::HashMap;
-use tterm_core::keyword_highlight::*;
 
 fn palette() -> HighlightPalette {
     [
@@ -71,6 +70,99 @@ fn builtin(text: &str) -> Vec<String> {
     matched(text, builtin_highlight_set().rules)
 }
 
+#[test]
+fn js_whole_word_and_ascii_semantics() {
+    assert_eq!(
+        builtin("warnings successfully"),
+        vec!["warnings", "successfully"]
+    );
+    assert_eq!(
+        matched(
+            "foo-barx",
+            vec![rule(|r| {
+                r.kind = "regex".into();
+                r.pattern = "foo-bar|foo".into();
+                r.whole_word = true;
+            })]
+        ),
+        vec!["foo"]
+    );
+    assert_eq!(
+        matched(
+            "发生error了",
+            vec![rule(|r| {
+                r.kind = "regex".into();
+                r.pattern = r"\berror\b".into();
+            })]
+        ),
+        vec!["error"]
+    );
+    assert!(
+        matched(
+            "permission 拒绝",
+            vec![rule(|r| {
+                r.kind = "regex".into();
+                r.pattern = r"permission \w+".into();
+            })]
+        )
+        .is_empty()
+    );
+    assert_eq!(
+        matched(
+            "ſ S",
+            vec![rule(|r| {
+                r.kind = "regex".into();
+                r.pattern = "s".into();
+            })]
+        ),
+        vec!["S"]
+    );
+    assert_eq!(
+        matched(
+            "K K",
+            vec![rule(|r| {
+                r.kind = "regex".into();
+                r.pattern = "k".into();
+            })]
+        ),
+        vec!["K"]
+    );
+}
+#[test]
+fn js_lookaround_and_backreference_work() {
+    assert_eq!(
+        matched(
+            "foo foo",
+            vec![rule(|r| {
+                r.kind = "regex".into();
+                r.pattern = r"(foo) \1".into();
+            })]
+        ),
+        vec!["foo foo"]
+    );
+    assert_eq!(
+        matched(
+            "a1",
+            vec![rule(|r| {
+                r.kind = "regex".into();
+                r.pattern = r"(?<=a)1".into();
+            })]
+        ),
+        vec!["1"]
+    );
+}
+#[test]
+fn builtin_address_rules_match_js_examples() {
+    assert_eq!(builtin("Connected to 192.168.1.1."), vec!["192.168.1.1"]);
+    assert_eq!(builtin("ssh 10.0.0.1:22"), vec!["10.0.0.1"]);
+    assert_eq!(builtin("inet:10.0.0.1"), vec!["10.0.0.1"]);
+    assert_eq!(builtin("10.0.0.0/33"), vec!["10.0.0.0"]);
+    assert_eq!(builtin("2001:db8::1"), vec!["2001:db8::1"]);
+    assert_eq!(builtin("::2"), vec!["::2"]);
+    assert_eq!(builtin("aa:bb:cc:dd:ee:ff"), vec!["aa:bb:cc:dd:ee:ff"]);
+    assert!(builtin("at 10:30 done").is_empty());
+    assert!(builtin("1:2:3:4").is_empty());
+}
 #[test]
 fn builtin_errors_warnings_successes() {
     assert_eq!(
@@ -248,6 +340,25 @@ fn resolve_colors() {
         resolve_highlight_color(Some("red"), &HashMap::new()),
         Some("#cc0000".into())
     );
+    let mut invalid = HashMap::new();
+    invalid.insert("red".into(), "bad".into());
+    assert_eq!(
+        resolve_highlight_color(Some("red"), &invalid),
+        Some("#cc0000".into())
+    );
+    assert_eq!(
+        resolve_highlight_color(Some("rgb(1 2 3)"), &palette()),
+        Some("#010203".into())
+    );
+    assert_eq!(
+        resolve_highlight_color(Some("RGB(1,2,3)"), &palette()),
+        Some("#010203".into())
+    );
+    assert_eq!(
+        resolve_highlight_color(Some("hsl(0 100% 50%)"), &palette()),
+        Some("#ff0000".into())
+    );
+    assert_eq!(resolve_highlight_color(Some(" red"), &palette()), None);
 }
 fn terminal(columns: usize, lines: usize) -> Terminal {
     Terminal::new(
@@ -297,6 +408,20 @@ fn stops_at_length() {
             .count(),
         12
     );
+}
+#[test]
+fn truncates_input_by_utf16_units() {
+    let text = format!("{}x", "😀".repeat(1000));
+    let rules = compile_highlight_set(&set(vec![rule(|r| r.pattern = "x".into())]), &palette());
+    assert!(match_highlights(&text, &rules).is_empty());
+}
+#[test]
+fn keeps_space_before_combining_character_and_tabs_as_spaces() {
+    let term = terminal(20, 2);
+    write(&term, " \u{301}\tX");
+    let cells = read_cell_text(&term.snapshot(), 0, 1, 2000);
+    assert_eq!(cells.text, " \u{301}       X");
+    assert_eq!(cells.columns, vec![0, 0, 1, 2, 3, 4, 5, 6, 7, 8]);
 }
 #[test]
 fn highlight_wrap_segments() {

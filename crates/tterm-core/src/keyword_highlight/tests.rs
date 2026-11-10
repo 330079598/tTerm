@@ -109,29 +109,33 @@ fn normalize_keeps_valid_and_drops_invalid() {
     assert!(!config.enabled);
     assert!(config.alternate_screen);
     assert_eq!(
-        config.sets.unwrap()[0].rules,
-        vec![
-            HighlightRule {
-                id: "a".into(),
-                enabled: true,
-                pattern: "down".into(),
-                kind: "regex".into(),
-                case_sensitive: false,
-                whole_word: false,
-                foreground: Some("brightRed".into()),
-                background: Some("#abcdef".into())
-            },
-            HighlightRule {
-                id: "b".into(),
-                enabled: true,
-                pattern: "up".into(),
-                kind: "keyword".into(),
-                case_sensitive: false,
-                whole_word: false,
-                foreground: None,
-                background: None
-            }
-        ]
+        config.sets.unwrap(),
+        vec![HighlightSet {
+            id: "net".into(),
+            name: "Network".into(),
+            rules: vec![
+                HighlightRule {
+                    id: "a".into(),
+                    enabled: true,
+                    pattern: "down".into(),
+                    kind: "regex".into(),
+                    case_sensitive: false,
+                    whole_word: false,
+                    foreground: Some("brightRed".into()),
+                    background: Some("#abcdef".into())
+                },
+                HighlightRule {
+                    id: "b".into(),
+                    enabled: true,
+                    pattern: "up".into(),
+                    kind: "keyword".into(),
+                    case_sensitive: false,
+                    whole_word: false,
+                    foreground: None,
+                    background: None
+                }
+            ],
+        }]
     );
 }
 #[test]
@@ -313,9 +317,40 @@ fn config_roundtrip_matches_backend_shape() {
         default_set: "net".into(),
         ..Default::default()
     };
-    let value = serde_json::to_value(&config).unwrap();
+    let serialized = serde_json::to_string(&config).unwrap();
     assert_eq!(
-        serde_json::from_value::<KeywordHighlightConfig>(value).unwrap(),
+        serialized,
+        r##"{"enabled":true,"default_set":"net","alternate_screen":false,"sets":[{"id":"net","name":"Network","rules":[{"id":"r1","enabled":true,"pattern":"down","kind":"keyword","case_sensitive":false,"whole_word":false,"foreground":"#ff0000","background":null}]}]}"##
+    );
+    assert_eq!(
+        serde_json::from_str::<KeywordHighlightConfig>(&serialized).unwrap(),
         config
     );
+}
+
+#[test]
+fn new_ids_are_uuid_and_do_not_collide_with_saved_ids() {
+    let saved = HighlightRule {
+        id: "rust-highlight-1".into(),
+        ..Default::default()
+    };
+    let created = new_highlight_rule();
+    assert_ne!(created.id, saved.id);
+    assert_eq!(created.id.len(), 36);
+}
+#[test]
+fn moving_more_than_128_rules_does_not_overflow() {
+    let rules = (0..130)
+        .map(|index| HighlightRule {
+            id: format!("r{index}"),
+            ..Default::default()
+        })
+        .collect();
+    let set = HighlightSet {
+        id: "s".into(),
+        name: "S".into(),
+        rules,
+    };
+    let moved = move_highlight_rule(&set, "r129", -1);
+    assert_eq!(moved.rules[128].id, "r129");
 }

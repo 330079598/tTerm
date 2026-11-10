@@ -1,22 +1,39 @@
-//! Matching keyword rules in terminal text and mapping matches to cells.
+//! Matching JavaScript-compatible keyword rules in terminal text and mapping matches to cells.
 use crate::{
     cell::Cell,
     color::{Color, NamedColor},
     snapshot::Snapshot,
 };
-use regex::{Regex, RegexBuilder};
-use tterm_core::keyword_highlight::{HIGHLIGHT_PALETTE_COLORS, HighlightRule, HighlightSet};
+use regress::{Flags, Regex};
+use std::collections::HashMap;
 
-/// Theme colors used to resolve named highlight colors.
-pub type HighlightPalette = std::collections::HashMap<String, String>;
+/// Palette values keyed by the frontend's sixteen terminal color names.
+pub type HighlightPalette = HashMap<String, String>;
+/// A terminal rule independent of the configuration crate.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct HighlightRule {
+    pub id: String,
+    pub enabled: bool,
+    pub pattern: String,
+    pub kind: String,
+    pub case_sensitive: bool,
+    pub whole_word: bool,
+    pub foreground: Option<String>,
+    pub background: Option<String>,
+}
+/// A named terminal rule set.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct HighlightSet {
+    pub id: String,
+    pub name: String,
+    pub rules: Vec<HighlightRule>,
+}
 /// A compiled rule with resolved colors.
 #[derive(Clone, Debug)]
 pub struct CompiledHighlightRule {
     regex: Regex,
     pub foreground: Option<String>,
     pub background: Option<String>,
-    whole_word: bool,
-    strict_boundary: bool,
 }
 /// A match range measured in UTF-16 code units.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -30,6 +47,24 @@ pub struct HighlightSpan {
 pub const MAX_HIGHLIGHT_TEXT: usize = 2000;
 /// Maximum accepted spans per line.
 pub const MAX_SPANS_PER_LINE: usize = 20;
+const PALETTE_NAMES: [&str; 16] = [
+    "red",
+    "green",
+    "yellow",
+    "blue",
+    "magenta",
+    "cyan",
+    "white",
+    "black",
+    "brightRed",
+    "brightGreen",
+    "brightYellow",
+    "brightBlue",
+    "brightMagenta",
+    "brightCyan",
+    "brightWhite",
+    "brightBlack",
+];
 const XTERM: [(&str, &str); 16] = [
     ("black", "#2e3436"),
     ("red", "#cc0000"),
@@ -48,62 +83,205 @@ const XTERM: [(&str, &str); 16] = [
     ("brightCyan", "#34e2e2"),
     ("brightWhite", "#eeeeec"),
 ];
+const IPV4_PATTERN: &str = r"(?<![\w.])(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(?:\.(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}(?:/(?:3[0-2]|[12]?\d))?(?![\w]|\.\d)";
+const IPV6_PATTERN: &str = r"(?<![\w:])(?=[\da-f:]*\d)(?:(?:[\da-f]{1,4}:){7}[\da-f]{1,4}|(?:[\da-f]{1,4}:){1,7}:|(?:[\da-f]{1,4}:){1,6}:[\da-f]{1,4}|(?:[\da-f]{1,4}:){1,5}(?::[\da-f]{1,4}){1,2}|(?:[\da-f]{1,4}:){1,4}(?::[\da-f]{1,4}){1,3}|(?:[\da-f]{1,4}:){1,3}(?::[\da-f]{1,4}){1,4}|(?:[\da-f]{1,4}:){1,2}(?::[\da-f]{1,4}){1,5}|[\da-f]{1,4}:(?::[\da-f]{1,4}){1,6}|:(?::[\da-f]{1,4}){1,7})(?:/\d{1,3})?(?![\w:])";
+const MAC_PATTERN: &str = r"(?<![\w:-])(?:[\da-f]{2}(?::[\da-f]{2}){5}|[\da-f]{2}(?:-[\da-f]{2}){5}|[\da-f]{4}\.[\da-f]{4}\.[\da-f]{4})(?![\w:-])";
+fn builtin_rule(id: &str, pattern: &str, foreground: &str, whole_word: bool) -> HighlightRule {
+    HighlightRule {
+        id: id.into(),
+        enabled: true,
+        pattern: pattern.into(),
+        kind: "regex".into(),
+        case_sensitive: false,
+        whole_word,
+        foreground: Some(foreground.into()),
+        background: None,
+    }
+}
+/// Returns the built-in rules shipped with the frontend.
+pub fn builtin_highlight_set() -> HighlightSet {
+    HighlightSet {
+        id: "builtin".into(),
+        name: String::new(),
+        rules: vec![
+            builtin_rule(
+                "builtin-errors",
+                r"errors?|fail(?:ed|ure|s)?|fatal|denied|refused|panic(?:ked)?|critical",
+                "red",
+                true,
+            ),
+            builtin_rule(
+                "builtin-warnings",
+                r"warn(?:ing|ings)?|timeout|timed out|deprecated",
+                "yellow",
+                true,
+            ),
+            builtin_rule(
+                "builtin-success",
+                r"success(?:ful|fully)?|succeeded|passed",
+                "green",
+                true,
+            ),
+            builtin_rule("builtin-ipv4", IPV4_PATTERN, "cyan", false),
+            builtin_rule("builtin-ipv6", IPV6_PATTERN, "cyan", false),
+            builtin_rule("builtin-mac", MAC_PATTERN, "magenta", false),
+        ],
+    }
+}
 fn escape(value: &str) -> String {
-    regex::escape(value)
+    value
+        .chars()
+        .flat_map(|c| match c {
+            '.' | '*' | '+' | '?' | '^' | '$' | '(' | ')' | '[' | ']' | '{' | '}' | '|' | '\\' => {
+                vec!['\\', c]
+            }
+            _ => vec![c],
+        })
+        .collect()
 }
 fn source(rule: &HighlightRule) -> String {
-    if rule.id == "builtin-ipv6" {
-        return r"(?:[\da-f]{1,4}:){1,7}[\da-f]{1,4}(?:/\d{1,3})?|[\da-f]{1,4}::[\da-f]{1,4}(?:/\d{1,3})?|::1".into();
-    }
-    if rule.kind == "keyword" {
+    let body = if rule.kind == "keyword" {
         escape(&rule.pattern)
-    } else if rule.id.starts_with("builtin-") {
-        format!("(?:{})", rule.pattern)
-            .replace(r"(?<![\w.])", "")
-            .replace(r"(?<![\w:])", "")
-            .replace(r"(?<![\w:-])", "")
-            .replace(r"(?![\w]|\.\d)", "")
-            .replace(r"(?![\w:])", "")
-            .replace(r"(?![\w:-])", "")
-            .replace(r"(?=[\da-f:]*\d)", "")
     } else {
         rule.pattern.clone()
+    };
+    if rule.whole_word {
+        format!(r"(?<!\w)(?:{})(?!\w)", body)
+    } else {
+        body
     }
 }
-fn compile(rule: &HighlightRule) -> Result<Regex, regex::Error> {
-    RegexBuilder::new(&source(rule))
-        .case_insensitive(!rule.case_sensitive)
-        .build()
+fn flags(rule: &HighlightRule) -> Flags {
+    Flags::from(if rule.case_sensitive { "g" } else { "gi" })
 }
 /// Why a pattern cannot be used.
 pub fn highlight_pattern_error(rule: &HighlightRule) -> Option<&'static str> {
     if rule.pattern.trim().is_empty() {
         return Some("empty");
     }
-    let Ok(regex) = compile(rule) else {
+    let Ok(regex) = Regex::with_flags(&source(rule), flags(rule)) else {
         return Some("invalid");
     };
-    if regex.is_match("") {
+    if regex.find_ascii("").is_some() {
         Some("matchesEmpty")
     } else {
         None
     }
 }
-/// Resolves a palette name or CSS hex color.
+fn parse_color(value: &str) -> Option<String> {
+    let value = value.trim();
+    if let Some(hex) = value.strip_prefix('#') {
+        let expanded = match hex.len() {
+            3 => hex.chars().flat_map(|c| [c, c]).collect::<String>(),
+            6 => hex.to_string(),
+            _ => return None,
+        };
+        if !expanded.chars().all(|c| c.is_ascii_hexdigit()) {
+            return None;
+        }
+        return Some(format!("#{}", expanded.to_ascii_lowercase()));
+    }
+    let lower = value.to_ascii_lowercase();
+    let body = if lower.starts_with("rgb(") || lower.starts_with("rgba(") {
+        value[value.find('(')? + 1..].strip_suffix(')')?
+    } else if lower.starts_with("hsl(") || lower.starts_with("hsla(") {
+        return parse_hsl(value);
+    } else {
+        return None;
+    };
+    let parts: Vec<&str> = body
+        .split(|c: char| c == ',' || c.is_ascii_whitespace())
+        .filter(|v| !v.is_empty())
+        .collect();
+    if parts.len() < 3 {
+        return None;
+    }
+    let channel = |v: &str| {
+        v.parse::<f32>()
+            .ok()
+            .map(|n| n.clamp(0.0, 255.0).round() as u8)
+    };
+    Some(format!(
+        "#{:02x}{:02x}{:02x}",
+        channel(parts[0])?,
+        channel(parts[1])?,
+        channel(parts[2])?
+    ))
+}
+fn parse_hsl(value: &str) -> Option<String> {
+    let body = value[value.find('(')? + 1..].strip_suffix(')')?;
+    let parts: Vec<&str> = body
+        .split(|c: char| c == ',' || c.is_ascii_whitespace())
+        .filter(|v| !v.is_empty())
+        .collect();
+    if parts.len() < 3 {
+        return None;
+    }
+    let h = parts[0].trim_end_matches("deg").parse::<f32>().ok()?;
+    let s = parts[1]
+        .trim_end_matches('%')
+        .parse::<f32>()
+        .ok()?
+        .clamp(0.0, 100.0)
+        / 100.0;
+    let l = parts[2]
+        .trim_end_matches('%')
+        .parse::<f32>()
+        .ok()?
+        .clamp(0.0, 100.0)
+        / 100.0;
+    let q = if l < 0.5 {
+        l * (1.0 + s)
+    } else {
+        l + s - l * s
+    };
+    let p = 2.0 * l - q;
+    let f = |mut t: f32| {
+        if t < 0.0 {
+            t += 1.0
+        }
+        if t > 1.0 {
+            t -= 1.0
+        }
+        if t < 1.0 / 6.0 {
+            p + (q - p) * 6.0 * t
+        } else if t < 0.5 {
+            q
+        } else if t < 2.0 / 3.0 {
+            p + (q - p) * (2.0 / 3.0 - t) * 6.0
+        } else {
+            p
+        }
+    };
+    let (r, g, b) = if s == 0.0 {
+        (l, l, l)
+    } else {
+        (
+            f(h / 360.0 + 1.0 / 3.0),
+            f(h / 360.0),
+            f(h / 360.0 - 1.0 / 3.0),
+        )
+    };
+    Some(format!(
+        "#{:02x}{:02x}{:02x}",
+        (r * 255.0).round() as u8,
+        (g * 255.0).round() as u8,
+        (b * 255.0).round() as u8
+    ))
+}
+/// Resolves a palette value using the same CSS parser and xterm fallbacks as TS.
 pub fn resolve_highlight_color(color: Option<&str>, palette: &HighlightPalette) -> Option<String> {
-    let color = color?.trim();
-    if HIGHLIGHT_PALETTE_COLORS.contains(&color) {
-        return palette.get(color).cloned().or_else(|| {
+    let value = color?;
+    if PALETTE_NAMES.contains(&value) {
+        let supplied = palette.get(value).and_then(|v| parse_color(v));
+        return supplied.or_else(|| {
             XTERM
                 .iter()
-                .find(|(name, _)| *name == color)
-                .map(|(_, value)| (*value).into())
+                .find(|(name, _)| *name == value)
+                .map(|(_, v)| (*v).into())
         });
     }
-    tterm_terminal_color_to_hex(color)
-}
-fn tterm_terminal_color_to_hex(color: &str) -> Option<String> {
-    crate::palette::Rgba::parse(color).map(crate::palette::Rgba::to_hex)
+    parse_color(value)
 }
 /// Compiles enabled, valid, colored rules in set order.
 pub fn compile_highlight_set(
@@ -120,41 +298,39 @@ pub fn compile_highlight_set(
                 return None;
             }
             Some(CompiledHighlightRule {
-                regex: compile(rule).ok()?,
+                regex: Regex::with_flags(&source(rule), flags(rule)).ok()?,
                 foreground,
                 background,
-                whole_word: rule.whole_word,
-                strict_boundary: rule.id.starts_with("builtin-ip") || rule.id == "builtin-mac",
             })
         })
         .collect()
 }
-fn utf16_len(value: &str) -> usize {
-    value.encode_utf16().count()
-}
 fn utf16_offset(value: &str, byte: usize) -> usize {
-    utf16_len(&value[..byte])
+    value[..byte].encode_utf16().count()
 }
-fn is_word(character: Option<char>) -> bool {
-    character.is_some_and(|value| value.is_ascii_alphanumeric() || value == '_')
-}
-fn whole_word(text: &str, start: usize, end: usize) -> bool {
-    !is_word(text[..start].chars().next_back()) && !is_word(text[end..].chars().next())
+fn truncate_utf16(value: &str, max: usize) -> String {
+    let mut units = 0;
+    let mut end = 0;
+    for (i, c) in value.char_indices() {
+        let next = units + c.len_utf16();
+        if next > max {
+            break;
+        }
+        units = next;
+        end = i + c.len_utf8();
+    }
+    value[..end].to_string()
 }
 /// Finds non-overlapping spans, with earlier rules taking precedence.
 pub fn match_highlights(text: &str, rules: &[CompiledHighlightRule]) -> Vec<HighlightSpan> {
-    let input: String = text.chars().take(MAX_HIGHLIGHT_TEXT).collect();
+    let input = truncate_utf16(text, MAX_HIGHLIGHT_TEXT);
     let mut accepted = Vec::new();
     for rule in rules {
         if accepted.len() >= MAX_SPANS_PER_LINE {
             break;
         }
-        for matched in rule.regex.find_iter(&input) {
-            if matched.start() == matched.end()
-                || (rule.whole_word && !whole_word(&input, matched.start(), matched.end()))
-                || (rule.strict_boundary
-                    && !address_boundary(&input, matched.start(), matched.end(), &rule.regex))
-            {
+        for matched in rule.regex.find_iter_ascii(&input) {
+            if matched.start() == matched.end() {
                 continue;
             }
             let start = utf16_offset(&input, matched.start());
@@ -178,34 +354,6 @@ pub fn match_highlights(text: &str, rules: &[CompiledHighlightRule]) -> Vec<High
     }
     accepted.sort_by_key(|span| span.start);
     accepted
-}
-
-fn address_boundary(text: &str, start: usize, end: usize, regex: &Regex) -> bool {
-    let matched = &text[start..end];
-    let groups: Vec<&str> = matched.split(':').collect();
-    if groups.len() == 3
-        && groups.iter().all(|group| {
-            !group.is_empty()
-                && group.len() <= 2
-                && group.chars().all(|character| character.is_ascii_digit())
-        })
-    {
-        return false;
-    }
-    let before = text[..start].chars().next_back();
-    let after = text[end..].chars().next();
-    let blocked = |value: Option<char>| {
-        value.is_some_and(|character| {
-            character.is_ascii_alphanumeric() || matches!(character, '_' | '.' | ':' | '-')
-        })
-    };
-    if blocked(before) || blocked(after) {
-        return false;
-    }
-    if regex.is_match(matched) && matched.contains(':') {
-        return matched.chars().any(|character| character.is_ascii_digit());
-    }
-    true
 }
 /// Text and per-UTF-16-unit cell geometry read from terminal rows.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -232,9 +380,7 @@ fn cell_plain(cell: &Cell) -> bool {
 }
 fn cell_text(cell: &Cell) -> String {
     let mut text = String::new();
-    if cell.ch != ' ' {
-        text.push(cell.ch);
-    }
+    text.push(if cell.ch == '\t' { ' ' } else { cell.ch });
     if let Some(extenders) = &cell.zerowidth {
         text.extend(extenders.iter().copied());
     }
@@ -255,12 +401,13 @@ pub fn read_cell_text(
         plain: Vec::new(),
     };
     let mut content_len = 0;
+    let mut text_units = 0;
     for row_index in start_row..end_row.min(snapshot.line_count()) {
         let Some(row) = snapshot.row(row_index) else {
             break;
         };
         for (column, cell) in row.cells().iter().enumerate() {
-            if result.text.encode_utf16().count() >= max_length {
+            if text_units >= max_length {
                 break;
             }
             if cell.attributes.wide_spacer {
@@ -280,8 +427,10 @@ pub fn read_cell_text(
                 result.plain.push(cell_plain(cell));
             }
             result.text.push_str(&units);
-            if !cell.is_blank() {
-                content_len = result.text.encode_utf16().count();
+            let added_units = units.encode_utf16().count();
+            text_units += added_units;
+            if !cell.is_blank() || cell.zerowidth.is_some() {
+                content_len = text_units;
             }
         }
     }
