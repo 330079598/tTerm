@@ -251,7 +251,7 @@ pub async fn open_target_ssh_session_with_forwarding(
         None => {
             scope = crate::prompt_scope::PromptScope::for_tab(ctx.app, ctx.tab_id)
                 .await
-                .map_err(SshConnectError::Permanent)?;
+                .map_err(SshConnectError::Cancelled)?;
             &scope.owner
         }
     };

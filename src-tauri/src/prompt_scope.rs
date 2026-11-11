@@ -16,21 +16,19 @@ impl PromptScope {
         Ok(Self { broker, owner })
     }
 
-    /// Side connections inherit a live terminal generation when one exists.
+    /// Side connections require a live terminal generation; standalone operations use new.
     pub async fn for_tab(app: &AppHandle, tab_id: &str) -> Result<Self, String> {
         let broker = app.state::<Arc<PromptBroker>>().inner().clone();
-        if let Some(sessions) = app.try_state::<crate::core::state::PtyMap>() {
-            let sessions = sessions.read().await;
-            let session = sessions
-                .get(tab_id)
-                .map(|session| SessionKey {
-                    tab_id: tab_id.to_string(),
-                    session_nonce: session.session_nonce,
-                })
-                .or_else(|| broker.session_for_tab(tab_id));
-            return Self::new(broker, session);
-        }
-        Self::new(broker, None)
+        let sessions = app.state::<crate::core::state::PtyMap>();
+        let sessions = sessions.read().await;
+        let session = sessions.get(tab_id).ok_or("Prompt session is closed")?;
+        Self::new(
+            broker,
+            Some(SessionKey {
+                tab_id: tab_id.to_string(),
+                session_nonce: session.session_nonce,
+            }),
+        )
     }
 }
 

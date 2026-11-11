@@ -1,6 +1,6 @@
-use super::{OwnerState, PromptId, PromptKind, PromptOutcome, PromptRequest, SessionKey};
+use super::{OwnerState, PromptId, PromptKind, PromptOutcome, PromptRequest};
 use crate::events::EventSink;
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 use std::sync::{Arc, Mutex, MutexGuard, Weak};
 use tokio::sync::oneshot;
 
@@ -32,8 +32,7 @@ impl Entry {
 pub(super) struct Pending {
     pub sequence: u64,
     pub shutdown: bool,
-    pub closed_sessions: HashSet<SessionKey>,
-    pub latest_sessions: HashMap<String, SessionKey>,
+    pub sessions: HashMap<String, u32>,
     pub owners: HashMap<u64, Weak<OwnerState>>,
     pub active: HashMap<Key, u64>,
     pub entries: HashMap<u64, Entry>,

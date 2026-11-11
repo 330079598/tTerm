@@ -336,7 +336,7 @@ pub async fn test_connection(
     crate::core::session::saved_hops::fill_from_saved_connections(&mut plan.jump_hosts)?;
 
     // The connection dialog listens on the test tab id while the test runs.
-    let prompt_scope = crate::prompt_scope::PromptScope::for_tab(&app, &test_tab_id).await?;
+    let prompt_scope = crate::prompt_scope::PromptScope::new(prompt_state.inner().clone(), None)?;
     let auth_prompter =
         crate::ssh::auth::AuthPrompter::tab(&app, &test_tab_id).with_owner(&prompt_scope.owner);
     crate::core::session::resolve_ssh_password(&app, &secret_state, &mut plan)?;

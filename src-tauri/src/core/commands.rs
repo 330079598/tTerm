@@ -191,7 +191,13 @@ fn create_pty_blocking(
         runtime_handle,
     };
 
-    let (pid, initial_active) = spawn_initial_session(&tab, rows, cols)?;
+    let (pid, initial_active) = spawn_initial_session(&tab, rows, cols).inspect_err(|_| {
+        tab.prompt_state
+            .cancel_session(&tterm_core::prompts::SessionKey {
+                tab_id: tab_id.clone(),
+                session_nonce,
+            });
+    })?;
 
     {
         let mut guard = runtime_state.runtime.block_on(active.lock());

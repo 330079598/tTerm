@@ -79,14 +79,22 @@ mod tests {
             tterm_core::events::recording::RecordingEventSink::default(),
         )));
         let registry = PendingMonitorPrompts::default();
+        broker.open_session(&SessionKey {
+            tab_id: "tab".into(),
+            session_nonce: 1,
+        });
         let old = registry.begin(broker.clone(), "tab", 1).unwrap();
-        let new = registry.begin(broker.clone(), "tab", 2).unwrap();
         let terminal = broker
             .register_owner(Some(SessionKey {
                 tab_id: "tab".into(),
                 session_nonce: 1,
             }))
             .unwrap();
+        broker.open_session(&SessionKey {
+            tab_id: "tab".into(),
+            session_nonce: 2,
+        });
+        let new = registry.begin(broker.clone(), "tab", 2).unwrap();
         registry.cancel(&broker, "tab", Some(1));
         assert!(old.scope.owner.is_closed());
         assert!(!new.scope.owner.is_closed());

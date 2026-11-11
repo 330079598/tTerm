@@ -338,6 +338,8 @@ pub async fn run_tunnel(ctx: RunContext, mut stop_rx: watch::Receiver<bool>) {
         // Joins the connection another tunnel to this host already has, or
         // opens it for the others to join.
         let connect = hub.acquire(&session_key, |forwarded_tx| async {
+            let scope = crate::prompt_scope::PromptScope::new(prompts.clone(), None)
+                .map_err(crate::ssh::types::SshConnectError::Cancelled)?;
             let (jump_chain, handle) = open_target_ssh_session_with_forwarding(
                 ConnectContext {
                     app: &app,
@@ -347,7 +349,7 @@ pub async fn run_tunnel(ctx: RunContext, mut stop_rx: watch::Receiver<bool>) {
                     host_key_verification_mode: HostKeyVerificationMode::PromptAndPersist,
                     // Tunnels reconnect on their own, so there is no moment at
                     // which a prompt is expected.
-                    prompt_owner: None,
+                    prompt_owner: Some(&scope.owner),
                     auth_prompter: &crate::ssh::auth::AuthPrompter::Unavailable,
                 },
                 SshTarget {

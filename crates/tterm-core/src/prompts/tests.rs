@@ -149,8 +149,13 @@ async fn nonce_and_attempt_cancellation_are_precise() {
         tab_id: "tab".into(),
         session_nonce: 1,
     };
+    broker.open_session(&session);
     let old = broker.register_owner(Some(session.clone())).unwrap();
     let attempt = broker.register_owner(Some(session.clone())).unwrap();
+    broker.open_session(&SessionKey {
+        session_nonce: 2,
+        ..session.clone()
+    });
     let new_session = broker
         .register_owner(Some(SessionKey {
             session_nonce: 2,
@@ -340,6 +345,7 @@ async fn reply_and_cancel_have_exactly_one_winner() {
 
 mod cancellation;
 mod proxy_tests;
+mod sessions;
 
 #[tokio::test]
 async fn owner_remains_cancellable_when_caller_drops_its_handle() {
@@ -348,6 +354,7 @@ async fn owner_remains_cancellable_when_caller_drops_its_handle() {
         tab_id: "tab".into(),
         session_nonce: 9,
     };
+    broker.open_session(&session);
     let owner = broker.register_owner(Some(session.clone())).unwrap();
     let wait = begin(&broker, &owner, PromptKind::Auth, "orphan");
     drop(owner);
@@ -386,13 +393,14 @@ fn closed_nonce_cannot_register_late_owner_but_explicit_new_lifetime_can() {
         session_nonce: 43,
         ..session.clone()
     };
+    broker.open_session(&newer);
     assert!(broker.register_owner(Some(newer)).is_ok());
     broker.open_session(&session);
     assert!(broker.register_owner(Some(session)).is_ok());
 }
 
 #[test]
-fn removed_tab_retains_closed_generation_for_late_side_operations() {
+fn removed_tab_rejects_late_side_operations_without_retaining_history() {
     let (broker, _, _) = setup();
     let session = SessionKey {
         tab_id: "closed-tab".into(),
@@ -400,8 +408,6 @@ fn removed_tab_retains_closed_generation_for_late_side_operations() {
     };
     broker.open_session(&session);
     broker.cancel_session(&session);
-    let retained = broker.session_for_tab("closed-tab").unwrap();
-    assert_eq!(retained, session);
-    assert!(broker.register_owner(Some(retained)).is_err());
-    assert!(broker.session_for_tab("tunnels").is_none());
+    assert!(broker.register_owner(Some(session)).is_err());
+    assert!(broker.shared.lock().sessions.is_empty());
 }

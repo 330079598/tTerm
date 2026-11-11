@@ -23,25 +23,18 @@ impl PromptBroker {
     /// Starts a terminal generation while the client still holds its session lock.
     /// Side operations cannot reopen a closed session by merely registering an owner.
     pub fn open_session(&self, session: &SessionKey) {
-        let mut state = self.shared.lock();
-        state.closed_sessions.remove(session);
-        state
-            .latest_sessions
-            .insert(session.tab_id.clone(), session.clone());
-    }
-
-    /// Retains a closed generation so late side operations cannot become anonymous.
-    pub fn session_for_tab(&self, tab_id: &str) -> Option<SessionKey> {
-        self.shared.lock().latest_sessions.get(tab_id).cloned()
+        self.shared
+            .lock()
+            .sessions
+            .insert(session.tab_id.clone(), session.session_nonce);
     }
 
     /// Mints an owner for one operation, optionally tied to a terminal nonce.
     pub fn register_owner(&self, session: Option<SessionKey>) -> Result<PromptOwner, String> {
         let mut state = self.shared.lock();
-        if session
-            .as_ref()
-            .is_some_and(|session| state.closed_sessions.contains(session))
-        {
+        if session.as_ref().is_some_and(|session| {
+            state.sessions.get(&session.tab_id) != Some(&session.session_nonce)
+        }) {
             return Err("Prompt session is closed".into());
         }
         if state.shutdown {
@@ -185,6 +178,7 @@ impl PromptBroker {
         {
             let mut state = self.shared.lock();
             state.shutdown = true;
+            state.sessions.clear();
         }
         self.cancel_matching(|_| true, None);
     }
@@ -192,8 +186,10 @@ impl PromptBroker {
     fn cancel_matching(&self, matches: impl Fn(&OwnerState) -> bool, session: Option<&SessionKey>) {
         let (senders, expired) = {
             let mut state = self.shared.lock();
-            if let Some(session) = session {
-                state.closed_sessions.insert(session.clone());
+            if let Some(session) = session
+                && state.sessions.get(&session.tab_id) == Some(&session.session_nonce)
+            {
+                state.sessions.remove(&session.tab_id);
             }
             let ids: Vec<_> = state
                 .owners

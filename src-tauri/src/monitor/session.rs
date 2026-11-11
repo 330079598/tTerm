@@ -389,6 +389,10 @@ mod tests {
         let sink = Arc::new(RecordingEventSink::default());
         let broker = Arc::new(PromptBroker::new(sink.clone()));
         let registry = crate::monitor::prompts::PendingMonitorPrompts::default();
+        broker.open_session(&tterm_core::prompts::SessionKey {
+            tab_id: tab.into(),
+            session_nonce: 1,
+        });
         let scope = registry.begin(broker.clone(), tab, 1).unwrap();
         let payload = |id: &str| SshHostKeyPromptPayload {
             request_id: id.into(),
