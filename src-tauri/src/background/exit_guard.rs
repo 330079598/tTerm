@@ -10,8 +10,6 @@ use tterm_core::events::{AppEvent, EventSink};
 
 use std::sync::atomic::{AtomicBool, Ordering};
 
-use tauri::{AppHandle, Manager, State};
-
 use crate::tunnel::commands::TunnelManager;
 
 /// Tracks confirmation without holding the window or application lifetime.
@@ -24,6 +22,9 @@ pub struct ExitGuardState {
 }
 
 impl ExitGuardState {
+    fn cancel(&self) {
+        self.prompt_open.store(false, Ordering::SeqCst);
+    }
     fn should_hold(&self, blockers: &QuitBlockers) -> bool {
         if blockers.is_empty() || self.confirmed.load(Ordering::SeqCst) {
             return false;
@@ -35,22 +36,20 @@ impl ExitGuardState {
 }
 
 /// What a quit would end right now.
-pub fn blockers(app: &AppHandle) -> QuitBlockers {
+pub(crate) fn blockers(tunnels: &TunnelManager, unuploaded_files: &[String]) -> QuitBlockers {
     QuitBlockers {
-        tunnels: app.state::<Arc<TunnelManager>>().active_count(),
-        unuploaded_files: crate::sftp::internal::api::external::unuploaded_files(app),
+        tunnels: tunnels.active_count(),
+        unuploaded_files: unuploaded_files.to_vec(),
     }
 }
 
-/// Called when the app is about to close. Returns `true` when the exit must
-/// wait because the UI is asking the user to confirm it.
-pub fn hold_exit_for_confirmation(app: &AppHandle) -> bool {
-    let blockers = blockers(app);
-    emit_confirmation(
-        &app.state::<Arc<ExitGuardState>>(),
-        blockers,
-        &crate::event_sink::TauriEventSink::new(app.clone()),
-    )
+/// Holds an exit while the UI confirms the current blockers.
+pub(crate) fn hold_exit_for_confirmation(
+    state: &ExitGuardState,
+    blockers: QuitBlockers,
+    events: &dyn EventSink,
+) -> bool {
+    emit_confirmation(state, blockers, events)
 }
 
 fn emit_confirmation(
@@ -68,14 +67,25 @@ fn emit_confirmation(
 }
 
 #[tauri::command]
-pub fn confirm_quit_app(app: AppHandle, state: State<'_, Arc<ExitGuardState>>) {
+pub fn confirm_quit_app(services: tauri::State<'_, Arc<crate::services::AppServices>>) {
+    confirm(
+        &services.app.exit_guard,
+        &crate::app_context::quit(&services),
+    );
+}
+
+fn confirm(state: &ExitGuardState, context: &super::quit::QuitContext) {
     state.confirmed.store(true, Ordering::SeqCst);
-    super::quit::quit(&app);
+    super::quit::quit(context);
 }
 
 #[tauri::command]
-pub fn cancel_quit_prompt(state: State<'_, Arc<ExitGuardState>>) {
-    state.prompt_open.store(false, Ordering::SeqCst);
+pub fn cancel_quit_prompt(services: tauri::State<'_, Arc<crate::services::AppServices>>) {
+    services
+        .app
+        .exit_guard
+        .prompt_open
+        .store(false, Ordering::SeqCst);
 }
 
 #[cfg(test)]
