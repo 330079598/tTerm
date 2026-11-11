@@ -149,12 +149,7 @@ pub fn run() {
     );
 
     builder
-        .manage(pty_map.clone())
-        .manage(sftp_pool.clone())
         .manage(TokioRuntimeState { runtime })
-        .manage(secret_store.clone())
-        .manage(session_log_state.clone())
-        .manage(tunnel_manager.clone())
         .on_window_event(|window, event| {
             if let tauri::WindowEvent::CloseRequested { api, .. } = event {
                 if window
@@ -389,48 +384,39 @@ pub fn run() {
         ])
         .setup(move |app| {
             let app_handle = app.handle().clone();
-            app_paths::initialize(&app_handle)?;
-            app_identity::initialize(&app_handle);
-            let platform_services = platform::initialize(&app_handle);
+            let paths = app_paths::initialize(&app_handle)?;
+            let identity = app_identity::initialize(&app_handle);
             let events: Arc<dyn tterm_core::events::EventSink> =
                 Arc::new(event_sink::TauriEventSink::new(app_handle.clone()));
-            let notifications = notification::create(
-                app_identity::get(&app_handle)?.identifier.clone(),
-                app.state::<Arc<dyn tterm_platform::window::MainWindow>>()
-                    .inner()
-                    .clone(),
-                app.state::<Arc<dyn tterm_platform::notifications::AppBadge>>()
-                    .inner()
-                    .clone(),
-                events.clone(),
-            );
-            let prompts = Arc::new(tterm_core::prompts::PromptBroker::new(events.clone()));
-            app.manage(prompts.clone());
-            let integration = system_integration::initialize((|| {
-                Ok(tterm_platform::native::integration::IntegrationContext {
-                    local_data_dir: app_paths::get(&app_handle)?.local_data_dir.clone(),
-                    identifier: app_identity::get(&app_handle)?.identifier.clone(),
-                    home_dir: app_handle
-                        .path()
-                        .home_dir()
-                        .map_err(|e| format!("Failed to find your home folder: {e}"))?,
-                })
-            })());
-            let platform_services = platform_services(notifications, integration);
-            debug_assert!(Arc::ptr_eq(
-                &platform_services.file_drag,
-                app.state::<Arc<dyn tterm_platform::drag::FileDrag>>()
-                    .inner()
-            ));
-            debug_assert!(Arc::ptr_eq(
-                &platform_services.clipboard,
-                app.state::<Arc<dyn tterm_platform::clipboard::Clipboard>>()
-                    .inner()
-            ));
+            let mut prompts = None;
+            let platform_services = platform::initialize(&app_handle, |main_window, badge| {
+                let notifications = notification::create(
+                    identity.identifier.clone(),
+                    main_window,
+                    badge,
+                    events.clone(),
+                );
+                prompts = Some(Arc::new(tterm_core::prompts::PromptBroker::new(
+                    events.clone(),
+                )));
+                let integration = system_integration::initialize((|| {
+                    Ok(tterm_platform::native::integration::IntegrationContext {
+                        local_data_dir: paths.local_data_dir.clone(),
+                        identifier: identity.identifier.clone(),
+                        home_dir: app_handle
+                            .path()
+                            .home_dir()
+                            .map_err(|e| format!("Failed to find your home folder: {e}"))?,
+                    })
+                })());
+                (notifications, integration)
+            });
             let services = Arc::new(services::AppServices {
                 shared: services::shared::SharedServices {
+                    paths,
+                    identity,
                     events,
-                    prompts: prompts.clone(),
+                    prompts: prompts.ok_or("Prompt broker was not initialized")?,
                     secrets: secret_store.clone(),
                     runtime: runtime_handle.clone(),
                     platform: platform_services,
@@ -464,11 +450,11 @@ pub fn run() {
             launch_dir::open_from_startup(
                 &services.app.launch_dirs,
                 services.shared.events.as_ref(),
-                app_paths::get(&app_handle)?.inner(),
+                services.shared.paths.as_ref(),
             );
 
             if let Err(err) =
-                updater::cleanup_stale_pending_update_files(app_paths::get(&app_handle)?.inner())
+                updater::cleanup_stale_pending_update_files(services.shared.paths.as_ref())
             {
                 eprintln!("Failed to clean stale update cache files: {}", err);
             }
@@ -499,12 +485,10 @@ pub fn run() {
             // Moves passwords saved by older versions into the database once,
             // then unlocks them from the system credential store, in the
             // background.
-            app_handle
-                .state::<ssh::secret_store::types::SecretStoreState>()
-                .initialize(
-                    &*app_identity::get(&app_handle)?,
-                    &app_paths::get(&app_handle)?.data_dir,
-                );
+            services.shared.secrets.initialize(
+                services.shared.identity.as_ref(),
+                &services.shared.paths.data_dir,
+            );
 
             if let Err(error) = migrate::remove_retired_files(&app_handle) {
                 eprintln!("Failed to remove retired files: {error}");
@@ -513,20 +497,17 @@ pub fn run() {
             let cfg = config::load_config_file().ok();
             if let Some(cfg) = &cfg {
                 sftp::internal::api::apply_bandwidth_limits(cfg);
-                let log_state = app_handle.state::<Arc<session_log::SessionLogState>>();
-                if let Err(err) = log_state.apply_config(
-                    &crate::connection_context::log(
-                        &app_handle.state::<Arc<services::AppServices>>(),
-                    ),
-                    cfg,
-                ) {
+                let log_state = &services.app.session_log;
+                if let Err(err) =
+                    log_state.apply_config(&crate::connection_context::log(&services), cfg)
+                {
                     eprintln!("Failed to initialize terminal logging: {}", err);
                 }
             }
 
             if let Ok(paths) = crate::app_paths::get(&app_handle) {
                 sftp::internal::api::external::clean_up_on_start(
-                    paths.inner(),
+                    paths.as_ref(),
                     &services.shared.runtime,
                 );
             }

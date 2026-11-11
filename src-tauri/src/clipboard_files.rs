@@ -1,15 +1,21 @@
 //! Clipboard IPC preserves the existing string path response.
+use crate::services::AppServices;
 use std::sync::Arc;
-use tterm_platform::clipboard::Clipboard;
 
 #[tauri::command]
 pub async fn read_clipboard_file_paths(
-    clipboard: tauri::State<'_, Arc<dyn Clipboard>>,
+    services: tauri::State<'_, Arc<AppServices>>,
 ) -> Result<Vec<String>, String> {
-    clipboard.read_files().await.map(|paths| {
-        paths
-            .into_iter()
-            .map(|path| path.to_string_lossy().into_owned())
-            .collect()
-    })
+    services
+        .shared
+        .platform
+        .clipboard
+        .read_files()
+        .await
+        .map(|paths| {
+            paths
+                .into_iter()
+                .map(|path| path.to_string_lossy().into_owned())
+                .collect()
+        })
 }

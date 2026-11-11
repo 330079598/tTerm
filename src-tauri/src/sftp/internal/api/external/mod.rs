@@ -306,7 +306,7 @@ pub async fn sftp_external_edit_open(
             events: services.shared.events.clone(),
             state: services.sftp.external_edit.clone(),
             opener: services.shared.platform.open.clone(),
-            paths: crate::app_paths::get(&app).map(|paths| paths.inner().clone()),
+            paths: crate::app_paths::get(&app).map(|paths| paths.as_ref().clone()),
         },
         SftpExternalEditOpenInput {
             tab_id,

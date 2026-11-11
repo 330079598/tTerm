@@ -9,6 +9,8 @@ use tterm_platform::{
 };
 
 pub struct SharedServices {
+    pub paths: Arc<tterm_core::paths::AppPaths>,
+    pub identity: Arc<tterm_core::identity::AppIdentity>,
     pub events: Arc<dyn EventSink>,
     pub prompts: Arc<PromptBroker>,
     pub secrets: SecretStoreState,

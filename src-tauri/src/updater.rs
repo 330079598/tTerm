@@ -244,7 +244,7 @@ pub async fn download_app_update(
     download_app_update_service(
         services.shared.platform.updates.as_ref(),
         &services.app.pending_updates,
-        crate::app_paths::get(&app)?.inner().clone(),
+        crate::app_paths::get(&app)?.as_ref().clone(),
         channel,
         progress,
     )

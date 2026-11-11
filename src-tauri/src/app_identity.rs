@@ -1,20 +1,23 @@
 //! Tauri's startup adapter for the shared application identity.
 
-use tauri::{AppHandle, Manager, Runtime, State};
+use crate::services::AppServices;
+use std::sync::Arc;
+use tauri::{AppHandle, Manager, Runtime};
 use tterm_core::identity::AppIdentity;
 
 /// Captures Tauri identity at startup without changing storage or keyring naming.
-pub fn initialize(app: &AppHandle) {
-    app.manage(AppIdentity {
+pub fn initialize(app: &AppHandle) -> Arc<AppIdentity> {
+    Arc::new(AppIdentity {
         identifier: app.config().identifier.clone(),
         name: app.package_info().name.clone(),
         version: app.package_info().version.to_string(),
-    });
+    })
 }
 
 /// Returns the startup identity or an actionable error before initialization.
-pub fn get<R: Runtime>(app: &AppHandle<R>) -> Result<State<'_, AppIdentity>, String> {
-    app.try_state::<AppIdentity>()
+pub fn get<R: Runtime>(app: &AppHandle<R>) -> Result<Arc<AppIdentity>, String> {
+    app.try_state::<Arc<AppServices>>()
+        .map(|services| services.shared.identity.clone())
         .ok_or_else(|| "Application identity is not ready yet".to_string())
 }
 

@@ -1,104 +1,86 @@
-import test from 'node:test';
-import assert from 'node:assert/strict';
-import fs from 'node:fs';
-import path from 'node:path';
-import { fileURLToPath } from 'node:url';
+import test from "node:test"
+import assert from "node:assert/strict"
+import fs from "node:fs"
+import path from "node:path"
+import { fileURLToPath } from "node:url"
 
-// P1-07s changed these managed values to Arc<T>; bare T compiles but panics
-// when Tauri injects it or state() looks it up at runtime.
-const arcManaged = [
-  'PendingMonitorPrompts',
-  'ExternalEditState',
-  'SessionLogState',
-  'TunnelManager',
-  'CloseBehaviorState',
-  'QuitState',
-  'ExitGuardState',
-  'LaunchDirs',
-  'TrayState',
-  'PendingUpdateDownloads',
-];
-
-// P1-07b, d and e must update this list whenever they remove an individual
-// manage registration. These values must then be read through AppServices.
-const retired = [
-  'TransferCancelMap',
-  'ExternalEditState',
-  'CloseBehaviorState',
-  'QuitState',
-  'ExitGuardState',
-  'TrayState',
-  'LaunchDirs',
-  'PendingUpdateDownloads',
-  'Notifications',
-  'IntegrationState',
-  'ZmodemMap',
-  'ZmodemArmedSendMap',
-  'ZmodemManualDetectMap',
-  'MonitorSessionMap',
-  'PendingMonitorPrompts',
-];
+// Domain and platform state is owned by AppServices. Tracker is local to the
+// Tauri window adapter; the runtime owner stays separate to control its drop.
+const allowed = /^(?:Arc<AppServices>|TokioRuntimeState|Tracker)$/
 
 function rustFiles(directory) {
   return fs.readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
-    const file = path.join(directory, entry.name);
-    return entry.isDirectory() ? rustFiles(file) : entry.name.endsWith('.rs') ? [file] : [];
-  });
+    const file = path.join(directory, entry.name)
+    return entry.isDirectory() ? rustFiles(file) : entry.name.endsWith(".rs") ? [file] : []
+  })
 }
 
 function violations(source) {
-  const errors = [];
-  const start = /\b(State\s*<|(?:try_state|state)\s*::\s*<)/g;
+  const errors = []
+  const start = /\b(State\s*<|(?:try_state|state)\s*::\s*<)/g
   // Ignore documentation and commented-out examples, preserving line numbers.
-  const code = source.replace(/\/\*[\s\S]*?\*\/|\/\/[^\n]*/g, (text) => text.replace(/[^\n]/g, ' '));
+  const code = source.replace(/\/\*[\s\S]*?\*\/|\/\/[^\n]*/g, (text) => text.replace(/[^\n]/g, " "))
   for (const match of code.matchAll(start)) {
-    const open = match.index + match[0].length - 1;
-    let end = open + 1;
-    let depth = 1;
+    const open = match.index + match[0].length - 1
+    let end = open + 1
+    let depth = 1
     while (end < code.length && depth > 0) {
-      if (code[end] === '<') depth += 1;
-      if (code[end] === '>') depth -= 1;
-      end += 1;
+      if (code[end] === "<") depth += 1
+      if (code[end] === ">") depth -= 1
+      end += 1
     }
-    const type = code.slice(open + 1, end - 1).replace(/^\s*'\w+\s*,/, '').trim();
-    const line = code.slice(0, match.index).split('\n').length;
-    for (const name of retired) {
-      if (new RegExp(`\\b${name}\\b`).test(type)) errors.push(`${line}: retired managed state ${type}`);
-    }
-    for (const name of arcManaged) {
-      if (new RegExp(`^(?:\\w+\\s*::\\s*)*${name}$`).test(type)) {
-        errors.push(`${line}: managed state requires Arc<${name}>`);
-      }
-    }
+    const type = code
+      .slice(open + 1, end - 1)
+      .replace(/^\s*'\w+\s*,/, "")
+      .trim()
+    const line = code.slice(0, match.index).split("\n").length
+    const normalized = type.replace(/(?:[A-Za-z_]\w*\s*::\s*)+/g, "").replace(/\s/g, "")
+    if (!allowed.test(normalized)) errors.push(`${line}: unexpected managed state ${type}`)
   }
-  return errors;
+  return errors
 }
 
-test('managed state scanner catches injection and lookup regressions', () => {
-  for (const name of arcManaged) {
+test("managed state scanner allows only the container, runtime and window tracker", () => {
+  for (const type of [
+    "PtyMap",
+    "SftpConnectionPool",
+    "SecretStoreState",
+    "Arc<PromptBroker>",
+    "Arc<SessionLogState>",
+    "Arc<TunnelManager>",
+    "AppPaths",
+    "AppIdentity",
+    "Arc<dyn Clipboard>",
+    "Arc<dyn MainWindow>",
+    "Arc<UnknownState>",
+    "AppServices",
+  ]) {
     for (const usage of [
-      `State<'_, crate::domain::${name}>`,
-      `app.state::<${name}>()`,
-      `app.try_state::<\n crate::domain::${name}\n>()`,
-    ]) assert.ok(violations(usage).length > 0, usage);
-  }
-  for (const name of retired) {
-    for (const usage of [`State<'_, Arc<${name}>>`, `app.try_state::<${name}>()`]) {
-      assert.ok(violations(usage).length > 0, usage);
+      `State<'_, ${type}>`,
+      `app.state::<${type}>()`,
+      `app.try_state::<\n ${type}\n>()`,
+    ]) {
+      assert.ok(violations(usage).length > 0, usage)
     }
   }
-  for (const name of arcManaged.filter((name) => !retired.includes(name))) {
-    assert.deepEqual(violations(`State<'_, std::sync::Arc<crate::domain::${name}>>`), []);
-    assert.deepEqual(violations(`app.state::<Arc<${name}>>()`), []);
+  for (const type of [
+    "Arc<AppServices>",
+    "std::sync::Arc<crate::services::AppServices>",
+    "TokioRuntimeState",
+    "crate::window_state::Tracker",
+  ]) {
+    assert.deepEqual(violations(`State<'_, ${type}>`), [])
+    assert.deepEqual(violations(`app.try_state::<${type}>()`), [])
   }
-  assert.deepEqual(violations("// State<'_, TunnelManager>\n/* state::<ZmodemMap>() */"), []);
-  assert.deepEqual(violations("State<'_, Arc<AppServices>>"), []);
-});
+  assert.deepEqual(violations("// State<'_, TunnelManager>\n/* state::<ZmodemMap>() */"), [])
+})
 
-test('Tauri state readers match the remaining managed registrations', () => {
-  const root = fileURLToPath(new URL('../../src-tauri/src/', import.meta.url));
+test("Tauri state readers match the remaining managed registrations", () => {
+  const root = fileURLToPath(new URL("../../src-tauri/src/", import.meta.url))
   const errors = rustFiles(root).flatMap((file) =>
-    violations(fs.readFileSync(file, 'utf8')).map((error) => `${path.relative(root, file)}:${error}`),
-  );
-  assert.deepEqual(errors, []);
-});
+    violations(fs.readFileSync(file, "utf8")).map(
+      (error) => `${path.relative(root, file)}:${error}`
+    )
+  )
+  assert.deepEqual(errors, [])
+})
