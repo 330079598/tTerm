@@ -1,10 +1,10 @@
 use super::*;
 use crate::core::state::AtomicTerminalSize;
-use crate::session_sink::output::TerminalOutput;
+use crate::terminal::output::TerminalOutput;
 use tokio::sync::{mpsc, watch};
 
 fn output() -> TerminalOutput {
-    TerminalOutput::new(tauri::ipc::Channel::new(|_| Ok(())))
+    crate::session_sink::output::new(tauri::ipc::Channel::new(|_| Ok(())))
 }
 
 fn session(session_nonce: u32, runtime: &tokio::runtime::Runtime) -> PtySession {

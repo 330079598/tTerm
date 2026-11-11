@@ -5,7 +5,7 @@ fn adapter_close_releases_a_blocked_sender_and_drains_queued_bytes() {
     let captured = Arc::new(Mutex::new(0usize));
     let received = captured.clone();
     let (tx, rx) = std::sync::mpsc::channel();
-    let output = TerminalOutput::new(Channel::new(move |body| {
+    let output = crate::session_sink::output::new(Channel::new(move |body| {
         let InvokeResponseBody::Raw(bytes) = body else {
             panic!("expected raw bytes")
         };

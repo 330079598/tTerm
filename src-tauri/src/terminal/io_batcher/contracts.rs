@@ -8,7 +8,7 @@ fn binary_channel_keeps_nul_non_utf8_and_capped_messages() {
     let captured = received.clone();
     let flow = Arc::new(OutputFlow::default());
     let ack = flow.clone();
-    let output = TerminalOutput::with_flow(
+    let output = crate::session_sink::output::with_flow(
         Channel::new(move |body| {
             let InvokeResponseBody::Raw(bytes) = body else {
                 panic!("terminal output changed from Raw to JSON");

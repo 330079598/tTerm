@@ -85,8 +85,7 @@ pub async fn create_pty(
     output_channel: tauri::ipc::JavaScriptChannelId,
     services: State<'_, Arc<AppServices>>,
 ) -> Result<u32, String> {
-    let output_channel =
-        crate::session_sink::output::TerminalOutput::new(output_channel.channel_on(webview));
+    let output_channel = crate::session_sink::output::new(output_channel.channel_on(webview));
     let context = CreateContext {
         connection: crate::connection_context::connection(&services),
         ptys: services.session.ptys.clone(),

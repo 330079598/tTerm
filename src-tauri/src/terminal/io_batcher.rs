@@ -1,6 +1,6 @@
 use super::output_tail::OutputTail;
 #[cfg(test)]
-use crate::session_sink::output::TerminalOutput;
+use crate::terminal::output::TerminalOutput;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::mpsc::{Receiver, RecvError, RecvTimeoutError, SyncSender, TryRecvError};
 use std::sync::{Arc, Condvar, Mutex, PoisonError};

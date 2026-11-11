@@ -8,6 +8,7 @@ pub(crate) mod io_batcher;
 pub(crate) mod legacy_events;
 #[cfg(unix)]
 mod local_integration;
+pub(crate) mod output;
 pub(crate) mod output_tail;
 pub(crate) mod pty;
 pub(crate) mod reader;

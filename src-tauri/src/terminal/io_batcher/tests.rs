@@ -56,7 +56,7 @@ impl ChunkRecorder {
             }
             Ok(())
         });
-        TerminalOutput::with_flow(channel, flow)
+        crate::session_sink::output::with_flow(channel, flow)
     }
 }
 
@@ -72,7 +72,10 @@ fn unacked_output(stall_timeout: Duration) -> (TerminalOutput, Arc<Mutex<Vec<Vec
         Ok(())
     });
     let flow = Arc::new(OutputFlow::with_stall_timeout(stall_timeout));
-    (TerminalOutput::with_flow(channel, flow), chunks)
+    (
+        crate::session_sink::output::with_flow(channel, flow),
+        chunks,
+    )
 }
 
 fn delivered(chunks: &Mutex<Vec<Vec<u8>>>) -> usize {
@@ -319,7 +322,7 @@ fn an_echo_after_a_quiet_spell_skips_the_batching_window() {
         let _ = delivered_tx.lock().unwrap().send(Instant::now());
         Ok(())
     });
-    let output = TerminalOutput::new(channel);
+    let output = crate::session_sink::output::new(channel);
     let mut sender = TerminalOutputSender::spawn("echo", test_sink(output.clone()));
     // Each echo follows a keystroke after a pause longer than the window, so
     // each must reach the webview well before a window could have elapsed.
@@ -441,7 +444,7 @@ fn reader_thread_delivers_batched_utf8_stream_in_order() {
     let received: std::sync::Arc<std::sync::Mutex<Vec<u8>>> =
         std::sync::Arc::new(std::sync::Mutex::new(Vec::new()));
     let sink_received = received.clone();
-    let channel = TerminalOutput::new(Channel::new(move |body| {
+    let channel = crate::session_sink::output::new(Channel::new(move |body| {
         if let InvokeResponseBody::Raw(bytes) = body {
             sink_received.lock().unwrap().extend_from_slice(&bytes);
         }

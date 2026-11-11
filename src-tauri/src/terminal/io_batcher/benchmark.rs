@@ -142,7 +142,7 @@ fn p106_real_pty_cat_throughput() {
         ack_tx.send(bytes.len()).unwrap();
         Ok(())
     });
-    let output = TerminalOutput::with_flow(channel, flow);
+    let output = crate::session_sink::output::with_flow(channel, flow);
     let mut sender = TerminalOutputSender::spawn("p106-benchmark", test_sink(output));
     let command = format!(
         "stty -echo -opost; exec /bin/bash '{}' cat '{}'",

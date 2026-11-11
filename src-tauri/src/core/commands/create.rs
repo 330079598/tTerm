@@ -24,7 +24,7 @@ pub(super) fn create_pty_blocking(
     context: CreateContext,
     identity: (String, u32, u16, u16),
     connection: Option<crate::core::session::types::PtyConnectionOptions>,
-    output_channel: crate::session_sink::output::TerminalOutput,
+    output_channel: crate::terminal::output::TerminalOutput,
     sink: Arc<dyn tterm_core::session::sink::SessionSink>,
 ) -> Result<u32, String> {
     let (tab_id, session_nonce, rows, cols) = identity;

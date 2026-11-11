@@ -45,7 +45,7 @@ fn legacy_exit_preserves_null_empty_and_error_reasons() {
     let sink = crate::session_sink::TauriSessionSink::new(
         "tab-6".into(),
         app.handle().clone(),
-        crate::session_sink::output::TerminalOutput::new(tauri::ipc::Channel::new(|_| Ok(()))),
+        crate::session_sink::output::new(tauri::ipc::Channel::new(|_| Ok(()))),
     );
     for reason in [None, Some(""), Some("SSH channel closed")] {
         sink.exited(reason.map(str::to_string)).unwrap();
