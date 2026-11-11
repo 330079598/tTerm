@@ -7,6 +7,7 @@ use crate::ssh::{
     types::ConnectionStatusOptions, types::HostKeyVerificationMode, types::SshClientHandler,
 };
 use std::sync::Arc;
+use tauri::Manager;
 
 pub(super) fn test_connection_handler(
     app: &tauri::AppHandle,
@@ -18,7 +19,9 @@ pub(super) fn test_connection_handler(
     verification: (HostKeyVerificationMode, tterm_core::prompts::PromptOwner),
 ) -> SshClientHandler {
     SshClientHandler {
-        app: app.clone(),
+        app: crate::connection_context::connection(
+            &app.state::<std::sync::Arc<crate::services::AppServices>>(),
+        ),
         tab_id: tab_id.to_string(),
         profile_id: plan.profile_id.clone(),
         profile_name: plan.profile_name.clone(),

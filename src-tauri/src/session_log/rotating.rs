@@ -1,12 +1,11 @@
 //! A log file that moves on to a new part once it is full, and compresses
 //! the parts it finishes.
 
-use std::sync::Arc;
 use tterm_core::events::session_log::{LogErrorPayload, SessionLogEvent};
-use tterm_core::events::{AppEvent, EventSink};
+use tterm_core::events::AppEvent;
 
 use super::naming::{compressed_path, part_path, partial_path};
-use super::SessionLogState;
+use super::LogContext;
 use flate2::write::GzEncoder;
 use flate2::Compression;
 use std::collections::HashSet;
@@ -14,7 +13,6 @@ use std::fs::{self, File, OpenOptions};
 use std::io::{BufWriter, Write};
 use std::path::{Path, PathBuf};
 use std::sync::{LazyLock, Mutex};
-use tauri::{AppHandle, Manager};
 
 /// Logs being written or compressed, and the archives being written; cleanup,
 /// deletion and recovery leave them alone. A file is added before it is
@@ -61,13 +59,13 @@ pub(super) struct RotatingFile {
     bytes_written: u64,
     max_bytes: u64,
     compress: bool,
-    app: AppHandle,
+    app: super::WeakLogContext,
     header: Vec<u8>,
 }
 
 impl RotatingFile {
     pub(super) fn create(
-        app: &AppHandle,
+        app: &LogContext,
         directory: &Path,
         base_name: &str,
         extension: &'static str,
@@ -87,7 +85,7 @@ impl RotatingFile {
             bytes_written: header.len() as u64,
             max_bytes,
             compress,
-            app: app.clone(),
+            app: app.downgrade(),
             header: header.to_vec(),
         })
     }
@@ -126,9 +124,9 @@ impl RotatingFile {
         self.path = part_path(&self.directory, &self.base_name, self.extension, self.part);
         self.file = Some(open_part(&self.path, &self.header)?);
         self.bytes_written = self.header.len() as u64;
-        self.app
-            .state::<Arc<SessionLogState>>()
-            .schedule_maintenance(&self.app, false);
+        if let Some(app) = self.app.upgrade() {
+            app.state.schedule_maintenance(&app, false);
+        }
         Ok(())
     }
 
@@ -180,7 +178,7 @@ fn open_part(path: &Path, header: &[u8]) -> Result<BufWriter<File>, String> {
 
 /// Compresses a finished part on its own thread. The part is already held;
 /// its archive is held too until the work is done.
-fn spawn_compression(app: AppHandle, path: PathBuf) {
+fn spawn_compression(app: super::WeakLogContext, path: PathBuf) {
     let archive = compressed_path(&path);
     let partial = partial_path(&archive);
     hold(&[&archive, &partial]);
@@ -192,7 +190,10 @@ fn spawn_compression(app: AppHandle, path: PathBuf) {
             move || {
                 let result = compress_file(&path);
                 release(&held.each_ref().map(PathBuf::as_path));
-                let state = app.state::<Arc<SessionLogState>>();
+                let Some(app) = app.upgrade() else {
+                    return;
+                };
+                let state = &app.state;
                 state.schedule_maintenance(&app, false);
                 if let Err(err) = result {
                     let message = format!(
@@ -200,13 +201,13 @@ fn spawn_compression(app: AppHandle, path: PathBuf) {
                         path.display()
                     );
                     state.set_error(message.clone());
-                    let _ = crate::event_sink::TauriEventSink::new(app.clone()).emit(
-                        AppEvent::SessionLog(SessionLogEvent::Error(LogErrorPayload {
+                    let _ = app.events.emit(AppEvent::SessionLog(SessionLogEvent::Error(
+                        LogErrorPayload {
                             tab_id: None,
                             message: message.to_string(),
                             phase: None,
-                        })),
-                    );
+                        },
+                    )));
                 }
             }
         });

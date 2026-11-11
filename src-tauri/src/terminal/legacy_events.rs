@@ -1,15 +1,13 @@
 //! P1-06: cold terminal reports through the typed event adapter.
-use tauri::{AppHandle, Runtime};
+
 use tterm_core::events::terminal::TerminalEvent;
 use tterm_core::events::{AppEvent, EventSink};
 
-pub(crate) fn emit_output<R: Runtime>(app: &AppHandle<R>, tab_id: &str, text: String) {
-    let _ = crate::event_sink::TauriEventSink::new(app.clone()).emit(AppEvent::Terminal(
-        TerminalEvent::Output {
-            tab_id: tab_id.to_string(),
-            text,
-        },
-    ));
+pub(crate) fn emit_output(events: &dyn EventSink, tab_id: &str, text: String) {
+    let _ = events.emit(AppEvent::Terminal(TerminalEvent::Output {
+        tab_id: tab_id.to_string(),
+        text,
+    }));
 }
 
 pub(crate) fn status_line(color: &str, message: &str) -> String {

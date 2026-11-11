@@ -301,3 +301,48 @@ fn policy_reads_profile_labels() {
         SessionLogPolicy::Default
     );
 }
+
+#[test]
+fn log_workers_write_and_release_state_without_a_client() {
+    let directory = std::env::temp_dir().join(format!("tterm-p107-log-{}", uuid::Uuid::new_v4()));
+    let config = AppConfig {
+        terminal_log_enabled: true,
+        terminal_log_directory: directory.to_string_lossy().into_owned(),
+        terminal_log_format: "raw".into(),
+        terminal_log_compress: false,
+        ..AppConfig::default()
+    };
+    let state = Arc::new(SessionLogState::default());
+    let events = Arc::new(tterm_core::events::recording::RecordingEventSink::default());
+    let context = LogContext {
+        state: state.clone(),
+        events: events.clone(),
+    };
+    state.apply_config(&context, &config).unwrap();
+    let plan = crate::core::session::normalize_connection(None).unwrap();
+    start_session(&context, "p107-log", 7, &plan, 24, 80);
+    record_output(&context, "p107-log", b"hello from core");
+    record_resize(&context, "p107-log", 30, 100);
+    let id = state.lock_manager().unwrap().logged["p107-log"][0].clone();
+    state.flush_log(&id);
+    let recording = library::load_recording(&directory, &id).unwrap();
+    assert!(!recording.is_empty());
+    assert_eq!(state.status().unwrap().recording_tab_ids, ["p107-log"]);
+    end_session(&context, "p107-log");
+    state.shutdown();
+    assert!(state.status().unwrap().recording_tab_ids.is_empty());
+    let weak = Arc::downgrade(&state);
+    drop(context);
+    drop(state);
+    for _ in 0..100 {
+        if weak.upgrade().is_none() {
+            break;
+        }
+        std::thread::sleep(Duration::from_millis(10));
+    }
+    assert!(
+        weak.upgrade().is_none(),
+        "log threads must not retain a state cycle"
+    );
+    fs::remove_dir_all(directory).unwrap();
+}

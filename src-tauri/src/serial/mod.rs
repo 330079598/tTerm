@@ -17,7 +17,6 @@ use crate::core::state::{ActiveSession, PtyMap, ZmodemMap};
 use serde::{Deserialize, Serialize};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
-use tauri::{AppHandle, State};
 
 /// How long a serial pulse holds its line before releasing it, unless asked.
 const DEFAULT_PULSE_MS: u64 = 100;
@@ -212,6 +211,9 @@ pub enum SerialLine {
 
 #[tauri::command]
 pub async fn list_serial_ports() -> Result<Vec<SerialPortEntry>, String> {
+    list_serial_ports_service().await
+}
+async fn list_serial_ports_service() -> Result<Vec<SerialPortEntry>, String> {
     run_blocking(ports::list_ports).await
 }
 
@@ -222,8 +224,38 @@ pub async fn set_serial_signals(
     session_nonce: u32,
     dtr: Option<bool>,
     rts: Option<bool>,
-    state: State<'_, PtyMap>,
+    services: tauri::State<'_, std::sync::Arc<crate::services::AppServices>>,
 ) -> Result<(), String> {
+    let state = services.session.ptys.clone();
+    set_serial_signals_service(
+        state,
+        SetSerialSignalsInput {
+            tab_id,
+            session_nonce,
+            dtr,
+            rts,
+        },
+    )
+    .await
+}
+struct SetSerialSignalsInput {
+    tab_id: String,
+    session_nonce: u32,
+    dtr: Option<bool>,
+    rts: Option<bool>,
+}
+
+async fn set_serial_signals_service(
+    state: PtyMap,
+    arguments: SetSerialSignalsInput,
+) -> Result<(), String> {
+    let SetSerialSignalsInput {
+        tab_id,
+        session_nonce,
+        dtr,
+        rts,
+    } = arguments;
+
     let control = serial_control(&state, &tab_id, session_nonce).await?;
     run_blocking(move || control.set_signals(dtr, rts)).await
 }
@@ -236,8 +268,38 @@ pub async fn pulse_serial_line(
     session_nonce: u32,
     line: SerialLine,
     duration_ms: Option<u64>,
-    state: State<'_, PtyMap>,
+    services: tauri::State<'_, std::sync::Arc<crate::services::AppServices>>,
 ) -> Result<(), String> {
+    let state = services.session.ptys.clone();
+    pulse_serial_line_service(
+        state,
+        PulseSerialLineInput {
+            tab_id,
+            session_nonce,
+            line,
+            duration_ms,
+        },
+    )
+    .await
+}
+struct PulseSerialLineInput {
+    tab_id: String,
+    session_nonce: u32,
+    line: SerialLine,
+    duration_ms: Option<u64>,
+}
+
+async fn pulse_serial_line_service(
+    state: PtyMap,
+    arguments: PulseSerialLineInput,
+) -> Result<(), String> {
+    let PulseSerialLineInput {
+        tab_id,
+        session_nonce,
+        line,
+        duration_ms,
+    } = arguments;
+
     let control = serial_control(&state, &tab_id, session_nonce).await?;
     let duration = pulse_duration(duration_ms);
     run_blocking(move || control.pulse(line, duration)).await
@@ -247,13 +309,44 @@ pub async fn pulse_serial_line(
 /// charset typed text gets: what its send bar's hex mode sends.
 #[tauri::command]
 pub async fn write_serial_bytes(
-    app: AppHandle,
     tab_id: String,
     session_nonce: u32,
     data: Vec<u8>,
-    state: State<'_, PtyMap>,
-    zmodem_state: State<'_, ZmodemMap>,
+    services: tauri::State<'_, std::sync::Arc<crate::services::AppServices>>,
 ) -> Result<(), String> {
+    let log = crate::connection_context::log(&services);
+    let state = services.session.ptys.clone();
+    let zmodem_state = services.session.zmodem.clone();
+    write_serial_bytes_service(
+        log,
+        state,
+        zmodem_state,
+        WriteSerialBytesInput {
+            tab_id,
+            session_nonce,
+            data,
+        },
+    )
+    .await
+}
+struct WriteSerialBytesInput {
+    tab_id: String,
+    session_nonce: u32,
+    data: Vec<u8>,
+}
+
+async fn write_serial_bytes_service(
+    log: crate::session_log::LogContext,
+    state: PtyMap,
+    zmodem_state: ZmodemMap,
+    arguments: WriteSerialBytesInput,
+) -> Result<(), String> {
+    let WriteSerialBytesInput {
+        tab_id,
+        session_nonce,
+        data,
+    } = arguments;
+
     let transferring = zmodem_state
         .read()
         .unwrap_or_else(std::sync::PoisonError::into_inner)
@@ -266,7 +359,7 @@ pub async fn write_serial_bytes(
     })
     .await?
     .map_err(|err| format!("Failed to write to the serial port: {err}"))?;
-    crate::session_log::record_input(&app, &tab_id, &data);
+    crate::session_log::record_input(&log, &tab_id, &data);
     Ok(())
 }
 
@@ -277,8 +370,35 @@ pub async fn set_serial_view(
     tab_id: String,
     session_nonce: u32,
     hex: bool,
-    state: State<'_, PtyMap>,
+    services: tauri::State<'_, std::sync::Arc<crate::services::AppServices>>,
 ) -> Result<(), String> {
+    let state = services.session.ptys.clone();
+    set_serial_view_service(
+        state,
+        SetSerialViewInput {
+            tab_id,
+            session_nonce,
+            hex,
+        },
+    )
+    .await
+}
+struct SetSerialViewInput {
+    tab_id: String,
+    session_nonce: u32,
+    hex: bool,
+}
+
+async fn set_serial_view_service(
+    state: PtyMap,
+    arguments: SetSerialViewInput,
+) -> Result<(), String> {
+    let SetSerialViewInput {
+        tab_id,
+        session_nonce,
+        hex,
+    } = arguments;
+
     let map = state.read().await;
     map.get(&tab_id)
         .filter(|session| session.session_nonce == session_nonce)
@@ -293,8 +413,35 @@ pub async fn send_serial_break(
     tab_id: String,
     session_nonce: u32,
     duration_ms: Option<u64>,
-    state: State<'_, PtyMap>,
+    services: tauri::State<'_, std::sync::Arc<crate::services::AppServices>>,
 ) -> Result<(), String> {
+    let state = services.session.ptys.clone();
+    send_serial_break_service(
+        state,
+        SendSerialBreakInput {
+            tab_id,
+            session_nonce,
+            duration_ms,
+        },
+    )
+    .await
+}
+struct SendSerialBreakInput {
+    tab_id: String,
+    session_nonce: u32,
+    duration_ms: Option<u64>,
+}
+
+async fn send_serial_break_service(
+    state: PtyMap,
+    arguments: SendSerialBreakInput,
+) -> Result<(), String> {
+    let SendSerialBreakInput {
+        tab_id,
+        session_nonce,
+        duration_ms,
+    } = arguments;
+
     let control = serial_control(&state, &tab_id, session_nonce).await?;
     let duration = pulse_duration(duration_ms);
     run_blocking(move || control.send_break(duration)).await

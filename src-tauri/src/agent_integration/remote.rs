@@ -13,11 +13,12 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Duration;
 
+use crate::services::AppServices;
 use russh::client::{Handle, Handler};
 use russh_sftp::client::error::Error as SftpError;
 use russh_sftp::client::SftpSession;
 use russh_sftp::protocol::StatusCode;
-use tauri::{AppHandle, State};
+use tauri::AppHandle;
 use tokio::io::AsyncWriteExt;
 
 use super::json::{self, Object};
@@ -28,8 +29,6 @@ use super::{
 use crate::core::session::types::PtyConnectionOptions;
 use crate::sftp::internal::api::SftpHost;
 use crate::sftp::internal::exec::RemoteScript;
-use crate::sftp::internal::types::SftpConnectionPool;
-use crate::ssh::secret_store::types::SecretStoreState;
 
 /// Bounds reading the host's environment: a login shell that takes longer
 /// leaves the variables only it sets unread.
@@ -275,8 +274,9 @@ async fn change(
 }
 
 /// The host's SFTP session and the environment its agents see.
-async fn open(host: SftpHost<'_>) -> Result<(Arc<SftpSession>, HashMap<String, String>), String> {
-    let handles = host.handles().await?;
+async fn open(
+    handles: crate::sftp::internal::types::SftpHandles,
+) -> Result<(Arc<SftpSession>, HashMap<String, String>), String> {
     let env = read_env(&handles.ssh).await?;
     Ok((handles.sftp, env))
 }
@@ -287,19 +287,25 @@ pub async fn remote_agent_integration_status(
     app: AppHandle,
     tab_id: String,
     connection: Option<PtyConnectionOptions>,
-    prompt_state: State<'_, std::sync::Arc<tterm_core::prompts::PromptBroker>>,
-    secret_state: State<'_, SecretStoreState>,
-    pool_state: State<'_, SftpConnectionPool>,
+    services: tauri::State<'_, Arc<AppServices>>,
 ) -> Result<Vec<AgentIntegrationStatus>, String> {
-    let (sftp, env) = open(SftpHost {
+    let handles = SftpHost {
         app: &app,
         tab_id: &tab_id,
         connection,
-        prompts: prompt_state.inner().clone(),
-        secret_state: &secret_state,
-        pool: pool_state.inner(),
-    })
+        prompts: services.shared.prompts.clone(),
+        secret_state: &services.shared.secrets,
+        pool: &services.sftp.pool,
+    }
+    .handles()
     .await?;
+    remote_status(handles).await
+}
+
+async fn remote_status(
+    handles: crate::sftp::internal::types::SftpHandles,
+) -> Result<Vec<AgentIntegrationStatus>, String> {
+    let (sftp, env) = open(handles).await?;
     let mut statuses = Vec::with_capacity(AGENTS.len());
     for agent in AGENTS {
         statuses.push(status(&sftp, &env, agent).await);
@@ -309,29 +315,33 @@ pub async fn remote_agent_integration_status(
 
 /// Installs or removes `agent`'s integration on the tab's SSH host.
 #[tauri::command]
-#[allow(
-    clippy::too_many_arguments,
-    reason = "a Tauri command's arguments are its IPC fields and injected state"
-)]
 pub async fn change_remote_agent_integration(
     app: AppHandle,
     tab_id: String,
     connection: Option<PtyConnectionOptions>,
     agent: Agent,
     install: bool,
-    prompt_state: State<'_, std::sync::Arc<tterm_core::prompts::PromptBroker>>,
-    secret_state: State<'_, SecretStoreState>,
-    pool_state: State<'_, SftpConnectionPool>,
+    services: tauri::State<'_, Arc<AppServices>>,
 ) -> Result<AgentIntegrationStatus, String> {
-    let (sftp, env) = open(SftpHost {
+    let handles = SftpHost {
         app: &app,
         tab_id: &tab_id,
         connection,
-        prompts: prompt_state.inner().clone(),
-        secret_state: &secret_state,
-        pool: pool_state.inner(),
-    })
+        prompts: services.shared.prompts.clone(),
+        secret_state: &services.shared.secrets,
+        pool: &services.sftp.pool,
+    }
+    .handles()
     .await?;
+    remote_change(handles, agent, install).await
+}
+
+async fn remote_change(
+    handles: crate::sftp::internal::types::SftpHandles,
+    agent: Agent,
+    install: bool,
+) -> Result<AgentIntegrationStatus, String> {
+    let (sftp, env) = open(handles).await?;
     change(&sftp, &env, agent, install).await
 }
 

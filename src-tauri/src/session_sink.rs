@@ -1,6 +1,7 @@
 //! P1-06: Tauri's tab-scoped raw output and lifecycle endpoint.
+pub(crate) mod output;
 use crate::event_sink::TauriEventSink;
-use crate::terminal::io_batcher::TerminalOutput;
+use crate::terminal::output::TerminalOutput;
 use tauri::{AppHandle, Runtime};
 use tterm_core::events::ssh::{SshConnectionProgressPayload, SshEvent};
 use tterm_core::events::terminal::TerminalEvent;
@@ -32,7 +33,7 @@ impl<R: Runtime> EventSink for TauriSessionSink<R> {
 
 impl<R: Runtime> SessionSink for TauriSessionSink<R> {
     fn send_bytes(&self, bytes: Vec<u8>) -> Result<(), String> {
-        self.output.send(bytes).map_err(|error| error.to_string())
+        self.output.send(bytes)
     }
 
     fn state_changed(&self, payload: SshConnectionProgressPayload) -> Result<(), String> {

@@ -78,3 +78,178 @@ fn app_services_arc_ptr_eq_matches_legacy_states() {
     assert!(Arc::ptr_eq(&app.tray, &tray));
     assert!(Arc::ptr_eq(&app.pending_updates, &pending_updates));
 }
+
+#[test]
+fn added_platform_capabilities_keep_the_same_instances_and_error() {
+    let notifications: Arc<dyn tterm_platform::notifications::Notifications> =
+        Arc::new(tterm_platform::native::notification::NativeNotifications {
+            identifier: "test.p1-07d".into(),
+            activated: Arc::new(|_| {}),
+        });
+    let integration: Arc<dyn tterm_platform::integration::SystemIntegration> =
+        Arc::new(tterm_platform::native::integration::IntegrationContext {
+            local_data_dir: std::env::temp_dir(),
+            identifier: "test.p1-07d".into(),
+            home_dir: std::env::temp_dir(),
+        });
+    let mut platform = platform_with(notifications.clone(), Ok(integration.clone()));
+    assert!(Arc::ptr_eq(&platform.notifications, &notifications));
+    assert!(Arc::ptr_eq(
+        platform.integration.as_ref().unwrap(),
+        &integration
+    ));
+    platform.integration = Err("unavailable".into());
+    assert_eq!(platform.integration.err().as_deref(), Some("unavailable"));
+}
+
+fn platform_with(
+    notifications: Arc<dyn tterm_platform::notifications::Notifications>,
+    integration: Result<Arc<dyn tterm_platform::integration::SystemIntegration>, String>,
+) -> super::shared::PlatformServices {
+    let capability = Arc::new(UnusedCapability);
+    super::shared::PlatformServices {
+        notifications,
+        integration,
+        badge: capability.clone(),
+        tray: capability.clone(),
+        file_drag: capability.clone(),
+        main_window: capability.clone(),
+        process: capability.clone(),
+        verification: capability.clone(),
+        updates: capability.clone(),
+        open: capability.clone(),
+        clipboard: capability,
+    }
+}
+struct UnusedCapability;
+impl tterm_platform::notifications::AppBadge for UnusedCapability {
+    fn set_unseen(
+        &self,
+        _: u32,
+        _: Option<tterm_platform::notifications::RgbaImage>,
+    ) -> tterm_platform::PlatformFuture<'_, ()> {
+        panic!("unused capability")
+    }
+    fn restore(&self) -> Result<(), String> {
+        panic!("unused capability")
+    }
+}
+impl tterm_platform::tray::Tray for UnusedCapability {
+    fn dispatch(&self, _: Box<dyn FnOnce() + Send>) -> Result<(), String> {
+        panic!("unused capability")
+    }
+    fn present(&self, _: tterm_platform::tray::TrayModel) -> Result<(), String> {
+        panic!("unused capability")
+    }
+    fn remove(&self) -> Result<(), String> {
+        panic!("unused capability")
+    }
+    fn is_present(&self) -> bool {
+        panic!("unused capability")
+    }
+    fn set_tooltip(&self, _: String) -> Result<(), String> {
+        panic!("unused capability")
+    }
+}
+impl tterm_platform::window::MainWindow for UnusedCapability {
+    fn save_before_update(&self) -> tterm_platform::PlatformFuture<'_, ()> {
+        Box::pin(async { Ok(()) })
+    }
+    fn send_to_background(&self, _: bool) -> Result<(), String> {
+        Ok(())
+    }
+
+    fn show_and_focus(&self) -> Result<(), String> {
+        panic!("unused capability")
+    }
+    fn reveal_for_prompt(&self) -> Result<(), String> {
+        panic!("unused capability")
+    }
+    fn set_attention(&self, _: bool) -> Result<(), String> {
+        panic!("unused capability")
+    }
+}
+impl tterm_platform::process::ProcessControl for UnusedCapability {
+    fn exit(&self, _: i32) -> Result<(), String> {
+        panic!("unused capability")
+    }
+    fn restart(&self) -> Result<(), String> {
+        panic!("unused capability")
+    }
+}
+impl tterm_platform::verification::UserVerification for UnusedCapability {
+    fn available(&self) -> bool {
+        panic!("unused capability")
+    }
+    fn verify(&self, _: &str) -> Result<(), String> {
+        panic!("unused capability")
+    }
+}
+impl tterm_platform::updates::Updates for UnusedCapability {
+    fn check(
+        &self,
+        _: String,
+    ) -> tterm_platform::PlatformFuture<'_, Option<Box<dyn tterm_platform::updates::AvailableUpdate>>>
+    {
+        panic!("unused capability")
+    }
+}
+impl tterm_platform::drag::FileDrag for UnusedCapability {
+    fn start(
+        &self,
+        _: Vec<tterm_platform::drag::DragOutItem>,
+    ) -> tterm_platform::PlatformFuture<'_, tterm_platform::drag::DragOutResult> {
+        panic!("unused capability")
+    }
+    fn refresh_folder(&self, _: std::path::PathBuf) -> tterm_platform::PlatformFuture<'_, ()> {
+        panic!("unused capability")
+    }
+}
+impl tterm_platform::clipboard::Clipboard for UnusedCapability {
+    fn read_text(&self) -> tterm_platform::PlatformFuture<'_, String> {
+        panic!("unused capability")
+    }
+    fn write_text(&self, _: String) -> tterm_platform::PlatformFuture<'_, ()> {
+        panic!("unused capability")
+    }
+    fn read_files(&self) -> tterm_platform::PlatformFuture<'_, Vec<std::path::PathBuf>> {
+        panic!("unused capability")
+    }
+}
+impl tterm_platform::open::OpenTargets for UnusedCapability {
+    fn open_url(&self, _: String) -> tterm_platform::PlatformFuture<'_, ()> {
+        panic!("unused capability")
+    }
+    fn open_file(&self, _: std::path::PathBuf) -> tterm_platform::PlatformFuture<'_, ()> {
+        panic!("unused capability")
+    }
+    fn reveal(&self, _: std::path::PathBuf) -> tterm_platform::PlatformFuture<'_, ()> {
+        panic!("unused capability")
+    }
+    fn open_with(
+        &self,
+        _: String,
+        _: std::path::PathBuf,
+    ) -> tterm_platform::PlatformFuture<'_, ()> {
+        panic!("unused capability")
+    }
+    fn choose_application(
+        &self,
+        _: std::path::PathBuf,
+    ) -> tterm_platform::PlatformFuture<'_, bool> {
+        panic!("unused capability")
+    }
+    fn applications_for(
+        &self,
+        _: String,
+    ) -> tterm_platform::PlatformFuture<'_, Vec<tterm_platform::open::ApplicationChoice>> {
+        panic!("unused capability")
+    }
+    fn application_icons(
+        &self,
+        _: Vec<String>,
+    ) -> tterm_platform::PlatformFuture<'_, std::collections::HashMap<String, Option<Vec<u8>>>>
+    {
+        panic!("unused capability")
+    }
+}

@@ -21,7 +21,6 @@ use entry::VaultKey;
 use serde::{Deserialize, Serialize};
 use std::path::Path;
 use std::sync::OnceLock;
-use tauri::State;
 
 /// The start of a private key path that names a key in the vault.
 pub(crate) const REFERENCE_PREFIX: &str = "tterm-key:";
@@ -175,9 +174,15 @@ fn update(
 
 #[tauri::command]
 pub async fn list_vault_keys(
-    secret_state: State<'_, SecretStoreState>,
+    services: tauri::State<'_, std::sync::Arc<crate::services::AppServices>>,
 ) -> Result<Vec<VaultKeySummary>, String> {
-    let state = secret_state.inner().clone();
+    let secret_state = services.shared.secrets.clone();
+    list_vault_keys_service(secret_state).await
+}
+async fn list_vault_keys_service(
+    secret_state: SecretStoreState,
+) -> Result<Vec<VaultKeySummary>, String> {
+    let state = secret_state.clone();
     run_blocking(move || summarize_all(&state)).await
 }
 
@@ -185,9 +190,16 @@ pub async fn list_vault_keys(
 #[tauri::command]
 pub async fn import_vault_key(
     input: ImportVaultKeyInput,
-    secret_state: State<'_, SecretStoreState>,
+    services: tauri::State<'_, std::sync::Arc<crate::services::AppServices>>,
 ) -> Result<VaultKeySummary, String> {
-    let state = secret_state.inner().clone();
+    let secret_state = services.shared.secrets.clone();
+    import_vault_key_service(secret_state, input).await
+}
+async fn import_vault_key_service(
+    secret_state: SecretStoreState,
+    input: ImportVaultKeyInput,
+) -> Result<VaultKeySummary, String> {
+    let state = secret_state.clone();
     run_blocking(move || {
         let data_key = state.data_key()?;
         let key = import::read_import(&input)?;
@@ -204,9 +216,16 @@ pub async fn import_vault_key(
 #[tauri::command]
 pub async fn rename_vault_key(
     input: RenameVaultKeyInput,
-    secret_state: State<'_, SecretStoreState>,
+    services: tauri::State<'_, std::sync::Arc<crate::services::AppServices>>,
 ) -> Result<VaultKeySummary, String> {
-    let state = secret_state.inner().clone();
+    let secret_state = services.shared.secrets.clone();
+    rename_vault_key_service(secret_state, input).await
+}
+async fn rename_vault_key_service(
+    secret_state: SecretStoreState,
+    input: RenameVaultKeyInput,
+) -> Result<VaultKeySummary, String> {
+    let state = secret_state.clone();
     run_blocking(move || {
         let name = import::checked_name(&input.name)?;
         update(&state, &input.id, |key| {
@@ -220,9 +239,16 @@ pub async fn rename_vault_key(
 #[tauri::command]
 pub async fn set_vault_key_certificate(
     input: SetVaultKeyCertificateInput,
-    secret_state: State<'_, SecretStoreState>,
+    services: tauri::State<'_, std::sync::Arc<crate::services::AppServices>>,
 ) -> Result<VaultKeySummary, String> {
-    let state = secret_state.inner().clone();
+    let secret_state = services.shared.secrets.clone();
+    set_vault_key_certificate_service(secret_state, input).await
+}
+async fn set_vault_key_certificate_service(
+    secret_state: SecretStoreState,
+    input: SetVaultKeyCertificateInput,
+) -> Result<VaultKeySummary, String> {
+    let state = secret_state.clone();
     run_blocking(move || {
         let path = input
             .certificate_path
@@ -248,9 +274,16 @@ pub async fn set_vault_key_certificate(
 #[tauri::command]
 pub async fn delete_vault_key(
     input: VaultKeyIdInput,
-    secret_state: State<'_, SecretStoreState>,
+    services: tauri::State<'_, std::sync::Arc<crate::services::AppServices>>,
 ) -> Result<bool, String> {
-    let state = secret_state.inner().clone();
+    let secret_state = services.shared.secrets.clone();
+    delete_vault_key_service(secret_state, input).await
+}
+async fn delete_vault_key_service(
+    secret_state: SecretStoreState,
+    input: VaultKeyIdInput,
+) -> Result<bool, String> {
+    let state = secret_state.clone();
     run_blocking(move || {
         // Deleting needs the vault unlocked, as every other change does.
         state.data_key()?;
@@ -264,9 +297,16 @@ pub async fn delete_vault_key(
 #[tauri::command]
 pub async fn export_vault_key(
     input: ExportVaultKeyInput,
-    secret_state: State<'_, SecretStoreState>,
+    services: tauri::State<'_, std::sync::Arc<crate::services::AppServices>>,
 ) -> Result<(), String> {
-    let state = secret_state.inner().clone();
+    let secret_state = services.shared.secrets.clone();
+    export_vault_key_service(secret_state, input).await
+}
+async fn export_vault_key_service(
+    secret_state: SecretStoreState,
+    input: ExportVaultKeyInput,
+) -> Result<(), String> {
+    let state = secret_state.clone();
     run_blocking(move || {
         let data_key = state.data_key()?;
         state.require_verification(VerificationPurpose::Sensitive)?;

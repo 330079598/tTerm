@@ -2,7 +2,6 @@
 
 use super::{proxy_secret_key, storage, ProxyChoice, ProxyEndpoint, ProxyServer};
 use crate::ssh::secret_store::types::SecretStoreState;
-use tauri::AppHandle;
 use zeroize::Zeroizing;
 
 /// Which saved server `choice` names, given this device's default proxy id
@@ -42,7 +41,6 @@ fn endpoint(server: ProxyServer, password: Option<Zeroizing<String>>) -> ProxyEn
 /// The proxy server a connection with `choice` dials, with its saved
 /// password, or `None` to connect directly.
 pub fn resolve_proxy(
-    app: &AppHandle,
     secret_state: &SecretStoreState,
     choice: &ProxyChoice,
 ) -> Result<Option<ProxyEndpoint>, String> {
@@ -57,7 +55,7 @@ pub fn resolve_proxy(
         .ok_or_else(|| missing_server_error(choice))?;
     let password = if server.username.is_some() {
         let key = proxy_secret_key(id);
-        let password = secret_state.get_password(app, &key)?;
+        let password = secret_state.get_password(&key)?;
         if password.is_none() {
             if let Some(reason) = secret_state.unreadable_reason(&[key.as_str()])? {
                 return Err(reason.to_string());

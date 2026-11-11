@@ -133,11 +133,17 @@ fn clear(connection: &Connection) -> Result<(), String> {
 
 #[tauri::command]
 pub async fn load_session() -> Result<SessionData, String> {
+    load_session_service().await
+}
+async fn load_session_service() -> Result<SessionData, String> {
     run_blocking(|| crate::db::read(read_session).map(Option::unwrap_or_default)).await
 }
 
 #[tauri::command]
 pub async fn save_session(session: SessionData) -> Result<(), String> {
+    save_session_service(session).await
+}
+async fn save_session_service(session: SessionData) -> Result<(), String> {
     run_blocking(move || {
         // Every change of the tabs is saved here, so this is where the
         // content of the tabs closed since is let go.
@@ -151,6 +157,9 @@ pub async fn save_session(session: SessionData) -> Result<(), String> {
 
 #[tauri::command]
 pub async fn clear_session() -> Result<(), String> {
+    clear_session_service().await
+}
+async fn clear_session_service() -> Result<(), String> {
     run_blocking(|| {
         crate::db::write(|transaction| clear(transaction))?;
         scrollback::clear_all()

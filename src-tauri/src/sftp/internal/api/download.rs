@@ -138,7 +138,7 @@ pub async fn sftp_download_file(
     cancel_map: State<'_, TransferCancelMap>,
 ) -> Result<(), String> {
     let events: Arc<dyn EventSink> = Arc::new(TauriEventSink::new(app.clone()));
-    let plan = ensure_ssh_plan(&app, &secret_state, connection)?;
+    let plan = ensure_ssh_plan(&secret_state, connection)?;
 
     let (_sftp, channels) = prepare_transfer(
         &app,
@@ -183,7 +183,7 @@ pub async fn sftp_download_paths(
     cancel_map: State<'_, TransferCancelMap>,
 ) -> Result<(), String> {
     let events: Arc<dyn EventSink> = Arc::new(TauriEventSink::new(app.clone()));
-    let plan = ensure_ssh_plan(&app, &secret_state, connection)?;
+    let plan = ensure_ssh_plan(&secret_state, connection)?;
 
     let (sftp, channels) = prepare_transfer(
         &app,
@@ -247,7 +247,7 @@ pub async fn sftp_check_download_conflicts(
         return Ok(ConflictReport::default());
     }
 
-    let plan = ensure_ssh_plan(&app, &secret_state, connection)?;
+    let plan = ensure_ssh_plan(&secret_state, connection)?;
     with_sftp!(&app, &tab_id, &plan, prompt_state.inner().clone(), pool_state.inner(), sftp => {
         let download_plan = collect_download_plan(sftp, &remote_paths).await?;
         let mut report = ConflictReport {

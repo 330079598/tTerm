@@ -153,7 +153,7 @@ impl SftpHost<'_> {
     /// The tab's pooled SFTP session, the SSH connection under it and the
     /// launcher for its command channels.
     pub async fn handles(self) -> Result<SftpHandles, String> {
-        let plan = ensure_ssh_plan(self.app, self.secret_state, self.connection)?;
+        let plan = ensure_ssh_plan(self.secret_state, self.connection)?;
         pooled_handles(self.app, self.tab_id, &plan, self.prompts, self.pool).await
     }
 }

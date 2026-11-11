@@ -2,11 +2,11 @@
 //! serial port, into the terminal, through ZMODEM and the session log.
 
 use crate::core::state::ChannelContext;
+use crate::session_log::LogContext;
 use crate::zmodem::session::ZmodemSettings;
 use std::io::{Read, Write};
 use std::sync::PoisonError;
 use std::thread;
-use tauri::AppHandle;
 use tokio::sync::mpsc;
 use tterm_core::events::{terminal::TerminalEvent, AppEvent};
 
@@ -87,7 +87,7 @@ pub trait OutputFilter: Send {
 pub(crate) type ReaderLog = Box<dyn Fn(&[u8]) + Send>;
 
 /// Binds a tab's log callback before handing it to the blocking reader thread.
-pub(crate) fn reader_log(app: &AppHandle, tab_id: &str) -> ReaderLog {
+pub(crate) fn reader_log(app: &LogContext, tab_id: &str) -> ReaderLog {
     let app = app.clone();
     let tab_id = tab_id.to_string();
     Box::new(move |bytes| crate::session_log::record_output(&app, &tab_id, bytes))

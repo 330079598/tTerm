@@ -1,4 +1,5 @@
 mod agent_integration;
+mod app_context;
 mod app_identity;
 mod app_paths;
 mod app_state;
@@ -7,6 +8,7 @@ mod backup;
 mod clipboard_files;
 pub mod command_library;
 mod config;
+mod connection_context;
 mod core;
 mod db;
 #[cfg(any(target_os = "windows", target_os = "macos"))]
@@ -108,9 +110,23 @@ pub fn run() {
                     args: argv,
                     cwd: cwd.into(),
                 },
-                |args, cwd| launch_dir::open_from_second_launch(app, args, cwd),
+                |args, cwd| {
+                    if let Some(services) = app.try_state::<Arc<services::AppServices>>() {
+                        launch_dir::open_from_second_launch(
+                            &services.app.launch_dirs,
+                            services.shared.events.as_ref(),
+                            args,
+                            cwd,
+                        );
+                    }
+                },
             );
-            background::show_main_window(app);
+            if let Some(services) = app.try_state::<Arc<services::AppServices>>() {
+                background::show_main_window(
+                    services.shared.platform.main_window.as_ref(),
+                    services.shared.platform.badge.as_ref(),
+                );
+            }
         }))
         .plugin(tauri_plugin_clipboard_manager::init())
         .plugin(tauri_plugin_opener::init())
@@ -136,25 +152,23 @@ pub fn run() {
         .manage(pty_map.clone())
         .manage(sftp_pool.clone())
         .manage(external_edit_state.clone())
-        .manage(monitor_sessions.clone())
-        .manage(monitor_prompts.clone())
         .manage(transfer_cancel_map.clone())
-        .manage(zmodem_map.clone())
-        .manage(zmodem_armed_send_map.clone())
-        .manage(zmodem_manual_detect_map.clone())
         .manage(TokioRuntimeState { runtime })
-        .manage(pending_updates.clone())
         .manage(secret_store.clone())
         .manage(session_log_state.clone())
         .manage(tunnel_manager.clone())
-        .manage(close_behavior.clone())
-        .manage(quit_state.clone())
-        .manage(exit_guard.clone())
-        .manage(launch_dirs.clone())
-        .manage(tray_state.clone())
         .on_window_event(|window, event| {
             if let tauri::WindowEvent::CloseRequested { api, .. } = event {
-                if background::on_close_requested(window) {
+                if window
+                    .app_handle()
+                    .try_state::<Arc<services::AppServices>>()
+                    .is_some_and(|services| {
+                        background::on_close_requested(&app_context::background(
+                            &services,
+                            sftp::internal::api::external::unuploaded_files(window.app_handle()),
+                        ))
+                    })
+                {
                     api.prevent_close();
                 }
             }
@@ -378,18 +392,41 @@ pub fn run() {
             app_paths::initialize(&app_handle)?;
             app_identity::initialize(&app_handle);
             let platform_services = platform::initialize(&app_handle);
-            app.manage(platform_services.badge.clone());
-            app.manage(platform_services.tray.clone());
-            app.manage(platform_services.file_drag.clone());
-            app.manage(platform_services.main_window.clone());
-            app.manage(platform_services.process.clone());
-            app.manage(platform_services.verification.clone());
-            app.manage(platform_services.updates.clone());
-            app.manage(platform_services.open.clone());
-            app.manage(platform_services.clipboard.clone());
             let events: Arc<dyn tterm_core::events::EventSink> =
                 Arc::new(event_sink::TauriEventSink::new(app_handle.clone()));
+            let notifications = notification::create(
+                app_identity::get(&app_handle)?.identifier.clone(),
+                app.state::<Arc<dyn tterm_platform::window::MainWindow>>()
+                    .inner()
+                    .clone(),
+                app.state::<Arc<dyn tterm_platform::notifications::AppBadge>>()
+                    .inner()
+                    .clone(),
+                events.clone(),
+            );
             let prompts = Arc::new(tterm_core::prompts::PromptBroker::new(events.clone()));
+            app.manage(prompts.clone());
+            let integration = system_integration::initialize((|| {
+                Ok(tterm_platform::native::integration::IntegrationContext {
+                    local_data_dir: app_paths::get(&app_handle)?.local_data_dir.clone(),
+                    identifier: app_identity::get(&app_handle)?.identifier.clone(),
+                    home_dir: app_handle
+                        .path()
+                        .home_dir()
+                        .map_err(|e| format!("Failed to find your home folder: {e}"))?,
+                })
+            })());
+            let platform_services = platform_services(notifications, integration);
+            debug_assert!(Arc::ptr_eq(
+                &platform_services.file_drag,
+                app.state::<Arc<dyn tterm_platform::drag::FileDrag>>()
+                    .inner()
+            ));
+            debug_assert!(Arc::ptr_eq(
+                &platform_services.clipboard,
+                app.state::<Arc<dyn tterm_platform::clipboard::Clipboard>>()
+                    .inner()
+            ));
             let services = Arc::new(services::AppServices {
                 shared: services::shared::SharedServices {
                     events,
@@ -423,12 +460,16 @@ pub fn run() {
                 },
             });
             services.validate_wiring();
-            app.manage(prompts);
-            app.manage(services);
-            system_integration::initialize(&app_handle);
-            launch_dir::open_from_startup(&app_handle);
+            app.manage(services.clone());
+            launch_dir::open_from_startup(
+                &services.app.launch_dirs,
+                services.shared.events.as_ref(),
+                app_paths::get(&app_handle)?.inner(),
+            );
 
-            if let Err(err) = updater::cleanup_stale_pending_update_files(&app_handle) {
+            if let Err(err) =
+                updater::cleanup_stale_pending_update_files(app_paths::get(&app_handle)?.inner())
+            {
                 eprintln!("Failed to clean stale update cache files: {}", err);
             }
 
@@ -460,7 +501,10 @@ pub fn run() {
             // background.
             app_handle
                 .state::<ssh::secret_store::types::SecretStoreState>()
-                .initialize(&app_handle);
+                .initialize(
+                    &*app_identity::get(&app_handle)?,
+                    &app_paths::get(&app_handle)?.data_dir,
+                );
 
             if let Err(error) = migrate::remove_retired_files(&app_handle) {
                 eprintln!("Failed to remove retired files: {error}");
@@ -469,8 +513,13 @@ pub fn run() {
             let cfg = config::load_config_file().ok();
             if let Some(cfg) = &cfg {
                 sftp::internal::api::apply_bandwidth_limits(cfg);
-                let log_state = app_handle.state::<session_log::SessionLogState>();
-                if let Err(err) = log_state.apply_config(&app_handle, cfg) {
+                let log_state = app_handle.state::<Arc<session_log::SessionLogState>>();
+                if let Err(err) = log_state.apply_config(
+                    &crate::connection_context::log(
+                        &app_handle.state::<Arc<services::AppServices>>(),
+                    ),
+                    cfg,
+                ) {
                     eprintln!("Failed to initialize terminal logging: {}", err);
                 }
             }
@@ -482,13 +531,20 @@ pub fn run() {
                     .inner()
                     .clone(),
             );
-            notification::init(&app_handle);
+            notification::init(services.shared.platform.notifications.as_ref());
             #[cfg(target_os = "macos")]
             terminal::pty::preload_login_shell_env();
             main_window::create_main_window(app, cfg.as_ref())?;
             let cfg = cfg.unwrap_or_default();
-            background::apply_config(&app_handle, &cfg);
-            system_integration::apply_config(&app_handle, &cfg);
+            background::apply_config(
+                &services.app.close_behavior,
+                &app_context::tray(&services),
+                &cfg,
+            );
+            runtime_handle.block_on(system_integration::apply_config(
+                &services.shared.platform.integration,
+                &cfg,
+            ));
 
             Ok(())
         })
@@ -501,7 +557,15 @@ pub fn run() {
                 tauri::RunEvent::ExitRequested {
                     api, code: None, ..
                 } => {
-                    if background::on_exit_requested(app) {
+                    if app
+                        .try_state::<Arc<services::AppServices>>()
+                        .is_some_and(|services| {
+                            background::on_exit_requested(&app_context::background(
+                                &services,
+                                sftp::internal::api::external::unuploaded_files(app),
+                            ))
+                        })
+                    {
                         api.prevent_exit();
                     }
                 }
@@ -511,11 +575,13 @@ pub fn run() {
                     };
                     services.shared.prompts.shutdown();
                     window_state::save(app);
-                    launch_dir::forget_startup_dir(app);
+                    if let Ok(paths) = app_paths::get(app) {
+                        launch_dir::forget_startup_dir(&paths);
+                    }
                     // Tunnels may still be running; keep what they carried.
                     services.app.tunnels.save_traffic();
                     // Logs keep what they have not written out yet.
-                    session_log::shutdown(app);
+                    session_log::shutdown(&services.app.session_log);
                     sftp::internal::api::external::shutdown(app);
                 }
                 // Clicking the Dock icon brings back a window closed to the
@@ -524,7 +590,14 @@ pub fn run() {
                 tauri::RunEvent::Reopen {
                     has_visible_windows: false,
                     ..
-                } => background::show_main_window(app),
+                } => {
+                    if let Some(services) = app.try_state::<Arc<services::AppServices>>() {
+                        background::show_main_window(
+                            services.shared.platform.main_window.as_ref(),
+                            services.shared.platform.badge.as_ref(),
+                        );
+                    }
+                }
                 _ => {}
             }
         });

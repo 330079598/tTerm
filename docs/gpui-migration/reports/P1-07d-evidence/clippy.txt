@@ -1,0 +1,2 @@
+    Checking tTerm v0.8.1 (/Users/stone/Code/rust/tTerm-P1-07d/src-tauri)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 12.06s

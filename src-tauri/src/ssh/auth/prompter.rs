@@ -5,13 +5,12 @@ use tterm_core::events::ssh::AuthPromptPayload;
 use super::methods::prompt_payload;
 use super::{AuthPrompter, AuthTarget, PROMPT_TIMEOUT};
 use crate::ssh::types::SshConnectError;
-use tauri::Manager;
 use tterm_core::events::ssh::SshEvent;
 use tterm_core::events::AppEvent;
 use zeroize::Zeroizing;
 
 impl AuthPrompter {
-    pub fn tab(app: &tauri::AppHandle, tab_id: &str) -> Self {
+    pub fn tab(app: &crate::ssh::context::ConnectionContext, tab_id: &str) -> Self {
         Self::Tab {
             app: app.clone(),
             tab_id: tab_id.to_string(),
@@ -23,14 +22,8 @@ impl AuthPrompter {
     pub fn with_owner(&self, owner: &tterm_core::prompts::PromptOwner) -> Self {
         match self {
             Self::Tab { app, tab_id, .. } => Self::Scoped {
-                broker: app
-                    .state::<std::sync::Arc<tterm_core::prompts::PromptBroker>>()
-                    .inner()
-                    .clone(),
-                window: app
-                    .state::<std::sync::Arc<dyn tterm_platform::window::MainWindow>>()
-                    .inner()
-                    .clone(),
+                broker: app.prompts.clone(),
+                window: app.window.clone(),
                 tab_id: tab_id.clone(),
                 owner: owner.clone(),
             },
@@ -96,24 +89,25 @@ impl AuthPrompter {
                 describe_prompts(&payload)
             ))),
             Self::Tab { app, tab_id, owner } => {
-                let pending = app.state::<std::sync::Arc<tterm_core::prompts::PromptBroker>>();
+                let pending = &app.prompts;
                 let fallback;
                 let owner = match owner {
                     Some(owner) => owner,
                     None => {
-                        fallback = crate::prompt_scope::PromptScope::for_tab(app, tab_id)
+                        fallback = app
+                            .prompt_scope(tab_id)
                             .await
                             .map_err(SshConnectError::Permanent)?;
                         &fallback.owner
                     }
                 };
                 ask_scoped(
-                    pending.inner(),
+                    pending,
                     owner,
                     tab_id,
                     payload,
                     subject,
-                    &**app.state::<std::sync::Arc<dyn tterm_platform::window::MainWindow>>(),
+                    app.window.as_ref(),
                 )
                 .await
             }

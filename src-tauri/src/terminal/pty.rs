@@ -194,6 +194,9 @@ pub(super) fn find_executable_in(executable: &str, path: Option<&OsStr>) -> Opti
 /// waits for the login shell's PATH.
 #[tauri::command]
 pub async fn list_available_terminal_shells() -> Result<Vec<TerminalShellProfile>, String> {
+    list_available_terminal_shells_service().await
+}
+async fn list_available_terminal_shells_service() -> Result<Vec<TerminalShellProfile>, String> {
     crate::core::blocking::run_blocking(|| {
         #[cfg(target_os = "windows")]
         let shells = super::windows_shell::list_windows_terminal_shells();
@@ -261,6 +264,9 @@ pub(crate) fn has_terminal_shell(kind: &str) -> bool {
 /// leads nowhere, for the settings to show before a tab tries it.
 #[tauri::command]
 pub async fn check_local_shell(path: String) -> Result<String, String> {
+    check_local_shell_service(path).await
+}
+async fn check_local_shell_service(path: String) -> Result<String, String> {
     crate::core::blocking::run_blocking(move || {
         #[cfg(target_os = "windows")]
         let program = super::windows_shell::resolve_windows_custom_shell(&path);
@@ -278,6 +284,16 @@ pub fn local_terminal_shell_name(
     shell: Option<String>,
     custom_path: Option<String>,
 ) -> Option<String> {
+    local_terminal_shell_name_service(LocalTerminalShellNameInput { shell, custom_path })
+}
+struct LocalTerminalShellNameInput {
+    shell: Option<String>,
+    custom_path: Option<String>,
+}
+
+fn local_terminal_shell_name_service(arguments: LocalTerminalShellNameInput) -> Option<String> {
+    let LocalTerminalShellNameInput { shell, custom_path } = arguments;
+
     #[cfg(target_os = "windows")]
     {
         super::windows_shell::shell_name(shell, custom_path)
