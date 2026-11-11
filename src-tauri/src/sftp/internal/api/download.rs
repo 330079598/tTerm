@@ -3,7 +3,6 @@ use tterm_core::events::sftp::SftpEvent;
 use tterm_core::events::{AppEvent, EventSink};
 mod items;
 use crate::core::session::types::PtyConnectionOptions;
-use crate::core::state::HostPromptMap;
 use crate::sftp::internal::api::conflict::{self, ConflictReport, TransferConflict};
 use crate::sftp::internal::api::prepare_transfer;
 use crate::sftp::internal::connection::ensure_ssh_plan;
@@ -133,7 +132,7 @@ pub async fn sftp_download_file(
     transfer_id: String,
     remote_path: String,
     local_path: String,
-    prompt_state: State<'_, HostPromptMap>,
+    prompt_state: State<'_, std::sync::Arc<tterm_core::prompts::PromptBroker>>,
     secret_state: State<'_, SecretStoreState>,
     pool_state: State<'_, SftpConnectionPool>,
     cancel_map: State<'_, TransferCancelMap>,
@@ -178,7 +177,7 @@ pub async fn sftp_download_paths(
     local_parent_path: String,
     skip_existing: Option<bool>,
     conflict_policy: Option<ConflictPolicy>,
-    prompt_state: State<'_, HostPromptMap>,
+    prompt_state: State<'_, std::sync::Arc<tterm_core::prompts::PromptBroker>>,
     secret_state: State<'_, SecretStoreState>,
     pool_state: State<'_, SftpConnectionPool>,
     cancel_map: State<'_, TransferCancelMap>,
@@ -228,7 +227,7 @@ pub async fn sftp_check_download_conflicts(
     connection: Option<PtyConnectionOptions>,
     remote_paths: Vec<String>,
     local_parent_path: String,
-    prompt_state: State<'_, HostPromptMap>,
+    prompt_state: State<'_, std::sync::Arc<tterm_core::prompts::PromptBroker>>,
     secret_state: State<'_, SecretStoreState>,
     pool_state: State<'_, SftpConnectionPool>,
 ) -> Result<ConflictReport, String> {

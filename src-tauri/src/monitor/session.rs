@@ -1,7 +1,6 @@
 use super::metrics::{parse_metrics_output, METRICS_SCRIPT};
 use super::types::{MonitorSession, MonitorSessionMap, MONITOR_SESSION_IDLE_TIMEOUT};
 use crate::core::session::types::SessionPlan;
-use crate::core::state::HostPromptMap;
 use crate::sftp::internal::exec::RemoteScript;
 use crate::ssh::{
     jump::connect::open_target_ssh_session, jump::connect::ConnectContext,
@@ -96,7 +95,7 @@ pub(crate) async fn get_or_open_monitor_session(
     session_nonce: u32,
     plan: &SessionPlan,
     fingerprint: &str,
-    prompts: HostPromptMap,
+    prompts: std::sync::Arc<tterm_core::prompts::PromptBroker>,
     monitor_sessions: MonitorSessionMap,
 ) -> Result<Arc<Mutex<MonitorSession>>, String> {
     if let Some(message) = remembered_refusal(tab_id, session_nonce, fingerprint) {
@@ -151,6 +150,7 @@ pub(crate) async fn get_or_open_monitor_session(
             host_key_verification_mode:
                 crate::ssh::types::HostKeyVerificationMode::PromptAndPersist,
             // Monitoring starts on its own; a prompt would appear out of nowhere.
+            prompt_owner: None,
             auth_prompter: &crate::ssh::auth::AuthPrompter::Unavailable,
         },
         SshTarget::from_plan(plan, &host, &username),

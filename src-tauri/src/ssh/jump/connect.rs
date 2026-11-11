@@ -4,7 +4,6 @@ use super::config::{compatibility_client_config, unverifiable_host_key_error};
 use super::hop::{ChainHops, RouteError};
 use super::pool::{chain_keys, Relay};
 use crate::core::session::{types::JumpHostPlan, types::SessionPlan};
-use crate::core::state::HostPromptMap;
 use crate::proxy::command::CommandTarget;
 use crate::proxy::connect::{open_stream, ProxyStream};
 use crate::proxy::{ProxyEndpoint, ProxyKind};
@@ -25,10 +24,11 @@ use tauri::AppHandle;
 pub struct ConnectContext<'a> {
     pub app: &'a AppHandle,
     pub tab_id: &'a str,
-    pub prompts: &'a HostPromptMap,
+    pub prompts: &'a std::sync::Arc<tterm_core::prompts::PromptBroker>,
     pub status_options: ConnectionStatusOptions,
     pub host_key_verification_mode: HostKeyVerificationMode,
     pub auth_prompter: &'a AuthPrompter,
+    pub prompt_owner: Option<&'a tterm_core::prompts::PromptOwner>,
 }
 
 /// The host a connection ends at, how to log in to it, and the jump hosts on
@@ -93,7 +93,9 @@ pub(crate) async fn open_proxy_stream(
         progress.host(proxy.host.clone(), proxy.port)
     };
     emit_connection_progress(ctx.app, ctx.tab_id, ctx.status_options, progress);
-    open_stream(ctx.app, proxy, target).await.map(Some)
+    open_stream(ctx.app, proxy, target, ctx.prompt_owner)
+        .await
+        .map(Some)
 }
 
 /// The SSH handshake with the first host, over `stream` when a proxy opened
@@ -244,6 +246,22 @@ pub async fn open_target_ssh_session_with_forwarding(
         tokio::sync::mpsc::UnboundedSender<crate::ssh::types::ForwardedTcpIp>,
     >,
 ) -> Result<(Option<JumpChain>, client::Handle<SshClientHandler>), SshConnectError> {
+    let scope;
+    let owner = match ctx.prompt_owner {
+        Some(owner) => owner,
+        None => {
+            scope = crate::prompt_scope::PromptScope::for_tab(ctx.app, ctx.tab_id)
+                .await
+                .map_err(SshConnectError::Permanent)?;
+            &scope.owner
+        }
+    };
+    let auth_prompter = ctx.auth_prompter.with_owner(owner);
+    let ctx = ConnectContext {
+        prompt_owner: Some(owner),
+        auth_prompter: &auth_prompter,
+        ..ctx
+    };
     let ConnectContext {
         app,
         tab_id,
@@ -279,6 +297,7 @@ pub async fn open_target_ssh_session_with_forwarding(
         host: target_host.to_string(),
         port: target_port,
         prompts: ctx.prompts.clone(),
+        prompt_owner: owner.clone(),
         user_rejected_host_key: Arc::new(AtomicBool::new(false)),
         status_options,
         host_key_verification_mode: ctx.host_key_verification_mode,

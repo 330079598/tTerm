@@ -1,7 +1,6 @@
 use super::hub::{Lease, RouteGuard, SessionHub, SessionKey, SshConnection, SshHandle};
 use super::types::{TunnelKind, TunnelRule};
 use crate::core::session::types::SessionPlan;
-use crate::core::state::HostPromptMap;
 use crate::ssh::{
     jump::connect::open_target_ssh_session_with_forwarding, jump::connect::ConnectContext,
     jump::connect::SshTarget, types::ConnectionStatusOptions, types::ForwardedTcpIp,
@@ -250,7 +249,7 @@ pub struct RunContext {
     pub app: AppHandle,
     pub rule: TunnelRule,
     pub plan: SessionPlan,
-    pub prompts: HostPromptMap,
+    pub prompts: std::sync::Arc<tterm_core::prompts::PromptBroker>,
     pub reporter: Arc<TunnelReporter>,
     /// Shared with every other tunnel, so those to the same host share a connection.
     pub hub: Arc<SessionHub<SshConnection>>,
@@ -348,6 +347,7 @@ pub async fn run_tunnel(ctx: RunContext, mut stop_rx: watch::Receiver<bool>) {
                     host_key_verification_mode: HostKeyVerificationMode::PromptAndPersist,
                     // Tunnels reconnect on their own, so there is no moment at
                     // which a prompt is expected.
+                    prompt_owner: None,
                     auth_prompter: &crate::ssh::auth::AuthPrompter::Unavailable,
                 },
                 SshTarget {

@@ -1,8 +1,6 @@
 use tterm_core::events::ssh::SshConnectionProgressPayload;
 use tterm_core::events::ssh::SshHostKeyPromptPayload;
-use tterm_core::events::EventSink;
 
-use crate::core::state::HostPromptMap;
 use crate::ssh::openssh_known_hosts::verify::KnownHostVerdict;
 use crate::ssh::openssh_known_hosts::{check_presented_key, listed_record};
 use crate::ssh::store::{
@@ -17,7 +15,6 @@ use russh::keys::ssh_key::HashAlg;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use tauri::AppHandle;
-use tokio::sync::oneshot;
 
 /// russh handler for the jump host leg of the connection.
 /// Performs the same host-key verification as `SshClientHandler`:
@@ -29,7 +26,8 @@ pub struct JumpHostHandler {
     pub port: u16,
     pub hop_index: usize,
     pub total_hops: usize,
-    pub prompts: HostPromptMap,
+    pub prompts: std::sync::Arc<tterm_core::prompts::PromptBroker>,
+    pub prompt_owner: tterm_core::prompts::PromptOwner,
     pub user_rejected_host_key: Arc<AtomicBool>,
     pub failure_reason: Arc<Mutex<Option<String>>>,
     pub status_options: ConnectionStatusOptions,
@@ -137,9 +135,6 @@ impl client::Handler for JumpHostHandler {
         let known_fingerprint = known.as_ref().map(|r| r.fingerprint.clone());
 
         let request_id = uuid::Uuid::new_v4().to_string();
-        let (tx, rx) = oneshot::channel::<bool>();
-        self.prompts.write().await.insert(request_id.clone(), tx);
-
         let payload = SshHostKeyPromptPayload {
             request_id: request_id.clone(),
             profile_name: synthetic_name.clone(),
@@ -151,13 +146,24 @@ impl client::Handler for JumpHostHandler {
             known_fingerprint,
         };
 
-        let _ = crate::event_sink::TauriEventSink::new(self.app.clone()).emit(
-            tterm_core::events::AppEvent::Ssh(tterm_core::events::ssh::SshEvent::HostKeyPrompt {
-                tab_id: self.tab_id.clone(),
-                payload,
-            }),
+        let wait = self.prompts.begin(
+            tterm_core::prompts::PromptRequest {
+                id: tterm_core::prompts::PromptId(request_id),
+                kind: tterm_core::prompts::PromptKind::HostKey,
+                event: tterm_core::events::AppEvent::Ssh(
+                    tterm_core::events::ssh::SshEvent::HostKeyPrompt {
+                        tab_id: self.tab_id.clone(),
+                        payload,
+                    },
+                ),
+                expired_event: None,
+            },
+            tterm_core::prompts::PromptOptions {
+                owner: self.prompt_owner.clone(),
+                timeout: HOST_KEY_PROMPT_TIMEOUT,
+            },
         );
-        crate::background::reveal_for_prompt(&self.app);
+        crate::prompt_scope::reveal(&self.app);
 
         self.emit_status(
             "33",
@@ -167,13 +173,14 @@ impl client::Handler for JumpHostHandler {
             ),
         );
 
-        let approved = match tokio::time::timeout(HOST_KEY_PROMPT_TIMEOUT, rx).await {
-            Ok(Ok(value)) => value,
-            Ok(Err(_)) => false,
-            Err(_) => {
-                let _ = self.prompts.write().await.remove(&request_id);
-                false
-            }
+        let approved = match wait {
+            Ok(wait) => matches!(
+                wait.wait().await,
+                Ok(tterm_core::prompts::PromptOutcome::Answered(
+                    tterm_core::prompts::PromptReply::HostKey(true)
+                ))
+            ),
+            Err(_) => false,
         };
 
         if !approved {

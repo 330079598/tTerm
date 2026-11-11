@@ -1,7 +1,6 @@
 use super::batch::{preview_delete_entries, run_delete_batch, DeleteBatch};
 use super::*;
 use crate::core::session::types::PtyConnectionOptions;
-use crate::core::state::HostPromptMap;
 use crate::sftp::internal::connection::{ensure_ssh_plan, map_sftp_error};
 use crate::sftp::internal::types::SftpConnectionPool;
 use crate::ssh::secret_store::types::SecretStoreState;
@@ -15,7 +14,7 @@ pub async fn sftp_preview_delete_entries(
     tab_id: String,
     connection: Option<PtyConnectionOptions>,
     entries: Vec<DeleteEntryRequest>,
-    prompt_state: State<'_, HostPromptMap>,
+    prompt_state: State<'_, std::sync::Arc<tterm_core::prompts::PromptBroker>>,
     secret_state: State<'_, SecretStoreState>,
     pool_state: State<'_, SftpConnectionPool>,
 ) -> Result<DeletePreviewResult, String> {
@@ -46,7 +45,7 @@ pub async fn sftp_delete_entries(
     connection: Option<PtyConnectionOptions>,
     entries: Vec<DeleteEntryRequest>,
     options: DeleteOptions,
-    prompt_state: State<'_, HostPromptMap>,
+    prompt_state: State<'_, std::sync::Arc<tterm_core::prompts::PromptBroker>>,
     secret_state: State<'_, SecretStoreState>,
     pool_state: State<'_, SftpConnectionPool>,
 ) -> Result<DeleteBatchStartResult, String> {
@@ -88,7 +87,7 @@ pub async fn sftp_delete_entry(
     connection: Option<PtyConnectionOptions>,
     path: String,
     is_dir: bool,
-    prompt_state: State<'_, HostPromptMap>,
+    prompt_state: State<'_, std::sync::Arc<tterm_core::prompts::PromptBroker>>,
     secret_state: State<'_, SecretStoreState>,
     pool_state: State<'_, SftpConnectionPool>,
 ) -> Result<(), String> {

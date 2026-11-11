@@ -5,7 +5,6 @@ pub(crate) mod types;
 use crate::core::session::{
     normalize_connection, resolve_ssh_password, types::PtyConnectionOptions,
 };
-use crate::core::state::HostPromptMap;
 use crate::ssh::secret_store::types::SecretStoreState;
 use session::{
     collect_metrics_snapshot, get_or_open_monitor_session, monitor_connection_fingerprint,
@@ -21,7 +20,7 @@ pub async fn get_server_metrics_snapshot(
     tab_id: String,
     session_nonce: u32,
     connection: Option<PtyConnectionOptions>,
-    prompt_state: State<'_, HostPromptMap>,
+    prompt_state: State<'_, std::sync::Arc<tterm_core::prompts::PromptBroker>>,
     secret_state: State<'_, SecretStoreState>,
     monitor_sessions: State<'_, MonitorSessionMap>,
 ) -> Result<ServerMetricsSnapshot, String> {

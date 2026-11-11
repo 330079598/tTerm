@@ -8,7 +8,7 @@ use tauri::{AppHandle, Manager};
 use crate::core::session::{
     normalize_connection, resolve_ssh_password, types::PtyConnectionOptions, types::SessionPlan,
 };
-use crate::core::state::{HostPromptMap, SessionKind};
+use crate::core::state::SessionKind;
 use crate::sftp::internal::launcher::ChannelLauncher;
 use crate::sftp::internal::sudo::handshake::authenticate;
 use crate::sftp::internal::types::{
@@ -63,7 +63,7 @@ pub async fn connect_authenticated_ssh(
     app: &AppHandle,
     tab_id: &str,
     plan: &SessionPlan,
-    prompts: HostPromptMap,
+    prompts: std::sync::Arc<tterm_core::prompts::PromptBroker>,
 ) -> Result<(Option<JumpChain>, client::Handle<SshClientHandler>), String> {
     let host = plan
         .host
@@ -84,6 +84,7 @@ pub async fn connect_authenticated_ssh(
             status_options: ConnectionStatusOptions::QUIET,
             host_key_verification_mode:
                 crate::ssh::types::HostKeyVerificationMode::PromptAndPersist,
+            prompt_owner: None,
             auth_prompter: &crate::ssh::auth::AuthPrompter::tab(app, tab_id),
         },
         SshTarget::from_plan(plan, &host, &username),
@@ -96,7 +97,7 @@ async fn connect_sftp(
     app: &AppHandle,
     tab_id: &str,
     plan: &SessionPlan,
-    prompts: HostPromptMap,
+    prompts: std::sync::Arc<tterm_core::prompts::PromptBroker>,
 ) -> Result<ConnectedSftp, String> {
     let (jump_chain, ssh) = connect_authenticated_ssh(app, tab_id, plan, prompts).await?;
 
@@ -173,7 +174,7 @@ pub async fn get_or_create_sftp_connection(
     app: &AppHandle,
     tab_id: &str,
     plan: &SessionPlan,
-    prompts: HostPromptMap,
+    prompts: std::sync::Arc<tterm_core::prompts::PromptBroker>,
     pool: &SftpConnectionPool,
 ) -> Result<(), String> {
     let key = SftpConnectionKey::from_plan(tab_id, plan)?;
@@ -211,7 +212,7 @@ pub async fn pooled_handles(
     app: &AppHandle,
     tab_id: &str,
     plan: &SessionPlan,
-    prompts: HostPromptMap,
+    prompts: std::sync::Arc<tterm_core::prompts::PromptBroker>,
     pool: &SftpConnectionPool,
 ) -> Result<SftpHandles, String> {
     let key = SftpConnectionKey::from_plan(tab_id, plan)?;

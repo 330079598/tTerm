@@ -140,6 +140,7 @@ pub async fn open_stream(
     app: &AppHandle,
     proxy: &ProxyEndpoint,
     target: &CommandTarget<'_>,
+    _prompt_owner: Option<&tterm_core::prompts::PromptOwner>,
 ) -> Result<ProxyStream, SshConnectError> {
     let Some(template) = proxy.command.as_deref() else {
         return connect_through_proxy(proxy, target.host, target.port)

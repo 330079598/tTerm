@@ -1,8 +1,8 @@
 use super::blocking::run_blocking;
 use super::session::{normalize_connection, resolve_ssh_password};
 use super::state::{
-    ActiveSession, AtomicTerminalSize, ChannelContext, HostPromptMap, PtyMap, PtySession,
-    SessionExitSignal, TabZmodem, ZmodemArmedSendMap, ZmodemManualDetectMap, ZmodemMap,
+    ActiveSession, AtomicTerminalSize, ChannelContext, PtyMap, PtySession, SessionExitSignal,
+    TabZmodem, ZmodemArmedSendMap, ZmodemManualDetectMap, ZmodemMap,
 };
 use super::supervisor::{spawn_ssh_attempt, spawn_supervisor, TabConnection};
 use crate::terminal;
@@ -105,7 +105,10 @@ fn create_pty_blocking(
     output_channel: terminal::io_batcher::TerminalOutput,
 ) -> Result<u32, String> {
     let state = app.state::<PtyMap>().inner().clone();
-    let prompt_state = app.state::<HostPromptMap>().inner().clone();
+    let prompt_state = app
+        .state::<std::sync::Arc<tterm_core::prompts::PromptBroker>>()
+        .inner()
+        .clone();
     let secret_state = app
         .state::<crate::ssh::secret_store::types::SecretStoreState>()
         .inner()
@@ -532,16 +535,9 @@ pub fn kill_pty(
 pub fn respond_ssh_host_key_prompt(
     request_id: String,
     trust: bool,
-    prompt_state: State<'_, HostPromptMap>,
+    prompt_state: State<'_, std::sync::Arc<tterm_core::prompts::PromptBroker>>,
 ) -> Result<(), String> {
-    let sender = prompt_state
-        .blocking_write()
-        .remove(&request_id)
-        .ok_or_else(|| "Host key prompt expired".to_string())?;
-
-    sender
-        .send(trust)
-        .map_err(|_| "Host key prompt receiver is gone".to_string())
+    prompt_state.reply_host_key(&request_id, trust)
 }
 
 #[tauri::command]

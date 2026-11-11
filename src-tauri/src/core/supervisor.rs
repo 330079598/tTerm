@@ -1,9 +1,7 @@
 use tterm_core::events::ssh::SshConnectionProgressPayload;
 
 use super::session::types::SessionPlan;
-use super::state::{
-    ActiveSession, ActiveSsh, ChannelContext, HostPromptMap, SessionExitSignal, SessionKind,
-};
+use super::state::{ActiveSession, ActiveSsh, ChannelContext, SessionExitSignal, SessionKind};
 use crate::ssh::client::SshChannelIo;
 use crate::ssh::client::SshExitSignal;
 use crate::zmodem::session::ZmodemSettings;
@@ -43,7 +41,7 @@ pub(crate) struct TabConnection {
     pub channel: ChannelContext,
     pub app: AppHandle,
     pub plan: SessionPlan,
-    pub prompt_state: HostPromptMap,
+    pub prompt_state: std::sync::Arc<tterm_core::prompts::PromptBroker>,
     pub stop_rx: watch::Receiver<bool>,
     pub exit_tx: mpsc::UnboundedSender<SessionExitSignal>,
     pub runtime_handle: tokio::runtime::Handle,

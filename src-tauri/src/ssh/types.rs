@@ -175,7 +175,8 @@ pub struct SshClientHandler {
     pub profile_name: String,
     pub host: String,
     pub port: u16,
-    pub prompts: crate::core::state::HostPromptMap,
+    pub prompts: std::sync::Arc<tterm_core::prompts::PromptBroker>,
+    pub prompt_owner: tterm_core::prompts::PromptOwner,
     pub user_rejected_host_key: Arc<AtomicBool>,
     pub status_options: ConnectionStatusOptions,
     pub host_key_verification_mode: HostKeyVerificationMode,
@@ -253,7 +254,6 @@ impl russh::client::Handler for SshClientHandler {
         server_public_key: &russh::keys::PublicKeyOrCertificate,
     ) -> Result<bool, Self::Error> {
         use russh::keys::ssh_key::HashAlg;
-        use tokio::sync::oneshot;
 
         // What `ssh` trusts or refuses decides first; a host certificate is
         // only asked for when `known_hosts` trusts an authority for the host.
@@ -350,9 +350,6 @@ impl russh::client::Handler for SshClientHandler {
         let known_fingerprint = known.as_ref().map(|r| r.fingerprint.clone());
 
         let request_id = uuid::Uuid::new_v4().to_string();
-        let (tx, rx) = oneshot::channel::<bool>();
-        self.prompts.write().await.insert(request_id.clone(), tx);
-
         let payload = SshHostKeyPromptPayload {
             request_id: request_id.clone(),
             profile_name: self.profile_name.clone(),
@@ -364,26 +361,38 @@ impl russh::client::Handler for SshClientHandler {
             known_fingerprint,
         };
 
-        let _ = crate::event_sink::TauriEventSink::new(self.app.clone()).emit(
-            tterm_core::events::AppEvent::Ssh(tterm_core::events::ssh::SshEvent::HostKeyPrompt {
-                tab_id: self.tab_id.clone(),
-                payload,
-            }),
+        let wait = self.prompts.begin(
+            tterm_core::prompts::PromptRequest {
+                id: tterm_core::prompts::PromptId(request_id),
+                kind: tterm_core::prompts::PromptKind::HostKey,
+                event: tterm_core::events::AppEvent::Ssh(
+                    tterm_core::events::ssh::SshEvent::HostKeyPrompt {
+                        tab_id: self.tab_id.clone(),
+                        payload,
+                    },
+                ),
+                expired_event: None,
+            },
+            tterm_core::prompts::PromptOptions {
+                owner: self.prompt_owner.clone(),
+                timeout: HOST_KEY_PROMPT_TIMEOUT,
+            },
         );
-        crate::background::reveal_for_prompt(&self.app);
+        crate::prompt_scope::reveal(&self.app);
 
         self.emit_status(
             "33",
             "Waiting for user confirmation of SSH host fingerprint...",
         );
 
-        let approved = match tokio::time::timeout(HOST_KEY_PROMPT_TIMEOUT, rx).await {
-            Ok(Ok(value)) => value,
-            Ok(Err(_)) => false,
-            Err(_) => {
-                let _ = self.prompts.write().await.remove(&request_id);
-                false
-            }
+        let approved = match wait {
+            Ok(wait) => matches!(
+                wait.wait().await,
+                Ok(tterm_core::prompts::PromptOutcome::Answered(
+                    tterm_core::prompts::PromptReply::HostKey(true)
+                ))
+            ),
+            Err(_) => false,
         };
 
         if !approved {

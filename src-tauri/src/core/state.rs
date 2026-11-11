@@ -1,10 +1,9 @@
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
 use std::sync::{Arc, Mutex as StdMutex, RwLock as StdRwLock};
-use tokio::sync::{mpsc, oneshot, watch, Mutex as TokioMutex, RwLock};
+use tokio::sync::{mpsc, watch, Mutex as TokioMutex, RwLock};
 
 pub type PtyMap = Arc<RwLock<HashMap<String, PtySession>>>;
-pub type HostPromptMap = Arc<RwLock<HashMap<String, oneshot::Sender<bool>>>>;
 /// A plain `std::sync::RwLock`, not `tokio::sync::RwLock`: this map is
 /// touched from both a genuine OS thread (the local-PTY reader thread,
 /// which can't `.await`) and async tasks (the SSH connection task, where

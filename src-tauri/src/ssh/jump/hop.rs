@@ -56,8 +56,8 @@ fn build_jump_handler(
     jump_plan: &JumpHostPlan,
     hop_index: usize,
     total_hops: usize,
-) -> JumpHostHandler {
-    JumpHostHandler {
+) -> Result<JumpHostHandler, SshConnectError> {
+    Ok(JumpHostHandler {
         app: ctx.app.clone(),
         tab_id: ctx.tab_id.to_string(),
         host: jump_plan.host.clone(),
@@ -65,11 +65,15 @@ fn build_jump_handler(
         hop_index,
         total_hops,
         prompts: ctx.prompts.clone(),
+        prompt_owner: ctx
+            .prompt_owner
+            .cloned()
+            .ok_or_else(|| SshConnectError::Permanent("Jump prompt owner is unavailable".into()))?,
         user_rejected_host_key: Arc::new(AtomicBool::new(false)),
         failure_reason: Arc::new(Mutex::new(None)),
         status_options: ctx.status_options,
         host_key_verification_mode: ctx.host_key_verification_mode,
-    }
+    })
 }
 
 fn map_jump_connect_error(
@@ -113,7 +117,7 @@ pub(super) async fn connect_jump_direct(
         auth_prompter,
         ..
     } = ctx;
-    let jump_handler = build_jump_handler(ctx, jump_plan, hop_index, total_hops);
+    let jump_handler = build_jump_handler(ctx, jump_plan, hop_index, total_hops)?;
     let host_key_rejected = jump_handler.user_rejected_host_key.clone();
     let failure_reason = jump_handler.failure_reason.clone();
     let mut jump_config = compatibility_client_config(15, 3);
@@ -226,7 +230,7 @@ where
         auth_prompter,
         ..
     } = ctx;
-    let jump_handler = build_jump_handler(ctx, jump_plan, hop_index, total_hops);
+    let jump_handler = build_jump_handler(ctx, jump_plan, hop_index, total_hops)?;
     let host_key_rejected = jump_handler.user_rejected_host_key.clone();
     let failure_reason = jump_handler.failure_reason.clone();
     let mut jump_config = compatibility_client_config(15, 3);

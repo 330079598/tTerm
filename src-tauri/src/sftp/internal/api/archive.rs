@@ -7,7 +7,6 @@ mod real_sshd_tests;
 mod script;
 
 use crate::core::session::types::PtyConnectionOptions;
-use crate::core::state::HostPromptMap;
 use crate::sftp::internal::api::{with_cancel, SftpHost};
 use crate::sftp::internal::exec::{run_to_end, ScriptOutcome};
 use crate::sftp::internal::paths::join_remote_path;
@@ -148,7 +147,7 @@ pub async fn sftp_compress_entries(
     connection: Option<PtyConnectionOptions>,
     operation_id: String,
     request: CompressRequest,
-    prompt_state: State<'_, HostPromptMap>,
+    prompt_state: State<'_, std::sync::Arc<tterm_core::prompts::PromptBroker>>,
     secret_state: State<'_, SecretStoreState>,
     pool_state: State<'_, SftpConnectionPool>,
     cancel_map: State<'_, TransferCancelMap>,
@@ -179,7 +178,7 @@ pub async fn sftp_extract_archive(
     connection: Option<PtyConnectionOptions>,
     operation_id: String,
     request: ExtractRequest,
-    prompt_state: State<'_, HostPromptMap>,
+    prompt_state: State<'_, std::sync::Arc<tterm_core::prompts::PromptBroker>>,
     secret_state: State<'_, SecretStoreState>,
     pool_state: State<'_, SftpConnectionPool>,
     cancel_map: State<'_, TransferCancelMap>,

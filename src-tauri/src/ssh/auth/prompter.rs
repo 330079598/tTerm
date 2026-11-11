@@ -3,13 +3,11 @@ use tterm_core::events::ssh::AuthPromptField;
 use tterm_core::events::ssh::AuthPromptPayload;
 
 use super::methods::prompt_payload;
-use super::{AuthPromptMap, AuthPrompter, AuthTarget, PROMPT_TIMEOUT};
+use super::{AuthPrompter, AuthTarget, PROMPT_TIMEOUT};
 use crate::ssh::types::SshConnectError;
-use std::sync::Mutex;
 use tauri::Manager;
-use tokio::sync::oneshot;
 use tterm_core::events::ssh::SshEvent;
-use tterm_core::events::{AppEvent, EventSink};
+use tterm_core::events::AppEvent;
 use zeroize::Zeroizing;
 
 impl AuthPrompter {
@@ -17,6 +15,19 @@ impl AuthPrompter {
         Self::Tab {
             app: app.clone(),
             tab_id: tab_id.to_string(),
+            owner: None,
+        }
+    }
+
+    /// Binds all rounds of this authentication to the connection attempt.
+    pub fn with_owner(&self, owner: &tterm_core::prompts::PromptOwner) -> Self {
+        match self {
+            Self::Tab { app, tab_id, .. } => Self::Tab {
+                app: app.clone(),
+                tab_id: tab_id.clone(),
+                owner: Some(owner.clone()),
+            },
+            other => other.clone(),
         }
     }
 
@@ -66,42 +77,51 @@ impl AuthPrompter {
                  this kind of connection",
                 describe_prompts(&payload)
             ))),
-            Self::Tab { app, tab_id } => {
-                let Some(pending) = app.try_state::<AuthPromptMap>() else {
-                    return Err(SshConnectError::Permanent(format!(
-                        "{subject} authentication prompts are unavailable"
-                    )));
+            Self::Tab { app, tab_id, owner } => {
+                let pending = app.state::<std::sync::Arc<tterm_core::prompts::PromptBroker>>();
+                let fallback;
+                let owner = match owner {
+                    Some(owner) => owner,
+                    None => {
+                        fallback = crate::prompt_scope::PromptScope::for_tab(app, tab_id)
+                            .await
+                            .map_err(SshConnectError::Permanent)?;
+                        &fallback.owner
+                    }
                 };
-                let pending = pending.inner().clone();
                 let request_id = uuid::Uuid::new_v4().to_string();
                 payload.request_id = request_id.clone();
-                let (tx, rx) = oneshot::channel();
-                lock(&pending).insert(request_id.clone(), tx);
-
-                let _ = crate::event_sink::TauriEventSink::new(app.clone()).emit(AppEvent::Ssh(
-                    SshEvent::AuthPrompt {
-                        tab_id: tab_id.clone(),
-                        payload,
-                    },
-                ));
-                crate::background::reveal_for_prompt(app);
-
-                match tokio::time::timeout(PROMPT_TIMEOUT, rx).await {
-                    Ok(Ok(Some(answers))) => Ok(answers),
-                    Ok(_) => Err(cancelled()),
-                    Err(_) => {
-                        lock(&pending).remove(&request_id);
-                        // Tell the frontend to close the dialog it is still showing.
-                        let _ = crate::event_sink::TauriEventSink::new(app.clone()).emit(
-                            AppEvent::Ssh(SshEvent::AuthPromptExpired {
+                let wait = pending
+                    .begin(
+                        tterm_core::prompts::PromptRequest {
+                            id: tterm_core::prompts::PromptId(request_id.clone()),
+                            kind: tterm_core::prompts::PromptKind::Auth,
+                            event: AppEvent::Ssh(SshEvent::AuthPrompt {
+                                tab_id: tab_id.clone(),
+                                payload,
+                            }),
+                            expired_event: Some(AppEvent::Ssh(SshEvent::AuthPromptExpired {
                                 tab_id: tab_id.clone(),
                                 request_id,
-                            }),
-                        );
+                            })),
+                        },
+                        tterm_core::prompts::PromptOptions {
+                            owner: owner.clone(),
+                            timeout: PROMPT_TIMEOUT,
+                        },
+                    )
+                    .map_err(SshConnectError::Permanent)?;
+                crate::prompt_scope::reveal(app);
+                match wait.wait().await.map_err(SshConnectError::Permanent)? {
+                    tterm_core::prompts::PromptOutcome::Answered(
+                        tterm_core::prompts::PromptReply::Auth(Some(answers)),
+                    ) => Ok(answers),
+                    tterm_core::prompts::PromptOutcome::TimedOut => {
                         Err(SshConnectError::Permanent(format!(
                             "{subject} authentication timed out waiting for your input"
                         )))
                     }
+                    _ => Err(cancelled()),
                 }
             }
             #[cfg(test)]
@@ -112,10 +132,6 @@ impl AuthPrompter {
             }
         }
     }
-}
-
-pub(super) fn lock<T>(mutex: &Mutex<T>) -> std::sync::MutexGuard<'_, T> {
-    mutex.lock().unwrap_or_else(|poison| poison.into_inner())
 }
 
 pub(super) fn describe_prompts(payload: &AuthPromptPayload) -> String {

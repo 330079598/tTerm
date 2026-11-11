@@ -1,5 +1,4 @@
 use crate::core::session::types::PtyConnectionOptions;
-use crate::core::state::HostPromptMap;
 use crate::sftp::internal::api::permissions::PERMISSION_MASK;
 use crate::sftp::internal::connection::{ensure_ssh_plan, map_sftp_error};
 use crate::sftp::internal::types::SftpConnectionPool;
@@ -254,7 +253,7 @@ pub async fn sftp_open_file_for_edit(
     tab_id: String,
     connection: Option<PtyConnectionOptions>,
     path: String,
-    prompt_state: State<'_, HostPromptMap>,
+    prompt_state: State<'_, std::sync::Arc<tterm_core::prompts::PromptBroker>>,
     secret_state: State<'_, SecretStoreState>,
     pool_state: State<'_, SftpConnectionPool>,
 ) -> Result<SftpEditableFile, String> {
@@ -277,7 +276,7 @@ pub async fn sftp_save_edited_file(
     path: String,
     content: String,
     baseline: SftpEditBaseline,
-    prompt_state: State<'_, HostPromptMap>,
+    prompt_state: State<'_, std::sync::Arc<tterm_core::prompts::PromptBroker>>,
     secret_state: State<'_, SecretStoreState>,
     pool_state: State<'_, SftpConnectionPool>,
 ) -> Result<SftpSaveEditedFileResult, String> {

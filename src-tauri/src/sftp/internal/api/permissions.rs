@@ -1,5 +1,4 @@
 use crate::core::session::types::PtyConnectionOptions;
-use crate::core::state::HostPromptMap;
 use crate::sftp::internal::connection::{ensure_ssh_plan, map_sftp_error};
 use crate::sftp::internal::types::SftpConnectionPool;
 use crate::ssh::secret_store::types::SecretStoreState;
@@ -44,7 +43,7 @@ pub async fn sftp_set_permissions(
     connection: Option<PtyConnectionOptions>,
     paths: Vec<String>,
     mode: u32,
-    prompt_state: State<'_, HostPromptMap>,
+    prompt_state: State<'_, std::sync::Arc<tterm_core::prompts::PromptBroker>>,
     secret_state: State<'_, SecretStoreState>,
     pool_state: State<'_, SftpConnectionPool>,
 ) -> Result<(), String> {
