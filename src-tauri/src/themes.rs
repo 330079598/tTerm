@@ -111,6 +111,10 @@ fn theme_id(theme: &Value) -> Result<&str, String> {
 /// kept in localStorage) is taken over when given.
 #[tauri::command]
 pub async fn load_custom_themes(legacy: Option<Vec<Value>>) -> Result<Vec<Value>, String> {
+    load(legacy).await
+}
+
+async fn load(legacy: Option<Vec<Value>>) -> Result<Vec<Value>, String> {
     run_blocking(move || {
         crate::db::write(|transaction| {
             if !themes_imported(transaction)? {
@@ -132,6 +136,10 @@ pub async fn load_custom_themes(legacy: Option<Vec<Value>>) -> Result<Vec<Value>
 
 #[tauri::command]
 pub async fn save_custom_themes(themes: Vec<Value>) -> Result<(), String> {
+    save(themes).await
+}
+
+async fn save(themes: Vec<Value>) -> Result<(), String> {
     run_blocking(move || {
         crate::db::write(|transaction| {
             replace_themes(transaction, &themes)?;
