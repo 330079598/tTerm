@@ -571,3 +571,15 @@ fn ucs2_matches_non_ascii_text_without_utf8_slicing() {
         );
     }
 }
+
+#[test]
+fn builtin_source_equals_the_real_typescript_set() {
+    let oracle: serde_json::Value = serde_json::from_str(include_str!(
+        "../../../../../docs/gpui-migration/reports/P1-11b-evidence/node.json"
+    ))
+    .unwrap();
+    assert_eq!(
+        serde_json::to_value(builtin_highlight_set()).unwrap(),
+        oracle["builtin"]
+    );
+}

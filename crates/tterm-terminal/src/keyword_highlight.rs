@@ -5,12 +5,14 @@ use crate::{
     snapshot::Snapshot,
 };
 use regress::{Flags, Regex};
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
 /// Palette values keyed by the frontend's sixteen terminal color names.
 pub type HighlightPalette = HashMap<String, String>;
-/// A terminal rule independent of the configuration crate.
-#[derive(Clone, Debug, PartialEq, Eq)]
+/// One configured highlight rule.
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(default)]
 pub struct HighlightRule {
     pub id: String,
     pub enabled: bool,
@@ -21,8 +23,23 @@ pub struct HighlightRule {
     pub foreground: Option<String>,
     pub background: Option<String>,
 }
-/// A named terminal rule set.
-#[derive(Clone, Debug, PartialEq, Eq)]
+impl Default for HighlightRule {
+    fn default() -> Self {
+        Self {
+            id: String::new(),
+            enabled: true,
+            pattern: String::new(),
+            kind: "keyword".into(),
+            case_sensitive: false,
+            whole_word: false,
+            foreground: None,
+            background: None,
+        }
+    }
+}
+/// A named set of highlight rules.
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq, Default)]
+#[serde(default)]
 pub struct HighlightSet {
     pub id: String,
     pub name: String,

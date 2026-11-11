@@ -1,6 +1,7 @@
 //! Keyword highlight configuration and immutable editing helpers.
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use tterm_terminal::keyword_highlight::{HighlightRule, HighlightSet, builtin_highlight_set};
 
 /// Palette names accepted by keyword highlight rules.
 pub const HIGHLIGHT_PALETTE_COLORS: [&str; 16] = [
@@ -28,41 +29,6 @@ pub const MAX_HIGHLIGHT_SETS: usize = 50;
 pub const MAX_HIGHLIGHT_RULES: usize = 100;
 pub const MAX_HIGHLIGHT_PATTERN_LENGTH: usize = 1000;
 
-/// One configured highlight rule.
-#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
-#[serde(default)]
-pub struct HighlightRule {
-    pub id: String,
-    pub enabled: bool,
-    pub pattern: String,
-    pub kind: String,
-    pub case_sensitive: bool,
-    pub whole_word: bool,
-    pub foreground: Option<String>,
-    pub background: Option<String>,
-}
-impl Default for HighlightRule {
-    fn default() -> Self {
-        Self {
-            id: String::new(),
-            enabled: true,
-            pattern: String::new(),
-            kind: "keyword".into(),
-            case_sensitive: false,
-            whole_word: false,
-            foreground: None,
-            background: None,
-        }
-    }
-}
-/// A named set of highlight rules.
-#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq, Default)]
-#[serde(default)]
-pub struct HighlightSet {
-    pub id: String,
-    pub name: String,
-    pub rules: Vec<HighlightRule>,
-}
 /// Persisted keyword highlight settings.
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(default)]
@@ -83,51 +49,6 @@ impl Default for KeywordHighlightConfig {
     }
 }
 
-const IPV4_PATTERN: &str = r"(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(?:\.(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}(?:/(?:3[0-2]|[12]?\d))?";
-const IPV6_PATTERN: &str = r"(?:(?:[\da-f]{1,4}:){7}[\da-f]{1,4}|(?:[\da-f]{1,4}:){1,7}:|(?:[\da-f]{1,4}:){1,6}:[\da-f]{1,4}|(?:[\da-f]{1,4}:){1,5}(?::[\da-f]{1,4}){1,2}|(?:[\da-f]{1,4}:){1,4}(?::[\da-f]{1,4}){1,3}|(?:[\da-f]{1,4}:){1,3}(?::[\da-f]{1,4}){1,4}|(?:[\da-f]{1,4}:){1,2}(?::[\da-f]{1,4}){1,5}|[\da-f]{1,4}:(?::[\da-f]{1,4}){1,6}|:(?::[\da-f]{1,4}){1,7})(?:/\d{1,3})?";
-const MAC_PATTERN: &str = r"(?:[\da-f]{2}(?::[\da-f]{2}){5}|[\da-f]{2}(?:-[\da-f]{2}){5}|[\da-f]{4}\.[\da-f]{4}\.[\da-f]{4})";
-fn builtin_rule(id: &str, pattern: &str, foreground: &str, whole_word: bool) -> HighlightRule {
-    HighlightRule {
-        id: id.into(),
-        enabled: true,
-        pattern: pattern.into(),
-        kind: "regex".into(),
-        case_sensitive: false,
-        whole_word,
-        foreground: Some(foreground.into()),
-        background: None,
-    }
-}
-/// Returns the built-in rules shipped with the frontend.
-pub fn builtin_highlight_set() -> HighlightSet {
-    HighlightSet {
-        id: BUILTIN_HIGHLIGHT_SET_ID.into(),
-        name: String::new(),
-        rules: vec![
-            builtin_rule(
-                "builtin-errors",
-                r"errors?|fail(?:ed|ure|s)?|fatal|denied|refused|panic(?:ked)?|critical",
-                "red",
-                true,
-            ),
-            builtin_rule(
-                "builtin-warnings",
-                r"warn(?:ing|ings)?|timeout|timed out|deprecated",
-                "yellow",
-                true,
-            ),
-            builtin_rule(
-                "builtin-success",
-                r"success(?:ful|fully)?|succeeded|passed",
-                "green",
-                true,
-            ),
-            builtin_rule("builtin-ipv4", IPV4_PATTERN, "cyan", false),
-            builtin_rule("builtin-ipv6", IPV6_PATTERN, "cyan", false),
-            builtin_rule("builtin-mac", MAC_PATTERN, "magenta", false),
-        ],
-    }
-}
 /// Returns the display name of a set, translating the built-in and unnamed names.
 pub fn highlight_set_name(set: &HighlightSet, translate: impl Fn(&str) -> String) -> String {
     if !set.name.is_empty() {

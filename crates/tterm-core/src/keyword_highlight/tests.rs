@@ -354,3 +354,46 @@ fn moving_more_than_128_rules_does_not_overflow() {
     let moved = move_highlight_rule(&set, "r129", -1);
     assert_eq!(moved.rules[128].id, "r129");
 }
+
+#[test]
+fn copied_and_restored_builtin_rules_use_the_terminal_source() {
+    use tterm_terminal::keyword_highlight::{
+        HighlightPalette, compile_highlight_set, match_highlights,
+    };
+    let builtin = builtin_highlight_set();
+    let (config, id) = add_highlight_set(
+        &KeywordHighlightConfig::default(),
+        "Copy".into(),
+        Some(&builtin),
+    )
+    .unwrap();
+    let copy = config
+        .sets
+        .as_ref()
+        .unwrap()
+        .iter()
+        .find(|set| set.id == id)
+        .unwrap();
+    let restored = restore_builtin_rules(&HighlightSet {
+        rules: vec![],
+        ..builtin.clone()
+    });
+    for set in [copy, &restored] {
+        let compiled = compile_highlight_set(set, &HighlightPalette::new());
+        for (text, expected) in [
+            ("10.0.0.0/33", vec![(0, 8)]),
+            ("Add::add", vec![]),
+            ("x10.0.0.1", vec![]),
+            ("1.2.3.4.5", vec![]),
+        ] {
+            assert_eq!(
+                match_highlights(text, &compiled)
+                    .iter()
+                    .map(|span| (span.start, span.end))
+                    .collect::<Vec<_>>(),
+                expected,
+                "{text}"
+            );
+        }
+    }
+}
