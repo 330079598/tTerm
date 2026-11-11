@@ -8,12 +8,7 @@ use tterm_core::events::tunnel::TunnelState;
 use tterm_core::events::{AppEvent, EventSink};
 
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::{Mutex, Once};
-
-use tauri::image::Image;
-use tauri::menu::{Menu, MenuEvent};
-use tauri::tray::{MouseButton, MouseButtonState, TrayIcon, TrayIconBuilder, TrayIconEvent};
-use tauri::{AppHandle, Manager};
+use std::sync::Mutex;
 
 use crate::core::state::PtyMap;
 use crate::tunnel::commands::TunnelManager;
@@ -24,25 +19,29 @@ const MENU_QUIT: &str = "tray-quit";
 const MENU_CHECK_UPDATES: &str = "tray-updates";
 const MENU_TUNNELS_PAGE: &str = "tray-tunnels-page";
 const MENU_TUNNEL_PREFIX: &str = "tray-tunnel:";
-/// The dot's red, the same as the count on the Windows taskbar.
-const DOT_RGB: [u8; 3] = [0xE8, 0x11, 0x23];
 
 #[derive(Default)]
 pub struct TrayState {
-    language: Mutex<String>,
+    pub(crate) language: Mutex<String>,
     /// What the current menu shows; it is rebuilt only when this changes.
-    shown: Mutex<Option<Vec<MenuTunnel>>>,
+    pub(crate) shown: Mutex<Option<Vec<MenuTunnel>>>,
     refresh_pending: AtomicBool,
     /// Whether the icon shows the dot for unseen notifications.
-    attention: AtomicBool,
+    pub(crate) attention: AtomicBool,
     /// An update check asked for from the tray that the UI has not taken yet.
     /// It is kept because a click before the UI listens would otherwise be lost.
     update_check_requested: AtomicBool,
 }
 
+impl TrayState {
+    fn take_update_check(&self) -> bool {
+        self.update_check_requested.swap(false, Ordering::SeqCst)
+    }
+}
+
 /// A tunnel as one menu entry shows it.
 #[derive(Debug, Clone, PartialEq, Eq)]
-struct MenuTunnel {
+pub(crate) struct MenuTunnel {
     id: String,
     name: String,
     state: TunnelState,
@@ -89,168 +88,94 @@ fn labels(language: &str) -> Labels {
     }
 }
 
-/// Adds the tray icon, or rebuilds its menu in `language`.
-pub(crate) fn show(app: &AppHandle, language: &str) -> Result<(), String> {
-    // A tray's own menu handler outlives the tray, so one built again after
-    // being removed would answer each click twice; this one is app-wide.
-    static MENU_HANDLER: Once = Once::new();
-    MENU_HANDLER.call_once(|| app.on_menu_event(on_menu_event));
-
-    let state = app.state::<Arc<TrayState>>();
-    *state.language.lock().unwrap_or_else(|e| e.into_inner()) = language.to_string();
-    let tunnels = menu_tunnels(app);
-    *state.shown.lock().unwrap_or_else(|e| e.into_inner()) = Some(tunnels.clone());
-    app.state::<std::sync::Arc<dyn tterm_platform::tray::Tray>>()
-        .present(tterm_platform::tray::TrayModel {
-            entries: menu_model(labels(language), &tunnels),
-        })
+/// Dependencies used to rebuild tray policy without owning the tunnel manager.
+#[derive(Clone)]
+pub(crate) struct TrayContext {
+    pub state: Arc<TrayState>,
+    pub native: Arc<dyn tterm_platform::tray::Tray>,
+    pub tunnels: std::sync::Weak<TunnelManager>,
 }
 
-/// Installs the already-rendered native menu without reading domain state.
-pub(crate) fn present_menu(app: &AppHandle, menu: Menu<tauri::Wry>) -> tauri::Result<()> {
-    let state = app.state::<Arc<TrayState>>();
-    if let Some(tray) = app.tray_by_id(TRAY_ID) {
-        return tray.set_menu(Some(menu));
-    }
-    let mut builder = TrayIconBuilder::with_id(TRAY_ID)
-        .tooltip("tTerm")
-        .menu(&menu)
-        // macOS opens the menu on a click, like every menu bar item; elsewhere
-        // a click brings the window back and the menu is on right click.
-        .show_menu_on_left_click(cfg!(target_os = "macos"))
-        .on_tray_icon_event(on_tray_icon_event);
-    if let Some(icon) = tray_icon(app, state.attention.load(Ordering::SeqCst)) {
-        builder = builder.icon(icon);
-    }
-    builder.build(app)?;
-    Ok(())
-}
-
-pub(crate) fn hide(app: &AppHandle) {
-    app.remove_tray_by_id(TRAY_ID);
-    *app.state::<Arc<TrayState>>()
+/// Adds the tray icon, or rebuilds its menu in the saved language.
+pub(crate) fn show(context: &TrayContext, language: &str) -> Result<(), String> {
+    *context
+        .state
+        .language
+        .lock()
+        .unwrap_or_else(|e| e.into_inner()) = language.to_string();
+    let tunnels = menu_tunnels(context);
+    *context
+        .state
         .shown
         .lock()
-        .unwrap_or_else(|e| e.into_inner()) = None;
-}
-
-/// Puts the red dot on the tray icon while notifications wait unseen, or
-/// takes it off. Remembered for a tray icon added later.
-pub fn set_attention(app: &AppHandle, attention: bool) {
-    let Some(state) = app.try_state::<Arc<TrayState>>() else {
-        return;
-    };
-    if state.attention.swap(attention, Ordering::SeqCst) == attention {
-        return;
-    }
-    if let Some(tray) = app.tray_by_id(TRAY_ID) {
-        if let Err(error) = tray.set_icon(tray_icon(app, attention)) {
-            eprintln!("Failed to update the tray icon: {error}");
-        }
-    }
-}
-
-fn tray_icon(app: &AppHandle, attention: bool) -> Option<Image<'_>> {
-    let icon = app.default_window_icon()?;
-    Some(if attention {
-        with_dot(icon)
-    } else {
-        icon.clone()
+        .unwrap_or_else(|e| e.into_inner()) = Some(tunnels.clone());
+    context.native.present(tterm_platform::tray::TrayModel {
+        entries: menu_model(labels(language), &tunnels),
     })
 }
 
-/// The icon with a red dot in its top right corner. A clear ring cuts the dot
-/// out of the icon so it stands apart on any tray background.
-fn with_dot(icon: &Image<'_>) -> Image<'static> {
-    let (width, height) = (icon.width(), icon.height());
-    let size = width.min(height) as f32;
-    let radius = size * 0.15;
-    let ring = (size * 0.05).max(1.0);
-    let (center_x, center_y) = (width as f32 - radius - ring, radius + ring);
-    let mut rgba = icon.rgba().to_vec();
-    for (index, pixel) in rgba.as_chunks_mut::<4>().0.iter_mut().enumerate() {
-        let x = (index % width as usize) as f32 + 0.5;
-        let y = (index / width as usize) as f32 + 0.5;
-        let distance = (x - center_x).hypot(y - center_y);
-        // How much of the pixel the dot, and the dot with its ring, cover.
-        let dot = (radius + 0.5 - distance).clamp(0.0, 1.0);
-        let cut = (radius + ring + 0.5 - distance).clamp(0.0, 1.0);
-        let kept = f32::from(pixel[3]) / 255.0 * (1.0 - cut) * (1.0 - dot);
-        let alpha = dot + kept;
-        if alpha <= 0.0 {
-            pixel.fill(0);
-            continue;
-        }
-        for (channel, dot_channel) in pixel.iter_mut().zip(DOT_RGB) {
-            let color = f32::from(dot_channel) * dot + f32::from(*channel) * kept;
-            *channel = (color / alpha).round() as u8;
-        }
-        pixel[3] = (alpha * 255.0).round() as u8;
-    }
-    Image::new_owned(rgba, width, height)
-}
-
-/// Brings the tunnel entries up to date after a tunnel started, stopped or
-/// changed. Callable from any thread; the menu is rebuilt on the main thread,
-/// and several changes in a row rebuild it once.
-pub fn refresh_tunnels(app: &AppHandle) {
-    let Some(state) = app.try_state::<Arc<TrayState>>() else {
-        return;
-    };
-    if app.tray_by_id(TRAY_ID).is_none() || state.refresh_pending.swap(true, Ordering::SeqCst) {
+/// Coalesces refreshes and rebuilds the menu on the native owning thread.
+pub(crate) fn refresh_tunnels(context: &TrayContext) {
+    if !context.native.is_present() || context.state.refresh_pending.swap(true, Ordering::SeqCst) {
         return;
     }
-    let handle = app.clone();
-    let scheduled = app.run_on_main_thread(move || {
-        handle
-            .state::<Arc<TrayState>>()
-            .refresh_pending
-            .store(false, Ordering::SeqCst);
-        if let Err(error) = rebuild_if_changed(&handle) {
-            eprintln!("Failed to update the tray menu: {error}");
-        }
-    });
-    if scheduled.is_err() {
-        state.refresh_pending.store(false, Ordering::SeqCst);
+    let captured = context.clone();
+    if context
+        .native
+        .dispatch(Box::new(move || {
+            captured
+                .state
+                .refresh_pending
+                .store(false, Ordering::SeqCst);
+            if let Err(error) = rebuild_if_changed(&captured) {
+                eprintln!("Failed to update the tray menu: {error}");
+            }
+        }))
+        .is_err()
+    {
+        context.state.refresh_pending.store(false, Ordering::SeqCst);
     }
 }
 
-fn rebuild_if_changed(app: &AppHandle) -> tauri::Result<()> {
-    if app.tray_by_id(TRAY_ID).is_none() {
+fn rebuild_if_changed(context: &TrayContext) -> Result<(), String> {
+    if !context.native.is_present() {
         return Ok(());
     }
-    let state = app.state::<Arc<TrayState>>();
-    let tunnels = menu_tunnels(app);
-    let mut shown = state.shown.lock().unwrap_or_else(|e| e.into_inner());
+    let tunnels = menu_tunnels(context);
+    let mut shown = context
+        .state
+        .shown
+        .lock()
+        .unwrap_or_else(|e| e.into_inner());
     if shown.as_ref() == Some(&tunnels) {
         return Ok(());
     }
-    let language = state
+    let language = context
+        .state
         .language
         .lock()
         .unwrap_or_else(|e| e.into_inner())
         .clone();
-    app.state::<std::sync::Arc<dyn tterm_platform::tray::Tray>>()
-        .present(tterm_platform::tray::TrayModel {
-            entries: menu_model(labels(&language), &tunnels),
-        })
-        .map_err(|e| tauri::Error::Io(std::io::Error::other(e)))?;
+    context.native.present(tterm_platform::tray::TrayModel {
+        entries: menu_model(labels(&language), &tunnels),
+    })?;
     *shown = Some(tunnels);
     Ok(())
 }
 
-/// Forgets what the menu shows so the next refresh rebuilds it. A check item
-/// flips itself when clicked, before the tunnel has changed at all.
-fn invalidate(app: &AppHandle) {
-    *app.state::<Arc<TrayState>>()
+pub(crate) fn invalidate(context: &TrayContext) {
+    *context
+        .state
         .shown
         .lock()
         .unwrap_or_else(|e| e.into_inner()) = None;
-    refresh_tunnels(app);
+    refresh_tunnels(context);
 }
 
-fn menu_tunnels(app: &AppHandle) -> Vec<MenuTunnel> {
-    let manager = app.state::<Arc<TunnelManager>>();
+fn menu_tunnels(context: &TrayContext) -> Vec<MenuTunnel> {
+    let Some(manager) = context.tunnels.upgrade() else {
+        return Vec::new();
+    };
     crate::tunnel::storage::load_tunnels()
         .unwrap_or_else(|error| {
             eprintln!("Failed to list tunnels for the tray menu: {error}");
@@ -323,96 +248,88 @@ fn tunnel_label(labels: Labels, tunnel: &MenuTunnel) -> String {
     format!("{name}{suffix}")
 }
 
-fn on_menu_event(app: &AppHandle, event: MenuEvent) {
-    match event.id().as_ref() {
-        MENU_SHOW => super::show_main_window(app),
-        MENU_QUIT => super::request_quit(app),
-        MENU_TUNNELS_PAGE => open_tunnels_page(app),
-        MENU_CHECK_UPDATES => check_updates(app),
+/// Applies a native menu action after the entry adapter resolves dependencies.
+pub(crate) fn handle_action(
+    context: super::BackgroundContext,
+    tunnel: crate::tunnel::commands::TunnelContext,
+    id: &str,
+) {
+    match id {
+        MENU_SHOW => super::show_main_window(context.window.as_ref(), context.badge.as_ref()),
+        MENU_QUIT => super::request_quit(&context),
+        MENU_TUNNELS_PAGE => open_tunnels_page(
+            context.window.as_ref(),
+            context.badge.as_ref(),
+            context.events.as_ref(),
+        ),
+        MENU_CHECK_UPDATES => check_updates(
+            &context.tray.state,
+            context.window.as_ref(),
+            context.badge.as_ref(),
+            context.events.as_ref(),
+        ),
         id => {
-            if let Some(tunnel_id) = id.strip_prefix(MENU_TUNNEL_PREFIX) {
-                toggle_tunnel(app, tunnel_id.to_string());
+            if let Some(id) = id.strip_prefix(MENU_TUNNEL_PREFIX) {
+                let id = id.to_string();
+                context.quit.runtime.clone().spawn(async move {
+                    if context.tunnels.state_of(&id).is_active() {
+                        context.tunnels.stop(&id).await;
+                    } else if !crate::tunnel::commands::start_unattended(
+                        &tunnel,
+                        &context.tunnels,
+                        &id,
+                    )
+                    .await
+                    {
+                        open_tunnels_page(
+                            context.window.as_ref(),
+                            context.badge.as_ref(),
+                            context.events.as_ref(),
+                        );
+                    }
+                    invalidate(&context.tray);
+                });
             }
         }
     }
 }
 
-fn open_tunnels_page(app: &AppHandle) {
-    super::show_main_window(app);
-    let _ = crate::event_sink::TauriEventSink::new(app.clone())
-        .emit(AppEvent::Background(BackgroundEvent::OpenTunnels));
+pub(crate) fn open_tunnels_page(
+    window: &dyn tterm_platform::window::MainWindow,
+    badge: &dyn tterm_platform::notifications::AppBadge,
+    events: &dyn EventSink,
+) {
+    super::show_main_window(window, badge);
+    let _ = events.emit(AppEvent::Background(BackgroundEvent::OpenTunnels));
 }
 
-/// Shows the window first, so the result of the check is in sight.
-fn check_updates(app: &AppHandle) {
-    super::show_main_window(app);
-    app.state::<Arc<TrayState>>()
-        .update_check_requested
-        .store(true, Ordering::SeqCst);
-    let _ = crate::event_sink::TauriEventSink::new(app.clone())
-        .emit(AppEvent::Background(BackgroundEvent::CheckUpdates));
+pub(crate) fn check_updates(
+    state: &TrayState,
+    window: &dyn tterm_platform::window::MainWindow,
+    badge: &dyn tterm_platform::notifications::AppBadge,
+    events: &dyn EventSink,
+) {
+    super::show_main_window(window, badge);
+    state.update_check_requested.store(true, Ordering::SeqCst);
+    let _ = events.emit(AppEvent::Background(BackgroundEvent::CheckUpdates));
 }
 
-/// Hands the UI an update check asked for from the tray, once. The UI asks
-/// both when told about a click and when it starts listening.
+/// Hands the UI an update check asked for from the tray, once.
 #[tauri::command]
-pub fn take_tray_update_check(state: tauri::State<'_, Arc<TrayState>>) -> bool {
-    state.update_check_requested.swap(false, Ordering::SeqCst)
+pub fn take_tray_update_check(
+    services: tauri::State<'_, Arc<crate::services::AppServices>>,
+) -> bool {
+    services.app.tray.take_update_check()
 }
 
-/// Stops a running tunnel or starts a stopped one. A start that needs a
-/// password, or fails, opens the Port Forwarding page, where the tunnel shows
-/// what is missing.
-fn toggle_tunnel(app: &AppHandle, id: String) {
-    let app = app.clone();
-    tauri::async_runtime::spawn(async move {
-        let manager = app.state::<Arc<TunnelManager>>();
-        if manager.state_of(&id).is_active() {
-            manager.stop(&id).await;
-        } else if !crate::tunnel::commands::start_unattended(&app, &id).await {
-            open_tunnels_page(&app);
-        }
-        invalidate(&app);
-    });
-}
-
-fn on_tray_icon_event(tray: &TrayIcon, event: TrayIconEvent) {
-    let app = tray.app_handle();
-    match event {
-        TrayIconEvent::Click {
-            button: MouseButton::Left,
-            button_state: MouseButtonState::Up,
-            ..
-        } if !cfg!(target_os = "macos") => super::show_main_window(app),
-        TrayIconEvent::DoubleClick {
-            button: MouseButton::Left,
-            ..
-        } => super::show_main_window(app),
-        // Hovering comes before the tooltip and the menu; bring both up to
-        // date, including tunnels changed by a sync or an import.
-        TrayIconEvent::Enter { .. } => {
-            let _ = tray.set_tooltip(Some(tooltip(app)));
-            refresh_tunnels(app);
-        }
-        _ => {}
-    }
-}
-
-fn tooltip(app: &AppHandle) -> String {
-    // This runs on the main thread; a busy map just leaves the count out.
-    let sessions = app
-        .state::<PtyMap>()
-        .try_read()
-        .map(|sessions| sessions.len())
-        .ok();
-    let tunnels = app.state::<Arc<TunnelManager>>().active_count();
-    let language = app
-        .state::<Arc<TrayState>>()
+pub(crate) fn tooltip(ptys: &PtyMap, tunnels: &TunnelManager, state: &TrayState) -> String {
+    let sessions = ptys.try_read().map(|sessions| sessions.len()).ok();
+    let language = state
         .language
         .lock()
         .unwrap_or_else(|e| e.into_inner())
         .clone();
-    tooltip_text(&language, sessions, tunnels)
+    tooltip_text(&language, sessions, tunnels.active_count())
 }
 
 fn tooltip_text(language: &str, sessions: Option<usize>, tunnels: usize) -> String {
@@ -493,22 +410,6 @@ mod tests {
     fn ampersands_stay_literal_in_windows_menus() {
         let label = tunnel_label(labels("en"), &tunnel("a & b", TunnelState::Stopped));
         assert_eq!(label, if cfg!(windows) { "a && b" } else { "a & b" });
-    }
-
-    #[test]
-    fn dot_sits_in_the_top_right_corner_apart_from_the_icon() {
-        let blue = [0, 0, 255, 255];
-        let icon = Image::new_owned(blue.repeat(32 * 32), 32, 32);
-        let dotted = with_dot(&icon);
-        let pixel = |x: usize, y: usize| {
-            let start = (y * 32 + x) * 4;
-            dotted.rgba()[start..start + 4].to_vec()
-        };
-        assert_eq!(pixel(25, 6), [0xE8, 0x11, 0x23, 255]);
-        // The ring between the dot and the icon is clear.
-        assert_eq!(pixel(21, 10)[3], 0);
-        assert_eq!(pixel(18, 6), blue);
-        assert_eq!(pixel(4, 28), blue);
     }
 
     #[test]

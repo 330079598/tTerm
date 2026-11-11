@@ -30,6 +30,8 @@ pub struct TrayModel {
 }
 /// Lifecycle operations dispatch to the owning UI thread.
 pub trait Tray: Send + Sync {
+    /// Schedules a menu-policy update on the native owning thread.
+    fn dispatch(&self, task: Box<dyn FnOnce() + Send>) -> Result<(), String>;
     /// Installs or updates the prepared menu.
     fn present(&self, model: TrayModel) -> Result<(), String>;
     /// Schedules removal on the owning UI thread; success acknowledges dispatch.
