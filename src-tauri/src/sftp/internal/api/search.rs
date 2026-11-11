@@ -13,7 +13,6 @@ mod real_sshd_tests;
 mod walk;
 
 use crate::core::session::types::PtyConnectionOptions;
-use crate::core::state::HostPromptMap;
 use crate::sftp::internal::api::{with_cancel, SftpHost};
 use crate::sftp::internal::connection::map_sftp_error;
 use crate::sftp::internal::types::{SftpConnectionPool, SftpHandles, TransferCancelMap};
@@ -158,7 +157,7 @@ pub async fn sftp_search_entries(
     search_id: String,
     request: SearchRequest,
     on_event: Channel<SearchEvent>,
-    prompt_state: State<'_, HostPromptMap>,
+    prompt_state: State<'_, std::sync::Arc<tterm_core::prompts::PromptBroker>>,
     secret_state: State<'_, SecretStoreState>,
     pool_state: State<'_, SftpConnectionPool>,
     cancel_map: State<'_, TransferCancelMap>,

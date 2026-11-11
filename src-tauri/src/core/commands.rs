@@ -1,8 +1,8 @@
 use super::blocking::run_blocking;
 use super::session::{normalize_connection, resolve_ssh_password};
 use super::state::{
-    ActiveSession, AtomicTerminalSize, ChannelContext, HostPromptMap, PtyMap, PtySession,
-    SessionExitSignal, TabZmodem, ZmodemArmedSendMap, ZmodemManualDetectMap, ZmodemMap,
+    ActiveSession, AtomicTerminalSize, ChannelContext, PtyMap, PtySession, SessionExitSignal,
+    TabZmodem, ZmodemArmedSendMap, ZmodemManualDetectMap, ZmodemMap,
 };
 use super::supervisor::{spawn_ssh_attempt, spawn_supervisor, TabConnection};
 use crate::terminal;
@@ -20,12 +20,18 @@ use tokio::sync::{mpsc, watch, Mutex as TokioMutex};
 mod batch_write;
 
 fn stop_pty_session(
-    tab_id: &str,
+    context: (&AppHandle, &str),
     session: PtySession,
     zmodem_state: &ZmodemMap,
     zmodem_armed_send_state: &ZmodemArmedSendMap,
     zmodem_manual_detect_state: &ZmodemManualDetectMap,
 ) {
+    let (app, tab_id) = context;
+    app.state::<std::sync::Arc<tterm_core::prompts::PromptBroker>>()
+        .cancel_session(&tterm_core::prompts::SessionKey {
+            tab_id: tab_id.to_string(),
+            session_nonce: session.session_nonce,
+        });
     let _ = session.stop_tx.send(true);
     // Nobody will acknowledge this channel's output again.
     session.sink.close_output();
@@ -105,7 +111,10 @@ fn create_pty_blocking(
     output_channel: terminal::io_batcher::TerminalOutput,
 ) -> Result<u32, String> {
     let state = app.state::<PtyMap>().inner().clone();
-    let prompt_state = app.state::<HostPromptMap>().inner().clone();
+    let prompt_state = app
+        .state::<std::sync::Arc<tterm_core::prompts::PromptBroker>>()
+        .inner()
+        .clone();
     let secret_state = app
         .state::<crate::ssh::secret_store::types::SecretStoreState>()
         .inner()
@@ -127,7 +136,7 @@ fn create_pty_blocking(
 
     if let Some(session) = sessions.remove(&tab_id) {
         stop_pty_session(
-            &tab_id,
+            (&app, &tab_id),
             session,
             &zmodem_state,
             &zmodem_armed_send_state,
@@ -135,6 +144,10 @@ fn create_pty_blocking(
         );
     }
 
+    prompt_state.open_session(&tterm_core::prompts::SessionKey {
+        tab_id: tab_id.clone(),
+        session_nonce,
+    });
     crate::session_log::start_session(&app, &tab_id, session_nonce, &plan, rows, cols);
 
     let (exit_tx, exit_rx) = mpsc::unbounded_channel::<SessionExitSignal>();
@@ -178,7 +191,13 @@ fn create_pty_blocking(
         runtime_handle,
     };
 
-    let (pid, initial_active) = spawn_initial_session(&tab, rows, cols)?;
+    let (pid, initial_active) = spawn_initial_session(&tab, rows, cols).inspect_err(|_| {
+        tab.prompt_state
+            .cancel_session(&tterm_core::prompts::SessionKey {
+                tab_id: tab_id.clone(),
+                session_nonce,
+            });
+    })?;
 
     {
         let mut guard = runtime_state.runtime.block_on(active.lock());
@@ -516,7 +535,7 @@ pub fn kill_pty(
 
     if let Some(session) = session {
         stop_pty_session(
-            &tab_id,
+            (&app, &tab_id),
             session,
             zmodem_state.inner(),
             zmodem_armed_send_state.inner(),
@@ -532,16 +551,9 @@ pub fn kill_pty(
 pub fn respond_ssh_host_key_prompt(
     request_id: String,
     trust: bool,
-    prompt_state: State<'_, HostPromptMap>,
+    prompt_state: State<'_, std::sync::Arc<tterm_core::prompts::PromptBroker>>,
 ) -> Result<(), String> {
-    let sender = prompt_state
-        .blocking_write()
-        .remove(&request_id)
-        .ok_or_else(|| "Host key prompt expired".to_string())?;
-
-    sender
-        .send(trust)
-        .map_err(|_| "Host key prompt receiver is gone".to_string())
+    prompt_state.reply_host_key(&request_id, trust)
 }
 
 #[tauri::command]

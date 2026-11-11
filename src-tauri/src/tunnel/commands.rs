@@ -13,7 +13,6 @@ use crate::core::session::{
     load_saved_ssh_password, normalize_connection, resolve_ssh_password, types::JumpHostOptions,
     types::PtyConnectionOptions,
 };
-use crate::core::state::HostPromptMap;
 use crate::event_sink::TauriEventSink;
 use crate::profiles::types::SavedProfile;
 use std::collections::HashMap;
@@ -268,7 +267,7 @@ async fn start_rule(
     app: &AppHandle,
     manager: &TunnelManager,
     secret_state: &crate::ssh::secret_store::types::SecretStoreState,
-    prompts: &HostPromptMap,
+    prompts: &std::sync::Arc<tterm_core::prompts::PromptBroker>,
     id: &str,
     credentials: &TunnelCredentials,
     auto: bool,
@@ -351,7 +350,7 @@ pub async fn start_tunnel(
     credentials: Option<TunnelCredentials>,
     manager: State<'_, TunnelManager>,
     secret_state: State<'_, crate::ssh::secret_store::types::SecretStoreState>,
-    prompts: State<'_, HostPromptMap>,
+    prompts: State<'_, std::sync::Arc<tterm_core::prompts::PromptBroker>>,
 ) -> Result<StartOutcome, String> {
     start_rule(
         &app,
@@ -371,7 +370,7 @@ pub async fn start_tunnel(
 pub(crate) async fn start_unattended(app: &AppHandle, id: &str) -> bool {
     let manager = app.state::<TunnelManager>();
     let secret_state = app.state::<crate::ssh::secret_store::types::SecretStoreState>();
-    let prompts = app.state::<HostPromptMap>();
+    let prompts = app.state::<std::sync::Arc<tterm_core::prompts::PromptBroker>>();
     let result = start_rule(
         app,
         &manager,

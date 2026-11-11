@@ -1,6 +1,5 @@
 use super::*;
 use crate::core::session::types::PtyConnectionOptions;
-use crate::core::state::HostPromptMap;
 use crate::event_sink::TauriEventSink;
 use crate::sftp::internal::api::conflict::{
     self, CandidateDecision, ConflictReport, SourceStat, TransferConflict,
@@ -80,7 +79,7 @@ pub async fn sftp_check_upload_conflicts(
     connection: Option<PtyConnectionOptions>,
     local_paths: Vec<String>,
     remote_base_path: String,
-    prompt_state: State<'_, HostPromptMap>,
+    prompt_state: State<'_, std::sync::Arc<tterm_core::prompts::PromptBroker>>,
     secret_state: State<'_, SecretStoreState>,
     pool_state: State<'_, SftpConnectionPool>,
 ) -> Result<ConflictReport, String> {
@@ -157,7 +156,7 @@ pub async fn sftp_upload_file(
     local_path: String,
     remote_path: String,
     transfer_id: String,
-    prompt_state: State<'_, HostPromptMap>,
+    prompt_state: State<'_, std::sync::Arc<tterm_core::prompts::PromptBroker>>,
     secret_state: State<'_, SecretStoreState>,
     pool_state: State<'_, SftpConnectionPool>,
     cancel_map: State<'_, TransferCancelMap>,
@@ -212,7 +211,7 @@ pub async fn sftp_upload_paths(
     remote_base_path: String,
     skip_existing: Option<bool>,
     conflict_policy: Option<ConflictPolicy>,
-    prompt_state: State<'_, HostPromptMap>,
+    prompt_state: State<'_, std::sync::Arc<tterm_core::prompts::PromptBroker>>,
     secret_state: State<'_, SecretStoreState>,
     pool_state: State<'_, SftpConnectionPool>,
     cancel_map: State<'_, TransferCancelMap>,

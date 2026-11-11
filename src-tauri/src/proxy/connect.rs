@@ -140,6 +140,7 @@ pub async fn open_stream(
     app: &AppHandle,
     proxy: &ProxyEndpoint,
     target: &CommandTarget<'_>,
+    prompt_owner: Option<&tterm_core::prompts::PromptOwner>,
 ) -> Result<ProxyStream, SshConnectError> {
     let Some(template) = proxy.command.as_deref() else {
         return connect_through_proxy(proxy, target.host, target.port)
@@ -147,7 +148,12 @@ pub async fn open_stream(
             .map(ProxyStream::Tcp);
     };
     let command_line = command::expand(template, target).map_err(SshConnectError::Permanent)?;
-    super::approval::ensure_allowed(app, &proxy.name, template).await?;
+    super::approval::ensure_allowed(app, &proxy.name, template, prompt_owner).await?;
+    if prompt_owner.is_some_and(|owner| owner.is_closed()) {
+        return Err(SshConnectError::Permanent(
+            "Proxy connection was cancelled".into(),
+        ));
+    }
     command::spawn(&command_line)
         .await
         .map(|stream| ProxyStream::Command(Box::new(stream)))

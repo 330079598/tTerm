@@ -12,7 +12,6 @@ use super::types::{
 };
 use crate::config::tab_icons::TabIconStyle;
 use crate::core::blocking::run_blocking;
-use crate::core::state::HostPromptMap;
 use crate::proxy::command::CommandTarget;
 use crate::ssh::jump::connect::{
     connect_first_hop, connect_via_jump_chain, open_proxy_stream, ConnectContext,
@@ -319,7 +318,7 @@ pub async fn test_connection(
     app: tauri::AppHandle,
     mut profile: SavedProfile,
     typed_password_tab_id: Option<String>,
-    prompt_state: tauri::State<'_, HostPromptMap>,
+    prompt_state: tauri::State<'_, std::sync::Arc<tterm_core::prompts::PromptBroker>>,
     secret_state: tauri::State<'_, crate::ssh::secret_store::types::SecretStoreState>,
 ) -> Result<TestConnectionResult, String> {
     if profile.connection_type != "ssh" {
@@ -337,7 +336,9 @@ pub async fn test_connection(
     crate::core::session::saved_hops::fill_from_saved_connections(&mut plan.jump_hosts)?;
 
     // The connection dialog listens on the test tab id while the test runs.
-    let auth_prompter = crate::ssh::auth::AuthPrompter::tab(&app, &test_tab_id);
+    let prompt_scope = crate::prompt_scope::PromptScope::new(prompt_state.inner().clone(), None)?;
+    let auth_prompter =
+        crate::ssh::auth::AuthPrompter::tab(&app, &test_tab_id).with_owner(&prompt_scope.owner);
     crate::core::session::resolve_ssh_password(&app, &secret_state, &mut plan)?;
 
     crate::ssh::types::emit_connection_progress(
@@ -356,6 +357,7 @@ pub async fn test_connection(
         prompts: prompt_state.inner(),
         status_options: ConnectionStatusOptions::SILENT,
         host_key_verification_mode: HostKeyVerificationMode::TrustUnknownForSession,
+        prompt_owner: Some(&prompt_scope.owner),
         auth_prompter: &auth_prompter,
     };
     let handler = test_connection_handler(
@@ -365,7 +367,10 @@ pub async fn test_connection(
         &host,
         port,
         prompt_state.inner().clone(),
-        HostKeyVerificationMode::TrustUnknownForSession,
+        (
+            HostKeyVerificationMode::TrustUnknownForSession,
+            prompt_scope.owner.clone(),
+        ),
     );
     let config = std::sync::Arc::new(crate::ssh::jump::config::compatibility_client_config(
         plan.keepalive_interval_secs as u64,

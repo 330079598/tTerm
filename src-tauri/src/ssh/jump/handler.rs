@@ -1,22 +1,18 @@
 use tterm_core::events::ssh::SshConnectionProgressPayload;
+use tterm_core::events::ssh::SshHostKeyPromptPayload;
 
-use crate::core::state::HostPromptMap;
 use crate::ssh::openssh_known_hosts::verify::KnownHostVerdict;
 use crate::ssh::openssh_known_hosts::{check_presented_key, listed_record};
 use crate::ssh::store::{
-    load_known_host, now_unix_ms, save_known_host_entry, KnownHostRecord, SshHostKeyPromptPayload,
-    JUMP_HOST_PROFILE_PREFIX,
+    load_known_host, now_unix_ms, save_known_host_entry, KnownHostRecord, JUMP_HOST_PROFILE_PREFIX,
 };
 use crate::ssh::types::{
-    emit_connection_progress, ConnectionStatusOptions, HostKeyVerificationMode,
-    HOST_KEY_PROMPT_TIMEOUT, HOST_KEY_REJECTED_REASON,
+    emit_connection_progress, ConnectionStatusOptions, HostKeyVerificationMode, SshConnectError,
 };
 use russh::client;
 use russh::keys::ssh_key::HashAlg;
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
-use tauri::{AppHandle, Emitter};
-use tokio::sync::oneshot;
+use tauri::AppHandle;
 
 /// russh handler for the jump host leg of the connection.
 /// Performs the same host-key verification as `SshClientHandler`:
@@ -28,8 +24,9 @@ pub struct JumpHostHandler {
     pub port: u16,
     pub hop_index: usize,
     pub total_hops: usize,
-    pub prompts: HostPromptMap,
-    pub user_rejected_host_key: Arc<AtomicBool>,
+    pub prompts: std::sync::Arc<tterm_core::prompts::PromptBroker>,
+    pub prompt_owner: tterm_core::prompts::PromptOwner,
+    pub host_key_failure: Arc<Mutex<Option<SshConnectError>>>,
     pub failure_reason: Arc<Mutex<Option<String>>>,
     pub status_options: ConnectionStatusOptions,
     pub host_key_verification_mode: HostKeyVerificationMode,
@@ -136,9 +133,6 @@ impl client::Handler for JumpHostHandler {
         let known_fingerprint = known.as_ref().map(|r| r.fingerprint.clone());
 
         let request_id = uuid::Uuid::new_v4().to_string();
-        let (tx, rx) = oneshot::channel::<bool>();
-        self.prompts.write().await.insert(request_id.clone(), tx);
-
         let payload = SshHostKeyPromptPayload {
             request_id: request_id.clone(),
             profile_name: synthetic_name.clone(),
@@ -150,11 +144,9 @@ impl client::Handler for JumpHostHandler {
             known_fingerprint,
         };
 
-        let event_name = format!("ssh-hostkey-prompt-{}", self.tab_id);
-        let _ = self
-            .app
-            .emit_to(tauri::EventTarget::any(), &event_name, payload);
-        crate::background::reveal_for_prompt(&self.app);
+        let wait =
+            crate::prompt_scope::host_key(&self.prompts, &self.prompt_owner, &self.tab_id, payload);
+        crate::prompt_scope::reveal(&self.app);
 
         self.emit_status(
             "33",
@@ -164,19 +156,10 @@ impl client::Handler for JumpHostHandler {
             ),
         );
 
-        let approved = match tokio::time::timeout(HOST_KEY_PROMPT_TIMEOUT, rx).await {
-            Ok(Ok(value)) => value,
-            Ok(Err(_)) => false,
-            Err(_) => {
-                let _ = self.prompts.write().await.remove(&request_id);
-                false
-            }
-        };
-
-        if !approved {
-            self.user_rejected_host_key.store(true, Ordering::Relaxed);
-            self.set_failure_reason(HOST_KEY_REJECTED_REASON.to_string());
-            self.emit_status("31", HOST_KEY_REJECTED_REASON);
+        if let Err(error) = crate::ssh::host_key_prompt::resolve(wait, &self.host_key_failure).await
+        {
+            self.set_failure_reason(error.to_string());
+            self.emit_status("31", error.message());
             return Err(russh::Error::Disconnect);
         }
 

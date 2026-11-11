@@ -1,3 +1,4 @@
+import { listenForHostKeyPromptExpiry } from "@/components/TerminalTab/hostKeyPromptExpiry"
 import type { AgentResumeController } from "@/components/TerminalTab/agentResume"
 import { detectLocalShellName } from "@/lib/localTabTitle"
 import { Channel, invoke } from "@tauri-apps/api/core"
@@ -194,6 +195,7 @@ export function startPtySession(ctx: TerminalSessionContext, deps: PtySessionDep
       // tab id must leave the terminal's state alone.
       setHostKeyPrompt(event.payload)
     }),
+    listenForHostKeyPromptExpiry(tabId, setHostKeyPrompt),
     listen<SshConnectionProgress>(`ssh-connection-progress-${tabId}`, (event) => {
       outputHold.flush()
       setConnectionProgress(event.payload)

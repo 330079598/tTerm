@@ -1,5 +1,4 @@
 use crate::core::session::{types::PtyConnectionOptions, types::SessionPlan};
-use crate::core::state::HostPromptMap;
 use crate::sftp::internal::connection::{ensure_ssh_plan, map_sftp_error, release_tab_connections};
 use crate::sftp::internal::types::{SftpConnectionPool, SftpDirectoryListing};
 use crate::sftp::store;
@@ -115,7 +114,7 @@ pub async fn sftp_list_directory(
     tab_id: String,
     connection: Option<PtyConnectionOptions>,
     path: Option<String>,
-    prompt_state: State<'_, HostPromptMap>,
+    prompt_state: State<'_, std::sync::Arc<tterm_core::prompts::PromptBroker>>,
     secret_state: State<'_, SecretStoreState>,
     pool_state: State<'_, SftpConnectionPool>,
 ) -> Result<SftpDirectoryListing, String> {
@@ -154,7 +153,7 @@ pub async fn sftp_create_directory(
     tab_id: String,
     connection: Option<PtyConnectionOptions>,
     path: String,
-    prompt_state: State<'_, HostPromptMap>,
+    prompt_state: State<'_, std::sync::Arc<tterm_core::prompts::PromptBroker>>,
     secret_state: State<'_, SecretStoreState>,
     pool_state: State<'_, SftpConnectionPool>,
 ) -> Result<(), String> {
@@ -176,7 +175,7 @@ pub async fn sftp_rename_entry(
     connection: Option<PtyConnectionOptions>,
     old_path: String,
     new_path: String,
-    prompt_state: State<'_, HostPromptMap>,
+    prompt_state: State<'_, std::sync::Arc<tterm_core::prompts::PromptBroker>>,
     secret_state: State<'_, SecretStoreState>,
     pool_state: State<'_, SftpConnectionPool>,
 ) -> Result<(), String> {

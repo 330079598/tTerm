@@ -26,7 +26,6 @@ use super::{
     IntegrationState, Location, AGENTS,
 };
 use crate::core::session::types::PtyConnectionOptions;
-use crate::core::state::HostPromptMap;
 use crate::sftp::internal::api::SftpHost;
 use crate::sftp::internal::exec::RemoteScript;
 use crate::sftp::internal::types::SftpConnectionPool;
@@ -288,7 +287,7 @@ pub async fn remote_agent_integration_status(
     app: AppHandle,
     tab_id: String,
     connection: Option<PtyConnectionOptions>,
-    prompt_state: State<'_, HostPromptMap>,
+    prompt_state: State<'_, std::sync::Arc<tterm_core::prompts::PromptBroker>>,
     secret_state: State<'_, SecretStoreState>,
     pool_state: State<'_, SftpConnectionPool>,
 ) -> Result<Vec<AgentIntegrationStatus>, String> {
@@ -320,7 +319,7 @@ pub async fn change_remote_agent_integration(
     connection: Option<PtyConnectionOptions>,
     agent: Agent,
     install: bool,
-    prompt_state: State<'_, HostPromptMap>,
+    prompt_state: State<'_, std::sync::Arc<tterm_core::prompts::PromptBroker>>,
     secret_state: State<'_, SecretStoreState>,
     pool_state: State<'_, SftpConnectionPool>,
 ) -> Result<AgentIntegrationStatus, String> {

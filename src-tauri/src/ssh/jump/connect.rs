@@ -4,7 +4,6 @@ use super::config::{compatibility_client_config, unverifiable_host_key_error};
 use super::hop::{ChainHops, RouteError};
 use super::pool::{chain_keys, Relay};
 use crate::core::session::{types::JumpHostPlan, types::SessionPlan};
-use crate::core::state::HostPromptMap;
 use crate::proxy::command::CommandTarget;
 use crate::proxy::connect::{open_stream, ProxyStream};
 use crate::proxy::{ProxyEndpoint, ProxyKind};
@@ -15,7 +14,6 @@ use crate::ssh::types::{
     SshConnectError,
 };
 use russh::{client, Disconnect};
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use tauri::AppHandle;
 
@@ -25,10 +23,11 @@ use tauri::AppHandle;
 pub struct ConnectContext<'a> {
     pub app: &'a AppHandle,
     pub tab_id: &'a str,
-    pub prompts: &'a HostPromptMap,
+    pub prompts: &'a std::sync::Arc<tterm_core::prompts::PromptBroker>,
     pub status_options: ConnectionStatusOptions,
     pub host_key_verification_mode: HostKeyVerificationMode,
     pub auth_prompter: &'a AuthPrompter,
+    pub prompt_owner: Option<&'a tterm_core::prompts::PromptOwner>,
 }
 
 /// The host a connection ends at, how to log in to it, and the jump hosts on
@@ -93,7 +92,9 @@ pub(crate) async fn open_proxy_stream(
         progress.host(proxy.host.clone(), proxy.port)
     };
     emit_connection_progress(ctx.app, ctx.tab_id, ctx.status_options, progress);
-    open_stream(ctx.app, proxy, target).await.map(Some)
+    open_stream(ctx.app, proxy, target, ctx.prompt_owner)
+        .await
+        .map(Some)
 }
 
 /// The SSH handshake with the first host, over `stream` when a proxy opened
@@ -244,6 +245,22 @@ pub async fn open_target_ssh_session_with_forwarding(
         tokio::sync::mpsc::UnboundedSender<crate::ssh::types::ForwardedTcpIp>,
     >,
 ) -> Result<(Option<JumpChain>, client::Handle<SshClientHandler>), SshConnectError> {
+    let scope;
+    let owner = match ctx.prompt_owner {
+        Some(owner) => owner,
+        None => {
+            scope = crate::prompt_scope::PromptScope::for_tab(ctx.app, ctx.tab_id)
+                .await
+                .map_err(SshConnectError::Cancelled)?;
+            &scope.owner
+        }
+    };
+    let auth_prompter = ctx.auth_prompter.with_owner(owner);
+    let ctx = ConnectContext {
+        prompt_owner: Some(owner),
+        auth_prompter: &auth_prompter,
+        ..ctx
+    };
     let ConnectContext {
         app,
         tab_id,
@@ -271,21 +288,8 @@ pub async fn open_target_ssh_session_with_forwarding(
     );
     let target_config = Arc::new(target_config);
 
-    let handler = SshClientHandler {
-        app: app.clone(),
-        tab_id: tab_id.to_string(),
-        profile_id: target.profile_id.map(str::to_string),
-        profile_name: target.profile_name.to_string(),
-        host: target_host.to_string(),
-        port: target_port,
-        prompts: ctx.prompts.clone(),
-        user_rejected_host_key: Arc::new(AtomicBool::new(false)),
-        status_options,
-        host_key_verification_mode: ctx.host_key_verification_mode,
-        forwarded_tcpip_tx,
-        agent_forward_enabled: target.agent_forward,
-    };
-    let host_key_rejected = handler.user_rejected_host_key.clone();
+    let handler = target_handler(ctx, target, owner.clone(), forwarded_tcpip_tx);
+    let host_key_failure = handler.host_key_failure.clone();
 
     let (jump_chain_opt, mut target_session) = if target.jump_hosts.is_empty() {
         emit_connection_progress(
@@ -312,8 +316,8 @@ pub async fn open_target_ssh_session_with_forwarding(
         let sess = connect_first_hop(target_config, target_host, target_port, stream, handler)
             .await
             .map_err(|e| {
-                if host_key_rejected.load(Ordering::Relaxed) {
-                    SshConnectError::HostKeyRejected
+                if let Some(error) = crate::ssh::host_key_prompt::failure(&host_key_failure) {
+                    error
                 } else if let Some(unverifiable) = unverifiable_host_key_error(&e) {
                     unverifiable
                 } else {
@@ -332,7 +336,10 @@ pub async fn open_target_ssh_session_with_forwarding(
             target_config,
             target.proxy,
         )
-        .await?;
+        .await
+        .map_err(|error| {
+            crate::ssh::host_key_prompt::failure(&host_key_failure).unwrap_or(error)
+        })?;
         (Some(chain), target_sess)
     };
 
@@ -387,4 +394,29 @@ pub async fn open_target_ssh_session_with_forwarding(
     }
 
     Ok((jump_chain_opt, target_session))
+}
+
+fn target_handler(
+    ctx: ConnectContext<'_>,
+    target: SshTarget<'_>,
+    owner: tterm_core::prompts::PromptOwner,
+    forwarded_tcpip_tx: Option<
+        tokio::sync::mpsc::UnboundedSender<crate::ssh::types::ForwardedTcpIp>,
+    >,
+) -> SshClientHandler {
+    SshClientHandler {
+        app: ctx.app.clone(),
+        tab_id: ctx.tab_id.to_string(),
+        profile_id: target.profile_id.map(str::to_string),
+        profile_name: target.profile_name.to_string(),
+        host: target.host.to_string(),
+        port: target.port,
+        prompts: ctx.prompts.clone(),
+        prompt_owner: owner,
+        host_key_failure: Arc::new(std::sync::Mutex::new(None)),
+        status_options: ctx.status_options,
+        host_key_verification_mode: ctx.host_key_verification_mode,
+        forwarded_tcpip_tx,
+        agent_forward_enabled: target.agent_forward,
+    }
 }

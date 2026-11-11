@@ -198,6 +198,20 @@ use super::{EventName, EventTarget};
 /// P1-03: typed ssh notifications with the existing delivery contract.
 #[derive(Debug, Clone, PartialEq)]
 pub enum SshEvent {
+    /// P1-05: asks whether the presented host key may be trusted.
+    HostKeyPrompt {
+        tab_id: String,
+        payload: SshHostKeyPromptPayload,
+    },
+    /// P1-05: dismisses a host-key question on cancellation or timeout.
+    HostKeyPromptExpired { tab_id: String, request_id: String },
+    /// P1-05: asks for one round of authentication answers.
+    AuthPrompt {
+        tab_id: String,
+        payload: AuthPromptPayload,
+    },
+    /// P1-05: closes an authentication question after cancellation or timeout.
+    AuthPromptExpired { tab_id: String, request_id: String },
     /// Reports a tab's connection phase and its associated details.
     ConnectionProgress {
         tab_id: String,
@@ -210,6 +224,23 @@ impl SshEvent {
     /// Returns the legacy transport name.
     pub fn name(&self) -> EventName {
         match self {
+            // P1-05.
+            Self::HostKeyPrompt { tab_id, .. } => EventName::TabScoped {
+                prefix: "ssh-hostkey-prompt",
+                tab_id: tab_id.clone(),
+            },
+            Self::HostKeyPromptExpired { tab_id, .. } => EventName::TabScoped {
+                prefix: "ssh-hostkey-prompt-expired",
+                tab_id: tab_id.clone(),
+            },
+            Self::AuthPrompt { tab_id, .. } => EventName::TabScoped {
+                prefix: "ssh-auth-prompt",
+                tab_id: tab_id.clone(),
+            },
+            Self::AuthPromptExpired { tab_id, .. } => EventName::TabScoped {
+                prefix: "ssh-auth-prompt-expired",
+                tab_id: tab_id.clone(),
+            },
             Self::ConnectionProgress { tab_id, .. } => EventName::TabScoped {
                 prefix: "ssh-connection-progress",
                 tab_id: tab_id.clone(),
@@ -220,8 +251,58 @@ impl SshEvent {
     /// Returns the event's delivery scope.
     pub fn target(&self) -> EventTarget {
         match self {
+            // P1-05.
+            Self::HostKeyPrompt { .. }
+            | Self::HostKeyPromptExpired { .. }
+            | Self::AuthPrompt { .. }
+            | Self::AuthPromptExpired { .. } => EventTarget::Any,
             Self::ConnectionProgress { .. } => EventTarget::Any,
             Self::RemoteOs(_) => EventTarget::Default,
         }
     }
+}
+
+#[derive(Debug, Serialize, Clone, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct SshHostKeyPromptPayload {
+    pub request_id: String,
+    pub profile_name: String,
+    pub host: String,
+    pub port: u16,
+    pub algorithm: String,
+    pub fingerprint: String,
+    pub reason: String,
+    pub known_fingerprint: Option<String>,
+}
+
+/// A question for the user, as sent to the frontend.
+#[derive(Debug, Clone, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct AuthPromptPayload {
+    pub request_id: String,
+    pub host: String,
+    pub port: u16,
+    pub username: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub hop_index: Option<usize>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub total_hops: Option<usize>,
+    /// `password` when the server asks for the account password through the
+    /// password method, `keyboard-interactive` for server-defined prompts,
+    /// `sudo` for the password sudo wants in the file manager's sudo mode.
+    pub kind: &'static str,
+    /// Server-supplied title and instructions; often empty.
+    pub name: String,
+    pub instructions: String,
+    pub prompts: Vec<AuthPromptField>,
+    /// The answer given to the same question just before was wrong.
+    pub retry: bool,
+}
+
+#[derive(Debug, Clone, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct AuthPromptField {
+    pub text: String,
+    /// Whether the answer may be shown while typing (false for secrets).
+    pub echo: bool,
 }

@@ -6,6 +6,7 @@ use tterm_core::events::{AppEvent, EventSink, EventTarget};
 mod background; // P1-03.
 mod launch_dir; // P1-03.
 mod notification; // P1-03.
+mod proxy; // P1-05.
 pub(crate) mod search; // P1-04.
 mod serial; // P1-03.
 mod session_log; // P1-03.
@@ -36,6 +37,7 @@ impl TauriEventSink {
     /// Maps domain payloads without touching the window or transport.
     pub(crate) fn wire(event: &AppEvent) -> Result<(EventName, EventTarget, Value), String> {
         let payload = match event {
+            AppEvent::Proxy(event) => proxy::wire(event)?, // P1-05.
             AppEvent::Tunnel(event) => tunnel::wire(event)?,
             AppEvent::LaunchDir(event) => launch_dir::wire(event)?, // P1-03.
             AppEvent::Notification(event) => notification::wire(event)?, // P1-03.

@@ -3,6 +3,7 @@
 pub mod background;
 pub mod launch_dir;
 pub mod notification;
+pub mod proxy; // P1-05.
 pub mod serial;
 pub mod session_log;
 pub mod sftp; // P1-04.
@@ -25,6 +26,8 @@ use zmodem::ZmodemEvent;
 /// A business event emitted by a core service.
 #[derive(Debug, Clone, PartialEq)]
 pub enum AppEvent {
+    /// P1-05: local proxy execution approval.
+    Proxy(proxy::ProxyEvent),
     /// Tunnel state and traffic changed.
     Tunnel(TunnelEvent),
     /// P1-03: directories queued for the frontend to open.
@@ -83,6 +86,7 @@ impl AppEvent {
     /// Returns the delivery scope required by this event.
     pub fn target(&self) -> EventTarget {
         match self {
+            Self::Proxy(event) => event.target(), // P1-05.
             Self::Tunnel(event) => event.target(),
             Self::LaunchDir(event) => event.target(), // P1-03.
             Self::Notification(event) => event.target(), // P1-03.
@@ -99,6 +103,7 @@ impl AppEvent {
     /// Returns this event's stable or dynamic wire name.
     pub fn name(&self) -> EventName {
         match self {
+            Self::Proxy(event) => event.name(), // P1-05.
             Self::Tunnel(event) => event.name(),
             Self::LaunchDir(event) => event.name(), // P1-03.
             Self::Notification(event) => event.name(), // P1-03.

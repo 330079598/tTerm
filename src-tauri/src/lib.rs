@@ -21,6 +21,7 @@ mod monitor;
 mod notification;
 mod platform;
 mod profiles;
+mod prompt_scope;
 mod proxy;
 mod serial;
 mod session;
@@ -66,8 +67,6 @@ pub fn run_console_helper() -> Option<i32> {
 )]
 pub fn run() {
     let pty_map: PtyMap = Arc::new(RwLock::new(std::collections::HashMap::new()));
-    let host_prompt_map: core::state::HostPromptMap =
-        Arc::new(RwLock::new(std::collections::HashMap::new()));
     let sftp_pool: sftp::internal::types::SftpConnectionPool =
         Arc::new(RwLock::new(std::collections::HashMap::new()));
     let monitor_sessions: monitor::types::MonitorSessionMap =
@@ -124,12 +123,10 @@ pub fn run() {
 
     builder
         .manage(pty_map)
-        .manage(host_prompt_map)
-        .manage(ssh::auth::AuthPromptMap::default())
-        .manage(proxy::approval::ProxyCommandPrompts::default())
         .manage(sftp_pool)
         .manage(sftp::internal::api::external::ExternalEditState::default())
         .manage(monitor_sessions)
+        .manage(monitor::prompts::PendingMonitorPrompts::default())
         .manage(transfer_cancel_map)
         .manage(zmodem_map)
         .manage(zmodem_armed_send_map)
@@ -370,6 +367,9 @@ pub fn run() {
             app_paths::initialize(&app_handle)?;
             app_identity::initialize(&app_handle);
             platform::initialize(&app_handle);
+            app.manage(Arc::new(tterm_core::prompts::PromptBroker::new(Arc::new(
+                event_sink::TauriEventSink::new(app_handle.clone()),
+            ))));
             system_integration::initialize(&app_handle);
             launch_dir::open_from_startup(&app_handle);
 
@@ -451,6 +451,8 @@ pub fn run() {
                     }
                 }
                 tauri::RunEvent::Exit => {
+                    app.state::<Arc<tterm_core::prompts::PromptBroker>>()
+                        .shutdown();
                     window_state::save(app);
                     launch_dir::forget_startup_dir(app);
                     // Tunnels may still be running; keep what they carried.
@@ -471,3 +473,6 @@ pub fn run() {
             }
         });
 }
+
+#[cfg(test)]
+mod prompt_contract_tests;

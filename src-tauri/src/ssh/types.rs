@@ -1,12 +1,11 @@
 use tterm_core::events::ssh::AuthUsedPayload;
 use tterm_core::events::ssh::SshConnectionProgressPayload;
+use tterm_core::events::ssh::SshHostKeyPromptPayload;
 use tterm_core::events::EventSink;
 
 use crate::ssh::openssh_known_hosts::verify::KnownHostVerdict;
 use crate::ssh::openssh_known_hosts::{check_presented_key, listed_record};
-use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::Arc;
-use tauri::Emitter;
+use std::sync::{Arc, Mutex};
 
 pub const HOST_KEY_PROMPT_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(120);
 pub const HOST_KEY_REJECTED_REASON: &str = "SSH host fingerprint rejected by user";
@@ -19,6 +18,8 @@ pub const HOST_KEY_REJECTED_REASON: &str = "SSH host fingerprint rejected by use
 pub enum SshConnectError {
     /// The user refused the host key (or a changed known host was rejected).
     HostKeyRejected,
+    /// The connection operation ended before the user answered.
+    Cancelled(String),
     /// A permanent failure — rejected credentials, an unusable key, or a local
     /// known_hosts store error. Retrying cannot succeed.
     Permanent(String),
@@ -39,7 +40,7 @@ impl SshConnectError {
     pub fn message(&self) -> &str {
         match self {
             Self::HostKeyRejected => HOST_KEY_REJECTED_REASON,
-            Self::Permanent(message) | Self::Network(message) => message,
+            Self::Cancelled(message) | Self::Permanent(message) | Self::Network(message) => message,
         }
     }
 
@@ -47,6 +48,7 @@ impl SshConnectError {
     pub fn with_prefix(self, prefix: &str) -> Self {
         match self {
             Self::HostKeyRejected => Self::HostKeyRejected,
+            Self::Cancelled(message) => Self::Cancelled(format!("{prefix}{message}")),
             Self::Permanent(message) => Self::Permanent(format!("{prefix}{message}")),
             Self::Network(message) => Self::Network(format!("{prefix}{message}")),
         }
@@ -175,8 +177,9 @@ pub struct SshClientHandler {
     pub profile_name: String,
     pub host: String,
     pub port: u16,
-    pub prompts: crate::core::state::HostPromptMap,
-    pub user_rejected_host_key: Arc<AtomicBool>,
+    pub prompts: std::sync::Arc<tterm_core::prompts::PromptBroker>,
+    pub prompt_owner: tterm_core::prompts::PromptOwner,
+    pub host_key_failure: Arc<Mutex<Option<SshConnectError>>>,
     pub status_options: ConnectionStatusOptions,
     pub host_key_verification_mode: HostKeyVerificationMode,
     /// Receives channels the server opens for remote port forwards. `None`
@@ -253,7 +256,6 @@ impl russh::client::Handler for SshClientHandler {
         server_public_key: &russh::keys::PublicKeyOrCertificate,
     ) -> Result<bool, Self::Error> {
         use russh::keys::ssh_key::HashAlg;
-        use tokio::sync::oneshot;
 
         // What `ssh` trusts or refuses decides first; a host certificate is
         // only asked for when `known_hosts` trusts an authority for the host.
@@ -350,10 +352,7 @@ impl russh::client::Handler for SshClientHandler {
         let known_fingerprint = known.as_ref().map(|r| r.fingerprint.clone());
 
         let request_id = uuid::Uuid::new_v4().to_string();
-        let (tx, rx) = oneshot::channel::<bool>();
-        self.prompts.write().await.insert(request_id.clone(), tx);
-
-        let payload = crate::ssh::store::SshHostKeyPromptPayload {
+        let payload = SshHostKeyPromptPayload {
             request_id: request_id.clone(),
             profile_name: self.profile_name.clone(),
             host: self.host.clone(),
@@ -364,29 +363,18 @@ impl russh::client::Handler for SshClientHandler {
             known_fingerprint,
         };
 
-        let event_name = format!("ssh-hostkey-prompt-{}", self.tab_id);
-        let _ = self
-            .app
-            .emit_to(tauri::EventTarget::any(), &event_name, payload);
-        crate::background::reveal_for_prompt(&self.app);
+        let wait =
+            crate::prompt_scope::host_key(&self.prompts, &self.prompt_owner, &self.tab_id, payload);
+        crate::prompt_scope::reveal(&self.app);
 
         self.emit_status(
             "33",
             "Waiting for user confirmation of SSH host fingerprint...",
         );
 
-        let approved = match tokio::time::timeout(HOST_KEY_PROMPT_TIMEOUT, rx).await {
-            Ok(Ok(value)) => value,
-            Ok(Err(_)) => false,
-            Err(_) => {
-                let _ = self.prompts.write().await.remove(&request_id);
-                false
-            }
-        };
-
-        if !approved {
-            self.user_rejected_host_key.store(true, Ordering::Relaxed);
-            self.emit_status("31", HOST_KEY_REJECTED_REASON);
+        if let Err(error) = crate::ssh::host_key_prompt::resolve(wait, &self.host_key_failure).await
+        {
+            self.emit_status("31", error.message());
             return Err(russh::Error::Disconnect);
         }
 

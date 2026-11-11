@@ -8,18 +8,18 @@
 //!
 //! [`AuthMethod::Auto`] has no configured method and tries what a plain
 //! `ssh user@host` would: the agent, key files, then asking the user.
+use tterm_core::events::ssh::AuthPromptField;
+#[cfg(test)]
+use tterm_core::events::ssh::AuthPromptPayload;
 
 use auto::auto;
 use methods::{keyboard_interactive, password_method, prompt_payload, publickey};
-use prompter::lock;
-use std::collections::HashMap;
+#[cfg(test)]
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use russh::client::{self, AuthResult};
 use russh::{MethodKind, MethodSet};
-use serde::Serialize;
-use tokio::sync::oneshot;
 
 use crate::ssh::typed_passwords;
 use crate::ssh::types::SshConnectError;
@@ -39,10 +39,6 @@ const MAX_STEPS: usize = 8;
 const TYPING_ATTEMPTS: usize = 3;
 /// Key files [`AuthMethod::Auto`] looks for in `~/.ssh`, in OpenSSH's order.
 const DEFAULT_IDENTITY_FILES: [&str; 3] = ["id_ed25519", "id_ecdsa", "id_rsa"];
-
-/// Pending prompts, keyed by request id. The sender receives the answers, or
-/// `None` when the user cancels.
-pub type AuthPromptMap = Arc<Mutex<HashMap<String, oneshot::Sender<Option<Vec<String>>>>>>;
 
 /// How a profile or jump host is configured to authenticate.
 #[derive(Debug, Clone, Copy)]
@@ -188,38 +184,6 @@ impl AuthTarget<'_> {
     }
 }
 
-/// A question for the user, as sent to the frontend.
-#[derive(Debug, Clone, Serialize, PartialEq, Eq)]
-#[serde(rename_all = "camelCase")]
-pub struct AuthPromptPayload {
-    pub request_id: String,
-    pub host: String,
-    pub port: u16,
-    pub username: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub hop_index: Option<usize>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub total_hops: Option<usize>,
-    /// `password` when the server asks for the account password through the
-    /// password method, `keyboard-interactive` for server-defined prompts,
-    /// `sudo` for the password sudo wants in the file manager's sudo mode.
-    pub kind: &'static str,
-    /// Server-supplied title and instructions; often empty.
-    pub name: String,
-    pub instructions: String,
-    pub prompts: Vec<AuthPromptField>,
-    /// The answer given to the same question just before was wrong.
-    pub retry: bool,
-}
-
-#[derive(Debug, Clone, Serialize, PartialEq, Eq)]
-#[serde(rename_all = "camelCase")]
-pub struct AuthPromptField {
-    pub text: String,
-    /// Whether the answer may be shown while typing (false for secrets).
-    pub echo: bool,
-}
-
 /// How to reach the user during authentication.
 #[derive(Clone)]
 pub enum AuthPrompter {
@@ -228,6 +192,14 @@ pub enum AuthPrompter {
     Tab {
         app: tauri::AppHandle,
         tab_id: String,
+        owner: Option<tterm_core::prompts::PromptOwner>,
+    },
+    /// One connection's UI capabilities, without a Tauri handle.
+    Scoped {
+        broker: std::sync::Arc<tterm_core::prompts::PromptBroker>,
+        owner: tterm_core::prompts::PromptOwner,
+        tab_id: String,
+        window: std::sync::Arc<dyn tterm_platform::window::MainWindow>,
     },
     /// Background sessions (monitoring, tunnels) have nowhere to show a
     /// prompt, so anything that needs one fails with an explanation.
@@ -250,14 +222,9 @@ pub struct ScriptedPrompts {
 pub fn respond_ssh_auth_prompt(
     request_id: String,
     responses: Option<Vec<String>>,
-    pending: tauri::State<'_, AuthPromptMap>,
+    pending: tauri::State<'_, std::sync::Arc<tterm_core::prompts::PromptBroker>>,
 ) -> Result<(), String> {
-    let sender = lock(pending.inner())
-        .remove(&request_id)
-        .ok_or_else(|| "Authentication prompt expired".to_string())?;
-    sender
-        .send(responses)
-        .map_err(|_| "Authentication prompt receiver is gone".to_string())
+    pending.reply_auth(&request_id, responses)
 }
 
 /// Runs the configured method and whatever the server requires afterwards,
@@ -356,7 +323,9 @@ where
         }
     };
 
+    prompter.ensure_open()?;
     for _ in 0..MAX_STEPS {
+        prompter.ensure_open()?;
         let remaining = match result {
             AuthResult::Success => {
                 if let (

@@ -1,3 +1,4 @@
+import { listenForHostKeyPromptExpiry } from "@/components/TerminalTab/hostKeyPromptExpiry"
 import type { TFunction } from "i18next"
 import React, { useState } from "react"
 import { invoke } from "@tauri-apps/api/core"
@@ -90,6 +91,7 @@ export function useConnectionTest({
     const testTabId = `test-${sshProfileId}`
     let unlistenProgress = () => {}
     let unlistenHostPrompt = () => {}
+    let unlistenHostExpiry = () => {}
     try {
       unlistenProgress = await listen<SshConnectionProgress>(
         `ssh-connection-progress-${testTabId}`,
@@ -99,6 +101,8 @@ export function useConnectionTest({
         `ssh-hostkey-prompt-${testTabId}`,
         (event) => setTestHostKeyPrompt(event.payload)
       )
+
+      unlistenHostExpiry = await listenForHostKeyPromptExpiry(testTabId, setTestHostKeyPrompt)
 
       const title = form.title.trim() || getDefaultTitle(form.type, form)
       const jumpHostsPayload = buildJumpHostsPayload(form, "snake")
@@ -167,6 +171,7 @@ export function useConnectionTest({
     } finally {
       unlistenProgress()
       unlistenHostPrompt()
+      unlistenHostExpiry()
       setTestHostKeyPrompt(null)
       setTestProgress(null)
       // Small delay to ensure UI updates properly.

@@ -1,12 +1,11 @@
 //! [`AuthMethod::Auto`]: what a plain `ssh user@host` would try.
+use tterm_core::events::ssh::AuthPromptField;
 
 use super::methods::{
     exchange, key_file_identities, keyboard_interactive, keyboard_interactive_capturing,
     password_method, prompt_payload, publickey, sign_in_with_key,
 };
-use super::{
-    AuthPromptField, AuthPrompter, AuthTarget, AuthUsed, DEFAULT_IDENTITY_FILES, TYPING_ATTEMPTS,
-};
+use super::{AuthPrompter, AuthTarget, AuthUsed, DEFAULT_IDENTITY_FILES, TYPING_ATTEMPTS};
 use crate::ssh::agent::offered_before;
 use crate::ssh::key_file::{parse_certificate, read_key};
 use crate::ssh::typed_passwords;

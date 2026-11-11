@@ -5,50 +5,25 @@
 //!
 //! What was allowed is kept in this device's database by the SHA-256 of the
 //! command, outside sync and backups, so a changed command asks again.
+use tterm_core::events::proxy::ProxyCommandPrompt;
+use tterm_core::events::proxy::ProxyEvent;
+use tterm_core::events::AppEvent;
+use tterm_core::prompts::{
+    PromptBroker, PromptId, PromptKind, PromptOptions, PromptOutcome, PromptReply, PromptRequest,
+};
 
 use crate::core::blocking::run_blocking;
 use crate::db::sql_error;
 use crate::ssh::types::SshConnectError;
 use rusqlite::{params, Connection, OptionalExtension};
-use serde::Serialize;
 use sha2::{Digest, Sha256};
-use std::collections::HashMap;
 use std::fmt::Write as _;
-use std::sync::{Arc, Mutex, MutexGuard};
+use std::sync::Arc;
 use std::time::Duration;
-use tauri::{AppHandle, Emitter, Manager, State};
-use tokio::sync::oneshot;
+use tauri::{AppHandle, Manager, State};
 
 /// As long as the host key and sign-in prompts wait for an answer.
 const PROMPT_TIMEOUT: Duration = Duration::from_secs(120);
-const PROMPT_EVENT: &str = "proxy-command-prompt";
-const PROMPT_EXPIRED_EVENT: &str = "proxy-command-prompt-expired";
-
-/// A question the user is asked before a proxy command first runs here.
-#[derive(Debug, Clone, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct ProxyCommandPrompt {
-    /// The SHA-256 of the command, so that connections waiting on the same
-    /// command share one question.
-    pub request_id: String,
-    pub proxy_name: String,
-    pub command: String,
-}
-
-struct PendingPrompt {
-    prompt: ProxyCommandPrompt,
-    waiters: Vec<oneshot::Sender<bool>>,
-}
-
-/// The questions waiting for an answer, by request id.
-#[derive(Default, Clone)]
-pub struct ProxyCommandPrompts(Arc<Mutex<HashMap<String, PendingPrompt>>>);
-
-impl ProxyCommandPrompts {
-    fn lock(&self) -> MutexGuard<'_, HashMap<String, PendingPrompt>> {
-        self.0.lock().unwrap_or_else(|poison| poison.into_inner())
-    }
-}
 
 fn command_hash(command: &str) -> String {
     Sha256::digest(command.as_bytes())
@@ -88,6 +63,7 @@ pub(crate) async fn ensure_allowed(
     app: &AppHandle,
     proxy_name: &str,
     command: &str,
+    owner: Option<&tterm_core::prompts::PromptOwner>,
 ) -> Result<(), SshConnectError> {
     let checked = command.to_string();
     let allowed =
@@ -97,59 +73,85 @@ pub(crate) async fn ensure_allowed(
     if allowed {
         return Ok(());
     }
-    let Some(prompts) = app.try_state::<ProxyCommandPrompts>() else {
-        return Err(SshConnectError::Permanent(
-            "The proxy command cannot be confirmed right now.".to_string(),
-        ));
+    let prompts = app.state::<Arc<PromptBroker>>();
+    let fallback;
+    let owner = match owner {
+        Some(owner) => owner,
+        None => {
+            fallback = crate::prompt_scope::PromptScope::new(prompts.inner().clone(), None)
+                .map_err(SshConnectError::Permanent)?;
+            &fallback.owner
+        }
     };
-    let prompts = prompts.inner().clone();
     let request_id = command_hash(command);
-    let (sender, receiver) = oneshot::channel();
-    let ask = {
-        let mut pending = prompts.lock();
-        let entry = pending
-            .entry(request_id.clone())
-            .or_insert_with(|| PendingPrompt {
-                prompt: ProxyCommandPrompt {
+    let wait = prompts
+        .begin(
+            PromptRequest {
+                id: PromptId(request_id.clone()),
+                kind: PromptKind::ProxyCommand,
+                event: AppEvent::Proxy(ProxyEvent::CommandPrompt(ProxyCommandPrompt {
                     request_id: request_id.clone(),
                     proxy_name: proxy_name.to_string(),
                     command: command.to_string(),
-                },
-                waiters: Vec::new(),
-            });
-        entry.waiters.push(sender);
-        (entry.waiters.len() == 1).then(|| entry.prompt.clone())
-    };
-    if let Some(prompt) = ask {
-        let _ = app.emit_to(tauri::EventTarget::any(), PROMPT_EVENT, prompt);
-        crate::background::reveal_for_prompt(app);
+                })),
+                expired_event: Some(AppEvent::Proxy(ProxyEvent::CommandPromptExpired(
+                    request_id,
+                ))),
+            },
+            PromptOptions {
+                owner: owner.clone(),
+                timeout: PROMPT_TIMEOUT,
+            },
+        )
+        .map_err(SshConnectError::Permanent)?;
+    if wait.is_first_waiter() {
+        crate::prompt_scope::reveal(app);
     }
+    approval_outcome(
+        wait.wait().await.map_err(SshConnectError::Cancelled)?,
+        owner,
+        proxy_name,
+    )
+}
 
-    match tokio::time::timeout(PROMPT_TIMEOUT, receiver).await {
-        Ok(Ok(true)) => Ok(()),
-        Ok(_) => Err(SshConnectError::Permanent(format!(
+fn approval_outcome(
+    outcome: PromptOutcome,
+    owner: &tterm_core::prompts::PromptOwner,
+    proxy_name: &str,
+) -> Result<(), SshConnectError> {
+    if owner.is_closed()
+        || matches!(
+            outcome,
+            PromptOutcome::Cancelled | PromptOutcome::ReceiverClosed
+        )
+    {
+        return Err(SshConnectError::Cancelled(format!(
+            "The proxy command of \"{proxy_name}\" was cancelled."
+        )));
+    }
+    match outcome {
+        PromptOutcome::Answered(PromptReply::ProxyCommand(true)) if !owner.is_closed() => Ok(()),
+        PromptOutcome::TimedOut => Err(SshConnectError::Permanent(format!(
+            "The proxy command of \"{proxy_name}\" timed out waiting for you to allow it."
+        ))),
+        _ => Err(SshConnectError::Permanent(format!(
             "The proxy command of \"{proxy_name}\" was not allowed to run on this device."
         ))),
-        Err(_) => {
-            if prompts.lock().remove(&request_id).is_some() {
-                let _ = app.emit_to(tauri::EventTarget::any(), PROMPT_EXPIRED_EVENT, &request_id);
-            }
-            Err(SshConnectError::Permanent(format!(
-                "The proxy command of \"{proxy_name}\" timed out waiting for you to allow it."
-            )))
-        }
     }
 }
 
 /// The questions still waiting, for a window that opens after they were asked.
 #[tauri::command]
 pub fn pending_proxy_command_prompts(
-    prompts: State<'_, ProxyCommandPrompts>,
+    prompts: State<'_, Arc<PromptBroker>>,
 ) -> Vec<ProxyCommandPrompt> {
     prompts
-        .lock()
-        .values()
-        .map(|pending| pending.prompt.clone())
+        .pending_proxy()
+        .into_iter()
+        .filter_map(|request| match request.event {
+            AppEvent::Proxy(ProxyEvent::CommandPrompt(prompt)) => Some(prompt),
+            _ => None,
+        })
         .collect()
 }
 
@@ -158,25 +160,34 @@ pub fn pending_proxy_command_prompts(
 pub async fn respond_proxy_command_prompt(
     request_id: String,
     allow: bool,
-    prompts: State<'_, ProxyCommandPrompts>,
+    prompts: State<'_, Arc<PromptBroker>>,
 ) -> Result<(), String> {
-    let pending = prompts
-        .lock()
-        .remove(&request_id)
-        .ok_or_else(|| "The proxy command question has expired.".to_string())?;
-    let saved = if allow {
-        let command = pending.prompt.command.clone();
-        run_blocking(move || crate::db::write(|transaction| self::allow(transaction, &command)))
-            .await
-    } else {
-        Ok(())
+    let pending = prompts.claim_proxy(&request_id)?;
+    let command = match &pending.request().event {
+        AppEvent::Proxy(ProxyEvent::CommandPrompt(prompt)) => prompt.command.clone(),
+        _ => return Err("The proxy command question has expired.".into()),
     };
+    let saved = async move {
+        if allow {
+            run_blocking(move || crate::db::write(|transaction| self::allow(transaction, &command)))
+                .await
+        } else {
+            Ok(())
+        }
+    };
+    resolve_approval(pending, allow, saved).await
+}
+
+async fn resolve_approval(
+    pending: tterm_core::prompts::proxy::ProxyResolution,
+    allow: bool,
+    saved: impl std::future::Future<Output = Result<(), String>>,
+) -> Result<(), String> {
+    let saved = saved.await;
     // When the command cannot be remembered, the waiting connections stop
     // rather than run it and ask again next time.
     let allowed = allow && saved.is_ok();
-    for waiter in pending.waiters {
-        let _ = waiter.send(allowed);
-    }
+    pending.complete(allowed);
     saved
 }
 
@@ -199,5 +210,101 @@ mod tests {
         assert!(is_allowed(&connection, command).expect("read"));
         assert!(!is_allowed(&connection, &format!("{command} ")).expect("read"));
         assert_eq!(command_hash("").len(), 64);
+    }
+    #[test]
+    fn cancelled_proxy_approval_is_distinct_from_denial() {
+        let (broker, _wait) = pending();
+        let owner = broker.register_owner(None).unwrap();
+        for outcome in [PromptOutcome::Cancelled, PromptOutcome::ReceiverClosed] {
+            let error = approval_outcome(outcome, &owner, "test").unwrap_err();
+            assert!(matches!(error, SshConnectError::Cancelled(_)));
+            assert!(error.to_string().contains("cancelled"));
+        }
+        assert!(matches!(
+            approval_outcome(
+                PromptOutcome::Answered(PromptReply::ProxyCommand(false)),
+                &owner,
+                "test"
+            ),
+            Err(SshConnectError::Permanent(_))
+        ));
+        broker.cancel_owner(&owner);
+        assert!(matches!(
+            approval_outcome(
+                PromptOutcome::Answered(PromptReply::ProxyCommand(true)),
+                &owner,
+                "test"
+            ),
+            Err(SshConnectError::Cancelled(_))
+        ));
+    }
+
+    fn pending() -> (Arc<PromptBroker>, tterm_core::prompts::PromptWait) {
+        let broker = Arc::new(PromptBroker::new(Arc::new(
+            tterm_core::events::recording::RecordingEventSink::default(),
+        )));
+        let owner = broker.register_owner(None).unwrap();
+        let wait = broker
+            .begin(
+                PromptRequest {
+                    id: PromptId("hash".into()),
+                    kind: PromptKind::ProxyCommand,
+                    event: AppEvent::Proxy(ProxyEvent::CommandPrompt(ProxyCommandPrompt {
+                        request_id: "hash".into(),
+                        proxy_name: "p1-05".into(),
+                        command: "nc %h %p".into(),
+                    })),
+                    expired_event: None,
+                },
+                PromptOptions {
+                    owner,
+                    timeout: Duration::from_secs(120),
+                },
+            )
+            .unwrap();
+        (broker, wait)
+    }
+
+    #[tokio::test]
+    async fn approval_waits_for_persistence_and_failure_denies_execution() {
+        let (broker, wait) = pending();
+        let claim = broker.claim_proxy("hash").unwrap();
+        let (save, saved) = tokio::sync::oneshot::channel::<Result<(), String>>();
+        let task = tokio::spawn(resolve_approval(claim, true, async {
+            saved.await.unwrap()
+        }));
+        let waiter = tokio::spawn(wait.wait());
+        tokio::task::yield_now().await;
+        assert!(
+            !waiter.is_finished(),
+            "approval must not precede the DB result"
+        );
+        save.send(Err("database write failed".into())).unwrap();
+        assert_eq!(task.await.unwrap().unwrap_err(), "database write failed");
+        assert_eq!(
+            waiter.await.unwrap().unwrap(),
+            PromptOutcome::Answered(PromptReply::ProxyCommand(false))
+        );
+    }
+
+    #[tokio::test]
+    async fn abandoned_approval_rejects_and_success_releases_only_after_save() {
+        let (broker, wait) = pending();
+        let claim = broker.claim_proxy("hash").unwrap();
+        let task = tokio::spawn(resolve_approval(claim, true, std::future::pending()));
+        task.abort();
+        assert!(task.await.unwrap_err().is_cancelled());
+        assert_eq!(
+            wait.wait().await.unwrap(),
+            PromptOutcome::Answered(PromptReply::ProxyCommand(false))
+        );
+        let (broker, wait) = pending();
+        resolve_approval(broker.claim_proxy("hash").unwrap(), true, async { Ok(()) })
+            .await
+            .unwrap();
+        assert_eq!(
+            wait.wait().await.unwrap(),
+            PromptOutcome::Answered(PromptReply::ProxyCommand(true))
+        );
     }
 }

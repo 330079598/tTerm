@@ -1,8 +1,8 @@
 //! The single authentication methods, each one exchange with the server.
+use tterm_core::events::ssh::AuthPromptField;
+use tterm_core::events::ssh::AuthPromptPayload;
 
-use super::{
-    AuthPromptField, AuthPromptPayload, AuthPrompter, AuthTarget, EXCHANGE_TIMEOUT, MAX_STEPS,
-};
+use super::{AuthPrompter, AuthTarget, EXCHANGE_TIMEOUT, MAX_STEPS};
 use crate::ssh::agent::offered_before;
 use crate::ssh::key_file::{display_path, parse_certificate, read_key};
 use crate::ssh::key_vault;

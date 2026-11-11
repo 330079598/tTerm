@@ -54,7 +54,6 @@ pub mod search;
 pub mod upload;
 
 use crate::core::session::types::{PtyConnectionOptions, SessionPlan};
-use crate::core::state::HostPromptMap;
 use crate::sftp::internal::connection::{
     ensure_ssh_plan, evict_connection, get_or_create_sftp_connection, pooled_handles,
 };
@@ -145,7 +144,7 @@ pub struct SftpHost<'a> {
     pub app: &'a AppHandle,
     pub tab_id: &'a str,
     pub connection: Option<PtyConnectionOptions>,
-    pub prompts: HostPromptMap,
+    pub prompts: std::sync::Arc<tterm_core::prompts::PromptBroker>,
     pub secret_state: &'a SecretStoreState,
     pub pool: &'a SftpConnectionPool,
 }
@@ -187,7 +186,7 @@ pub async fn prepare_transfer(
     app: &AppHandle,
     tab_id: &str,
     plan: &SessionPlan,
-    prompts: HostPromptMap,
+    prompts: std::sync::Arc<tterm_core::prompts::PromptBroker>,
     pool: &SftpConnectionPool,
 ) -> Result<(Arc<SftpSession>, RemoteChannels), String> {
     let key = SftpConnectionKey::from_plan(tab_id, plan)?;

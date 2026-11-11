@@ -1,5 +1,6 @@
 //! Drives [`authenticate`] against an in-process `russh` server over a
 //! duplex stream, so every case speaks the real authentication protocol.
+use tterm_core::events::ssh::AuthPromptField;
 
 use std::borrow::Cow;
 use std::collections::VecDeque;
@@ -12,11 +13,11 @@ use russh::{MethodKind, MethodSet};
 use crate::ssh::typed_passwords;
 
 use super::methods::is_password_prompt;
-use super::{
-    authenticate, AuthMethod, AuthPromptField, AuthPrompter, AuthTarget, AuthUsed, ScriptedPrompts,
-};
+use super::{authenticate, AuthMethod, AuthPrompter, AuthTarget, AuthUsed, ScriptedPrompts};
 
+mod broker;
 mod certificates;
+mod orbstack;
 
 const USER: &str = "ops";
 const PASSWORD: &str = "hunter2";

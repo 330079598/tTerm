@@ -1,5 +1,4 @@
 use super::*;
-use crate::core::state::HostPromptMap;
 use crate::sftp::internal::connection::{
     connect_authenticated_ssh, get_or_create_sftp_connection, map_sftp_error, pooled_handles,
 };
@@ -16,7 +15,7 @@ pub(super) async fn preview_delete_entries(
     app: &AppHandle,
     tab_id: &str,
     plan: &crate::core::session::types::SessionPlan,
-    prompts: HostPromptMap,
+    prompts: std::sync::Arc<tterm_core::prompts::PromptBroker>,
     pool: &SftpConnectionPool,
     entries: &[DeleteEntryRequest],
 ) -> Result<DeletePreviewResult, String> {
@@ -321,7 +320,7 @@ pub(super) struct DeleteBatch {
     pub(super) events: Arc<dyn EventSink>,
     pub(super) tab_id: String,
     pub(super) plan: crate::core::session::types::SessionPlan,
-    pub(super) prompts: HostPromptMap,
+    pub(super) prompts: std::sync::Arc<tterm_core::prompts::PromptBroker>,
     pub(super) pool: SftpConnectionPool,
     pub(super) batch_id: String,
     pub(super) entries: Vec<DeleteEntryRequest>,
@@ -432,7 +431,7 @@ async fn get_or_create_delete_sftp(
     app: &AppHandle,
     tab_id: &str,
     plan: &crate::core::session::types::SessionPlan,
-    prompts: HostPromptMap,
+    prompts: std::sync::Arc<tterm_core::prompts::PromptBroker>,
     pool: &SftpConnectionPool,
 ) -> Result<Arc<SftpSession>, String> {
     let key = SftpConnectionKey::from_plan(tab_id, plan)?;

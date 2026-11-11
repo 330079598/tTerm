@@ -18,7 +18,6 @@ mod watch;
 
 use crate::core::blocking::run_blocking;
 use crate::core::session::types::{PtyConnectionOptions, SessionPlan};
-use crate::core::state::HostPromptMap;
 use crate::event_sink::TauriEventSink;
 use crate::sftp::internal::api::download::download_file_with_progress;
 use crate::sftp::internal::api::prepare_transfer;
@@ -121,7 +120,7 @@ struct Host<'a> {
     app: &'a AppHandle,
     tab_id: &'a str,
     plan: SessionPlan,
-    prompts: HostPromptMap,
+    prompts: std::sync::Arc<tterm_core::prompts::PromptBroker>,
     pool: &'a SftpConnectionPool,
     cancel_map: &'a TransferCancelMap,
 }
@@ -296,7 +295,7 @@ pub async fn sftp_external_edit_open(
     path: String,
     open_in: OpenIn,
     transfer_id: Option<String>,
-    prompt_state: State<'_, HostPromptMap>,
+    prompt_state: State<'_, std::sync::Arc<tterm_core::prompts::PromptBroker>>,
     secret_state: State<'_, SecretStoreState>,
     pool_state: State<'_, SftpConnectionPool>,
     cancel_map: State<'_, TransferCancelMap>,
@@ -386,7 +385,7 @@ pub async fn sftp_external_edit_upload(
     connection: Option<PtyConnectionOptions>,
     id: String,
     overwrite: bool,
-    prompt_state: State<'_, HostPromptMap>,
+    prompt_state: State<'_, std::sync::Arc<tterm_core::prompts::PromptBroker>>,
     secret_state: State<'_, SecretStoreState>,
     pool_state: State<'_, SftpConnectionPool>,
     cancel_map: State<'_, TransferCancelMap>,

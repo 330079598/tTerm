@@ -3,11 +3,9 @@
 use super::super::storage::normalize_profile;
 use super::super::types::SavedProfile;
 use crate::core::session::types::SessionPlan;
-use crate::core::state::HostPromptMap;
 use crate::ssh::{
     types::ConnectionStatusOptions, types::HostKeyVerificationMode, types::SshClientHandler,
 };
-use std::sync::atomic::AtomicBool;
 use std::sync::Arc;
 
 pub(super) fn test_connection_handler(
@@ -16,8 +14,8 @@ pub(super) fn test_connection_handler(
     plan: &crate::core::session::types::SessionPlan,
     host: &str,
     port: u16,
-    prompts: HostPromptMap,
-    host_key_verification_mode: HostKeyVerificationMode,
+    prompts: std::sync::Arc<tterm_core::prompts::PromptBroker>,
+    verification: (HostKeyVerificationMode, tterm_core::prompts::PromptOwner),
 ) -> SshClientHandler {
     SshClientHandler {
         app: app.clone(),
@@ -27,9 +25,10 @@ pub(super) fn test_connection_handler(
         host: host.to_string(),
         port,
         prompts,
-        user_rejected_host_key: Arc::new(AtomicBool::new(false)),
+        host_key_failure: Arc::new(std::sync::Mutex::new(None)),
         status_options: ConnectionStatusOptions::SILENT,
-        host_key_verification_mode,
+        host_key_verification_mode: verification.0,
+        prompt_owner: verification.1,
         forwarded_tcpip_tx: None,
         // A test connection just probes auth; it never keeps the session
         // around long enough for agent forwarding to matter.

@@ -4,7 +4,7 @@ mod setup;
 
 use super::types::{ConnectionStatusOptions, SshClientHandler};
 use crate::core::session::types::SessionPlan;
-use crate::core::state::{ChannelContext, HostPromptMap};
+use crate::core::state::ChannelContext;
 use crate::ssh::jump::connect::JumpChain;
 use crate::ssh::jump::pool::{self, chain_keys, PooledSession, RouteKey};
 use crate::zmodem::session::ZmodemSettings;
@@ -101,7 +101,7 @@ pub async fn run_single_ssh_connection(
     context: (ChannelContext, tauri::AppHandle),
     settings: ZmodemSettings,
     plan: SessionPlan,
-    prompts: HostPromptMap,
+    prompts: std::sync::Arc<tterm_core::prompts::PromptBroker>,
     rows: u16,
     cols: u16,
     io: SshChannelIo,
@@ -139,6 +139,24 @@ pub async fn run_single_ssh_connection(
         }
     };
 
+    let prompt_scope = match crate::prompt_scope::PromptScope::new(
+        prompts.clone(),
+        Some(tterm_core::prompts::SessionKey {
+            tab_id: tab_id.clone(),
+            session_nonce: tab.session_nonce,
+        }),
+    ) {
+        Ok(scope) => scope,
+        Err(reason) => {
+            finish_output(&mut sender);
+            return SshExitSignal {
+                terminated: true,
+                recoverable: false,
+                reason: Some(reason),
+                connected_duration: None,
+            };
+        }
+    };
     // Use open_target_ssh_session for connection + auth (supports jump hosts)
     let (jump_chain, session) = match crate::ssh::jump::connect::open_target_ssh_session(
         crate::ssh::jump::connect::ConnectContext {
@@ -148,6 +166,7 @@ pub async fn run_single_ssh_connection(
             status_options: ConnectionStatusOptions::VERBOSE,
             host_key_verification_mode:
                 crate::ssh::types::HostKeyVerificationMode::PromptAndPersist,
+            prompt_owner: Some(&prompt_scope.owner),
             auth_prompter: &crate::ssh::auth::AuthPrompter::tab(&app, &tab_id),
         },
         crate::ssh::jump::connect::SshTarget::from_plan(&plan, &host, &username),

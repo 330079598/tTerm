@@ -1,7 +1,6 @@
 use super::metrics::{parse_metrics_output, METRICS_SCRIPT};
 use super::types::{MonitorSession, MonitorSessionMap, MONITOR_SESSION_IDLE_TIMEOUT};
 use crate::core::session::types::SessionPlan;
-use crate::core::state::HostPromptMap;
 use crate::sftp::internal::exec::RemoteScript;
 use crate::ssh::{
     jump::connect::open_target_ssh_session, jump::connect::ConnectContext,
@@ -39,6 +38,7 @@ fn remembered_refusal(tab_id: &str, session_nonce: u32, fingerprint: &str) -> Op
         .map(|entry| entry.message.clone())
 }
 
+#[cfg(test)]
 fn remember_refusal(tab_id: &str, session_nonce: u32, fingerprint: &str, message: &str) {
     refused().insert(
         tab_id.to_string(),
@@ -48,6 +48,31 @@ fn remember_refusal(tab_id: &str, session_nonce: u32, fingerprint: &str, message
             message: message.to_string(),
         },
     );
+}
+
+fn record_connect_failure(
+    tab_id: &str,
+    nonce: u32,
+    fingerprint: &str,
+    owner: &tterm_core::prompts::PromptOwner,
+    error: &crate::ssh::types::SshConnectError,
+) {
+    // Release cancels first, then clears this cache. Check under the cache lock
+    // so a late completion cannot insert between that check and the clear.
+    let mut cache = refused();
+    if !owner.is_closed()
+        && !error.is_retryable()
+        && !matches!(error, crate::ssh::types::SshConnectError::Cancelled(_))
+    {
+        cache.insert(
+            tab_id.to_string(),
+            RefusedConnection {
+                session_nonce: nonce,
+                fingerprint: fingerprint.to_string(),
+                message: error.message().to_string(),
+            },
+        );
+    }
 }
 
 pub(crate) fn monitor_connection_fingerprint(plan: &SessionPlan) -> Result<String, String> {
@@ -96,7 +121,7 @@ pub(crate) async fn get_or_open_monitor_session(
     session_nonce: u32,
     plan: &SessionPlan,
     fingerprint: &str,
-    prompts: HostPromptMap,
+    prompts: std::sync::Arc<tterm_core::prompts::PromptBroker>,
     monitor_sessions: MonitorSessionMap,
 ) -> Result<Arc<Mutex<MonitorSession>>, String> {
     if let Some(message) = remembered_refusal(tab_id, session_nonce, fingerprint) {
@@ -142,6 +167,9 @@ pub(crate) async fn get_or_open_monitor_session(
         .clone()
         .ok_or_else(|| "SSH username is required".to_string())?;
 
+    use tauri::Manager;
+    let registry = app.state::<super::prompts::PendingMonitorPrompts>();
+    let prompt_scope = registry.begin(prompts.clone(), tab_id, session_nonce)?;
     let (jump_chain, ssh) = open_target_ssh_session(
         ConnectContext {
             app,
@@ -151,15 +179,20 @@ pub(crate) async fn get_or_open_monitor_session(
             host_key_verification_mode:
                 crate::ssh::types::HostKeyVerificationMode::PromptAndPersist,
             // Monitoring starts on its own; a prompt would appear out of nowhere.
+            prompt_owner: Some(&prompt_scope.scope.owner),
             auth_prompter: &crate::ssh::auth::AuthPrompter::Unavailable,
         },
         SshTarget::from_plan(plan, &host, &username),
     )
     .await
     .map_err(|error| {
-        if !error.is_retryable() {
-            remember_refusal(tab_id, session_nonce, fingerprint, error.message());
-        }
+        record_connect_failure(
+            tab_id,
+            session_nonce,
+            fingerprint,
+            &prompt_scope.scope.owner,
+            &error,
+        );
         String::from(error)
     })?;
 
@@ -346,6 +379,77 @@ async fn close_monitor_session(session: Option<Arc<Mutex<MonitorSession>>>, reas
 #[cfg(test)]
 mod tests {
     use super::{refused, remember_refusal, remembered_refusal};
+
+    #[tokio::test]
+    async fn cancelled_monitor_can_reopen_same_session_and_ask_again() {
+        use std::sync::{Arc, Mutex};
+        use tterm_core::events::{recording::RecordingEventSink, ssh::SshHostKeyPromptPayload};
+        use tterm_core::prompts::{PromptBroker, PromptOutcome, PromptReply};
+        let tab = "p1-05-cancel-reopen";
+        let sink = Arc::new(RecordingEventSink::default());
+        let broker = Arc::new(PromptBroker::new(sink.clone()));
+        let registry = crate::monitor::prompts::PendingMonitorPrompts::default();
+        broker.open_session(&tterm_core::prompts::SessionKey {
+            tab_id: tab.into(),
+            session_nonce: 1,
+        });
+        let scope = registry.begin(broker.clone(), tab, 1).unwrap();
+        let payload = |id: &str| SshHostKeyPromptPayload {
+            request_id: id.into(),
+            profile_name: "test".into(),
+            host: "test".into(),
+            port: 22,
+            algorithm: "ssh-ed25519".into(),
+            fingerprint: "SHA256:test".into(),
+            reason: "unknown".into(),
+            known_fingerprint: None,
+        };
+        let first =
+            crate::prompt_scope::host_key(&broker, &scope.scope.owner, tab, payload("first"));
+        registry.cancel(&broker, tab, Some(1));
+        refused().remove(tab);
+        // The connect task finishes only after release has cleared REFUSED.
+        let slot = Mutex::new(None);
+        let error = crate::ssh::host_key_prompt::resolve(first, &slot)
+            .await
+            .unwrap_err();
+        super::record_connect_failure(tab, 1, "fp", &scope.scope.owner, &error);
+        // Even another permanent result from the closed task cannot poison the cache.
+        super::record_connect_failure(
+            tab,
+            1,
+            "fp",
+            &scope.scope.owner,
+            &crate::ssh::types::SshConnectError::Permanent("late failure".into()),
+        );
+        assert!(remembered_refusal(tab, 1, "fp").is_none());
+        assert!(matches!(
+            crate::ssh::host_key_prompt::failure(&slot),
+            Some(crate::ssh::types::SshConnectError::Cancelled(_))
+        ));
+        let reopened = registry.begin(broker.clone(), tab, 1).unwrap();
+        let second =
+            crate::prompt_scope::host_key(&broker, &reopened.scope.owner, tab, payload("second"))
+                .unwrap();
+        broker.reply_host_key("second", true).unwrap();
+        assert_eq!(
+            second.wait().await.unwrap(),
+            PromptOutcome::Answered(PromptReply::HostKey(true))
+        );
+        assert_eq!(
+            sink.events()
+                .iter()
+                .filter(|event| matches!(
+                    event,
+                    tterm_core::events::AppEvent::Ssh(
+                        tterm_core::events::ssh::SshEvent::HostKeyPrompt { .. }
+                    )
+                ))
+                .count(),
+            2
+        );
+        assert!(broker.reply_host_key("first", true).is_err());
+    }
 
     #[test]
     fn a_refusal_is_remembered_for_the_same_connection_only() {
