@@ -11,36 +11,57 @@ use session::{
     collect_metrics_snapshot, get_or_open_monitor_session, monitor_connection_fingerprint,
     reap_idle_monitor_sessions, release_monitor_session_inner,
 };
-use tauri::{AppHandle, State};
 use types::MonitorSessionMap;
 use types::ServerMetricsSnapshot;
 
 #[tauri::command]
 pub async fn get_server_metrics_snapshot(
-    app: AppHandle,
     tab_id: String,
     session_nonce: u32,
     connection: Option<PtyConnectionOptions>,
-    prompt_state: State<'_, std::sync::Arc<tterm_core::prompts::PromptBroker>>,
-    secret_state: State<'_, SecretStoreState>,
-    monitor_sessions: State<'_, MonitorSessionMap>,
+    services: tauri::State<'_, std::sync::Arc<crate::services::AppServices>>,
 ) -> Result<ServerMetricsSnapshot, String> {
+    let app = crate::connection_context::connection(&services);
+    let prompt_state = services.shared.prompts.clone();
+    let secret_state = services.shared.secrets.clone();
+    let monitor_sessions = services.session.monitors.clone();
+    let registry = services.session.monitor_prompts.clone();
+    get_server_metrics_snapshot_service(
+        app,
+        prompt_state,
+        secret_state,
+        monitor_sessions,
+        registry,
+        (tab_id, session_nonce, connection),
+    )
+    .await
+}
+async fn get_server_metrics_snapshot_service(
+    app: crate::ssh::context::ConnectionContext,
+    prompt_state: std::sync::Arc<tterm_core::prompts::PromptBroker>,
+    secret_state: SecretStoreState,
+    monitor_sessions: MonitorSessionMap,
+    registry: std::sync::Arc<prompts::PendingMonitorPrompts>,
+    arguments: (String, u32, Option<PtyConnectionOptions>),
+) -> Result<ServerMetricsSnapshot, String> {
+    let (tab_id, session_nonce, connection) = arguments;
+
     let mut plan = normalize_connection(connection)?;
     if !matches!(plan.kind, crate::core::state::SessionKind::Ssh) {
         return Err("Server monitoring requires an SSH connection".to_string());
     }
-    resolve_ssh_password(&app, &secret_state, &mut plan)?;
-    reap_idle_monitor_sessions(monitor_sessions.inner().clone()).await;
+    resolve_ssh_password(&secret_state, &mut plan)?;
+    reap_idle_monitor_sessions(monitor_sessions.clone()).await;
 
     let fingerprint = monitor_connection_fingerprint(&plan)?;
     let monitor_session = get_or_open_monitor_session(
-        &app,
+        (&app, &registry),
         &tab_id,
         session_nonce,
         &plan,
         &fingerprint,
-        prompt_state.inner().clone(),
-        monitor_sessions.inner().clone(),
+        prompt_state.clone(),
+        monitor_sessions.clone(),
     )
     .await?;
 
@@ -48,7 +69,7 @@ pub async fn get_server_metrics_snapshot(
         Ok(snapshot) => Ok(snapshot),
         Err(error) => {
             release_monitor_session_inner(
-                monitor_sessions.inner().clone(),
+                monitor_sessions.clone(),
                 &tab_id,
                 Some(session_nonce),
                 "monitor metrics failed",
@@ -61,21 +82,28 @@ pub async fn get_server_metrics_snapshot(
 
 #[tauri::command]
 pub async fn release_server_monitor_session(
-    app: AppHandle,
     tab_id: String,
     session_nonce: Option<u32>,
-    monitor_sessions: State<'_, MonitorSessionMap>,
+    services: tauri::State<'_, std::sync::Arc<crate::services::AppServices>>,
 ) -> Result<(), String> {
-    use tauri::Manager;
-    app.state::<prompts::PendingMonitorPrompts>().cancel(
-        app.state::<std::sync::Arc<tterm_core::prompts::PromptBroker>>()
-            .inner(),
-        &tab_id,
-        session_nonce,
-    );
-    reap_idle_monitor_sessions(monitor_sessions.inner().clone()).await;
+    let app = crate::connection_context::connection(&services);
+    let monitor_sessions = services.session.monitors.clone();
+    let registry = services.session.monitor_prompts.clone();
+    release_server_monitor_session_service(app, monitor_sessions, registry, (tab_id, session_nonce))
+        .await
+}
+async fn release_server_monitor_session_service(
+    app: crate::ssh::context::ConnectionContext,
+    monitor_sessions: MonitorSessionMap,
+    registry: std::sync::Arc<prompts::PendingMonitorPrompts>,
+    arguments: (String, Option<u32>),
+) -> Result<(), String> {
+    let (tab_id, session_nonce) = arguments;
+
+    registry.cancel(&app.prompts, &tab_id, session_nonce);
+    reap_idle_monitor_sessions(monitor_sessions.clone()).await;
     release_monitor_session_inner(
-        monitor_sessions.inner().clone(),
+        monitor_sessions.clone(),
         &tab_id,
         session_nonce,
         "monitor session released",

@@ -2,6 +2,7 @@ use super::metrics::{parse_metrics_output, METRICS_SCRIPT};
 use super::types::{MonitorSession, MonitorSessionMap, MONITOR_SESSION_IDLE_TIMEOUT};
 use crate::core::session::types::SessionPlan;
 use crate::sftp::internal::exec::RemoteScript;
+use crate::ssh::context::ConnectionContext;
 use crate::ssh::{
     jump::connect::open_target_ssh_session, jump::connect::ConnectContext,
     jump::connect::SshTarget, types::ConnectionStatusOptions,
@@ -116,7 +117,7 @@ pub(crate) fn monitor_connection_fingerprint(plan: &SessionPlan) -> Result<Strin
 }
 
 pub(crate) async fn get_or_open_monitor_session(
-    app: &tauri::AppHandle,
+    context: (&ConnectionContext, &super::prompts::PendingMonitorPrompts),
     tab_id: &str,
     session_nonce: u32,
     plan: &SessionPlan,
@@ -124,6 +125,7 @@ pub(crate) async fn get_or_open_monitor_session(
     prompts: std::sync::Arc<tterm_core::prompts::PromptBroker>,
     monitor_sessions: MonitorSessionMap,
 ) -> Result<Arc<Mutex<MonitorSession>>, String> {
+    let (app, registry) = context;
     if let Some(message) = remembered_refusal(tab_id, session_nonce, fingerprint) {
         return Err(message);
     }
@@ -167,8 +169,6 @@ pub(crate) async fn get_or_open_monitor_session(
         .clone()
         .ok_or_else(|| "SSH username is required".to_string())?;
 
-    use tauri::Manager;
-    let registry = app.state::<super::prompts::PendingMonitorPrompts>();
     let prompt_scope = registry.begin(prompts.clone(), tab_id, session_nonce)?;
     let (jump_chain, ssh) = open_target_ssh_session(
         ConnectContext {
