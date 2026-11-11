@@ -234,15 +234,17 @@ async fn start_session(
         status: EditStatus::Synced,
         error: None,
     };
-    host.app.state::<ExternalEditState>().insert(EditSession {
-        edit: edit.clone(),
-        dir,
-        local,
-        baseline,
-        synced,
-        observed: Some(synced.stamp),
-        settling: None,
-    });
+    host.app
+        .state::<Arc<ExternalEditState>>()
+        .insert(EditSession {
+            edit: edit.clone(),
+            dir,
+            local,
+            baseline,
+            synced,
+            observed: Some(synced.stamp),
+            settling: None,
+        });
     watch::ensure_running(host.app);
     Ok(edit)
 }
@@ -324,7 +326,7 @@ pub async fn sftp_external_edit_open(
         cancel_map: cancel_map.inner(),
     };
     let transfer_id = transfer_id.as_deref();
-    let state = app.state::<ExternalEditState>();
+    let state = app.state::<Arc<ExternalEditState>>();
     let (edit, started) = match state.find(&tab_id, &remote_path) {
         Some(edit) if edit.status != EditStatus::Synced => (edit, false),
         Some(edit) => {
@@ -391,7 +393,7 @@ pub async fn sftp_external_edit_upload(
     cancel_map: State<'_, TransferCancelMap>,
 ) -> Result<UploadOutcome, String> {
     let events = TauriEventSink::new(app.clone());
-    let state = app.state::<ExternalEditState>();
+    let state = app.state::<Arc<ExternalEditState>>();
     let plan = ensure_ssh_plan(&app, &secret_state, connection)?;
     let (source, edit) = state.begin_upload(&id)?;
     emit(&events, &edit);
@@ -437,13 +439,13 @@ pub async fn sftp_external_edit_upload(
 /// The files open from the tab.
 #[tauri::command]
 pub async fn sftp_external_edit_list(app: AppHandle, tab_id: String) -> Vec<ExternalEdit> {
-    app.state::<ExternalEditState>().list(&tab_id)
+    app.state::<Arc<ExternalEditState>>().list(&tab_id)
 }
 
 /// Stops watching the file and removes its copy, changes and all.
 #[tauri::command]
 pub async fn sftp_external_edit_stop(app: AppHandle, id: String) -> Result<(), String> {
-    if let Some(session) = app.state::<ExternalEditState>().remove(&id) {
+    if let Some(session) = app.state::<Arc<ExternalEditState>>().remove(&id) {
         run_blocking(move || {
             local::remove_session_dir(&session.dir);
             Ok(())
@@ -457,13 +459,13 @@ pub async fn sftp_external_edit_stop(app: AppHandle, id: String) -> Result<(), S
 /// as their changes were never uploaded.
 #[tauri::command]
 pub async fn sftp_external_edit_release_tab(app: AppHandle, tab_id: String) -> Vec<ExternalEdit> {
-    end_sessions(app.state::<ExternalEditState>().remove_tab(&tab_id)).await
+    end_sessions(app.state::<Arc<ExternalEditState>>().remove_tab(&tab_id)).await
 }
 
 #[tauri::command]
 pub async fn sftp_external_edit_reveal(app: AppHandle, id: String) -> Result<(), String> {
     let edit = app
-        .state::<ExternalEditState>()
+        .state::<Arc<ExternalEditState>>()
         .get(&id)
         .ok_or("This file is no longer open in another program")?;
     app.state::<Arc<dyn OpenTargets>>()
@@ -497,7 +499,7 @@ pub async fn sftp_external_app_icons(
 /// The names of the open files whose changes are not on the server, which
 /// a quit would leave behind.
 pub fn unuploaded_files(app: &AppHandle) -> Vec<String> {
-    app.state::<ExternalEditState>().unuploaded_names()
+    app.state::<Arc<ExternalEditState>>().unuploaded_names()
 }
 
 /// Removes, at startup, copies left behind long ago.
@@ -510,7 +512,7 @@ pub fn clean_up_on_start(app: &AppHandle) {
 
 /// Removes, at exit, the copies without changes of their own.
 pub fn shutdown(app: &AppHandle) {
-    for session in app.state::<ExternalEditState>().remove_all() {
+    for session in app.state::<Arc<ExternalEditState>>().remove_all() {
         if !session.has_changes() {
             local::remove_session_dir(&session.dir);
         }

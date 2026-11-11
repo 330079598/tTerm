@@ -188,7 +188,9 @@ impl Reporter<'_> {
         if self.last.as_ref() == Some(&err) {
             return;
         }
-        self.app.state::<SessionLogState>().set_error(err.clone());
+        self.app
+            .state::<Arc<SessionLogState>>()
+            .set_error(err.clone());
         emit_error(self.app, self.tab_id, &err);
         self.last = Some(err);
     }
@@ -274,10 +276,10 @@ fn run(
         }
         if since_maintenance >= MAINTENANCE_BYTES {
             since_maintenance = 0;
-            app.state::<SessionLogState>()
+            app.state::<Arc<SessionLogState>>()
                 .schedule_maintenance(app, false);
         }
     }
-    app.state::<SessionLogState>()
+    app.state::<Arc<SessionLogState>>()
         .schedule_maintenance(app, false);
 }

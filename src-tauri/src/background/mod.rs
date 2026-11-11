@@ -2,6 +2,7 @@
 //! background behind a tray icon (the menu bar on macOS), as the user chose in
 //! `close_behavior`. "ask" lets the UI decide on each close.
 
+use std::sync::Arc;
 use tterm_core::events::background::BackgroundEvent;
 use tterm_core::events::{AppEvent, EventSink};
 
@@ -77,7 +78,7 @@ impl CloseBehaviorState {
 /// removes the tray icon to match.
 pub fn apply_config(app: &AppHandle, cfg: &AppConfig) {
     let behavior = CloseBehavior::parse(&cfg.close_behavior);
-    app.state::<CloseBehaviorState>().set(behavior);
+    app.state::<Arc<CloseBehaviorState>>().set(behavior);
     if let Err(error) = sync_tray(app, behavior, &cfg.language) {
         eprintln!("Failed to update the tray icon: {error}");
     }
@@ -149,7 +150,7 @@ pub fn reveal_for_prompt(app: &AppHandle) {
 /// must be prevented.
 pub fn on_close_requested(window: &Window) -> bool {
     let app = window.app_handle();
-    let state = app.state::<CloseBehaviorState>();
+    let state = app.state::<Arc<CloseBehaviorState>>();
     match state.get() {
         CloseBehavior::Tray => {
             send_to_background(window);
@@ -202,7 +203,7 @@ pub fn resolve_close_request(
     app: AppHandle,
     window: Window,
     action: String,
-    state: State<'_, CloseBehaviorState>,
+    state: State<'_, Arc<CloseBehaviorState>>,
 ) {
     state.prompt_open.store(false, Ordering::SeqCst);
     match action.as_str() {

@@ -207,7 +207,7 @@ pub async fn list_tunnels() -> Result<Vec<TunnelRule>, String> {
 
 #[tauri::command]
 pub async fn list_tunnel_statuses(
-    manager: State<'_, TunnelManager>,
+    manager: State<'_, Arc<TunnelManager>>,
 ) -> Result<Vec<TunnelStatus>, String> {
     let (rules, saved) =
         run_blocking(|| Ok((load_tunnels()?, crate::db::read(list_tunnel_traffic)?))).await?;
@@ -221,7 +221,7 @@ pub async fn list_tunnel_statuses(
 #[tauri::command]
 pub async fn reset_tunnel_traffic_totals(
     id: String,
-    manager: State<'_, TunnelManager>,
+    manager: State<'_, Arc<TunnelManager>>,
 ) -> Result<(), String> {
     let reporter = manager.reporter(&id);
     run_blocking(move || match reporter {
@@ -252,7 +252,7 @@ pub async fn save_tunnel(app: AppHandle, mut tunnel: TunnelRule) -> Result<Tunne
 pub async fn delete_tunnel(
     app: AppHandle,
     id: String,
-    manager: State<'_, TunnelManager>,
+    manager: State<'_, Arc<TunnelManager>>,
 ) -> Result<(), String> {
     manager.discard(&id).await;
     crate::db::write(|transaction| delete_tunnel_rule(transaction, &id))?;
@@ -348,7 +348,7 @@ pub async fn start_tunnel(
     app: AppHandle,
     id: String,
     credentials: Option<TunnelCredentials>,
-    manager: State<'_, TunnelManager>,
+    manager: State<'_, Arc<TunnelManager>>,
     secret_state: State<'_, crate::ssh::secret_store::types::SecretStoreState>,
     prompts: State<'_, std::sync::Arc<tterm_core::prompts::PromptBroker>>,
 ) -> Result<StartOutcome, String> {
@@ -368,7 +368,7 @@ pub async fn start_tunnel(
 /// the tray menu): a missing secret or an error is left on its status for the
 /// page to show. Returns whether the tunnel is starting.
 pub(crate) async fn start_unattended(app: &AppHandle, id: &str) -> bool {
-    let manager = app.state::<TunnelManager>();
+    let manager = app.state::<Arc<TunnelManager>>();
     let secret_state = app.state::<crate::ssh::secret_store::types::SecretStoreState>();
     let prompts = app.state::<std::sync::Arc<tterm_core::prompts::PromptBroker>>();
     let result = start_rule(
@@ -398,7 +398,7 @@ pub(crate) async fn start_unattended(app: &AppHandle, id: &str) -> bool {
 #[tauri::command]
 pub async fn auto_start_tunnels(
     app: AppHandle,
-    manager: State<'_, TunnelManager>,
+    manager: State<'_, Arc<TunnelManager>>,
 ) -> Result<(), String> {
     if manager.auto_started.swap(true, Ordering::SeqCst) {
         return Ok(());
@@ -410,7 +410,7 @@ pub async fn auto_start_tunnels(
 }
 
 #[tauri::command]
-pub async fn stop_tunnel(id: String, manager: State<'_, TunnelManager>) -> Result<(), String> {
+pub async fn stop_tunnel(id: String, manager: State<'_, Arc<TunnelManager>>) -> Result<(), String> {
     manager.stop(&id).await;
     Ok(())
 }

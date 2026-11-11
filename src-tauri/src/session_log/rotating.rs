@@ -1,6 +1,7 @@
 //! A log file that moves on to a new part once it is full, and compresses
 //! the parts it finishes.
 
+use std::sync::Arc;
 use tterm_core::events::session_log::{LogErrorPayload, SessionLogEvent};
 use tterm_core::events::{AppEvent, EventSink};
 
@@ -126,7 +127,7 @@ impl RotatingFile {
         self.file = Some(open_part(&self.path, &self.header)?);
         self.bytes_written = self.header.len() as u64;
         self.app
-            .state::<SessionLogState>()
+            .state::<Arc<SessionLogState>>()
             .schedule_maintenance(&self.app, false);
         Ok(())
     }
@@ -191,7 +192,7 @@ fn spawn_compression(app: AppHandle, path: PathBuf) {
             move || {
                 let result = compress_file(&path);
                 release(&held.each_ref().map(PathBuf::as_path));
-                let state = app.state::<SessionLogState>();
+                let state = app.state::<Arc<SessionLogState>>();
                 state.schedule_maintenance(&app, false);
                 if let Err(err) = result {
                     let message = format!(

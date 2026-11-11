@@ -2,6 +2,7 @@
 //! such as the terminals' content, which `app.exit` would otherwise end with
 //! the window.
 
+use std::sync::Arc;
 use tterm_core::events::background::BackgroundEvent;
 use tterm_core::events::{AppEvent, EventSink};
 
@@ -47,13 +48,13 @@ pub fn quit<R: tauri::Runtime>(app: &AppHandle<R>) {
 /// Starts a quit that waits for the UI to save. Returns `false` when there
 /// is nothing to wait for, and the caller is to exit at once.
 pub fn quit_after_save<R: tauri::Runtime>(app: &AppHandle<R>) -> bool {
-    let state = app.state::<QuitState>();
+    let state = app.state::<Arc<QuitState>>();
     if !begin_save(&state, &crate::event_sink::TauriEventSink::new(app.clone())) {
         return false;
     }
     let app = app.clone();
     tauri::async_runtime::spawn(async move {
-        let state = app.state::<QuitState>();
+        let state = app.state::<Arc<QuitState>>();
         wait_for_save(&state).await;
         if let Err(error) = app
             .state::<std::sync::Arc<dyn tterm_platform::process::ProcessControl>>()
@@ -78,13 +79,13 @@ async fn wait_for_save(state: &QuitState) {
 
 /// The UI tells whether it has something to save before a quit.
 #[tauri::command]
-pub fn set_save_before_quit(enabled: bool, state: State<'_, QuitState>) {
+pub fn set_save_before_quit(enabled: bool, state: State<'_, Arc<QuitState>>) {
     state.save_before_quit.store(enabled, Ordering::SeqCst);
 }
 
 /// The UI's answer to `app-will-quit`: it has saved, and the app may quit.
 #[tauri::command]
-pub fn ready_to_quit(state: State<'_, QuitState>) {
+pub fn ready_to_quit(state: State<'_, Arc<QuitState>>) {
     // A permit is kept when the quit is not waiting yet, so an answer that
     // comes first is not lost.
     state.saved.notify_one();
@@ -111,20 +112,20 @@ mod tests {
             let process =
                 std::sync::Arc::new(RecordingProcess(std::sync::atomic::AtomicUsize::new(0)));
             let app = tauri::test::mock_builder()
-                .manage(QuitState::default())
+                .manage(Arc::new(QuitState::default()))
                 .manage(
                     process.clone() as std::sync::Arc<dyn tterm_platform::process::ProcessControl>
                 )
                 .build(tauri::test::mock_context(tauri::test::noop_assets()))
                 .unwrap();
-            app.state::<QuitState>()
+            app.state::<Arc<QuitState>>()
                 .save_before_quit
                 .store(true, Ordering::SeqCst);
             quit(app.handle());
             tokio::task::yield_now().await;
             assert_eq!(process.0.load(Ordering::SeqCst), 0);
             if answer {
-                app.state::<QuitState>().saved.notify_one();
+                app.state::<Arc<QuitState>>().saved.notify_one();
             } else {
                 tokio::time::sleep(SAVE_TIMEOUT + Duration::from_millis(100)).await;
             }
