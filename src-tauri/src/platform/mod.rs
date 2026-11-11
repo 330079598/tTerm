@@ -3,6 +3,7 @@ mod badge;
 mod clipboard;
 mod open;
 mod tray;
+mod tray_native;
 mod updates;
 mod verification;
 mod window;
@@ -11,22 +12,55 @@ use std::sync::Arc;
 use tauri::AppHandle;
 use tterm_platform::window::WindowHost;
 
-/// Builds the client adapters used by the shared service container.
-pub fn initialize(app: &AppHandle) -> crate::services::shared::PlatformServices {
+type Notifications = Arc<dyn tterm_platform::notifications::Notifications>;
+type Integration = Result<Arc<dyn tterm_platform::integration::SystemIntegration>, String>;
+type PlatformBuilder =
+    Box<dyn FnOnce(Notifications, Integration) -> crate::services::shared::PlatformServices>;
+
+/// Builds and registers existing adapters before the broker and integration initialization.
+pub fn initialize(app: &AppHandle) -> PlatformBuilder {
+    use tauri::Manager;
     let main_window: Arc<dyn tterm_platform::window::MainWindow> =
         Arc::new(window::TauriWindow(app.clone()));
     let window_host: Arc<dyn WindowHost> = Arc::new(window::TauriWindow(app.clone()));
-    crate::services::shared::PlatformServices {
-        badge: Arc::new(badge::TauriBadge(app.clone())),
-        tray: Arc::new(tray::TauriTray::new(app.clone())),
-        file_drag: Arc::new(tterm_platform::native::drag::NativeFileDrag(window_host)),
-        main_window,
-        process: Arc::new(window::TauriProcess(app.clone())),
-        verification: Arc::new(verification::TauriVerification(app.clone())),
-        updates: Arc::new(updates::TauriUpdates(app.clone())),
-        open: Arc::new(open::TauriOpen(app.clone())),
-        clipboard: Arc::new(clipboard::TauriClipboard(app.clone())),
-    }
+    let badge: Arc<dyn tterm_platform::notifications::AppBadge> =
+        Arc::new(badge::TauriBadge(app.clone()));
+    let tray: Arc<dyn tterm_platform::tray::Tray> = Arc::new(tray::TauriTray::new(app.clone()));
+    let file_drag: Arc<dyn tterm_platform::drag::FileDrag> =
+        Arc::new(tterm_platform::native::drag::NativeFileDrag(window_host));
+    let process: Arc<dyn tterm_platform::process::ProcessControl> =
+        Arc::new(window::TauriProcess(app.clone()));
+    let verification: Arc<dyn tterm_platform::verification::UserVerification> =
+        Arc::new(verification::TauriVerification(app.clone()));
+    let updates: Arc<dyn tterm_platform::updates::Updates> =
+        Arc::new(updates::TauriUpdates(app.clone()));
+    let open: Arc<dyn tterm_platform::open::OpenTargets> = Arc::new(open::TauriOpen(app.clone()));
+    let clipboard: Arc<dyn tterm_platform::clipboard::Clipboard> =
+        Arc::new(clipboard::TauriClipboard(app.clone()));
+    app.manage(badge.clone());
+    app.manage(tray.clone());
+    app.manage(file_drag.clone());
+    app.manage(main_window.clone());
+    app.manage(process.clone());
+    app.manage(verification.clone());
+    app.manage(updates.clone());
+    app.manage(open.clone());
+    app.manage(clipboard.clone());
+    Box::new(
+        move |notifications, integration| crate::services::shared::PlatformServices {
+            notifications,
+            integration,
+            badge,
+            tray,
+            file_drag,
+            main_window,
+            process,
+            verification,
+            updates,
+            open,
+            clipboard,
+        },
+    )
 }
 
 pub(crate) fn main_window_host(app: tauri::AppHandle) -> impl tterm_platform::window::WindowHost {

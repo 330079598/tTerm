@@ -1,0 +1,70 @@
+src-tauri/src/app_state.rs:62:#[tauri::command]
+src-tauri/src/app_state.rs:67:#[tauri::command]
+src-tauri/src/launch_dir.rs:33:#[tauri::command]
+src-tauri/src/launch_dir.rs:35:    services: tauri::State<'_, Arc<crate::services::AppServices>>,
+src-tauri/src/updater.rs:7:use tauri::ipc::Channel;
+src-tauri/src/updater.rs:227:#[tauri::command]
+src-tauri/src/updater.rs:230:    services: tauri::State<'_, Arc<crate::services::AppServices>>,
+src-tauri/src/updater.rs:234:#[tauri::command]
+src-tauri/src/updater.rs:236:    services: tauri::State<'_, Arc<crate::services::AppServices>>,
+src-tauri/src/updater.rs:237:    app: tauri::AppHandle,
+src-tauri/src/updater.rs:253:#[tauri::command]
+src-tauri/src/updater.rs:255:    services: tauri::State<'_, Arc<crate::services::AppServices>>,
+src-tauri/src/updater.rs:265:#[tauri::command]
+src-tauri/src/updater.rs:267:    services: tauri::State<'_, Arc<crate::services::AppServices>>,
+src-tauri/src/system_integration/mod.rs:40:#[tauri::command]
+src-tauri/src/system_integration/mod.rs:42:    services: tauri::State<'_, Arc<crate::services::AppServices>>,
+src-tauri/src/system_integration/mod.rs:49:#[tauri::command]
+src-tauri/src/system_integration/mod.rs:53:    services: tauri::State<'_, Arc<crate::services::AppServices>>,
+src-tauri/src/system_integration/mod.rs:60:#[tauri::command]
+src-tauri/src/system_integration/mod.rs:62:    services: tauri::State<'_, Arc<crate::services::AppServices>>,
+src-tauri/src/system_integration/mod.rs:69:#[tauri::command]
+src-tauri/src/system_integration/mod.rs:72:    services: tauri::State<'_, Arc<crate::services::AppServices>>,
+src-tauri/src/background/exit_guard.rs:69:#[tauri::command]
+src-tauri/src/background/exit_guard.rs:70:pub fn confirm_quit_app(services: tauri::State<'_, Arc<crate::services::AppServices>>) {
+src-tauri/src/background/exit_guard.rs:82:#[tauri::command]
+src-tauri/src/background/exit_guard.rs:83:pub fn cancel_quit_prompt(services: tauri::State<'_, Arc<crate::services::AppServices>>) {
+src-tauri/src/notification/mod.rs:15:use tauri::ipc::Response;
+src-tauri/src/notification/mod.rs:88:#[tauri::command]
+src-tauri/src/notification/mod.rs:91:    services: tauri::State<'_, Arc<AppServices>>,
+src-tauri/src/notification/mod.rs:111:#[tauri::command]
+src-tauri/src/notification/mod.rs:112:pub async fn notification_permission(app: tauri::AppHandle) -> NotificationPermission {
+src-tauri/src/notification/mod.rs:113:    use tauri::Manager;
+src-tauri/src/notification/mod.rs:141:#[tauri::command]
+src-tauri/src/notification/mod.rs:147:#[tauri::command]
+src-tauri/src/background/mod.rs:173:#[tauri::command]
+src-tauri/src/background/mod.rs:175:    app: tauri::AppHandle,
+src-tauri/src/background/mod.rs:177:    services: tauri::State<'_, Arc<crate::services::AppServices>>,
+src-tauri/src/agent_integration/mod.rs:305:#[tauri::command]
+src-tauri/src/agent_integration/mod.rs:310:#[tauri::command]
+src-tauri/src/agent_integration/mod.rs:315:#[tauri::command]
+src-tauri/src/notification/badge.rs:36:#[tauri::command]
+src-tauri/src/notification/badge.rs:40:    services: tauri::State<'_, Arc<crate::services::AppServices>>,
+src-tauri/src/agent_integration/remote.rs:21:use tauri::AppHandle;
+src-tauri/src/agent_integration/remote.rs:285:#[tauri::command]
+src-tauri/src/agent_integration/remote.rs:287:    app: AppHandle,
+src-tauri/src/agent_integration/remote.rs:290:    services: tauri::State<'_, Arc<AppServices>>,
+src-tauri/src/agent_integration/remote.rs:317:#[tauri::command]
+src-tauri/src/agent_integration/remote.rs:319:    app: AppHandle,
+src-tauri/src/agent_integration/remote.rs:324:    services: tauri::State<'_, Arc<AppServices>>,
+src-tauri/src/background/quit.rs:89:#[tauri::command]
+src-tauri/src/background/quit.rs:92:    services: tauri::State<'_, Arc<crate::services::AppServices>>,
+src-tauri/src/background/quit.rs:98:#[tauri::command]
+src-tauri/src/background/quit.rs:99:pub fn ready_to_quit(services: tauri::State<'_, Arc<crate::services::AppServices>>) {
+src-tauri/src/background/tray/mod.rs:318:#[tauri::command]
+src-tauri/src/background/tray/mod.rs:320:    services: tauri::State<'_, Arc<crate::services::AppServices>>,
+src-tauri/src/tunnel/commands.rs:440:#[tauri::command]
+src-tauri/src/tunnel/commands.rs:444:#[tauri::command]
+src-tauri/src/tunnel/commands.rs:446:    services: tauri::State<'_, Arc<crate::services::AppServices>>,
+src-tauri/src/tunnel/commands.rs:450:#[tauri::command]
+src-tauri/src/tunnel/commands.rs:453:    services: tauri::State<'_, Arc<crate::services::AppServices>>,
+src-tauri/src/tunnel/commands.rs:457:#[tauri::command]
+src-tauri/src/tunnel/commands.rs:460:    services: tauri::State<'_, Arc<crate::services::AppServices>>,
+src-tauri/src/tunnel/commands.rs:464:#[tauri::command]
+src-tauri/src/tunnel/commands.rs:467:    services: tauri::State<'_, Arc<crate::services::AppServices>>,
+src-tauri/src/tunnel/commands.rs:476:#[tauri::command]
+src-tauri/src/tunnel/commands.rs:480:    services: tauri::State<'_, Arc<crate::services::AppServices>>,
+src-tauri/src/tunnel/commands.rs:491:#[tauri::command]
+src-tauri/src/tunnel/commands.rs:493:    services: tauri::State<'_, Arc<crate::services::AppServices>>,
+src-tauri/src/tunnel/commands.rs:501:#[tauri::command]
+src-tauri/src/tunnel/commands.rs:504:    services: tauri::State<'_, Arc<crate::services::AppServices>>,

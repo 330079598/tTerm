@@ -12,8 +12,6 @@ pub(crate) mod tray;
 
 use std::sync::atomic::{AtomicBool, AtomicU8, Ordering};
 
-use tauri::{AppHandle, Manager, State, Window};
-
 use crate::config::AppConfig;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -74,99 +72,68 @@ impl CloseBehaviorState {
     }
 }
 
-/// Applies a saved config: remembers its close behavior and adds, updates or
-/// removes the tray icon to match.
-pub fn apply_config(app: &AppHandle, cfg: &AppConfig) {
+/// Concrete dependencies for close and exit policy.
+#[derive(Clone)]
+pub(crate) struct BackgroundContext {
+    pub close: Arc<CloseBehaviorState>,
+    pub guard: Arc<exit_guard::ExitGuardState>,
+    pub tunnels: Arc<crate::tunnel::commands::TunnelManager>,
+    pub unuploaded_files: Vec<String>,
+    pub window: Arc<dyn tterm_platform::window::MainWindow>,
+    pub badge: Arc<dyn tterm_platform::notifications::AppBadge>,
+    pub events: Arc<dyn EventSink>,
+    pub quit: quit::QuitContext,
+    pub tray: tray::TrayContext,
+}
+
+/// Applies the saved close behavior and updates the tray.
+pub(crate) fn apply_config(state: &CloseBehaviorState, tray: &tray::TrayContext, cfg: &AppConfig) {
     let behavior = CloseBehavior::parse(&cfg.close_behavior);
-    app.state::<Arc<CloseBehaviorState>>().set(behavior);
-    if let Err(error) = sync_tray(app, behavior, &cfg.language) {
+    state.set(behavior);
+    let result = if behavior == CloseBehavior::Quit {
+        tray.native.remove()
+    } else {
+        tray::show(tray, &cfg.language)
+    };
+    if let Err(error) = result {
         eprintln!("Failed to update the tray icon: {error}");
     }
 }
 
-fn sync_tray(app: &AppHandle, behavior: CloseBehavior, language: &str) -> Result<(), String> {
-    if behavior == CloseBehavior::Quit {
-        app.state::<std::sync::Arc<dyn tterm_platform::tray::Tray>>()
-            .remove()?;
-        return Ok(());
-    }
-    tray::show(app, language)
+/// Brings the main window back and restores its taskbar overlay.
+pub(crate) fn show_main_window(
+    window: &dyn tterm_platform::window::MainWindow,
+    badge: &dyn tterm_platform::notifications::AppBadge,
+) {
+    let _ = window.show_and_focus();
+    crate::notification::badge::restore(badge);
 }
 
-/// Brings the main window back, whether it is hidden, minimized or behind
-/// other windows.
-pub fn show_main_window(app: &AppHandle) {
-    if let Some(window) = app.get_webview_window("main") {
-        let _ = window.unminimize();
-        let _ = window.show();
-        let _ = window.set_focus();
+pub(crate) fn request_quit(context: &BackgroundContext) {
+    if !exit_guard::blockers(&context.tunnels, &context.unuploaded_files).is_empty() {
+        show_main_window(context.window.as_ref(), context.badge.as_ref());
     }
-    crate::notification::badge::restore(app);
+    quit_unless_held(context);
 }
 
-/// Quits the way the window would: what the quit would end is confirmed
-/// first, in the window, so it is shown before asking.
-fn request_quit(app: &AppHandle) {
-    if !exit_guard::blockers(app).is_empty() {
-        show_main_window(app);
-    }
-    if !exit_guard::hold_exit_for_confirmation(app) {
-        quit::quit(app);
-    }
+fn send_to_background(context: &BackgroundContext) {
+    let _ = context
+        .window
+        .send_to_background(context.tray.native.is_present());
 }
 
-/// Keeps the app running without its window. Without a tray icon (it could
-/// not be created, e.g. no tray on this Linux desktop) the window is only
-/// minimized so it can still be found.
-fn send_to_background(window: &Window) {
-    if window
-        .app_handle()
-        .state::<std::sync::Arc<dyn tterm_platform::tray::Tray>>()
-        .is_present()
-    {
-        let _ = window.hide();
-    } else {
-        let _ = window.minimize();
-    }
-}
-
-/// Shows the window when something running in the background needs an
-/// answer from the user (a host key or a login prompt). Callable from any
-/// thread.
-pub fn reveal_for_prompt(app: &AppHandle) {
-    let handle = app.clone();
-    let _ = app.run_on_main_thread(move || {
-        let Some(window) = handle.get_webview_window("main") else {
-            return;
-        };
-        let hidden = !window.is_visible().unwrap_or(true) || window.is_minimized().unwrap_or(false);
-        if hidden {
-            show_main_window(&handle);
-        }
-    });
-}
-
-/// Handles a request to close the main window. Returns `true` when the close
-/// must be prevented.
-pub fn on_close_requested(window: &Window) -> bool {
-    let app = window.app_handle();
-    let state = app.state::<Arc<CloseBehaviorState>>();
-    match state.get() {
-        CloseBehavior::Tray => {
-            send_to_background(window);
-            true
-        }
-        CloseBehavior::Ask if state.should_ask() => {
-            if !emit_close_request(&state, &crate::event_sink::TauriEventSink::new(app.clone())) {
-                quit_unless_held(app);
+/// Returns whether the native close must be prevented.
+pub(crate) fn on_close_requested(context: &BackgroundContext) -> bool {
+    match context.close.get() {
+        CloseBehavior::Tray => send_to_background(context),
+        CloseBehavior::Ask if context.close.should_ask() => {
+            if !emit_close_request(&context.close, context.events.as_ref()) {
+                quit_unless_held(context);
             }
-            true
         }
-        CloseBehavior::Ask | CloseBehavior::Quit => {
-            quit_unless_held(app);
-            true
-        }
+        CloseBehavior::Ask | CloseBehavior::Quit => quit_unless_held(context),
     }
+    true
 }
 
 fn emit_close_request(state: &CloseBehaviorState, events: &dyn EventSink) -> bool {
@@ -183,32 +150,46 @@ fn emit_close_request(state: &CloseBehaviorState, events: &dyn EventSink) -> boo
 /// Quits, unless what the quit would end holds the exit for the user's
 /// confirmation. The window stays open meanwhile: the UI saves before the
 /// quit closes it.
-fn quit_unless_held(app: &AppHandle) {
-    if !exit_guard::hold_exit_for_confirmation(app) {
-        quit::quit(app);
+fn quit_unless_held(context: &BackgroundContext) {
+    if !exit_guard::hold_exit_for_confirmation(
+        &context.guard,
+        exit_guard::blockers(&context.tunnels, &context.unuploaded_files),
+        context.events.as_ref(),
+    ) {
+        quit::quit(&context.quit);
     }
 }
 
-/// Handles an exit the app did not request itself, such as Cmd+Q. Returns
-/// `true` when the exit must be prevented: it is held for the user's
-/// confirmation, or goes ahead once the UI has saved.
-pub fn on_exit_requested(app: &AppHandle) -> bool {
-    exit_guard::hold_exit_for_confirmation(app) || quit::quit_after_save(app)
+/// Returns whether an external exit request must wait for confirmation or saving.
+pub(crate) fn on_exit_requested(context: &BackgroundContext) -> bool {
+    exit_guard::hold_exit_for_confirmation(
+        &context.guard,
+        exit_guard::blockers(&context.tunnels, &context.unuploaded_files),
+        context.events.as_ref(),
+    ) || quit::quit_after_save(&context.quit)
 }
 
-/// The UI's answer to `close-requested`: "tray", "quit" or "cancel". A
-/// remembered choice is saved by the UI through `save_config` beforehand.
+/// Resolves the UI's close choice using the same close policy as native events.
 #[tauri::command]
 pub fn resolve_close_request(
-    app: AppHandle,
-    window: Window,
+    app: tauri::AppHandle,
     action: String,
-    state: State<'_, Arc<CloseBehaviorState>>,
+    services: tauri::State<'_, Arc<crate::services::AppServices>>,
 ) {
-    state.prompt_open.store(false, Ordering::SeqCst);
-    match action.as_str() {
-        "tray" => send_to_background(&window),
-        "quit" => request_quit(&app),
+    resolve_close(
+        &crate::app_context::background(
+            &services,
+            crate::sftp::internal::api::external::unuploaded_files(&app),
+        ),
+        &action,
+    );
+}
+
+fn resolve_close(context: &BackgroundContext, action: &str) {
+    context.close.prompt_open.store(false, Ordering::SeqCst);
+    match action {
+        "tray" => send_to_background(context),
+        "quit" => request_quit(context),
         _ => {}
     }
 }

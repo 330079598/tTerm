@@ -17,6 +17,8 @@ pub struct SharedServices {
 }
 
 pub struct PlatformServices {
+    pub notifications: Arc<dyn tterm_platform::notifications::Notifications>,
+    pub integration: Result<Arc<dyn tterm_platform::integration::SystemIntegration>, String>,
     pub badge: Arc<dyn AppBadge>,
     pub tray: Arc<dyn Tray>,
     pub file_drag: Arc<dyn FileDrag>,

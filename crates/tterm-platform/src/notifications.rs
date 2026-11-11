@@ -21,6 +21,8 @@ pub enum NotificationPermission {
 }
 /// Notification delivery is asynchronous; activation is supplied by the client callback.
 pub trait Notifications: Send + Sync {
+    /// Registers activation handling at the client's original startup position.
+    fn initialize(&self) {}
     /// Hands a notification to the OS and reports delivery rejection.
     fn show(&self, request: NotificationRequest) -> PlatformFuture<'_, ()>;
     /// Queries notification and badge permission without granting it.

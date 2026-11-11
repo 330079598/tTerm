@@ -30,6 +30,9 @@ fn activated(app: &NativeNotifications, tab_id: Option<String>) {
     (app.activated)(tab_id);
 }
 impl Notifications for NativeNotifications {
+    fn initialize(&self) {
+        NativeNotifications::initialize(self);
+    }
     fn show(&self, request: NotificationRequest) -> PlatformFuture<'_, ()> {
         Box::pin(async move {
             #[cfg(target_os = "macos")]
