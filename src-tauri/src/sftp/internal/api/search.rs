@@ -3,7 +3,9 @@
 //! Matches stream to the drawer as they are found.
 
 mod operations;
-use operations::*;
+use operations::{
+    sftp_search_entries_service, SftpSearchEntriesDependencies, SftpSearchEntriesInput,
+};
 
 use crate::event_sink::search::TauriSearchResultSink;
 use std::sync::Arc;

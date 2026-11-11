@@ -4,7 +4,18 @@
 //! differs from the server and uploads it, at once or after asking.
 
 mod operations;
-use operations::*;
+use operations::{
+    sftp_external_app_icons_service, sftp_external_edit_list_service,
+    sftp_external_edit_open_service, sftp_external_edit_release_tab_service,
+    sftp_external_edit_reveal_service, sftp_external_edit_stop_service,
+    sftp_external_edit_upload_service, sftp_external_open_with_choices_service,
+    SftpExternalAppIconsInput, SftpExternalEditListDependencies, SftpExternalEditListInput,
+    SftpExternalEditOpenDependencies, SftpExternalEditOpenInput,
+    SftpExternalEditReleaseTabDependencies, SftpExternalEditReleaseTabInput,
+    SftpExternalEditRevealInput, SftpExternalEditStopDependencies, SftpExternalEditStopInput,
+    SftpExternalEditUploadDependencies, SftpExternalEditUploadInput,
+    SftpExternalOpenWithChoicesInput,
+};
 
 #[cfg(all(test, target_os = "macos"))]
 use tterm_platform::native::open::apps;

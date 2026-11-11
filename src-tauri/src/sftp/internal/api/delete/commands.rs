@@ -1,10 +1,14 @@
 #[path = "operations.rs"]
 mod operations;
-use super::*;
+use super::{DeleteBatchStartResult, DeleteEntryRequest, DeleteOptions, DeletePreviewResult};
 use crate::core::session::types::PtyConnectionOptions;
 use crate::services::AppServices;
 use crate::sftp::internal::connection::map_sftp_error;
-use operations::*;
+use operations::{
+    sftp_delete_entries_service, sftp_delete_entry_service, sftp_preview_delete_entries_service,
+    SftpDeleteEntriesDependencies, SftpDeleteEntriesInput, SftpDeleteEntryDependencies,
+    SftpDeleteEntryInput, SftpPreviewDeleteEntriesDependencies, SftpPreviewDeleteEntriesInput,
+};
 use russh_sftp::client::SftpSession;
 use std::future::Future;
 use std::pin::Pin;

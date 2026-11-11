@@ -1,7 +1,9 @@
 mod operations;
 use crate::core::session::types::PtyConnectionOptions;
 use crate::sftp::internal::connection::map_sftp_error;
-use operations::*;
+use operations::{
+    sftp_set_permissions_service, SftpSetPermissionsDependencies, SftpSetPermissionsInput,
+};
 use russh_sftp::client::SftpSession;
 use russh_sftp::protocol::FileAttributes;
 use tauri::State;
