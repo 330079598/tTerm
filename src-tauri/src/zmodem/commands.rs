@@ -5,13 +5,10 @@
 //! the "Send/Receive Files via ZMODEM" keymap actions, the fallback for
 //! when auto-detection is off or missed a trigger.
 
-use tterm_core::events::EventSink;
-
 use std::io::Write;
 use std::path::PathBuf;
 use std::sync::atomic::Ordering;
 use std::sync::PoisonError;
-use tauri::{AppHandle, State};
 
 use crate::core::state::ActiveSession;
 use crate::core::{
@@ -29,10 +26,26 @@ use crate::core::{
 pub fn zmodem_cancel(
     tab_id: String,
     session_nonce: u32,
-    pty_state: State<'_, PtyMap>,
-    zmodem_state: State<'_, ZmodemMap>,
-    armed_send_state: State<'_, ZmodemArmedSendMap>,
+    services: tauri::State<'_, std::sync::Arc<crate::services::AppServices>>,
 ) -> Result<(), String> {
+    let pty_state = services.session.ptys.clone();
+    let zmodem_state = services.session.zmodem.clone();
+    let armed_send_state = services.session.zmodem_armed_send.clone();
+    zmodem_cancel_service(
+        pty_state,
+        zmodem_state,
+        armed_send_state,
+        (tab_id, session_nonce),
+    )
+}
+fn zmodem_cancel_service(
+    pty_state: PtyMap,
+    zmodem_state: ZmodemMap,
+    armed_send_state: ZmodemArmedSendMap,
+    arguments: (String, u32),
+) -> Result<(), String> {
+    let (tab_id, session_nonce) = arguments;
+
     {
         let map = zmodem_state.read().unwrap_or_else(PoisonError::into_inner);
         match map.get(&tab_id) {
@@ -88,13 +101,29 @@ pub fn zmodem_cancel(
 /// direction uses.
 #[tauri::command]
 pub fn zmodem_start_send(
-    app: AppHandle,
     tab_id: String,
     session_nonce: u32,
     local_paths: Vec<String>,
-    zmodem_state: State<'_, ZmodemMap>,
-    armed_send_state: State<'_, ZmodemArmedSendMap>,
+    services: tauri::State<'_, std::sync::Arc<crate::services::AppServices>>,
 ) -> Result<(), String> {
+    let events = services.shared.events.clone();
+    let zmodem_state = services.session.zmodem.clone();
+    let armed_send_state = services.session.zmodem_armed_send.clone();
+    zmodem_start_send_service(
+        events,
+        zmodem_state,
+        armed_send_state,
+        (tab_id, session_nonce, local_paths),
+    )
+}
+fn zmodem_start_send_service(
+    events: std::sync::Arc<dyn tterm_core::events::EventSink>,
+    zmodem_state: ZmodemMap,
+    armed_send_state: ZmodemArmedSendMap,
+    arguments: (String, u32, Vec<String>),
+) -> Result<(), String> {
+    let (tab_id, session_nonce, local_paths) = arguments;
+
     let cancel_requested = {
         let map = zmodem_state.read().unwrap_or_else(PoisonError::into_inner);
         match map.get(&tab_id) {
@@ -116,9 +145,8 @@ pub fn zmodem_start_send(
     };
 
     let paths: Vec<PathBuf> = local_paths.into_iter().map(PathBuf::from).collect();
-    let zmodem_map_for_thread = zmodem_state.inner().clone();
+    let zmodem_map_for_thread = zmodem_state.clone();
     let emit_tab_id = tab_id.clone();
-    let events = crate::event_sink::TauriEventSink::new(app);
     let emit: tterm_core::events::zmodem::TransferEmitter = Box::new(move |event| {
         let _ = events.emit(tterm_core::events::AppEvent::Zmodem(
             tterm_core::events::zmodem::ZmodemEvent::Transfer {
@@ -154,9 +182,19 @@ pub fn zmodem_start_send(
 pub fn zmodem_arm_manual_detect(
     tab_id: String,
     session_nonce: u32,
-    pty_state: State<'_, PtyMap>,
-    manual_detect_state: State<'_, ZmodemManualDetectMap>,
+    services: tauri::State<'_, std::sync::Arc<crate::services::AppServices>>,
 ) -> Result<(), String> {
+    let pty_state = services.session.ptys.clone();
+    let manual_detect_state = services.session.zmodem_manual_detect.clone();
+    zmodem_arm_manual_detect_service(pty_state, manual_detect_state, (tab_id, session_nonce))
+}
+fn zmodem_arm_manual_detect_service(
+    pty_state: PtyMap,
+    manual_detect_state: ZmodemManualDetectMap,
+    arguments: (String, u32),
+) -> Result<(), String> {
+    let (tab_id, session_nonce) = arguments;
+
     let sessions = pty_state.blocking_read();
     match sessions.get(&tab_id) {
         Some(session) if session.session_nonce == session_nonce => {}
