@@ -31,7 +31,7 @@ function splitTopLevel(input, separator = ',') {
       else if (char === string) string = null;
       continue;
     }
-    if (char === '"' || char === "'") {
+    if (char === '"' || (char === "'" && !/^'[A-Za-z_][A-Za-z0-9_]*(?![A-Za-z0-9_'])/.test(input.slice(index)))) {
       string = char;
       continue;
     }
@@ -79,7 +79,7 @@ function parseParameter(parameter) {
   const withoutAttributes = parameter.replace(/^\s*#\[[\s\S]*?\]\s*/, '').trim();
   const colon = withoutAttributes.indexOf(':');
   if (colon < 0) return null;
-  const name = withoutAttributes.slice(0, colon).trim();
+  const name = withoutAttributes.slice(0, colon).trim().replace(/^mut\s+/, '');
   const type = withoutAttributes.slice(colon + 1).trim();
   if (!name || !type) return null;
   const injected = /(?:^|::)(?:State|AppHandle|Window|WebviewWindow|Webview)\s*(?:<|\b)/.test(type)
@@ -87,7 +87,7 @@ function parseParameter(parameter) {
   return injected ? null : { name, type };
 }
 
-function parseCommands(file, source) {
+export function parseCommands(file, source) {
   const commands = [];
   const commandAttribute = /#\[tauri::command(?:\s*\(([^\]]*)\))?\]/g;
   let attributeMatch;

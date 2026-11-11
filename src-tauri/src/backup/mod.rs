@@ -1,6 +1,6 @@
+mod service;
 use crate::command_library::{models::SavedCommand, repository::CommandRepository};
 use crate::config;
-use crate::core::blocking::run_blocking;
 use crate::profiles::types::SavedProfile;
 use crate::ssh::{
     secret_store::types::SecretStoreState, secret_store::verification::VerificationPurpose,
@@ -8,7 +8,6 @@ use crate::ssh::{
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::path::{Path, PathBuf};
-use tauri::{AppHandle, State};
 use zeroize::Zeroize;
 
 mod apply;
@@ -24,12 +23,8 @@ use apply::{
     apply_payload, ensure_selection_available, from_backup_value, import_redirects_webdav,
     missing_key_files, replace_commands,
 };
-use archive::{build_archive, decode_with_password, validate_payload};
-use automatic::{
-    create_pre_import_backup, delete_backup_history_entry_blocking, list_backup_history_blocking,
-    load_automatic_backup_settings, run_due_automatic_backup_blocking,
-    validate_automatic_backup_settings, write_automatic_backup_settings,
-};
+use archive::{build_archive_for_version, decode_with_password, validate_payload};
+use automatic::create_pre_import_backup;
 use diff::{calculate_diff, value_array_len, value_array_len_one};
 use export::{collect_payload, validate_export_options};
 use snapshot::{
@@ -340,51 +335,48 @@ struct DecodedBundle {
 
 #[tauri::command]
 pub async fn export_backup(
-    app: AppHandle,
+    app: tauri::AppHandle,
     output_path: String,
     options: BackupExportOptions,
-    secret_state: State<'_, SecretStoreState>,
+    services: tauri::State<'_, std::sync::Arc<crate::services::AppServices>>,
 ) -> Result<BackupExportResult, String> {
-    let secret_state = secret_state.inner().clone();
-    run_blocking(move || export_backup_blocking(app, output_path, options, &secret_state)).await
+    let app_version = crate::app_identity::get(&app)?.version.clone();
+    service::export_backup(app_version, output_path, options, &services.shared.secrets).await
 }
 
 #[tauri::command]
 pub async fn inspect_backup(
     input: BackupInspectInput,
-    secret_state: State<'_, SecretStoreState>,
+    services: tauri::State<'_, std::sync::Arc<crate::services::AppServices>>,
 ) -> Result<BackupInspectResult, String> {
-    let secret_state = secret_state.inner().clone();
-    run_blocking(move || inspect_backup_blocking(input, &secret_state)).await
+    service::inspect_backup(input, &services.shared.secrets).await
 }
 
 #[tauri::command]
 pub async fn import_backup(
-    app: AppHandle,
+    app: tauri::AppHandle,
     input_path: String,
     options: BackupImportOptions,
-    secret_state: State<'_, SecretStoreState>,
+    services: tauri::State<'_, std::sync::Arc<crate::services::AppServices>>,
 ) -> Result<BackupImportResult, String> {
-    let secret_state = secret_state.inner().clone();
-    run_blocking(move || import_backup_blocking(app, input_path, options, &secret_state)).await
+    let app_version = crate::app_identity::get(&app)?.version.clone();
+    service::import_backup(app_version, input_path, options, &services.shared.secrets).await
 }
 
 #[tauri::command]
 pub async fn run_due_automatic_backup(
-    app: AppHandle,
+    app: tauri::AppHandle,
     frontend_state: Option<Value>,
     force: bool,
-    secret_state: State<'_, SecretStoreState>,
+    services: tauri::State<'_, std::sync::Arc<crate::services::AppServices>>,
 ) -> Result<Option<BackupExportResult>, String> {
-    let secret_state = secret_state.inner().clone();
-    run_blocking(move || {
-        run_due_automatic_backup_blocking(app, frontend_state, force, &secret_state)
-    })
-    .await
+    let app_version = crate::app_identity::get(&app)?.version.clone();
+    service::run_due_automatic_backup(app_version, frontend_state, force, &services.shared.secrets)
+        .await
 }
 
 fn export_backup_blocking(
-    app: AppHandle,
+    app_version: String,
     output_path: String,
     mut options: BackupExportOptions,
     secret_state: &SecretStoreState,
@@ -396,7 +388,6 @@ fn export_backup_blocking(
     }
     let output = normalized_backup_path(&output_path)?;
     let mut payload = collect_payload(
-        &app,
         &options.selection,
         options.frontend_state.take(),
         secret_state,
@@ -408,8 +399,8 @@ fn export_backup_blocking(
         .backup_password
         .as_deref()
         .is_some_and(|p| !p.is_empty());
-    let archive = build_archive(
-        &app,
+    let archive = build_archive_for_version(
+        &app_version,
         &options.selection,
         &payload,
         options.backup_password.as_deref(),
@@ -462,7 +453,7 @@ fn inspect_backup_blocking(
 }
 
 fn import_backup_blocking(
-    app: AppHandle,
+    app_version: String,
     input_path: String,
     mut options: BackupImportOptions,
     secret_state: &SecretStoreState,
@@ -497,7 +488,8 @@ fn import_backup_blocking(
         None
     };
 
-    let pre_import_backup_path = create_pre_import_backup(&app, &options.selection, secret_state)?;
+    let pre_import_backup_path =
+        create_pre_import_backup(&app_version, &options.selection, secret_state)?;
     let file_snapshot = capture_file_snapshot(&options.selection, payload)?;
     let database_snapshot = capture_database_snapshot(&options.selection)?;
     let command_snapshot = if options.selection.command_library {
@@ -564,30 +556,24 @@ fn import_backup_blocking(
 
 #[tauri::command]
 pub async fn get_automatic_backup_settings() -> Result<AutomaticBackupSettings, String> {
-    run_blocking(load_automatic_backup_settings).await
+    service::get_automatic_backup_settings().await
 }
 
 #[tauri::command]
 pub async fn save_automatic_backup_settings(
     settings: AutomaticBackupSettings,
 ) -> Result<AutomaticBackupSettings, String> {
-    run_blocking(move || {
-        validate_automatic_backup_settings(&settings)?;
-        crate::db::write(|transaction| write_automatic_backup_settings(transaction, &settings))?;
-        load_automatic_backup_settings()
-    })
-    .await
+    service::save_automatic_backup_settings(settings).await
 }
 
 #[tauri::command]
 pub async fn list_backup_history() -> Result<Vec<BackupHistoryEntry>, String> {
-    // The automatic backup directory may be on a slow or network drive.
-    run_blocking(list_backup_history_blocking).await
+    service::list_backup_history().await
 }
 
 #[tauri::command]
 pub async fn delete_backup_history_entry(path: String) -> Result<bool, String> {
-    run_blocking(move || delete_backup_history_entry_blocking(path)).await
+    service::delete_backup_history_entry(path).await
 }
 
 fn normalized_backup_path(path: &str) -> Result<PathBuf, String> {

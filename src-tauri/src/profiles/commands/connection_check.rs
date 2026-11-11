@@ -7,21 +7,23 @@ use crate::ssh::{
     types::ConnectionStatusOptions, types::HostKeyVerificationMode, types::SshClientHandler,
 };
 use std::sync::Arc;
-use tauri::Manager;
 
-pub(super) fn test_connection_handler(
-    app: &tauri::AppHandle,
+pub(crate) struct TestVerification {
+    pub mode: HostKeyVerificationMode,
+    pub owner: tterm_core::prompts::PromptOwner,
+}
+
+pub(crate) fn test_connection_handler(
+    app: &crate::ssh::context::ConnectionContext,
     tab_id: &str,
     plan: &crate::core::session::types::SessionPlan,
     host: &str,
     port: u16,
     prompts: std::sync::Arc<tterm_core::prompts::PromptBroker>,
-    verification: (HostKeyVerificationMode, tterm_core::prompts::PromptOwner),
+    verification: TestVerification,
 ) -> SshClientHandler {
     SshClientHandler {
-        app: crate::connection_context::connection(
-            &app.state::<std::sync::Arc<crate::services::AppServices>>(),
-        ),
+        app: app.clone(),
         tab_id: tab_id.to_string(),
         profile_id: plan.profile_id.clone(),
         profile_name: plan.profile_name.clone(),
@@ -30,8 +32,8 @@ pub(super) fn test_connection_handler(
         prompts,
         host_key_failure: Arc::new(std::sync::Mutex::new(None)),
         status_options: ConnectionStatusOptions::SILENT,
-        host_key_verification_mode: verification.0,
-        prompt_owner: verification.1,
+        host_key_verification_mode: verification.mode,
+        prompt_owner: verification.owner,
         forwarded_tcpip_tx: None,
         // A test connection just probes auth; it never keeps the session
         // around long enough for agent forwarding to matter.
@@ -39,7 +41,7 @@ pub(super) fn test_connection_handler(
     }
 }
 
-pub(super) async fn authenticate_test_connection<H: russh::client::Handler>(
+pub(crate) async fn authenticate_test_connection<H: russh::client::Handler>(
     session: &mut russh::client::Handle<H>,
     host: &str,
     port: u16,
@@ -65,7 +67,7 @@ pub(super) async fn authenticate_test_connection<H: russh::client::Handler>(
 
 /// The plan a connection test of `profile` runs, before its saved passwords
 /// are filled in.
-pub(super) fn test_session_plan(
+pub(crate) fn test_session_plan(
     mut profile: SavedProfile,
     host: &str,
     username: &str,

@@ -9,7 +9,7 @@ use std::collections::HashSet;
 
 mod proxy;
 
-pub(super) fn import_ssh_config_profiles_blocking(
+pub(crate) fn import_ssh_config_profiles_blocking(
     options: SshConfigImportOptions,
 ) -> Result<SshConfigImportResult, String> {
     let preview = build_ssh_config_import_preview(options.source_path)?;

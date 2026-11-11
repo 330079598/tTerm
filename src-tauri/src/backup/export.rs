@@ -19,7 +19,6 @@ use serde::Serialize;
 use serde_json::Value;
 use std::fs;
 use std::path::{Component, PathBuf};
-use tauri::AppHandle;
 
 pub(super) fn validate_export_options(options: &BackupExportOptions) -> Result<(), String> {
     if !options.selection.any() {
@@ -48,7 +47,6 @@ pub(super) fn validate_export_options(options: &BackupExportOptions) -> Result<(
 }
 
 pub(super) fn collect_payload(
-    _app: &AppHandle,
     selection: &BackupSelection,
     frontend_state: Option<Value>,
     secret_state: &SecretStoreState,

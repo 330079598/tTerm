@@ -12,6 +12,8 @@ mod merge;
 pub(crate) mod snapshot;
 mod state;
 
+mod service;
+
 use crate::backup::webdav::{Fetched, Stored, WebDavClient};
 use crate::core::blocking::run_blocking;
 use crate::db::meta;
@@ -22,9 +24,7 @@ use merge::{merge_collection, same_data};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use snapshot::{removed_ids, PROFILES, PROFILE_GROUPS, SERIAL_SENDS, SETTINGS, TUNNELS};
-use std::sync::Arc;
 use std::sync::Mutex;
-use tauri::{AppHandle, State};
 
 use snapshot::SyncSelection;
 
@@ -115,30 +115,19 @@ impl SyncOutcome {
 
 #[tauri::command]
 pub async fn get_sync_status() -> Result<SyncStatus, String> {
-    run_blocking(status).await
+    service::get_sync_status().await
 }
 
 #[tauri::command]
 pub async fn save_sync_settings(settings: SyncSettings) -> Result<SyncStatus, String> {
-    run_blocking(move || {
-        settings.validate()?;
-        crate::db::write(|transaction| write_settings(transaction, &settings))?;
-        status()
-    })
-    .await
+    service::save_sync_settings(settings).await
 }
 
 /// Forgets what was last synced, so the next sync merges like a first one:
 /// both sides' data is kept and nothing is deleted.
 #[tauri::command]
 pub async fn reset_sync() -> Result<SyncStatus, String> {
-    let _guard = SYNC_LOCK.lock().await;
-    run_blocking(|| {
-        crate::db::write(|transaction| state::clear(transaction))?;
-        set_last_error(None);
-        status()
-    })
-    .await
+    service::reset_sync().await
 }
 
 /// Syncs when this device has changes, or always when `check_remote` is
@@ -146,33 +135,24 @@ pub async fn reset_sync() -> Result<SyncStatus, String> {
 /// made before a sync deletes anything.
 #[tauri::command]
 pub async fn run_sync(
-    app: AppHandle,
+    app: tauri::AppHandle,
     frontend_state: Option<Value>,
     check_remote: bool,
-    secret_state: State<'_, SecretStoreState>,
-    tunnels: State<'_, Arc<TunnelManager>>,
+    services: tauri::State<'_, std::sync::Arc<crate::services::AppServices>>,
 ) -> Result<SyncOutcome, String> {
-    let Ok(_guard) = SYNC_LOCK.try_lock() else {
-        return Ok(SyncOutcome::skipped("busy"));
-    };
-    let result = sync(
-        &app,
+    let app_version = crate::app_identity::get(&app)?.version.clone();
+    service::run_sync(
+        app_version,
         frontend_state,
         check_remote,
-        secret_state.inner(),
-        tunnels.inner(),
+        &services.shared.secrets,
+        &services.app.tunnels,
     )
-    .await;
-    match &result {
-        Ok(outcome) if matches!(outcome.state, "synced" | "unchanged") => set_last_error(None),
-        Ok(_) => {}
-        Err(error) => set_last_error(Some(error.clone())),
-    }
-    result
+    .await
 }
 
 async fn sync(
-    app: &AppHandle,
+    app_version: &str,
     frontend_state: Option<Value>,
     check_remote: bool,
     secret_state: &SecretStoreState,
@@ -185,7 +165,7 @@ async fn sync(
     let Ok(data_key) = secret_state.data_key() else {
         return Ok(SyncOutcome::skipped("locked"));
     };
-    let Some(target) = crate::backup::remote::sync_target(app, secret_state).await? else {
+    let Some(target) = crate::backup::remote::sync_target(app_version, secret_state).await? else {
         return Ok(SyncOutcome::skipped("disabled"));
     };
     let (categories, local, base) = {
@@ -234,7 +214,7 @@ async fn sync(
     .await?;
     let uploaded = exchanged.uploaded;
     let mut outcome = apply(
-        app,
+        app_version,
         secret_state,
         tunnels,
         ApplyInput {
@@ -401,7 +381,7 @@ struct ApplyInput {
 
 /// Writes the merge result locally and saves it as the new base.
 async fn apply(
-    app: &AppHandle,
+    app_version: &str,
     secret_state: &SecretStoreState,
     tunnels: &TunnelManager,
     input: ApplyInput,
@@ -448,10 +428,11 @@ async fn apply(
         ..SyncOutcome::default()
     };
     if !changed.is_empty() && (union || deletes) {
-        let (app, secret_state) = (app.clone(), secret_state.clone());
+        let app_version = app_version.to_string();
+        let secret_state = secret_state.clone();
         let path = run_blocking(move || {
             crate::backup::automatic::create_recovery_backup(
-                &app,
+                &app_version,
                 RECOVERY_PREFIX,
                 frontend_state,
                 &secret_state,
