@@ -25,61 +25,61 @@ fn resolve_uses_builtin_until_user_sets() {
         BUILTIN_HIGHLIGHT_SET_ID
     );
 }
+fn network() -> HighlightSet {
+    HighlightSet {
+        id: "network".into(),
+        name: "Network".into(),
+        rules: vec![],
+    }
+}
+fn servers() -> HighlightSet {
+    HighlightSet {
+        id: "servers".into(),
+        name: "Servers".into(),
+        rules: vec![],
+    }
+}
 #[test]
 fn resolve_follows_default_or_choice_or_off() {
     let config = KeywordHighlightConfig {
         default_set: "servers".into(),
-        sets: Some(vec![
-            HighlightSet {
-                id: "network".into(),
-                ..Default::default()
-            },
-            HighlightSet {
-                id: "servers".into(),
-                ..Default::default()
-            },
-        ]),
+        sets: Some(vec![network(), servers()]),
         ..Default::default()
     };
     assert_eq!(
-        resolve_highlight_set(&config, Some(HIGHLIGHT_SET_FOLLOW_DEFAULT))
-            .unwrap()
-            .id,
-        "servers"
+        resolve_highlight_set(&config, Some(HIGHLIGHT_SET_FOLLOW_DEFAULT)),
+        Some(servers())
     );
-    assert_eq!(resolve_highlight_set(&config, None).unwrap().id, "servers");
+    assert_eq!(resolve_highlight_set(&config, None), Some(servers()));
     assert_eq!(
-        resolve_highlight_set(&config, Some("network")).unwrap().id,
-        "network"
+        resolve_highlight_set(&config, Some("network")),
+        Some(network())
     );
-    assert!(resolve_highlight_set(&config, Some(HIGHLIGHT_SET_OFF)).is_none());
+    assert_eq!(
+        resolve_highlight_set(&config, Some(HIGHLIGHT_SET_OFF)),
+        None
+    );
 }
 #[test]
 fn resolve_falls_back_to_default_when_chosen_deleted() {
     let config = KeywordHighlightConfig {
         default_set: "servers".into(),
-        sets: Some(vec![HighlightSet {
-            id: "servers".into(),
-            ..Default::default()
-        }]),
+        sets: Some(vec![servers()]),
         ..Default::default()
     };
     assert_eq!(
-        resolve_highlight_set(&config, Some("network")).unwrap().id,
-        "servers"
+        resolve_highlight_set(&config, Some("network")),
+        Some(servers())
     );
 }
 #[test]
 fn resolve_falls_back_to_first_when_default_deleted() {
     let config = KeywordHighlightConfig {
         default_set: "gone".into(),
-        sets: Some(vec![HighlightSet {
-            id: "network".into(),
-            ..Default::default()
-        }]),
+        sets: Some(vec![network()]),
         ..Default::default()
     };
-    assert_eq!(resolve_highlight_set(&config, None).unwrap().id, "network");
+    assert_eq!(resolve_highlight_set(&config, None), Some(network()));
 }
 #[test]
 fn resolve_off_config_returns_none() {
@@ -283,6 +283,7 @@ fn edit_add_update_remove_rules() {
         },
     );
     assert_eq!(set.rules[1].pattern, "down");
+    assert_eq!(set.rules[1].foreground.as_deref(), Some("#ff0000"));
     assert_eq!(
         remove_highlight_rule(&set, "a")
             .rules
