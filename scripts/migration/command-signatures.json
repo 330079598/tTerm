@@ -1,0 +1,2984 @@
+{
+  "version": 1,
+  "commands": [
+    {
+      "name": "ack_pty_output",
+      "module": "core::commands",
+      "attributes": {},
+      "params": [
+        {
+          "name": "tab_id",
+          "type": "String"
+        },
+        {
+          "name": "session_nonce",
+          "type": "u32"
+        },
+        {
+          "name": "bytes",
+          "type": "usize"
+        }
+      ],
+      "returns": "Result<(), String>"
+    },
+    {
+      "name": "agent_integration_status",
+      "module": "agent_integration",
+      "attributes": {},
+      "params": [],
+      "returns": "Result<Vec<AgentIntegrationStatus>, String>"
+    },
+    {
+      "name": "auto_start_tunnels",
+      "module": "tunnel::commands",
+      "attributes": {},
+      "params": [],
+      "returns": "Result<(), String>"
+    },
+    {
+      "name": "build_agent_resume_command",
+      "module": "core::agent_resume",
+      "attributes": {},
+      "params": [
+        {
+          "name": "agent",
+          "type": "ResumeAgent"
+        },
+        {
+          "name": "session_id",
+          "type": "String"
+        },
+        {
+          "name": "cwd",
+          "type": "String"
+        },
+        {
+          "name": "shell",
+          "type": "String"
+        }
+      ],
+      "returns": "Option<String>"
+    },
+    {
+      "name": "cancel_quit_prompt",
+      "module": "background::exit_guard",
+      "attributes": {},
+      "params": [],
+      "returns": "()"
+    },
+    {
+      "name": "change_remote_agent_integration",
+      "module": "agent_integration::remote",
+      "attributes": {},
+      "params": [
+        {
+          "name": "tab_id",
+          "type": "String"
+        },
+        {
+          "name": "connection",
+          "type": "Option<PtyConnectionOptions>"
+        },
+        {
+          "name": "agent",
+          "type": "Agent"
+        },
+        {
+          "name": "install",
+          "type": "bool"
+        }
+      ],
+      "returns": "Result<AgentIntegrationStatus, String>"
+    },
+    {
+      "name": "change_vault_password",
+      "module": "ssh::secret_commands",
+      "attributes": {},
+      "params": [
+        {
+          "name": "input",
+          "type": "ChangeVaultPasswordInput"
+        }
+      ],
+      "returns": "Result<SecretBackendStatus, String>"
+    },
+    {
+      "name": "check_app_update",
+      "module": "updater",
+      "attributes": {},
+      "params": [
+        {
+          "name": "channel",
+          "type": "String"
+        }
+      ],
+      "returns": "Result<Option<AppUpdateMetadata>, String>"
+    },
+    {
+      "name": "check_local_shell",
+      "module": "terminal::pty",
+      "attributes": {},
+      "params": [
+        {
+          "name": "path",
+          "type": "String"
+        }
+      ],
+      "returns": "Result<String, String>"
+    },
+    {
+      "name": "clear_scrollback_snapshots",
+      "module": "session::scrollback",
+      "attributes": {},
+      "params": [],
+      "returns": "Result<(), String>"
+    },
+    {
+      "name": "clear_serial_sends",
+      "module": "serial::history",
+      "attributes": {},
+      "params": [
+        {
+          "name": "connection_key",
+          "type": "String"
+        }
+      ],
+      "returns": "Result<(), String>"
+    },
+    {
+      "name": "clear_session",
+      "module": "session",
+      "attributes": {},
+      "params": [],
+      "returns": "Result<(), String>"
+    },
+    {
+      "name": "clear_webdav_backup_settings",
+      "module": "backup::remote",
+      "attributes": {},
+      "params": [],
+      "returns": "Result<WebDavBackupStatus, String>"
+    },
+    {
+      "name": "confirm_quit_app",
+      "module": "background::exit_guard",
+      "attributes": {},
+      "params": [],
+      "returns": "()"
+    },
+    {
+      "name": "create_command_tag",
+      "module": "command_library::commands",
+      "attributes": {},
+      "params": [
+        {
+          "name": "tag",
+          "type": "String"
+        }
+      ],
+      "returns": "Result<String, String>"
+    },
+    {
+      "name": "create_profile_group",
+      "module": "profiles::commands::groups",
+      "attributes": {},
+      "params": [
+        {
+          "name": "name",
+          "type": "String"
+        },
+        {
+          "name": "parent_id",
+          "type": "Option<String>"
+        }
+      ],
+      "returns": "Result<Vec<ProfileGroup>, String>"
+    },
+    {
+      "name": "create_pty",
+      "module": "core::commands",
+      "attributes": {},
+      "params": [
+        {
+          "name": "tab_id",
+          "type": "String"
+        },
+        {
+          "name": "session_nonce",
+          "type": "u32"
+        },
+        {
+          "name": "rows",
+          "type": "u16"
+        },
+        {
+          "name": "cols",
+          "type": "u16"
+        },
+        {
+          "name": "connection",
+          "type": "Option<super::session::types::PtyConnectionOptions>"
+        },
+        {
+          "name": "output_channel",
+          "type": "tauri::ipc::JavaScriptChannelId"
+        }
+      ],
+      "returns": "Result<u32, String>"
+    },
+    {
+      "name": "delete_backup_history_entry",
+      "module": "backup",
+      "attributes": {},
+      "params": [
+        {
+          "name": "path",
+          "type": "String"
+        }
+      ],
+      "returns": "Result<bool, String>"
+    },
+    {
+      "name": "delete_command_tag",
+      "module": "command_library::commands",
+      "attributes": {},
+      "params": [
+        {
+          "name": "tag",
+          "type": "String"
+        }
+      ],
+      "returns": "Result<Vec<String>, String>"
+    },
+    {
+      "name": "delete_known_hosts",
+      "module": "ssh::known_host_commands",
+      "attributes": {},
+      "params": [
+        {
+          "name": "ids",
+          "type": "Vec<i64>"
+        }
+      ],
+      "returns": "Result<usize, String>"
+    },
+    {
+      "name": "delete_profile_group",
+      "module": "profiles::commands::groups",
+      "attributes": {},
+      "params": [
+        {
+          "name": "id",
+          "type": "String"
+        }
+      ],
+      "returns": "Result<Vec<ProfileGroup>, String>"
+    },
+    {
+      "name": "delete_profile",
+      "module": "profiles::commands",
+      "attributes": {},
+      "params": [
+        {
+          "name": "id",
+          "type": "String"
+        }
+      ],
+      "returns": "Result<(), String>"
+    },
+    {
+      "name": "delete_profiles",
+      "module": "profiles::commands",
+      "attributes": {},
+      "params": [
+        {
+          "name": "ids",
+          "type": "Vec<String>"
+        }
+      ],
+      "returns": "Result<(), String>"
+    },
+    {
+      "name": "delete_proxy",
+      "module": "proxy",
+      "attributes": {},
+      "params": [
+        {
+          "name": "id",
+          "type": "String"
+        }
+      ],
+      "returns": "Result<Vec<ProxyServerEntry>, String>"
+    },
+    {
+      "name": "delete_saved_command",
+      "module": "command_library::commands",
+      "attributes": {},
+      "params": [
+        {
+          "name": "id",
+          "type": "String"
+        }
+      ],
+      "returns": "Result<bool, String>"
+    },
+    {
+      "name": "delete_saved_secret",
+      "module": "ssh::secret_commands",
+      "attributes": {},
+      "params": [
+        {
+          "name": "input",
+          "type": "DeleteSavedSecretInput"
+        }
+      ],
+      "returns": "Result<bool, String>"
+    },
+    {
+      "name": "delete_serial_send",
+      "module": "serial::history",
+      "attributes": {},
+      "params": [
+        {
+          "name": "connection_key",
+          "type": "String"
+        },
+        {
+          "name": "id",
+          "type": "String"
+        }
+      ],
+      "returns": "Result<Vec<SerialSend>, String>"
+    },
+    {
+      "name": "delete_terminal_log",
+      "module": "session_log",
+      "attributes": {},
+      "params": [
+        {
+          "name": "id",
+          "type": "String"
+        }
+      ],
+      "returns": "Result<(), String>"
+    },
+    {
+      "name": "delete_terminal_logs",
+      "module": "session_log",
+      "attributes": {},
+      "params": [
+        {
+          "name": "ids",
+          "type": "Vec<String>"
+        }
+      ],
+      "returns": "Result<library::DeleteReport, String>"
+    },
+    {
+      "name": "delete_tunnel",
+      "module": "tunnel::commands",
+      "attributes": {},
+      "params": [
+        {
+          "name": "id",
+          "type": "String"
+        }
+      ],
+      "returns": "Result<(), String>"
+    },
+    {
+      "name": "delete_vault_key",
+      "module": "ssh::key_vault",
+      "attributes": {},
+      "params": [
+        {
+          "name": "input",
+          "type": "VaultKeyIdInput"
+        }
+      ],
+      "returns": "Result<bool, String>"
+    },
+    {
+      "name": "delete_webdav_backup",
+      "module": "backup::remote",
+      "attributes": {},
+      "params": [
+        {
+          "name": "file_name",
+          "type": "String"
+        }
+      ],
+      "returns": "Result<(), String>"
+    },
+    {
+      "name": "delete_webdav_backups",
+      "module": "backup::remote",
+      "attributes": {},
+      "params": [
+        {
+          "name": "file_names",
+          "type": "Vec<String>"
+        }
+      ],
+      "returns": "Result<WebDavDeleteResult, String>"
+    },
+    {
+      "name": "discard_webdav_download",
+      "module": "backup::remote",
+      "attributes": {},
+      "params": [],
+      "returns": "Result<(), String>"
+    },
+    {
+      "name": "download_app_update",
+      "module": "updater",
+      "attributes": {},
+      "params": [],
+      "returns": "Result<bool, String>"
+    },
+    {
+      "name": "download_install_app_update",
+      "module": "updater",
+      "attributes": {},
+      "params": [],
+      "returns": "Result<bool, String>"
+    },
+    {
+      "name": "download_webdav_backup",
+      "module": "backup::remote",
+      "attributes": {},
+      "params": [
+        {
+          "name": "file_name",
+          "type": "String"
+        }
+      ],
+      "returns": "Result<String, String>"
+    },
+    {
+      "name": "export_backup",
+      "module": "backup",
+      "attributes": {},
+      "params": [
+        {
+          "name": "output_path",
+          "type": "String"
+        },
+        {
+          "name": "options",
+          "type": "BackupExportOptions"
+        }
+      ],
+      "returns": "Result<BackupExportResult, String>"
+    },
+    {
+      "name": "export_terminal_log_asciicast",
+      "module": "session_log",
+      "attributes": {},
+      "params": [
+        {
+          "name": "id",
+          "type": "String"
+        },
+        {
+          "name": "path",
+          "type": "String"
+        }
+      ],
+      "returns": "Result<(), String>"
+    },
+    {
+      "name": "export_vault_key",
+      "module": "ssh::key_vault",
+      "attributes": {},
+      "params": [
+        {
+          "name": "input",
+          "type": "ExportVaultKeyInput"
+        }
+      ],
+      "returns": "Result<(), String>"
+    },
+    {
+      "name": "folder_menu_status",
+      "module": "system_integration",
+      "attributes": {},
+      "params": [],
+      "returns": "Result<IntegrationStatus, String>"
+    },
+    {
+      "name": "forget_typed_passwords",
+      "module": "ssh::typed_passwords",
+      "attributes": {},
+      "params": [
+        {
+          "name": "tab_id",
+          "type": "String"
+        }
+      ],
+      "returns": "()"
+    },
+    {
+      "name": "get_automatic_backup_settings",
+      "module": "backup",
+      "attributes": {},
+      "params": [],
+      "returns": "Result<AutomaticBackupSettings, String>"
+    },
+    {
+      "name": "get_file_size",
+      "module": "sftp::internal::api::download",
+      "attributes": {},
+      "params": [
+        {
+          "name": "local_path",
+          "type": "String"
+        }
+      ],
+      "returns": "Result<u64, String>"
+    },
+    {
+      "name": "get_saved_secret",
+      "module": "ssh::secret_commands",
+      "attributes": {},
+      "params": [
+        {
+          "name": "input",
+          "type": "GetSavedSecretInput"
+        }
+      ],
+      "returns": "Result<String, String>"
+    },
+    {
+      "name": "get_secret_backend_status",
+      "module": "ssh::secret_commands",
+      "attributes": {},
+      "params": [],
+      "returns": "Result<SecretBackendStatus, String>"
+    },
+    {
+      "name": "get_server_metrics_snapshot",
+      "module": "monitor",
+      "attributes": {},
+      "params": [
+        {
+          "name": "tab_id",
+          "type": "String"
+        },
+        {
+          "name": "session_nonce",
+          "type": "u32"
+        },
+        {
+          "name": "connection",
+          "type": "Option<PtyConnectionOptions>"
+        }
+      ],
+      "returns": "Result<ServerMetricsSnapshot, String>"
+    },
+    {
+      "name": "get_sudo_password_source",
+      "module": "core::commands",
+      "attributes": {},
+      "params": [
+        {
+          "name": "profile_id",
+          "type": "Option<String>"
+        },
+        {
+          "name": "profile_name",
+          "type": "Option<String>"
+        }
+      ],
+      "returns": "Result<Option<super::session::SudoPasswordSource>, String>"
+    },
+    {
+      "name": "get_sync_status",
+      "module": "sync",
+      "attributes": {},
+      "params": [],
+      "returns": "Result<SyncStatus, String>"
+    },
+    {
+      "name": "get_terminal_log_status",
+      "module": "session_log",
+      "attributes": {},
+      "params": [],
+      "returns": "Result<TerminalLogStatus, String>"
+    },
+    {
+      "name": "get_webdav_backup_status",
+      "module": "backup::remote",
+      "attributes": {},
+      "params": [],
+      "returns": "Result<WebDavBackupStatus, String>"
+    },
+    {
+      "name": "has_saved_jump_host_password",
+      "module": "core::commands",
+      "attributes": {},
+      "params": [
+        {
+          "name": "profile_id",
+          "type": "Option<String>"
+        },
+        {
+          "name": "profile_name",
+          "type": "Option<String>"
+        },
+        {
+          "name": "host",
+          "type": "Option<String>"
+        },
+        {
+          "name": "port",
+          "type": "Option<u16>"
+        },
+        {
+          "name": "username",
+          "type": "Option<String>"
+        },
+        {
+          "name": "allow_legacy_fallback",
+          "type": "Option<bool>"
+        }
+      ],
+      "returns": "Result<bool, String>"
+    },
+    {
+      "name": "has_saved_password",
+      "module": "core::commands",
+      "attributes": {},
+      "params": [
+        {
+          "name": "profile_id",
+          "type": "Option<String>"
+        },
+        {
+          "name": "profile_name",
+          "type": "Option<String>"
+        }
+      ],
+      "returns": "Result<bool, String>"
+    },
+    {
+      "name": "has_saved_sudo_password",
+      "module": "core::commands",
+      "attributes": {},
+      "params": [
+        {
+          "name": "profile_id",
+          "type": "String"
+        }
+      ],
+      "returns": "Result<bool, String>"
+    },
+    {
+      "name": "has_typed_password",
+      "module": "ssh::typed_passwords",
+      "attributes": {},
+      "params": [
+        {
+          "name": "tab_id",
+          "type": "String"
+        },
+        {
+          "name": "host",
+          "type": "String"
+        },
+        {
+          "name": "port",
+          "type": "u16"
+        },
+        {
+          "name": "username",
+          "type": "String"
+        }
+      ],
+      "returns": "bool"
+    },
+    {
+      "name": "import_backup",
+      "module": "backup",
+      "attributes": {},
+      "params": [
+        {
+          "name": "input_path",
+          "type": "String"
+        },
+        {
+          "name": "options",
+          "type": "BackupImportOptions"
+        }
+      ],
+      "returns": "Result<BackupImportResult, String>"
+    },
+    {
+      "name": "import_notification_sound",
+      "module": "notification",
+      "attributes": {},
+      "params": [
+        {
+          "name": "path",
+          "type": "String"
+        }
+      ],
+      "returns": "Result<String, String>"
+    },
+    {
+      "name": "import_ssh_config_profiles",
+      "module": "profiles::commands",
+      "attributes": {},
+      "params": [
+        {
+          "name": "options",
+          "type": "SshConfigImportOptions"
+        }
+      ],
+      "returns": "Result<SshConfigImportResult, String>"
+    },
+    {
+      "name": "import_vault_key",
+      "module": "ssh::key_vault",
+      "attributes": {},
+      "params": [
+        {
+          "name": "input",
+          "type": "ImportVaultKeyInput"
+        }
+      ],
+      "returns": "Result<VaultKeySummary, String>"
+    },
+    {
+      "name": "inspect_backup",
+      "module": "backup",
+      "attributes": {},
+      "params": [
+        {
+          "name": "input",
+          "type": "BackupInspectInput"
+        }
+      ],
+      "returns": "Result<BackupInspectResult, String>"
+    },
+    {
+      "name": "install_agent_integration",
+      "module": "agent_integration",
+      "attributes": {},
+      "params": [
+        {
+          "name": "agent",
+          "type": "Agent"
+        }
+      ],
+      "returns": "Result<AgentIntegrationStatus, String>"
+    },
+    {
+      "name": "install_downloaded_app_update",
+      "module": "updater",
+      "attributes": {},
+      "params": [],
+      "returns": "Result<bool, String>"
+    },
+    {
+      "name": "kill_pty",
+      "module": "core::commands",
+      "attributes": {},
+      "params": [
+        {
+          "name": "tab_id",
+          "type": "String"
+        },
+        {
+          "name": "session_nonce",
+          "type": "u32"
+        }
+      ],
+      "returns": "Result<(), String>"
+    },
+    {
+      "name": "list_available_terminal_shells",
+      "module": "terminal::pty",
+      "attributes": {},
+      "params": [],
+      "returns": "Result<Vec<TerminalShellProfile>, String>"
+    },
+    {
+      "name": "list_backup_history",
+      "module": "backup",
+      "attributes": {},
+      "params": [],
+      "returns": "Result<Vec<BackupHistoryEntry>, String>"
+    },
+    {
+      "name": "list_command_tags",
+      "module": "command_library::commands",
+      "attributes": {},
+      "params": [],
+      "returns": "Result<Vec<String>, String>"
+    },
+    {
+      "name": "list_fonts",
+      "module": "fonts",
+      "attributes": {},
+      "params": [],
+      "returns": "Vec<String>"
+    },
+    {
+      "name": "list_known_hosts",
+      "module": "ssh::known_host_commands",
+      "attributes": {},
+      "params": [],
+      "returns": "Result<Vec<KnownHostEntry>, String>"
+    },
+    {
+      "name": "list_profile_groups",
+      "module": "profiles::commands::groups",
+      "attributes": {},
+      "params": [],
+      "returns": "Result<Vec<ProfileGroup>, String>"
+    },
+    {
+      "name": "list_profiles",
+      "module": "profiles::commands",
+      "attributes": {},
+      "params": [],
+      "returns": "Result<Vec<SavedProfile>, String>"
+    },
+    {
+      "name": "list_proxies",
+      "module": "proxy",
+      "attributes": {},
+      "params": [],
+      "returns": "Result<Vec<ProxyServerEntry>, String>"
+    },
+    {
+      "name": "list_saved_commands",
+      "module": "command_library::commands",
+      "attributes": {},
+      "params": [],
+      "returns": "Result<Vec<SavedCommand>, String>"
+    },
+    {
+      "name": "list_saved_secrets",
+      "module": "ssh::secret_commands",
+      "attributes": {},
+      "params": [],
+      "returns": "Result<Vec<SavedSecretEntry>, String>"
+    },
+    {
+      "name": "list_serial_ports",
+      "module": "serial",
+      "attributes": {},
+      "params": [],
+      "returns": "Result<Vec<SerialPortEntry>, String>"
+    },
+    {
+      "name": "list_serial_sends",
+      "module": "serial::history",
+      "attributes": {},
+      "params": [
+        {
+          "name": "connection_key",
+          "type": "String"
+        }
+      ],
+      "returns": "Result<Vec<SerialSend>, String>"
+    },
+    {
+      "name": "list_terminal_logs",
+      "module": "session_log",
+      "attributes": {},
+      "params": [],
+      "returns": "Result<Vec<library::LogSession>, String>"
+    },
+    {
+      "name": "list_tunnel_statuses",
+      "module": "tunnel::commands",
+      "attributes": {},
+      "params": [],
+      "returns": "Result<Vec<TunnelStatus>, String>"
+    },
+    {
+      "name": "list_tunnels",
+      "module": "tunnel::commands",
+      "attributes": {},
+      "params": [],
+      "returns": "Result<Vec<TunnelRule>, String>"
+    },
+    {
+      "name": "list_vault_keys",
+      "module": "ssh::key_vault",
+      "attributes": {},
+      "params": [],
+      "returns": "Result<Vec<VaultKeySummary>, String>"
+    },
+    {
+      "name": "list_webdav_backups",
+      "module": "backup::remote",
+      "attributes": {},
+      "params": [],
+      "returns": "Result<Vec<RemoteBackupEntry>, String>"
+    },
+    {
+      "name": "load_app_state",
+      "module": "app_state",
+      "attributes": {},
+      "params": [],
+      "returns": "Result<AppState, String>"
+    },
+    {
+      "name": "load_config",
+      "module": "config",
+      "attributes": {},
+      "params": [],
+      "returns": "Result<AppConfig, String>"
+    },
+    {
+      "name": "load_custom_themes",
+      "module": "themes",
+      "attributes": {},
+      "params": [
+        {
+          "name": "legacy",
+          "type": "Option<Vec<Value>>"
+        }
+      ],
+      "returns": "Result<Vec<Value>, String>"
+    },
+    {
+      "name": "load_scrollback_snapshots",
+      "module": "session::scrollback",
+      "attributes": {},
+      "params": [
+        {
+          "name": "tab_ids",
+          "type": "Vec<String>"
+        }
+      ],
+      "returns": "Result<Vec<SavedScrollback>, String>"
+    },
+    {
+      "name": "load_session",
+      "module": "session",
+      "attributes": {},
+      "params": [],
+      "returns": "Result<SessionData, String>"
+    },
+    {
+      "name": "load_terminal_log_recording",
+      "module": "session_log",
+      "attributes": {},
+      "params": [
+        {
+          "name": "id",
+          "type": "String"
+        }
+      ],
+      "returns": "Result<Response, String>"
+    },
+    {
+      "name": "load_terminal_log_text",
+      "module": "session_log",
+      "attributes": {},
+      "params": [
+        {
+          "name": "id",
+          "type": "String"
+        }
+      ],
+      "returns": "Result<Response, String>"
+    },
+    {
+      "name": "local_terminal_shell_name",
+      "module": "terminal::pty",
+      "attributes": {},
+      "params": [
+        {
+          "name": "shell",
+          "type": "Option<String>"
+        },
+        {
+          "name": "custom_path",
+          "type": "Option<String>"
+        }
+      ],
+      "returns": "Option<String>"
+    },
+    {
+      "name": "lock_secret_vault",
+      "module": "ssh::secret_commands",
+      "attributes": {},
+      "params": [],
+      "returns": "Result<SecretBackendStatus, String>"
+    },
+    {
+      "name": "move_profile_group",
+      "module": "profiles::commands::groups",
+      "attributes": {},
+      "params": [
+        {
+          "name": "id",
+          "type": "String"
+        },
+        {
+          "name": "parent_id",
+          "type": "Option<String>"
+        }
+      ],
+      "returns": "Result<Vec<ProfileGroup>, String>"
+    },
+    {
+      "name": "move_profiles_to_group",
+      "module": "profiles::commands::groups",
+      "attributes": {},
+      "params": [
+        {
+          "name": "ids",
+          "type": "Vec<String>"
+        },
+        {
+          "name": "group_id",
+          "type": "Option<String>"
+        },
+        {
+          "name": "target_id",
+          "type": "Option<String>"
+        }
+      ],
+      "returns": "Result<(), String>"
+    },
+    {
+      "name": "notification_permission",
+      "module": "notification",
+      "attributes": {},
+      "params": [],
+      "returns": "NotificationPermission"
+    },
+    {
+      "name": "open_terminal_log_directory",
+      "module": "session_log",
+      "attributes": {},
+      "params": [],
+      "returns": "Result<(), String>"
+    },
+    {
+      "name": "pending_proxy_command_prompts",
+      "module": "proxy::approval",
+      "attributes": {},
+      "params": [],
+      "returns": "Vec<ProxyCommandPrompt>"
+    },
+    {
+      "name": "preview_ssh_config_import",
+      "module": "profiles::commands",
+      "attributes": {},
+      "params": [
+        {
+          "name": "source_path",
+          "type": "Option<String>"
+        }
+      ],
+      "returns": "Result<SshConfigImportPreview, String>"
+    },
+    {
+      "name": "pty_shell_in_foreground",
+      "module": "terminal::foreground",
+      "attributes": {},
+      "params": [
+        {
+          "name": "tab_id",
+          "type": "String"
+        },
+        {
+          "name": "session_nonce",
+          "type": "u32"
+        }
+      ],
+      "returns": "Result<bool, String>"
+    },
+    {
+      "name": "pulse_serial_line",
+      "module": "serial",
+      "attributes": {},
+      "params": [
+        {
+          "name": "tab_id",
+          "type": "String"
+        },
+        {
+          "name": "session_nonce",
+          "type": "u32"
+        },
+        {
+          "name": "line",
+          "type": "SerialLine"
+        },
+        {
+          "name": "duration_ms",
+          "type": "Option<u64>"
+        }
+      ],
+      "returns": "Result<(), String>"
+    },
+    {
+      "name": "read_clipboard_file_paths",
+      "module": "clipboard_files",
+      "attributes": {},
+      "params": [],
+      "returns": "Result<Vec<String>, String>"
+    },
+    {
+      "name": "read_notification_sound",
+      "module": "notification",
+      "attributes": {},
+      "params": [],
+      "returns": "Result<Response, String>"
+    },
+    {
+      "name": "ready_to_quit",
+      "module": "background::quit",
+      "attributes": {},
+      "params": [],
+      "returns": "()"
+    },
+    {
+      "name": "record_saved_command_use",
+      "module": "command_library::commands",
+      "attributes": {},
+      "params": [
+        {
+          "name": "id",
+          "type": "String"
+        }
+      ],
+      "returns": "Result<(), String>"
+    },
+    {
+      "name": "record_serial_send",
+      "module": "serial::history",
+      "attributes": {},
+      "params": [
+        {
+          "name": "connection_key",
+          "type": "String"
+        },
+        {
+          "name": "mode",
+          "type": "SerialSendMode"
+        },
+        {
+          "name": "text",
+          "type": "String"
+        }
+      ],
+      "returns": "Result<Vec<SerialSend>, String>"
+    },
+    {
+      "name": "refresh_drop_folder",
+      "module": "drag_out",
+      "attributes": {},
+      "params": [
+        {
+          "name": "directory",
+          "type": "String"
+        }
+      ],
+      "returns": "Result<(), String>"
+    },
+    {
+      "name": "release_server_monitor_session",
+      "module": "monitor",
+      "attributes": {},
+      "params": [
+        {
+          "name": "tab_id",
+          "type": "String"
+        },
+        {
+          "name": "session_nonce",
+          "type": "Option<u32>"
+        }
+      ],
+      "returns": "Result<(), String>"
+    },
+    {
+      "name": "remote_agent_integration_status",
+      "module": "agent_integration::remote",
+      "attributes": {},
+      "params": [
+        {
+          "name": "tab_id",
+          "type": "String"
+        },
+        {
+          "name": "connection",
+          "type": "Option<PtyConnectionOptions>"
+        }
+      ],
+      "returns": "Result<Vec<AgentIntegrationStatus>, String>"
+    },
+    {
+      "name": "remove_master_password",
+      "module": "ssh::secret_commands",
+      "attributes": {},
+      "params": [],
+      "returns": "Result<SecretBackendStatus, String>"
+    },
+    {
+      "name": "rename_command_tag",
+      "module": "command_library::commands",
+      "attributes": {},
+      "params": [
+        {
+          "name": "old_tag",
+          "type": "String"
+        },
+        {
+          "name": "new_tag",
+          "type": "String"
+        }
+      ],
+      "returns": "Result<Vec<String>, String>"
+    },
+    {
+      "name": "rename_profile_group",
+      "module": "profiles::commands::groups",
+      "attributes": {},
+      "params": [
+        {
+          "name": "id",
+          "type": "String"
+        },
+        {
+          "name": "name",
+          "type": "String"
+        }
+      ],
+      "returns": "Result<Vec<ProfileGroup>, String>"
+    },
+    {
+      "name": "rename_vault_key",
+      "module": "ssh::key_vault",
+      "attributes": {},
+      "params": [
+        {
+          "name": "input",
+          "type": "RenameVaultKeyInput"
+        }
+      ],
+      "returns": "Result<VaultKeySummary, String>"
+    },
+    {
+      "name": "repair_ime_focus",
+      "module": "ime_focus",
+      "attributes": {},
+      "params": [],
+      "returns": "Result<(), String>"
+    },
+    {
+      "name": "reset_pty_console",
+      "module": "core::commands",
+      "attributes": {},
+      "params": [
+        {
+          "name": "tab_id",
+          "type": "String"
+        },
+        {
+          "name": "session_nonce",
+          "type": "u32"
+        }
+      ],
+      "returns": "Result<(), String>"
+    },
+    {
+      "name": "reset_saved_passwords",
+      "module": "ssh::secret_commands",
+      "attributes": {},
+      "params": [],
+      "returns": "Result<SecretBackendStatus, String>"
+    },
+    {
+      "name": "reset_sync",
+      "module": "sync",
+      "attributes": {},
+      "params": [],
+      "returns": "Result<SyncStatus, String>"
+    },
+    {
+      "name": "reset_tunnel_traffic_totals",
+      "module": "tunnel::commands",
+      "attributes": {},
+      "params": [
+        {
+          "name": "id",
+          "type": "String"
+        }
+      ],
+      "returns": "Result<(), String>"
+    },
+    {
+      "name": "resize_pty",
+      "module": "core::commands",
+      "attributes": {},
+      "params": [
+        {
+          "name": "tab_id",
+          "type": "String"
+        },
+        {
+          "name": "session_nonce",
+          "type": "u32"
+        },
+        {
+          "name": "rows",
+          "type": "u16"
+        },
+        {
+          "name": "cols",
+          "type": "u16"
+        }
+      ],
+      "returns": "Result<(), String>"
+    },
+    {
+      "name": "resolve_close_request",
+      "module": "background",
+      "attributes": {},
+      "params": [
+        {
+          "name": "action",
+          "type": "String"
+        }
+      ],
+      "returns": "()"
+    },
+    {
+      "name": "resolve_ssh_config_host",
+      "module": "profiles::commands",
+      "attributes": {},
+      "params": [
+        {
+          "name": "name",
+          "type": "String"
+        }
+      ],
+      "returns": "Result<Option<SshConfigImportHost>, String>"
+    },
+    {
+      "name": "respond_proxy_command_prompt",
+      "module": "proxy::approval",
+      "attributes": {},
+      "params": [
+        {
+          "name": "request_id",
+          "type": "String"
+        },
+        {
+          "name": "allow",
+          "type": "bool"
+        }
+      ],
+      "returns": "Result<(), String>"
+    },
+    {
+      "name": "respond_ssh_auth_prompt",
+      "module": "ssh::auth",
+      "attributes": {},
+      "params": [
+        {
+          "name": "request_id",
+          "type": "String"
+        },
+        {
+          "name": "responses",
+          "type": "Option<Vec<String>>"
+        }
+      ],
+      "returns": "Result<(), String>"
+    },
+    {
+      "name": "respond_ssh_host_key_prompt",
+      "module": "core::commands",
+      "attributes": {},
+      "params": [
+        {
+          "name": "request_id",
+          "type": "String"
+        },
+        {
+          "name": "trust",
+          "type": "bool"
+        }
+      ],
+      "returns": "Result<(), String>"
+    },
+    {
+      "name": "retry_system_unlock",
+      "module": "ssh::secret_commands",
+      "attributes": {},
+      "params": [],
+      "returns": "Result<SecretBackendStatus, String>"
+    },
+    {
+      "name": "retry_terminal_logging",
+      "module": "session_log",
+      "attributes": {},
+      "params": [],
+      "returns": "Result<TerminalLogStatus, String>"
+    },
+    {
+      "name": "reveal_terminal_log",
+      "module": "session_log",
+      "attributes": {},
+      "params": [
+        {
+          "name": "id",
+          "type": "String"
+        }
+      ],
+      "returns": "Result<(), String>"
+    },
+    {
+      "name": "run_blocking",
+      "module": "core::blocking",
+      "attributes": {},
+      "params": [
+        {
+          "name": "work",
+          "type": "F"
+        }
+      ],
+      "returns": "Result<T, String>\nwhere\n    T: Send + 'static,\n    F: FnOnce() -> Result<T, String> + Send + 'static,"
+    },
+    {
+      "name": "run_due_automatic_backup",
+      "module": "backup",
+      "attributes": {},
+      "params": [
+        {
+          "name": "frontend_state",
+          "type": "Option<Value>"
+        },
+        {
+          "name": "force",
+          "type": "bool"
+        }
+      ],
+      "returns": "Result<Option<BackupExportResult>, String>"
+    },
+    {
+      "name": "run_sync",
+      "module": "sync",
+      "attributes": {},
+      "params": [
+        {
+          "name": "frontend_state",
+          "type": "Option<Value>"
+        },
+        {
+          "name": "check_remote",
+          "type": "bool"
+        }
+      ],
+      "returns": "Result<SyncOutcome, String>"
+    },
+    {
+      "name": "run_webdav_backup",
+      "module": "backup::remote",
+      "attributes": {},
+      "params": [
+        {
+          "name": "frontend_state",
+          "type": "Option<Value>"
+        },
+        {
+          "name": "force",
+          "type": "bool"
+        }
+      ],
+      "returns": "Result<Option<WebDavUploadResult>, String>"
+    },
+    {
+      "name": "save_app_state",
+      "module": "app_state",
+      "attributes": {},
+      "params": [
+        {
+          "name": "state",
+          "type": "AppState"
+        }
+      ],
+      "returns": "Result<(), String>"
+    },
+    {
+      "name": "save_automatic_backup_settings",
+      "module": "backup",
+      "attributes": {},
+      "params": [
+        {
+          "name": "settings",
+          "type": "AutomaticBackupSettings"
+        }
+      ],
+      "returns": "Result<AutomaticBackupSettings, String>"
+    },
+    {
+      "name": "save_config",
+      "module": "config",
+      "attributes": {},
+      "params": [
+        {
+          "name": "config",
+          "type": "AppConfig"
+        }
+      ],
+      "returns": "Result<(), String>"
+    },
+    {
+      "name": "save_custom_themes",
+      "module": "themes",
+      "attributes": {},
+      "params": [
+        {
+          "name": "themes",
+          "type": "Vec<Value>"
+        }
+      ],
+      "returns": "Result<(), String>"
+    },
+    {
+      "name": "save_profile",
+      "module": "profiles::commands",
+      "attributes": {},
+      "params": [],
+      "returns": "Result<(), String>"
+    },
+    {
+      "name": "save_proxy",
+      "module": "proxy",
+      "attributes": {},
+      "params": [
+        {
+          "name": "server",
+          "type": "ProxyServer"
+        },
+        {
+          "name": "password",
+          "type": "Option<String>"
+        },
+        {
+          "name": "clear_password",
+          "type": "bool"
+        }
+      ],
+      "returns": "Result<Vec<ProxyServerEntry>, String>"
+    },
+    {
+      "name": "save_saved_command",
+      "module": "command_library::commands",
+      "attributes": {},
+      "params": [
+        {
+          "name": "input",
+          "type": "SaveCommandInput"
+        }
+      ],
+      "returns": "Result<SavedCommand, String>"
+    },
+    {
+      "name": "save_scrollback_snapshots",
+      "module": "session::scrollback",
+      "attributes": {},
+      "params": [
+        {
+          "name": "snapshots",
+          "type": "Vec<ScrollbackSnapshot>"
+        }
+      ],
+      "returns": "Result<(), String>"
+    },
+    {
+      "name": "save_session",
+      "module": "session",
+      "attributes": {},
+      "params": [
+        {
+          "name": "session",
+          "type": "SessionData"
+        }
+      ],
+      "returns": "Result<(), String>"
+    },
+    {
+      "name": "save_sync_settings",
+      "module": "sync",
+      "attributes": {},
+      "params": [
+        {
+          "name": "settings",
+          "type": "SyncSettings"
+        }
+      ],
+      "returns": "Result<SyncStatus, String>"
+    },
+    {
+      "name": "save_terminal_contents",
+      "module": "session_log",
+      "attributes": {},
+      "params": [
+        {
+          "name": "path",
+          "type": "String"
+        },
+        {
+          "name": "contents",
+          "type": "String"
+        }
+      ],
+      "returns": "Result<(), String>"
+    },
+    {
+      "name": "save_tunnel",
+      "module": "tunnel::commands",
+      "attributes": {},
+      "params": [
+        {
+          "name": "mut tunnel",
+          "type": "TunnelRule"
+        }
+      ],
+      "returns": "Result<TunnelRule, String>"
+    },
+    {
+      "name": "save_webdav_backup_settings",
+      "module": "backup::remote",
+      "attributes": {},
+      "params": [
+        {
+          "name": "settings",
+          "type": "WebDavBackupSettings"
+        },
+        {
+          "name": "password",
+          "type": "Option<String>"
+        },
+        {
+          "name": "backup_password",
+          "type": "Option<String>"
+        }
+      ],
+      "returns": "Result<WebDavBackupStatus, String>"
+    },
+    {
+      "name": "save_webdav_backup",
+      "module": "backup::remote",
+      "attributes": {},
+      "params": [
+        {
+          "name": "file_name",
+          "type": "String"
+        },
+        {
+          "name": "output_path",
+          "type": "String"
+        }
+      ],
+      "returns": "Result<String, String>"
+    },
+    {
+      "name": "save_window_background",
+      "module": "config::window_background",
+      "attributes": {},
+      "params": [
+        {
+          "name": "color",
+          "type": "String"
+        }
+      ],
+      "returns": "Result<(), String>"
+    },
+    {
+      "name": "send_serial_break",
+      "module": "serial",
+      "attributes": {},
+      "params": [
+        {
+          "name": "tab_id",
+          "type": "String"
+        },
+        {
+          "name": "session_nonce",
+          "type": "u32"
+        },
+        {
+          "name": "duration_ms",
+          "type": "Option<u64>"
+        }
+      ],
+      "returns": "Result<(), String>"
+    },
+    {
+      "name": "serial_receive_files",
+      "module": "serial::xmodem",
+      "attributes": {},
+      "params": [
+        {
+          "name": "tab_id",
+          "type": "String"
+        },
+        {
+          "name": "session_nonce",
+          "type": "u32"
+        },
+        {
+          "name": "protocol",
+          "type": "XmodemProtocol"
+        },
+        {
+          "name": "destination",
+          "type": "String"
+        }
+      ],
+      "returns": "Result<(), String>"
+    },
+    {
+      "name": "serial_send_files",
+      "module": "serial::xmodem",
+      "attributes": {},
+      "params": [
+        {
+          "name": "tab_id",
+          "type": "String"
+        },
+        {
+          "name": "session_nonce",
+          "type": "u32"
+        },
+        {
+          "name": "protocol",
+          "type": "XmodemProtocol"
+        },
+        {
+          "name": "local_paths",
+          "type": "Vec<String>"
+        }
+      ],
+      "returns": "Result<(), String>"
+    },
+    {
+      "name": "set_folder_menu",
+      "module": "system_integration",
+      "attributes": {},
+      "params": [
+        {
+          "name": "installed",
+          "type": "bool"
+        }
+      ],
+      "returns": "Result<IntegrationStatus, String>"
+    },
+    {
+      "name": "set_master_password",
+      "module": "ssh::secret_commands",
+      "attributes": {},
+      "params": [
+        {
+          "name": "input",
+          "type": "MasterPasswordInput"
+        }
+      ],
+      "returns": "Result<SecretBackendStatus, String>"
+    },
+    {
+      "name": "set_profile_distro",
+      "module": "profiles::commands",
+      "attributes": {},
+      "params": [
+        {
+          "name": "id",
+          "type": "String"
+        },
+        {
+          "name": "distro",
+          "type": "Option<String>"
+        }
+      ],
+      "returns": "Result<(), String>"
+    },
+    {
+      "name": "set_profile_server_monitor_visible",
+      "module": "profiles::commands",
+      "attributes": {},
+      "params": [
+        {
+          "name": "id",
+          "type": "String"
+        },
+        {
+          "name": "visible",
+          "type": "bool"
+        }
+      ],
+      "returns": "Result<(), String>"
+    },
+    {
+      "name": "set_profile_tab_icon",
+      "module": "profiles::commands",
+      "attributes": {},
+      "params": [
+        {
+          "name": "id",
+          "type": "String"
+        },
+        {
+          "name": "icon",
+          "type": "Option<TabIconStyle>"
+        }
+      ],
+      "returns": "Result<(), String>"
+    },
+    {
+      "name": "set_save_before_quit",
+      "module": "background::quit",
+      "attributes": {},
+      "params": [
+        {
+          "name": "enabled",
+          "type": "bool"
+        }
+      ],
+      "returns": "()"
+    },
+    {
+      "name": "set_saved_command_favorite",
+      "module": "command_library::commands",
+      "attributes": {},
+      "params": [
+        {
+          "name": "id",
+          "type": "String"
+        },
+        {
+          "name": "favorite",
+          "type": "bool"
+        }
+      ],
+      "returns": "Result<SavedCommand, String>"
+    },
+    {
+      "name": "set_secret_storage_mode",
+      "module": "ssh::secret_commands",
+      "attributes": {},
+      "params": [
+        {
+          "name": "input",
+          "type": "SecretStorageModeInput"
+        }
+      ],
+      "returns": "Result<SecretBackendStatus, String>"
+    },
+    {
+      "name": "set_serial_signals",
+      "module": "serial",
+      "attributes": {},
+      "params": [
+        {
+          "name": "tab_id",
+          "type": "String"
+        },
+        {
+          "name": "session_nonce",
+          "type": "u32"
+        },
+        {
+          "name": "dtr",
+          "type": "Option<bool>"
+        },
+        {
+          "name": "rts",
+          "type": "Option<bool>"
+        }
+      ],
+      "returns": "Result<(), String>"
+    },
+    {
+      "name": "set_serial_view",
+      "module": "serial",
+      "attributes": {},
+      "params": [
+        {
+          "name": "tab_id",
+          "type": "String"
+        },
+        {
+          "name": "session_nonce",
+          "type": "u32"
+        },
+        {
+          "name": "hex",
+          "type": "bool"
+        }
+      ],
+      "returns": "Result<(), String>"
+    },
+    {
+      "name": "set_shell_command",
+      "module": "system_integration",
+      "attributes": {},
+      "params": [
+        {
+          "name": "installed",
+          "type": "bool"
+        },
+        {
+          "name": "admin_prompt",
+          "type": "String"
+        }
+      ],
+      "returns": "Result<IntegrationStatus, String>"
+    },
+    {
+      "name": "set_terminal_log_recording",
+      "module": "session_log",
+      "attributes": {},
+      "params": [
+        {
+          "name": "tab_id",
+          "type": "String"
+        },
+        {
+          "name": "recording",
+          "type": "bool"
+        }
+      ],
+      "returns": "Result<TerminalLogStatus, String>"
+    },
+    {
+      "name": "set_unseen_notifications",
+      "module": "notification::badge",
+      "attributes": {},
+      "params": [
+        {
+          "name": "count",
+          "type": "u32"
+        },
+        {
+          "name": "overlay",
+          "type": "Option<OverlayImage>"
+        }
+      ],
+      "returns": "Result<(), String>"
+    },
+    {
+      "name": "set_vault_key_certificate",
+      "module": "ssh::key_vault",
+      "attributes": {},
+      "params": [
+        {
+          "name": "input",
+          "type": "SetVaultKeyCertificateInput"
+        }
+      ],
+      "returns": "Result<VaultKeySummary, String>"
+    },
+    {
+      "name": "set_window_blur",
+      "module": "window_blur",
+      "attributes": {},
+      "params": [
+        {
+          "name": "enabled",
+          "type": "bool"
+        },
+        {
+          "name": "radius",
+          "type": "u32"
+        },
+        {
+          "name": "material",
+          "type": "String"
+        },
+        {
+          "name": "dark",
+          "type": "bool"
+        }
+      ],
+      "returns": "Result<(), String>"
+    },
+    {
+      "name": "sftp_cancel_remote_operation",
+      "module": "sftp::internal::api::archive",
+      "attributes": {},
+      "params": [
+        {
+          "name": "operation_id",
+          "type": "String"
+        }
+      ],
+      "returns": "Result<(), String>"
+    },
+    {
+      "name": "sftp_cancel_upload",
+      "module": "sftp::internal::api::upload::commands",
+      "attributes": {},
+      "params": [
+        {
+          "name": "transfer_id",
+          "type": "String"
+        }
+      ],
+      "returns": "Result<(), String>"
+    },
+    {
+      "name": "sftp_check_download_conflicts",
+      "module": "sftp::internal::api::download",
+      "attributes": {},
+      "params": [
+        {
+          "name": "tab_id",
+          "type": "String"
+        },
+        {
+          "name": "connection",
+          "type": "Option<PtyConnectionOptions>"
+        },
+        {
+          "name": "remote_paths",
+          "type": "Vec<String>"
+        },
+        {
+          "name": "local_parent_path",
+          "type": "String"
+        }
+      ],
+      "returns": "Result<ConflictReport, String>"
+    },
+    {
+      "name": "sftp_check_upload_conflicts",
+      "module": "sftp::internal::api::upload::commands",
+      "attributes": {},
+      "params": [
+        {
+          "name": "tab_id",
+          "type": "String"
+        },
+        {
+          "name": "connection",
+          "type": "Option<PtyConnectionOptions>"
+        },
+        {
+          "name": "local_paths",
+          "type": "Vec<String>"
+        },
+        {
+          "name": "remote_base_path",
+          "type": "String"
+        }
+      ],
+      "returns": "Result<ConflictReport, String>"
+    },
+    {
+      "name": "sftp_compress_entries",
+      "module": "sftp::internal::api::archive",
+      "attributes": {},
+      "params": [
+        {
+          "name": "tab_id",
+          "type": "String"
+        },
+        {
+          "name": "connection",
+          "type": "Option<PtyConnectionOptions>"
+        },
+        {
+          "name": "operation_id",
+          "type": "String"
+        },
+        {
+          "name": "request",
+          "type": "CompressRequest"
+        }
+      ],
+      "returns": "Result<RemoteOperationResult, String>"
+    },
+    {
+      "name": "sftp_create_directory",
+      "module": "sftp::internal::api::base",
+      "attributes": {},
+      "params": [
+        {
+          "name": "tab_id",
+          "type": "String"
+        },
+        {
+          "name": "connection",
+          "type": "Option<PtyConnectionOptions>"
+        },
+        {
+          "name": "path",
+          "type": "String"
+        }
+      ],
+      "returns": "Result<(), String>"
+    },
+    {
+      "name": "sftp_delete_entries",
+      "module": "sftp::internal::api::delete::commands",
+      "attributes": {},
+      "params": [
+        {
+          "name": "tab_id",
+          "type": "String"
+        },
+        {
+          "name": "connection",
+          "type": "Option<PtyConnectionOptions>"
+        },
+        {
+          "name": "entries",
+          "type": "Vec<DeleteEntryRequest>"
+        },
+        {
+          "name": "options",
+          "type": "DeleteOptions"
+        }
+      ],
+      "returns": "Result<DeleteBatchStartResult, String>"
+    },
+    {
+      "name": "sftp_delete_entry",
+      "module": "sftp::internal::api::delete::commands",
+      "attributes": {},
+      "params": [
+        {
+          "name": "tab_id",
+          "type": "String"
+        },
+        {
+          "name": "connection",
+          "type": "Option<PtyConnectionOptions>"
+        },
+        {
+          "name": "path",
+          "type": "String"
+        },
+        {
+          "name": "is_dir",
+          "type": "bool"
+        }
+      ],
+      "returns": "Result<(), String>"
+    },
+    {
+      "name": "sftp_download_file",
+      "module": "sftp::internal::api::download",
+      "attributes": {},
+      "params": [
+        {
+          "name": "tab_id",
+          "type": "String"
+        },
+        {
+          "name": "connection",
+          "type": "Option<PtyConnectionOptions>"
+        },
+        {
+          "name": "transfer_id",
+          "type": "String"
+        },
+        {
+          "name": "remote_path",
+          "type": "String"
+        },
+        {
+          "name": "local_path",
+          "type": "String"
+        }
+      ],
+      "returns": "Result<(), String>"
+    },
+    {
+      "name": "sftp_download_paths",
+      "module": "sftp::internal::api::download",
+      "attributes": {},
+      "params": [
+        {
+          "name": "tab_id",
+          "type": "String"
+        },
+        {
+          "name": "connection",
+          "type": "Option<PtyConnectionOptions>"
+        },
+        {
+          "name": "transfer_id",
+          "type": "String"
+        },
+        {
+          "name": "remote_paths",
+          "type": "Vec<String>"
+        },
+        {
+          "name": "local_parent_path",
+          "type": "String"
+        },
+        {
+          "name": "skip_existing",
+          "type": "Option<bool>"
+        },
+        {
+          "name": "conflict_policy",
+          "type": "Option<ConflictPolicy>"
+        }
+      ],
+      "returns": "Result<(), String>"
+    },
+    {
+      "name": "sftp_external_app_icons",
+      "module": "sftp::internal::api::external",
+      "attributes": {},
+      "params": [
+        {
+          "name": "paths",
+          "type": "Vec<String>"
+        }
+      ],
+      "returns": "Result<HashMap<String, Option<String>>, String>"
+    },
+    {
+      "name": "sftp_external_edit_list",
+      "module": "sftp::internal::api::external",
+      "attributes": {},
+      "params": [
+        {
+          "name": "tab_id",
+          "type": "String"
+        }
+      ],
+      "returns": "Vec<ExternalEdit>"
+    },
+    {
+      "name": "sftp_external_edit_open",
+      "module": "sftp::internal::api::external",
+      "attributes": {},
+      "params": [
+        {
+          "name": "tab_id",
+          "type": "String"
+        },
+        {
+          "name": "connection",
+          "type": "Option<PtyConnectionOptions>"
+        },
+        {
+          "name": "path",
+          "type": "String"
+        },
+        {
+          "name": "open_in",
+          "type": "OpenIn"
+        },
+        {
+          "name": "transfer_id",
+          "type": "Option<String>"
+        }
+      ],
+      "returns": "Result<Option<ExternalEdit>, String>"
+    },
+    {
+      "name": "sftp_external_edit_release_tab",
+      "module": "sftp::internal::api::external",
+      "attributes": {},
+      "params": [
+        {
+          "name": "tab_id",
+          "type": "String"
+        }
+      ],
+      "returns": "Vec<ExternalEdit>"
+    },
+    {
+      "name": "sftp_external_edit_reveal",
+      "module": "sftp::internal::api::external",
+      "attributes": {},
+      "params": [
+        {
+          "name": "id",
+          "type": "String"
+        }
+      ],
+      "returns": "Result<(), String>"
+    },
+    {
+      "name": "sftp_external_edit_stop",
+      "module": "sftp::internal::api::external",
+      "attributes": {},
+      "params": [
+        {
+          "name": "id",
+          "type": "String"
+        }
+      ],
+      "returns": "Result<(), String>"
+    },
+    {
+      "name": "sftp_external_edit_upload",
+      "module": "sftp::internal::api::external",
+      "attributes": {},
+      "params": [
+        {
+          "name": "tab_id",
+          "type": "String"
+        },
+        {
+          "name": "connection",
+          "type": "Option<PtyConnectionOptions>"
+        },
+        {
+          "name": "id",
+          "type": "String"
+        },
+        {
+          "name": "overwrite",
+          "type": "bool"
+        }
+      ],
+      "returns": "Result<UploadOutcome, String>"
+    },
+    {
+      "name": "sftp_external_open_with_choices",
+      "module": "sftp::internal::api::external",
+      "attributes": {},
+      "params": [
+        {
+          "name": "file_name",
+          "type": "String"
+        }
+      ],
+      "returns": "Result<OpenWithChoices, String>"
+    },
+    {
+      "name": "sftp_extract_archive",
+      "module": "sftp::internal::api::archive",
+      "attributes": {},
+      "params": [
+        {
+          "name": "tab_id",
+          "type": "String"
+        },
+        {
+          "name": "connection",
+          "type": "Option<PtyConnectionOptions>"
+        },
+        {
+          "name": "operation_id",
+          "type": "String"
+        },
+        {
+          "name": "request",
+          "type": "ExtractRequest"
+        }
+      ],
+      "returns": "Result<RemoteOperationResult, String>"
+    },
+    {
+      "name": "sftp_list_directory",
+      "module": "sftp::internal::api::base",
+      "attributes": {},
+      "params": [
+        {
+          "name": "tab_id",
+          "type": "String"
+        },
+        {
+          "name": "connection",
+          "type": "Option<PtyConnectionOptions>"
+        },
+        {
+          "name": "path",
+          "type": "Option<String>"
+        }
+      ],
+      "returns": "Result<SftpDirectoryListing, String>"
+    },
+    {
+      "name": "sftp_open_file_for_edit",
+      "module": "sftp::internal::api::edit",
+      "attributes": {},
+      "params": [
+        {
+          "name": "tab_id",
+          "type": "String"
+        },
+        {
+          "name": "connection",
+          "type": "Option<PtyConnectionOptions>"
+        },
+        {
+          "name": "path",
+          "type": "String"
+        }
+      ],
+      "returns": "Result<SftpEditableFile, String>"
+    },
+    {
+      "name": "sftp_preview_delete_entries",
+      "module": "sftp::internal::api::delete::commands",
+      "attributes": {},
+      "params": [
+        {
+          "name": "tab_id",
+          "type": "String"
+        },
+        {
+          "name": "connection",
+          "type": "Option<PtyConnectionOptions>"
+        },
+        {
+          "name": "entries",
+          "type": "Vec<DeleteEntryRequest>"
+        }
+      ],
+      "returns": "Result<DeletePreviewResult, String>"
+    },
+    {
+      "name": "sftp_release_tab_connections",
+      "module": "sftp::internal::api::base",
+      "attributes": {},
+      "params": [
+        {
+          "name": "tab_id",
+          "type": "String"
+        }
+      ],
+      "returns": "Result<(), String>"
+    },
+    {
+      "name": "sftp_rename_entry",
+      "module": "sftp::internal::api::base",
+      "attributes": {},
+      "params": [
+        {
+          "name": "tab_id",
+          "type": "String"
+        },
+        {
+          "name": "connection",
+          "type": "Option<PtyConnectionOptions>"
+        },
+        {
+          "name": "old_path",
+          "type": "String"
+        },
+        {
+          "name": "new_path",
+          "type": "String"
+        }
+      ],
+      "returns": "Result<(), String>"
+    },
+    {
+      "name": "sftp_save_edited_file",
+      "module": "sftp::internal::api::edit",
+      "attributes": {},
+      "params": [
+        {
+          "name": "tab_id",
+          "type": "String"
+        },
+        {
+          "name": "connection",
+          "type": "Option<PtyConnectionOptions>"
+        },
+        {
+          "name": "path",
+          "type": "String"
+        },
+        {
+          "name": "content",
+          "type": "String"
+        },
+        {
+          "name": "baseline",
+          "type": "SftpEditBaseline"
+        }
+      ],
+      "returns": "Result<SftpSaveEditedFileResult, String>"
+    },
+    {
+      "name": "sftp_search_entries",
+      "module": "sftp::internal::api::search",
+      "attributes": {},
+      "params": [
+        {
+          "name": "tab_id",
+          "type": "String"
+        },
+        {
+          "name": "connection",
+          "type": "Option<PtyConnectionOptions>"
+        },
+        {
+          "name": "search_id",
+          "type": "String"
+        },
+        {
+          "name": "request",
+          "type": "SearchRequest"
+        },
+        {
+          "name": "on_event",
+          "type": "Channel<SearchEvent>"
+        }
+      ],
+      "returns": "Result<SearchSummary, String>"
+    },
+    {
+      "name": "sftp_set_permissions",
+      "module": "sftp::internal::api::permissions",
+      "attributes": {},
+      "params": [
+        {
+          "name": "tab_id",
+          "type": "String"
+        },
+        {
+          "name": "connection",
+          "type": "Option<PtyConnectionOptions>"
+        },
+        {
+          "name": "paths",
+          "type": "Vec<String>"
+        },
+        {
+          "name": "mode",
+          "type": "u32"
+        }
+      ],
+      "returns": "Result<(), String>"
+    },
+    {
+      "name": "sftp_upload_file",
+      "module": "sftp::internal::api::upload::commands",
+      "attributes": {},
+      "params": [
+        {
+          "name": "tab_id",
+          "type": "String"
+        },
+        {
+          "name": "connection",
+          "type": "Option<PtyConnectionOptions>"
+        },
+        {
+          "name": "local_path",
+          "type": "String"
+        },
+        {
+          "name": "remote_path",
+          "type": "String"
+        },
+        {
+          "name": "transfer_id",
+          "type": "String"
+        }
+      ],
+      "returns": "Result<(), String>"
+    },
+    {
+      "name": "sftp_upload_paths",
+      "module": "sftp::internal::api::upload::commands",
+      "attributes": {},
+      "params": [
+        {
+          "name": "tab_id",
+          "type": "String"
+        },
+        {
+          "name": "connection",
+          "type": "Option<PtyConnectionOptions>"
+        },
+        {
+          "name": "local_paths",
+          "type": "Vec<String>"
+        },
+        {
+          "name": "remote_base_path",
+          "type": "String"
+        },
+        {
+          "name": "skip_existing",
+          "type": "Option<bool>"
+        },
+        {
+          "name": "conflict_policy",
+          "type": "Option<ConflictPolicy>"
+        }
+      ],
+      "returns": "Result<UploadBatchResult, String>"
+    },
+    {
+      "name": "shell_command_status",
+      "module": "system_integration",
+      "attributes": {},
+      "params": [],
+      "returns": "Result<IntegrationStatus, String>"
+    },
+    {
+      "name": "show_notification",
+      "module": "notification",
+      "attributes": {},
+      "params": [
+        {
+          "name": "request",
+          "type": "NotificationRequest"
+        }
+      ],
+      "returns": "Result<(), String>"
+    },
+    {
+      "name": "start_drag_out",
+      "module": "drag_out",
+      "attributes": {},
+      "params": [
+        {
+          "name": "items",
+          "type": "Vec<DragOutItem>"
+        }
+      ],
+      "returns": "Result<DragOutResult, String>"
+    },
+    {
+      "name": "start_tunnel",
+      "module": "tunnel::commands",
+      "attributes": {},
+      "params": [
+        {
+          "name": "id",
+          "type": "String"
+        },
+        {
+          "name": "credentials",
+          "type": "Option<TunnelCredentials>"
+        }
+      ],
+      "returns": "Result<StartOutcome, String>"
+    },
+    {
+      "name": "stop_tunnel",
+      "module": "tunnel::commands",
+      "attributes": {},
+      "params": [
+        {
+          "name": "id",
+          "type": "String"
+        }
+      ],
+      "returns": "Result<(), String>"
+    },
+    {
+      "name": "system_prefers_dark",
+      "module": "window_blur",
+      "attributes": {},
+      "params": [],
+      "returns": "Option<bool>"
+    },
+    {
+      "name": "take_launch_dirs",
+      "module": "launch_dir",
+      "attributes": {},
+      "params": [],
+      "returns": "Vec<LaunchDir>"
+    },
+    {
+      "name": "take_tray_update_check",
+      "module": "background::tray",
+      "attributes": {},
+      "params": [],
+      "returns": "bool"
+    },
+    {
+      "name": "terminal_log_ids_for_tab",
+      "module": "session_log",
+      "attributes": {},
+      "params": [],
+      "returns": "Result<Vec<String>, String>"
+    },
+    {
+      "name": "test_connection",
+      "module": "profiles::commands",
+      "attributes": {},
+      "params": [
+        {
+          "name": "mut profile",
+          "type": "SavedProfile"
+        },
+        {
+          "name": "typed_password_tab_id",
+          "type": "Option<String>"
+        }
+      ],
+      "returns": "Result<TestConnectionResult, String>"
+    },
+    {
+      "name": "test_webdav_connection",
+      "module": "backup::remote",
+      "attributes": {},
+      "params": [
+        {
+          "name": "settings",
+          "type": "WebDavBackupSettings"
+        },
+        {
+          "name": "password",
+          "type": "Option<String>"
+        }
+      ],
+      "returns": "Result<(), String>"
+    },
+    {
+      "name": "toggle_devtools",
+      "module": "main_window",
+      "attributes": {},
+      "params": [
+        {
+          "name": "enable",
+          "type": "bool"
+        }
+      ],
+      "returns": "Result<(), String>"
+    },
+    {
+      "name": "uninstall_agent_integration",
+      "module": "agent_integration",
+      "attributes": {},
+      "params": [
+        {
+          "name": "agent",
+          "type": "Agent"
+        }
+      ],
+      "returns": "Result<AgentIntegrationStatus, String>"
+    },
+    {
+      "name": "unlock_secret_vault",
+      "module": "ssh::secret_commands",
+      "attributes": {},
+      "params": [
+        {
+          "name": "input",
+          "type": "VaultPasswordInput"
+        }
+      ],
+      "returns": "Result<SecretBackendStatus, String>"
+    },
+    {
+      "name": "verify_user",
+      "module": "ssh::secret_commands",
+      "attributes": {},
+      "params": [
+        {
+          "name": "input",
+          "type": "VerifyUserInput"
+        }
+      ],
+      "returns": "Result<(), String>"
+    },
+    {
+      "name": "write_pty_batch",
+      "module": "core::commands",
+      "attributes": {},
+      "params": [
+        {
+          "name": "mut targets",
+          "type": "Vec<PtyWriteTarget>"
+        },
+        {
+          "name": "guard_target",
+          "type": "Option<PtyWriteTarget>"
+        },
+        {
+          "name": "data",
+          "type": "String"
+        }
+      ],
+      "returns": "Vec<PtyWriteResult>"
+    },
+    {
+      "name": "write_pty",
+      "module": "core::commands",
+      "attributes": {},
+      "params": [
+        {
+          "name": "tab_id",
+          "type": "String"
+        },
+        {
+          "name": "session_nonce",
+          "type": "u32"
+        },
+        {
+          "name": "data",
+          "type": "String"
+        }
+      ],
+      "returns": "Result<(), String>"
+    },
+    {
+      "name": "write_saved_password_for_sudo",
+      "module": "core::commands",
+      "attributes": {},
+      "params": [
+        {
+          "name": "tab_id",
+          "type": "String"
+        },
+        {
+          "name": "session_nonce",
+          "type": "u32"
+        },
+        {
+          "name": "profile_id",
+          "type": "Option<String>"
+        },
+        {
+          "name": "profile_name",
+          "type": "Option<String>"
+        },
+        {
+          "name": "prompt",
+          "type": "String"
+        }
+      ],
+      "returns": "Result<bool, String>"
+    },
+    {
+      "name": "write_serial_bytes",
+      "module": "serial",
+      "attributes": {},
+      "params": [
+        {
+          "name": "tab_id",
+          "type": "String"
+        },
+        {
+          "name": "session_nonce",
+          "type": "u32"
+        },
+        {
+          "name": "data",
+          "type": "Vec<u8>"
+        }
+      ],
+      "returns": "Result<(), String>"
+    },
+    {
+      "name": "zmodem_arm_manual_detect",
+      "module": "zmodem::commands",
+      "attributes": {},
+      "params": [
+        {
+          "name": "tab_id",
+          "type": "String"
+        },
+        {
+          "name": "session_nonce",
+          "type": "u32"
+        }
+      ],
+      "returns": "Result<(), String>"
+    },
+    {
+      "name": "zmodem_cancel",
+      "module": "zmodem::commands",
+      "attributes": {},
+      "params": [
+        {
+          "name": "tab_id",
+          "type": "String"
+        },
+        {
+          "name": "session_nonce",
+          "type": "u32"
+        }
+      ],
+      "returns": "Result<(), String>"
+    },
+    {
+      "name": "zmodem_start_send",
+      "module": "zmodem::commands",
+      "attributes": {},
+      "params": [
+        {
+          "name": "tab_id",
+          "type": "String"
+        },
+        {
+          "name": "session_nonce",
+          "type": "u32"
+        },
+        {
+          "name": "local_paths",
+          "type": "Vec<String>"
+        }
+      ],
+      "returns": "Result<(), String>"
+    }
+  ],
+  "handlers": [
+    "#[cfg(any(target_os = \"windows\", target_os = \"macos\"))",
+    "app_state::load_app_state",
+    "app_state::save_app_state",
+    "backup::delete_backup_history_entry",
+    "backup::export_backup",
+    "backup::get_automatic_backup_settings",
+    "backup::import_backup",
+    "backup::inspect_backup",
+    "backup::list_backup_history",
+    "backup::remote::clear_webdav_backup_settings",
+    "backup::remote::delete_webdav_backup",
+    "backup::remote::delete_webdav_backups",
+    "backup::remote::discard_webdav_download",
+    "backup::remote::download_webdav_backup",
+    "backup::remote::get_webdav_backup_status",
+    "backup::remote::list_webdav_backups",
+    "backup::remote::run_webdav_backup",
+    "backup::remote::save_webdav_backup",
+    "backup::remote::save_webdav_backup_settings",
+    "backup::remote::test_webdav_connection",
+    "backup::run_due_automatic_backup",
+    "backup::save_automatic_backup_settings",
+    "clipboard_files::read_clipboard_file_paths",
+    "config::load_config",
+    "config::save_config",
+    "config::window_background::save_window_background",
+    "proxy::approval::pending_proxy_command_prompts",
+    "proxy::approval::respond_proxy_command_prompt",
+    "proxy::delete_proxy",
+    "proxy::list_proxies",
+    "proxy::save_proxy",
+    "session_log::delete_terminal_log",
+    "session_log::delete_terminal_logs",
+    "session_log::export_terminal_log_asciicast",
+    "session_log::get_terminal_log_status",
+    "session_log::list_terminal_logs",
+    "session_log::load_terminal_log_recording",
+    "session_log::load_terminal_log_text",
+    "session_log::open_terminal_log_directory",
+    "session_log::retry_terminal_logging",
+    "session_log::reveal_terminal_log",
+    "session_log::save_terminal_contents",
+    "session_log::set_terminal_log_recording",
+    "session_log::terminal_log_ids_for_tab",
+    "sync::get_sync_status",
+    "sync::reset_sync",
+    "sync::run_sync",
+    "sync::save_sync_settings",
+    "themes::load_custom_themes",
+    "themes::save_custom_themes",
+    "window_blur::set_window_blur",
+    "window_blur::system_prefers_dark"
+  ]
+}
