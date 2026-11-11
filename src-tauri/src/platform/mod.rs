@@ -14,12 +14,14 @@ use tterm_platform::window::WindowHost;
 
 type Notifications = Arc<dyn tterm_platform::notifications::Notifications>;
 type Integration = Result<Arc<dyn tterm_platform::integration::SystemIntegration>, String>;
-type PlatformBuilder =
-    Box<dyn FnOnce(Notifications, Integration) -> crate::services::shared::PlatformServices>;
-
-/// Builds and registers existing adapters before the broker and integration initialization.
-pub fn initialize(app: &AppHandle) -> PlatformBuilder {
-    use tauri::Manager;
+/// Builds adapters once; startup supplies notifications and integration in their original order.
+pub fn initialize(
+    app: &AppHandle,
+    complete: impl FnOnce(
+        Arc<dyn tterm_platform::window::MainWindow>,
+        Arc<dyn tterm_platform::notifications::AppBadge>,
+    ) -> (Notifications, Integration),
+) -> crate::services::shared::PlatformServices {
     let main_window: Arc<dyn tterm_platform::window::MainWindow> =
         Arc::new(window::TauriWindow(app.clone()));
     let window_host: Arc<dyn WindowHost> = Arc::new(window::TauriWindow(app.clone()));
@@ -37,30 +39,20 @@ pub fn initialize(app: &AppHandle) -> PlatformBuilder {
     let open: Arc<dyn tterm_platform::open::OpenTargets> = Arc::new(open::TauriOpen(app.clone()));
     let clipboard: Arc<dyn tterm_platform::clipboard::Clipboard> =
         Arc::new(clipboard::TauriClipboard(app.clone()));
-    app.manage(badge.clone());
-    app.manage(tray.clone());
-    app.manage(file_drag.clone());
-    app.manage(main_window.clone());
-    app.manage(process.clone());
-    app.manage(verification.clone());
-    app.manage(updates.clone());
-    app.manage(open.clone());
-    app.manage(clipboard.clone());
-    Box::new(
-        move |notifications, integration| crate::services::shared::PlatformServices {
-            notifications,
-            integration,
-            badge,
-            tray,
-            file_drag,
-            main_window,
-            process,
-            verification,
-            updates,
-            open,
-            clipboard,
-        },
-    )
+    let (notifications, integration) = complete(main_window.clone(), badge.clone());
+    crate::services::shared::PlatformServices {
+        notifications,
+        integration,
+        badge,
+        tray,
+        file_drag,
+        main_window,
+        process,
+        verification,
+        updates,
+        open,
+        clipboard,
+    }
 }
 
 pub(crate) fn main_window_host(app: tauri::AppHandle) -> impl tterm_platform::window::WindowHost {

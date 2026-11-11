@@ -197,7 +197,9 @@ fn refresh_when_settled(window: &WebviewWindow) {
     let window = window.clone();
     tauri::async_runtime::spawn(async move {
         tokio::time::sleep(SETTLE).await;
-        let tracker = window.state::<Tracker>();
+        let Some(tracker) = window.try_state::<Tracker>() else {
+            return;
+        };
         if tracker.generation.load(Ordering::SeqCst) == generation {
             tracker.refresh(&window);
         }

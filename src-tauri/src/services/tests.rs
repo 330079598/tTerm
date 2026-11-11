@@ -102,6 +102,36 @@ fn added_platform_capabilities_keep_the_same_instances_and_error() {
     assert_eq!(platform.integration.err().as_deref(), Some("unavailable"));
 }
 
+#[test]
+fn shared_paths_and_identity_keep_the_startup_instances() {
+    let paths = Arc::new(tterm_core::paths::AppPaths::native("test.p1-07e").unwrap());
+    let identity = Arc::new(tterm_core::identity::AppIdentity {
+        identifier: "test.p1-07e".into(),
+        name: "tTerm".into(),
+        version: "0.0.0".into(),
+    });
+    let runtime = tokio::runtime::Builder::new_current_thread()
+        .build()
+        .unwrap();
+    let events: Arc<dyn tterm_core::events::EventSink> =
+        Arc::new(tterm_core::events::recording::RecordingEventSink::default());
+    let notifications = Arc::new(tterm_platform::native::notification::NativeNotifications {
+        identifier: identity.identifier.clone(),
+        activated: Arc::new(|_| {}),
+    });
+    let shared = super::shared::SharedServices {
+        paths: paths.clone(),
+        identity: identity.clone(),
+        prompts: Arc::new(tterm_core::prompts::PromptBroker::new(events.clone())),
+        events,
+        secrets: crate::ssh::secret_store::types::SecretStoreState::new(),
+        runtime: runtime.handle().clone(),
+        platform: platform_with(notifications, Err("unavailable".into())),
+    };
+    assert!(Arc::ptr_eq(&shared.paths, &paths));
+    assert!(Arc::ptr_eq(&shared.identity, &identity));
+}
+
 fn platform_with(
     notifications: Arc<dyn tterm_platform::notifications::Notifications>,
     integration: Result<Arc<dyn tterm_platform::integration::SystemIntegration>, String>,

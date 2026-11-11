@@ -6,7 +6,7 @@ use std::future::Future;
 use std::pin::Pin;
 use std::sync::Arc;
 use tterm_core::events::sftp::delete::{
-    DeleteBatchCompleteEvent, DeleteBatchStartEvent, DeleteMethod, DeleteProgressEvent,
+    DeleteBatchCompleteEvent, DeleteMethod, DeleteProgressEvent,
 };
 use tterm_core::events::sftp::SftpEvent;
 use tterm_core::events::{AppEvent, EventSink};

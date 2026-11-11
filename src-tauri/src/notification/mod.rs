@@ -111,12 +111,10 @@ async fn show(
 #[tauri::command]
 pub async fn notification_permission(app: tauri::AppHandle) -> NotificationPermission {
     use tauri::Manager;
-    let notifications = app
-        .state::<Arc<AppServices>>()
-        .shared
-        .platform
-        .notifications
-        .clone();
+    let Some(services) = app.try_state::<Arc<AppServices>>() else {
+        return NotificationPermission::NotDetermined;
+    };
+    let notifications = services.shared.platform.notifications.clone();
     permission(notifications.as_ref()).await
 }
 

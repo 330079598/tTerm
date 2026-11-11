@@ -3,7 +3,12 @@
 //! tab's pooled connection, and nothing crosses the network but the result.
 
 mod operations;
-use operations::*;
+use operations::{
+    sftp_cancel_remote_operation_service, sftp_compress_entries_service,
+    sftp_extract_archive_service, SftpCancelRemoteOperationDependencies,
+    SftpCancelRemoteOperationInput, SftpCompressEntriesDependencies, SftpCompressEntriesInput,
+    SftpExtractArchiveDependencies, SftpExtractArchiveInput,
+};
 
 #[cfg(all(test, unix))]
 mod real_sshd_tests;

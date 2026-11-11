@@ -13,7 +13,11 @@ const DOT_RGB: [u8; 3] = [0xE8, 0x11, 0x23];
 pub(crate) fn present_menu(app: &AppHandle, menu: Menu<tauri::Wry>) -> tauri::Result<()> {
     static MENU_HANDLER: Once = Once::new();
     MENU_HANDLER.call_once(|| app.on_menu_event(on_menu_event));
-    let services = app.state::<Arc<AppServices>>();
+    let services = app.try_state::<Arc<AppServices>>().ok_or_else(|| {
+        tauri::Error::Io(std::io::Error::other(
+            "Application services are not ready yet",
+        ))
+    })?;
     let state = &services.app.tray;
     if let Some(tray) = app.tray_by_id(TRAY_ID) {
         return tray.set_menu(Some(menu));
@@ -34,7 +38,10 @@ pub(crate) fn present_menu(app: &AppHandle, menu: Menu<tauri::Wry>) -> tauri::Re
 
 pub(crate) fn hide(app: &AppHandle) {
     app.remove_tray_by_id(TRAY_ID);
-    *app.state::<Arc<AppServices>>()
+    let Some(services) = app.try_state::<Arc<AppServices>>() else {
+        return;
+    };
+    *services
         .app
         .tray
         .shown

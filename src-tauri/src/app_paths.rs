@@ -1,6 +1,8 @@
 //! Tauri's startup adapter for the paths consumed by domain services.
 
-use tauri::{AppHandle, Manager, Runtime, State};
+use crate::services::AppServices;
+use std::sync::Arc;
+use tauri::{AppHandle, Manager, Runtime};
 use tterm_core::paths::AppPaths;
 
 /// Resolves paths with Tauri, including any application directory overrides.
@@ -25,17 +27,17 @@ pub(crate) fn from_tauri<R: Runtime>(
     })
 }
 
-/// Injects paths before database, migration, cache cleanup or services start.
-pub(crate) fn initialize(app: &AppHandle) -> Result<(), String> {
+/// Initializes the config directory and returns paths for the shared container.
+pub(crate) fn initialize(app: &AppHandle) -> Result<Arc<AppPaths>, String> {
     let paths = from_tauri(app, &app.config().identifier)?;
     crate::config::paths::init_config_dir(&paths)?;
-    app.manage(paths);
-    Ok(())
+    Ok(Arc::new(paths))
 }
 
 /// Reports unavailable startup state without panicking in early callbacks.
-pub(crate) fn get<R: Runtime>(app: &AppHandle<R>) -> Result<State<'_, AppPaths>, String> {
-    app.try_state::<AppPaths>()
+pub(crate) fn get<R: Runtime>(app: &AppHandle<R>) -> Result<Arc<AppPaths>, String> {
+    app.try_state::<Arc<AppServices>>()
+        .map(|services| services.shared.paths.clone())
         .ok_or_else(|| "Application directories are not ready yet".to_string())
 }
 

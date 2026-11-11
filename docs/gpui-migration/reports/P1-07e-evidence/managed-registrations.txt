@@ -1,0 +1,6 @@
+$ rg -n '\.manage\(' src-tauri/src --glob '*.rs'
+src-tauri/src/window_state/mod.rs:142:    window.manage(tracker);
+src-tauri/src/lib.rs:152:        .manage(TokioRuntimeState { runtime })
+src-tauri/src/lib.rs:449:            app.manage(services.clone());
+
+exit: 0

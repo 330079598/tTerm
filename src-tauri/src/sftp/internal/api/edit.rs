@@ -3,7 +3,11 @@ use crate::core::session::types::PtyConnectionOptions;
 use crate::services::AppServices;
 use crate::sftp::internal::api::permissions::PERMISSION_MASK;
 use crate::sftp::internal::connection::map_sftp_error;
-use operations::*;
+use operations::{
+    sftp_open_file_for_edit_service, sftp_save_edited_file_service,
+    SftpOpenFileForEditDependencies, SftpOpenFileForEditInput, SftpSaveEditedFileDependencies,
+    SftpSaveEditedFileInput,
+};
 use russh_sftp::client::SftpSession;
 use russh_sftp::protocol::{FileAttributes, OpenFlags};
 use serde::{Deserialize, Serialize};

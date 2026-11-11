@@ -1,14 +1,21 @@
-#[path = "operations.rs"]
 mod operations;
-use super::*;
+use super::{batch, UploadBatchResult, UploadFilePlanItem, UploadPlan};
 use crate::core::session::types::PtyConnectionOptions;
 use crate::services::AppServices;
 use crate::sftp::internal::api::conflict::{
     self, CandidateDecision, ConflictReport, SourceStat, TransferConflict,
 };
-use operations::*;
+use operations::{
+    sftp_cancel_upload_service, sftp_check_upload_conflicts_service, sftp_upload_file_service,
+    sftp_upload_paths_service, SftpCancelUploadDependencies, SftpCancelUploadInput,
+    SftpCheckUploadConflictsDependencies, SftpCheckUploadConflictsInput,
+    SftpUploadFileDependencies, SftpUploadFileInput, SftpUploadPathsDependencies,
+    SftpUploadPathsInput,
+};
+use russh_sftp::client::SftpSession;
 use std::collections::HashMap;
 use tauri::State;
+use tokio::fs;
 use tterm_core::sftp::conflict::ConflictPolicy;
 
 /// Where a planned upload should land under `policy`, or `None` to skip it.
@@ -217,8 +224,10 @@ pub async fn sftp_cancel_upload(
 
 #[cfg(test)]
 mod tests {
+    use super::super::collect_upload_plan;
     use super::*;
     use crate::sftp::internal::transfer::test_server::{ServerOptions, TestServer};
+    use std::path::Path;
     use std::time::{Duration, SystemTime};
 
     fn write_with_mtime(path: &Path, contents: &[u8], mtime: SystemTime) {

@@ -39,21 +39,15 @@ pub(super) async fn sftp_compress_entries_service(
         request,
     } = input;
 
-    let app = context;
-    let prompt_state = prompts.clone();
-    let secret_state = &secrets;
-    let pool_state = &pool;
-    let cancel_map = &cancel;
-
     let host = SftpHost {
-        app: &app,
+        app: &context,
         tab_id: &tab_id,
         connection,
-        prompts: prompt_state.clone(),
-        secret_state,
-        pool: pool_state,
+        prompts,
+        secret_state: &secrets,
+        pool: &pool,
     };
-    with_cancel(cancel_map, &operation_id, |cancel| {
+    with_cancel(&cancel, &operation_id, |cancel| {
         compress(host, request, cancel)
     })
     .await
@@ -90,21 +84,15 @@ pub(super) async fn sftp_extract_archive_service(
         request,
     } = input;
 
-    let app = context;
-    let prompt_state = prompts.clone();
-    let secret_state = &secrets;
-    let pool_state = &pool;
-    let cancel_map = &cancel;
-
     let host = SftpHost {
-        app: &app,
+        app: &context,
         tab_id: &tab_id,
         connection,
-        prompts: prompt_state.clone(),
-        secret_state,
-        pool: pool_state,
+        prompts,
+        secret_state: &secrets,
+        pool: &pool,
     };
-    with_cancel(cancel_map, &operation_id, |cancel| {
+    with_cancel(&cancel, &operation_id, |cancel| {
         extract(host, request, cancel)
     })
     .await
@@ -123,8 +111,7 @@ pub(super) async fn sftp_cancel_remote_operation_service(
     let SftpCancelRemoteOperationDependencies { cancel } = dependencies;
     let SftpCancelRemoteOperationInput { operation_id } = input;
 
-    let cancel_map = &cancel;
-    if let Some(sender) = cancel_map.read().await.get(&operation_id) {
+    if let Some(sender) = cancel.read().await.get(&operation_id) {
         let _ = sender.send(true);
     }
     Ok(())

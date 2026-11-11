@@ -61,11 +61,6 @@ pub(super) async fn sftp_external_edit_open_service(
         transfer_id,
     } = input;
 
-    let prompt_state = prompts.clone();
-    let secret_state = &secrets;
-    let pool_state = &pool;
-    let cancel_map = &cancel;
-
     let remote_path = normalize_remote_path(&path);
     let file_name = local::local_file_name(&file_name_of(&remote_path)?, cfg!(windows));
     let open_in = match open_in {
@@ -83,15 +78,14 @@ pub(super) async fn sftp_external_edit_open_service(
 
     let host = Host {
         app: &context,
-        events: events.clone(),
+        events,
         tab_id: &tab_id,
-        plan: ensure_ssh_plan(secret_state, connection)?,
-        prompts: prompt_state.clone(),
-        pool: pool_state,
-        cancel_map,
+        plan: ensure_ssh_plan(&secrets, connection)?,
+        prompts,
+        pool: &pool,
+        cancel_map: &cancel,
     };
     let transfer_id = transfer_id.as_deref();
-    let state = &state;
     let (edit, started) = match state.find(&tab_id, &remote_path) {
         Some(edit) if edit.status != EditStatus::Synced => (edit, false),
         Some(edit) => {
@@ -104,7 +98,7 @@ pub(super) async fn sftp_external_edit_open_service(
         None => (
             start_session(
                 &host,
-                state,
+                &state,
                 paths.as_ref().map_err(Clone::clone)?,
                 &remote_path,
                 &file_name,
@@ -185,14 +179,7 @@ pub(super) async fn sftp_external_edit_upload_service(
         overwrite,
     } = input;
 
-    let prompt_state = prompts.clone();
-    let secret_state = &secrets;
-    let pool_state = &pool;
-    let cancel_map = &cancel;
-
-    let events = events.clone();
-    let state = &state;
-    let plan = ensure_ssh_plan(secret_state, connection)?;
+    let plan = ensure_ssh_plan(&secrets, connection)?;
     let (source, edit) = state.begin_upload(&id)?;
     emit(events.as_ref(), &edit);
 
@@ -201,9 +188,9 @@ pub(super) async fn sftp_external_edit_upload_service(
         events: events.clone(),
         tab_id: &tab_id,
         plan,
-        prompts: prompt_state.clone(),
-        pool: pool_state,
-        cancel_map,
+        prompts,
+        pool: &pool,
+        cancel_map: &cancel,
     };
     let result = async {
         let uploaded = fingerprint(source.local.clone()).await?;

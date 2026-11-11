@@ -1,0 +1,24 @@
+$ rg -n '\.(?:try_state|state)\s*::' src-tauri/src crates --glob '*.rs'
+src-tauri/src/app_paths.rs:39:    app.try_state::<Arc<AppServices>>()
+src-tauri/src/app_identity.rs:19:    app.try_state::<Arc<AppServices>>()
+src-tauri/src/drag_out/mod.rs:47:        .try_state::<std::sync::Arc<crate::services::AppServices>>()
+src-tauri/src/platform/tray_native.rs:16:    let services = app.try_state::<Arc<AppServices>>().ok_or_else(|| {
+src-tauri/src/platform/tray_native.rs:41:    let Some(services) = app.try_state::<Arc<AppServices>>() else {
+src-tauri/src/platform/tray_native.rs:55:    let Some(services) = app.try_state::<Arc<AppServices>>() else {
+src-tauri/src/platform/tray_native.rs:110:    let Some(services) = app.try_state::<Arc<AppServices>>() else {
+src-tauri/src/platform/tray_native.rs:126:    let Some(services) = app.try_state::<Arc<AppServices>>() else {
+src-tauri/src/platform/window.rs:42:                            app.try_state::<std::sync::Arc<crate::services::AppServices>>()
+src-tauri/src/notification/mod.rs:114:    let Some(services) = app.try_state::<Arc<AppServices>>() else {
+src-tauri/src/lib.rs:114:                    if let Some(services) = app.try_state::<Arc<services::AppServices>>() {
+src-tauri/src/lib.rs:124:            if let Some(services) = app.try_state::<Arc<services::AppServices>>() {
+src-tauri/src/lib.rs:157:                    .try_state::<Arc<services::AppServices>>()
+src-tauri/src/lib.rs:545:                        .try_state::<Arc<services::AppServices>>()
+src-tauri/src/lib.rs:559:                    let Some(services) = app.try_state::<Arc<services::AppServices>>() else {
+src-tauri/src/lib.rs:580:                    if let Some(services) = app.try_state::<Arc<services::AppServices>>() {
+src-tauri/src/window_state/mod.rs:193:    let Some(tracker) = window.try_state::<Tracker>() else {
+src-tauri/src/window_state/mod.rs:200:        let Some(tracker) = window.try_state::<Tracker>() else {
+src-tauri/src/window_state/mod.rs:211:    let Some(tracker) = app.try_state::<Tracker>() else {
+src-tauri/src/sftp/internal/api/external/mod.rs:378:    let Some(services) = app.try_state::<Arc<AppServices>>() else {
+src-tauri/src/sftp/internal/api/external/mod.rs:409:    let Some(services) = app.try_state::<Arc<AppServices>>() else {
+
+exit: 0

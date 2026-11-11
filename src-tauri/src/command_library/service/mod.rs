@@ -242,5 +242,4 @@ fn parse_choice_options(options_json: Option<&str>) -> Option<Vec<String>> {
 }
 
 #[cfg(test)]
-#[path = "commands/tests.rs"]
 mod tests;

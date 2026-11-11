@@ -42,24 +42,12 @@ pub(super) async fn sftp_preview_delete_entries_service(
         entries,
     } = input;
 
-    let app = context;
-    let prompt_state = prompts.clone();
-    let secret_state = &secrets;
-    let pool_state = &pool;
     if entries.is_empty() {
         return Err("No entries selected for deletion".to_string());
     }
 
-    let plan = ensure_ssh_plan(secret_state, connection)?;
-    preview_delete_entries(
-        &app,
-        &tab_id,
-        &plan,
-        prompt_state.clone(),
-        pool_state,
-        &entries,
-    )
-    .await
+    let plan = ensure_ssh_plan(&secrets, connection)?;
+    preview_delete_entries(&context, &tab_id, &plan, prompts, &pool, &entries).await
 }
 
 pub(super) struct SftpDeleteEntriesInput {
@@ -93,11 +81,6 @@ pub(super) async fn sftp_delete_entries_service(
         options,
     } = input;
 
-    let app = context;
-    let prompt_state = prompts.clone();
-    let secret_state = &secrets;
-    let pool_state = &pool;
-
     if entries.is_empty() {
         return Err("No entries selected for deletion".to_string());
     }
@@ -108,15 +91,15 @@ pub(super) async fn sftp_delete_entries_service(
         }
     }
 
-    let plan = ensure_ssh_plan(secret_state, connection)?;
+    let plan = ensure_ssh_plan(&secrets, connection)?;
     let batch_id = next_delete_batch_id();
     tokio::spawn(run_delete_batch(DeleteBatch {
-        app: app.clone(),
-        events: events.clone(),
+        app: context,
+        events,
         tab_id,
         plan,
-        prompts: prompt_state.clone(),
-        pool: pool_state.clone(),
+        prompts,
+        pool,
         batch_id: batch_id.clone(),
         entries,
         options,
@@ -154,14 +137,9 @@ pub(super) async fn sftp_delete_entry_service(
         is_dir,
     } = input;
 
-    let app = context;
-    let prompt_state = prompts.clone();
-    let secret_state = &secrets;
-    let pool_state = &pool;
+    let plan = ensure_ssh_plan(&secrets, connection)?;
 
-    let plan = ensure_ssh_plan(secret_state, connection)?;
-
-    with_sftp!(&app, &tab_id, &plan, prompt_state.clone(), pool_state, sftp => {
+    with_sftp!(&context, &tab_id, &plan, prompts, &pool, sftp => {
         if is_dir {
             delete_directory_recursive(sftp, path).await
         } else {

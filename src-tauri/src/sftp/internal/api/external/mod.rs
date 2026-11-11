@@ -4,7 +4,18 @@
 //! differs from the server and uploads it, at once or after asking.
 
 mod operations;
-use operations::*;
+use operations::{
+    sftp_external_app_icons_service, sftp_external_edit_list_service,
+    sftp_external_edit_open_service, sftp_external_edit_release_tab_service,
+    sftp_external_edit_reveal_service, sftp_external_edit_stop_service,
+    sftp_external_edit_upload_service, sftp_external_open_with_choices_service,
+    SftpExternalAppIconsInput, SftpExternalEditListDependencies, SftpExternalEditListInput,
+    SftpExternalEditOpenDependencies, SftpExternalEditOpenInput,
+    SftpExternalEditReleaseTabDependencies, SftpExternalEditReleaseTabInput,
+    SftpExternalEditRevealInput, SftpExternalEditStopDependencies, SftpExternalEditStopInput,
+    SftpExternalEditUploadDependencies, SftpExternalEditUploadInput,
+    SftpExternalOpenWithChoicesInput,
+};
 
 #[cfg(all(test, target_os = "macos"))]
 use tterm_platform::native::open::apps;
@@ -306,7 +317,7 @@ pub async fn sftp_external_edit_open(
             events: services.shared.events.clone(),
             state: services.sftp.external_edit.clone(),
             opener: services.shared.platform.open.clone(),
-            paths: crate::app_paths::get(&app).map(|paths| paths.inner().clone()),
+            paths: crate::app_paths::get(&app).map(|paths| paths.as_ref().clone()),
         },
         SftpExternalEditOpenInput {
             tab_id,
@@ -364,7 +375,9 @@ pub async fn sftp_external_edit_upload(
 /// The files open from the tab.
 #[tauri::command]
 pub async fn sftp_external_edit_list(tab_id: String, app: AppHandle) -> Vec<ExternalEdit> {
-    let services = app.state::<Arc<AppServices>>();
+    let Some(services) = app.try_state::<Arc<AppServices>>() else {
+        return Vec::new();
+    };
     sftp_external_edit_list_service(
         SftpExternalEditListDependencies {
             state: services.sftp.external_edit.clone(),
@@ -393,7 +406,9 @@ pub async fn sftp_external_edit_stop(
 /// as their changes were never uploaded.
 #[tauri::command]
 pub async fn sftp_external_edit_release_tab(tab_id: String, app: AppHandle) -> Vec<ExternalEdit> {
-    let services = app.state::<Arc<AppServices>>();
+    let Some(services) = app.try_state::<Arc<AppServices>>() else {
+        return Vec::new();
+    };
     sftp_external_edit_release_tab_service(
         SftpExternalEditReleaseTabDependencies {
             state: services.sftp.external_edit.clone(),
