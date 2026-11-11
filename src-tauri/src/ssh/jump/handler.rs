@@ -1,11 +1,11 @@
 use tterm_core::events::ssh::SshConnectionProgressPayload;
+use tterm_core::events::ssh::SshHostKeyPromptPayload;
 
 use crate::core::state::HostPromptMap;
 use crate::ssh::openssh_known_hosts::verify::KnownHostVerdict;
 use crate::ssh::openssh_known_hosts::{check_presented_key, listed_record};
 use crate::ssh::store::{
-    load_known_host, now_unix_ms, save_known_host_entry, KnownHostRecord, SshHostKeyPromptPayload,
-    JUMP_HOST_PROFILE_PREFIX,
+    load_known_host, now_unix_ms, save_known_host_entry, KnownHostRecord, JUMP_HOST_PROFILE_PREFIX,
 };
 use crate::ssh::types::{
     emit_connection_progress, ConnectionStatusOptions, HostKeyVerificationMode,

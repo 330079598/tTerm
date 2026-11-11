@@ -1,8 +1,9 @@
 //! P1-05 baselines captured before prompt payloads or transports are migrated.
+use tterm_core::events::proxy::ProxyCommandPrompt;
+use tterm_core::events::ssh::AuthPromptField;
+use tterm_core::events::ssh::AuthPromptPayload;
+use tterm_core::events::ssh::SshHostKeyPromptPayload;
 
-use crate::proxy::approval::ProxyCommandPrompt;
-use crate::ssh::auth::{AuthPromptField, AuthPromptPayload};
-use crate::ssh::store::SshHostKeyPromptPayload;
 use serde_json::{json, Value};
 
 fn host_key(profile: &str, known: Option<&str>) -> SshHostKeyPromptPayload {

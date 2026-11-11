@@ -3,6 +3,7 @@
 pub mod background;
 pub mod launch_dir;
 pub mod notification;
+pub mod proxy; // P1-05.
 pub mod serial;
 pub mod session_log;
 pub mod sftp; // P1-04.

@@ -1,9 +1,9 @@
 //! Asking the user for what authentication needs.
+use tterm_core::events::ssh::AuthPromptField;
+use tterm_core::events::ssh::AuthPromptPayload;
 
 use super::methods::prompt_payload;
-use super::{
-    AuthPromptField, AuthPromptMap, AuthPromptPayload, AuthPrompter, AuthTarget, PROMPT_TIMEOUT,
-};
+use super::{AuthPromptMap, AuthPrompter, AuthTarget, PROMPT_TIMEOUT};
 use crate::ssh::types::SshConnectError;
 use std::sync::Mutex;
 use tauri::{Emitter, Manager};

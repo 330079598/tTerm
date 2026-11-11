@@ -1,5 +1,6 @@
 use tterm_core::events::ssh::AuthUsedPayload;
 use tterm_core::events::ssh::SshConnectionProgressPayload;
+use tterm_core::events::ssh::SshHostKeyPromptPayload;
 use tterm_core::events::EventSink;
 
 use crate::ssh::openssh_known_hosts::verify::KnownHostVerdict;
@@ -353,7 +354,7 @@ impl russh::client::Handler for SshClientHandler {
         let (tx, rx) = oneshot::channel::<bool>();
         self.prompts.write().await.insert(request_id.clone(), tx);
 
-        let payload = crate::ssh::store::SshHostKeyPromptPayload {
+        let payload = SshHostKeyPromptPayload {
             request_id: request_id.clone(),
             profile_name: self.profile_name.clone(),
             host: self.host.clone(),

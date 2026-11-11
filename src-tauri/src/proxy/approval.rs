@@ -5,12 +5,12 @@
 //!
 //! What was allowed is kept in this device's database by the SHA-256 of the
 //! command, outside sync and backups, so a changed command asks again.
+use tterm_core::events::proxy::ProxyCommandPrompt;
 
 use crate::core::blocking::run_blocking;
 use crate::db::sql_error;
 use crate::ssh::types::SshConnectError;
 use rusqlite::{params, Connection, OptionalExtension};
-use serde::Serialize;
 use sha2::{Digest, Sha256};
 use std::collections::HashMap;
 use std::fmt::Write as _;
@@ -23,17 +23,6 @@ use tokio::sync::oneshot;
 const PROMPT_TIMEOUT: Duration = Duration::from_secs(120);
 const PROMPT_EVENT: &str = "proxy-command-prompt";
 const PROMPT_EXPIRED_EVENT: &str = "proxy-command-prompt-expired";
-
-/// A question the user is asked before a proxy command first runs here.
-#[derive(Debug, Clone, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct ProxyCommandPrompt {
-    /// The SHA-256 of the command, so that connections waiting on the same
-    /// command share one question.
-    pub request_id: String,
-    pub proxy_name: String,
-    pub command: String,
-}
 
 struct PendingPrompt {
     prompt: ProxyCommandPrompt,

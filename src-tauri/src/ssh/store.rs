@@ -37,19 +37,6 @@ pub struct KnownHostStore {
     pub entries: Vec<KnownHostRecord>,
 }
 
-#[derive(Debug, Serialize, Clone)]
-#[serde(rename_all = "camelCase")]
-pub struct SshHostKeyPromptPayload {
-    pub request_id: String,
-    pub profile_name: String,
-    pub host: String,
-    pub port: u16,
-    pub algorithm: String,
-    pub fingerprint: String,
-    pub reason: String,
-    pub known_fingerprint: Option<String>,
-}
-
 pub fn now_unix_ms() -> i64 {
     SystemTime::now()
         .duration_since(UNIX_EPOCH)

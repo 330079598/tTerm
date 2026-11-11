@@ -8,6 +8,8 @@
 //!
 //! [`AuthMethod::Auto`] has no configured method and tries what a plain
 //! `ssh user@host` would: the agent, key files, then asking the user.
+use tterm_core::events::ssh::AuthPromptField;
+use tterm_core::events::ssh::AuthPromptPayload;
 
 use auto::auto;
 use methods::{keyboard_interactive, password_method, prompt_payload, publickey};
@@ -18,7 +20,6 @@ use std::time::Duration;
 
 use russh::client::{self, AuthResult};
 use russh::{MethodKind, MethodSet};
-use serde::Serialize;
 use tokio::sync::oneshot;
 
 use crate::ssh::typed_passwords;
@@ -186,38 +187,6 @@ impl AuthTarget<'_> {
             "SSH"
         }
     }
-}
-
-/// A question for the user, as sent to the frontend.
-#[derive(Debug, Clone, Serialize, PartialEq, Eq)]
-#[serde(rename_all = "camelCase")]
-pub struct AuthPromptPayload {
-    pub request_id: String,
-    pub host: String,
-    pub port: u16,
-    pub username: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub hop_index: Option<usize>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub total_hops: Option<usize>,
-    /// `password` when the server asks for the account password through the
-    /// password method, `keyboard-interactive` for server-defined prompts,
-    /// `sudo` for the password sudo wants in the file manager's sudo mode.
-    pub kind: &'static str,
-    /// Server-supplied title and instructions; often empty.
-    pub name: String,
-    pub instructions: String,
-    pub prompts: Vec<AuthPromptField>,
-    /// The answer given to the same question just before was wrong.
-    pub retry: bool,
-}
-
-#[derive(Debug, Clone, Serialize, PartialEq, Eq)]
-#[serde(rename_all = "camelCase")]
-pub struct AuthPromptField {
-    pub text: String,
-    /// Whether the answer may be shown while typing (false for secrets).
-    pub echo: bool,
 }
 
 /// How to reach the user during authentication.

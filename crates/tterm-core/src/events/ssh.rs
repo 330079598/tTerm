@@ -225,3 +225,48 @@ impl SshEvent {
         }
     }
 }
+
+#[derive(Debug, Serialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct SshHostKeyPromptPayload {
+    pub request_id: String,
+    pub profile_name: String,
+    pub host: String,
+    pub port: u16,
+    pub algorithm: String,
+    pub fingerprint: String,
+    pub reason: String,
+    pub known_fingerprint: Option<String>,
+}
+
+/// A question for the user, as sent to the frontend.
+#[derive(Debug, Clone, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct AuthPromptPayload {
+    pub request_id: String,
+    pub host: String,
+    pub port: u16,
+    pub username: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub hop_index: Option<usize>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub total_hops: Option<usize>,
+    /// `password` when the server asks for the account password through the
+    /// password method, `keyboard-interactive` for server-defined prompts,
+    /// `sudo` for the password sudo wants in the file manager's sudo mode.
+    pub kind: &'static str,
+    /// Server-supplied title and instructions; often empty.
+    pub name: String,
+    pub instructions: String,
+    pub prompts: Vec<AuthPromptField>,
+    /// The answer given to the same question just before was wrong.
+    pub retry: bool,
+}
+
+#[derive(Debug, Clone, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct AuthPromptField {
+    pub text: String,
+    /// Whether the answer may be shown while typing (false for secrets).
+    pub echo: bool,
+}
