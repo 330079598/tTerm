@@ -20,7 +20,6 @@ use crate::core::state::{PtyMap, ZmodemMap, ZmodemTabHandle};
 use serde::Deserialize;
 use std::sync::atomic::AtomicBool;
 use std::sync::{mpsc, Arc, PoisonError};
-use tauri::{AppHandle, State};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
 #[serde(rename_all = "lowercase")]
@@ -36,7 +35,7 @@ pub enum XmodemProtocol {
 /// Takes a serial tab's port for a transfer: its input stops reaching the
 /// terminal and typing is held back, until the claim is released.
 async fn claim_port(
-    app: AppHandle,
+    events: Arc<dyn EventSink>,
     state: &PtyMap,
     zmodem_state: &ZmodemMap,
     tab_id: String,
@@ -66,7 +65,6 @@ async fn claim_port(
     *tap.lock().unwrap_or_else(PoisonError::into_inner) = Some(sender);
 
     let emit_tab_id = tab_id.clone();
-    let events = crate::event_sink::TauriEventSink::new(app);
     let emit: TransferEmitter = Box::new(move |event| {
         let _ = events.emit(tterm_core::events::AppEvent::Serial(
             tterm_core::events::serial::SerialEvent::Transfer {
@@ -96,14 +94,31 @@ async fn claim_port(
     reason = "a Tauri command's arguments are its IPC fields and injected state"
 )]
 pub async fn serial_send_files(
-    app: AppHandle,
     tab_id: String,
     session_nonce: u32,
     protocol: XmodemProtocol,
     local_paths: Vec<String>,
-    state: State<'_, PtyMap>,
-    zmodem_state: State<'_, ZmodemMap>,
+    services: tauri::State<'_, std::sync::Arc<crate::services::AppServices>>,
 ) -> Result<(), String> {
+    let events = services.shared.events.clone();
+    let state = services.session.ptys.clone();
+    let zmodem_state = services.session.zmodem.clone();
+    serial_send_files_service(
+        events,
+        state,
+        zmodem_state,
+        (tab_id, session_nonce, protocol, local_paths),
+    )
+    .await
+}
+async fn serial_send_files_service(
+    events: std::sync::Arc<dyn tterm_core::events::EventSink>,
+    state: PtyMap,
+    zmodem_state: ZmodemMap,
+    arguments: (String, u32, XmodemProtocol, Vec<String>),
+) -> Result<(), String> {
+    let (tab_id, session_nonce, protocol, local_paths) = arguments;
+
     if local_paths.is_empty() {
         return Ok(());
     }
@@ -111,7 +126,8 @@ pub async fn serial_send_files(
         return Err("XMODEM sends one file at a time; use YMODEM to send several".to_string());
     }
     let files = run_blocking(move || transfer::open_files(&local_paths)).await?;
-    let (emit, claim, link) = claim_port(app, &state, &zmodem_state, tab_id, session_nonce).await?;
+    let (emit, claim, link) =
+        claim_port(events, &state, &zmodem_state, tab_id, session_nonce).await?;
     let params = transfer::TransferParams {
         emit,
         claim,
@@ -132,16 +148,34 @@ pub async fn serial_send_files(
     reason = "a Tauri command's arguments are its IPC fields and injected state"
 )]
 pub async fn serial_receive_files(
-    app: AppHandle,
     tab_id: String,
     session_nonce: u32,
     protocol: XmodemProtocol,
     destination: String,
-    state: State<'_, PtyMap>,
-    zmodem_state: State<'_, ZmodemMap>,
+    services: tauri::State<'_, std::sync::Arc<crate::services::AppServices>>,
 ) -> Result<(), String> {
+    let events = services.shared.events.clone();
+    let state = services.session.ptys.clone();
+    let zmodem_state = services.session.zmodem.clone();
+    serial_receive_files_service(
+        events,
+        state,
+        zmodem_state,
+        (tab_id, session_nonce, protocol, destination),
+    )
+    .await
+}
+async fn serial_receive_files_service(
+    events: std::sync::Arc<dyn tterm_core::events::EventSink>,
+    state: PtyMap,
+    zmodem_state: ZmodemMap,
+    arguments: (String, u32, XmodemProtocol, String),
+) -> Result<(), String> {
+    let (tab_id, session_nonce, protocol, destination) = arguments;
+
     let destination = run_blocking(move || disk::Destination::new(protocol, &destination)).await?;
-    let (emit, claim, link) = claim_port(app, &state, &zmodem_state, tab_id, session_nonce).await?;
+    let (emit, claim, link) =
+        claim_port(events, &state, &zmodem_state, tab_id, session_nonce).await?;
     std::thread::spawn(move || disk::run_receive(emit, claim, link, protocol, destination));
     Ok(())
 }
