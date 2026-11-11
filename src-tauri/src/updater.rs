@@ -280,3 +280,7 @@ pub async fn download_install_app_update(
     )
     .await
 }
+
+#[cfg(test)]
+#[path = "updater_tests.rs"]
+mod tests;

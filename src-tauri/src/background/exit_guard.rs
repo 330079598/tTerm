@@ -81,11 +81,7 @@ fn confirm(state: &ExitGuardState, context: &super::quit::QuitContext) {
 
 #[tauri::command]
 pub fn cancel_quit_prompt(services: tauri::State<'_, Arc<crate::services::AppServices>>) {
-    services
-        .app
-        .exit_guard
-        .prompt_open
-        .store(false, Ordering::SeqCst);
+    services.app.exit_guard.cancel();
 }
 
 #[cfg(test)]
