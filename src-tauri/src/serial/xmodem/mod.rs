@@ -89,10 +89,6 @@ async fn claim_port(
 /// Sends files to a serial tab's device. Returns once the transfer starts;
 /// its progress shows in the transfer list, like a ZMODEM transfer's.
 #[tauri::command]
-#[allow(
-    clippy::too_many_arguments,
-    reason = "a Tauri command's arguments are its IPC fields and injected state"
-)]
 pub async fn serial_send_files(
     tab_id: String,
     session_nonce: u32,
@@ -160,10 +156,6 @@ async fn serial_send_files_service(
 /// `destination`, over YMODEM into the folder `destination`, under the names
 /// the device gives. Returns once the transfer starts.
 #[tauri::command]
-#[allow(
-    clippy::too_many_arguments,
-    reason = "a Tauri command's arguments are its IPC fields and injected state"
-)]
 pub async fn serial_receive_files(
     tab_id: String,
     session_nonce: u32,

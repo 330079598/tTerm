@@ -575,10 +575,6 @@ async fn has_saved_password_service(
 }
 
 #[tauri::command]
-#[allow(
-    clippy::too_many_arguments,
-    reason = "a Tauri command's arguments are its IPC fields and injected state"
-)]
 pub async fn has_saved_jump_host_password(
     profile_id: Option<String>,
     profile_name: Option<String>,
