@@ -46,6 +46,37 @@ fn session_sink_preserves_raw_state_and_exit_contracts() {
 }
 
 #[test]
+fn typed_output_emit_reaches_listener_with_frozen_json() {
+    let app = mock_builder().build(mock_context(noop_assets())).unwrap();
+    let received = Arc::new(Mutex::new(Vec::new()));
+    let captured = received.clone();
+    app.listen_any("pty-output-tab-with-hyphens", move |event| {
+        captured.lock().unwrap().push(event.payload().to_string());
+    });
+    let sink = TauriEventSink::new(app.handle().clone());
+    let cases = [
+        ("", r#""""#),
+        ("中文\0\r\n\"\\", r#""中文\u0000\r\n\"\\""#),
+        (
+            "\r\n\x1b[31m[failed]\x1b[0m\r\n",
+            r#""\r\n\u001b[31m[failed]\u001b[0m\r\n""#,
+        ),
+        ("bad:�", r#""bad:�""#),
+    ];
+    for (text, _) in cases {
+        sink.emit(AppEvent::Terminal(TerminalEvent::Output {
+            tab_id: "tab-with-hyphens".into(),
+            text: text.into(),
+        }))
+        .unwrap();
+    }
+    assert_eq!(
+        *received.lock().unwrap(),
+        cases.map(|(_, json)| json.to_string())
+    );
+}
+
+#[test]
 fn typed_terminal_wire_matches_frozen_legacy_literals() {
     use tterm_core::events::EventTarget;
     for (text, json) in [

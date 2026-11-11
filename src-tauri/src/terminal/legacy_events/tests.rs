@@ -1,7 +1,8 @@
 use super::*;
 use std::sync::{Arc, Mutex};
 use tauri::test::{mock_builder, mock_context, noop_assets};
-use tauri::{Emitter, Listener};
+use tauri::Listener;
+use tterm_core::session::sink::SessionSink;
 
 #[test]
 fn legacy_output_name_target_and_json_are_frozen_before_migration() {
@@ -21,10 +22,8 @@ fn legacy_output_name_target_and_json_are_frozen_before_migration() {
         ("bad:�", r#""bad:�""#),
     ];
     for (text, _) in cases {
-        app.emit_to(TARGET, "pty-output-tab-with-hyphens", text.to_string())
-            .unwrap();
+        emit_output(app.handle(), "tab-with-hyphens", text.to_string());
     }
-    assert_eq!(TARGET, tauri::EventTarget::Any);
     assert_eq!(
         *received.lock().unwrap(),
         cases.map(|(_, json)| json.to_string())
@@ -39,10 +38,14 @@ fn legacy_exit_preserves_null_empty_and_error_reasons() {
     app.listen_any("pty-exit-tab-6", move |event| {
         captured.lock().unwrap().push(event.payload().to_string());
     });
+    let sink = crate::session_sink::TauriSessionSink::new(
+        "tab-6".into(),
+        app.handle().clone(),
+        crate::terminal::io_batcher::TerminalOutput::new(tauri::ipc::Channel::new(|_| Ok(()))),
+    );
     for reason in [None, Some(""), Some("SSH channel closed")] {
-        app.emit_to(TARGET, "pty-exit-tab-6", reason).unwrap();
+        sink.exited(reason.map(str::to_string)).unwrap();
     }
-    assert_eq!(TARGET, tauri::EventTarget::Any);
     assert_eq!(
         *received.lock().unwrap(),
         ["null", r#""""#, r#""SSH channel closed""#]
