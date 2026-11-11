@@ -4,7 +4,8 @@ use std::{
     path::{Path, PathBuf},
     sync::Arc,
 };
-use tauri::{ipc::Channel, Manager};
+use tauri::ipc::Channel;
+use tterm_core::paths::AppPaths;
 use tterm_core::updates::{
     pending_update_download_path, remove_pending_update_file, update_endpoint,
     write_pending_update_download,
@@ -42,7 +43,7 @@ pub enum AppUpdateDownloadEvent {
     Finished,
 }
 
-struct Progress(Channel<AppUpdateDownloadEvent>);
+struct Progress(Arc<dyn Fn(AppUpdateDownloadEvent) + Send + Sync>);
 impl UpdateProgress for Progress {
     fn report(&self, event: DownloadEvent) {
         let event = match event {
@@ -54,16 +55,14 @@ impl UpdateProgress for Progress {
             }
             DownloadEvent::Finished => AppUpdateDownloadEvent::Finished,
         };
-        let _ = self.0.send(event);
+        (self.0)(event);
     }
 }
-#[tauri::command]
-pub async fn check_app_update(
-    app: tauri::AppHandle,
+async fn check_app_update_service(
+    updates: &dyn Updates,
     channel: String,
 ) -> Result<Option<AppUpdateMetadata>, String> {
-    Ok(app
-        .state::<Arc<dyn Updates>>()
+    Ok(updates
         .check(update_endpoint(&channel).into())
         .await?
         .map(|update| {
@@ -76,22 +75,17 @@ pub async fn check_app_update(
             }
         }))
 }
-#[tauri::command]
-pub async fn download_app_update(
-    app: tauri::AppHandle,
-    downloads: tauri::State<'_, Arc<PendingUpdateDownloads>>,
+async fn download_app_update_service(
+    updates: &dyn Updates,
+    downloads: &PendingUpdateDownloads,
+    paths: AppPaths,
     channel: String,
-    on_event: Channel<AppUpdateDownloadEvent>,
+    progress: Arc<dyn UpdateProgress>,
 ) -> Result<bool, String> {
-    let Some(update) = app
-        .state::<Arc<dyn Updates>>()
-        .check(update_endpoint(&channel).into())
-        .await?
-    else {
+    let Some(update) = updates.check(update_endpoint(&channel).into()).await? else {
         return Ok(false);
     };
-    let mut download = update.download(Arc::new(Progress(on_event))).await?;
-    let paths = crate::app_paths::get(&app)?.inner().clone();
+    let mut download = update.download(progress).await?;
     let cache_channel = channel.clone();
     let path = crate::core::blocking::run_blocking(move || {
         pending_update_download_path(&paths, &cache_channel)
@@ -108,10 +102,9 @@ pub async fn download_app_update(
     remove_pending_update_download(previous).await;
     Ok(true)
 }
-#[tauri::command]
-pub async fn install_downloaded_app_update(
-    app: tauri::AppHandle,
-    downloads: tauri::State<'_, Arc<PendingUpdateDownloads>>,
+async fn install_downloaded_app_update_service(
+    window: &dyn tterm_platform::window::MainWindow,
+    downloads: &PendingUpdateDownloads,
     channel: String,
 ) -> Result<bool, String> {
     let Some(download) = downloads.0.read().await.get(&channel).cloned() else {
@@ -120,7 +113,7 @@ pub async fn install_downloaded_app_update(
     let bytes = match tokio::fs::read(&download.path).await {
         Ok(bytes) => bytes,
         Err(err) => {
-            remove_cached_update(downloads.inner(), &channel).await;
+            remove_cached_update(downloads, &channel).await;
             return Err(format!(
                 "Failed to read downloaded update '{}': {}",
                 download.path.display(),
@@ -129,34 +122,30 @@ pub async fn install_downloaded_app_update(
         }
     };
     let bundle = current_macos_app_bundle_path();
-    crate::window_state::save_now(app.clone()).await;
+    let _ = window.save_before_update().await;
     download.update.clone().install(bytes).await?;
     clear_macos_quarantine_after_update(bundle.as_deref());
-    remove_cached_update(downloads.inner(), &channel).await;
+    remove_cached_update(downloads, &channel).await;
     Ok(true)
 }
-#[tauri::command]
-pub async fn download_install_app_update(
-    app: tauri::AppHandle,
-    downloads: tauri::State<'_, Arc<PendingUpdateDownloads>>,
+async fn download_install_app_update_service(
+    updates: &dyn Updates,
+    window: &dyn tterm_platform::window::MainWindow,
+    downloads: &PendingUpdateDownloads,
     channel: String,
-    on_event: Channel<AppUpdateDownloadEvent>,
+    progress: Arc<dyn UpdateProgress>,
 ) -> Result<bool, String> {
-    let Some(update) = app
-        .state::<Arc<dyn Updates>>()
-        .check(update_endpoint(&channel).into())
-        .await?
-    else {
+    let Some(update) = updates.check(update_endpoint(&channel).into()).await? else {
         return Ok(false);
     };
-    let mut download = update.download(Arc::new(Progress(on_event))).await?;
+    let mut download = update.download(progress).await?;
     let bytes = download.take_bytes();
     let download: Arc<dyn DownloadedUpdate> = Arc::from(download);
     let bundle = current_macos_app_bundle_path();
-    crate::window_state::save_now(app.clone()).await;
+    let _ = window.save_before_update().await;
     download.install(bytes).await?;
     clear_macos_quarantine_after_update(bundle.as_deref());
-    remove_cached_update(downloads.inner(), &channel).await;
+    remove_cached_update(downloads, &channel).await;
     Ok(true)
 }
 #[cfg(target_os = "macos")]
@@ -231,6 +220,63 @@ async fn remove_pending_update_download(download: Option<Arc<PendingUpdateDownlo
         remove_pending_update_file(&download.path).await;
     }
 }
-pub fn cleanup_stale_pending_update_files(app: &tauri::AppHandle) -> Result<(), String> {
-    tterm_core::updates::cleanup_stale_pending_update_files(crate::app_paths::get(app)?.inner())
+pub fn cleanup_stale_pending_update_files(paths: &AppPaths) -> Result<(), String> {
+    tterm_core::updates::cleanup_stale_pending_update_files(paths)
+}
+
+#[tauri::command]
+pub async fn check_app_update(
+    channel: String,
+    services: tauri::State<'_, Arc<crate::services::AppServices>>,
+) -> Result<Option<AppUpdateMetadata>, String> {
+    check_app_update_service(services.shared.platform.updates.as_ref(), channel).await
+}
+#[tauri::command]
+pub async fn download_app_update(
+    services: tauri::State<'_, Arc<crate::services::AppServices>>,
+    app: tauri::AppHandle,
+    channel: String,
+    on_event: Channel<AppUpdateDownloadEvent>,
+) -> Result<bool, String> {
+    let progress = Arc::new(Progress(Arc::new(move |event| {
+        let _ = on_event.send(event);
+    })));
+    download_app_update_service(
+        services.shared.platform.updates.as_ref(),
+        &services.app.pending_updates,
+        crate::app_paths::get(&app)?.inner().clone(),
+        channel,
+        progress,
+    )
+    .await
+}
+#[tauri::command]
+pub async fn install_downloaded_app_update(
+    services: tauri::State<'_, Arc<crate::services::AppServices>>,
+    channel: String,
+) -> Result<bool, String> {
+    install_downloaded_app_update_service(
+        services.shared.platform.main_window.as_ref(),
+        &services.app.pending_updates,
+        channel,
+    )
+    .await
+}
+#[tauri::command]
+pub async fn download_install_app_update(
+    services: tauri::State<'_, Arc<crate::services::AppServices>>,
+    channel: String,
+    on_event: Channel<AppUpdateDownloadEvent>,
+) -> Result<bool, String> {
+    let progress = Arc::new(Progress(Arc::new(move |event| {
+        let _ = on_event.send(event);
+    })));
+    download_install_app_update_service(
+        services.shared.platform.updates.as_ref(),
+        services.shared.platform.main_window.as_ref(),
+        &services.app.pending_updates,
+        channel,
+        progress,
+    )
+    .await
 }
