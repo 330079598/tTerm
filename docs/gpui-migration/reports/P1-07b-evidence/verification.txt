@@ -1,0 +1,13 @@
+All commands run at the worktree root, CARGO_BUILD_JOBS=3 for cargo, local target, no CARGO_TARGET_DIR override.
+CARGO_BUILD_JOBS=3 cargo fmt --all --check: exit 0
+node scripts/migration/command-signatures.mjs --check: exit 0 before each commit; baseline unchanged.
+git diff --check: exit 0
+No services definition, lockfile, persistence format, dependency or status.md changes.
+OrbStack image: tterm-sudo-host:latest, ID 41cdf2fdac8f.
+Container: tterm-P1-07b-host, ID 050e00a9db893548f16cbafc2ad159a45fe97dee09bac94f5b70a90d66f2300a.
+Run: docker run -d --name tterm-P1-07b-host -p 127.0.0.1:22404:22 tterm-sudo-host
+SFTP: TTERM_P104_CONTAINER=1 CARGO_BUILD_JOBS=3 cargo test --workspace sftp::internal::api:: -- --ignored --nocapture --test-threads=1 --skip real_sshd
+sudo: TTERM_SUDO_TEST_HOST=127.0.0.1:22404 CARGO_BUILD_JOBS=3 cargo test --workspace real_sudo_password_account_works_as_root -- --ignored --nocapture --test-threads=1
+Cleanup: docker rm -f tterm-P1-07b-host
+Verify: docker ps -a --filter name=tterm-P1-07b-host --format '{{.Names}}'
+Cleanup output contains only removal acknowledgement; final query was empty.
