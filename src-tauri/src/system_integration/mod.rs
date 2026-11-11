@@ -71,13 +71,24 @@ pub async fn set_folder_menu(
     installed: bool,
     services: tauri::State<'_, Arc<crate::services::AppServices>>,
 ) -> Result<IntegrationStatus, String> {
+    set_folder_menu_service(
+        integration(&services.shared.platform.integration)?,
+        installed,
+    )
+    .await
+}
+
+async fn set_folder_menu_service(
+    integration: Arc<dyn SystemIntegration>,
+    installed: bool,
+) -> Result<IntegrationStatus, String> {
     let language = crate::core::blocking::run_blocking(|| {
         Ok(crate::config::load_config_file()
             .map(|config| config.language)
             .unwrap_or_default())
     })
     .await?;
-    integration(&services.shared.platform.integration)?
+    integration
         .set_folder(installed, language)
         .await
         .map(Into::into)
