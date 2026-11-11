@@ -6,7 +6,7 @@ use std::fs;
 use std::io::{BufReader, Read};
 use std::path::{Path, PathBuf};
 use std::time::{Duration, SystemTime};
-use tauri::AppHandle;
+use tterm_core::paths::AppPaths;
 
 /// Copies left behind are removed at startup once they are this old. A
 /// copy is left behind when its tab closed with changes not uploaded, so it
@@ -90,8 +90,8 @@ pub(super) struct Fingerprint {
 }
 
 /// The folder holding every local copy.
-pub(super) fn edit_root(app: &AppHandle) -> Result<PathBuf, String> {
-    Ok(crate::app_paths::get(app)?.cache_dir.join("sftp-edit"))
+pub(super) fn edit_root(paths: &AppPaths) -> PathBuf {
+    paths.cache_dir.join("sftp-edit")
 }
 
 /// Creates the folder of one opened file, readable only by this user: the

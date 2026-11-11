@@ -1,105 +1,86 @@
-use super::batch::{preview_delete_entries, run_delete_batch, DeleteBatch};
+#[path = "operations.rs"]
+mod operations;
 use super::*;
 use crate::core::session::types::PtyConnectionOptions;
-use crate::sftp::internal::connection::{ensure_ssh_plan, map_sftp_error};
-use crate::sftp::internal::types::SftpConnectionPool;
-use crate::ssh::secret_store::types::SecretStoreState;
+use crate::services::AppServices;
+use crate::sftp::internal::connection::map_sftp_error;
+use operations::*;
 use russh_sftp::client::SftpSession;
 use std::future::Future;
 use std::pin::Pin;
-use tauri::{AppHandle, State};
+use tauri::State;
 #[tauri::command]
 pub async fn sftp_preview_delete_entries(
-    app: AppHandle,
     tab_id: String,
     connection: Option<PtyConnectionOptions>,
     entries: Vec<DeleteEntryRequest>,
-    prompt_state: State<'_, std::sync::Arc<tterm_core::prompts::PromptBroker>>,
-    secret_state: State<'_, SecretStoreState>,
-    pool_state: State<'_, SftpConnectionPool>,
+    services: State<'_, std::sync::Arc<AppServices>>,
 ) -> Result<DeletePreviewResult, String> {
-    if entries.is_empty() {
-        return Err("No entries selected for deletion".to_string());
-    }
-
-    let plan = ensure_ssh_plan(&secret_state, connection)?;
-    preview_delete_entries(
-        &app,
-        &tab_id,
-        &plan,
-        prompt_state.inner().clone(),
-        pool_state.inner(),
-        &entries,
+    sftp_preview_delete_entries_service(
+        SftpPreviewDeleteEntriesDependencies {
+            context: crate::connection_context::sftp(&services),
+            prompts: services.shared.prompts.clone(),
+            secrets: services.shared.secrets.clone(),
+            pool: services.sftp.pool.clone(),
+        },
+        SftpPreviewDeleteEntriesInput {
+            tab_id,
+            connection,
+            entries,
+        },
     )
     .await
 }
 
 #[tauri::command]
-#[allow(
-    clippy::too_many_arguments,
-    reason = "a Tauri command's arguments are its IPC fields and injected state"
-)]
 pub async fn sftp_delete_entries(
-    app: AppHandle,
     tab_id: String,
     connection: Option<PtyConnectionOptions>,
     entries: Vec<DeleteEntryRequest>,
     options: DeleteOptions,
-    prompt_state: State<'_, std::sync::Arc<tterm_core::prompts::PromptBroker>>,
-    secret_state: State<'_, SecretStoreState>,
-    pool_state: State<'_, SftpConnectionPool>,
+    services: State<'_, std::sync::Arc<crate::services::AppServices>>,
 ) -> Result<DeleteBatchStartResult, String> {
-    if entries.is_empty() {
-        return Err("No entries selected for deletion".to_string());
-    }
-
-    for entry in &entries {
-        if is_dangerous_delete_path(&entry.path) {
-            return Err(format!("Refusing to delete unsafe path '{}'", entry.path));
-        }
-    }
-
-    let plan = ensure_ssh_plan(&secret_state, connection)?;
-    let batch_id = next_delete_batch_id();
-    tokio::spawn(run_delete_batch(DeleteBatch {
-        app: app.clone(),
-        events: std::sync::Arc::new(crate::event_sink::TauriEventSink::new(app.clone())),
-        tab_id,
-        plan,
-        prompts: prompt_state.inner().clone(),
-        pool: pool_state.inner().clone(),
-        batch_id: batch_id.clone(),
-        entries,
-        options,
-    }));
-
-    Ok(DeleteBatchStartResult { batch_id })
+    sftp_delete_entries_service(
+        SftpDeleteEntriesDependencies {
+            context: crate::connection_context::sftp(&services),
+            prompts: services.shared.prompts.clone(),
+            secrets: services.shared.secrets.clone(),
+            pool: services.sftp.pool.clone(),
+            events: services.shared.events.clone(),
+        },
+        SftpDeleteEntriesInput {
+            tab_id,
+            connection,
+            entries,
+            options,
+        },
+    )
+    .await
 }
 
 #[tauri::command]
-#[allow(
-    clippy::too_many_arguments,
-    reason = "a Tauri command's arguments are its IPC fields and injected state"
-)]
 pub async fn sftp_delete_entry(
-    app: AppHandle,
     tab_id: String,
     connection: Option<PtyConnectionOptions>,
     path: String,
     is_dir: bool,
-    prompt_state: State<'_, std::sync::Arc<tterm_core::prompts::PromptBroker>>,
-    secret_state: State<'_, SecretStoreState>,
-    pool_state: State<'_, SftpConnectionPool>,
+    services: State<'_, std::sync::Arc<crate::services::AppServices>>,
 ) -> Result<(), String> {
-    let plan = ensure_ssh_plan(&secret_state, connection)?;
-
-    with_sftp!(&app, &tab_id, &plan, prompt_state.inner().clone(), pool_state.inner(), sftp => {
-        if is_dir {
-            delete_directory_recursive(sftp, path).await
-        } else {
-            sftp.remove_file(path).await.map_err(map_sftp_error)
-        }
-    })
+    sftp_delete_entry_service(
+        SftpDeleteEntryDependencies {
+            context: crate::connection_context::sftp(&services),
+            prompts: services.shared.prompts.clone(),
+            secrets: services.shared.secrets.clone(),
+            pool: services.sftp.pool.clone(),
+        },
+        SftpDeleteEntryInput {
+            tab_id,
+            connection,
+            path,
+            is_dir,
+        },
+    )
+    .await
 }
 
 fn delete_directory_recursive<'a>(

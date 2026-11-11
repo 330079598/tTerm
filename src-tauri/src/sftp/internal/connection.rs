@@ -1,9 +1,9 @@
+use crate::ssh::context::ConnectionContext;
 use russh::client;
 use russh::Disconnect;
 use russh_sftp::client::error::Error as SftpError;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
-use tauri::{AppHandle, Manager};
 
 use crate::core::session::{
     normalize_connection, resolve_ssh_password, types::PtyConnectionOptions, types::SessionPlan,
@@ -21,6 +21,13 @@ use crate::ssh::{
     jump::connect::JumpChain, jump::connect::SshTarget, secret_store::types::SecretStoreState,
     types::SshClientHandler,
 };
+
+/// Dependencies needed to authenticate an SFTP side connection.
+#[derive(Clone)]
+pub(crate) struct SftpContext {
+    pub ssh: ConnectionContext,
+    pub secrets: SecretStoreState,
+}
 
 const CONNECTION_TIMEOUT: Duration = Duration::from_secs(300);
 /// How often the pool is checked for idle connections to close.
@@ -59,7 +66,7 @@ pub fn ensure_ssh_plan(
 /// host when the plan includes one.  Returns both the target session and an
 /// optional jump session that must be kept alive alongside it.
 pub async fn connect_authenticated_ssh(
-    app: &AppHandle,
+    app: &SftpContext,
     tab_id: &str,
     plan: &SessionPlan,
     prompts: std::sync::Arc<tterm_core::prompts::PromptBroker>,
@@ -73,12 +80,10 @@ pub async fn connect_authenticated_ssh(
         .clone()
         .ok_or_else(|| "SSH username is required".to_string())?;
 
-    let connection_context = crate::connection_context::connection(
-        &app.state::<std::sync::Arc<crate::services::AppServices>>(),
-    );
+    let connection_context = &app.ssh;
     open_target_ssh_session(
         ConnectContext {
-            app: &connection_context,
+            app: connection_context,
             tab_id,
             prompts: &prompts,
             // Progress events share the terminal tab's channel; emitting them
@@ -87,12 +92,7 @@ pub async fn connect_authenticated_ssh(
             host_key_verification_mode:
                 crate::ssh::types::HostKeyVerificationMode::PromptAndPersist,
             prompt_owner: None,
-            auth_prompter: &crate::ssh::auth::AuthPrompter::tab(
-                &crate::connection_context::connection(
-                    &app.state::<std::sync::Arc<crate::services::AppServices>>(),
-                ),
-                tab_id,
-            ),
+            auth_prompter: &AuthPrompter::tab(connection_context, tab_id),
         },
         SshTarget::from_plan(plan, &host, &username),
     )
@@ -101,7 +101,7 @@ pub async fn connect_authenticated_ssh(
 }
 
 async fn connect_sftp(
-    app: &AppHandle,
+    app: &SftpContext,
     tab_id: &str,
     plan: &SessionPlan,
     prompts: std::sync::Arc<tterm_core::prompts::PromptBroker>,
@@ -109,24 +109,8 @@ async fn connect_sftp(
     let (jump_chain, ssh) = connect_authenticated_ssh(app, tab_id, plan, prompts).await?;
 
     let launcher = if plan.sftp_sudo {
-        let scope = crate::prompt_scope::PromptScope::for_tab(
-            app.state::<std::sync::Arc<crate::services::AppServices>>()
-                .shared
-                .prompts
-                .clone(),
-            &app.state::<std::sync::Arc<crate::services::AppServices>>()
-                .session
-                .ptys,
-            tab_id,
-        )
-        .await?;
-        let prompter = AuthPrompter::tab(
-            &crate::connection_context::connection(
-                &app.state::<std::sync::Arc<crate::services::AppServices>>(),
-            ),
-            tab_id,
-        )
-        .with_owner(&scope.owner);
+        let scope = app.ssh.prompt_scope(tab_id).await?;
+        let prompter = AuthPrompter::tab(&app.ssh, tab_id).with_owner(&scope.owner);
         let target = AuthTarget {
             host: plan.host.as_deref().unwrap_or_default(),
             port: plan.port,
@@ -157,16 +141,13 @@ async fn connect_sftp(
 /// neither, or the connection turned off filling sudo prompts, which then
 /// means asking every time.
 async fn saved_sudo_password(
-    app: &AppHandle,
+    app: &SftpContext,
     plan: &SessionPlan,
 ) -> Result<Option<zeroize::Zeroizing<String>>, String> {
-    let app = app.clone();
+    let secret_state = app.secrets.clone();
     let profile_id = plan.profile_id.clone();
     let profile_name = plan.profile_name.clone();
     crate::core::blocking::run_blocking(move || {
-        let secret_state = app
-            .try_state::<SecretStoreState>()
-            .ok_or("Saved passwords are unavailable")?;
         let saved = crate::core::session::load_saved_sudo_password(
             &secret_state,
             profile_id.as_deref(),
@@ -194,7 +175,7 @@ pub async fn close_sftp(connection: ConnectedSftp) {
 }
 
 pub async fn get_or_create_sftp_connection(
-    app: &AppHandle,
+    app: &SftpContext,
     tab_id: &str,
     plan: &SessionPlan,
     prompts: std::sync::Arc<tterm_core::prompts::PromptBroker>,
@@ -232,7 +213,7 @@ pub async fn get_or_create_sftp_connection(
 /// it. Holding the handles keeps the reaper from closing the connection
 /// mid-operation.
 pub async fn pooled_handles(
-    app: &AppHandle,
+    app: &SftpContext,
     tab_id: &str,
     plan: &SessionPlan,
     prompts: std::sync::Arc<tterm_core::prompts::PromptBroker>,
@@ -301,8 +282,8 @@ pub async fn release_tab_connections(pool: &SftpConnectionPool, tab_id: &str) {
 
 /// Reaps the pool every `REAP_INTERVAL` for the life of the app, so idle
 /// connections close even when no new SFTP connection is opened.
-pub fn spawn_idle_reaper(pool: SftpConnectionPool) {
-    tauri::async_runtime::spawn(async move {
+pub fn spawn_idle_reaper(runtime: &tokio::runtime::Handle, pool: SftpConnectionPool) {
+    runtime.spawn(async move {
         let mut interval = tokio::time::interval(REAP_INTERVAL);
         interval.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
         loop {

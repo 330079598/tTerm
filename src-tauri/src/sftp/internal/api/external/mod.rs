@@ -3,6 +3,9 @@
 //! there, and the copy is watched. The drawer hears of each save that
 //! differs from the server and uploads it, at once or after asking.
 
+mod operations;
+use operations::*;
+
 #[cfg(all(test, target_os = "macos"))]
 use tterm_platform::native::open::apps;
 
@@ -18,13 +21,12 @@ mod watch;
 
 use crate::core::blocking::run_blocking;
 use crate::core::session::types::{PtyConnectionOptions, SessionPlan};
-use crate::event_sink::TauriEventSink;
+use crate::services::AppServices;
 use crate::sftp::internal::api::download::download_file_with_progress;
 use crate::sftp::internal::api::prepare_transfer;
-use crate::sftp::internal::connection::{ensure_ssh_plan, map_sftp_error};
-use crate::sftp::internal::paths::normalize_remote_path;
+use crate::sftp::internal::connection::map_sftp_error;
+use crate::sftp::internal::connection::SftpContext;
 use crate::sftp::internal::types::{SftpConnectionPool, TransferCancelMap};
-use crate::ssh::secret_store::types::SecretStoreState;
 #[cfg(target_os = "macos")]
 use base64::Engine;
 use local::{FileStamp, Fingerprint};
@@ -117,7 +119,8 @@ pub struct OpenWithChoices {
 
 /// The tab's host, for moving a file to or from it.
 struct Host<'a> {
-    app: &'a AppHandle,
+    app: &'a SftpContext,
+    events: Arc<dyn EventSink>,
     tab_id: &'a str,
     plan: SessionPlan,
     prompts: std::sync::Arc<tterm_core::prompts::PromptBroker>,
@@ -152,8 +155,7 @@ impl Host<'_> {
         if metadata.is_dir() {
             return Err(remote::FOLDER_ERROR.to_string());
         }
-        let events: std::sync::Arc<dyn tterm_core::events::EventSink> =
-            std::sync::Arc::new(crate::event_sink::TauriEventSink::new(self.app.clone()));
+        let events = self.events.clone();
         download_file_with_progress(
             &events,
             self.tab_id,
@@ -198,11 +200,13 @@ fn emit(events: &dyn EventSink, edit: &ExternalEdit) {
 /// Downloads the file into a new session's folder and starts watching it.
 async fn start_session(
     host: &Host<'_>,
+    state: &Arc<ExternalEditState>,
+    paths: &tterm_core::paths::AppPaths,
     remote_path: &str,
     file_name: &str,
     transfer_id: Option<&str>,
 ) -> Result<ExternalEdit, String> {
-    let root = local::edit_root(host.app)?;
+    let root = local::edit_root(paths);
     let id = uuid::Uuid::new_v4().to_string();
     let dir = {
         let id = id.clone();
@@ -234,18 +238,16 @@ async fn start_session(
         status: EditStatus::Synced,
         error: None,
     };
-    host.app
-        .state::<Arc<ExternalEditState>>()
-        .insert(EditSession {
-            edit: edit.clone(),
-            dir,
-            local,
-            baseline,
-            synced,
-            observed: Some(synced.stamp),
-            settling: None,
-        });
-    watch::ensure_running(host.app);
+    state.insert(EditSession {
+        edit: edit.clone(),
+        dir,
+        local,
+        baseline,
+        synced,
+        observed: Some(synced.stamp),
+        settling: None,
+    });
+    watch::ensure_running(state.clone(), host.events.clone());
     Ok(edit)
 }
 
@@ -265,8 +267,7 @@ async fn end_sessions(sessions: Vec<EditSession>) -> Vec<ExternalEdit> {
 
 /// Opens the file at `local` as `open_in` says. Returns `false` when the
 /// user cancelled the system's dialog.
-async fn launch(app: &AppHandle, open_in: OpenIn, local: &Path) -> Result<bool, String> {
-    let opener = app.state::<Arc<dyn OpenTargets>>();
+async fn launch(opener: &dyn OpenTargets, open_in: OpenIn, local: &Path) -> Result<bool, String> {
     match open_in {
         OpenIn::Default => opener
             .open_file(local.to_path_buf())
@@ -286,10 +287,6 @@ async fn launch(app: &AppHandle, open_in: OpenIn, local: &Path) -> Result<bool, 
 /// changes of its own. Returns None when the user cancelled the system's
 /// Open With dialog.
 #[tauri::command]
-#[allow(
-    clippy::too_many_arguments,
-    reason = "a Tauri command's arguments are its IPC fields and injected state"
-)]
 pub async fn sftp_external_edit_open(
     app: AppHandle,
     tab_id: String,
@@ -297,222 +294,157 @@ pub async fn sftp_external_edit_open(
     path: String,
     open_in: OpenIn,
     transfer_id: Option<String>,
-    prompt_state: State<'_, std::sync::Arc<tterm_core::prompts::PromptBroker>>,
-    secret_state: State<'_, SecretStoreState>,
-    pool_state: State<'_, SftpConnectionPool>,
-    cancel_map: State<'_, TransferCancelMap>,
+    services: State<'_, std::sync::Arc<crate::services::AppServices>>,
 ) -> Result<Option<ExternalEdit>, String> {
-    let remote_path = normalize_remote_path(&path);
-    let file_name = local::local_file_name(&file_name_of(&remote_path)?, cfg!(windows));
-    let open_in = match open_in {
-        OpenIn::Program { program } if program.trim().is_empty() => OpenIn::Default,
-        OpenIn::Program { program } => OpenIn::Program {
-            program: program.trim().to_string(),
+    sftp_external_edit_open_service(
+        SftpExternalEditOpenDependencies {
+            context: crate::connection_context::sftp(&services),
+            prompts: services.shared.prompts.clone(),
+            secrets: services.shared.secrets.clone(),
+            pool: services.sftp.pool.clone(),
+            cancel: services.sftp.transfer_cancel.clone(),
+            events: services.shared.events.clone(),
+            state: services.sftp.external_edit.clone(),
+            opener: services.shared.platform.open.clone(),
+            paths: crate::app_paths::get(&app).map(|paths| paths.inner().clone()),
         },
-        other => other,
-    };
-    if matches!(open_in, OpenIn::Default) && local::runs_when_opened(&file_name) {
-        return Err(format!(
-            "'{file_name}' could run on this computer if opened in its default program. Open it in the external editor instead."
-        ));
-    }
-
-    let host = Host {
-        app: &app,
-        tab_id: &tab_id,
-        plan: ensure_ssh_plan(&secret_state, connection)?,
-        prompts: prompt_state.inner().clone(),
-        pool: pool_state.inner(),
-        cancel_map: cancel_map.inner(),
-    };
-    let transfer_id = transfer_id.as_deref();
-    let state = app.state::<Arc<ExternalEditState>>();
-    let (edit, started) = match state.find(&tab_id, &remote_path) {
-        Some(edit) if edit.status != EditStatus::Synced => (edit, false),
-        Some(edit) => {
-            let local = PathBuf::from(&edit.local_path);
-            let baseline = host.download(&remote_path, &local, transfer_id).await?;
-            let synced = fingerprint(local).await?;
-            let edit = state.refreshed(&edit.id, baseline, synced).unwrap_or(edit);
-            (edit, false)
-        }
-        None => (
-            start_session(&host, &remote_path, &file_name, transfer_id).await?,
-            true,
-        ),
-    };
-
-    let local = PathBuf::from(&edit.local_path);
-    let launched = launch(&app, open_in, &local).await;
-    if !matches!(launched, Ok(true)) && started {
-        if let Some(session) = state.remove(&edit.id) {
-            end_sessions(vec![session]).await;
-        }
-    }
-    Ok(launched?.then_some(edit))
+        SftpExternalEditOpenInput {
+            tab_id,
+            connection,
+            path,
+            open_in,
+            transfer_id,
+        },
+    )
+    .await
 }
 
 /// How the user can pick a program for `file_name` here.
 #[tauri::command]
 pub async fn sftp_external_open_with_choices(
-    app: AppHandle,
     file_name: String,
+    services: State<'_, Arc<AppServices>>,
 ) -> Result<OpenWithChoices, String> {
-    #[cfg(target_os = "macos")]
-    let apps = app
-        .state::<Arc<dyn OpenTargets>>()
-        .applications_for(file_name)
-        .await?
-        .into_iter()
-        .map(AppChoice::from)
-        .collect();
-    #[cfg(not(target_os = "macos"))]
-    let _ = (app, file_name);
-    Ok(OpenWithChoices {
-        #[cfg(target_os = "macos")]
-        apps,
-        system_chooser: cfg!(windows),
-    })
+    sftp_external_open_with_choices_service(
+        services.shared.platform.open.clone(),
+        SftpExternalOpenWithChoicesInput { file_name },
+    )
+    .await
 }
 
 /// Uploads the copy's content over the remote file.
 #[tauri::command]
-#[allow(
-    clippy::too_many_arguments,
-    reason = "a Tauri command's arguments are its IPC fields and injected state"
-)]
 pub async fn sftp_external_edit_upload(
-    app: AppHandle,
     tab_id: String,
     connection: Option<PtyConnectionOptions>,
     id: String,
     overwrite: bool,
-    prompt_state: State<'_, std::sync::Arc<tterm_core::prompts::PromptBroker>>,
-    secret_state: State<'_, SecretStoreState>,
-    pool_state: State<'_, SftpConnectionPool>,
-    cancel_map: State<'_, TransferCancelMap>,
+    services: State<'_, std::sync::Arc<crate::services::AppServices>>,
 ) -> Result<UploadOutcome, String> {
-    let events = TauriEventSink::new(app.clone());
-    let state = app.state::<Arc<ExternalEditState>>();
-    let plan = ensure_ssh_plan(&secret_state, connection)?;
-    let (source, edit) = state.begin_upload(&id)?;
-    emit(&events, &edit);
-
-    let host = Host {
-        app: &app,
-        tab_id: &tab_id,
-        plan,
-        prompts: prompt_state.inner().clone(),
-        pool: pool_state.inner(),
-        cancel_map: cancel_map.inner(),
-    };
-    let result = async {
-        let uploaded = fingerprint(source.local.clone()).await?;
-        Ok::<_, String>(
-            host.upload(&source, overwrite)
-                .await?
-                .map(|stamp| (stamp, uploaded)),
-        )
-    }
-    .await;
-
-    let (edit, outcome) = match result {
-        Ok(Some((stamp, uploaded))) => match state.uploaded(&id, stamp, uploaded) {
-            Some(edit) => (Some(edit.clone()), Ok(UploadOutcome::Uploaded { edit })),
-            None => (
-                None,
-                Err("The file was uploaded, but it was closed meanwhile".to_string()),
-            ),
+    sftp_external_edit_upload_service(
+        SftpExternalEditUploadDependencies {
+            context: crate::connection_context::sftp(&services),
+            prompts: services.shared.prompts.clone(),
+            secrets: services.shared.secrets.clone(),
+            pool: services.sftp.pool.clone(),
+            cancel: services.sftp.transfer_cancel.clone(),
+            events: services.shared.events.clone(),
+            state: services.sftp.external_edit.clone(),
         },
-        Ok(None) => (
-            state.upload_stopped(&id, None),
-            Ok(UploadOutcome::RemoteChanged),
-        ),
-        Err(error) => (state.upload_stopped(&id, Some(error.clone())), Err(error)),
-    };
-    if let Some(edit) = edit {
-        emit(&events, &edit);
-    }
-    outcome
+        SftpExternalEditUploadInput {
+            tab_id,
+            connection,
+            id,
+            overwrite,
+        },
+    )
+    .await
 }
 
 /// The files open from the tab.
 #[tauri::command]
-pub async fn sftp_external_edit_list(app: AppHandle, tab_id: String) -> Vec<ExternalEdit> {
-    app.state::<Arc<ExternalEditState>>().list(&tab_id)
+pub async fn sftp_external_edit_list(tab_id: String, app: AppHandle) -> Vec<ExternalEdit> {
+    let services = app.state::<Arc<AppServices>>();
+    sftp_external_edit_list_service(
+        SftpExternalEditListDependencies {
+            state: services.sftp.external_edit.clone(),
+        },
+        SftpExternalEditListInput { tab_id },
+    )
+    .await
 }
 
 /// Stops watching the file and removes its copy, changes and all.
 #[tauri::command]
-pub async fn sftp_external_edit_stop(app: AppHandle, id: String) -> Result<(), String> {
-    if let Some(session) = app.state::<Arc<ExternalEditState>>().remove(&id) {
-        run_blocking(move || {
-            local::remove_session_dir(&session.dir);
-            Ok(())
-        })
-        .await?;
-    }
-    Ok(())
+pub async fn sftp_external_edit_stop(
+    id: String,
+    services: State<'_, Arc<AppServices>>,
+) -> Result<(), String> {
+    sftp_external_edit_stop_service(
+        SftpExternalEditStopDependencies {
+            state: services.sftp.external_edit.clone(),
+        },
+        SftpExternalEditStopInput { id },
+    )
+    .await
 }
 
 /// Called when the tab closes. Returns the files whose copies were kept,
 /// as their changes were never uploaded.
 #[tauri::command]
-pub async fn sftp_external_edit_release_tab(app: AppHandle, tab_id: String) -> Vec<ExternalEdit> {
-    end_sessions(app.state::<Arc<ExternalEditState>>().remove_tab(&tab_id)).await
+pub async fn sftp_external_edit_release_tab(tab_id: String, app: AppHandle) -> Vec<ExternalEdit> {
+    let services = app.state::<Arc<AppServices>>();
+    sftp_external_edit_release_tab_service(
+        SftpExternalEditReleaseTabDependencies {
+            state: services.sftp.external_edit.clone(),
+        },
+        SftpExternalEditReleaseTabInput { tab_id },
+    )
+    .await
 }
 
 #[tauri::command]
-pub async fn sftp_external_edit_reveal(app: AppHandle, id: String) -> Result<(), String> {
-    let edit = app
-        .state::<Arc<ExternalEditState>>()
-        .get(&id)
-        .ok_or("This file is no longer open in another program")?;
-    app.state::<Arc<dyn OpenTargets>>()
-        .reveal(PathBuf::from(&edit.local_path))
-        .await
-        .map_err(|error| format!("Failed to show '{}': {error}", edit.local_path))
+pub async fn sftp_external_edit_reveal(
+    id: String,
+    services: State<'_, Arc<AppServices>>,
+) -> Result<(), String> {
+    sftp_external_edit_reveal_service(
+        services.sftp.external_edit.clone(),
+        services.shared.platform.open.clone(),
+        SftpExternalEditRevealInput { id },
+    )
+    .await
 }
 
 /// The icons of the applications at `paths`, as PNG data URLs by path;
 /// none outside macOS, which is the only system listing applications.
 #[tauri::command]
 pub async fn sftp_external_app_icons(
-    app: AppHandle,
     paths: Vec<String>,
+    services: State<'_, Arc<AppServices>>,
 ) -> Result<HashMap<String, Option<String>>, String> {
-    #[cfg(target_os = "macos")]
-    return Ok(app
-        .state::<Arc<dyn OpenTargets>>()
-        .application_icons(paths)
-        .await?
-        .into_iter()
-        .map(|(path, bytes)| (path, bytes.map(png_data_url)))
-        .collect());
-    #[cfg(not(target_os = "macos"))]
-    {
-        let _ = (app, paths);
-        Ok(HashMap::new())
-    }
+    sftp_external_app_icons_service(
+        services.shared.platform.open.clone(),
+        SftpExternalAppIconsInput { paths },
+    )
+    .await
 }
 
 /// The names of the open files whose changes are not on the server, which
 /// a quit would leave behind.
-pub fn unuploaded_files(app: &AppHandle) -> Vec<String> {
-    app.state::<Arc<ExternalEditState>>().unuploaded_names()
+pub fn unuploaded_files(state: &ExternalEditState) -> Vec<String> {
+    state.unuploaded_names()
 }
 
 /// Removes, at startup, copies left behind long ago.
-pub fn clean_up_on_start(app: &AppHandle) {
-    let Ok(root) = local::edit_root(app) else {
-        return;
-    };
-    tauri::async_runtime::spawn_blocking(move || local::remove_stale(&root));
+pub fn clean_up_on_start(paths: &tterm_core::paths::AppPaths, runtime: &tokio::runtime::Handle) {
+    let root = local::edit_root(paths);
+    runtime.spawn_blocking(move || local::remove_stale(&root));
 }
 
 /// Removes, at exit, the copies without changes of their own.
-pub fn shutdown(app: &AppHandle) {
-    for session in app.state::<Arc<ExternalEditState>>().remove_all() {
+pub fn shutdown(state: &ExternalEditState) {
+    for session in state.remove_all() {
         if !session.has_changes() {
             local::remove_session_dir(&session.dir);
         }

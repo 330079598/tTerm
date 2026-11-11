@@ -1,12 +1,13 @@
+mod operations;
 use crate::core::session::types::PtyConnectionOptions;
+use crate::services::AppServices;
 use crate::sftp::internal::api::permissions::PERMISSION_MASK;
-use crate::sftp::internal::connection::{ensure_ssh_plan, map_sftp_error};
-use crate::sftp::internal::types::SftpConnectionPool;
-use crate::ssh::secret_store::types::SecretStoreState;
+use crate::sftp::internal::connection::map_sftp_error;
+use operations::*;
 use russh_sftp::client::SftpSession;
 use russh_sftp::protocol::{FileAttributes, OpenFlags};
 use serde::{Deserialize, Serialize};
-use tauri::{AppHandle, State};
+use tauri::State;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
 #[cfg(test)]
@@ -249,40 +250,50 @@ async fn save_editable_file(
 
 #[tauri::command]
 pub async fn sftp_open_file_for_edit(
-    app: AppHandle,
     tab_id: String,
     connection: Option<PtyConnectionOptions>,
     path: String,
-    prompt_state: State<'_, std::sync::Arc<tterm_core::prompts::PromptBroker>>,
-    secret_state: State<'_, SecretStoreState>,
-    pool_state: State<'_, SftpConnectionPool>,
+    services: State<'_, std::sync::Arc<AppServices>>,
 ) -> Result<SftpEditableFile, String> {
-    let plan = ensure_ssh_plan(&secret_state, connection)?;
-
-    with_sftp!(&app, &tab_id, &plan, prompt_state.inner().clone(), pool_state.inner(), sftp => {
-        load_editable_file(sftp, &path).await
-    })
+    sftp_open_file_for_edit_service(
+        SftpOpenFileForEditDependencies {
+            context: crate::connection_context::sftp(&services),
+            prompts: services.shared.prompts.clone(),
+            secrets: services.shared.secrets.clone(),
+            pool: services.sftp.pool.clone(),
+        },
+        SftpOpenFileForEditInput {
+            tab_id,
+            connection,
+            path,
+        },
+    )
+    .await
 }
 
 #[tauri::command]
-#[allow(
-    clippy::too_many_arguments,
-    reason = "a Tauri command's arguments are its IPC fields and injected state"
-)]
 pub async fn sftp_save_edited_file(
-    app: AppHandle,
     tab_id: String,
     connection: Option<PtyConnectionOptions>,
     path: String,
     content: String,
     baseline: SftpEditBaseline,
-    prompt_state: State<'_, std::sync::Arc<tterm_core::prompts::PromptBroker>>,
-    secret_state: State<'_, SecretStoreState>,
-    pool_state: State<'_, SftpConnectionPool>,
+    services: State<'_, std::sync::Arc<crate::services::AppServices>>,
 ) -> Result<SftpSaveEditedFileResult, String> {
-    let plan = ensure_ssh_plan(&secret_state, connection)?;
-
-    with_sftp!(&app, &tab_id, &plan, prompt_state.inner().clone(), pool_state.inner(), sftp => {
-        save_editable_file(sftp, &path, &content, &baseline).await
-    })
+    sftp_save_edited_file_service(
+        SftpSaveEditedFileDependencies {
+            context: crate::connection_context::sftp(&services),
+            prompts: services.shared.prompts.clone(),
+            secrets: services.shared.secrets.clone(),
+            pool: services.sftp.pool.clone(),
+        },
+        SftpSaveEditedFileInput {
+            tab_id,
+            connection,
+            path,
+            content,
+            baseline,
+        },
+    )
+    .await
 }

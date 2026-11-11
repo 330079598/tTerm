@@ -2,6 +2,9 @@
 //! `find` does the walking where it can; otherwise the walk runs over SFTP.
 //! Matches stream to the drawer as they are found.
 
+mod operations;
+use operations::*;
+
 use crate::event_sink::search::TauriSearchResultSink;
 use std::sync::Arc;
 use tterm_core::sftp::entry::SftpDirectoryEntry;
@@ -13,15 +16,14 @@ mod real_sshd_tests;
 mod walk;
 
 use crate::core::session::types::PtyConnectionOptions;
-use crate::sftp::internal::api::{with_cancel, SftpHost};
+use crate::sftp::internal::api::SftpHost;
 use crate::sftp::internal::connection::map_sftp_error;
-use crate::sftp::internal::types::{SftpConnectionPool, SftpHandles, TransferCancelMap};
-use crate::ssh::secret_store::types::SecretStoreState;
+use crate::sftp::internal::types::SftpHandles;
 use find::{FindOutcome, FindSearch};
 use matcher::NameMatcher;
 use serde::{Deserialize, Serialize};
 use tauri::ipc::Channel;
-use tauri::{AppHandle, State};
+use tauri::State;
 use tokio::sync::watch;
 
 /// A search stops after this many matches: more would not be read, and
@@ -146,38 +148,30 @@ async fn search(
 /// query, sending matches on `on_event` as they are found. Resolves once the
 /// search ends; `sftp_cancel_remote_operation` with `search_id` stops it.
 #[tauri::command]
-#[allow(
-    clippy::too_many_arguments,
-    reason = "a Tauri command's arguments are its IPC fields and injected state"
-)]
 pub async fn sftp_search_entries(
-    app: AppHandle,
     tab_id: String,
     connection: Option<PtyConnectionOptions>,
     search_id: String,
     request: SearchRequest,
     on_event: Channel<SearchEvent>,
-    prompt_state: State<'_, std::sync::Arc<tterm_core::prompts::PromptBroker>>,
-    secret_state: State<'_, SecretStoreState>,
-    pool_state: State<'_, SftpConnectionPool>,
-    cancel_map: State<'_, TransferCancelMap>,
+    services: State<'_, std::sync::Arc<crate::services::AppServices>>,
 ) -> Result<SearchSummary, String> {
-    let host = SftpHost {
-        app: &app,
-        tab_id: &tab_id,
-        connection,
-        prompts: prompt_state.inner().clone(),
-        secret_state: &secret_state,
-        pool: pool_state.inner(),
-    };
-    with_cancel(cancel_map.inner(), &search_id, |cancel| {
-        search(
-            host,
+    sftp_search_entries_service(
+        SftpSearchEntriesDependencies {
+            context: crate::connection_context::sftp(&services),
+            prompts: services.shared.prompts.clone(),
+            secrets: services.shared.secrets.clone(),
+            pool: services.sftp.pool.clone(),
+            cancel: services.sftp.transfer_cancel.clone(),
+        },
+        SftpSearchEntriesInput {
+            tab_id,
+            connection,
+            search_id,
             request,
-            Arc::new(TauriSearchResultSink::new(on_event)),
-            cancel,
-        )
-    })
+            on_event: Arc::new(TauriSearchResultSink::new(on_event)),
+        },
+    )
     .await
 }
 

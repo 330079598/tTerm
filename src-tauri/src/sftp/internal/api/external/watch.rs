@@ -6,12 +6,10 @@
 use super::local::{self, FileStamp, Fingerprint};
 use super::ExternalEditState;
 use crate::core::blocking::run_blocking;
-use crate::event_sink::TauriEventSink;
 use std::path::PathBuf;
 use std::sync::atomic::Ordering;
 use std::sync::Arc;
 use std::time::Duration;
-use tauri::{AppHandle, Manager};
 use tterm_core::events::sftp::SftpEvent;
 use tterm_core::events::{AppEvent, EventSink};
 
@@ -74,19 +72,16 @@ pub(super) fn look_at(watched: &Watched) -> Look {
 }
 
 /// Starts the watch unless it runs. It stops by itself once no file is open.
-pub(super) fn ensure_running(app: &AppHandle) {
-    let state = app.state::<Arc<ExternalEditState>>();
+pub(super) fn ensure_running(state: Arc<ExternalEditState>, events: Arc<dyn EventSink>) {
     if state.watching.swap(true, Ordering::SeqCst) {
         return;
     }
-    let events = TauriEventSink::new(app.clone());
-    let app = app.clone();
-    tauri::async_runtime::spawn(async move {
+    tokio::spawn(async move {
         let mut interval = tokio::time::interval(POLL_INTERVAL);
         interval.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
         loop {
             interval.tick().await;
-            let Some(watched) = app.state::<Arc<ExternalEditState>>().watched() else {
+            let Some(watched) = state.watched() else {
                 break;
             };
             let looks = run_blocking(move || {
@@ -102,7 +97,7 @@ pub(super) fn ensure_running(app: &AppHandle) {
             let Ok(looks) = looks else {
                 continue;
             };
-            for edit in app.state::<Arc<ExternalEditState>>().apply_looks(looks) {
+            for edit in state.apply_looks(looks) {
                 let _ = events.emit(AppEvent::Sftp(SftpEvent::ExternalEditChanged(edit)));
             }
         }

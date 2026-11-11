@@ -1,10 +1,10 @@
+mod operations;
 use crate::core::session::types::PtyConnectionOptions;
-use crate::sftp::internal::connection::{ensure_ssh_plan, map_sftp_error};
-use crate::sftp::internal::types::SftpConnectionPool;
-use crate::ssh::secret_store::types::SecretStoreState;
+use crate::sftp::internal::connection::map_sftp_error;
+use operations::*;
 use russh_sftp::client::SftpSession;
 use russh_sftp::protocol::FileAttributes;
-use tauri::{AppHandle, State};
+use tauri::State;
 
 /// The bits a chmod may set: rwx for owner, group and others, plus setuid,
 /// setgid and sticky. The file type bits are not the client's to change.
@@ -33,25 +33,28 @@ pub(crate) async fn set_permissions(
 }
 
 #[tauri::command]
-#[allow(
-    clippy::too_many_arguments,
-    reason = "a Tauri command's arguments are its IPC fields and injected state"
-)]
 pub async fn sftp_set_permissions(
-    app: AppHandle,
     tab_id: String,
     connection: Option<PtyConnectionOptions>,
     paths: Vec<String>,
     mode: u32,
-    prompt_state: State<'_, std::sync::Arc<tterm_core::prompts::PromptBroker>>,
-    secret_state: State<'_, SecretStoreState>,
-    pool_state: State<'_, SftpConnectionPool>,
+    services: State<'_, std::sync::Arc<crate::services::AppServices>>,
 ) -> Result<(), String> {
-    let plan = ensure_ssh_plan(&secret_state, connection)?;
-
-    with_sftp!(&app, &tab_id, &plan, prompt_state.inner().clone(), pool_state.inner(), sftp => {
-        set_permissions(sftp, &paths, mode).await
-    })
+    sftp_set_permissions_service(
+        SftpSetPermissionsDependencies {
+            context: crate::connection_context::sftp(&services),
+            prompts: services.shared.prompts.clone(),
+            secrets: services.shared.secrets.clone(),
+            pool: services.sftp.pool.clone(),
+        },
+        SftpSetPermissionsInput {
+            tab_id,
+            connection,
+            paths,
+            mode,
+        },
+    )
+    .await
 }
 
 #[cfg(all(test, unix))]

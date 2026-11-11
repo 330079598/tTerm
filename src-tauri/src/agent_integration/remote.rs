@@ -18,7 +18,6 @@ use russh::client::{Handle, Handler};
 use russh_sftp::client::error::Error as SftpError;
 use russh_sftp::client::SftpSession;
 use russh_sftp::protocol::StatusCode;
-use tauri::AppHandle;
 use tokio::io::AsyncWriteExt;
 
 use super::json::{self, Object};
@@ -284,11 +283,11 @@ async fn open(
 /// Each agent's integration on the tab's SSH host.
 #[tauri::command]
 pub async fn remote_agent_integration_status(
-    app: AppHandle,
     tab_id: String,
     connection: Option<PtyConnectionOptions>,
     services: tauri::State<'_, Arc<AppServices>>,
 ) -> Result<Vec<AgentIntegrationStatus>, String> {
+    let app = crate::connection_context::sftp(&services);
     let handles = SftpHost {
         app: &app,
         tab_id: &tab_id,
@@ -316,13 +315,13 @@ async fn remote_status(
 /// Installs or removes `agent`'s integration on the tab's SSH host.
 #[tauri::command]
 pub async fn change_remote_agent_integration(
-    app: AppHandle,
     tab_id: String,
     connection: Option<PtyConnectionOptions>,
     agent: Agent,
     install: bool,
     services: tauri::State<'_, Arc<AppServices>>,
 ) -> Result<AgentIntegrationStatus, String> {
+    let app = crate::connection_context::sftp(&services);
     let handles = SftpHost {
         app: &app,
         tab_id: &tab_id,

@@ -105,7 +105,7 @@ fn on_menu_event(app: &AppHandle, event: MenuEvent) {
     };
     let context = crate::app_context::background(
         &services,
-        crate::sftp::internal::api::external::unuploaded_files(app),
+        crate::sftp::internal::api::external::unuploaded_files(&services.sftp.external_edit),
     );
     crate::background::tray::handle_action(
         context,
@@ -121,7 +121,7 @@ fn on_tray_icon_event(tray: &TrayIcon, event: TrayIconEvent) {
     };
     let context = crate::app_context::background(
         &services,
-        crate::sftp::internal::api::external::unuploaded_files(app),
+        crate::sftp::internal::api::external::unuploaded_files(&services.sftp.external_edit),
     );
     match event {
         TrayIconEvent::Click {
