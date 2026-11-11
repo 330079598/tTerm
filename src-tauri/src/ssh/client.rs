@@ -98,8 +98,13 @@ pub struct SshChannelIo {
     pub sender: Option<crate::terminal::io_batcher::TerminalOutputSender>,
 }
 
+pub(crate) struct SshAttemptContext {
+    pub(crate) channel: ChannelContext,
+    pub(crate) connection: ConnectionContext,
+}
+
 pub async fn run_single_ssh_connection(
-    context: (ChannelContext, ConnectionContext),
+    context: SshAttemptContext,
     settings: ZmodemSettings,
     plan: SessionPlan,
     prompts: std::sync::Arc<tterm_core::prompts::PromptBroker>,
@@ -113,7 +118,10 @@ pub async fn run_single_ssh_connection(
         mut resize_rx,
         mut sender,
     } = io;
-    let (tab, app) = context;
+    let SshAttemptContext {
+        channel: tab,
+        connection: app,
+    } = context;
     let tab_id = tab.tab_id.clone();
     let host: String = match &plan.host {
         Some(host) => host.clone(),

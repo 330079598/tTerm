@@ -69,7 +69,10 @@ async fn get_server_metrics_snapshot_service(
 
     let fingerprint = monitor_connection_fingerprint(&plan)?;
     let monitor_session = get_or_open_monitor_session(
-        (&app, &registry),
+        session::MonitorContext {
+            connection: &app,
+            registry: &registry,
+        },
         &tab_id,
         session_nonce,
         &plan,

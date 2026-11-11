@@ -116,8 +116,13 @@ pub(crate) fn monitor_connection_fingerprint(plan: &SessionPlan) -> Result<Strin
     .map_err(|err| format!("Failed to fingerprint monitor connection: {err}"))
 }
 
+pub(super) struct MonitorContext<'a> {
+    pub(super) connection: &'a ConnectionContext,
+    pub(super) registry: &'a super::prompts::PendingMonitorPrompts,
+}
+
 pub(crate) async fn get_or_open_monitor_session(
-    context: (&ConnectionContext, &super::prompts::PendingMonitorPrompts),
+    context: MonitorContext<'_>,
     tab_id: &str,
     session_nonce: u32,
     plan: &SessionPlan,
@@ -125,7 +130,10 @@ pub(crate) async fn get_or_open_monitor_session(
     prompts: std::sync::Arc<tterm_core::prompts::PromptBroker>,
     monitor_sessions: MonitorSessionMap,
 ) -> Result<Arc<Mutex<MonitorSession>>, String> {
-    let (app, registry) = context;
+    let MonitorContext {
+        connection: app,
+        registry,
+    } = context;
     if let Some(message) = remembered_refusal(tab_id, session_nonce, fingerprint) {
         return Err(message);
     }

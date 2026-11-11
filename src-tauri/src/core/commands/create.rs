@@ -1,3 +1,4 @@
+use super::arguments::StopPtyContext;
 use super::stop_pty_session;
 use crate::core::session::{normalize_connection, resolve_ssh_password};
 use crate::core::state::{
@@ -20,14 +21,26 @@ pub(super) struct CreateContext {
     pub(super) manual: ZmodemManualDetectMap,
 }
 
+pub(super) struct PtyIdentity {
+    pub(super) tab_id: String,
+    pub(super) session_nonce: u32,
+    pub(super) rows: u16,
+    pub(super) cols: u16,
+}
+
 pub(super) fn create_pty_blocking(
     context: CreateContext,
-    identity: (String, u32, u16, u16),
+    identity: PtyIdentity,
     connection: Option<crate::core::session::types::PtyConnectionOptions>,
     output_channel: crate::terminal::output::TerminalOutput,
     sink: Arc<dyn tterm_core::session::sink::SessionSink>,
 ) -> Result<u32, String> {
-    let (tab_id, session_nonce, rows, cols) = identity;
+    let PtyIdentity {
+        tab_id,
+        session_nonce,
+        rows,
+        cols,
+    } = identity;
     let app = context.connection;
     let state = context.ptys;
     let prompt_state = app.prompts.clone();
@@ -49,7 +62,10 @@ pub(super) fn create_pty_blocking(
 
     if let Some(session) = sessions.remove(&tab_id) {
         stop_pty_session(
-            (&prompt_state, &tab_id),
+            StopPtyContext {
+                prompts: &prompt_state,
+                tab_id: &tab_id,
+            },
             session,
             &zmodem_state,
             &zmodem_armed_send_state,

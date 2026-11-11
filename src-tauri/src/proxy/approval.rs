@@ -56,10 +56,15 @@ pub(crate) fn allow(connection: &Connection, command: &str) -> Result<(), String
     Ok(())
 }
 
+pub(crate) struct ProxyPromptContext<'a> {
+    pub(crate) prompts: &'a Arc<PromptBroker>,
+    pub(crate) window: &'a dyn tterm_platform::window::MainWindow,
+}
+
 /// Returns once `command` may run, asking the user first when this device
 /// has not allowed it yet.
 pub(crate) async fn ensure_allowed(
-    prompt_context: (&Arc<PromptBroker>, &dyn tterm_platform::window::MainWindow),
+    prompt_context: ProxyPromptContext<'_>,
     proxy_name: &str,
     command: &str,
     owner: Option<&tterm_core::prompts::PromptOwner>,
@@ -72,7 +77,7 @@ pub(crate) async fn ensure_allowed(
     if allowed {
         return Ok(());
     }
-    let (prompts, window) = prompt_context;
+    let ProxyPromptContext { prompts, window } = prompt_context;
     let fallback;
     let owner = match owner {
         Some(owner) => owner,

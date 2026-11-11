@@ -80,7 +80,10 @@ pub(crate) fn spawn_ssh_attempt(
 
     let task = runtime_handle.spawn(async move {
         let result = crate::ssh::client::run_single_ssh_connection(
-            (channel, app),
+            crate::ssh::client::SshAttemptContext {
+                channel,
+                connection: app,
+            },
             settings,
             plan,
             prompt_state,

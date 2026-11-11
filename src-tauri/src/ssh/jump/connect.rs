@@ -98,7 +98,10 @@ pub(crate) async fn open_proxy_stream(
         progress,
     );
     open_stream(
-        (&ctx.app.prompts, ctx.app.window.as_ref()),
+        crate::proxy::approval::ProxyPromptContext {
+            prompts: &ctx.app.prompts,
+            window: ctx.app.window.as_ref(),
+        },
         proxy,
         target,
         ctx.prompt_owner,

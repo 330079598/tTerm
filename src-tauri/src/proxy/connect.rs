@@ -136,10 +136,7 @@ pub enum ProxyStream {
 /// Opens the stream to `target` through `proxy`. A proxy command this device
 /// has not allowed yet is shown to the user first.
 pub async fn open_stream(
-    prompt_context: (
-        &std::sync::Arc<tterm_core::prompts::PromptBroker>,
-        &dyn tterm_platform::window::MainWindow,
-    ),
+    prompt_context: super::approval::ProxyPromptContext<'_>,
     proxy: &ProxyEndpoint,
     target: &CommandTarget<'_>,
     prompt_owner: Option<&tterm_core::prompts::PromptOwner>,

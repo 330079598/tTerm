@@ -5,12 +5,13 @@ use super::state::{
 };
 use crate::services::AppServices;
 use crate::ssh::context::ConnectionContext;
+use crate::ssh::secret_store::types::SecretStoreState;
 #[cfg(target_os = "windows")]
 use crate::terminal;
 use arguments::{
     AckPtyOutputInput, GetSudoPasswordSourceInput, HasSavedPasswordInput, KillPtyInput,
-    ResetPtyConsoleInput, ResizePtyInput, RespondSshHostKeyPromptInput, WritePtyBatchInput,
-    WritePtyInput, WriteSavedPasswordForSudoInput,
+    ResetPtyConsoleInput, ResizePtyInput, RespondSshHostKeyPromptInput, StopPtyContext,
+    SudoPasswordContext, WritePtyBatchInput, WritePtyInput, WriteSavedPasswordForSudoInput,
 };
 use batch_write::{
     snapshot_batch_targets, write_guarded_batch, PtyWriteResult, PtyWriteStatus, PtyWriteTarget,
@@ -23,16 +24,16 @@ use tokio::sync::Mutex as TokioMutex;
 
 mod batch_write;
 mod create;
-use create::{create_pty_blocking, CreateContext};
+use create::{create_pty_blocking, CreateContext, PtyIdentity};
 
 fn stop_pty_session(
-    context: (&tterm_core::prompts::PromptBroker, &str),
+    context: StopPtyContext<'_>,
     session: PtySession,
     zmodem_state: &ZmodemMap,
     zmodem_armed_send_state: &ZmodemArmedSendMap,
     zmodem_manual_detect_state: &ZmodemManualDetectMap,
 ) {
-    let (prompts, tab_id) = context;
+    let StopPtyContext { prompts, tab_id } = context;
     prompts.cancel_session(&tterm_core::prompts::SessionKey {
         tab_id: tab_id.to_string(),
         session_nonce: session.session_nonce,
@@ -107,7 +108,12 @@ pub async fn create_pty(
     run_blocking(move || {
         create_pty_blocking(
             context,
-            (tab_id, session_nonce, rows, cols),
+            PtyIdentity {
+                tab_id,
+                session_nonce,
+                rows,
+                cols,
+            },
             connection,
             output_channel,
             sink,
@@ -184,7 +190,7 @@ pub fn write_pty(
     )
 }
 fn write_pty_service(
-    app: crate::ssh::context::ConnectionContext,
+    app: ConnectionContext,
     state: PtyMap,
     zmodem_state: ZmodemMap,
     arguments: WritePtyInput,
@@ -261,13 +267,11 @@ pub async fn reset_pty_console(
 }
 async fn reset_pty_console_service(
     state: PtyMap,
-    arguments: ResetPtyConsoleInput,
-) -> Result<(), String> {
-    let ResetPtyConsoleInput {
+    ResetPtyConsoleInput {
         tab_id,
         session_nonce,
-    } = arguments;
-
+    }: ResetPtyConsoleInput,
+) -> Result<(), String> {
     let pid = {
         let map = state.read().await;
         let Some(session) = map.get(&tab_id) else {
@@ -347,7 +351,7 @@ pub fn write_pty_batch(
     )
 }
 fn write_pty_batch_service(
-    app: crate::ssh::context::ConnectionContext,
+    app: ConnectionContext,
     state: PtyMap,
     arguments: WritePtyBatchInput,
 ) -> Vec<PtyWriteResult> {
@@ -404,7 +408,7 @@ pub fn resize_pty(
     )
 }
 fn resize_pty_service(
-    app: crate::ssh::context::ConnectionContext,
+    app: ConnectionContext,
     state: PtyMap,
     arguments: ResizePtyInput,
 ) -> Result<(), String> {
@@ -478,18 +482,16 @@ pub fn kill_pty(
     )
 }
 fn kill_pty_service(
-    app: crate::ssh::context::ConnectionContext,
+    app: ConnectionContext,
     state: PtyMap,
     zmodem_state: ZmodemMap,
     zmodem_armed_send_state: ZmodemArmedSendMap,
     zmodem_manual_detect_state: ZmodemManualDetectMap,
-    arguments: KillPtyInput,
-) -> Result<(), String> {
-    let KillPtyInput {
+    KillPtyInput {
         tab_id,
         session_nonce,
-    } = arguments;
-
+    }: KillPtyInput,
+) -> Result<(), String> {
     let session = {
         let mut sessions = state.blocking_write();
         if sessions
@@ -504,7 +506,10 @@ fn kill_pty_service(
 
     if let Some(session) = session {
         stop_pty_session(
-            (&app.prompts, &tab_id),
+            StopPtyContext {
+                prompts: &app.prompts,
+                tab_id: &tab_id,
+            },
             session,
             &zmodem_state,
             &zmodem_armed_send_state,
@@ -554,7 +559,7 @@ pub async fn has_saved_password(
     .await
 }
 async fn has_saved_password_service(
-    secret_state: crate::ssh::secret_store::types::SecretStoreState,
+    secret_state: SecretStoreState,
     arguments: HasSavedPasswordInput,
 ) -> Result<bool, String> {
     let HasSavedPasswordInput {
@@ -597,7 +602,7 @@ pub async fn has_saved_jump_host_password(
     .await
 }
 async fn has_saved_jump_host_password_service(
-    secret_state: crate::ssh::secret_store::types::SecretStoreState,
+    secret_state: SecretStoreState,
     profile_id: Option<String>,
     profile_name: Option<String>,
     host: Option<String>,
@@ -641,7 +646,7 @@ pub async fn get_sudo_password_source(
     .await
 }
 async fn get_sudo_password_source_service(
-    secret_state: crate::ssh::secret_store::types::SecretStoreState,
+    secret_state: SecretStoreState,
     arguments: GetSudoPasswordSourceInput,
 ) -> Result<Option<super::session::SudoPasswordSource>, String> {
     let GetSudoPasswordSourceInput {
@@ -670,7 +675,7 @@ pub async fn has_saved_sudo_password(
     has_saved_sudo_password_service(secret_state, profile_id).await
 }
 async fn has_saved_sudo_password_service(
-    secret_state: crate::ssh::secret_store::types::SecretStoreState,
+    secret_state: SecretStoreState,
     profile_id: String,
 ) -> Result<bool, String> {
     let secret_state = secret_state.clone();
@@ -714,8 +719,8 @@ pub async fn write_saved_password_for_sudo(
     .await
 }
 async fn write_saved_password_for_sudo_service(
-    app: crate::ssh::context::ConnectionContext,
-    secret_state: crate::ssh::secret_store::types::SecretStoreState,
+    app: ConnectionContext,
+    secret_state: SecretStoreState,
     arguments: WriteSavedPasswordForSudoInput,
 ) -> Result<bool, String> {
     let WriteSavedPasswordForSudoInput {
@@ -728,7 +733,10 @@ async fn write_saved_password_for_sudo_service(
 
     run_blocking(move || {
         write_saved_password_for_sudo_blocking(
-            (&app, &secret_state),
+            SudoPasswordContext {
+                app: &app,
+                secret_state: &secret_state,
+            },
             &tab_id,
             session_nonce,
             profile_id.as_deref(),
@@ -740,17 +748,14 @@ async fn write_saved_password_for_sudo_service(
 }
 
 fn write_saved_password_for_sudo_blocking(
-    context: (
-        &ConnectionContext,
-        &crate::ssh::secret_store::types::SecretStoreState,
-    ),
+    context: SudoPasswordContext<'_>,
     tab_id: &str,
     session_nonce: u32,
     profile_id: Option<&str>,
     profile_name: Option<&str>,
     prompt: &str,
 ) -> Result<bool, String> {
-    let (app, secret_state) = context;
+    let SudoPasswordContext { app, secret_state } = context;
     let state = app.ptys.upgrade().ok_or("Prompt session is closed")?;
     let map = state.blocking_read();
     let session = map
