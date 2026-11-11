@@ -22,7 +22,7 @@ pub async fn sftp_preview_delete_entries(
         return Err("No entries selected for deletion".to_string());
     }
 
-    let plan = ensure_ssh_plan(&app, &secret_state, connection)?;
+    let plan = ensure_ssh_plan(&secret_state, connection)?;
     preview_delete_entries(
         &app,
         &tab_id,
@@ -59,7 +59,7 @@ pub async fn sftp_delete_entries(
         }
     }
 
-    let plan = ensure_ssh_plan(&app, &secret_state, connection)?;
+    let plan = ensure_ssh_plan(&secret_state, connection)?;
     let batch_id = next_delete_batch_id();
     tokio::spawn(run_delete_batch(DeleteBatch {
         app: app.clone(),
@@ -91,7 +91,7 @@ pub async fn sftp_delete_entry(
     secret_state: State<'_, SecretStoreState>,
     pool_state: State<'_, SftpConnectionPool>,
 ) -> Result<(), String> {
-    let plan = ensure_ssh_plan(&app, &secret_state, connection)?;
+    let plan = ensure_ssh_plan(&secret_state, connection)?;
 
     with_sftp!(&app, &tab_id, &plan, prompt_state.inner().clone(), pool_state.inner(), sftp => {
         if is_dir {

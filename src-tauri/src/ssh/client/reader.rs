@@ -2,6 +2,7 @@ use super::output::deliver_output;
 use super::{close_session, finish_output, SshChannelIo, SshExitSignal};
 use crate::core::session::types::SessionPlan;
 use crate::core::state::ChannelContext;
+use crate::session_log::LogContext;
 use crate::ssh::jump::pool::{PooledSession, RouteKey};
 use crate::ssh::types::SshClientHandler;
 use crate::zmodem::session::{ZmodemReceiveDriver, ZmodemSettings};
@@ -11,7 +12,7 @@ use tokio::io::AsyncWriteExt;
 
 struct IncomingOutput<'a> {
     tab: &'a ChannelContext,
-    app: &'a tauri::AppHandle,
+    app: &'a LogContext,
     sender: &'a Option<crate::terminal::io_batcher::TerminalOutputSender>,
     output_decoder: &'a mut Option<crate::terminal::encoding::OutputDecoder>,
     zmodem_driver: &'a mut ZmodemReceiveDriver,
@@ -79,7 +80,7 @@ impl IncomingOutput<'_> {
 
 pub(super) struct ConnectedSession {
     pub(super) tab: ChannelContext,
-    pub(super) app: tauri::AppHandle,
+    pub(super) app: LogContext,
     pub(super) settings: ZmodemSettings,
     pub(super) plan: SessionPlan,
     pub(super) route: Option<RouteKey>,

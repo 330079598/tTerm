@@ -129,7 +129,7 @@ pub(super) async fn connect_jump_direct(
         ),
     );
     emit_connection_progress(
-        app,
+        app.events.as_ref(),
         tab_id,
         status_options,
         SshConnectionProgressPayload::new(
@@ -169,7 +169,7 @@ pub(super) async fn connect_jump_direct(
     .map_err(|e| map_jump_connect_error(e, host_key_failure, failure_reason, hop_index))?;
 
     emit_connection_progress(
-        app,
+        app.events.as_ref(),
         tab_id,
         status_options,
         SshConnectionProgressPayload::new(
@@ -195,7 +195,7 @@ pub(super) async fn connect_jump_direct(
     .await?;
 
     emit_connection_progress(
-        app,
+        app.events.as_ref(),
         tab_id,
         status_options,
         SshConnectionProgressPayload::new(
@@ -242,7 +242,7 @@ where
         ),
     );
     emit_connection_progress(
-        app,
+        app.events.as_ref(),
         tab_id,
         status_options,
         SshConnectionProgressPayload::new(
@@ -266,7 +266,7 @@ where
     .map_err(|e| map_jump_connect_error(e, host_key_failure, failure_reason, hop_index))?;
 
     emit_connection_progress(
-        app,
+        app.events.as_ref(),
         tab_id,
         status_options,
         SshConnectionProgressPayload::new(
@@ -292,7 +292,7 @@ where
     .await?;
 
     emit_connection_progress(
-        app,
+        app.events.as_ref(),
         tab_id,
         status_options,
         SshConnectionProgressPayload::new(
@@ -380,7 +380,7 @@ impl ChainHops<'_> {
             &format!("Jump chain connected. Opening tunnel to {host}:{port}..."),
         );
         emit_connection_progress(
-            ctx.app,
+            ctx.app.events.as_ref(),
             ctx.tab_id,
             ctx.status_options,
             SshConnectionProgressPayload::new(
@@ -469,7 +469,7 @@ impl ChainHops<'_> {
                     ),
                 );
                 emit_connection_progress(
-                    ctx.app,
+                    ctx.app.events.as_ref(),
                     ctx.tab_id,
                     ctx.status_options,
                     SshConnectionProgressPayload::new(
@@ -508,7 +508,7 @@ impl ChainHops<'_> {
         let address = format!("{}@{}:{}", plan.username, plan.host, plan.port);
         emit_terminal_status(ctx, &format!("Using the open connection to {address}"));
         emit_connection_progress(
-            ctx.app,
+            ctx.app.events.as_ref(),
             ctx.tab_id,
             ctx.status_options,
             SshConnectionProgressPayload::new(

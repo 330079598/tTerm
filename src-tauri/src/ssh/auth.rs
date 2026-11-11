@@ -190,7 +190,7 @@ pub enum AuthPrompter {
     /// Emits `ssh-auth-prompt-{tab_id}`; the frontend answers through
     /// [`respond_ssh_auth_prompt`].
     Tab {
-        app: tauri::AppHandle,
+        app: crate::ssh::context::ConnectionContext,
         tab_id: String,
         owner: Option<tterm_core::prompts::PromptOwner>,
     },
@@ -222,8 +222,17 @@ pub struct ScriptedPrompts {
 pub fn respond_ssh_auth_prompt(
     request_id: String,
     responses: Option<Vec<String>>,
-    pending: tauri::State<'_, std::sync::Arc<tterm_core::prompts::PromptBroker>>,
+    services: tauri::State<'_, std::sync::Arc<crate::services::AppServices>>,
 ) -> Result<(), String> {
+    let pending = services.shared.prompts.clone();
+    respond_ssh_auth_prompt_service(pending, (request_id, responses))
+}
+fn respond_ssh_auth_prompt_service(
+    pending: std::sync::Arc<tterm_core::prompts::PromptBroker>,
+    arguments: (String, Option<Vec<String>>),
+) -> Result<(), String> {
+    let (request_id, responses) = arguments;
+
     pending.reply_auth(&request_id, responses)
 }
 

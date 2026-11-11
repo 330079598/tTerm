@@ -8,6 +8,7 @@ use crate::proxy::command::CommandTarget;
 use crate::proxy::connect::{open_stream, ProxyStream};
 use crate::proxy::{ProxyEndpoint, ProxyKind};
 use crate::ssh::auth::{authenticate, AuthMethod, AuthPrompter, AuthTarget};
+use crate::ssh::context::ConnectionContext;
 use crate::ssh::openssh_known_hosts::request_host_certificates;
 use crate::ssh::types::{
     emit_connection_progress, ConnectionStatusOptions, HostKeyVerificationMode, SshClientHandler,
@@ -15,13 +16,12 @@ use crate::ssh::types::{
 };
 use russh::{client, Disconnect};
 use std::sync::Arc;
-use tauri::AppHandle;
 
 /// What every hop of one connection shares: where it reports progress and how
 /// it asks the user about host keys and credentials.
 #[derive(Clone, Copy)]
 pub struct ConnectContext<'a> {
-    pub app: &'a AppHandle,
+    pub app: &'a ConnectionContext,
     pub tab_id: &'a str,
     pub prompts: &'a std::sync::Arc<tterm_core::prompts::PromptBroker>,
     pub status_options: ConnectionStatusOptions,
@@ -91,10 +91,20 @@ pub(crate) async fn open_proxy_stream(
     } else {
         progress.host(proxy.host.clone(), proxy.port)
     };
-    emit_connection_progress(ctx.app, ctx.tab_id, ctx.status_options, progress);
-    open_stream(ctx.app, proxy, target, ctx.prompt_owner)
-        .await
-        .map(Some)
+    emit_connection_progress(
+        ctx.app.events.as_ref(),
+        ctx.tab_id,
+        ctx.status_options,
+        progress,
+    );
+    open_stream(
+        (&ctx.app.prompts, ctx.app.window.as_ref()),
+        proxy,
+        target,
+        ctx.prompt_owner,
+    )
+    .await
+    .map(Some)
 }
 
 /// The SSH handshake with the first host, over `stream` when a proxy opened
@@ -134,8 +144,8 @@ pub(super) fn emit_terminal_status(ctx: ConnectContext<'_>, status: &str) {
         return;
     }
     let status_msg = crate::terminal::legacy_events::status_line("33", status);
-    crate::session_log::record_output(ctx.app, ctx.tab_id, status_msg.as_bytes());
-    crate::terminal::legacy_events::emit_output(ctx.app, ctx.tab_id, status_msg);
+    crate::session_log::record_output(&ctx.app.log, ctx.tab_id, status_msg.as_bytes());
+    crate::terminal::legacy_events::emit_output(ctx.app.events.as_ref(), ctx.tab_id, status_msg);
 }
 
 /// Open an ordered ProxyJump-style chain, then establish the target SSH session
@@ -199,7 +209,7 @@ where
     })?;
 
     emit_connection_progress(
-        app,
+        app.events.as_ref(),
         tab_id,
         status_options,
         SshConnectionProgressPayload::new(
@@ -249,7 +259,9 @@ pub async fn open_target_ssh_session_with_forwarding(
     let owner = match ctx.prompt_owner {
         Some(owner) => owner,
         None => {
-            scope = crate::prompt_scope::PromptScope::for_tab(ctx.app, ctx.tab_id)
+            scope = ctx
+                .app
+                .prompt_scope(ctx.tab_id)
                 .await
                 .map_err(SshConnectError::Cancelled)?;
             &scope.owner
@@ -293,7 +305,7 @@ pub async fn open_target_ssh_session_with_forwarding(
 
     let (jump_chain_opt, mut target_session) = if target.jump_hosts.is_empty() {
         emit_connection_progress(
-            app,
+            app.events.as_ref(),
             tab_id,
             status_options,
             SshConnectionProgressPayload::new(
@@ -344,7 +356,7 @@ pub async fn open_target_ssh_session_with_forwarding(
     };
 
     emit_connection_progress(
-        app,
+        app.events.as_ref(),
         tab_id,
         status_options,
         SshConnectionProgressPayload::new(
@@ -378,7 +390,7 @@ pub async fn open_target_ssh_session_with_forwarding(
     };
     if matches!(target_auth, AuthMethod::Auto { .. }) {
         emit_connection_progress(
-            app,
+            app.events.as_ref(),
             tab_id,
             status_options,
             crate::ssh::types::with_auth_used(

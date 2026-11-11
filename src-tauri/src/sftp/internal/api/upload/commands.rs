@@ -83,7 +83,7 @@ pub async fn sftp_check_upload_conflicts(
     secret_state: State<'_, SecretStoreState>,
     pool_state: State<'_, SftpConnectionPool>,
 ) -> Result<ConflictReport, String> {
-    let plan = ensure_ssh_plan(&app, &secret_state, connection)?;
+    let plan = ensure_ssh_plan(&secret_state, connection)?;
     let upload_plan = collect_upload_plan(&local_paths, &remote_base_path, None).await?;
 
     with_sftp!(&app, &tab_id, &plan, prompt_state.inner().clone(), pool_state.inner(), sftp => {
@@ -162,7 +162,7 @@ pub async fn sftp_upload_file(
     cancel_map: State<'_, TransferCancelMap>,
 ) -> Result<(), String> {
     let events: Arc<dyn EventSink> = Arc::new(TauriEventSink::new(app.clone()));
-    let plan = ensure_ssh_plan(&app, &secret_state, connection)?;
+    let plan = ensure_ssh_plan(&secret_state, connection)?;
 
     let metadata = fs::metadata(&local_path)
         .await
@@ -217,7 +217,7 @@ pub async fn sftp_upload_paths(
     cancel_map: State<'_, TransferCancelMap>,
 ) -> Result<UploadBatchResult, String> {
     let events: Arc<dyn EventSink> = Arc::new(TauriEventSink::new(app.clone()));
-    let plan = ensure_ssh_plan(&app, &secret_state, connection)?;
+    let plan = ensure_ssh_plan(&secret_state, connection)?;
     let root_summary = inspect_upload_roots(&local_paths).await?;
     let batch_id = next_transfer_id();
 

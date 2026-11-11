@@ -4,7 +4,6 @@ use super::secret_store::{
 };
 use crate::core::blocking::run_blocking;
 use serde::{Deserialize, Serialize};
-use tauri::{AppHandle, State};
 use zeroize::Zeroizing;
 
 #[derive(Debug, Clone, Deserialize)]
@@ -55,66 +54,119 @@ pub struct SavedSecretEntry {
 
 #[tauri::command]
 pub async fn get_secret_backend_status(
-    secret_state: State<'_, SecretStoreState>,
+    services: tauri::State<'_, std::sync::Arc<crate::services::AppServices>>,
+) -> Result<SecretBackendStatus, String> {
+    let secret_state = services.shared.secrets.clone();
+    get_secret_backend_status_service(secret_state).await
+}
+async fn get_secret_backend_status_service(
+    secret_state: SecretStoreState,
 ) -> Result<SecretBackendStatus, String> {
     // Waits for startup to unlock saved passwords, which may sit on a
     // credential store prompt; keep that off the main thread.
-    let secret_state = secret_state.inner().clone();
+    let secret_state = secret_state.clone();
     run_blocking(move || secret_state.get_status()).await
 }
 
 #[tauri::command]
 pub async fn unlock_secret_vault(
-    app: AppHandle,
+    app: tauri::AppHandle,
     input: VaultPasswordInput,
-    secret_state: State<'_, SecretStoreState>,
+    services: tauri::State<'_, std::sync::Arc<crate::services::AppServices>>,
 ) -> Result<SecretBackendStatus, String> {
+    let secret_state = services.shared.secrets.clone();
+    let data_dir = crate::app_paths::get(&app)?.data_dir.clone();
+    unlock_secret_vault_service(secret_state, data_dir, (input,)).await
+}
+async fn unlock_secret_vault_service(
+    secret_state: SecretStoreState,
+    data_dir: std::path::PathBuf,
+    arguments: (VaultPasswordInput,),
+) -> Result<SecretBackendStatus, String> {
+    let (input,) = arguments;
+
     // Key derivation takes a noticeable moment; keep it off the main thread.
-    let secret_state = secret_state.inner().clone();
-    run_blocking(move || secret_state.unlock(&app, input)).await
+    let secret_state = secret_state.clone();
+    run_blocking(move || secret_state.unlock(&data_dir, input)).await
 }
 
 #[tauri::command]
 pub async fn lock_secret_vault(
-    secret_state: State<'_, SecretStoreState>,
+    services: tauri::State<'_, std::sync::Arc<crate::services::AppServices>>,
+) -> Result<SecretBackendStatus, String> {
+    let secret_state = services.shared.secrets.clone();
+    lock_secret_vault_service(secret_state).await
+}
+async fn lock_secret_vault_service(
+    secret_state: SecretStoreState,
 ) -> Result<SecretBackendStatus, String> {
     // Waits for startup to unlock saved passwords; keep that off the main thread.
-    let secret_state = secret_state.inner().clone();
+    let secret_state = secret_state.clone();
     run_blocking(move || secret_state.lock()).await
 }
 
 #[tauri::command]
 pub async fn retry_system_unlock(
-    secret_state: State<'_, SecretStoreState>,
+    services: tauri::State<'_, std::sync::Arc<crate::services::AppServices>>,
+) -> Result<SecretBackendStatus, String> {
+    let secret_state = services.shared.secrets.clone();
+    retry_system_unlock_service(secret_state).await
+}
+async fn retry_system_unlock_service(
+    secret_state: SecretStoreState,
 ) -> Result<SecretBackendStatus, String> {
     // The credential store may sit on a prompt; keep that off the main thread.
-    let secret_state = secret_state.inner().clone();
+    let secret_state = secret_state.clone();
     run_blocking(move || secret_state.retry_system_unlock()).await
 }
 
 #[tauri::command]
 pub async fn reset_saved_passwords(
-    secret_state: State<'_, SecretStoreState>,
+    services: tauri::State<'_, std::sync::Arc<crate::services::AppServices>>,
 ) -> Result<SecretBackendStatus, String> {
-    let secret_state = secret_state.inner().clone();
+    let secret_state = services.shared.secrets.clone();
+    reset_saved_passwords_service(secret_state).await
+}
+async fn reset_saved_passwords_service(
+    secret_state: SecretStoreState,
+) -> Result<SecretBackendStatus, String> {
+    let secret_state = secret_state.clone();
     run_blocking(move || secret_state.reset_saved_passwords()).await
 }
 
 #[tauri::command]
 pub async fn change_vault_password(
     input: ChangeVaultPasswordInput,
-    secret_state: State<'_, SecretStoreState>,
+    services: tauri::State<'_, std::sync::Arc<crate::services::AppServices>>,
 ) -> Result<SecretBackendStatus, String> {
-    let secret_state = secret_state.inner().clone();
+    let secret_state = services.shared.secrets.clone();
+    change_vault_password_service(secret_state, (input,)).await
+}
+async fn change_vault_password_service(
+    secret_state: SecretStoreState,
+    arguments: (ChangeVaultPasswordInput,),
+) -> Result<SecretBackendStatus, String> {
+    let (input,) = arguments;
+
+    let secret_state = secret_state.clone();
     run_blocking(move || secret_state.change_master_password(input)).await
 }
 
 #[tauri::command]
 pub async fn set_master_password(
     input: MasterPasswordInput,
-    secret_state: State<'_, SecretStoreState>,
+    services: tauri::State<'_, std::sync::Arc<crate::services::AppServices>>,
 ) -> Result<SecretBackendStatus, String> {
-    let secret_state = secret_state.inner().clone();
+    let secret_state = services.shared.secrets.clone();
+    set_master_password_service(secret_state, (input,)).await
+}
+async fn set_master_password_service(
+    secret_state: SecretStoreState,
+    arguments: (MasterPasswordInput,),
+) -> Result<SecretBackendStatus, String> {
+    let (input,) = arguments;
+
+    let secret_state = secret_state.clone();
     run_blocking(move || {
         let password = Zeroizing::new(input.password);
         secret_state.set_master_password(&password)
@@ -124,19 +176,34 @@ pub async fn set_master_password(
 
 #[tauri::command]
 pub async fn remove_master_password(
-    secret_state: State<'_, SecretStoreState>,
+    services: tauri::State<'_, std::sync::Arc<crate::services::AppServices>>,
+) -> Result<SecretBackendStatus, String> {
+    let secret_state = services.shared.secrets.clone();
+    remove_master_password_service(secret_state).await
+}
+async fn remove_master_password_service(
+    secret_state: SecretStoreState,
 ) -> Result<SecretBackendStatus, String> {
     // Waits for startup to unlock saved passwords; keep that off the main thread.
-    let secret_state = secret_state.inner().clone();
+    let secret_state = secret_state.clone();
     run_blocking(move || secret_state.remove_master_password()).await
 }
 
 #[tauri::command]
 pub async fn set_secret_storage_mode(
     input: SecretStorageModeInput,
-    secret_state: State<'_, SecretStoreState>,
+    services: tauri::State<'_, std::sync::Arc<crate::services::AppServices>>,
 ) -> Result<SecretBackendStatus, String> {
-    let secret_state = secret_state.inner().clone();
+    let secret_state = services.shared.secrets.clone();
+    set_secret_storage_mode_service(secret_state, (input,)).await
+}
+async fn set_secret_storage_mode_service(
+    secret_state: SecretStoreState,
+    arguments: (SecretStorageModeInput,),
+) -> Result<SecretBackendStatus, String> {
+    let (input,) = arguments;
+
+    let secret_state = secret_state.clone();
     run_blocking(move || {
         let password = input.password.map(Zeroizing::new);
         secret_state.set_storage_mode(&input.mode, password.as_deref().map(String::as_str))
@@ -148,17 +215,23 @@ pub async fn set_secret_storage_mode(
 /// somewhere new; the operation that asked for it is then retried.
 #[tauri::command]
 pub async fn verify_user(
-    app: AppHandle,
     input: VerifyUserInput,
-    secret_state: State<'_, SecretStoreState>,
+    services: tauri::State<'_, std::sync::Arc<crate::services::AppServices>>,
 ) -> Result<(), String> {
+    let secret_state = services.shared.secrets.clone();
+    let verifier = services.shared.platform.verification.clone();
+    verify_user_service(secret_state, verifier, (input,)).await
+}
+async fn verify_user_service(
+    secret_state: SecretStoreState,
+    verifier: std::sync::Arc<dyn tterm_platform::verification::UserVerification>,
+    arguments: (VerifyUserInput,),
+) -> Result<(), String> {
+    let (input,) = arguments;
+
     // Waits on the OS prompt or on key derivation.
-    let secret_state = secret_state.inner().clone();
-    use tauri::Manager;
-    let verifier = app
-        .state::<std::sync::Arc<dyn tterm_platform::verification::UserVerification>>()
-        .inner()
-        .clone();
+    let secret_state = secret_state.clone();
+    let verifier = verifier;
     run_blocking(move || {
         let password = input.password.map(Zeroizing::new);
         secret_state.verify_user(
@@ -172,9 +245,15 @@ pub async fn verify_user(
 
 #[tauri::command]
 pub async fn list_saved_secrets(
-    secret_state: State<'_, SecretStoreState>,
+    services: tauri::State<'_, std::sync::Arc<crate::services::AppServices>>,
 ) -> Result<Vec<SavedSecretEntry>, String> {
-    let secret_state = secret_state.inner().clone();
+    let secret_state = services.shared.secrets.clone();
+    list_saved_secrets_service(secret_state).await
+}
+async fn list_saved_secrets_service(
+    secret_state: SecretStoreState,
+) -> Result<Vec<SavedSecretEntry>, String> {
+    let secret_state = secret_state.clone();
     run_blocking(move || {
         let saved = secret_state
             .saved_keys()?
@@ -208,11 +287,19 @@ pub async fn list_saved_secrets(
 
 #[tauri::command]
 pub async fn get_saved_secret(
-    app: AppHandle,
     input: GetSavedSecretInput,
-    secret_state: State<'_, SecretStoreState>,
+    services: tauri::State<'_, std::sync::Arc<crate::services::AppServices>>,
 ) -> Result<String, String> {
-    let secret_state = secret_state.inner().clone();
+    let secret_state = services.shared.secrets.clone();
+    get_saved_secret_service(secret_state, (input,)).await
+}
+async fn get_saved_secret_service(
+    secret_state: SecretStoreState,
+    arguments: (GetSavedSecretInput,),
+) -> Result<String, String> {
+    let (input,) = arguments;
+
+    let secret_state = secret_state.clone();
     run_blocking(move || {
         let key = input.key.trim();
         if key.is_empty() {
@@ -231,7 +318,7 @@ pub async fn get_saved_secret(
         }
         secret_state.require_verification(VerificationPurpose::Reveal)?;
         secret_state
-            .get_password(&app, key)?
+            .get_password(key)?
             .ok_or_else(|| "Saved password is no longer available.".to_string())
     })
     .await
@@ -239,11 +326,19 @@ pub async fn get_saved_secret(
 
 #[tauri::command]
 pub async fn delete_saved_secret(
-    app: AppHandle,
     input: DeleteSavedSecretInput,
-    secret_state: State<'_, SecretStoreState>,
+    services: tauri::State<'_, std::sync::Arc<crate::services::AppServices>>,
 ) -> Result<bool, String> {
-    let secret_state = secret_state.inner().clone();
+    let secret_state = services.shared.secrets.clone();
+    delete_saved_secret_service(secret_state, (input,)).await
+}
+async fn delete_saved_secret_service(
+    secret_state: SecretStoreState,
+    arguments: (DeleteSavedSecretInput,),
+) -> Result<bool, String> {
+    let (input,) = arguments;
+
+    let secret_state = secret_state.clone();
     run_blocking(move || {
         let key = input.key.trim();
         if key.is_empty() {
@@ -257,7 +352,7 @@ pub async fn delete_saved_secret(
             return Err("Saved secret is not linked to a current profile.".to_string());
         }
 
-        secret_state.delete_password(&app, key)
+        secret_state.delete_password(key)
     })
     .await
 }

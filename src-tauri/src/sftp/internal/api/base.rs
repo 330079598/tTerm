@@ -118,7 +118,7 @@ pub async fn sftp_list_directory(
     secret_state: State<'_, SecretStoreState>,
     pool_state: State<'_, SftpConnectionPool>,
 ) -> Result<SftpDirectoryListing, String> {
-    let plan = ensure_ssh_plan(&app, &secret_state, connection)?;
+    let plan = ensure_ssh_plan(&secret_state, connection)?;
 
     let requested_path = crate::sftp::internal::paths::sanitize_target_path(path);
 
@@ -157,7 +157,7 @@ pub async fn sftp_create_directory(
     secret_state: State<'_, SecretStoreState>,
     pool_state: State<'_, SftpConnectionPool>,
 ) -> Result<(), String> {
-    let plan = ensure_ssh_plan(&app, &secret_state, connection)?;
+    let plan = ensure_ssh_plan(&secret_state, connection)?;
 
     with_sftp!(&app, &tab_id, &plan, prompt_state.inner().clone(), pool_state.inner(), sftp => {
         sftp.create_dir(path).await.map_err(map_sftp_error)
@@ -179,7 +179,7 @@ pub async fn sftp_rename_entry(
     secret_state: State<'_, SecretStoreState>,
     pool_state: State<'_, SftpConnectionPool>,
 ) -> Result<(), String> {
-    let plan = ensure_ssh_plan(&app, &secret_state, connection)?;
+    let plan = ensure_ssh_plan(&secret_state, connection)?;
 
     with_sftp!(&app, &tab_id, &plan, prompt_state.inner().clone(), pool_state.inner(), sftp => {
         sftp.rename(old_path, new_path).await.map_err(map_sftp_error)

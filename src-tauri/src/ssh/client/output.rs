@@ -1,3 +1,4 @@
+use crate::session_log::LogContext;
 /// Runs a call that may block on the batcher's bounded queue (send, or the
 /// join inside finish) off the async worker: `block_in_place` on a
 /// multi-thread runtime keeps the connection's select! loop responsive.
@@ -16,7 +17,7 @@ pub(super) fn run_blocking<T>(f: impl FnOnce() -> T) -> T {
 /// Forwards one output batch to the webview, converted to UTF-8 when the
 /// session uses another charset.
 pub(super) fn deliver_output(
-    app: &tauri::AppHandle,
+    app: &LogContext,
     tab_id: &str,
     endpoint: (
         Option<&crate::terminal::io_batcher::TerminalOutputSender>,
