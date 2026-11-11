@@ -7,6 +7,7 @@ pub mod local_shells;
 pub mod panes;
 pub(crate) mod paths;
 pub mod reconnect;
+mod save;
 pub mod tab_agent_indicator;
 pub mod tab_icons;
 mod update_channel;
@@ -443,42 +444,18 @@ pub async fn load_config() -> Result<AppConfig, String> {
 }
 
 #[tauri::command]
-pub async fn save_config(app: tauri::AppHandle, config: AppConfig) -> Result<(), String> {
-    crate::core::blocking::run_blocking(move || {
-        use tauri::Manager;
-        let log_state = app.state::<std::sync::Arc<crate::session_log::SessionLogState>>();
-        let mut config = config;
-        // The storage mode changes only through the secret store commands, which
-        // also move the keys; a stale value from the UI must not overwrite it.
-        config.secret_storage_mode = load_config_file()?.secret_storage_mode;
-        log_state.validate_config(&config)?;
-        save_config_file(&config)?;
-        crate::sftp::internal::api::apply_bandwidth_limits(&config);
-        crate::background::apply_config(
-            &app.state::<std::sync::Arc<crate::services::AppServices>>()
-                .app
-                .close_behavior,
-            &crate::app_context::tray(&app.state::<std::sync::Arc<crate::services::AppServices>>()),
-            &config,
-        );
-        app.state::<std::sync::Arc<crate::services::AppServices>>()
-            .shared
-            .runtime
-            .block_on(crate::system_integration::apply_config(
-                &app.state::<std::sync::Arc<crate::services::AppServices>>()
-                    .shared
-                    .platform
-                    .integration,
-                &config,
-            ));
-        log_state.apply_config(
-            &crate::connection_context::log(
-                &app.state::<std::sync::Arc<crate::services::AppServices>>(),
-            ),
-            &config,
-        )
-    })
-    .await
+pub async fn save_config(
+    services: tauri::State<'_, std::sync::Arc<crate::services::AppServices>>,
+    config: AppConfig,
+) -> Result<(), String> {
+    let context = save::SaveConfigContext {
+        log: crate::connection_context::log(&services),
+        close: services.app.close_behavior.clone(),
+        tray: crate::app_context::tray(&services),
+        integration: services.shared.platform.integration.clone(),
+        runtime: services.shared.runtime.clone(),
+    };
+    crate::core::blocking::run_blocking(move || save::save_config(context, config)).await
 }
 
 #[cfg(test)]
