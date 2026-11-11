@@ -257,7 +257,7 @@ pub async fn sftp_open_file_for_edit(
     secret_state: State<'_, SecretStoreState>,
     pool_state: State<'_, SftpConnectionPool>,
 ) -> Result<SftpEditableFile, String> {
-    let plan = ensure_ssh_plan(&app, &secret_state, connection)?;
+    let plan = ensure_ssh_plan(&secret_state, connection)?;
 
     with_sftp!(&app, &tab_id, &plan, prompt_state.inner().clone(), pool_state.inner(), sftp => {
         load_editable_file(sftp, &path).await
@@ -280,7 +280,7 @@ pub async fn sftp_save_edited_file(
     secret_state: State<'_, SecretStoreState>,
     pool_state: State<'_, SftpConnectionPool>,
 ) -> Result<SftpSaveEditedFileResult, String> {
-    let plan = ensure_ssh_plan(&app, &secret_state, connection)?;
+    let plan = ensure_ssh_plan(&secret_state, connection)?;
 
     with_sftp!(&app, &tab_id, &plan, prompt_state.inner().clone(), pool_state.inner(), sftp => {
         save_editable_file(sftp, &path, &content, &baseline).await

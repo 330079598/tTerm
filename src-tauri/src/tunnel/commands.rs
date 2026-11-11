@@ -297,13 +297,12 @@ async fn start_rule(
         &mut plan,
         |plan| {
             load_saved_ssh_password(
-                app,
                 secret_state,
                 plan.profile_id.as_deref(),
                 Some(plan.profile_name.as_str()),
             )
         },
-        |plan, jump| load_saved_hop_password(app, secret_state, plan, jump),
+        |plan, jump| load_saved_hop_password(secret_state, plan, jump),
     )?;
     if !requests.is_empty() {
         if auto {
@@ -314,7 +313,7 @@ async fn start_rule(
         return Ok(StartOutcome::NeedsCredentials { requests });
     }
     // Persists entered passwords when the user asked to remember them.
-    resolve_ssh_password(app, secret_state, &mut plan)?;
+    resolve_ssh_password(secret_state, &mut plan)?;
 
     // Check and register under one lock so a double click cannot start two
     // tasks for the same rule.

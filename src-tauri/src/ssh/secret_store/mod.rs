@@ -19,9 +19,9 @@ use crate::db::Database;
 use crypto::{KdfParams, SecretKey};
 use keyring_backend::DATA_KEY_ACCOUNT;
 use migration::{LegacySources, NEEDS_VAULT_PASSWORD};
+use std::path::Path;
 use std::sync::{Arc, Condvar, Mutex, MutexGuard, PoisonError};
 use store::{WRAP_PASSWORD, WRAP_SYSTEM};
-use tauri::AppHandle;
 use types::{SecretStorageMode, SecretStoreRuntime};
 use zeroize::Zeroizing;
 
@@ -335,11 +335,7 @@ impl SecretStoreState {
     /// database once, then unlocks from the credential store in `system` mode.
     /// Runs on its own thread since the credential store may wait on an
     /// unlock prompt (Secret Service on Linux) or not answer for a while.
-    pub fn initialize(&self, app: &AppHandle) {
-        let Ok(identity) = crate::app_identity::get(app) else {
-            eprintln!("Application identity is not ready yet");
-            return;
-        };
+    pub fn initialize(&self, identity: &tterm_core::identity::AppIdentity, data_dir: &Path) {
         keyring_backend::init_service(&identity.identifier);
         // Looking for Windows Hello or Touch ID can take a moment; do it off
         // the main thread before the status is first asked for.
@@ -350,14 +346,14 @@ impl SecretStoreState {
 
         let (starting, _) = &*self.starting;
         *starting.lock().unwrap_or_else(PoisonError::into_inner) = true;
-        let (state, app) = (self.clone(), app.clone());
+        let (state, data_dir) = (self.clone(), data_dir.to_path_buf());
         std::thread::spawn(move || {
             let _finished = StartupFinished(state.starting.clone());
-            state.start(&app);
+            state.start(&data_dir);
         });
     }
 
-    fn start(&self, app: &AppHandle) {
+    fn start(&self, data_dir: &Path) {
         let result = crate::db::get().and_then(|database| {
             if database.read(store::migrated)? {
                 if Self::mode()? == SecretStorageMode::System {
@@ -365,7 +361,7 @@ impl SecretStoreState {
                 }
                 Ok(())
             } else {
-                self.migrate_legacy(app, database, None)
+                self.migrate_legacy(data_dir, database, None)
             }
         });
         if let Err(error) = result {
@@ -447,11 +443,11 @@ impl SecretStoreState {
 
     fn migrate_legacy(
         &self,
-        app: &AppHandle,
+        data_dir: &Path,
         database: &Database,
         password: Option<&str>,
     ) -> Result<(), String> {
-        let secrets_dir = crate::app_paths::get(app)?.data_dir.join("secrets");
+        let secrets_dir = data_dir.join("secrets");
         let vault = legacy::LegacyVault::load(&secrets_dir)?;
         let old_mode = load_config_file()?.secret_storage_mode;
         let plaintext = crate::ssh::store::load_legacy_password_store()?
@@ -515,7 +511,7 @@ impl SecretStoreState {
     /// `password` mode, and restores the credential store key in `system` mode.
     pub fn unlock(
         &self,
-        app: &AppHandle,
+        data_dir: &Path,
         input: VaultPasswordInput,
     ) -> Result<SecretBackendStatus, String> {
         self.wait_for_startup();
@@ -525,7 +521,7 @@ impl SecretStoreState {
         }
         let database = crate::db::get()?;
         if !database.read(store::migrated)? {
-            self.migrate_legacy(app, database, Some(&password))?;
+            self.migrate_legacy(data_dir, database, Some(&password))?;
             return self.get_status();
         }
 
@@ -690,7 +686,7 @@ impl SecretStoreState {
         }
     }
 
-    pub fn get_password(&self, _app: &AppHandle, key: &str) -> Result<Option<String>, String> {
+    pub fn get_password(&self, key: &str) -> Result<Option<String>, String> {
         let Some(data_key) = self.unlocked_key()? else {
             return Ok(None);
         };
@@ -698,12 +694,7 @@ impl SecretStoreState {
             .map(|value| value.map(|value| value.to_string()))
     }
 
-    pub fn save_password(
-        &self,
-        _app: &AppHandle,
-        key: &str,
-        password: &str,
-    ) -> Result<SecretLocation, String> {
+    pub fn save_password(&self, key: &str, password: &str) -> Result<SecretLocation, String> {
         self.wait_for_startup();
         let Some(data_key) = self.unlocked_key()? else {
             return Ok(SecretLocation::Memory);
@@ -740,7 +731,7 @@ impl SecretStoreState {
         crate::db::read(store::secret_keys)
     }
 
-    pub fn delete_password(&self, _app: &AppHandle, key: &str) -> Result<bool, String> {
+    pub fn delete_password(&self, key: &str) -> Result<bool, String> {
         crate::db::write(|transaction| store::delete_secret(transaction, key))
     }
 }

@@ -1,3 +1,4 @@
+use crate::ssh::context::ConnectionContext;
 mod output;
 mod reader;
 mod setup;
@@ -97,8 +98,13 @@ pub struct SshChannelIo {
     pub sender: Option<crate::terminal::io_batcher::TerminalOutputSender>,
 }
 
+pub(crate) struct SshAttemptContext {
+    pub(crate) channel: ChannelContext,
+    pub(crate) connection: ConnectionContext,
+}
+
 pub async fn run_single_ssh_connection(
-    context: (ChannelContext, tauri::AppHandle),
+    context: SshAttemptContext,
     settings: ZmodemSettings,
     plan: SessionPlan,
     prompts: std::sync::Arc<tterm_core::prompts::PromptBroker>,
@@ -112,7 +118,10 @@ pub async fn run_single_ssh_connection(
         mut resize_rx,
         mut sender,
     } = io;
-    let (tab, app) = context;
+    let SshAttemptContext {
+        channel: tab,
+        connection: app,
+    } = context;
     let tab_id = tab.tab_id.clone();
     let host: String = match &plan.host {
         Some(host) => host.clone(),
@@ -225,12 +234,12 @@ pub async fn run_single_ssh_connection(
     // Asked once the shell is requested, so its answer travels alongside the
     // first prompt instead of ahead of it.
     if crate::config::tab_icons_enabled() {
-        super::remote_os::probe(&app, &tab_id, &session.handle).await;
+        super::remote_os::probe(app.events.clone(), &tab_id, &session.handle).await;
     }
 
     read_connection(ConnectedSession {
         tab,
-        app,
+        app: app.log,
         settings,
         plan,
         route,

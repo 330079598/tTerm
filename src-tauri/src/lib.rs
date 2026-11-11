@@ -7,6 +7,7 @@ mod backup;
 mod clipboard_files;
 pub mod command_library;
 mod config;
+mod connection_context;
 mod core;
 mod db;
 #[cfg(any(target_os = "windows", target_os = "macos"))]
@@ -136,12 +137,7 @@ pub fn run() {
         .manage(pty_map.clone())
         .manage(sftp_pool.clone())
         .manage(external_edit_state.clone())
-        .manage(monitor_sessions.clone())
-        .manage(monitor_prompts.clone())
         .manage(transfer_cancel_map.clone())
-        .manage(zmodem_map.clone())
-        .manage(zmodem_armed_send_map.clone())
-        .manage(zmodem_manual_detect_map.clone())
         .manage(TokioRuntimeState { runtime })
         .manage(pending_updates.clone())
         .manage(secret_store.clone())
@@ -460,7 +456,10 @@ pub fn run() {
             // background.
             app_handle
                 .state::<ssh::secret_store::types::SecretStoreState>()
-                .initialize(&app_handle);
+                .initialize(
+                    &*app_identity::get(&app_handle)?,
+                    &app_paths::get(&app_handle)?.data_dir,
+                );
 
             if let Err(error) = migrate::remove_retired_files(&app_handle) {
                 eprintln!("Failed to remove retired files: {error}");
@@ -469,8 +468,13 @@ pub fn run() {
             let cfg = config::load_config_file().ok();
             if let Some(cfg) = &cfg {
                 sftp::internal::api::apply_bandwidth_limits(cfg);
-                let log_state = app_handle.state::<session_log::SessionLogState>();
-                if let Err(err) = log_state.apply_config(&app_handle, cfg) {
+                let log_state = app_handle.state::<Arc<session_log::SessionLogState>>();
+                if let Err(err) = log_state.apply_config(
+                    &crate::connection_context::log(
+                        &app_handle.state::<Arc<services::AppServices>>(),
+                    ),
+                    cfg,
+                ) {
                     eprintln!("Failed to initialize terminal logging: {}", err);
                 }
             }
@@ -515,7 +519,7 @@ pub fn run() {
                     // Tunnels may still be running; keep what they carried.
                     services.app.tunnels.save_traffic();
                     // Logs keep what they have not written out yet.
-                    session_log::shutdown(app);
+                    session_log::shutdown(&services.app.session_log);
                     sftp::internal::api::external::shutdown(app);
                 }
                 // Clicking the Dock icon brings back a window closed to the

@@ -2,6 +2,7 @@
 use super::pty_fixture::PtyFixture;
 use super::*;
 use std::path::PathBuf;
+use tauri::ipc::{Channel, InvokeResponseBody};
 
 const TOTAL_BYTES: usize = 50_000_000;
 const ACK_BATCH: usize = 64 * 1024;
@@ -141,7 +142,7 @@ fn p106_real_pty_cat_throughput() {
         ack_tx.send(bytes.len()).unwrap();
         Ok(())
     });
-    let output = TerminalOutput::with_flow(channel, flow);
+    let output = crate::session_sink::output::with_flow(channel, flow);
     let mut sender = TerminalOutputSender::spawn("p106-benchmark", test_sink(output));
     let command = format!(
         "stty -echo -opost; exec /bin/bash '{}' cat '{}'",

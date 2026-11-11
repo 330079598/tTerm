@@ -446,7 +446,7 @@ pub async fn load_config() -> Result<AppConfig, String> {
 pub async fn save_config(app: tauri::AppHandle, config: AppConfig) -> Result<(), String> {
     crate::core::blocking::run_blocking(move || {
         use tauri::Manager;
-        let log_state = app.state::<crate::session_log::SessionLogState>();
+        let log_state = app.state::<std::sync::Arc<crate::session_log::SessionLogState>>();
         let mut config = config;
         // The storage mode changes only through the secret store commands, which
         // also move the keys; a stale value from the UI must not overwrite it.
@@ -456,7 +456,12 @@ pub async fn save_config(app: tauri::AppHandle, config: AppConfig) -> Result<(),
         crate::sftp::internal::api::apply_bandwidth_limits(&config);
         crate::background::apply_config(&app, &config);
         crate::system_integration::apply_config(&app, &config);
-        log_state.apply_config(&app, &config)
+        log_state.apply_config(
+            &crate::connection_context::log(
+                &app.state::<std::sync::Arc<crate::services::AppServices>>(),
+            ),
+            &config,
+        )
     })
     .await
 }

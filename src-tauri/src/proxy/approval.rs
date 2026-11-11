@@ -20,7 +20,6 @@ use sha2::{Digest, Sha256};
 use std::fmt::Write as _;
 use std::sync::Arc;
 use std::time::Duration;
-use tauri::{AppHandle, Manager, State};
 
 /// As long as the host key and sign-in prompts wait for an answer.
 const PROMPT_TIMEOUT: Duration = Duration::from_secs(120);
@@ -57,10 +56,15 @@ pub(crate) fn allow(connection: &Connection, command: &str) -> Result<(), String
     Ok(())
 }
 
+pub(crate) struct ProxyPromptContext<'a> {
+    pub(crate) prompts: &'a Arc<PromptBroker>,
+    pub(crate) window: &'a dyn tterm_platform::window::MainWindow,
+}
+
 /// Returns once `command` may run, asking the user first when this device
 /// has not allowed it yet.
 pub(crate) async fn ensure_allowed(
-    app: &AppHandle,
+    prompt_context: ProxyPromptContext<'_>,
     proxy_name: &str,
     command: &str,
     owner: Option<&tterm_core::prompts::PromptOwner>,
@@ -73,12 +77,12 @@ pub(crate) async fn ensure_allowed(
     if allowed {
         return Ok(());
     }
-    let prompts = app.state::<Arc<PromptBroker>>();
+    let ProxyPromptContext { prompts, window } = prompt_context;
     let fallback;
     let owner = match owner {
         Some(owner) => owner,
         None => {
-            fallback = crate::prompt_scope::PromptScope::new(prompts.inner().clone(), None)
+            fallback = crate::prompt_scope::PromptScope::new(prompts.clone(), None)
                 .map_err(SshConnectError::Permanent)?;
             &fallback.owner
         }
@@ -105,7 +109,7 @@ pub(crate) async fn ensure_allowed(
         )
         .map_err(SshConnectError::Permanent)?;
     if wait.is_first_waiter() {
-        crate::prompt_scope::reveal(app);
+        crate::prompt_scope::reveal(window);
     }
     approval_outcome(
         wait.wait().await.map_err(SshConnectError::Cancelled)?,
@@ -143,8 +147,12 @@ fn approval_outcome(
 /// The questions still waiting, for a window that opens after they were asked.
 #[tauri::command]
 pub fn pending_proxy_command_prompts(
-    prompts: State<'_, Arc<PromptBroker>>,
+    services: tauri::State<'_, std::sync::Arc<crate::services::AppServices>>,
 ) -> Vec<ProxyCommandPrompt> {
+    let prompts = services.shared.prompts.clone();
+    pending_proxy_command_prompts_service(prompts)
+}
+fn pending_proxy_command_prompts_service(prompts: Arc<PromptBroker>) -> Vec<ProxyCommandPrompt> {
     prompts
         .pending_proxy()
         .into_iter()
@@ -160,8 +168,26 @@ pub fn pending_proxy_command_prompts(
 pub async fn respond_proxy_command_prompt(
     request_id: String,
     allow: bool,
-    prompts: State<'_, Arc<PromptBroker>>,
+    services: tauri::State<'_, std::sync::Arc<crate::services::AppServices>>,
 ) -> Result<(), String> {
+    let prompts = services.shared.prompts.clone();
+    respond_proxy_command_prompt_service(
+        prompts,
+        RespondProxyCommandPromptInput { request_id, allow },
+    )
+    .await
+}
+struct RespondProxyCommandPromptInput {
+    request_id: String,
+    allow: bool,
+}
+
+async fn respond_proxy_command_prompt_service(
+    prompts: Arc<PromptBroker>,
+    arguments: RespondProxyCommandPromptInput,
+) -> Result<(), String> {
+    let RespondProxyCommandPromptInput { request_id, allow } = arguments;
+
     let pending = prompts.claim_proxy(&request_id)?;
     let command = match &pending.request().event {
         AppEvent::Proxy(ProxyEvent::CommandPrompt(prompt)) => prompt.command.clone(),

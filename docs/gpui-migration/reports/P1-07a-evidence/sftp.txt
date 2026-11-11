@@ -1,0 +1,87 @@
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.82s
+     Running unittests src/lib.rs (target/debug/deps/t_term_lib-a4658f22393d846c)
+
+running 1 test
+test sftp::internal::sudo::host_tests::real_sudo_password_account_works_as_root ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 982 filtered out; finished in 0.23s
+
+     Running unittests src/main.rs (target/debug/deps/tTerm-59da8db28c9445e2)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/lib.rs (target/debug/deps/tterm_core-409547da998cf346)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 132 filtered out; finished in 0.00s
+
+     Running unittests src/lib.rs (target/debug/deps/tterm_gpui-b223e90492d25f23)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 12 filtered out; finished in 0.00s
+
+     Running unittests src/main.rs (target/debug/deps/tterm_gpui-194d08c6b7c63e77)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests examples/p0_19_drag_out/main.rs (target/debug/examples/p0_19_drag_out-1280117e2e6d2654)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 2 filtered out; finished in 0.00s
+
+     Running unittests examples/p0_20_remote_editor/main.rs (target/debug/examples/p0_20_remote_editor-a2a5962080fa42d9)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 6 filtered out; finished in 0.00s
+
+     Running unittests src/lib.rs (target/debug/deps/tterm_parity-96fcb9de8aa986fd)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 85 filtered out; finished in 0.00s
+
+     Running unittests src/main.rs (target/debug/deps/tterm_parity-aef68fc0b0e60105)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/lib.rs (target/debug/deps/tterm_platform-4c055cf052751b81)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 14 filtered out; finished in 0.00s
+
+     Running unittests src/lib.rs (target/debug/deps/tterm_terminal-83ed24aca49e072e)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 115 filtered out; finished in 0.00s
+
+     Running tests/replay.rs (target/debug/deps/replay-15d81012a0c13d4f)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 2 filtered out; finished in 0.00s
+
+     Running unittests src/lib.rs (target/debug/deps/tterm_terminal_view-299b80c0f69f8fbb)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 137 filtered out; finished in 0.00s
+
+     Running tests/shaping.rs (target/debug/deps/shaping-7efd7b32f9dd8c57)
+     Running unittests src/lib.rs (target/debug/deps/tterm_ui-4dd8da74cd152c5d)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 85 filtered out; finished in 0.00s
+

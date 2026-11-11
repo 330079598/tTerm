@@ -24,6 +24,7 @@ use crate::ssh::{
 use connection_check::{authenticate_test_connection, test_connection_handler, test_session_plan};
 use import::import_ssh_config_profiles_blocking;
 use std::collections::HashSet;
+use tauri::Manager;
 
 mod connection_check;
 pub(crate) mod groups;
@@ -73,7 +74,6 @@ pub async fn import_ssh_config_profiles(
 
 #[tauri::command]
 pub async fn save_profile(
-    app: tauri::AppHandle,
     secret_state: tauri::State<'_, crate::ssh::secret_store::types::SecretStoreState>,
     mut profile: SavedProfile,
     typed_password_tab_id: Option<String>,
@@ -86,7 +86,7 @@ pub async fn save_profile(
     // Saving its passwords waits for startup to unlock saved passwords, which
     // may sit on a credential store prompt; keep that off the main thread.
     let secret_state = secret_state.inner().clone();
-    crate::core::blocking::run_blocking(move || store_profile(app, secret_state, profile)).await
+    crate::core::blocking::run_blocking(move || store_profile(secret_state, profile)).await
 }
 
 /// A profile saved (or tested) from a quick connection tab uses the
@@ -114,7 +114,6 @@ fn fill_typed_passwords(profile: &mut SavedProfile, tab_id: &str) {
 }
 
 fn store_profile(
-    app: tauri::AppHandle,
     secret_state: crate::ssh::secret_store::types::SecretStoreState,
     mut profile: SavedProfile,
 ) -> Result<(), String> {
@@ -127,7 +126,7 @@ fn store_profile(
             .as_deref()
             .filter(|value| !value.is_empty())
         {
-            let location = secret_state.save_password(&app, profile.id.as_str(), password)?;
+            let location = secret_state.save_password(profile.id.as_str(), password)?;
             if matches!(location, SecretLocation::Memory) {
                 return Err(
                     "Password persistence is unavailable. Enable the app vault or use a supported system credential store."
@@ -138,9 +137,9 @@ fn store_profile(
     }
 
     if !profile.remember_password || profile.auth_method.as_deref() == Some("key") {
-        let _ = secret_state.delete_password(&app, profile.id.as_str());
+        let _ = secret_state.delete_password(profile.id.as_str());
         if !profile.name.trim().is_empty() {
-            let _ = secret_state.delete_password(&app, profile.name.as_str());
+            let _ = secret_state.delete_password(profile.name.as_str());
         }
     }
 
@@ -154,7 +153,7 @@ fn store_profile(
                     jump.port,
                     &jump.username,
                 );
-                let location = secret_state.save_password(&app, &secret_key, password)?;
+                let location = secret_state.save_password(&secret_key, password)?;
                 if matches!(location, SecretLocation::Memory) {
                     return Err(
                         "Jump host password persistence is unavailable. Enable the app vault or use a supported system credential store."
@@ -170,7 +169,7 @@ fn store_profile(
                 jump.port,
                 &jump.username,
             );
-            let _ = secret_state.delete_password(&app, &secret_key);
+            let _ = secret_state.delete_password(&secret_key);
             if !profile.name.trim().is_empty() {
                 let name_key = crate::core::session::types::jump_host_identity_secret_key(
                     None,
@@ -179,7 +178,7 @@ fn store_profile(
                     jump.port,
                     &jump.username,
                 );
-                let _ = secret_state.delete_password(&app, &name_key);
+                let _ = secret_state.delete_password(&name_key);
             }
         }
     }
@@ -187,13 +186,13 @@ fn store_profile(
     if profile.connection_type == "ssh" {
         let sudo_key = crate::core::session::types::sudo_secret_key(&profile.id);
         if profile.clear_sudo_password {
-            let _ = secret_state.delete_password(&app, &sudo_key);
+            let _ = secret_state.delete_password(&sudo_key);
         } else if let Some(password) = profile
             .sudo_password
             .as_deref()
             .filter(|value| !value.is_empty())
         {
-            let location = secret_state.save_password(&app, &sudo_key, password)?;
+            let location = secret_state.save_password(&sudo_key, password)?;
             if matches!(location, SecretLocation::Memory) {
                 return Err(
                     "Sudo password persistence is unavailable. Enable the app vault or use a supported system credential store."
@@ -216,7 +215,7 @@ fn store_profile(
                 .iter()
                 .any(|current| current.key == summary.key)
             {
-                let _ = secret_state.delete_password(&app, &summary.key);
+                let _ = secret_state.delete_password(&summary.key);
             }
         }
     }
@@ -230,9 +229,8 @@ fn store_profile(
 
 #[tauri::command]
 pub async fn delete_profile(
-    app: tauri::AppHandle,
     secret_state: tauri::State<'_, crate::ssh::secret_store::types::SecretStoreState>,
-    tunnels: tauri::State<'_, crate::tunnel::commands::TunnelManager>,
+    tunnels: tauri::State<'_, std::sync::Arc<crate::tunnel::commands::TunnelManager>>,
     id: String,
 ) -> Result<(), String> {
     // A running tunnel holds the host's connection settings and would keep
@@ -242,7 +240,7 @@ pub async fn delete_profile(
 
     if let Some(mut profile) = crate::db::read(|connection| get_profile(connection, &id))? {
         normalize_profile(&mut profile);
-        delete_profile_secrets(&app, &secret_state, &profile)?;
+        delete_profile_secrets(&secret_state, &profile)?;
     }
     crate::db::write(|transaction| super::storage::delete_profiles(transaction, &[id]))?;
     Ok(())
@@ -250,9 +248,8 @@ pub async fn delete_profile(
 
 #[tauri::command]
 pub async fn delete_profiles(
-    app: tauri::AppHandle,
     secret_state: tauri::State<'_, crate::ssh::secret_store::types::SecretStoreState>,
-    tunnels: tauri::State<'_, crate::tunnel::commands::TunnelManager>,
+    tunnels: tauri::State<'_, std::sync::Arc<crate::tunnel::commands::TunnelManager>>,
     ids: Vec<String>,
 ) -> Result<(), String> {
     let ids: HashSet<String> = ids.into_iter().collect();
@@ -265,7 +262,7 @@ pub async fn delete_profiles(
         tunnels.stop_for_profile(&profile.id).await;
         let mut profile = profile.clone();
         normalize_profile(&mut profile);
-        delete_profile_secrets(&app, &secret_state, &profile)?;
+        delete_profile_secrets(&secret_state, &profile)?;
     }
     let ids = ids.into_iter().collect::<Vec<_>>();
     crate::db::write(|transaction| super::storage::delete_profiles(transaction, &ids))?;
@@ -337,12 +334,15 @@ pub async fn test_connection(
 
     // The connection dialog listens on the test tab id while the test runs.
     let prompt_scope = crate::prompt_scope::PromptScope::new(prompt_state.inner().clone(), None)?;
-    let auth_prompter =
-        crate::ssh::auth::AuthPrompter::tab(&app, &test_tab_id).with_owner(&prompt_scope.owner);
-    crate::core::session::resolve_ssh_password(&app, &secret_state, &mut plan)?;
+    let connection_context = crate::connection_context::connection(
+        &app.state::<std::sync::Arc<crate::services::AppServices>>(),
+    );
+    let auth_prompter = crate::ssh::auth::AuthPrompter::tab(&connection_context, &test_tab_id)
+        .with_owner(&prompt_scope.owner);
+    crate::core::session::resolve_ssh_password(&secret_state, &mut plan)?;
 
     crate::ssh::types::emit_connection_progress(
-        &app,
+        connection_context.events.as_ref(),
         &test_tab_id,
         ConnectionStatusOptions::SILENT,
         SshConnectionProgressPayload::new(
@@ -352,7 +352,7 @@ pub async fn test_connection(
     );
 
     let ctx = ConnectContext {
-        app: &app,
+        app: &connection_context,
         tab_id: &test_tab_id,
         prompts: prompt_state.inner(),
         status_options: ConnectionStatusOptions::SILENT,
@@ -379,7 +379,7 @@ pub async fn test_connection(
 
     let (jump_chain, mut session) = if plan.jump_hosts.is_empty() {
         crate::ssh::types::emit_connection_progress(
-            &app,
+            connection_context.events.as_ref(),
             &test_tab_id,
             ConnectionStatusOptions::SILENT,
             SshConnectionProgressPayload::new(
@@ -423,7 +423,7 @@ pub async fn test_connection(
     };
 
     crate::ssh::types::emit_connection_progress(
-        &app,
+        connection_context.events.as_ref(),
         &test_tab_id,
         ConnectionStatusOptions::SILENT,
         SshConnectionProgressPayload::new(
@@ -438,7 +438,7 @@ pub async fn test_connection(
         .await?;
     let network_latency_ms = crate::ssh::client::measure_ssh_latency(&session).await.ok();
     crate::ssh::types::emit_connection_progress(
-        &app,
+        connection_context.events.as_ref(),
         &test_tab_id,
         ConnectionStatusOptions::SILENT,
         SshConnectionProgressPayload::new(

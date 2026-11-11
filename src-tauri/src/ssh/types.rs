@@ -1,7 +1,7 @@
+use crate::ssh::context::ConnectionContext;
 use tterm_core::events::ssh::AuthUsedPayload;
 use tterm_core::events::ssh::SshConnectionProgressPayload;
 use tterm_core::events::ssh::SshHostKeyPromptPayload;
-use tterm_core::events::EventSink;
 
 use crate::ssh::openssh_known_hosts::verify::KnownHostVerdict;
 use crate::ssh::openssh_known_hosts::{check_presented_key, listed_record};
@@ -144,7 +144,7 @@ pub fn with_auth_used(
 }
 
 pub fn emit_connection_progress(
-    app: &tauri::AppHandle,
+    events: &dyn tterm_core::events::EventSink,
     tab_id: &str,
     status_options: ConnectionStatusOptions,
     payload: SshConnectionProgressPayload,
@@ -153,12 +153,12 @@ pub fn emit_connection_progress(
         return;
     }
 
-    let _ = crate::event_sink::TauriEventSink::new(app.clone()).emit(
-        tterm_core::events::AppEvent::Ssh(tterm_core::events::ssh::SshEvent::ConnectionProgress {
+    let _ = events.emit(tterm_core::events::AppEvent::Ssh(
+        tterm_core::events::ssh::SshEvent::ConnectionProgress {
             tab_id: tab_id.to_string(),
             payload,
-        }),
-    );
+        },
+    ));
 }
 
 /// A connection the server opened back to us for a remote (`-R`) port forward.
@@ -171,7 +171,7 @@ pub struct ForwardedTcpIp {
 
 #[derive(Clone)]
 pub struct SshClientHandler {
-    pub app: tauri::AppHandle,
+    pub app: ConnectionContext,
     pub tab_id: String,
     pub profile_id: Option<String>,
     pub profile_name: String,
@@ -280,7 +280,7 @@ impl russh::client::Handler for SshClientHandler {
         let fingerprint = server_public_key.fingerprint(HashAlg::Sha256).to_string();
 
         emit_connection_progress(
-            &self.app,
+            self.app.events.as_ref(),
             &self.tab_id,
             self.status_options,
             SshConnectionProgressPayload::new(
@@ -320,7 +320,7 @@ impl russh::client::Handler for SshClientHandler {
             HostKeyCheckOutcome::TrustedKnown => return Ok(true),
             HostKeyCheckOutcome::TrustUnknownForSession => {
                 emit_connection_progress(
-                    &self.app,
+                    self.app.events.as_ref(),
                     &self.tab_id,
                     self.status_options,
                     SshConnectionProgressPayload::new(
@@ -365,7 +365,7 @@ impl russh::client::Handler for SshClientHandler {
 
         let wait =
             crate::prompt_scope::host_key(&self.prompts, &self.prompt_owner, &self.tab_id, payload);
-        crate::prompt_scope::reveal(&self.app);
+        crate::prompt_scope::reveal(self.app.window.as_ref());
 
         self.emit_status(
             "33",
@@ -405,8 +405,12 @@ impl SshClientHandler {
         }
 
         let payload = crate::terminal::legacy_events::status_line(color, message);
-        crate::session_log::record_output(&self.app, &self.tab_id, payload.as_bytes());
-        crate::terminal::legacy_events::emit_output(&self.app, &self.tab_id, payload);
+        crate::session_log::record_output(&self.app.log, &self.tab_id, payload.as_bytes());
+        crate::terminal::legacy_events::emit_output(
+            self.app.events.as_ref(),
+            &self.tab_id,
+            payload,
+        );
     }
 }
 

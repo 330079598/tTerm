@@ -62,7 +62,6 @@ fn hop_from_profile(
 /// Fills a password hop that logs in as a saved connection with the password
 /// saved for that connection.
 pub(super) fn fill_saved_password(
-    app: &tauri::AppHandle,
     secret_state: &SecretStoreState,
     hop: &mut JumpHostPlan,
 ) -> Result<(), String> {
@@ -72,7 +71,7 @@ pub(super) fn fill_saved_password(
     if hop.password.is_some() {
         return Ok(());
     }
-    match load_saved_ssh_password(app, secret_state, Some(profile_id), None)? {
+    match load_saved_ssh_password(secret_state, Some(profile_id), None)? {
         Some(password) => hop.password = Some(password),
         None => {
             if let Some(reason) = secret_state.unreadable_reason(&[profile_id])? {
@@ -86,16 +85,14 @@ pub(super) fn fill_saved_password(
 /// The password saved for `hop` of `plan`: the saved connection's own when
 /// the hop logs in as one, otherwise the one saved with `plan`'s profile.
 pub fn load_saved_hop_password(
-    app: &tauri::AppHandle,
     secret_state: &SecretStoreState,
     plan: &SessionPlan,
     hop: &JumpHostPlan,
 ) -> Result<Option<String>, String> {
     if let Some(profile_id) = hop.profile_id.as_deref() {
-        return load_saved_ssh_password(app, secret_state, Some(profile_id), None);
+        return load_saved_ssh_password(secret_state, Some(profile_id), None);
     }
     load_saved_jump_host_password(
-        app,
         secret_state,
         JumpHostSecretOwner {
             profile_id: plan.profile_id.as_deref(),

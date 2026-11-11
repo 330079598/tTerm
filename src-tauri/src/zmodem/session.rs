@@ -80,13 +80,8 @@ struct InFlightTransfer {
 /// channel's bytes, so this never needs to be shared — only the thin
 /// `ZmodemTabHandle` published into `ZmodemMap` is.
 ///
-/// Progress/start/complete notifications go through an injected callback
-/// rather than a stored `AppHandle` directly, mirroring `terminal::pty::
-/// run_pty_reader`'s injected-closures pattern: it decouples this driver
-/// from a concrete Tauri runtime, which is what lets integration tests
-/// drive it against a real local PTY + real `sz` process without needing a
-/// real windowed `AppHandle` (Tauri's `MockRuntime` test handle is a
-/// different, incompatible type from the `AppHandle` production code uses).
+/// Progress notifications use an injected callback so protocol tests can
+/// drive the production engine with a real PTY without a client window.
 pub struct ZmodemReceiveDriver {
     emit: TransferEmitter,
     tab_id: String,
@@ -128,7 +123,7 @@ impl ZmodemReceiveDriver {
     }
 
     /// Test-only entry point: same driving logic, but notifications go to an
-    /// injected closure instead of a real `AppHandle`/webview.
+    /// injected closure instead of a client window.
     #[cfg(test)]
     pub fn with_test_emit(
         emit: impl Fn(&str, serde_json::Value) + Send + 'static,

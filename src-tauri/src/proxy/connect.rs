@@ -8,7 +8,6 @@ use std::io;
 use std::pin::Pin;
 use std::task::{Context, Poll};
 use std::time::Duration;
-use tauri::AppHandle;
 use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
 use tokio::net::TcpStream;
 
@@ -137,7 +136,7 @@ pub enum ProxyStream {
 /// Opens the stream to `target` through `proxy`. A proxy command this device
 /// has not allowed yet is shown to the user first.
 pub async fn open_stream(
-    app: &AppHandle,
+    prompt_context: super::approval::ProxyPromptContext<'_>,
     proxy: &ProxyEndpoint,
     target: &CommandTarget<'_>,
     prompt_owner: Option<&tterm_core::prompts::PromptOwner>,
@@ -148,7 +147,7 @@ pub async fn open_stream(
             .map(ProxyStream::Tcp);
     };
     let command_line = command::expand(template, target).map_err(SshConnectError::Permanent)?;
-    super::approval::ensure_allowed(app, &proxy.name, template, prompt_owner).await?;
+    super::approval::ensure_allowed(prompt_context, &proxy.name, template, prompt_owner).await?;
     if prompt_owner.is_some_and(|owner| owner.is_closed()) {
         return Err(SshConnectError::Permanent(
             "Proxy connection was cancelled".into(),

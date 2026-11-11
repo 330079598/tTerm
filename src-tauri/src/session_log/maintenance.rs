@@ -2,17 +2,16 @@
 //! settings no longer keep, measuring how much space the directory takes,
 //! and cleaning up after compression a quit cut short.
 
-use std::sync::Arc;
 use tterm_core::events::session_log::{LogErrorPayload, SessionLogEvent};
-use tterm_core::events::{AppEvent, EventSink};
+use tterm_core::events::AppEvent;
 
+use super::LogContext;
 use super::{emit_status, retention, rotating, SessionLogState, CLEANUP_INTERVAL};
 use std::fs;
 use std::path::Path;
 use std::sync::atomic::Ordering;
 use std::sync::{Mutex, MutexGuard};
 use std::time::{Instant, SystemTime};
-use tauri::{AppHandle, Manager};
 
 fn lock<T>(mutex: &Mutex<T>) -> MutexGuard<'_, T> {
     match mutex.lock() {
@@ -27,7 +26,7 @@ impl SessionLogState {
     /// unless `force_cleanup`. Requests that come in while it runs are folded
     /// into one more run. Never takes the manager lock on the caller's
     /// thread, so it is safe to call while a log is closing.
-    pub(super) fn schedule_maintenance(&self, app: &AppHandle, force_cleanup: bool) {
+    pub(super) fn schedule_maintenance(&self, app: &LogContext, force_cleanup: bool) {
         if force_cleanup {
             self.force_cleanup.store(true, Ordering::Release);
         }
@@ -39,7 +38,7 @@ impl SessionLogState {
         let spawned = std::thread::Builder::new()
             .name("tterm-log-maintenance".to_string())
             .spawn(move || {
-                let state = app.state::<Arc<SessionLogState>>();
+                let state = &app.state;
                 loop {
                     state.maintain(&app);
                     if state.maintenance_again.swap(false, Ordering::AcqRel) {
@@ -60,7 +59,7 @@ impl SessionLogState {
         }
     }
 
-    fn maintain(&self, app: &AppHandle) {
+    fn maintain(&self, app: &LogContext) {
         let Ok((directory, retention, in_use)) = self.directory_state() else {
             return;
         };
@@ -71,13 +70,13 @@ impl SessionLogState {
                 Ok(report) => removed = report.removed,
                 Err(message) => {
                     self.set_error(message.clone());
-                    let _ = crate::event_sink::TauriEventSink::new(app.clone()).emit(
-                        AppEvent::SessionLog(SessionLogEvent::Error(LogErrorPayload {
+                    let _ = app.events.emit(AppEvent::SessionLog(SessionLogEvent::Error(
+                        LogErrorPayload {
                             tab_id: None,
                             message: message.to_string(),
                             phase: None,
-                        })),
-                    );
+                        },
+                    )));
                 }
             }
         }

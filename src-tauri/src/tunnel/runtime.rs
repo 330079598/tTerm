@@ -14,6 +14,7 @@ use reporter::TunnelReporter;
 use std::sync::Arc;
 use std::time::Duration;
 use tauri::AppHandle;
+use tauri::Manager;
 use tokio::sync::watch;
 use tokio::task::JoinSet;
 use tterm_core::events::tunnel::TunnelState;
@@ -342,7 +343,9 @@ pub async fn run_tunnel(ctx: RunContext, mut stop_rx: watch::Receiver<bool>) {
                 .map_err(crate::ssh::types::SshConnectError::Cancelled)?;
             let (jump_chain, handle) = open_target_ssh_session_with_forwarding(
                 ConnectContext {
-                    app: &app,
+                    app: &crate::connection_context::connection(
+                        &app.state::<std::sync::Arc<crate::services::AppServices>>(),
+                    ),
                     tab_id: TUNNEL_EVENT_TAB_ID,
                     prompts: &prompts,
                     status_options: ConnectionStatusOptions::QUIET,

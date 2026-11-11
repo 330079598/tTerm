@@ -3,12 +3,12 @@
 use super::naming::{render_name, unique_base_name};
 use super::plain::PlainLog;
 use super::rotating::RotatingFile;
+use super::LogContext;
 use super::{library, LogConfig, SessionMetadata};
 use base64::Engine;
 use chrono::{DateTime, Local};
 use std::fs;
 use std::time::{Instant, SystemTime, UNIX_EPOCH};
-use tauri::AppHandle;
 
 /// When something happened, taken as it happened: the log is written later,
 /// on its own thread.
@@ -52,7 +52,7 @@ pub(super) struct SessionWriter {
 
 impl SessionWriter {
     pub(super) fn create(
-        app: &AppHandle,
+        app: &LogContext,
         config: &LogConfig,
         metadata: SessionMetadata,
         rows: u16,

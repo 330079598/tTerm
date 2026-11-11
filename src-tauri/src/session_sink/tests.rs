@@ -9,7 +9,7 @@ fn session_sink_preserves_raw_state_and_exit_contracts() {
     let app = mock_builder().build(mock_context(noop_assets())).unwrap();
     let captured = Arc::new(Mutex::new(Vec::new()));
     let raw = captured.clone();
-    let output = TerminalOutput::new(Channel::new(move |body| {
+    let output = crate::session_sink::output::new(Channel::new(move |body| {
         let InvokeResponseBody::Raw(bytes) = body else {
             panic!("expected raw output")
         };

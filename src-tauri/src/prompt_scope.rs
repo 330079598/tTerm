@@ -1,8 +1,9 @@
 //! P1-05 operation lifetimes shared by host keys, authentication and proxies.
 
+use crate::core::state::PtyMap;
 use std::sync::Arc;
-use tauri::{AppHandle, Manager};
 use tterm_core::prompts::{PromptBroker, PromptOwner, SessionKey};
+use tterm_platform::window::MainWindow;
 
 /// Cancels even when an outer timeout or task abort drops the connection future.
 pub(crate) struct PromptScope {
@@ -17,9 +18,11 @@ impl PromptScope {
     }
 
     /// Side connections require a live terminal generation; standalone operations use new.
-    pub async fn for_tab(app: &AppHandle, tab_id: &str) -> Result<Self, String> {
-        let broker = app.state::<Arc<PromptBroker>>().inner().clone();
-        let sessions = app.state::<crate::core::state::PtyMap>();
+    pub async fn for_tab(
+        broker: Arc<PromptBroker>,
+        sessions: &PtyMap,
+        tab_id: &str,
+    ) -> Result<Self, String> {
         let sessions = sessions.read().await;
         let session = sessions.get(tab_id).ok_or("Prompt session is closed")?;
         Self::new(
@@ -38,8 +41,7 @@ impl Drop for PromptScope {
     }
 }
 
-pub(crate) fn reveal(app: &AppHandle) {
-    let window = app.state::<Arc<dyn tterm_platform::window::MainWindow>>();
+pub(crate) fn reveal(window: &dyn MainWindow) {
     let _ = window.reveal_for_prompt();
 }
 

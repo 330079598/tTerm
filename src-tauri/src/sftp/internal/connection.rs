@@ -44,7 +44,6 @@ pub fn map_sftp_error(err: SftpError) -> String {
 }
 
 pub fn ensure_ssh_plan(
-    app: &AppHandle,
     secret_state: &SecretStoreState,
     connection: Option<PtyConnectionOptions>,
 ) -> Result<SessionPlan, String> {
@@ -52,7 +51,7 @@ pub fn ensure_ssh_plan(
     if !matches!(plan.kind, SessionKind::Ssh) {
         return Err("SFTP requires an SSH connection".to_string());
     }
-    resolve_ssh_password(app, secret_state, &mut plan)?;
+    resolve_ssh_password(secret_state, &mut plan)?;
     Ok(plan)
 }
 
@@ -74,9 +73,12 @@ pub async fn connect_authenticated_ssh(
         .clone()
         .ok_or_else(|| "SSH username is required".to_string())?;
 
+    let connection_context = crate::connection_context::connection(
+        &app.state::<std::sync::Arc<crate::services::AppServices>>(),
+    );
     open_target_ssh_session(
         ConnectContext {
-            app,
+            app: &connection_context,
             tab_id,
             prompts: &prompts,
             // Progress events share the terminal tab's channel; emitting them
@@ -85,7 +87,12 @@ pub async fn connect_authenticated_ssh(
             host_key_verification_mode:
                 crate::ssh::types::HostKeyVerificationMode::PromptAndPersist,
             prompt_owner: None,
-            auth_prompter: &crate::ssh::auth::AuthPrompter::tab(app, tab_id),
+            auth_prompter: &crate::ssh::auth::AuthPrompter::tab(
+                &crate::connection_context::connection(
+                    &app.state::<std::sync::Arc<crate::services::AppServices>>(),
+                ),
+                tab_id,
+            ),
         },
         SshTarget::from_plan(plan, &host, &username),
     )
@@ -102,8 +109,24 @@ async fn connect_sftp(
     let (jump_chain, ssh) = connect_authenticated_ssh(app, tab_id, plan, prompts).await?;
 
     let launcher = if plan.sftp_sudo {
-        let scope = crate::prompt_scope::PromptScope::for_tab(app, tab_id).await?;
-        let prompter = AuthPrompter::tab(app, tab_id).with_owner(&scope.owner);
+        let scope = crate::prompt_scope::PromptScope::for_tab(
+            app.state::<std::sync::Arc<crate::services::AppServices>>()
+                .shared
+                .prompts
+                .clone(),
+            &app.state::<std::sync::Arc<crate::services::AppServices>>()
+                .session
+                .ptys,
+            tab_id,
+        )
+        .await?;
+        let prompter = AuthPrompter::tab(
+            &crate::connection_context::connection(
+                &app.state::<std::sync::Arc<crate::services::AppServices>>(),
+            ),
+            tab_id,
+        )
+        .with_owner(&scope.owner);
         let target = AuthTarget {
             host: plan.host.as_deref().unwrap_or_default(),
             port: plan.port,
@@ -145,7 +168,6 @@ async fn saved_sudo_password(
             .try_state::<SecretStoreState>()
             .ok_or("Saved passwords are unavailable")?;
         let saved = crate::core::session::load_saved_sudo_password(
-            &app,
             &secret_state,
             profile_id.as_deref(),
             Some(&profile_name),

@@ -10,7 +10,6 @@ use crate::monitor::metrics::parse_os_identity;
 use crate::sftp::internal::exec::RemoteScript;
 use russh::client::{Handle, Handler};
 use std::time::Duration;
-use tauri::AppHandle;
 
 /// Bounds starting the script and, separately, reading its output, so a
 /// server that never answers costs the terminal nothing.
@@ -25,12 +24,15 @@ const SCRIPT: &str = "if [ -r /etc/os-release ]; then cat /etc/os-release; \
 /// Asks the host what it runs on a channel of its own, and reports the
 /// answer for `tab_id` in the background. A server that refuses another
 /// channel, such as one allowing a single session, reports nothing.
-pub(crate) async fn probe<H: Handler>(app: &AppHandle, tab_id: &str, session: &Handle<H>) {
+pub(crate) async fn probe<H: Handler>(
+    events: std::sync::Arc<dyn EventSink>,
+    tab_id: &str,
+    session: &Handle<H>,
+) {
     let Ok(Ok(script)) = tokio::time::timeout(TIMEOUT, RemoteScript::start(session, SCRIPT)).await
     else {
         return;
     };
-    let app = app.clone();
     let tab_id = tab_id.to_string();
     tokio::spawn(async move {
         let Ok(output) = tokio::time::timeout(TIMEOUT, read_output(script)).await else {
@@ -40,9 +42,7 @@ pub(crate) async fn probe<H: Handler>(app: &AppHandle, tab_id: &str, session: &H
             tab_id,
             distribution: parse_os_identity(&output),
         };
-        if let Err(error) = crate::event_sink::TauriEventSink::new(app.clone())
-            .emit(AppEvent::Ssh(SshEvent::RemoteOs(payload)))
-        {
+        if let Err(error) = events.emit(AppEvent::Ssh(SshEvent::RemoteOs(payload))) {
             eprintln!("Failed to report the remote OS: {error}");
         }
     });

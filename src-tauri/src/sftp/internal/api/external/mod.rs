@@ -320,7 +320,7 @@ pub async fn sftp_external_edit_open(
     let host = Host {
         app: &app,
         tab_id: &tab_id,
-        plan: ensure_ssh_plan(&app, &secret_state, connection)?,
+        plan: ensure_ssh_plan(&secret_state, connection)?,
         prompts: prompt_state.inner().clone(),
         pool: pool_state.inner(),
         cancel_map: cancel_map.inner(),
@@ -394,7 +394,7 @@ pub async fn sftp_external_edit_upload(
 ) -> Result<UploadOutcome, String> {
     let events = TauriEventSink::new(app.clone());
     let state = app.state::<Arc<ExternalEditState>>();
-    let plan = ensure_ssh_plan(&app, &secret_state, connection)?;
+    let plan = ensure_ssh_plan(&secret_state, connection)?;
     let (source, edit) = state.begin_upload(&id)?;
     emit(&events, &edit);
 

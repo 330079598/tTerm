@@ -65,6 +65,9 @@ fn validate_key(connection_key: &str) -> Result<(), String> {
 /// The connection's sends, newest first.
 #[tauri::command]
 pub async fn list_serial_sends(connection_key: String) -> Result<Vec<SerialSend>, String> {
+    list_serial_sends_service(connection_key).await
+}
+async fn list_serial_sends_service(connection_key: String) -> Result<Vec<SerialSend>, String> {
     validate_key(&connection_key)?;
     run_blocking(move || crate::db::read(|connection| store::list(connection, &connection_key)))
         .await
@@ -78,6 +81,28 @@ pub async fn record_serial_send(
     mode: SerialSendMode,
     text: String,
 ) -> Result<Vec<SerialSend>, String> {
+    record_serial_send_service(RecordSerialSendInput {
+        connection_key,
+        mode,
+        text,
+    })
+    .await
+}
+struct RecordSerialSendInput {
+    connection_key: String,
+    mode: SerialSendMode,
+    text: String,
+}
+
+async fn record_serial_send_service(
+    arguments: RecordSerialSendInput,
+) -> Result<Vec<SerialSend>, String> {
+    let RecordSerialSendInput {
+        connection_key,
+        mode,
+        text,
+    } = arguments;
+
     validate_key(&connection_key)?;
     run_blocking(move || {
         crate::db::write(|transaction| {
@@ -95,6 +120,18 @@ pub async fn delete_serial_send(
     connection_key: String,
     id: String,
 ) -> Result<Vec<SerialSend>, String> {
+    delete_serial_send_service(DeleteSerialSendInput { connection_key, id }).await
+}
+struct DeleteSerialSendInput {
+    connection_key: String,
+    id: String,
+}
+
+async fn delete_serial_send_service(
+    arguments: DeleteSerialSendInput,
+) -> Result<Vec<SerialSend>, String> {
+    let DeleteSerialSendInput { connection_key, id } = arguments;
+
     validate_key(&connection_key)?;
     run_blocking(move || {
         crate::db::write(|transaction| {
@@ -108,6 +145,9 @@ pub async fn delete_serial_send(
 /// Forgets everything the connection's send bar sent.
 #[tauri::command]
 pub async fn clear_serial_sends(connection_key: String) -> Result<(), String> {
+    clear_serial_sends_service(connection_key).await
+}
+async fn clear_serial_sends_service(connection_key: String) -> Result<(), String> {
     validate_key(&connection_key)?;
     run_blocking(move || crate::db::write(|transaction| store::clear(transaction, &connection_key)))
         .await

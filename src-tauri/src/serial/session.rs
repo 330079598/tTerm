@@ -182,7 +182,7 @@ pub(crate) fn spawn_serial_attempt(
             view,
             options.receive_newline,
         ))),
-        crate::terminal::reader::reader_log(&tab.app, &tab.channel.tab_id),
+        crate::terminal::reader::reader_log(&tab.app.log, &tab.channel.tab_id),
     );
 
     Ok(ActiveSerial {

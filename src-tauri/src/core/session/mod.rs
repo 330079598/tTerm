@@ -339,7 +339,6 @@ fn normalize_jump_host(opts: JumpHostOptions) -> Result<JumpHostPlan, String> {
 }
 
 pub fn load_saved_ssh_password(
-    app: &tauri::AppHandle,
     secret_state: &crate::ssh::secret_store::types::SecretStoreState,
     profile_id: Option<&str>,
     profile_name: Option<&str>,
@@ -348,15 +347,15 @@ pub fn load_saved_ssh_password(
     let profile_name = profile_name.map(str::trim).filter(|v| !v.is_empty());
 
     if let Some(profile_id) = profile_id {
-        if let Some(password) = secret_state.get_password(app, profile_id)? {
+        if let Some(password) = secret_state.get_password(profile_id)? {
             return Ok(Some(password));
         }
     }
 
     if let Some(profile_name) = profile_name {
-        if let Some(password) = secret_state.get_password(app, profile_name)? {
+        if let Some(password) = secret_state.get_password(profile_name)? {
             if let Some(profile_id) = profile_id {
-                let _ = secret_state.save_password(app, profile_id, &password);
+                let _ = secret_state.save_password(profile_id, &password);
             }
             return Ok(Some(password));
         }
@@ -378,7 +377,6 @@ pub enum SudoPasswordSource {
 /// The saved password for a sudo prompt, or `None` when the profile turned
 /// sudo autofill off or has no usable password.
 pub fn load_saved_sudo_password(
-    app: &tauri::AppHandle,
     secret_state: &crate::ssh::secret_store::types::SecretStoreState,
     profile_id: Option<&str>,
     profile_name: Option<&str>,
@@ -390,13 +388,13 @@ pub fn load_saved_sudo_password(
             return Ok(None);
         }
         let sudo_key = sudo_secret_key(profile_id);
-        if let Some(password) = secret_state.get_password(app, &sudo_key)? {
+        if let Some(password) = secret_state.get_password(&sudo_key)? {
             return Ok(Some((password.into(), SudoPasswordSource::Sudo)));
         }
     }
 
     Ok(
-        load_saved_ssh_password(app, secret_state, profile_id, profile_name)?
+        load_saved_ssh_password(secret_state, profile_id, profile_name)?
             .map(|password| (password.into(), SudoPasswordSource::Login)),
     )
 }
@@ -413,7 +411,6 @@ pub struct JumpHostSecretOwner<'a> {
 }
 
 pub fn load_saved_jump_host_password(
-    app: &tauri::AppHandle,
     secret_state: &crate::ssh::secret_store::types::SecretStoreState,
     owner: JumpHostSecretOwner<'_>,
     allow_legacy_fallback: bool,
@@ -441,7 +438,7 @@ pub fn load_saved_jump_host_password(
     };
 
     if let Some(secret_key) = canonical_identity_key.as_deref() {
-        if let Some(password) = secret_state.get_password(app, secret_key)? {
+        if let Some(password) = secret_state.get_password(secret_key)? {
             return Ok(Some(password));
         }
     }
@@ -452,9 +449,9 @@ pub fn load_saved_jump_host_password(
         let name_identity_key =
             jump_host_identity_secret_key(None, profile_name, host, port, username);
         if canonical_identity_key.as_deref() != Some(name_identity_key.as_str()) {
-            if let Some(password) = secret_state.get_password(app, &name_identity_key)? {
+            if let Some(password) = secret_state.get_password(&name_identity_key)? {
                 if let Some(secret_key) = canonical_identity_key.as_deref() {
-                    let _ = secret_state.save_password(app, secret_key, &password);
+                    let _ = secret_state.save_password(secret_key, &password);
                 }
                 return Ok(Some(password));
             }
@@ -469,9 +466,9 @@ pub fn load_saved_jump_host_password(
         .into_iter()
         .flatten()
         {
-            if let Some(password) = secret_state.get_password(app, &legacy_key)? {
+            if let Some(password) = secret_state.get_password(&legacy_key)? {
                 if let Some(secret_key) = canonical_identity_key.as_deref() {
-                    let _ = secret_state.save_password(app, secret_key, &password);
+                    let _ = secret_state.save_password(secret_key, &password);
                 }
                 return Ok(Some(password));
             }
@@ -482,7 +479,6 @@ pub fn load_saved_jump_host_password(
 }
 
 pub fn resolve_ssh_password(
-    app: &tauri::AppHandle,
     secret_state: &crate::ssh::secret_store::types::SecretStoreState,
     plan: &mut SessionPlan,
 ) -> Result<(), String> {
@@ -503,7 +499,7 @@ pub fn resolve_ssh_password(
 
             // Persist only when the user explicitly enabled "remember password".
             if plan.remember_password {
-                let location = secret_state.save_password(app, secret_key, &password)?;
+                let location = secret_state.save_password(secret_key, &password)?;
                 if plan.remember_password
                     && matches!(
                         location,
@@ -524,7 +520,6 @@ pub fn resolve_ssh_password(
         } else {
             // Try to get password from secret store
             let Some(password) = load_saved_ssh_password(
-                app,
                 secret_state,
                 plan.profile_id.as_deref(),
                 Some(plan.profile_name.as_str()),
@@ -546,20 +541,19 @@ pub fn resolve_ssh_password(
     }
 
     // Resolve jump host passwords independently of target authentication.
-    resolve_jump_host_passwords(app, secret_state, plan)?;
-    plan.proxy = crate::proxy::resolve::resolve_proxy(app, secret_state, &plan.proxy_choice)?;
+    resolve_jump_host_passwords(secret_state, plan)?;
+    plan.proxy = crate::proxy::resolve::resolve_proxy(secret_state, &plan.proxy_choice)?;
 
     Ok(())
 }
 
 /// Saves a jump host's password under `secret_key`, as the user asked.
 fn remember_jump_password(
-    app: &tauri::AppHandle,
     secret_state: &crate::ssh::secret_store::types::SecretStoreState,
     secret_key: &str,
     password: &str,
 ) -> Result<(), String> {
-    let location = secret_state.save_password(app, secret_key, password)?;
+    let location = secret_state.save_password(secret_key, password)?;
     if matches!(
         location,
         crate::ssh::secret_store::types::SecretLocation::Memory
@@ -574,7 +568,6 @@ fn remember_jump_password(
 
 /// Resolve jump host passwords from the secret store when not already provided.
 fn resolve_jump_host_passwords(
-    app: &tauri::AppHandle,
     secret_state: &crate::ssh::secret_store::types::SecretStoreState,
     plan: &mut SessionPlan,
 ) -> Result<(), String> {
@@ -593,10 +586,10 @@ fn resolve_jump_host_passwords(
             // as the tunnel's credentials dialog asks, is that connection's.
             match &jump.password {
                 Some(password) if plan.remember_password => {
-                    remember_jump_password(app, secret_state, profile_id, password)?;
+                    remember_jump_password(secret_state, profile_id, password)?;
                 }
                 Some(_) => {}
-                None => saved_hops::fill_saved_password(app, secret_state, jump)?,
+                None => saved_hops::fill_saved_password(secret_state, jump)?,
             }
             continue;
         }
@@ -611,13 +604,12 @@ fn resolve_jump_host_passwords(
 
         if let Some(pw) = &jump.password {
             if plan.remember_password {
-                remember_jump_password(app, secret_state, &secret_key, pw)?;
+                remember_jump_password(secret_state, &secret_key, pw)?;
             }
             continue;
         }
 
         if let Some(pw) = load_saved_jump_host_password(
-            app,
             secret_state,
             JumpHostSecretOwner {
                 profile_id: plan.profile_id.as_deref(),

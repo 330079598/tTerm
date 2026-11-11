@@ -1,6 +1,7 @@
 use tterm_core::events::ssh::SshConnectionProgressPayload;
 use tterm_core::events::ssh::SshHostKeyPromptPayload;
 
+use crate::ssh::context::ConnectionContext;
 use crate::ssh::openssh_known_hosts::verify::KnownHostVerdict;
 use crate::ssh::openssh_known_hosts::{check_presented_key, listed_record};
 use crate::ssh::store::{
@@ -12,13 +13,12 @@ use crate::ssh::types::{
 use russh::client;
 use russh::keys::ssh_key::HashAlg;
 use std::sync::{Arc, Mutex};
-use tauri::AppHandle;
 
 /// russh handler for the jump host leg of the connection.
 /// Performs the same host-key verification as `SshClientHandler`:
 /// known_hosts lookup → user prompt on unknown/mismatch → save on approve.
 pub struct JumpHostHandler {
-    pub app: AppHandle,
+    pub app: ConnectionContext,
     pub tab_id: String,
     pub host: String,
     pub port: u16,
@@ -58,7 +58,7 @@ impl client::Handler for JumpHostHandler {
         let fingerprint = server_public_key.fingerprint(HashAlg::Sha256).to_string();
 
         emit_connection_progress(
-            &self.app,
+            self.app.events.as_ref(),
             &self.tab_id,
             self.status_options,
             SshConnectionProgressPayload::new(
@@ -100,7 +100,7 @@ impl client::Handler for JumpHostHandler {
         if self.host_key_verification_mode == HostKeyVerificationMode::TrustUnknownForSession {
             if known.is_none() {
                 emit_connection_progress(
-                    &self.app,
+                    self.app.events.as_ref(),
                     &self.tab_id,
                     self.status_options,
                     SshConnectionProgressPayload::new(
@@ -146,7 +146,7 @@ impl client::Handler for JumpHostHandler {
 
         let wait =
             crate::prompt_scope::host_key(&self.prompts, &self.prompt_owner, &self.tab_id, payload);
-        crate::prompt_scope::reveal(&self.app);
+        crate::prompt_scope::reveal(self.app.window.as_ref());
 
         self.emit_status(
             "33",
@@ -198,7 +198,11 @@ impl JumpHostHandler {
 
         let payload =
             crate::terminal::legacy_events::jump_status_line(color, self.hop_index, message);
-        crate::session_log::record_output(&self.app, &self.tab_id, payload.as_bytes());
-        crate::terminal::legacy_events::emit_output(&self.app, &self.tab_id, payload);
+        crate::session_log::record_output(&self.app.log, &self.tab_id, payload.as_bytes());
+        crate::terminal::legacy_events::emit_output(
+            self.app.events.as_ref(),
+            &self.tab_id,
+            payload,
+        );
     }
 }

@@ -339,13 +339,12 @@ pub fn saved_secret_keys() -> Result<Vec<String>, String> {
 }
 
 pub(crate) fn delete_profile_secrets(
-    app: &tauri::AppHandle,
     secret_state: &crate::ssh::secret_store::types::SecretStoreState,
     profile: &SavedProfile,
 ) -> Result<usize, String> {
     let mut deleted = 0;
     for summary in profile_secret_summaries(profile) {
-        if secret_state.delete_password(app, &summary.key)? {
+        if secret_state.delete_password(&summary.key)? {
             deleted += 1;
         }
     }
