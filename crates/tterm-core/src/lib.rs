@@ -14,6 +14,8 @@ pub mod keymap;
 pub mod launch;
 /// Application directories resolved by the client at startup.
 pub mod paths;
+/// Session output endpoints shared by client adapters (P1-06).
+pub mod session;
 /// Shared SFTP value and streaming types (P1-04).
 pub mod sftp;
 /// Update routing and cache policy.

@@ -9,7 +9,6 @@ use tterm_core::events::zmodem::{
     TransferCompletePayload, TransferProgressPayload, TransferStartPayload,
 };
 use tterm_core::events::zmodem::{TransferEmitter, TransferEvent};
-use tterm_core::events::EventSink;
 
 use std::fs::{File, OpenOptions};
 use std::io::Write as _;
@@ -108,7 +107,7 @@ pub struct ZmodemReceiveDriver {
 
 impl ZmodemReceiveDriver {
     pub fn new(channel: &ChannelContext, settings: ZmodemSettings) -> Self {
-        let events = crate::event_sink::TauriEventSink::new(channel.app.clone());
+        let events = channel.sink.clone();
         let emit_tab_id = channel.tab_id.clone();
         Self::with_emit(
             Box::new(move |event| {

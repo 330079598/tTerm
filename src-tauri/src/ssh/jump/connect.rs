@@ -17,7 +17,7 @@ use crate::ssh::types::{
 use russh::{client, Disconnect};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
-use tauri::{AppHandle, Emitter};
+use tauri::AppHandle;
 
 /// What every hop of one connection shares: where it reports progress and how
 /// it asks the user about host keys and credentials.
@@ -132,12 +132,9 @@ pub(super) fn emit_terminal_status(ctx: ConnectContext<'_>, status: &str) {
     if !ctx.status_options.emit_terminal_output {
         return;
     }
-    let status_msg = format!("\r\n\x1b[33m[{status}]\x1b[0m\r\n");
+    let status_msg = crate::terminal::legacy_events::status_line("33", status);
     crate::session_log::record_output(ctx.app, ctx.tab_id, status_msg.as_bytes());
-    let event_name = format!("pty-output-{}", ctx.tab_id);
-    let _ = ctx
-        .app
-        .emit_to(tauri::EventTarget::any(), &event_name, status_msg);
+    crate::terminal::legacy_events::emit_output(ctx.app, ctx.tab_id, status_msg);
 }
 
 /// Open an ordered ProxyJump-style chain, then establish the target SSH session

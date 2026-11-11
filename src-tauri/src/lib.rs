@@ -25,6 +25,7 @@ mod proxy;
 mod serial;
 mod session;
 mod session_log;
+mod session_sink;
 mod sftp;
 mod ssh;
 mod sync;

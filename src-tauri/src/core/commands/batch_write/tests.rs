@@ -1,5 +1,6 @@
 use super::*;
 use crate::core::state::AtomicTerminalSize;
+use crate::terminal::io_batcher::TerminalOutput;
 use tokio::sync::{mpsc, watch};
 
 fn output() -> TerminalOutput {
@@ -16,6 +17,7 @@ fn session(session_nonce: u32, runtime: &tokio::runtime::Runtime) -> PtySession 
         supervisor: runtime.spawn(async {}),
         size: Arc::new(AtomicTerminalSize::new(24, 80)),
         output: output(),
+        sink: Arc::new(tterm_core::session::recording::RecordingSessionSink::default()),
         serial_view: None,
     }
 }
@@ -44,7 +46,7 @@ fn writable_ssh_target(runtime: &tokio::runtime::Runtime) -> WritableTarget {
         BatchTarget::Ready {
             tab_id: "target".to_string(),
             active: active.clone(),
-            output: output(),
+            sink: Arc::new(tterm_core::session::recording::RecordingSessionSink::default()),
         },
         active,
         input_rx,
@@ -128,7 +130,7 @@ fn disconnected_guard_prevents_target_writes() {
     let guard = BatchTarget::Ready {
         tab_id: "source".to_string(),
         active: Arc::new(TokioMutex::new(None)),
-        output: output(),
+        sink: Arc::new(tterm_core::session::recording::RecordingSessionSink::default()),
     };
     let (target, target_active, mut input_rx) = writable_ssh_target(&runtime);
 
@@ -156,4 +158,74 @@ fn writable_guard_receives_input_without_targets() {
     assert!(guard_active.blocking_lock().is_some());
     // Typed input reaches the channel from the session's input thread.
     assert_eq!(input_rx.blocking_recv().expect("guard input"), b"input");
+}
+
+#[tokio::test]
+async fn ack_ignores_stale_nonce_and_missing_tabs() {
+    let runtime = tokio::runtime::Handle::current();
+    let (stop_tx, _) = watch::channel(false);
+    let sink = Arc::new(tterm_core::session::recording::RecordingSessionSink::default());
+    let map: crate::core::state::PtyMap = Arc::new(tokio::sync::RwLock::new(HashMap::from([(
+        "ack-tab".into(),
+        PtySession {
+            pid: 0,
+            session_nonce: 7,
+            active: Default::default(),
+            stop_tx,
+            supervisor: runtime.spawn(async {}),
+            size: Arc::new(AtomicTerminalSize::new(24, 80)),
+            output: output(),
+            sink: sink.clone(),
+            serial_view: None,
+        },
+    )])));
+    use tauri::Manager;
+    let app = tauri::test::mock_builder()
+        .build(tauri::test::mock_context(tauri::test::noop_assets()))
+        .unwrap();
+    app.manage(map);
+    super::super::ack_pty_output(
+        "ack-tab".into(),
+        8,
+        5,
+        app.state::<crate::core::state::PtyMap>(),
+    )
+    .await
+    .unwrap();
+    super::super::ack_pty_output(
+        "missing".into(),
+        7,
+        5,
+        app.state::<crate::core::state::PtyMap>(),
+    )
+    .await
+    .unwrap();
+    assert!(sink.records().is_empty());
+    super::super::ack_pty_output(
+        "ack-tab".into(),
+        7,
+        5,
+        app.state::<crate::core::state::PtyMap>(),
+    )
+    .await
+    .unwrap();
+    assert_eq!(
+        sink.records(),
+        [tterm_core::session::recording::SessionRecord::Ack(5)]
+    );
+}
+
+#[test]
+fn successful_batch_input_is_recorded_by_the_session_sink() {
+    use tterm_core::session::recording::{RecordingSessionSink, SessionRecord};
+    let runtime = tokio::runtime::Runtime::new().unwrap();
+    let (mut target, _, mut input_rx) = writable_ssh_target(&runtime);
+    let sink = Arc::new(RecordingSessionSink::default());
+    if let BatchTarget::Ready { sink: endpoint, .. } = &mut target {
+        *endpoint = sink.clone();
+    }
+    let results = write_guarded_batch(None, vec![target], b"batch input");
+    assert_eq!(results[0].status, PtyWriteStatus::Written);
+    assert_eq!(input_rx.blocking_recv().unwrap(), b"batch input");
+    assert_eq!(sink.records(), [SessionRecord::Input]);
 }

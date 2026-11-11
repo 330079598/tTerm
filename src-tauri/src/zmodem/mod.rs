@@ -5,8 +5,6 @@
 //! channel task; each call site stays responsible for actually writing the
 //! bytes these produce back to its own channel.
 
-use tterm_core::events::EventSink;
-
 use std::sync::atomic::AtomicBool;
 use std::sync::mpsc::Sender;
 use std::sync::Arc;
@@ -70,7 +68,7 @@ impl ZmodemSendPipe {
 /// via `ZmodemSendPipe` from now on.
 pub fn arm_send(channel: &ChannelContext, trigger_bytes: Vec<u8>) -> Sender<Vec<u8>> {
     let ChannelContext {
-        app,
+        sink,
         tab_id,
         session_nonce,
         active,
@@ -97,15 +95,19 @@ pub fn arm_send(channel: &ChannelContext, trigger_bytes: Vec<u8>) -> Sender<Vec<
         },
     );
     let _ = tx.send(trigger_bytes);
-    let _ = crate::event_sink::TauriEventSink::new(app.clone()).emit(
-        tterm_core::events::AppEvent::Zmodem(
-            tterm_core::events::zmodem::ZmodemEvent::SendRequested {
-                tab_id: tab_id.clone(),
-            },
-        ),
-    );
+    let _ = sink.emit(tterm_core::events::AppEvent::Zmodem(
+        tterm_core::events::zmodem::ZmodemEvent::SendRequested {
+            tab_id: tab_id.clone(),
+        },
+    ));
     tx
 }
 
 #[cfg(test)]
 mod container_tests;
+
+#[cfg(test)]
+mod sink_tests;
+
+#[cfg(all(test, unix))]
+mod p1_06_container_tests;
