@@ -9,12 +9,12 @@ pub(super) fn now_ms() -> i64 {
     Utc::now().timestamp_millis()
 }
 
-pub(super) fn user_agent(app: &AppHandle) -> String {
-    format!("tTerm/{}", app.package_info().version)
+pub(super) fn user_agent(app: &AppHandle) -> Result<String, String> {
+    Ok(format!("tTerm/{}", crate::app_identity::get(app)?.version))
 }
 
 pub(super) fn device_name() -> String {
-    sanitize_device_name(&tauri_plugin_os::hostname())
+    sanitize_device_name(&tterm_core::identity::hostname())
 }
 
 /// A file-name-safe device label: `Stone's MacBook.local` -> `stone-s-macbook`.

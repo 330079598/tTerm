@@ -2,13 +2,16 @@
 //! settings no longer keep, measuring how much space the directory takes,
 //! and cleaning up after compression a quit cut short.
 
+use tterm_core::events::session_log::{LogErrorPayload, SessionLogEvent};
+use tterm_core::events::{AppEvent, EventSink};
+
 use super::{emit_status, retention, rotating, SessionLogState, CLEANUP_INTERVAL};
 use std::fs;
 use std::path::Path;
 use std::sync::atomic::Ordering;
 use std::sync::{Mutex, MutexGuard};
 use std::time::{Instant, SystemTime};
-use tauri::{AppHandle, Emitter, Manager};
+use tauri::{AppHandle, Manager};
 
 fn lock<T>(mutex: &Mutex<T>) -> MutexGuard<'_, T> {
     match mutex.lock() {
@@ -67,10 +70,12 @@ impl SessionLogState {
                 Ok(report) => removed = report.removed,
                 Err(message) => {
                     self.set_error(message.clone());
-                    let _ = app.emit_to(
-                        tauri::EventTarget::any(),
-                        "terminal-log-error",
-                        serde_json::json!({ "tabId": null, "message": message }),
+                    let _ = crate::event_sink::TauriEventSink::new(app.clone()).emit(
+                        AppEvent::SessionLog(SessionLogEvent::Error(LogErrorPayload {
+                            tab_id: None,
+                            message: message.to_string(),
+                            phase: None,
+                        })),
                     );
                 }
             }

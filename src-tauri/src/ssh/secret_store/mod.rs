@@ -336,7 +336,11 @@ impl SecretStoreState {
     /// Runs on its own thread since the credential store may wait on an
     /// unlock prompt (Secret Service on Linux) or not answer for a while.
     pub fn initialize(&self, app: &AppHandle) {
-        keyring_backend::init_service(&app.config().identifier);
+        let Ok(identity) = crate::app_identity::get(app) else {
+            eprintln!("Application identity is not ready yet");
+            return;
+        };
+        keyring_backend::init_service(&identity.identifier);
         // Looking for Windows Hello or Touch ID can take a moment; do it off
         // the main thread before the status is first asked for.
         let state = self.clone();

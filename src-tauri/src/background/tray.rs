@@ -2,29 +2,27 @@
 //! leave tTerm running: it brings the window back, starts and stops tunnels,
 //! and quits. It carries a red dot while system notifications wait unseen.
 
+use tterm_core::events::background::BackgroundEvent;
+use tterm_core::events::tunnel::TunnelState;
+use tterm_core::events::{AppEvent, EventSink};
+
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Mutex, Once};
 
 use tauri::image::Image;
-use tauri::menu::{CheckMenuItem, Menu, MenuEvent, MenuItem, PredefinedMenuItem, Submenu};
+use tauri::menu::{Menu, MenuEvent};
 use tauri::tray::{MouseButton, MouseButtonState, TrayIcon, TrayIconBuilder, TrayIconEvent};
-use tauri::{AppHandle, Emitter, Manager};
+use tauri::{AppHandle, Manager};
 
 use crate::core::state::PtyMap;
 use crate::tunnel::commands::TunnelManager;
-use tterm_core::events::tunnel::TunnelState;
 
-pub(super) const TRAY_ID: &str = "main";
+pub(crate) const TRAY_ID: &str = "main";
 const MENU_SHOW: &str = "tray-show";
 const MENU_QUIT: &str = "tray-quit";
 const MENU_CHECK_UPDATES: &str = "tray-updates";
 const MENU_TUNNELS_PAGE: &str = "tray-tunnels-page";
 const MENU_TUNNEL_PREFIX: &str = "tray-tunnel:";
-/// Asks the UI to open the Port Forwarding page.
-const OPEN_TUNNELS_EVENT: &str = "tray-open-tunnels";
-/// Tells the UI that an update check asked for from the tray is waiting in
-/// `take_tray_update_check`.
-const CHECK_UPDATES_EVENT: &str = "tray-check-updates";
 /// The dot's red, the same as the count on the Windows taskbar.
 const DOT_RGB: [u8; 3] = [0xE8, 0x11, 0x23];
 
@@ -91,7 +89,7 @@ fn labels(language: &str) -> Labels {
 }
 
 /// Adds the tray icon, or rebuilds its menu in `language`.
-pub(super) fn show(app: &AppHandle, language: &str) -> tauri::Result<()> {
+pub(crate) fn show(app: &AppHandle, language: &str) -> Result<(), String> {
     // A tray's own menu handler outlives the tray, so one built again after
     // being removed would answer each click twice; this one is app-wide.
     static MENU_HANDLER: Once = Once::new();
@@ -100,8 +98,16 @@ pub(super) fn show(app: &AppHandle, language: &str) -> tauri::Result<()> {
     let state = app.state::<TrayState>();
     *state.language.lock().unwrap_or_else(|e| e.into_inner()) = language.to_string();
     let tunnels = menu_tunnels(app);
-    let menu = tray_menu(app, labels(language), &tunnels)?;
-    *state.shown.lock().unwrap_or_else(|e| e.into_inner()) = Some(tunnels);
+    *state.shown.lock().unwrap_or_else(|e| e.into_inner()) = Some(tunnels.clone());
+    app.state::<std::sync::Arc<dyn tterm_platform::tray::Tray>>()
+        .present(tterm_platform::tray::TrayModel {
+            entries: menu_model(labels(language), &tunnels),
+        })
+}
+
+/// Installs the already-rendered native menu without reading domain state.
+pub(crate) fn present_menu(app: &AppHandle, menu: Menu<tauri::Wry>) -> tauri::Result<()> {
+    let state = app.state::<TrayState>();
     if let Some(tray) = app.tray_by_id(TRAY_ID) {
         return tray.set_menu(Some(menu));
     }
@@ -119,7 +125,7 @@ pub(super) fn show(app: &AppHandle, language: &str) -> tauri::Result<()> {
     Ok(())
 }
 
-pub(super) fn hide(app: &AppHandle) {
+pub(crate) fn hide(app: &AppHandle) {
     app.remove_tray_by_id(TRAY_ID);
     *app.state::<TrayState>()
         .shown
@@ -209,9 +215,9 @@ pub fn refresh_tunnels(app: &AppHandle) {
 }
 
 fn rebuild_if_changed(app: &AppHandle) -> tauri::Result<()> {
-    let Some(tray) = app.tray_by_id(TRAY_ID) else {
+    if app.tray_by_id(TRAY_ID).is_none() {
         return Ok(());
-    };
+    }
     let state = app.state::<TrayState>();
     let tunnels = menu_tunnels(app);
     let mut shown = state.shown.lock().unwrap_or_else(|e| e.into_inner());
@@ -223,7 +229,11 @@ fn rebuild_if_changed(app: &AppHandle) -> tauri::Result<()> {
         .lock()
         .unwrap_or_else(|e| e.into_inner())
         .clone();
-    tray.set_menu(Some(tray_menu(app, labels(&language), &tunnels)?))?;
+    app.state::<std::sync::Arc<dyn tterm_platform::tray::Tray>>()
+        .present(tterm_platform::tray::TrayModel {
+            entries: menu_model(labels(&language), &tunnels),
+        })
+        .map_err(|e| tauri::Error::Io(std::io::Error::other(e)))?;
     *shown = Some(tunnels);
     Ok(())
 }
@@ -254,52 +264,46 @@ fn menu_tunnels(app: &AppHandle) -> Vec<MenuTunnel> {
         .collect()
 }
 
-fn tray_menu(
-    app: &AppHandle,
-    labels: Labels,
-    tunnels: &[MenuTunnel],
-) -> tauri::Result<Menu<tauri::Wry>> {
-    let submenu = Submenu::new(app, labels.tunnels, true)?;
+fn menu_model(labels: Labels, tunnels: &[MenuTunnel]) -> Vec<tterm_platform::tray::MenuEntry> {
+    use tterm_platform::tray::MenuEntry;
+    let item = |id: &str, label: &str| MenuEntry::Item {
+        id: id.into(),
+        label: label.into(),
+        enabled: true,
+        checked: None,
+    };
+    let mut entries = Vec::new();
     if tunnels.is_empty() {
-        submenu.append(&MenuItem::new(app, labels.no_tunnels, false, None::<&str>)?)?;
+        entries.push(MenuEntry::Item {
+            id: String::new(),
+            label: labels.no_tunnels.into(),
+            enabled: false,
+            checked: None,
+        });
     }
     for tunnel in tunnels {
-        let item = CheckMenuItem::with_id(
-            app,
-            format!("{MENU_TUNNEL_PREFIX}{}", tunnel.id),
-            tunnel_label(labels, tunnel),
-            true,
-            tunnel.state.is_active(),
-            None::<&str>,
-        )?;
-        submenu.append(&item)?;
+        entries.push(MenuEntry::Item {
+            id: format!("{MENU_TUNNEL_PREFIX}{}", tunnel.id),
+            label: tunnel_label(labels, tunnel),
+            enabled: true,
+            checked: Some(tunnel.state.is_active()),
+        });
     }
-    submenu.append(&PredefinedMenuItem::separator(app)?)?;
-    submenu.append(&MenuItem::with_id(
-        app,
-        MENU_TUNNELS_PAGE,
-        labels.open_tunnels,
-        true,
-        None::<&str>,
-    )?)?;
-
-    Menu::with_items(
-        app,
-        &[
-            &MenuItem::with_id(app, MENU_SHOW, labels.show, true, None::<&str>)?,
-            &PredefinedMenuItem::separator(app)?,
-            &submenu,
-            &PredefinedMenuItem::separator(app)?,
-            &MenuItem::with_id(
-                app,
-                MENU_CHECK_UPDATES,
-                labels.check_updates,
-                true,
-                None::<&str>,
-            )?,
-            &MenuItem::with_id(app, MENU_QUIT, labels.quit, true, None::<&str>)?,
-        ],
-    )
+    entries.extend([
+        MenuEntry::Separator,
+        item(MENU_TUNNELS_PAGE, labels.open_tunnels),
+    ]);
+    vec![
+        item(MENU_SHOW, labels.show),
+        MenuEntry::Separator,
+        MenuEntry::Submenu {
+            label: labels.tunnels.into(),
+            entries,
+        },
+        MenuEntry::Separator,
+        item(MENU_CHECK_UPDATES, labels.check_updates),
+        item(MENU_QUIT, labels.quit),
+    ]
 }
 
 fn tunnel_label(labels: Labels, tunnel: &MenuTunnel) -> String {
@@ -334,7 +338,8 @@ fn on_menu_event(app: &AppHandle, event: MenuEvent) {
 
 fn open_tunnels_page(app: &AppHandle) {
     super::show_main_window(app);
-    let _ = app.emit(OPEN_TUNNELS_EVENT, ());
+    let _ = crate::event_sink::TauriEventSink::new(app.clone())
+        .emit(AppEvent::Background(BackgroundEvent::OpenTunnels));
 }
 
 /// Shows the window first, so the result of the check is in sight.
@@ -343,7 +348,8 @@ fn check_updates(app: &AppHandle) {
     app.state::<TrayState>()
         .update_check_requested
         .store(true, Ordering::SeqCst);
-    let _ = app.emit(CHECK_UPDATES_EVENT, ());
+    let _ = crate::event_sink::TauriEventSink::new(app.clone())
+        .emit(AppEvent::Background(BackgroundEvent::CheckUpdates));
 }
 
 /// Hands the UI an update check asked for from the tray, once. The UI asks
@@ -440,6 +446,31 @@ mod tests {
             name: name.to_string(),
             state,
         }
+    }
+
+    #[test]
+    fn model_keeps_actions_and_tunnel_checked_state_across_rebuilds() {
+        use tterm_platform::tray::MenuEntry;
+        let model = menu_model(labels("en"), &[tunnel("db", TunnelState::Running)]);
+        assert!(matches!(&model[0], MenuEntry::Item { id, .. } if id == MENU_SHOW));
+        assert!(matches!(&model[5], MenuEntry::Item { id, .. } if id == MENU_QUIT));
+        let MenuEntry::Submenu { entries, .. } = &model[2] else {
+            panic!("missing tunnel submenu");
+        };
+        assert!(
+            matches!(&entries[0], MenuEntry::Item { id, checked: Some(true), .. } if id == "tray-tunnel:t1")
+        );
+        let stopped = menu_model(labels("zh"), &[tunnel("db", TunnelState::Stopped)]);
+        let MenuEntry::Submenu { entries, .. } = &stopped[2] else {
+            panic!("missing tunnel submenu");
+        };
+        assert!(matches!(
+            &entries[0],
+            MenuEntry::Item {
+                checked: Some(false),
+                ..
+            }
+        ));
     }
 
     #[test]

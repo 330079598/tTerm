@@ -1,3 +1,5 @@
+use tterm_core::events::ssh::ShellIntegrationStatus;
+
 use super::*;
 
 #[test]

@@ -1,17 +1,16 @@
+use tterm_core::events::ssh::SshConnectionProgressPayload;
+
 use super::session::types::SessionPlan;
 use super::state::{
     ActiveSession, ActiveSsh, ChannelContext, HostPromptMap, SessionExitSignal, SessionKind,
 };
 use crate::ssh::client::SshChannelIo;
-use crate::ssh::{
-    client::SshExitSignal, types::emit_connection_progress, types::ConnectionStatusOptions,
-    types::SshConnectionProgressPayload,
-};
+use crate::ssh::client::SshExitSignal;
 use crate::zmodem::session::ZmodemSettings;
 use std::sync::Arc;
 use std::sync::PoisonError;
 use std::time::Duration;
-use tauri::{AppHandle, Emitter};
+use tauri::AppHandle;
 use tokio::sync::{mpsc, watch};
 
 /// Nominal delay before the first reconnect attempt.
@@ -24,22 +23,6 @@ const RECONNECT_MAX_DELAY_SECS: u64 = 30;
 /// proportional credit instead of an all-or-nothing reset — see
 /// `decayed_attempt`.
 const RECONNECT_STABLE_RESET: Duration = Duration::from_secs(60);
-
-pub fn emit_pty_exit(app: &AppHandle, tab_id: &str, reason: Option<&str>) {
-    let event_name = format!("pty-exit-{}", tab_id);
-    let _ = app.emit_to(tauri::EventTarget::any(), &event_name, reason);
-}
-
-fn emit_status_line(app: &AppHandle, tab_id: &str, color: &str, message: &str) {
-    let payload = format!("\r\n\x1b[{}m[{}]\x1b[0m\r\n", color, message);
-    emit_pty_output(app, tab_id, payload);
-}
-
-fn emit_pty_output(app: &AppHandle, tab_id: &str, payload: String) {
-    crate::session_log::record_output(app, tab_id, payload.as_bytes());
-    let event_name = format!("pty-output-{}", tab_id);
-    let _ = app.emit_to(tauri::EventTarget::any(), &event_name, payload);
-}
 
 /// Map the raw SSH task outcome onto the supervisor's exit taxonomy.
 pub(crate) fn map_ssh_exit_signal(result: SshExitSignal) -> SessionExitSignal {
@@ -58,11 +41,11 @@ pub(crate) fn map_ssh_exit_signal(result: SshExitSignal) -> SessionExitSignal {
 #[derive(Clone)]
 pub(crate) struct TabConnection {
     pub channel: ChannelContext,
+    pub app: AppHandle,
     pub plan: SessionPlan,
     pub prompt_state: HostPromptMap,
     pub stop_rx: watch::Receiver<bool>,
     pub exit_tx: mpsc::UnboundedSender<SessionExitSignal>,
-    pub output_channel: crate::terminal::io_batcher::TerminalOutput,
     pub runtime_handle: tokio::runtime::Handle,
 }
 
@@ -78,11 +61,11 @@ pub(crate) fn spawn_ssh_attempt(
 ) -> ActiveSsh {
     let TabConnection {
         channel,
+        app,
         plan,
         prompt_state,
         stop_rx,
         exit_tx,
-        output_channel,
         runtime_handle,
     } = tab;
     let (input_tx, input_rx) = mpsc::unbounded_channel::<Vec<u8>>();
@@ -90,14 +73,16 @@ pub(crate) fn spawn_ssh_attempt(
     let output_tail = Arc::new(crate::terminal::output_tail::OutputTail::default());
     let encoding = plan.encoding;
     let input = crate::terminal::types::PtyInput::over_channel(input_tx.clone());
-    let sender =
-        crate::terminal::io_batcher::TerminalOutputSender::spawn(&channel.tab_id, output_channel)
-            .with_output_tail(output_tail.clone())
-            .with_output_counter(input.output_counter());
+    let sender = crate::terminal::io_batcher::TerminalOutputSender::spawn(
+        &channel.tab_id,
+        channel.sink.clone(),
+    )
+    .with_output_tail(output_tail.clone())
+    .with_output_counter(input.output_counter());
 
     let task = runtime_handle.spawn(async move {
         let result = crate::ssh::client::run_single_ssh_connection(
-            channel,
+            (channel, app),
             settings,
             plan,
             prompt_state,
@@ -187,17 +172,24 @@ async fn clear_attempt(channel: &ChannelContext) {
 }
 
 /// Reports a session that ended for good, without a reconnect.
-fn report_exit(app: &AppHandle, tab_id: &str, signal: &SessionExitSignal) {
+fn report_exit(app: &AppHandle, channel: &ChannelContext, signal: &SessionExitSignal) {
     let exit_reason = match signal {
         SessionExitSignal::Recoverable { reason, .. }
         | SessionExitSignal::NonRecoverable(reason) => {
-            emit_status_line(app, tab_id, "31", reason);
+            let text = crate::terminal::legacy_events::status_line("31", reason);
+            crate::session_log::record_output(app, &channel.tab_id, text.as_bytes());
+            let _ = channel.sink.emit(tterm_core::events::AppEvent::Terminal(
+                tterm_core::events::terminal::TerminalEvent::Output {
+                    tab_id: channel.tab_id.clone(),
+                    text,
+                },
+            ));
             Some(reason.as_str())
         }
         SessionExitSignal::Terminated => None,
     };
-    emit_pty_exit(app, tab_id, exit_reason);
-    crate::session_log::end_session(app, tab_id);
+    let _ = channel.sink.exited(exit_reason.map(str::to_string));
+    crate::session_log::end_session(app, &channel.tab_id);
 }
 
 /// The retry budget of one SSH tab's automatic reconnects.
@@ -212,7 +204,7 @@ impl SshBackoff {
     async fn wait(
         &mut self,
         app: &AppHandle,
-        tab_id: &str,
+        channel: &ChannelContext,
         reason: String,
         connected_duration: Duration,
         stop_rx: &mut watch::Receiver<bool>,
@@ -228,10 +220,7 @@ impl SshBackoff {
         // terminal line comes from the frontend via the progress event, so
         // no status line is written here.
         if attempt > max_attempts {
-            emit_connection_progress(
-                app,
-                tab_id,
-                ConnectionStatusOptions::VERBOSE,
+            let _ = channel.sink.state_changed(
                 SshConnectionProgressPayload::new(
                     "retry_exhausted",
                     format!("Reconnect attempts exhausted ({reason})"),
@@ -239,8 +228,8 @@ impl SshBackoff {
                 .reason(reason.clone())
                 .retry_max(max_attempts),
             );
-            emit_pty_exit(app, tab_id, Some(&reason));
-            crate::session_log::end_session(app, tab_id);
+            let _ = channel.sink.exited(Some(reason));
+            crate::session_log::end_session(app, &channel.tab_id);
             return false;
         }
 
@@ -248,10 +237,7 @@ impl SshBackoff {
         let delay_secs = delay.as_secs_f64();
         // Structured retry status: the frontend renders the localized
         // message from these fields instead of the English `message`.
-        emit_connection_progress(
-            app,
-            tab_id,
-            ConnectionStatusOptions::VERBOSE,
+        let _ = channel.sink.state_changed(
             SshConnectionProgressPayload::new(
                 "retrying",
                 format!("Reconnecting in {delay_secs:.0}s (attempt {attempt})"),
@@ -278,7 +264,7 @@ pub fn spawn_supervisor(
 ) -> tokio::task::JoinHandle<()> {
     tab.runtime_handle.clone().spawn(async move {
         let channel = tab.channel.clone();
-        let (app, tab_id) = (&channel.app, channel.tab_id.as_str());
+        let app = &tab.app;
         let plan = &tab.plan;
         let mut stop_rx = tab.stop_rx.clone();
         let reconnect_enabled = plan.reconnect_enabled;
@@ -301,7 +287,7 @@ pub fn spawn_supervisor(
                 _ => None,
             };
             let Some((reason, connected_duration)) = retry else {
-                report_exit(app, tab_id, &signal);
+                report_exit(app, &channel, &signal);
                 break;
             };
 
@@ -320,7 +306,7 @@ pub fn spawn_supervisor(
                     let resume = backoff
                         .wait(
                             app,
-                            tab_id,
+                            &channel,
                             reason,
                             connected_duration.unwrap_or_default(),
                             &mut stop_rx,

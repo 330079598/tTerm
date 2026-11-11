@@ -261,7 +261,7 @@ pub async fn test_webdav_connection(
         &settings.url,
         &settings.username,
         password,
-        &user_agent(&app),
+        &user_agent(&app)?,
     )?;
     client.check().await?;
     client
@@ -366,7 +366,7 @@ async fn upload(
         &settings.url,
         &settings.username,
         password,
-        &user_agent(app),
+        &user_agent(app)?,
     )?;
     client.ensure_directory(&directory).await?;
     let device = device_name();
@@ -520,7 +520,7 @@ async fn connect(
         &settings.url,
         &settings.username,
         password,
-        &user_agent(app),
+        &user_agent(app)?,
     )?;
     Ok((client, directory))
 }
@@ -564,7 +564,7 @@ pub(crate) async fn sync_target(
             &settings.url,
             &settings.username,
             password,
-            &user_agent(app),
+            &user_agent(app)?,
         )?,
         directory: split_remote_directory(&settings.remote_directory)?,
         key: format!(
@@ -573,7 +573,7 @@ pub(crate) async fn sync_target(
         ),
         password: backup_password,
         device: device_name(),
-        app_version: app.package_info().version.to_string(),
+        app_version: crate::app_identity::get(app)?.version.clone(),
     }))
 }
 

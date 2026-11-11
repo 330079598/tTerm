@@ -154,9 +154,18 @@ pub async fn verify_user(
 ) -> Result<(), String> {
     // Waits on the OS prompt or on key derivation.
     let secret_state = secret_state.inner().clone();
+    use tauri::Manager;
+    let verifier = app
+        .state::<std::sync::Arc<dyn tterm_platform::verification::UserVerification>>()
+        .inner()
+        .clone();
     run_blocking(move || {
         let password = input.password.map(Zeroizing::new);
-        secret_state.verify_user(&app, input.purpose, password.as_deref().map(String::as_str))
+        secret_state.verify_user(
+            verifier.as_ref(),
+            input.purpose,
+            password.as_deref().map(String::as_str),
+        )
     })
     .await
 }

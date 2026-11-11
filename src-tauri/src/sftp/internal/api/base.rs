@@ -1,12 +1,13 @@
 use crate::core::session::{types::PtyConnectionOptions, types::SessionPlan};
 use crate::core::state::HostPromptMap;
 use crate::sftp::internal::connection::{ensure_ssh_plan, map_sftp_error, release_tab_connections};
-use crate::sftp::internal::types::{SftpConnectionPool, SftpDirectoryEntry, SftpDirectoryListing};
+use crate::sftp::internal::types::{SftpConnectionPool, SftpDirectoryListing};
 use crate::sftp::store;
 use crate::ssh::secret_store::types::SecretStoreState;
 use russh_sftp::client::fs::Metadata;
 use russh_sftp::client::SftpSession;
 use tauri::{AppHandle, State};
+use tterm_core::sftp::entry::SftpDirectoryEntry;
 
 fn push_unique_candidate(candidates: &mut Vec<String>, path: impl Into<String>) {
     let path = path.into();

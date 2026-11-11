@@ -1,8 +1,7 @@
+use tterm_core::events::ssh::SshConnectionProgressPayload;
+
 use super::session::{serial_options, spawn_serial_attempt, ActiveSerial};
 use crate::core::supervisor::TabConnection;
-use crate::ssh::types::{
-    emit_connection_progress, ConnectionStatusOptions, SshConnectionProgressPayload,
-};
 use std::time::Duration;
 use tokio::sync::watch;
 
@@ -18,13 +17,9 @@ pub(crate) async fn reopen(
     reason: &str,
     stop_rx: &mut watch::Receiver<bool>,
 ) -> Option<ActiveSerial> {
-    let app = &tab.channel.app;
-    let tab_id = tab.channel.tab_id.as_str();
+    let sink = &tab.channel.sink;
     let saved_port = serial_options(tab).ok()?.port.clone();
-    emit_connection_progress(
-        app,
-        tab_id,
-        ConnectionStatusOptions::VERBOSE,
+    let _ = sink.state_changed(
         SshConnectionProgressPayload::new(
             "serial_waiting",
             format!("{saved_port} disconnected ({reason}); waiting for it to come back"),
@@ -58,10 +53,7 @@ pub(crate) async fn reopen(
         if *stop_rx.borrow() {
             return None;
         }
-        emit_connection_progress(
-            app,
-            tab_id,
-            ConnectionStatusOptions::VERBOSE,
+        let _ = sink.state_changed(
             SshConnectionProgressPayload::new("ready", format!("Reconnected to {}", serial.path))
                 .host(serial.path.clone(), 0),
         );

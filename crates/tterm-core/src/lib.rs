@@ -6,10 +6,20 @@
 
 /// Typed events and delivery interfaces shared by client adapters.
 pub mod events;
+/// Application identity supplied by the client.
+pub mod identity;
 /// Keyboard shortcut parsing, display, conflicts and dispatch.
 pub mod keymap;
+/// Shared launch forwarding entry point.
+pub mod launch;
 /// Application directories resolved by the client at startup.
 pub mod paths;
 
 /// One-shot interactive requests with scoped cancellation.
 pub mod prompts;
+/// Session output endpoints shared by client adapters (P1-06).
+pub mod session;
+/// Shared SFTP value and streaming types (P1-04).
+pub mod sftp;
+/// Update routing and cache policy.
+pub mod updates;

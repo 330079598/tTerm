@@ -1,9 +1,11 @@
 //! Reads what the script's macOS section prints: the version from
 //! `sw_vers`, memory from `vm_stat` and `sysctl`, and the CPU from `iostat`.
 
+use tterm_core::events::ssh::LinuxDistributionInfo;
+
 use super::bsd::{parse_common, Sysctl};
 use super::extract_block;
-use crate::monitor::types::{LinuxDistributionInfo, MemoryMetrics, ServerMetricsSnapshot};
+use crate::monitor::types::{MemoryMetrics, ServerMetricsSnapshot};
 use std::collections::HashMap;
 
 pub(super) fn parse(output: &str) -> ServerMetricsSnapshot {

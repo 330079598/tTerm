@@ -1,0 +1,2 @@
+    Checking tterm-platform v0.1.0 (/Users/stone/Code/rust/tTerm-P1-08/crates/tterm-platform)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.47s

@@ -1,3 +1,5 @@
+use tterm_core::events::zmodem::TransferEmitter;
+
 use super::disk::{safe_file_name, unused_path};
 use super::protocol::{
     crc16, send_xmodem, send_ymodem, Link, OutgoingFile, Received, Result, TransferError,
@@ -5,7 +7,6 @@ use super::protocol::{
 use super::receive::{receive_xmodem, receive_ymodem, FileSink};
 use super::transfer::{FileInfo, FileRows};
 use super::XmodemProtocol;
-use crate::zmodem::events::EmitFn;
 use serde_json::json;
 use std::collections::VecDeque;
 use std::io::Cursor;
@@ -275,7 +276,10 @@ fn a_taken_name_gets_a_number() {
 fn a_file_without_a_size_says_so_in_the_transfer_list() {
     let events = Arc::new(Mutex::new(Vec::new()));
     let seen = events.clone();
-    let emit: EmitFn = Box::new(move |kind, payload| {
+    let emit: TransferEmitter = Box::new(move |event| {
+        let name = event.name("").as_string();
+        let kind = name.strip_prefix("zmodem-").unwrap().trim_end_matches('-');
+        let payload = crate::event_sink::zmodem::transfer_wire(&event).unwrap();
         seen.lock().unwrap().push((kind.to_string(), payload));
     });
     let mut rows = FileRows::new(&emit, Vec::new());

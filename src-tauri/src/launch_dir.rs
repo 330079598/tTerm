@@ -1,13 +1,13 @@
 //! Opens a local terminal in the directory tTerm is started with, the way
 //! `tterm .` in a shell or a file manager's "Open in tTerm" asks for one.
 
+use tterm_core::events::launch_dir::LaunchDirEvent;
+use tterm_core::events::{AppEvent, EventSink};
+
 use serde::Serialize;
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;
-use tauri::{AppHandle, Emitter, Manager};
-
-/// Tells the frontend that [`take_launch_dirs`] has directories for it.
-const LAUNCH_DIRS_EVENT: &str = "launch-dirs";
+use tauri::{AppHandle, Manager};
 
 /// Kept while an instance started with a directory runs. A restart, after an
 /// update or from the app, starts tTerm with the arguments it was started
@@ -28,7 +28,7 @@ pub struct LaunchDir {
 pub struct LaunchDirs(Mutex<Vec<LaunchDir>>);
 
 /// Takes the directories waiting to be opened. The frontend calls it once it
-/// has restored the session and again on every [`LAUNCH_DIRS_EVENT`].
+/// has restored the session and again on every `launch-dirs`.
 #[tauri::command]
 pub fn take_launch_dirs(state: tauri::State<'_, LaunchDirs>) -> Vec<LaunchDir> {
     std::mem::take(&mut *state.0.lock().unwrap_or_else(|e| e.into_inner()))
@@ -124,13 +124,21 @@ fn unquoted(arg: &str) -> String {
 }
 
 fn queue(app: &AppHandle, dirs: Vec<LaunchDir>) {
-    app.state::<LaunchDirs>()
+    queue_with_events(
+        &app.state::<LaunchDirs>(),
+        dirs,
+        &crate::event_sink::TauriEventSink::new(app.clone()),
+    );
+}
+
+fn queue_with_events(state: &LaunchDirs, dirs: Vec<LaunchDir>, events: &dyn EventSink) {
+    state
         .0
         .lock()
         .unwrap_or_else(|e| e.into_inner())
         .extend(dirs);
-    // Before the frontend listens, the directories wait for it to take them.
-    if let Err(error) = app.emit(LAUNCH_DIRS_EVENT, ()) {
+    // A listener can take the complete queue synchronously without holding this lock.
+    if let Err(error) = events.emit(AppEvent::LaunchDir(LaunchDirEvent::Queued)) {
         eprintln!("Failed to announce a directory to open: {error}");
     }
 }
@@ -213,3 +221,7 @@ mod tests {
         assert!(dirs[0].exists);
     }
 }
+
+#[cfg(test)]
+#[path = "launch_dir_event_tests.rs"]
+mod event_tests;

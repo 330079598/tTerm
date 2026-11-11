@@ -1,6 +1,9 @@
+use tterm_core::events::ssh::AuthUsedPayload;
+use tterm_core::events::ssh::SshConnectionProgressPayload;
+use tterm_core::events::EventSink;
+
 use crate::ssh::openssh_known_hosts::verify::KnownHostVerdict;
 use crate::ssh::openssh_known_hosts::{check_presented_key, listed_record};
-use serde::Serialize;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use tauri::Emitter;
@@ -125,134 +128,17 @@ impl ConnectionStatusOptions {
     };
 }
 
-#[derive(Clone, Debug, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct SshConnectionProgressPayload {
-    pub phase: String,
-    pub message: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub hop_index: Option<usize>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub total_hops: Option<usize>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub host: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub port: Option<u16>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub username: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub network_latency_ms: Option<u64>,
-    /// 1-indexed reconnect attempt for the `retrying` phase.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub retry_attempt: Option<u32>,
-    /// Delay chosen for the pending reconnect attempt, in seconds.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub retry_delay_secs: Option<f64>,
-    /// Configured reconnect attempt limit for the retry phases.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub retry_max_attempts: Option<u32>,
-    /// Why the session dropped, for the retry phases. The frontend renders the
-    /// localized retry status from the structured fields, not `message`.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub reason: Option<String>,
-    /// How shell integration went, for the `ready` phase of a connection
-    /// that turned it on.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub shell_integration: Option<super::shell_integration::ShellIntegrationStatus>,
-    /// What automatic authentication found to work, for the
-    /// `target_authenticated` phase.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub auth: Option<AuthUsedPayload>,
-}
-
-#[derive(Clone, Debug, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct AuthUsedPayload {
-    /// The `auth_method` a profile would store for it.
-    pub method: &'static str,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub private_key_path: Option<String>,
-    /// Connecting the same way again needs nothing typed.
-    pub reusable: bool,
-}
-
-impl SshConnectionProgressPayload {
-    pub fn new(phase: impl Into<String>, message: impl Into<String>) -> Self {
-        Self {
-            phase: phase.into(),
-            message: message.into(),
-            hop_index: None,
-            total_hops: None,
-            host: None,
-            port: None,
-            username: None,
-            network_latency_ms: None,
-            retry_attempt: None,
-            retry_delay_secs: None,
-            retry_max_attempts: None,
-            reason: None,
-            shell_integration: None,
-            auth: None,
-        }
-    }
-
-    pub fn auth_used(mut self, used: &super::auth::AuthUsed) -> Self {
-        self.auth = Some(AuthUsedPayload {
-            method: used.method_name(),
-            private_key_path: used.key_path().map(str::to_string),
-            reusable: used.reusable(),
-        });
-        self
-    }
-
-    pub fn host(mut self, host: impl Into<String>, port: u16) -> Self {
-        self.host = Some(host.into());
-        self.port = Some(port);
-        self
-    }
-
-    pub fn username(mut self, username: impl Into<String>) -> Self {
-        self.username = Some(username.into());
-        self
-    }
-
-    pub fn hop(mut self, hop_index: usize, total_hops: usize) -> Self {
-        self.hop_index = Some(hop_index);
-        self.total_hops = Some(total_hops);
-        self
-    }
-
-    pub fn network_latency(mut self, network_latency_ms: Option<u64>) -> Self {
-        self.network_latency_ms = network_latency_ms;
-        self
-    }
-
-    pub fn shell_integration(
-        mut self,
-        status: Option<super::shell_integration::ShellIntegrationStatus>,
-    ) -> Self {
-        self.shell_integration = status;
-        self
-    }
-
-    /// Describe the pending reconnect attempt (used by the `retrying` phase).
-    pub fn retry_attempt(mut self, attempt: u32, delay_secs: f64) -> Self {
-        self.retry_attempt = Some(attempt);
-        self.retry_delay_secs = Some(delay_secs);
-        self
-    }
-
-    /// Attach the configured reconnect attempt limit (retry phases).
-    pub fn retry_max(mut self, max_attempts: u32) -> Self {
-        self.retry_max_attempts = Some(max_attempts);
-        self
-    }
-
-    /// Attach the disconnect reason (retry phases).
-    pub fn reason(mut self, reason: impl Into<String>) -> Self {
-        self.reason = Some(reason.into());
-        self
-    }
+/// Attaches the authentication result without coupling the shared payload to SSH services.
+pub fn with_auth_used(
+    mut payload: SshConnectionProgressPayload,
+    used: &super::auth::AuthUsed,
+) -> SshConnectionProgressPayload {
+    payload.auth = Some(AuthUsedPayload {
+        method: used.method_name(),
+        private_key_path: used.key_path().map(str::to_string),
+        reusable: used.reusable(),
+    });
+    payload
 }
 
 pub fn emit_connection_progress(
@@ -265,8 +151,12 @@ pub fn emit_connection_progress(
         return;
     }
 
-    let event_name = format!("ssh-connection-progress-{tab_id}");
-    let _ = app.emit_to(tauri::EventTarget::any(), &event_name, payload);
+    let _ = crate::event_sink::TauriEventSink::new(app.clone()).emit(
+        tterm_core::events::AppEvent::Ssh(tterm_core::events::ssh::SshEvent::ConnectionProgress {
+            tab_id: tab_id.to_string(),
+            payload,
+        }),
+    );
 }
 
 /// A connection the server opened back to us for a remote (`-R`) port forward.
@@ -526,12 +416,9 @@ impl SshClientHandler {
             return;
         }
 
-        let payload = format!("\r\n\x1b[{}m[{}]\x1b[0m\r\n", color, message);
+        let payload = crate::terminal::legacy_events::status_line(color, message);
         crate::session_log::record_output(&self.app, &self.tab_id, payload.as_bytes());
-        let event_name = format!("pty-output-{}", self.tab_id);
-        let _ = self
-            .app
-            .emit_to(tauri::EventTarget::any(), &event_name, payload);
+        crate::terminal::legacy_events::emit_output(&self.app, &self.tab_id, payload);
     }
 }
 
@@ -620,3 +507,7 @@ mod tests {
             .is_host_key_rejected());
     }
 }
+
+#[cfg(test)]
+#[path = "types_legacy_tests.rs"]
+mod legacy_contract_tests;

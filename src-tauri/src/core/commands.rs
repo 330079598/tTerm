@@ -28,7 +28,7 @@ fn stop_pty_session(
 ) {
     let _ = session.stop_tx.send(true);
     // Nobody will acknowledge this channel's output again.
-    session.output.flow().close();
+    session.sink.close_output();
 
     if let Some(active) = session.active.blocking_lock().take() {
         match active {
@@ -152,9 +152,16 @@ fn create_pty_blocking(
         .insert(tab_id.clone(), zmodem_manual_override.clone());
 
     let runtime_handle = runtime_state.runtime.handle().clone();
+    let sink: Arc<dyn tterm_core::session::sink::SessionSink> =
+        Arc::new(crate::session_sink::TauriSessionSink::new(
+            tab_id.clone(),
+            app.clone(),
+            output_channel.clone(),
+        ));
     let tab = TabConnection {
+        app: app.clone(),
         channel: ChannelContext {
-            app: app.clone(),
+            sink: sink.clone(),
             tab_id: tab_id.clone(),
             session_nonce,
             active: active.clone(),
@@ -168,7 +175,6 @@ fn create_pty_blocking(
         prompt_state,
         stop_rx: stop_rx.clone(),
         exit_tx,
-        output_channel: output_channel.clone(),
         runtime_handle,
     };
 
@@ -189,6 +195,7 @@ fn create_pty_blocking(
         supervisor,
         size,
         output: output_channel,
+        sink,
         serial_view: plan.serial.as_ref().map(|serial| serial.view.clone()),
     };
 
@@ -218,7 +225,7 @@ fn spawn_initial_session(
 
             let sender = crate::terminal::io_batcher::TerminalOutputSender::spawn(
                 &channel.tab_id,
-                tab.output_channel.clone(),
+                channel.sink.clone(),
             );
             terminal::reader::spawn_reader_thread(
                 reader,
@@ -227,11 +234,12 @@ fn spawn_initial_session(
                 Some(sender),
                 ZmodemSettings::load(),
                 None,
+                crate::terminal::reader::reader_log(&tab.app, &channel.tab_id),
             );
 
             #[cfg(unix)]
             terminal::cwd_watch::spawn_cwd_watcher(
-                channel.app.clone(),
+                tab.app.clone(),
                 channel.tab_id.clone(),
                 channel.session_nonce,
                 pid,
@@ -347,7 +355,7 @@ pub fn write_pty(
             .map_err(|e| format!("Failed to write to the serial port: {}", e)),
     };
     if result.is_ok() {
-        session.output.note_input();
+        session.sink.note_input();
         crate::session_log::record_input(&app, &tab_id, &input);
     }
     result
@@ -396,7 +404,7 @@ pub async fn ack_pty_output(
     let map = state.read().await;
     if let Some(session) = map.get(&tab_id) {
         if session.session_nonce == session_nonce {
-            session.output.flow().ack(bytes);
+            session.sink.ack_output(bytes);
         }
     }
     Ok(())
