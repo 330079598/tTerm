@@ -7,15 +7,7 @@ use tterm_core::events::notification::NotificationEvent;
 use tterm_core::events::{AppEvent, EventSink};
 
 pub mod badge;
-#[cfg(all(unix, not(target_os = "macos")))]
-mod launcher_entry;
-#[cfg(all(unix, not(target_os = "macos")))]
-mod linux;
-#[cfg(target_os = "macos")]
-mod macos;
 pub(crate) mod sound;
-#[cfg(target_os = "windows")]
-mod windows;
 
 use serde::{Deserialize, Serialize};
 use tauri::ipc::Response;
@@ -36,7 +28,6 @@ pub struct NotificationRequest {
 }
 
 /// Whether notifications reach the user.
-#[cfg_attr(not(target_os = "macos"), allow(dead_code))]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub enum NotificationPermission {
@@ -50,10 +41,6 @@ pub enum NotificationPermission {
     BadgeOff,
     /// Windows hides the count on taskbar buttons while "Show badges on
     /// taskbar apps" is off.
-    #[cfg_attr(
-        target_os = "macos",
-        expect(dead_code, reason = "only Windows reports it")
-    )]
     TaskbarBadgesOff,
     /// A development build outside an app bundle: shown through AppleScript,
     /// and clicking it does not lead back to the tab.
@@ -63,7 +50,12 @@ pub enum NotificationPermission {
 /// A notification was clicked: show the window and the tab it came from.
 fn activated(app: &AppHandle, tab_id: Option<String>) {
     activate_with_events(
-        || crate::background::show_main_window(app),
+        || {
+            use tauri::Manager;
+            let _ = app
+                .state::<std::sync::Arc<dyn tterm_platform::window::MainWindow>>()
+                .show_and_focus();
+        },
         &crate::event_sink::TauriEventSink::new(app.clone()),
         tab_id,
     );
@@ -80,39 +72,54 @@ fn activate_with_events(show: impl FnOnce(), events: &dyn EventSink, tab_id: Opt
 
 /// Listens for clicks; must run before the first notification is shown.
 pub fn init(app: &AppHandle) {
-    #[cfg(target_os = "macos")]
-    macos::init(app);
-    #[cfg(not(target_os = "macos"))]
-    let _ = app;
+    let native = tterm_platform::native::notification::NativeNotifications {
+        identifier: crate::app_identity::get(app)
+            .map(|id| id.identifier.clone())
+            .unwrap_or_default(),
+        activated: std::sync::Arc::new({
+            let app = app.clone();
+            move |tab_id| activated(&app, tab_id)
+        }),
+    };
+    native.initialize();
+    use tauri::Manager;
+    app.manage(std::sync::Arc::new(native)
+        as std::sync::Arc<dyn tterm_platform::notifications::Notifications>);
 }
 
 /// Resolves once the notification is shown, or with why it was not (macOS
 /// reports a refusal; elsewhere it resolves once handed to the system).
 #[tauri::command]
 pub async fn show_notification(app: AppHandle, request: NotificationRequest) -> Result<(), String> {
-    #[cfg(target_os = "macos")]
-    return {
-        let _ = app;
-        macos::show(request).await
-    };
-    #[cfg(target_os = "windows")]
-    return windows::show(&app, request);
-    #[cfg(all(unix, not(target_os = "macos")))]
-    return linux::show(&app, request);
+    use tauri::Manager;
+    app.state::<std::sync::Arc<dyn tterm_platform::notifications::Notifications>>()
+        .show(tterm_platform::notifications::NotificationRequest {
+            title: request.title,
+            subtitle: request.subtitle,
+            body: request.body,
+            tab_id: request.tab_id,
+            sound: request.sound,
+        })
+        .await
 }
 
 #[tauri::command]
-pub async fn notification_permission() -> NotificationPermission {
-    #[cfg(target_os = "macos")]
-    return macos::permission().await;
-    #[cfg(target_os = "windows")]
-    return if windows::taskbar_badges_on() {
-        NotificationPermission::Granted
-    } else {
-        NotificationPermission::TaskbarBadgesOff
-    };
-    #[cfg(all(unix, not(target_os = "macos")))]
-    NotificationPermission::Granted
+pub async fn notification_permission(app: AppHandle) -> NotificationPermission {
+    use tauri::Manager;
+    use tterm_platform::notifications::NotificationPermission as P;
+    let permission = app
+        .state::<std::sync::Arc<dyn tterm_platform::notifications::Notifications>>()
+        .permission()
+        .await
+        .unwrap_or(P::NotDetermined);
+    match permission {
+        P::Granted => NotificationPermission::Granted,
+        P::Denied => NotificationPermission::Denied,
+        P::NotDetermined => NotificationPermission::NotDetermined,
+        P::BadgeOff => NotificationPermission::BadgeOff,
+        P::TaskbarBadgesOff => NotificationPermission::TaskbarBadgesOff,
+        P::Fallback => NotificationPermission::Fallback,
+    }
 }
 
 /// Copies the audio file at `path` in as the notification sound and returns

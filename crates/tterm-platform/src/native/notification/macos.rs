@@ -5,12 +5,13 @@
 use std::process::Command;
 use std::sync::{Arc, Mutex, OnceLock};
 
+use super::NativeNotifications;
 use block2::{DynBlock, RcBlock};
 use objc2::rc::Retained;
 use objc2::runtime::{AnyObject, Bool, ProtocolObject};
-use objc2::{define_class, msg_send, AllocAnyThread, DefinedClass};
+use objc2::{AllocAnyThread, DefinedClass, define_class, msg_send};
 use objc2_foundation::{
-    ns_string, NSBundle, NSDictionary, NSError, NSObject, NSObjectProtocol, NSString,
+    NSBundle, NSDictionary, NSError, NSObject, NSObjectProtocol, NSString, ns_string,
 };
 use objc2_user_notifications::{
     UNAuthorizationOptions, UNAuthorizationStatus, UNMutableNotificationContent, UNNotification,
@@ -18,13 +19,12 @@ use objc2_user_notifications::{
     UNNotificationSetting, UNNotificationSettings, UNNotificationSound, UNUserNotificationCenter,
     UNUserNotificationCenterDelegate,
 };
-use tauri::AppHandle;
 use tokio::sync::oneshot;
 
-use super::{NotificationPermission, NotificationRequest};
+use crate::notifications::{NotificationPermission, NotificationRequest};
 
 struct DelegateIvars {
-    app: AppHandle,
+    app: NativeNotifications,
 }
 
 define_class!(
@@ -73,7 +73,7 @@ define_class!(
 );
 
 impl Delegate {
-    fn new(app: AppHandle) -> Retained<Self> {
+    fn new(app: NativeNotifications) -> Retained<Self> {
         let this = Self::alloc().set_ivars(DelegateIvars { app });
         // SAFETY: NSObject's init.
         unsafe { msg_send![super(this), init] }
@@ -90,7 +90,7 @@ fn is_app_bundle() -> bool {
     })
 }
 
-pub fn init(app: &AppHandle) {
+pub fn init(app: &NativeNotifications) {
     if !is_app_bundle() {
         return;
     }

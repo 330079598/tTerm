@@ -5,13 +5,13 @@
 use std::collections::VecDeque;
 use std::sync::Mutex;
 
-use tauri::AppHandle;
-use windows::core::HSTRING;
+use super::NativeNotifications;
 use windows::Data::Xml::Dom::XmlDocument;
 use windows::Foundation::TypedEventHandler;
 use windows::UI::Notifications::{ToastNotification, ToastNotificationManager};
+use windows::core::HSTRING;
 
-use super::NotificationRequest;
+use crate::notifications::NotificationRequest;
 
 /// Toasts still on screen or in the Action Center keep their click handler
 /// only while referenced; the oldest are let go.
@@ -26,7 +26,7 @@ const POWERSHELL_APP_ID: &str =
 /// The installer's Start menu shortcut carries the bundle identifier as its
 /// AppUserModelID. A build run from `target/` has no shortcut, and toasts for
 /// an unknown ID are dropped silently.
-fn app_user_model_id(app: &AppHandle) -> String {
+fn app_user_model_id(app: &NativeNotifications) -> Result<String, String> {
     let from_target_dir = std::env::current_exe()
         .ok()
         .and_then(|exe| exe.parent().map(|dir| dir.to_path_buf()))
@@ -39,9 +39,9 @@ fn app_user_model_id(app: &AppHandle) -> String {
             matches!(profile, Some("debug" | "release")) && parent == Some("target")
         });
     if from_target_dir {
-        POWERSHELL_APP_ID.to_string()
+        Ok(POWERSHELL_APP_ID.to_string())
     } else {
-        app.config().identifier.clone()
+        Ok(app.identifier.clone())
     }
 }
 
@@ -69,7 +69,8 @@ fn toast_xml(request: &NotificationRequest) -> String {
     )
 }
 
-pub fn show(app: &AppHandle, request: NotificationRequest) -> Result<(), String> {
+pub fn show(app: &NativeNotifications, request: NotificationRequest) -> Result<(), String> {
+    let app_id = app_user_model_id(app)?;
     let show = || -> windows::core::Result<()> {
         let document = XmlDocument::new()?;
         document.LoadXml(&HSTRING::from(toast_xml(&request)))?;
@@ -80,10 +81,8 @@ pub fn show(app: &AppHandle, request: NotificationRequest) -> Result<(), String>
             super::activated(&app_handle, tab_id.clone());
             Ok(())
         }))?;
-        ToastNotificationManager::CreateToastNotifierWithId(&HSTRING::from(app_user_model_id(
-            app,
-        )))?
-        .Show(&toast)?;
+        ToastNotificationManager::CreateToastNotifierWithId(&HSTRING::from(&app_id))?
+            .Show(&toast)?;
 
         if let Ok(mut toasts) = TOASTS.lock() {
             if toasts.len() >= KEPT_TOASTS {
@@ -99,8 +98,8 @@ pub fn show(app: &AppHandle, request: NotificationRequest) -> Result<(), String>
 /// Whether taskbar buttons show overlays: "Show badges on taskbar apps" under
 /// Settings > Personalization > Taskbar > Taskbar behaviors, on unless set.
 pub fn taskbar_badges_on() -> bool {
+    use windows::Win32::System::Registry::{HKEY_CURRENT_USER, RRF_RT_REG_DWORD, RegGetValueW};
     use windows::core::w;
-    use windows::Win32::System::Registry::{RegGetValueW, HKEY_CURRENT_USER, RRF_RT_REG_DWORD};
 
     let mut badges: u32 = 1;
     let mut size = std::mem::size_of::<u32>() as u32;

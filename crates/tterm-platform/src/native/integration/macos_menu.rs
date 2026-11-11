@@ -5,10 +5,10 @@
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
-use tauri::{AppHandle, Manager};
+use super::IntegrationContext;
 
-use super::launcher::{sh_launcher, tterm_exe, write_if_changed};
 use super::FOLDER_MENU_LABELS;
+use super::launcher::{sh_launcher, tterm_exe, write_if_changed};
 
 /// The menu item: a workflow in the user's ~/Library/Services. It takes its
 /// name from its file, so one in another language is removed.
@@ -17,11 +17,8 @@ pub struct FolderMenu {
 }
 
 impl FolderMenu {
-    pub fn new(app: &AppHandle) -> Result<Self, String> {
-        let home = app
-            .path()
-            .home_dir()
-            .map_err(|error| format!("Failed to find your home folder: {error}"))?;
+    pub fn new(app: &IntegrationContext) -> Result<Self, String> {
+        let home = &app.home_dir;
         Ok(Self {
             services: home.join("Library").join("Services"),
         })

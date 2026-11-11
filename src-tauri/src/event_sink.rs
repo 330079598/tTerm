@@ -22,15 +22,17 @@ use tauri::{AppHandle, Emitter};
 /// Sends typed core events through Tauri while preserving existing event names,
 /// JSON payloads and delivery targets consumed by the WebView.
 #[derive(Clone)]
-pub(crate) struct TauriEventSink {
-    app: AppHandle,
+pub(crate) struct TauriEventSink<R: tauri::Runtime = tauri::Wry> {
+    app: AppHandle<R>,
+}
+
+impl<R: tauri::Runtime> TauriEventSink<R> {
+    pub(crate) fn new(app: AppHandle<R>) -> Self {
+        Self { app }
+    }
 }
 
 impl TauriEventSink {
-    pub(crate) fn new(app: AppHandle) -> Self {
-        Self { app }
-    }
-
     /// Maps domain payloads without touching the window or transport.
     pub(crate) fn wire(event: &AppEvent) -> Result<(EventName, EventTarget, Value), String> {
         let payload = match event {
@@ -47,7 +49,9 @@ impl TauriEventSink {
         };
         Ok((event.name(), event.target(), payload))
     }
+}
 
+impl<R: tauri::Runtime> TauriEventSink<R> {
     fn emit_payload<T: Serialize + Clone>(
         &self,
         name: &str,
@@ -67,9 +71,9 @@ impl TauriEventSink {
     }
 }
 
-impl EventSink for TauriEventSink {
+impl<R: tauri::Runtime> EventSink for TauriEventSink<R> {
     fn emit(&self, event: AppEvent) -> Result<(), String> {
-        let (name, target, payload) = Self::wire(&event)?;
+        let (name, target, payload) = TauriEventSink::wire(&event)?;
         self.emit_payload(&name.as_string(), target, payload)
     }
 }

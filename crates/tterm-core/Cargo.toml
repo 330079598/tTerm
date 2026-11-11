@@ -16,3 +16,7 @@ test-support = []
 dirs = "=7.0.0"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
+gethostname = "=1.1.0"
+tterm-platform = { path = "../tterm-platform" }
+tokio = { version = "1", features = ["fs"] }
+uuid = { version = "1", features = ["v4"] }

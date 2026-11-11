@@ -5,9 +5,9 @@
 use std::process::{Command, Stdio};
 use std::time::{Duration, Instant};
 
-use tauri::AppHandle;
+use super::NativeNotifications;
 
-use super::NotificationRequest;
+use crate::notifications::NotificationRequest;
 
 /// How long to wait for a click before letting `notify-send` go.
 const CLICK_WAIT: Duration = Duration::from_secs(30 * 60);
@@ -16,7 +16,7 @@ const DEFAULT_ACTION: &str = "default";
 /// notification servers that honour the `sound-name` hint.
 const SOUND_HINT: &str = "--hint=string:sound-name:message-new-instant";
 
-pub fn show(app: &AppHandle, request: NotificationRequest) -> Result<(), String> {
+pub fn show(app: &NativeNotifications, request: NotificationRequest) -> Result<(), String> {
     // Fails here rather than silently in the thread when libnotify is missing.
     Command::new("notify-send")
         .arg("--version")
