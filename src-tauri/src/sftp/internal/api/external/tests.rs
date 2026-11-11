@@ -262,3 +262,76 @@ fn macos_lists_the_applications_for_text_with_icons() {
     // A name without an extension is taken for text.
     assert!(!super::apps::apps_for("Makefile").is_empty());
 }
+
+#[tokio::test]
+async fn injected_watch_reports_saves_and_releases_its_dependencies() {
+    use std::sync::atomic::Ordering;
+    use tterm_core::events::recording::RecordingEventSink;
+    use tterm_core::events::{sftp::SftpEvent, AppEvent};
+
+    let dir = TempDir::new();
+    let path = dir.path.join("app.conf");
+    std::fs::write(&path, "old").unwrap();
+    let state = Arc::new(state_with_session(EditStatus::Synced));
+    let mut session = state.remove("one").unwrap();
+    session.local = path.clone();
+    session.edit.local_path = path.display().to_string();
+    session.synced = local::fingerprint(&path).unwrap();
+    session.observed = Some(session.synced.stamp);
+    state.insert(session);
+    let events = Arc::new(RecordingEventSink::default());
+    watch::ensure_running(state.clone(), events.clone());
+    // Repeated opens share the same watcher.
+    watch::ensure_running(state.clone(), events.clone());
+    std::fs::write(&path, "saved with changes").unwrap();
+    tokio::time::timeout(Duration::from_secs(10), async {
+        loop {
+            if !events.events().is_empty() {
+                break;
+            }
+            tokio::time::sleep(Duration::from_millis(25)).await;
+        }
+    })
+    .await
+    .expect("the injected sink receives the save");
+    assert_eq!(
+        events.events(),
+        vec![AppEvent::Sftp(SftpEvent::ExternalEditChanged(
+            state.get("one").unwrap()
+        ))]
+    );
+    assert_eq!(state.get("one").unwrap().status, EditStatus::Modified);
+    state.remove("one");
+    tokio::time::timeout(Duration::from_secs(5), async {
+        while state.watching.load(Ordering::SeqCst) || Arc::strong_count(&events) != 1 {
+            tokio::time::sleep(Duration::from_millis(25)).await;
+        }
+    })
+    .await
+    .expect("the watcher exits after the last session closes");
+    assert_eq!(Arc::strong_count(&state), 1);
+}
+
+#[tokio::test]
+async fn release_service_removes_clean_copies_and_keeps_modified_copies_without_a_client() {
+    let root = TempDir::new();
+    for status in [EditStatus::Synced, EditStatus::Modified] {
+        let dir = local::create_session_dir(&root.path, &uuid::Uuid::new_v4().to_string()).unwrap();
+        let state = Arc::new(state_with_session(status));
+        let mut session = state.remove("one").unwrap();
+        session.dir = dir.clone();
+        state.insert(session);
+        let kept = sftp_external_edit_release_tab_service(
+            SftpExternalEditReleaseTabDependencies {
+                state: state.clone(),
+            },
+            SftpExternalEditReleaseTabInput {
+                tab_id: "tab".to_string(),
+            },
+        )
+        .await;
+        assert!(state.list("tab").is_empty());
+        assert_eq!(dir.exists(), status == EditStatus::Modified);
+        assert_eq!(kept.len(), usize::from(status == EditStatus::Modified));
+    }
+}

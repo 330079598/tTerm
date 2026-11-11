@@ -1,0 +1,46 @@
+src-tauri/src/sftp/internal/api/search.rs:25:use tauri::ipc::Channel;
+src-tauri/src/sftp/internal/api/search.rs:26:use tauri::State;
+src-tauri/src/sftp/internal/api/search.rs:150:#[tauri::command]
+src-tauri/src/sftp/internal/api/archive.rs:19:use tauri::State;
+src-tauri/src/sftp/internal/api/archive.rs:141:#[tauri::command]
+src-tauri/src/sftp/internal/api/archive.rs:168:#[tauri::command]
+src-tauri/src/sftp/internal/api/archive.rs:195:#[tauri::command]
+src-tauri/src/sftp/internal/api/upload/commands.rs:11:use tauri::State;
+src-tauri/src/sftp/internal/api/upload/commands.rs:66:#[tauri::command]
+src-tauri/src/sftp/internal/api/upload/commands.rs:144:#[tauri::command]
+src-tauri/src/sftp/internal/api/upload/commands.rs:173:#[tauri::command]
+src-tauri/src/sftp/internal/api/upload/commands.rs:204:#[tauri::command]
+src-tauri/src/sftp/internal/api/base.rs:10:use tauri::State;
+src-tauri/src/sftp/internal/api/base.rs:104:#[tauri::command]
+src-tauri/src/sftp/internal/api/base.rs:118:#[tauri::command]
+src-tauri/src/sftp/internal/api/base.rs:141:#[tauri::command]
+src-tauri/src/sftp/internal/api/base.rs:164:#[tauri::command]
+src-tauri/src/sftp/internal/api/permissions.rs:7:use tauri::State;
+src-tauri/src/sftp/internal/api/permissions.rs:35:#[tauri::command]
+src-tauri/src/sftp/internal/api/search/contract_tests.rs:4:use tauri::ipc::InvokeResponseBody;
+src-tauri/src/sftp/internal/api/search/contract_tests.rs:41:    let channel = Channel::new(|_| Err(tauri::Error::FailedToReceiveMessage));
+src-tauri/src/sftp/internal/api/edit.rs:10:use tauri::State;
+src-tauri/src/sftp/internal/api/edit.rs:251:#[tauri::command]
+src-tauri/src/sftp/internal/api/edit.rs:274:#[tauri::command]
+src-tauri/src/sftp/internal/api/external/mod.rs:40:use tauri::{AppHandle, Manager, State};
+src-tauri/src/sftp/internal/api/external/mod.rs:289:#[tauri::command]
+src-tauri/src/sftp/internal/api/external/mod.rs:291:    app: AppHandle,
+src-tauri/src/sftp/internal/api/external/mod.rs:323:#[tauri::command]
+src-tauri/src/sftp/internal/api/external/mod.rs:336:#[tauri::command]
+src-tauri/src/sftp/internal/api/external/mod.rs:365:#[tauri::command]
+src-tauri/src/sftp/internal/api/external/mod.rs:366:pub async fn sftp_external_edit_list(tab_id: String, app: AppHandle) -> Vec<ExternalEdit> {
+src-tauri/src/sftp/internal/api/external/mod.rs:378:#[tauri::command]
+src-tauri/src/sftp/internal/api/external/mod.rs:394:#[tauri::command]
+src-tauri/src/sftp/internal/api/external/mod.rs:395:pub async fn sftp_external_edit_release_tab(tab_id: String, app: AppHandle) -> Vec<ExternalEdit> {
+src-tauri/src/sftp/internal/api/external/mod.rs:406:#[tauri::command]
+src-tauri/src/sftp/internal/api/external/mod.rs:421:#[tauri::command]
+src-tauri/src/sftp/internal/api/download.rs:14:use tauri::State;
+src-tauri/src/sftp/internal/api/download.rs:116:#[tauri::command]
+src-tauri/src/sftp/internal/api/download.rs:147:#[tauri::command]
+src-tauri/src/sftp/internal/api/download.rs:187:#[tauri::command]
+src-tauri/src/sftp/internal/api/download.rs:212:#[tauri::command]
+src-tauri/src/sftp/internal/api/search/real_sshd_tests.rs:14:use tauri::ipc::{Channel, InvokeResponseBody};
+src-tauri/src/sftp/internal/api/delete/commands.rs:11:use tauri::State;
+src-tauri/src/sftp/internal/api/delete/commands.rs:12:#[tauri::command]
+src-tauri/src/sftp/internal/api/delete/commands.rs:35:#[tauri::command]
+src-tauri/src/sftp/internal/api/delete/commands.rs:61:#[tauri::command]

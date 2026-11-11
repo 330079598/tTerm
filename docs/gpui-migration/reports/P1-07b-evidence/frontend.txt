@@ -1,0 +1,22 @@
+Console transcript excerpts from the completed run (2026-11-11, macOS arm64).
+Commands, in sequence; combined command exited 0:
+pnpm lint
+pnpm format:check
+pnpm check:tokens
+pnpm typecheck
+pnpm exec vitest run src --maxWorkers=3
+node --test scripts/parity/layout.test.mjs
+pnpm check:size
+
+$ eslint src
+$ prettier --check src
+Checking formatting...
+All matched files use Prettier code style!
+$ node scripts/tokens/generate.mjs --check
+$ tsc --noEmit
+Test Files  183 passed (183)
+Tests       1354 passed (1354)
+Duration    30.99s
+Parity: tests 2 / pass 2 / fail 0 / skipped 0
+file-size: 1191 files within their limits
+Existing Vite native config and jsdom canvas warnings appeared; no failures.

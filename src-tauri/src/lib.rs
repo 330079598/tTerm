@@ -151,8 +151,6 @@ pub fn run() {
     builder
         .manage(pty_map.clone())
         .manage(sftp_pool.clone())
-        .manage(external_edit_state.clone())
-        .manage(transfer_cancel_map.clone())
         .manage(TokioRuntimeState { runtime })
         .manage(secret_store.clone())
         .manage(session_log_state.clone())
@@ -165,7 +163,9 @@ pub fn run() {
                     .is_some_and(|services| {
                         background::on_close_requested(&app_context::background(
                             &services,
-                            sftp::internal::api::external::unuploaded_files(window.app_handle()),
+                            sftp::internal::api::external::unuploaded_files(
+                                &services.sftp.external_edit,
+                            ),
                         ))
                     })
                 {
@@ -524,12 +524,15 @@ pub fn run() {
                 }
             }
 
-            sftp::internal::api::external::clean_up_on_start(&app_handle);
+            if let Ok(paths) = crate::app_paths::get(&app_handle) {
+                sftp::internal::api::external::clean_up_on_start(
+                    paths.inner(),
+                    &services.shared.runtime,
+                );
+            }
             sftp::internal::connection::spawn_idle_reaper(
-                app_handle
-                    .state::<sftp::internal::types::SftpConnectionPool>()
-                    .inner()
-                    .clone(),
+                &services.shared.runtime,
+                services.sftp.pool.clone(),
             );
             notification::init(services.shared.platform.notifications.as_ref());
             #[cfg(target_os = "macos")]
@@ -562,7 +565,9 @@ pub fn run() {
                         .is_some_and(|services| {
                             background::on_exit_requested(&app_context::background(
                                 &services,
-                                sftp::internal::api::external::unuploaded_files(app),
+                                sftp::internal::api::external::unuploaded_files(
+                                    &services.sftp.external_edit,
+                                ),
                             ))
                         })
                     {
@@ -582,7 +587,7 @@ pub fn run() {
                     services.app.tunnels.save_traffic();
                     // Logs keep what they have not written out yet.
                     session_log::shutdown(&services.app.session_log);
-                    sftp::internal::api::external::shutdown(app);
+                    sftp::internal::api::external::shutdown(&services.sftp.external_edit);
                 }
                 // Clicking the Dock icon brings back a window closed to the
                 // background.

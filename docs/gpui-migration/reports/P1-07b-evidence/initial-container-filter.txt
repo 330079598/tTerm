@@ -1,0 +1,59 @@
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.38s
+     Running unittests src/lib.rs (target/debug/deps/t_term_lib-a4658f22393d846c)
+
+running 10 tests
+test sftp::internal::api::delete::container_tests::container_recursive_delete_preserves_sampled_events ... ok
+test sftp::internal::api::external::container_tests::container_external_edit_upload_and_remote_change ... ok
+test sftp::internal::api::search::container_tests::container_recursive_find_walk_and_cancel ... ok
+test sftp::internal::api::upload::event_tests::container_upload_download_and_cancel_record_events ... ok
+test zmodem::container_tests::container_ssh_auth_exec_and_forwarding ... 
+thread 'zmodem::container_tests::container_ssh_auth_exec_and_forwarding' (2377774) panicked at src-tauri/src/zmodem/container_tests.rs:23:5:
+assertion `left == right` failed: explicit disposable host opt-in required
+  left: Err(NotPresent)
+ right: Ok("127.0.0.1:22303")
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+FAILED
+test zmodem::container_tests::container_zmodem_download ... 
+thread 'zmodem::container_tests::container_zmodem_download' (2377775) panicked at src-tauri/src/zmodem/container_tests.rs:23:5:
+assertion `left == right` failed: explicit disposable host opt-in required
+  left: Err(NotPresent)
+ right: Ok("127.0.0.1:22303")
+FAILED
+test zmodem::container_tests::container_zmodem_upload ... 
+thread 'zmodem::container_tests::container_zmodem_upload' (2377776) panicked at src-tauri/src/zmodem/container_tests.rs:23:5:
+assertion `left == right` failed: explicit disposable host opt-in required
+  left: Err(NotPresent)
+ right: Ok("127.0.0.1:22303")
+FAILED
+test zmodem::p1_06_container_tests::container_ssh_auth_exec_and_forwarding ... 
+thread 'zmodem::p1_06_container_tests::container_ssh_auth_exec_and_forwarding' (2377779) panicked at src-tauri/src/zmodem/p1_06_container_tests.rs:23:5:
+assertion `left == right` failed: explicit disposable host opt-in required
+  left: Err(NotPresent)
+ right: Ok("127.0.0.1:22606")
+FAILED
+test zmodem::p1_06_container_tests::container_zmodem_download ... 
+thread 'zmodem::p1_06_container_tests::container_zmodem_download' (2377780) panicked at src-tauri/src/zmodem/p1_06_container_tests.rs:23:5:
+assertion `left == right` failed: explicit disposable host opt-in required
+  left: Err(NotPresent)
+ right: Ok("127.0.0.1:22606")
+FAILED
+test zmodem::p1_06_container_tests::container_zmodem_upload ... 
+thread 'zmodem::p1_06_container_tests::container_zmodem_upload' (2377781) panicked at src-tauri/src/zmodem/p1_06_container_tests.rs:23:5:
+assertion `left == right` failed: explicit disposable host opt-in required
+  left: Err(NotPresent)
+ right: Ok("127.0.0.1:22606")
+FAILED
+
+failures:
+
+failures:
+    zmodem::container_tests::container_ssh_auth_exec_and_forwarding
+    zmodem::container_tests::container_zmodem_download
+    zmodem::container_tests::container_zmodem_upload
+    zmodem::p1_06_container_tests::container_ssh_auth_exec_and_forwarding
+    zmodem::p1_06_container_tests::container_zmodem_download
+    zmodem::p1_06_container_tests::container_zmodem_upload
+
+test result: FAILED. 4 passed; 6 failed; 0 ignored; 0 measured; 979 filtered out; finished in 0.49s
+
+error: test failed, to rerun pass `-p tTerm --lib`

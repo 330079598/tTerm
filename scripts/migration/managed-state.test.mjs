@@ -22,6 +22,8 @@ const arcManaged = [
 // P1-07b, d and e must update this list whenever they remove an individual
 // manage registration. These values must then be read through AppServices.
 const retired = [
+  'TransferCancelMap',
+  'ExternalEditState',
   'CloseBehaviorState',
   'QuitState',
   'ExitGuardState',

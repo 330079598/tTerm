@@ -2,19 +2,21 @@
 //! the work runs as `tar`, `zip` and friends over a command channel of the
 //! tab's pooled connection, and nothing crosses the network but the result.
 
+mod operations;
+use operations::*;
+
 #[cfg(all(test, unix))]
 mod real_sshd_tests;
 mod script;
 
 use crate::core::session::types::PtyConnectionOptions;
-use crate::sftp::internal::api::{with_cancel, SftpHost};
+use crate::services::AppServices;
+use crate::sftp::internal::api::SftpHost;
 use crate::sftp::internal::exec::{run_to_end, ScriptOutcome};
 use crate::sftp::internal::paths::join_remote_path;
-use crate::sftp::internal::types::{SftpConnectionPool, TransferCancelMap};
-use crate::ssh::secret_store::types::SecretStoreState;
 use script::{compress_script, extract_script, ArchiveScript, MISSING_TOOL_STATUS};
 use serde::{Deserialize, Serialize};
-use tauri::{AppHandle, State};
+use tauri::State;
 use tokio::sync::watch;
 
 #[derive(Deserialize, Clone, Copy, Debug, PartialEq, Eq)]
@@ -137,63 +139,55 @@ async fn extract(
 
 /// Packs entries of one folder into a new archive beside them.
 #[tauri::command]
-#[allow(
-    clippy::too_many_arguments,
-    reason = "a Tauri command's arguments are its IPC fields and injected state"
-)]
 pub async fn sftp_compress_entries(
-    app: AppHandle,
     tab_id: String,
     connection: Option<PtyConnectionOptions>,
     operation_id: String,
     request: CompressRequest,
-    prompt_state: State<'_, std::sync::Arc<tterm_core::prompts::PromptBroker>>,
-    secret_state: State<'_, SecretStoreState>,
-    pool_state: State<'_, SftpConnectionPool>,
-    cancel_map: State<'_, TransferCancelMap>,
+    services: State<'_, std::sync::Arc<crate::services::AppServices>>,
 ) -> Result<RemoteOperationResult, String> {
-    let host = SftpHost {
-        app: &app,
-        tab_id: &tab_id,
-        connection,
-        prompts: prompt_state.inner().clone(),
-        secret_state: &secret_state,
-        pool: pool_state.inner(),
-    };
-    with_cancel(cancel_map.inner(), &operation_id, |cancel| {
-        compress(host, request, cancel)
-    })
+    sftp_compress_entries_service(
+        SftpCompressEntriesDependencies {
+            context: crate::connection_context::sftp(&services),
+            prompts: services.shared.prompts.clone(),
+            secrets: services.shared.secrets.clone(),
+            pool: services.sftp.pool.clone(),
+            cancel: services.sftp.transfer_cancel.clone(),
+        },
+        SftpCompressEntriesInput {
+            tab_id,
+            connection,
+            operation_id,
+            request,
+        },
+    )
     .await
 }
 
 /// Unpacks an archive into a folder, which is created when missing.
 #[tauri::command]
-#[allow(
-    clippy::too_many_arguments,
-    reason = "a Tauri command's arguments are its IPC fields and injected state"
-)]
 pub async fn sftp_extract_archive(
-    app: AppHandle,
     tab_id: String,
     connection: Option<PtyConnectionOptions>,
     operation_id: String,
     request: ExtractRequest,
-    prompt_state: State<'_, std::sync::Arc<tterm_core::prompts::PromptBroker>>,
-    secret_state: State<'_, SecretStoreState>,
-    pool_state: State<'_, SftpConnectionPool>,
-    cancel_map: State<'_, TransferCancelMap>,
+    services: State<'_, std::sync::Arc<crate::services::AppServices>>,
 ) -> Result<RemoteOperationResult, String> {
-    let host = SftpHost {
-        app: &app,
-        tab_id: &tab_id,
-        connection,
-        prompts: prompt_state.inner().clone(),
-        secret_state: &secret_state,
-        pool: pool_state.inner(),
-    };
-    with_cancel(cancel_map.inner(), &operation_id, |cancel| {
-        extract(host, request, cancel)
-    })
+    sftp_extract_archive_service(
+        SftpExtractArchiveDependencies {
+            context: crate::connection_context::sftp(&services),
+            prompts: services.shared.prompts.clone(),
+            secrets: services.shared.secrets.clone(),
+            pool: services.sftp.pool.clone(),
+            cancel: services.sftp.transfer_cancel.clone(),
+        },
+        SftpExtractArchiveInput {
+            tab_id,
+            connection,
+            operation_id,
+            request,
+        },
+    )
     .await
 }
 
@@ -201,10 +195,13 @@ pub async fn sftp_extract_archive(
 #[tauri::command]
 pub async fn sftp_cancel_remote_operation(
     operation_id: String,
-    cancel_map: State<'_, TransferCancelMap>,
+    services: State<'_, std::sync::Arc<AppServices>>,
 ) -> Result<(), String> {
-    if let Some(sender) = cancel_map.read().await.get(&operation_id) {
-        let _ = sender.send(true);
-    }
-    Ok(())
+    sftp_cancel_remote_operation_service(
+        SftpCancelRemoteOperationDependencies {
+            cancel: services.sftp.transfer_cancel.clone(),
+        },
+        SftpCancelRemoteOperationInput { operation_id },
+    )
+    .await
 }

@@ -1,29 +1,22 @@
-use crate::event_sink::TauriEventSink;
+mod operations;
+use operations::*;
 use tterm_core::events::sftp::SftpEvent;
 use tterm_core::events::{AppEvent, EventSink};
 mod items;
 use crate::core::session::types::PtyConnectionOptions;
-use crate::sftp::internal::api::conflict::{self, ConflictReport, TransferConflict};
-use crate::sftp::internal::api::prepare_transfer;
-use crate::sftp::internal::connection::ensure_ssh_plan;
+use crate::sftp::internal::api::conflict::ConflictReport;
 use crate::sftp::internal::transfer::{
     self, ProgressSink, RemoteChannels, TransferError, TransferOptions, TransferProgress,
 };
-use crate::sftp::internal::types::{SftpConnectionPool, TransferCancelMap};
-use crate::ssh::secret_store::types::SecretStoreState;
+use crate::sftp::internal::types::TransferCancelMap;
 use std::path::PathBuf;
 use std::sync::Arc;
-use tauri::{AppHandle, State};
+use tauri::State;
 use tokio::sync::watch;
 use tterm_core::events::sftp::download::DownloadProgressEvent;
 use tterm_core::sftp::conflict::ConflictPolicy;
 
 mod directory;
-
-use directory::{
-    collect_download_plan, download_directory_with_progress, remote_basename,
-    DirectoryDownloadRequest, DownloadTarget,
-};
 
 fn is_cancelled(cancel_rx: &mut watch::Receiver<bool>) -> bool {
     *cancel_rx.borrow_and_update()
@@ -121,42 +114,30 @@ pub(crate) async fn download_file_with_progress(
 }
 
 #[tauri::command]
-#[allow(
-    clippy::too_many_arguments,
-    reason = "a Tauri command's arguments are its IPC fields and injected state"
-)]
 pub async fn sftp_download_file(
-    app: AppHandle,
     tab_id: String,
     connection: Option<PtyConnectionOptions>,
     transfer_id: String,
     remote_path: String,
     local_path: String,
-    prompt_state: State<'_, std::sync::Arc<tterm_core::prompts::PromptBroker>>,
-    secret_state: State<'_, SecretStoreState>,
-    pool_state: State<'_, SftpConnectionPool>,
-    cancel_map: State<'_, TransferCancelMap>,
+    services: State<'_, std::sync::Arc<crate::services::AppServices>>,
 ) -> Result<(), String> {
-    let events: Arc<dyn EventSink> = Arc::new(TauriEventSink::new(app.clone()));
-    let plan = ensure_ssh_plan(&secret_state, connection)?;
-
-    let (_sftp, channels) = prepare_transfer(
-        &app,
-        &tab_id,
-        &plan,
-        prompt_state.inner().clone(),
-        pool_state.inner(),
-    )
-    .await?;
-
-    download_file_with_progress(
-        &events,
-        &tab_id,
-        channels,
-        cancel_map.inner(),
-        &transfer_id,
-        &remote_path,
-        &local_path,
+    sftp_download_file_service(
+        SftpDownloadFileDependencies {
+            context: crate::connection_context::sftp(&services),
+            prompts: services.shared.prompts.clone(),
+            secrets: services.shared.secrets.clone(),
+            pool: services.sftp.pool.clone(),
+            cancel: services.sftp.transfer_cancel.clone(),
+            events: services.shared.events.clone(),
+        },
+        SftpDownloadFileInput {
+            tab_id,
+            connection,
+            transfer_id,
+            remote_path,
+            local_path,
+        },
     )
     .await
 }
@@ -169,7 +150,6 @@ pub async fn sftp_download_file(
     reason = "a Tauri command's arguments are its IPC fields and injected state"
 )]
 pub async fn sftp_download_paths(
-    app: AppHandle,
     tab_id: String,
     connection: Option<PtyConnectionOptions>,
     transfer_id: String,
@@ -177,37 +157,25 @@ pub async fn sftp_download_paths(
     local_parent_path: String,
     skip_existing: Option<bool>,
     conflict_policy: Option<ConflictPolicy>,
-    prompt_state: State<'_, std::sync::Arc<tterm_core::prompts::PromptBroker>>,
-    secret_state: State<'_, SecretStoreState>,
-    pool_state: State<'_, SftpConnectionPool>,
-    cancel_map: State<'_, TransferCancelMap>,
+    services: State<'_, std::sync::Arc<crate::services::AppServices>>,
 ) -> Result<(), String> {
-    let events: Arc<dyn EventSink> = Arc::new(TauriEventSink::new(app.clone()));
-    let plan = ensure_ssh_plan(&secret_state, connection)?;
-
-    let (sftp, channels) = prepare_transfer(
-        &app,
-        &tab_id,
-        &plan,
-        prompt_state.inner().clone(),
-        pool_state.inner(),
-    )
-    .await?;
-
-    download_directory_with_progress(
-        DownloadTarget {
-            events: &events,
-            tab_id: &tab_id,
-            cancel_map: cancel_map.inner(),
+    sftp_download_paths_service(
+        SftpDownloadPathsDependencies {
+            context: crate::connection_context::sftp(&services),
+            prompts: services.shared.prompts.clone(),
+            secrets: services.shared.secrets.clone(),
+            pool: services.sftp.pool.clone(),
+            cancel: services.sftp.transfer_cancel.clone(),
+            events: services.shared.events.clone(),
         },
-        &sftp,
-        &channels,
-        DirectoryDownloadRequest {
-            transfer_id: &transfer_id,
-            remote_paths: &remote_paths,
-            local_parent_path: &local_parent_path,
+        SftpDownloadPathsInput {
+            tab_id,
+            connection,
+            transfer_id,
+            remote_paths,
+            local_parent_path,
             skip_existing,
-            policy: conflict_policy.unwrap_or_default(),
+            conflict_policy,
         },
     )
     .await
@@ -217,73 +185,33 @@ pub async fn sftp_download_paths(
 /// already exist locally. Nothing can collide unless one of the remote roots
 /// already exists locally, so the remote trees are only walked when one does.
 #[tauri::command]
-#[allow(
-    clippy::too_many_arguments,
-    reason = "a Tauri command's arguments are its IPC fields and injected state"
-)]
 pub async fn sftp_check_download_conflicts(
-    app: AppHandle,
     tab_id: String,
     connection: Option<PtyConnectionOptions>,
     remote_paths: Vec<String>,
     local_parent_path: String,
-    prompt_state: State<'_, std::sync::Arc<tterm_core::prompts::PromptBroker>>,
-    secret_state: State<'_, SecretStoreState>,
-    pool_state: State<'_, SftpConnectionPool>,
+    services: State<'_, std::sync::Arc<crate::services::AppServices>>,
 ) -> Result<ConflictReport, String> {
-    let local_parent = PathBuf::from(&local_parent_path);
-    let mut any_root_exists = false;
-    for remote_path in &remote_paths {
-        let root_name = remote_basename(remote_path)?;
-        if tokio::fs::metadata(local_parent.join(&root_name))
-            .await
-            .is_ok()
-        {
-            any_root_exists = true;
-            break;
-        }
-    }
-    if !any_root_exists {
-        return Ok(ConflictReport::default());
-    }
-
-    let plan = ensure_ssh_plan(&secret_state, connection)?;
-    with_sftp!(&app, &tab_id, &plan, prompt_state.inner().clone(), pool_state.inner(), sftp => {
-        let download_plan = collect_download_plan(sftp, &remote_paths).await?;
-        let mut report = ConflictReport {
-            file_count: download_plan.files.len(),
-            ..ConflictReport::default()
-        };
-
-        for item in &download_plan.files {
-            let local_path = local_parent.join(&item.relative_path);
-            let Some(target) = conflict::local_target_stat(&local_path).await else {
-                continue;
-            };
-            report.push(TransferConflict {
-                source_path: item.remote_path.clone(),
-                target_path: local_path.display().to_string(),
-                source_size: item.size,
-                source_mtime: item.mtime,
-                target_size: target.size,
-                target_mtime: target.mtime,
-                target_is_dir: target.is_dir,
-            });
-        }
-
-        Ok(report)
-    })
+    sftp_check_download_conflicts_service(
+        SftpCheckDownloadConflictsDependencies {
+            context: crate::connection_context::sftp(&services),
+            prompts: services.shared.prompts.clone(),
+            secrets: services.shared.secrets.clone(),
+            pool: services.sftp.pool.clone(),
+        },
+        SftpCheckDownloadConflictsInput {
+            tab_id,
+            connection,
+            remote_paths,
+            local_parent_path,
+        },
+    )
+    .await
 }
 
 #[tauri::command]
 pub async fn get_file_size(local_path: String) -> Result<u64, String> {
-    tokio::task::spawn_blocking(move || {
-        std::fs::metadata(&local_path)
-            .map(|metadata| metadata.len())
-            .map_err(|err| format!("Failed to get file size for '{local_path}': {err}"))
-    })
-    .await
-    .map_err(|err| format!("Task join error: {err}"))?
+    operations::get_file_size_service(local_path).await
 }
 
 #[cfg(test)]

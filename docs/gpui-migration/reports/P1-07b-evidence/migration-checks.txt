@@ -1,0 +1,13 @@
+✔ command signatures match the checked in baseline (23.803083ms)
+✔ command signatures include the generated handler list (12.484541ms)
+✔ managed state scanner catches injection and lookup regressions (2.51175ms)
+✔ Tauri state readers match the remaining managed registrations (23.327083ms)
+✔ services contain no Tauri adapter types (1.065167ms)
+ℹ tests 5
+ℹ suites 0
+ℹ pass 5
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 89.973042

@@ -1,4 +1,5 @@
 use super::*;
+use crate::sftp::internal::connection::SftpContext;
 use crate::sftp::internal::connection::{
     connect_authenticated_ssh, get_or_create_sftp_connection, map_sftp_error, pooled_handles,
 };
@@ -8,11 +9,10 @@ use russh_sftp::client::SftpSession;
 use std::future::Future;
 use std::pin::Pin;
 use std::sync::Arc;
-use tauri::AppHandle;
 use tterm_core::events::sftp::SftpEvent;
 use tterm_core::events::{AppEvent, EventSink};
 pub(super) async fn preview_delete_entries(
-    app: &AppHandle,
+    app: &SftpContext,
     tab_id: &str,
     plan: &crate::core::session::types::SessionPlan,
     prompts: std::sync::Arc<tterm_core::prompts::PromptBroker>,
@@ -316,7 +316,7 @@ fn delete_directory_recursive_with_progress<'a>(
 
 /// One delete the user started: what to delete, how, and on which connection.
 pub(super) struct DeleteBatch {
-    pub(super) app: AppHandle,
+    pub(super) app: SftpContext,
     pub(super) events: Arc<dyn EventSink>,
     pub(super) tab_id: String,
     pub(super) plan: crate::core::session::types::SessionPlan,
@@ -428,7 +428,7 @@ async fn run_delete_command_as_root(
 }
 
 async fn get_or_create_delete_sftp(
-    app: &AppHandle,
+    app: &SftpContext,
     tab_id: &str,
     plan: &crate::core::session::types::SessionPlan,
     prompts: std::sync::Arc<tterm_core::prompts::PromptBroker>,

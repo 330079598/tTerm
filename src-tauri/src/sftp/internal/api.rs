@@ -54,6 +54,7 @@ pub mod search;
 pub mod upload;
 
 use crate::core::session::types::{PtyConnectionOptions, SessionPlan};
+use crate::sftp::internal::connection::SftpContext;
 use crate::sftp::internal::connection::{
     ensure_ssh_plan, evict_connection, get_or_create_sftp_connection, pooled_handles,
 };
@@ -70,7 +71,6 @@ use std::future::Future;
 use std::sync::PoisonError;
 use std::sync::{Arc, LazyLock, RwLock};
 use std::time::SystemTime;
-use tauri::AppHandle;
 
 /// Resolved parallelism cached against the config file's mtime: transfers
 /// resolve this per file (directory batches), and re-reading + re-parsing the
@@ -141,7 +141,7 @@ pub fn apply_bandwidth_limits(config: &crate::config::AppConfig) {
 
 /// What a command that works on the tab's host needs to reach it.
 pub struct SftpHost<'a> {
-    pub app: &'a AppHandle,
+    pub app: &'a SftpContext,
     pub tab_id: &'a str,
     pub connection: Option<PtyConnectionOptions>,
     pub prompts: std::sync::Arc<tterm_core::prompts::PromptBroker>,
@@ -183,7 +183,7 @@ where
 /// over that single SSH connection. Returns the high-level control session and
 /// the raw parallel channels.
 pub async fn prepare_transfer(
-    app: &AppHandle,
+    app: &SftpContext,
     tab_id: &str,
     plan: &SessionPlan,
     prompts: std::sync::Arc<tterm_core::prompts::PromptBroker>,

@@ -172,14 +172,13 @@ pub(crate) fn on_exit_requested(context: &BackgroundContext) -> bool {
 /// Resolves the UI's close choice using the same close policy as native events.
 #[tauri::command]
 pub fn resolve_close_request(
-    app: tauri::AppHandle,
     action: String,
     services: tauri::State<'_, Arc<crate::services::AppServices>>,
 ) {
     resolve_close(
         &crate::app_context::background(
             &services,
-            crate::sftp::internal::api::external::unuploaded_files(&app),
+            crate::sftp::internal::api::external::unuploaded_files(&services.sftp.external_edit),
         ),
         &action,
     );
