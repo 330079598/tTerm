@@ -373,7 +373,26 @@ pub fn run() {
             let app_handle = app.handle().clone();
             app_paths::initialize(&app_handle)?;
             app_identity::initialize(&app_handle);
-            let platform_services = platform::initialize(&app_handle);
+            let events: Arc<dyn tterm_core::events::EventSink> =
+                Arc::new(event_sink::TauriEventSink::new(app_handle.clone()));
+            let notifications = notification::create(
+                app_identity::get(&app_handle)?.identifier.clone(),
+                platform::main_window(app_handle.clone()),
+                events.clone(),
+            );
+            let prompts = Arc::new(tterm_core::prompts::PromptBroker::new(events.clone()));
+            app.manage(prompts.clone());
+            let integration = system_integration::initialize((|| {
+                Ok(tterm_platform::native::integration::IntegrationContext {
+                    local_data_dir: app_paths::get(&app_handle)?.local_data_dir.clone(),
+                    identifier: app_identity::get(&app_handle)?.identifier.clone(),
+                    home_dir: app_handle
+                        .path()
+                        .home_dir()
+                        .map_err(|e| format!("Failed to find your home folder: {e}"))?,
+                })
+            })());
+            let platform_services = platform::initialize(&app_handle, notifications, integration);
             app.manage(platform_services.badge.clone());
             app.manage(platform_services.tray.clone());
             app.manage(platform_services.file_drag.clone());
@@ -383,9 +402,6 @@ pub fn run() {
             app.manage(platform_services.updates.clone());
             app.manage(platform_services.open.clone());
             app.manage(platform_services.clipboard.clone());
-            let events: Arc<dyn tterm_core::events::EventSink> =
-                Arc::new(event_sink::TauriEventSink::new(app_handle.clone()));
-            let prompts = Arc::new(tterm_core::prompts::PromptBroker::new(events.clone()));
             let services = Arc::new(services::AppServices {
                 shared: services::shared::SharedServices {
                     events,
@@ -419,9 +435,7 @@ pub fn run() {
                 },
             });
             services.validate_wiring();
-            app.manage(prompts);
-            app.manage(services);
-            system_integration::initialize(&app_handle);
+            app.manage(services.clone());
             launch_dir::open_from_startup(&app_handle);
 
             if let Err(err) = updater::cleanup_stale_pending_update_files(&app_handle) {
@@ -486,13 +500,16 @@ pub fn run() {
                     .inner()
                     .clone(),
             );
-            notification::init(&app_handle);
+            notification::init(services.shared.platform.notifications.as_ref());
             #[cfg(target_os = "macos")]
             terminal::pty::preload_login_shell_env();
             main_window::create_main_window(app, cfg.as_ref())?;
             let cfg = cfg.unwrap_or_default();
             background::apply_config(&app_handle, &cfg);
-            system_integration::apply_config(&app_handle, &cfg);
+            runtime_handle.block_on(system_integration::apply_config(
+                &services.shared.platform.integration,
+                &cfg,
+            ));
 
             Ok(())
         })

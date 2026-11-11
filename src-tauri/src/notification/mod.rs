@@ -9,9 +9,10 @@ use tterm_core::events::{AppEvent, EventSink};
 pub mod badge;
 pub(crate) mod sound;
 
+use crate::services::AppServices;
 use serde::{Deserialize, Serialize};
+use std::sync::Arc;
 use tauri::ipc::Response;
-use tauri::AppHandle;
 
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -47,20 +48,6 @@ pub enum NotificationPermission {
     Fallback,
 }
 
-/// A notification was clicked: show the window and the tab it came from.
-fn activated(app: &AppHandle, tab_id: Option<String>) {
-    activate_with_events(
-        || {
-            use tauri::Manager;
-            let _ = app
-                .state::<std::sync::Arc<dyn tterm_platform::window::MainWindow>>()
-                .show_and_focus();
-        },
-        &crate::event_sink::TauriEventSink::new(app.clone()),
-        tab_id,
-    );
-}
-
 fn activate_with_events(show: impl FnOnce(), events: &dyn EventSink, tab_id: Option<String>) {
     show();
     if let Err(error) = events.emit(AppEvent::Notification(NotificationEvent::Activated(
@@ -70,29 +57,42 @@ fn activate_with_events(show: impl FnOnce(), events: &dyn EventSink, tab_id: Opt
     }
 }
 
-/// Listens for clicks; must run before the first notification is shown.
-pub fn init(app: &AppHandle) {
-    let native = tterm_platform::native::notification::NativeNotifications {
-        identifier: crate::app_identity::get(app)
-            .map(|id| id.identifier.clone())
-            .unwrap_or_default(),
-        activated: std::sync::Arc::new({
-            let app = app.clone();
-            move |tab_id| activated(&app, tab_id)
+/// Constructs the notification capability without registering callbacks or doing I/O.
+pub fn create(
+    identifier: String,
+    window: std::sync::Arc<dyn tterm_platform::window::MainWindow>,
+    events: std::sync::Arc<dyn EventSink>,
+) -> std::sync::Arc<dyn tterm_platform::notifications::Notifications> {
+    std::sync::Arc::new(tterm_platform::native::notification::NativeNotifications {
+        identifier,
+        activated: std::sync::Arc::new(move |tab_id| {
+            activate_with_events(
+                || {
+                    let _ = window.show_and_focus();
+                },
+                events.as_ref(),
+                tab_id,
+            );
         }),
-    };
-    native.initialize();
-    use tauri::Manager;
-    app.manage(std::sync::Arc::new(native)
-        as std::sync::Arc<dyn tterm_platform::notifications::Notifications>);
+    })
+}
+
+/// Registers the delegate at the original startup position using the same capability.
+pub fn init(notifications: &dyn tterm_platform::notifications::Notifications) {
+    notifications.initialize();
 }
 
 /// Resolves once the notification is shown, or with why it was not (macOS
 /// reports a refusal; elsewhere it resolves once handed to the system).
 #[tauri::command]
-pub async fn show_notification(app: AppHandle, request: NotificationRequest) -> Result<(), String> {
-    use tauri::Manager;
-    app.state::<std::sync::Arc<dyn tterm_platform::notifications::Notifications>>()
+pub async fn show_notification(
+    request: NotificationRequest,
+    services: tauri::State<'_, Arc<AppServices>>,
+) -> Result<(), String> {
+    services
+        .shared
+        .platform
+        .notifications
         .show(tterm_platform::notifications::NotificationRequest {
             title: request.title,
             subtitle: request.subtitle,
@@ -104,11 +104,14 @@ pub async fn show_notification(app: AppHandle, request: NotificationRequest) -> 
 }
 
 #[tauri::command]
-pub async fn notification_permission(app: AppHandle) -> NotificationPermission {
-    use tauri::Manager;
+pub async fn notification_permission(
+    services: tauri::State<'_, Arc<AppServices>>,
+) -> NotificationPermission {
     use tterm_platform::notifications::NotificationPermission as P;
-    let permission = app
-        .state::<std::sync::Arc<dyn tterm_platform::notifications::Notifications>>()
+    let permission = services
+        .shared
+        .platform
+        .notifications
         .permission()
         .await
         .unwrap_or(P::NotDetermined);

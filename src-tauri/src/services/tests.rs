@@ -78,3 +78,31 @@ fn app_services_arc_ptr_eq_matches_legacy_states() {
     assert!(Arc::ptr_eq(&app.tray, &tray));
     assert!(Arc::ptr_eq(&app.pending_updates, &pending_updates));
 }
+
+#[test]
+fn added_platform_capabilities_keep_the_same_instances_and_error() {
+    let app = tauri::test::mock_builder()
+        .build(tauri::test::mock_context(tauri::test::noop_assets()))
+        .unwrap();
+    let notifications: Arc<dyn tterm_platform::notifications::Notifications> =
+        Arc::new(tterm_platform::native::notification::NativeNotifications {
+            identifier: "test.p1-07d".into(),
+            activated: Arc::new(|_| {}),
+        });
+    let integration: Arc<dyn tterm_platform::integration::SystemIntegration> =
+        Arc::new(tterm_platform::native::integration::IntegrationContext {
+            local_data_dir: std::env::temp_dir(),
+            identifier: "test.p1-07d".into(),
+            home_dir: std::env::temp_dir(),
+        });
+    let platform =
+        crate::platform::initialize(app.handle(), notifications.clone(), Ok(integration.clone()));
+    assert!(Arc::ptr_eq(&platform.notifications, &notifications));
+    assert!(Arc::ptr_eq(
+        platform.integration.as_ref().unwrap(),
+        &integration
+    ));
+    let platform =
+        crate::platform::initialize(app.handle(), notifications, Err("unavailable".into()));
+    assert_eq!(platform.integration.err().as_deref(), Some("unavailable"));
+}
