@@ -8,7 +8,7 @@ use tterm_core::events::{AppEvent, EventSink};
 use serde::Serialize;
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;
-use tauri::{AppHandle, Manager};
+use tterm_core::paths::AppPaths;
 
 /// Kept while an instance started with a directory runs. A restart, after an
 /// update or from the app, starts tTerm with the arguments it was started
@@ -31,13 +31,21 @@ pub struct LaunchDirs(Mutex<Vec<LaunchDir>>);
 /// Takes the directories waiting to be opened. The frontend calls it once it
 /// has restored the session and again on every `launch-dirs`.
 #[tauri::command]
-pub fn take_launch_dirs(state: tauri::State<'_, Arc<LaunchDirs>>) -> Vec<LaunchDir> {
-    std::mem::take(&mut *state.inner().0.lock().unwrap_or_else(|e| e.into_inner()))
+pub fn take_launch_dirs(
+    services: tauri::State<'_, Arc<crate::services::AppServices>>,
+) -> Vec<LaunchDir> {
+    services.app.launch_dirs.take()
+}
+
+impl LaunchDirs {
+    fn take(&self) -> Vec<LaunchDir> {
+        std::mem::take(&mut *self.0.lock().unwrap_or_else(|e| e.into_inner()))
+    }
 }
 
 /// Queues the directories tTerm was started with, unless this start is a
 /// restart that repeats the arguments of one that opened them already.
-pub fn open_from_startup(app: &AppHandle) {
+pub fn open_from_startup(state: &LaunchDirs, events: &dyn EventSink, paths: &AppPaths) {
     let args: Vec<String> = std::env::args_os()
         .map(|arg| arg.to_string_lossy().into_owned())
         .collect();
@@ -46,7 +54,7 @@ pub fn open_from_startup(app: &AppHandle) {
     if dirs.is_empty() {
         return;
     }
-    if let Some(marker) = marker_path(app) {
+    if let Some(marker) = marker_path(paths) {
         if marker.exists() {
             return;
         }
@@ -54,22 +62,27 @@ pub fn open_from_startup(app: &AppHandle) {
             eprintln!("Failed to mark the start directory as opened: {error}");
         }
     }
-    queue(app, dirs);
+    queue_with_events(state, dirs, events);
 }
 
 /// Queues the directories a second launch asked for. The single-instance
 /// plugin hands its command line and working directory to the running instance.
-pub fn open_from_second_launch(app: &AppHandle, args: &[String], cwd: &str) {
+pub fn open_from_second_launch(
+    state: &LaunchDirs,
+    events: &dyn EventSink,
+    args: &[String],
+    cwd: &str,
+) {
     let dirs = requested_dirs(args, Path::new(cwd));
     if !dirs.is_empty() {
-        queue(app, dirs);
+        queue_with_events(state, dirs, events);
     }
 }
 
 /// Lets the next start open its directory again. Called when tTerm quits; a
 /// restart skips it, and a crash leaves the marker for one start to skip.
-pub fn forget_startup_dir(app: &AppHandle) {
-    let Some(marker) = marker_path(app) else {
+pub fn forget_startup_dir(paths: &AppPaths) {
+    let Some(marker) = marker_path(paths) else {
         return;
     };
     if let Err(error) = std::fs::remove_file(&marker) {
@@ -124,14 +137,6 @@ fn unquoted(arg: &str) -> String {
     arg.to_string()
 }
 
-fn queue(app: &AppHandle, dirs: Vec<LaunchDir>) {
-    queue_with_events(
-        &app.state::<Arc<LaunchDirs>>(),
-        dirs,
-        &crate::event_sink::TauriEventSink::new(app.clone()),
-    );
-}
-
 fn queue_with_events(state: &LaunchDirs, dirs: Vec<LaunchDir>, events: &dyn EventSink) {
     state
         .0
@@ -144,8 +149,8 @@ fn queue_with_events(state: &LaunchDirs, dirs: Vec<LaunchDir>, events: &dyn Even
     }
 }
 
-fn marker_path(app: &AppHandle) -> Option<PathBuf> {
-    let dir = crate::app_paths::get(app).ok()?.cache_dir.clone();
+fn marker_path(paths: &AppPaths) -> Option<PathBuf> {
+    let dir = paths.cache_dir.clone();
     std::fs::create_dir_all(&dir).ok()?;
     Some(dir.join(STARTED_WITH_DIR_MARKER))
 }
