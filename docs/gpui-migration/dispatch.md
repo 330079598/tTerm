@@ -119,6 +119,7 @@ scripts/migration/run-codex.ps1 -Card <ID> -Worktree ..\tTerm-<ID> -PromptFile <
 ## 5. 安全规则
 
 - **真实数据**：`com.stone.tTerm` 与 `com.stone.tTerm.dev` 两个标识的数据目录里是 stone 的真实连接，不得以这两个标识运行 Tauri 版，也不得读写它们的目录。
+- **Tauri 版**：按[决策 017](decisions/017-gpui-branch-tauri-untested.md)，`GPUI` 分支上的 Tauri 版不再人工验证，执行者一般不需要运行它。确实要运行时（例如排查自动化测试抓不到的问题），按下面的做法隔离。
 - **隔离运行 Tauri**：
   - 用临时标识，写进 `target/` 下的一个 JSON 文件，传给 `--config`。直接在命令行写 JSON 会被 pnpm 弄丢引号。
   - 再把旧版数据的来源指向一个空目录，因为 `src-tauri/src/migrate.rs` 会把旧版目录里的 profiles 与 session 复制进新标识的目录：

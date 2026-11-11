@@ -1,6 +1,6 @@
 # P1 抽取共享业务核心
 
-目标：业务逻辑脱离 Tauri 和 GPUI 运行，两个客户端调用同一套服务。完成后 Tauri 版行为不变，GPUI 原型可以经同一服务建立和关闭本地与 SSH 会话。
+目标：业务逻辑脱离 Tauri 和 GPUI 运行，两个客户端调用同一套服务。完成后 core 逻辑的行为不变（`GPUI` 分支上的 Tauri 版不再人工验证，见[决策 017](decisions/017-gpui-branch-tauri-untested.md)），GPUI 原型可以经同一服务建立和关闭本地与 SSH 会话。
 
 本阶段全部是重构。[执行规则](README.md#2-执行规则)第 2 至 4 条在这里最重要：不改行为，移动与修改分开，不改持久化格式。
 
@@ -33,7 +33,7 @@
 - 产出：`AppPaths` 及其两种构造方式、单元测试。
 - 验收：
   - 一个测试在三平台 CI 上比较两种构造方式的结果完全相同。
-  - Tauri 版启动后读写的目录与改动前相同，报告附改动前后的目录列表。
+  - ~~Tauri 版启动后读写的目录与改动前相同，报告附改动前后的目录列表。~~（[决策 017](decisions/017-gpui-branch-tauri-untested.md) 取消）
 - 评估重点：Linux 上 XDG 环境变量的处理；Windows 上 Roaming 与 Local 的区别；macOS 上 `Application Support` 与 `Caches`。
 - 不做：迁移或改名任何目录。
 
@@ -51,7 +51,7 @@
 - 验收：
   - `tunnel` 模块不再引用 `AppHandle` 来发事件。
   - 一个测试证明 `TauriEventSink` 为每个 `tunnel` 事件生成的事件名与 payload JSON 与改动前一致。
-  - 隧道面板在 Tauri 版中工作正常，附操作录屏或手工验证步骤。
+  - ~~隧道面板在 Tauri 版中工作正常，附操作录屏或手工验证步骤。~~（[决策 017](decisions/017-gpui-branch-tauri-untested.md) 取消）
 - 评估重点：事件枚举是否过早设计成一个巨大的类型；按领域拆分是否便于 GPUI 端订阅。
 
 ## P1-03 迁移非 SFTP 模块的事件
@@ -65,7 +65,7 @@
 - 验收：
   - 对每个事件，有测试比较事件名与 payload JSON。
   - `grep` 证明这些模块中没有剩余的 `.emit(` 或 `.emit_to(` 调用，适配器除外。
-  - 前端测试全部通过，`pnpm tauri dev` 中手工验证 SSH 连接、ZMODEM、串口、退出确认、通知点击。
+  - 前端测试全部通过；~~`pnpm tauri dev` 中手工验证 SSH 连接、ZMODEM、串口、退出确认、通知点击。~~（[决策 017](decisions/017-gpui-branch-tauri-untested.md) 取消）
 - 评估重点：事件发送的时序是否改变，特别是退出流程中的 `app-will-quit`。
 - 不做：`AppHandle` 的其他用途（窗口、托盘、路径），留给 P1-06 至 P1-08。
 
@@ -76,7 +76,7 @@
 - 参考：`src-tauri/src/sftp/`（53 个文件，约 1.4 万行，19 个文件引用 Tauri）
 - 工作：迁移 SFTP 的 25 处事件发送，包括上传、下载、删除、搜索、外部编辑（`sftp-external-edit`）、批次完成等进度事件。搜索结果目前经 `ipc::Channel` 发送（`sftp/internal/api/search.rs`），改为由 core 定义的流式接口，Tauri 适配器转回 Channel。
 - 产出：SFTP 模块不再用 `AppHandle` 发事件。
-- 验收：同 P1-03；另需在 Tauri 版中手工验证上传、下载、删除、递归搜索、外部编辑与取消。
+- 验收：同 P1-03；~~另需在 Tauri 版中手工验证上传、下载、删除、递归搜索、外部编辑与取消。~~（决策 017 取消）
 - 评估重点：高频进度事件的节流是否保持原样。
 
 ## P1-05 PromptBroker
@@ -92,7 +92,7 @@
 - 验收：
   - 单元测试覆盖：正常回复、超时、取消、重复回复、回复不存在的 ID。
   - 跳板链中多跳依次提示的顺序不变。
-  - 用现有 WSL podman 测试主机手工验证主机密钥变化、密码错误重试、键盘交互认证。
+  - ~~用现有 WSL podman 测试主机手工验证主机密钥变化、密码错误重试、键盘交互认证。~~（[决策 017](decisions/017-gpui-branch-tauri-untested.md) 取消）
 - 评估重点：会话关闭时是否所有等待都被取消，没有悬挂的任务；`session_nonce` 对迟到回复的隔离是否保留。
 
 ## P1-06 会话输出接口
@@ -107,7 +107,7 @@
 - 产出：`SessionSink` 及 Tauri 实现，所有会话类型改用它。
 - 验收：
   - `ChannelContext` 不再含有 Tauri 类型。
-  - P0-01 的吞吐负载下，Tauri 版的吞吐与内存与改动前相差不超过 5%。
+  - ~~P0-01 的吞吐负载下，Tauri 版的吞吐与内存与改动前相差不超过 5%。~~（[决策 017](decisions/017-gpui-branch-tauri-untested.md) 取消）
   - 一个测试用记录型 sink 驱动本地 PTY，验证输出、背压暂停与恢复。
 - 评估重点：背压与取消在会话关闭时的行为；锁的持有范围是否扩大。
 
