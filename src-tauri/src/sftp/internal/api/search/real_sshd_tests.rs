@@ -6,6 +6,7 @@ use super::find::{FindOutcome, FindSearch};
 use super::matcher::NameMatcher;
 use super::walk::walk;
 use super::{ResultSink, MAX_RESULTS};
+use crate::event_sink::search::TauriSearchResultSink;
 use crate::sftp::internal::launcher::ChannelLauncher;
 use crate::ssh::test_sshd::{TempDir, TestSshd};
 use std::path::Path;
@@ -36,7 +37,7 @@ fn sink(root: &Path) -> (ResultSink, Arc<Mutex<Vec<String>>>) {
     });
     (
         ResultSink {
-            channel,
+            channel: Arc::new(TauriSearchResultSink::new(channel)),
             found: 0,
             truncated: false,
         },

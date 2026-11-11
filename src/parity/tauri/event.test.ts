@@ -1,5 +1,14 @@
-import { emit, listen, once, resetParityEvents } from "@/parity/tauri/event"
+import {
+  emit,
+  expandParityEventName,
+  listen,
+  once,
+  resetParityEvents,
+  declareParityEvents,
+  missingParityEvents,
+} from "@/parity/tauri/event"
 import { beforeEach, describe, expect, it } from "vitest"
+import { SSH_AUTH_PROMPT_EVENT_PREFIX } from "@/components/TerminalTab/SshAuthPromptDialog"
 
 beforeEach(() => {
   resetParityEvents()
@@ -40,5 +49,23 @@ describe("parity events", () => {
     await emit("app://ready", null)
     await emit("app://ready", null)
     expect(ids).toEqual([1, 2])
+  })
+
+  it("records listeners that are not declared by the fixture", async () => {
+    declareParityEvents(["app://ready"])
+    await listen("app://missing", () => {})
+    expect(missingParityEvents()).toEqual(["app://missing"])
+  })
+
+  it("expands event name templates from fixture variables", () => {
+    expect(expandParityEventName("ssh-auth-prompt-{tabId}", { tabId: "tab-1" })).toBe(
+      "ssh-auth-prompt-tab-1"
+    )
+  })
+
+  it("expands a real SSH auth event template to the component listener name", () => {
+    expect(
+      expandParityEventName(`${SSH_AUTH_PROMPT_EVENT_PREFIX}{tabId}`, { tabId: "tab-1" })
+    ).toBe("ssh-auth-prompt-tab-1")
   })
 })

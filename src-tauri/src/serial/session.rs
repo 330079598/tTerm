@@ -169,7 +169,7 @@ pub(crate) fn spawn_serial_attempt(
     )));
     let sender = crate::terminal::io_batcher::TerminalOutputSender::spawn(
         &tab.channel.tab_id,
-        tab.output_channel.clone(),
+        tab.channel.sink.clone(),
     );
     crate::terminal::reader::spawn_reader_thread(
         reader,
@@ -182,6 +182,7 @@ pub(crate) fn spawn_serial_attempt(
             view,
             options.receive_newline,
         ))),
+        crate::terminal::reader::reader_log(&tab.app, &tab.channel.tab_id),
     );
 
     Ok(ActiveSerial {

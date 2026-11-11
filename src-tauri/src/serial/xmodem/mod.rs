@@ -3,6 +3,9 @@
 //! input goes to it instead of the terminal, and typing is held back as it
 //! is during ZMODEM, whose cancel and transfer rows it shares.
 
+use tterm_core::events::zmodem::TransferEmitter;
+use tterm_core::events::EventSink;
+
 mod disk;
 mod protocol;
 mod receive;
@@ -14,11 +17,10 @@ mod transfer;
 
 use crate::core::blocking::run_blocking;
 use crate::core::state::{PtyMap, ZmodemMap, ZmodemTabHandle};
-use crate::zmodem::events::EmitFn;
 use serde::Deserialize;
 use std::sync::atomic::AtomicBool;
 use std::sync::{mpsc, Arc, PoisonError};
-use tauri::{AppHandle, Emitter, State};
+use tauri::{AppHandle, State};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
 #[serde(rename_all = "lowercase")]
@@ -39,7 +41,7 @@ async fn claim_port(
     zmodem_state: &ZmodemMap,
     tab_id: String,
     session_nonce: u32,
-) -> Result<(EmitFn, transfer::PortClaim, transfer::TapLink), String> {
+) -> Result<(TransferEmitter, transfer::PortClaim, transfer::TapLink), String> {
     let (writer, tap) = super::with_serial(state, &tab_id, session_nonce, |serial| {
         (serial.writer.clone(), serial.tap.clone())
     })
@@ -64,9 +66,14 @@ async fn claim_port(
     *tap.lock().unwrap_or_else(PoisonError::into_inner) = Some(sender);
 
     let emit_tab_id = tab_id.clone();
-    let emit: EmitFn = Box::new(move |kind, payload| {
-        let event = format!("zmodem-{kind}-{emit_tab_id}");
-        let _ = app.emit_to(tauri::EventTarget::any(), &event, payload);
+    let events = crate::event_sink::TauriEventSink::new(app);
+    let emit: TransferEmitter = Box::new(move |event| {
+        let _ = events.emit(tterm_core::events::AppEvent::Serial(
+            tterm_core::events::serial::SerialEvent::Transfer {
+                tab_id: emit_tab_id.clone(),
+                event,
+            },
+        ));
     });
     let claim = transfer::PortClaim {
         tab_id,

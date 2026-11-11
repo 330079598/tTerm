@@ -1,0 +1,26 @@
+{
+  "commit": "eaf0bf9c577d322ebcffdc37fa6ee75379039126",
+  "commands": [
+    "pnpm lint",
+    "pnpm format:check",
+    "pnpm check:tokens",
+    "pnpm typecheck",
+    "pnpm test",
+    "pnpm check:size",
+    "CARGO_BUILD_JOBS=3 cargo fmt --all --check",
+    "CARGO_BUILD_JOBS=3 cargo clippy --workspace --all-targets -- -D warnings",
+    "CARGO_BUILD_JOBS=3 cargo test --workspace"
+  ],
+  "rust": {
+    "passed": 1331,
+    "failed": 0,
+    "ignored": 52
+  },
+  "frontend": {
+    "files": 181,
+    "tests": 1348,
+    "layout_tests": 2
+  },
+  "dependency_trees": "core-tree.txt / platform-tree.txt contain no tauri or tauri-plugin dependency",
+  "gui": "smoke-result.json; exact tested revision field distinguishes working tray fix from starting HEAD"
+}

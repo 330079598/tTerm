@@ -1,14 +1,50 @@
 //! Typed business events and delivery interfaces shared by the Tauri and GPUI clients.
 
+pub mod background;
+pub mod launch_dir;
+pub mod notification;
+pub mod serial;
+pub mod session_log;
+pub mod sftp; // P1-04.
+pub mod ssh;
+pub mod terminal;
 pub mod tunnel;
+pub mod zmodem;
 
+use background::BackgroundEvent;
+use launch_dir::LaunchDirEvent;
+use notification::NotificationEvent;
+use serial::SerialEvent;
+use session_log::SessionLogEvent;
+use sftp::SftpEvent;
+use ssh::SshEvent;
+use terminal::TerminalEvent;
 use tunnel::TunnelEvent;
+use zmodem::ZmodemEvent;
 
 /// A business event emitted by a core service.
 #[derive(Debug, Clone, PartialEq)]
 pub enum AppEvent {
     /// Tunnel state and traffic changed.
     Tunnel(TunnelEvent),
+    /// P1-03: directories queued for the frontend to open.
+    LaunchDir(LaunchDirEvent),
+    /// P1-03: activation of a desktop notification and its optional tab.
+    Notification(NotificationEvent),
+    /// P1-03: terminal working directory updates.
+    Terminal(TerminalEvent),
+    /// P1-03: session logging state and errors.
+    SessionLog(SessionLogEvent),
+    /// P1-03: serial file transfer lifecycle updates.
+    Serial(SerialEvent),
+    /// P1-03: ZMODEM send requests and transfer lifecycle updates.
+    Zmodem(ZmodemEvent),
+    /// P1-03: close and quit coordination and tray menu requests.
+    Background(BackgroundEvent),
+    /// P1-03: SSH connection progress and remote operating system reports.
+    Ssh(SshEvent),
+    /// SFTP transfers and external edits (P1-04).
+    Sftp(SftpEvent),
 }
 
 /// The logical delivery scope of an event.
@@ -48,6 +84,15 @@ impl AppEvent {
     pub fn target(&self) -> EventTarget {
         match self {
             Self::Tunnel(event) => event.target(),
+            Self::LaunchDir(event) => event.target(), // P1-03.
+            Self::Notification(event) => event.target(), // P1-03.
+            Self::Terminal(event) => event.target(),  // P1-03.
+            Self::SessionLog(event) => event.target(), // P1-03.
+            Self::Serial(event) => event.target(),    // P1-03.
+            Self::Zmodem(event) => event.target(),    // P1-03.
+            Self::Background(event) => event.target(), // P1-03.
+            Self::Ssh(event) => event.target(),       // P1-03.
+            Self::Sftp(event) => event.target(),      // P1-04.
         }
     }
 
@@ -55,6 +100,15 @@ impl AppEvent {
     pub fn name(&self) -> EventName {
         match self {
             Self::Tunnel(event) => event.name(),
+            Self::LaunchDir(event) => event.name(), // P1-03.
+            Self::Notification(event) => event.name(), // P1-03.
+            Self::Terminal(event) => event.name(),  // P1-03.
+            Self::SessionLog(event) => event.name(), // P1-03.
+            Self::Serial(event) => event.name(),    // P1-03.
+            Self::Zmodem(event) => event.name(),    // P1-03.
+            Self::Background(event) => event.name(), // P1-03.
+            Self::Ssh(event) => event.name(),       // P1-03.
+            Self::Sftp(event) => event.name(),      // P1-04.
         }
     }
 }

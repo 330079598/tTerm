@@ -11,5 +11,8 @@ declare global {
     __PARITY_INVOKES__?: string[]
     /** Commands the screen called without a fixture, including caught ones. */
     __PARITY_MISSING__?: string[]
+    /** Event listeners that had no declared fixture sequence. */
+    __PARITY_MISSING_EVENTS__?: string[]
+    __PARITY_ACTIONS_DONE__?: boolean
   }
 }

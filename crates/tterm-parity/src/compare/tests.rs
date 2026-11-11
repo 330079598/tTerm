@@ -32,6 +32,11 @@ fn screen() -> ScreenSpec {
         id: "example.button-input.default".to_owned(),
         title: "Example".to_owned(),
         fixture: "example.button-input.default.json".to_owned(),
+        ui_style: None,
+        ui_styles: None,
+        ui_scale_percent: None,
+        ui_scale_percents: None,
+        actions: Vec::new(),
         exceptions: Vec::new(),
     }
 }
@@ -256,6 +261,10 @@ fn the_html_report_is_deterministic_and_names_the_result() {
         reference: ReferenceInfo {
             frontend_commit: "abc".to_owned(),
             dirty: false,
+        },
+        variant: VariantInfo {
+            ui_style: "classic".to_owned(),
+            ui_scale_percent: 100,
         },
         thresholds: Thresholds {
             fixed_px: layout_check::FIXED_TOLERANCE,

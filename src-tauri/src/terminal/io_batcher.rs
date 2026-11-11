@@ -4,6 +4,7 @@ use std::sync::mpsc::{Receiver, RecvError, RecvTimeoutError, SyncSender, TryRecv
 use std::sync::{Arc, Condvar, Mutex, PoisonError};
 use std::time::{Duration, Instant};
 use tauri::ipc::{Channel, InvokeResponseBody};
+use tterm_core::session::sink::{SessionSink, INPUT_ANSWER_WINDOW};
 
 /// Bounded queue capacity between the reader and the sender thread. When the
 /// webview cannot keep up (see [`OutputFlow`]), the reader blocks here instead
@@ -20,13 +21,6 @@ const MAX_CHUNK_BYTES: usize = 512 * 1024;
 /// is sent at once instead, so the echo of a keystroke never waits out a
 /// window.
 pub const BATCH_INTERVAL: Duration = Duration::from_millis(8);
-/// Output this soon after input is taken as its answer: an echo, a redrawn
-/// prompt. Output that comes on its own, such as a spinner's frame, waits one
-/// window after a quiet spell too, because programs often write a frame in
-/// pieces (back to column 0, erase, draw; or draw, then move the cursor back
-/// to an input box) and sending the first piece alone shows the cursor where
-/// the frame is still being drawn.
-pub const INPUT_ANSWER_WINDOW: Duration = Duration::from_millis(150);
 /// Bytes sent to the webview but not yet acknowledged as parsed by xterm.js
 /// before the sender stops. Large enough to keep the IPC pipe busy, small
 /// enough that Ctrl+C reaches the screen within a frame or two.
@@ -149,7 +143,7 @@ impl TerminalOutput {
     }
 
     /// Whether input went to the session within [`INPUT_ANSWER_WINDOW`].
-    fn answers_input(&self) -> bool {
+    pub(crate) fn answers_input(&self) -> bool {
         self.last_input
             .lock()
             .unwrap_or_else(PoisonError::into_inner)
@@ -176,7 +170,7 @@ impl TerminalOutput {
     }
 
     /// Sends one chunk once the webview has room for it.
-    fn send(&self, chunk: Vec<u8>) -> tauri::Result<()> {
+    pub(crate) fn send(&self, chunk: Vec<u8>) -> tauri::Result<()> {
         self.flow.reserve(chunk.len());
         self.current_channel().send(InvokeResponseBody::Raw(chunk))
     }
@@ -233,12 +227,12 @@ pub struct TerminalOutputSender {
 }
 
 impl TerminalOutputSender {
-    pub fn spawn(tab_id: &str, output: TerminalOutput) -> Self {
+    pub fn spawn(tab_id: &str, output: Arc<dyn SessionSink>) -> Self {
         let (tx, rx) = std::sync::mpsc::sync_channel::<Vec<u8>>(QUEUE_CAPACITY_MESSAGES);
         let worker_tab_id = tab_id.to_string();
         let worker = std::thread::Builder::new()
             .name(format!("pty-out-{worker_tab_id}"))
-            .spawn(move || sender_loop(&rx, &output))
+            .spawn(move || sender_loop(&rx, output.as_ref()))
             .expect("spawn pty output sender thread");
         Self {
             tx: Some(tx),
@@ -299,7 +293,7 @@ impl Drop for TerminalOutputSender {
     }
 }
 
-fn sender_loop(rx: &Receiver<Vec<u8>>, channel: &TerminalOutput) {
+fn sender_loop(rx: &Receiver<Vec<u8>>, channel: &dyn SessionSink) {
     let mut pending: Vec<u8> = Vec::with_capacity(FLUSH_THRESHOLD_BYTES);
     // Deadline of the open batching window: set when the first unwritten
     // byte arrives, never extended by later arrivals. A self-resetting
@@ -391,7 +385,7 @@ fn sender_loop(rx: &Receiver<Vec<u8>>, channel: &TerminalOutput) {
 
 /// Flushes the buffer in UTF-8-safe, size-capped chunks. Any trailing partial
 /// sequence stays buffered for the next flush.
-fn flush_all(pending: &mut Vec<u8>, channel: &TerminalOutput) {
+fn flush_all(pending: &mut Vec<u8>, channel: &dyn SessionSink) {
     if pending.is_empty() {
         return;
     }
@@ -404,7 +398,7 @@ fn flush_all(pending: &mut Vec<u8>, channel: &TerminalOutput) {
             break;
         }
         let chunk: Vec<u8> = pending[start..end].to_vec();
-        if channel.send(chunk).is_err() {
+        if channel.send_bytes(chunk).is_err() {
             // The webview is gone; nothing useful left to do.
             pending.clear();
             return;
@@ -419,11 +413,11 @@ fn flush_all(pending: &mut Vec<u8>, channel: &TerminalOutput) {
 
 /// End-of-stream variant: no more bytes will arrive, so send everything that
 /// is left (a trailing partial sequence goes out as-is) instead of buffering.
-fn flush_final(pending: &mut Vec<u8>, channel: &TerminalOutput) {
+fn flush_final(pending: &mut Vec<u8>, channel: &dyn SessionSink) {
     while !pending.is_empty() {
         let limit = MAX_CHUNK_BYTES.min(pending.len());
         let chunk: Vec<u8> = pending.drain(..limit).collect();
-        if channel.send(chunk).is_err() {
+        if channel.send_bytes(chunk).is_err() {
             pending.clear();
             return;
         }
@@ -432,3 +426,27 @@ fn flush_final(pending: &mut Vec<u8>, channel: &TerminalOutput) {
 
 #[cfg(test)]
 mod tests;
+
+#[cfg(test)]
+mod contracts;
+
+#[cfg(all(test, unix))]
+mod benchmark;
+#[cfg(all(test, unix))]
+mod pty_fixture;
+#[cfg(all(test, unix))]
+mod real_pty_tests;
+
+#[cfg(test)]
+fn test_sink(output: TerminalOutput) -> Arc<dyn SessionSink> {
+    let app = tauri::test::mock_builder()
+        .build(tauri::test::mock_context(tauri::test::noop_assets()))
+        .unwrap();
+    Arc::new(crate::session_sink::TauriSessionSink::new(
+        "test-tab".into(),
+        app.handle().clone(),
+        output,
+    ))
+}
+#[cfg(test)]
+mod lifecycle_tests;

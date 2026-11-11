@@ -42,6 +42,11 @@ async function main() {
   const options = parseArgs(process.argv.slice(2))
   const manifest = JSON.parse(await readFile(MANIFEST_PATH, "utf8"))
   const theme = options.theme ?? process.env.PARITY_THEME ?? manifest.theme
+  const uiStyle = options.uiStyle ?? process.env.PARITY_UI_STYLE ?? manifest.uiStyle ?? "classic"
+  const uiScale = Number(
+    options.uiScale ?? process.env.PARITY_UI_SCALE ?? manifest.uiScalePercent ?? 100
+  )
+  validateVariant(manifest, uiStyle, uiScale)
   const commit = options.commit ?? frontendCommit()
   const dirty = frontendDirty()
   const defaultName = dirty ? `${commit}-dirty` : commit
@@ -75,11 +80,24 @@ async function main() {
     const platform = selectedPlatform(manifest, options.platform)
     browser = await launchBrowser(platform)
     for (const screen of screens) {
-      await captureScreen(browser, base, manifest, screen, outDir, platform, theme)
+      await captureScreen(
+        browser,
+        base,
+        manifest,
+        screen,
+        outDir,
+        platform,
+        theme,
+        uiStyle,
+        uiScale
+      )
     }
     const output = {
       version: 2,
       commit,
+      theme,
+      uiStyle,
+      uiScalePercent: uiScale,
       viewport: manifest.viewport,
       screens: screens.map((screen) => ({
         id: screen.id,
@@ -95,8 +113,19 @@ async function main() {
   }
 }
 
-async function captureScreen(browser, base, manifest, screen, outDir, platform, theme) {
-  const viewport = platform === "windows" ? manifest.windowsViewport ?? manifest.viewport : manifest.viewport
+async function captureScreen(
+  browser,
+  base,
+  manifest,
+  screen,
+  outDir,
+  platform,
+  theme,
+  uiStyle,
+  uiScale
+) {
+  const viewport =
+    platform === "windows" ? (manifest.windowsViewport ?? manifest.viewport) : manifest.viewport
   const { width, height, deviceScaleFactor } = viewport
   const context = await browser.newContext({
     viewport: { width, height },
@@ -113,9 +142,18 @@ async function captureScreen(browser, base, manifest, screen, outDir, platform, 
     const url = new URL("parity.html", base)
     url.searchParams.set("screen", screen.id)
     url.searchParams.set("theme", theme)
-    url.searchParams.set("scale", String(manifest.uiScalePercent))
+    url.searchParams.set("scale", String(uiScale))
+    url.searchParams.set("uiStyle", uiStyle)
+    url.searchParams.set("actionsRequired", String((screen.actions ?? []).length > 0))
     url.searchParams.set("platform", platform)
     await page.goto(url.href, { waitUntil: "load" })
+    if ((screen.actions ?? []).length > 0) {
+      await runActions(page, screen.actions ?? [], screen.id)
+      await page.evaluate(() => {
+        window.__PARITY_ACTIONS_DONE__ = true
+        window.dispatchEvent(new Event("parity-actions-done"))
+      })
+    }
     await page.waitForFunction(() => window.__PARITY_READY__ === true, undefined, {
       timeout: 30_000,
     })
@@ -133,7 +171,12 @@ async function captureScreen(browser, base, manifest, screen, outDir, platform, 
       caret: "hide",
     })
     await assertNoMissingFixtures(page)
+    const missingEvents = await page.evaluate(() => window.__PARITY_MISSING_EVENTS__ ?? [])
+    if (missingEvents.length > 0) {
+      console.warn(`${screen.id}: missing event fixture(s): ${missingEvents.join(", ")}`)
+    }
     const layout = await page.evaluate(collectLayout, screen.id)
+    layout.missingEvents = missingEvents
     await writeFile(
       join(outDir, `${screen.id}.layout.json`),
       `${JSON.stringify(layout, null, 2)}\n`
@@ -146,16 +189,64 @@ async function captureScreen(browser, base, manifest, screen, outDir, platform, 
   }
 }
 
+async function runActions(page, actions, screenId) {
+  for (const [index, action] of actions.entries()) {
+    try {
+      if (action.type === "waitFor") {
+        await page.waitForSelector(targetSelector(action.target), { state: "visible" })
+      } else if (action.type === "click") {
+        await page.locator(targetSelector(action.target)).click()
+      } else if (action.type === "hover") {
+        await page.locator(targetSelector(action.target)).hover()
+      } else if (action.type === "key") {
+        const press = [...(action.modifiers ?? []).map((value) => `${value}+`), action.key].join("")
+        if (action.target) await page.locator(targetSelector(action.target)).press(press)
+        else await page.keyboard.press(press)
+      } else if (action.type === "drag") {
+        await page
+          .locator(targetSelector(action.from))
+          .dragTo(page.locator(targetSelector(action.to)))
+      } else {
+        throw new Error(`unknown action type ${action.type}`)
+      }
+    } catch (error) {
+      throw new Error(
+        `action ${index + 1} on ${screenId} failed: ${error instanceof Error ? error.message : String(error)}`
+      )
+    }
+  }
+}
+
+function targetSelector(target) {
+  if (!target || typeof target !== "string") throw new Error("action target is empty")
+  return `[data-parity="${escapeSelectorValue(target)}"], [data-parity-action="${escapeSelectorValue(target)}"]`
+}
+
+function escapeSelectorValue(value) {
+  return value.replaceAll("\\", "\\\\").replaceAll('"', '\\"')
+}
+
+function validateVariant(manifest, uiStyle, uiScale) {
+  const styles = manifest.uiStyles ?? [manifest.uiStyle ?? "classic"]
+  const scales = manifest.uiScalePercents ?? [manifest.uiScalePercent ?? 100]
+  if (!styles.includes(uiStyle))
+    throw new Error(`ui_style "${uiStyle}" is not enabled in parity/screens.json`)
+  if (!scales.includes(uiScale))
+    throw new Error(`ui_scale ${uiScale} is not enabled in parity/screens.json`)
+}
+
 async function launchBrowser(platform) {
   try {
-    return platform === "windows" ? await chromium.launch({ channel: "msedge" }) : await webkit.launch()
+    return platform === "windows"
+      ? await chromium.launch({ channel: "msedge" })
+      : await webkit.launch()
   } catch (error) {
     throw new Error(
       platform === "windows"
         ? `Could not start the installed Microsoft Edge channel. Confirm Edge is installed and Playwright 1.54.0 is available.`
         : `Could not start Playwright's WebKit. Install it with:\n` +
-          `  pnpm exec playwright install webkit\n` +
-        `(${error instanceof Error ? error.message : String(error)})`
+            `  pnpm exec playwright install webkit\n` +
+            `(${error instanceof Error ? error.message : String(error)})`
     )
   }
 }
@@ -185,7 +276,15 @@ function frontendCommit() {
 }
 
 function parseArgs(args) {
-  const options = { out: undefined, commit: undefined, screens: [], platform: undefined, theme: undefined }
+  const options = {
+    out: undefined,
+    commit: undefined,
+    screens: [],
+    platform: undefined,
+    theme: undefined,
+    uiStyle: undefined,
+    uiScale: undefined,
+  }
   for (let index = 0; index < args.length; index += 1) {
     const argument = args[index]
     const value = args[index + 1]
@@ -203,6 +302,12 @@ function parseArgs(args) {
       index += 1
     } else if (argument === "--theme" && value) {
       options.theme = value
+      index += 1
+    } else if (argument === "--ui-style" && value) {
+      options.uiStyle = value
+      index += 1
+    } else if (argument === "--ui-scale" && value) {
+      options.uiScale = value
       index += 1
     } else {
       throw new Error(`Unknown or incomplete argument: ${argument}`)
@@ -223,6 +328,8 @@ function selectedPlatform(manifest, requested) {
 }
 
 main().catch((error) => {
-  console.error(`reference capture failed: ${error instanceof Error ? error.message : String(error)}`)
+  console.error(
+    `reference capture failed: ${error instanceof Error ? error.message : String(error)}`
+  )
   process.exitCode = 1
 })

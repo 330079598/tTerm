@@ -8,12 +8,12 @@ use crate::sftp::internal::api::base::directory_entry;
 use crate::sftp::internal::exec::{cancelled, shell_path, shell_quote};
 use crate::sftp::internal::launcher::ChannelLauncher;
 use crate::sftp::internal::paths::{join_remote_path, parent_remote_path};
-use crate::sftp::internal::types::SftpDirectoryEntry;
 use russh::client::{Handle, Handler};
 use russh_sftp::client::SftpSession;
 use std::sync::Arc;
 use tokio::sync::watch;
 use tokio::task::JoinSet;
+use tterm_core::sftp::entry::SftpDirectoryEntry;
 
 /// Printed as the first record once the script knows `find` works, so
 /// output from anything else, such as a Windows shell, is never read as

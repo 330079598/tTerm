@@ -1,0 +1,63 @@
+{
+  "identifier": "com.stone.tTerm.p1-08-after",
+  "checks": [
+    {
+      "name": "profiles",
+      "value": []
+    },
+    {
+      "name": "clipboard_text",
+      "value": "P1-08 中文\nclipboard"
+    },
+    {
+      "name": "clipboard_files",
+      "value": [
+        "/Users/stone/Code/rust/tTerm-P1-08/target/p1-08-manual/中文 file.txt"
+      ]
+    },
+    {
+      "name": "applications_icons",
+      "value": {
+        "apps": 23,
+        "icons": [
+          "data:image/png;base64,iVBORw0K",
+          "data:image/png;base64,iVBORw0K"
+        ]
+      }
+    },
+    {
+      "name": "open_directory",
+      "value": null
+    },
+    {
+      "name": "open_url",
+      "value": "browser GET observed"
+    },
+    {
+      "name": "notification_permission",
+      "value": "notDetermined"
+    },
+    {
+      "name": "badge_set_clear",
+      "value": "both IPC calls succeeded"
+    }
+  ],
+  "opened": true,
+  "clipboard_restored": true,
+  "cleanup": [
+    "/Users/stone/Library/Application Support/com.stone.tTerm.p1-08-after",
+    "/Users/stone/Library/Caches/com.stone.tTerm.p1-08-after",
+    "/Users/stone/Library/WebKit/com.stone.tTerm.p1-08-after",
+    "/Users/stone/Library/Preferences/com.stone.tTerm.p1-08-after.plist",
+    {
+      "keyring_account": "key::__secret_data_key__",
+      "status": 0
+    },
+    {
+      "keyring_account": "__probe__",
+      "status": 44
+    },
+    "/Users/stone/Code/rust/tTerm-P1-08/target/debug/bundle/dev/tTerm P1-08 After.app"
+  ],
+  "commit": "f2d34eeb947eab6bab7e3d3de75d220825dfc438"
+}

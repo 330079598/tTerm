@@ -4,12 +4,15 @@
 //! copy), and a look at the file itself sees every one of them the same way.
 
 use super::local::{self, FileStamp, Fingerprint};
-use super::{ExternalEditState, EDIT_EVENT};
+use super::ExternalEditState;
 use crate::core::blocking::run_blocking;
+use crate::event_sink::TauriEventSink;
 use std::path::PathBuf;
 use std::sync::atomic::Ordering;
 use std::time::Duration;
-use tauri::{AppHandle, Emitter, Manager};
+use tauri::{AppHandle, Manager};
+use tterm_core::events::sftp::SftpEvent;
+use tterm_core::events::{AppEvent, EventSink};
 
 const POLL_INTERVAL: Duration = Duration::from_secs(1);
 
@@ -75,6 +78,7 @@ pub(super) fn ensure_running(app: &AppHandle) {
     if state.watching.swap(true, Ordering::SeqCst) {
         return;
     }
+    let events = TauriEventSink::new(app.clone());
     let app = app.clone();
     tauri::async_runtime::spawn(async move {
         let mut interval = tokio::time::interval(POLL_INTERVAL);
@@ -98,7 +102,7 @@ pub(super) fn ensure_running(app: &AppHandle) {
                 continue;
             };
             for edit in app.state::<ExternalEditState>().apply_looks(looks) {
-                let _ = app.emit(EDIT_EVENT, &edit);
+                let _ = events.emit(AppEvent::Sftp(SftpEvent::ExternalEditChanged(edit)));
             }
         }
     });

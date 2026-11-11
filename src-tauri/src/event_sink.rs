@@ -1,35 +1,57 @@
 //! Tauri's event transport for typed core business events.
 
+use tterm_core::events::EventName;
+use tterm_core::events::{AppEvent, EventSink, EventTarget};
+
+mod background; // P1-03.
+mod launch_dir; // P1-03.
+mod notification; // P1-03.
+pub(crate) mod search; // P1-04.
+mod serial; // P1-03.
+mod session_log; // P1-03.
+mod sftp;
+mod ssh; // P1-03.
+mod terminal; // P1-03.
+mod tunnel;
+pub(crate) mod zmodem; // P1-03. // P1-04.
+
 use serde::Serialize;
 use serde_json::Value;
 use tauri::{AppHandle, Emitter};
-use tterm_core::events::tunnel::TunnelEvent;
-use tterm_core::events::{AppEvent, EventName, EventSink, EventTarget};
 
 /// Sends typed core events through Tauri while preserving existing event names,
 /// JSON payloads and delivery targets consumed by the WebView.
 #[derive(Clone)]
-pub(crate) struct TauriEventSink {
-    app: AppHandle,
+pub(crate) struct TauriEventSink<R: tauri::Runtime = tauri::Wry> {
+    app: AppHandle<R>,
+}
+
+impl<R: tauri::Runtime> TauriEventSink<R> {
+    pub(crate) fn new(app: AppHandle<R>) -> Self {
+        Self { app }
+    }
 }
 
 impl TauriEventSink {
-    pub(crate) fn new(app: AppHandle) -> Self {
-        Self { app }
-    }
-
-    /// Returns the wire representation used by Tauri. Keeping this mapping
-    /// separate makes the compatibility contract testable without a window.
+    /// Maps domain payloads without touching the window or transport.
     pub(crate) fn wire(event: &AppEvent) -> Result<(EventName, EventTarget, Value), String> {
-        match event {
-            AppEvent::Tunnel(TunnelEvent::Status(status)) => Ok((
-                event.name(),
-                event.target(),
-                serde_json::to_value(status).map_err(|error| error.to_string())?,
-            )),
-        }
+        let payload = match event {
+            AppEvent::Tunnel(event) => tunnel::wire(event)?,
+            AppEvent::LaunchDir(event) => launch_dir::wire(event)?, // P1-03.
+            AppEvent::Notification(event) => notification::wire(event)?, // P1-03.
+            AppEvent::Terminal(event) => terminal::wire(event)?,    // P1-03.
+            AppEvent::SessionLog(event) => session_log::wire(event)?, // P1-03.
+            AppEvent::Serial(event) => serial::wire(event)?,        // P1-03.
+            AppEvent::Zmodem(event) => zmodem::wire(event)?,        // P1-03.
+            AppEvent::Background(event) => background::wire(event)?, // P1-03.
+            AppEvent::Ssh(event) => ssh::wire(event)?,              // P1-03.
+            AppEvent::Sftp(event) => sftp::wire(event)?,            // P1-04.
+        };
+        Ok((event.name(), event.target(), payload))
     }
+}
 
+impl<R: tauri::Runtime> TauriEventSink<R> {
     fn emit_payload<T: Serialize + Clone>(
         &self,
         name: &str,
@@ -49,64 +71,12 @@ impl TauriEventSink {
     }
 }
 
-impl EventSink for TauriEventSink {
+impl<R: tauri::Runtime> EventSink for TauriEventSink<R> {
     fn emit(&self, event: AppEvent) -> Result<(), String> {
-        let (name, target, payload) = Self::wire(&event)?;
+        let (name, target, payload) = TauriEventSink::wire(&event)?;
         self.emit_payload(&name.as_string(), target, payload)
     }
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-    use tterm_core::events::tunnel::{TunnelFailure, TunnelState, TunnelStatus, TunnelTraffic};
-
-    #[test]
-    fn tunnel_status_wire_contract_matches_existing_tauri_event() {
-        let status = TunnelStatus {
-            id: "t1".to_string(),
-            state: TunnelState::Running,
-            message: None,
-            bound_port: Some(15432),
-            active_connections: 1,
-            total_connections: 2,
-            failed_connections: 3,
-            bytes_up: 4,
-            bytes_down: 5,
-            connected_at: Some(1_700_000_000_000),
-            retry_attempt: 0,
-            last_failure: Some(TunnelFailure {
-                message: "refused".to_string(),
-                at: 1_700_000_000_001,
-            }),
-            lifetime: TunnelTraffic {
-                bytes_up: 6,
-                bytes_down: 7,
-                connections: 8,
-                since: Some(1_700_000_000_002),
-            },
-        };
-        let event = AppEvent::Tunnel(TunnelEvent::Status(status));
-        let (name, target, payload) = TauriEventSink::wire(&event).expect("wire event");
-        assert_eq!(name.as_string(), "tunnel-status");
-        assert_eq!(target, EventTarget::Default);
-        assert_eq!(
-            payload,
-            serde_json::json!({
-                "id": "t1",
-                "state": "running",
-                "message": null,
-                "boundPort": 15432,
-                "activeConnections": 1,
-                "totalConnections": 2,
-                "failedConnections": 3,
-                "bytesUp": 4,
-                "bytesDown": 5,
-                "connectedAt": 1700000000000u64,
-                "retryAttempt": 0,
-                "lastFailure": {"message": "refused", "at": 1700000000001u64},
-                "lifetime": {"bytesUp": 6, "bytesDown": 7, "connections": 8, "since": 1700000000002u64}
-            })
-        );
-    }
-}
+mod p1_03_tests;

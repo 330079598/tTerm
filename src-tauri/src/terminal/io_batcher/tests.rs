@@ -92,7 +92,10 @@ fn sender_pauses_at_high_watermark_until_acknowledged() {
     let (output, chunks) = unacked_output(Duration::from_secs(60));
     let flow = output.flow().clone();
     let total = HIGH_WATERMARK_BYTES * 3;
-    let feeder = feed(TerminalOutputSender::spawn("flow", output), total);
+    let feeder = feed(
+        TerminalOutputSender::spawn("flow", test_sink(output)),
+        total,
+    );
 
     std::thread::sleep(Duration::from_millis(200));
     let paused_at = delivered(&chunks);
@@ -122,7 +125,10 @@ fn close_releases_a_paused_sender() {
     let (output, chunks) = unacked_output(Duration::from_secs(60));
     let flow = output.flow().clone();
     let total = HIGH_WATERMARK_BYTES * 2;
-    let feeder = feed(TerminalOutputSender::spawn("flow-close", output), total);
+    let feeder = feed(
+        TerminalOutputSender::spawn("flow-close", test_sink(output)),
+        total,
+    );
 
     std::thread::sleep(Duration::from_millis(100));
     assert!(delivered(&chunks) < total);
@@ -138,7 +144,7 @@ fn moving_to_a_new_page_resumes_output_there() {
     let (new_output, new_page) = unacked_output(Duration::from_secs(60));
     let total = HIGH_WATERMARK_BYTES * 2;
     let feeder = feed(
-        TerminalOutputSender::spawn("flow-move", output.clone()),
+        TerminalOutputSender::spawn("flow-move", test_sink(output.clone())),
         total,
     );
     std::thread::sleep(Duration::from_millis(100));
@@ -163,9 +169,12 @@ fn moving_to_a_new_page_resumes_output_there() {
 fn stalled_acknowledgements_do_not_wedge_the_sender() {
     let (output, chunks) = unacked_output(Duration::from_millis(50));
     let total = HIGH_WATERMARK_BYTES * 2;
-    feed(TerminalOutputSender::spawn("flow-stall", output), total)
-        .join()
-        .unwrap();
+    feed(
+        TerminalOutputSender::spawn("flow-stall", test_sink(output)),
+        total,
+    )
+    .join()
+    .unwrap();
     assert_eq!(delivered(&chunks), total);
 }
 
@@ -176,7 +185,7 @@ fn flush_all_splits_large_batches_into_capped_chunks() {
     };
     let channel = recorder.channel();
     let mut pending = vec![b'x'; MAX_CHUNK_BYTES + 10];
-    flush_all(&mut pending, &channel);
+    flush_all(&mut pending, test_sink(channel).as_ref());
 
     let chunks = recorder.chunks.lock().unwrap();
     assert!(chunks.len() >= 2);
@@ -195,7 +204,7 @@ fn flush_all_never_emits_partial_utf8_across_chunks() {
     for _ in 0..200_003 {
         pending.extend_from_slice("中".as_bytes());
     }
-    flush_all(&mut pending, &channel);
+    flush_all(&mut pending, test_sink(channel).as_ref());
 
     let chunks = recorder.chunks.lock().unwrap();
     assert!(chunks.len() >= 2);
@@ -212,7 +221,7 @@ fn flush_all_buffers_partial_trailing_sequence() {
     };
     let channel = recorder.channel();
     let mut pending = vec![b'a', b'b', 0xe4, 0xb8];
-    flush_all(&mut pending, &channel);
+    flush_all(&mut pending, test_sink(channel).as_ref());
 
     assert_eq!(pending, vec![0xe4, 0xb8]);
     let chunks = recorder.chunks.lock().unwrap();
@@ -225,7 +234,7 @@ fn finish_flushes_queued_bytes_in_order() {
     let recorder = ChunkRecorder {
         chunks: std::sync::Arc::new(std::sync::Mutex::new(Vec::new())),
     };
-    let mut sender = TerminalOutputSender::spawn("test-tab", recorder.channel());
+    let mut sender = TerminalOutputSender::spawn("test-tab", test_sink(recorder.channel()));
     sender.send(b"hello ".to_vec());
     sender.send("世界".as_bytes().to_vec());
     sender.finish();
@@ -240,7 +249,7 @@ fn finish_waits_for_blocked_reader_sends() {
     let recorder = ChunkRecorder {
         chunks: std::sync::Arc::new(std::sync::Mutex::new(Vec::new())),
     };
-    let mut sender = TerminalOutputSender::spawn("test-tab", recorder.channel());
+    let mut sender = TerminalOutputSender::spawn("test-tab", test_sink(recorder.channel()));
     // Far more than the queue capacity: some sends must block until the
     // worker drains them, proving finish() flushes everything in order.
     for i in 0..1000 {
@@ -266,7 +275,7 @@ fn send_after_finish_is_a_noop() {
     let recorder = ChunkRecorder {
         chunks: std::sync::Arc::new(std::sync::Mutex::new(Vec::new())),
     };
-    let mut sender = TerminalOutputSender::spawn("test-tab", recorder.channel());
+    let mut sender = TerminalOutputSender::spawn("test-tab", test_sink(recorder.channel()));
     sender.send(b"first".to_vec());
     sender.finish();
     sender.send(b"dropped".to_vec());
@@ -281,7 +290,7 @@ fn rapid_messages_coalesce_into_fewer_chunks() {
     let recorder = ChunkRecorder {
         chunks: std::sync::Arc::new(std::sync::Mutex::new(Vec::new())),
     };
-    let mut sender = TerminalOutputSender::spawn("coalesce", recorder.channel());
+    let mut sender = TerminalOutputSender::spawn("coalesce", test_sink(recorder.channel()));
     // The first goes out at once; the other nine land inside the window it
     // opens, so they must reach the webview as fewer IPC messages than reads.
     let mut expected = Vec::new();
@@ -310,7 +319,7 @@ fn an_echo_after_a_quiet_spell_skips_the_batching_window() {
         Ok(())
     });
     let output = TerminalOutput::new(channel);
-    let mut sender = TerminalOutputSender::spawn("echo", output.clone());
+    let mut sender = TerminalOutputSender::spawn("echo", test_sink(output.clone()));
     // Each echo follows a keystroke after a pause longer than the window, so
     // each must reach the webview well before a window could have elapsed.
     for _ in 0..3 {
@@ -335,7 +344,7 @@ fn output_nobody_typed_for_waits_a_window_after_a_quiet_spell() {
     let recorder = ChunkRecorder {
         chunks: std::sync::Arc::new(std::sync::Mutex::new(Vec::new())),
     };
-    let mut sender = TerminalOutputSender::spawn("spinner", recorder.channel());
+    let mut sender = TerminalOutputSender::spawn("spinner", test_sink(recorder.channel()));
     // A spinner frame written in pieces after a pause: back to column 0,
     // erase the line, draw. Sent alone, the first piece would show the
     // cursor at column 0 for a frame.
@@ -371,7 +380,7 @@ fn steady_trickle_flushes_without_waiting_for_disconnect() {
     let recorder = ChunkRecorder {
         chunks: std::sync::Arc::new(std::sync::Mutex::new(Vec::new())),
     };
-    let mut sender = TerminalOutputSender::spawn("trickle", recorder.channel());
+    let mut sender = TerminalOutputSender::spawn("trickle", test_sink(recorder.channel()));
     // Gaps below BATCH_INTERVAL keep a self-resetting recv_timeout from
     // ever firing; the window deadline must flush on its own anyway.
     let mut expected = Vec::new();
@@ -446,7 +455,8 @@ fn reader_thread_delivers_batched_utf8_stream_in_order() {
         size_cursor: 0,
     };
 
-    let sender = std::sync::Mutex::new(Some(TerminalOutputSender::spawn("e2e", channel)));
+    let sender =
+        std::sync::Mutex::new(Some(TerminalOutputSender::spawn("e2e", test_sink(channel))));
     let outcome = super::super::reader::run_pty_reader(
         reader,
         |_| {},

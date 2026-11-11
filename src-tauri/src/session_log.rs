@@ -1,3 +1,7 @@
+use tterm_core::events::session_log::TerminalLogStatus;
+use tterm_core::events::session_log::{LogErrorPayload, LogErrorPhase, SessionLogEvent};
+use tterm_core::events::{AppEvent, EventSink};
+
 mod library;
 mod maintenance;
 mod manager;
@@ -22,11 +26,12 @@ use serde::Serialize;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, AtomicU64};
+use std::sync::Arc;
 use std::sync::Mutex;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 use tauri::ipc::Response;
-use tauri::{AppHandle, Emitter, Manager, State};
-use tauri_plugin_opener::OpenerExt;
+use tauri::{AppHandle, Manager, State};
+use tterm_platform::open::OpenTargets;
 
 const LOG_FORMAT_RAW: &str = "raw";
 const LOG_FORMAT_PLAIN: &str = "plain";
@@ -202,18 +207,6 @@ pub struct SessionLogState {
     recovered_directory: Mutex<Option<PathBuf>>,
 }
 
-#[derive(Clone, Debug, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct TerminalLogStatus {
-    /// Sessions are logged unless their connection or tab says otherwise.
-    enabled: bool,
-    directory: String,
-    active_sessions: usize,
-    recording_tab_ids: Vec<String>,
-    total_size_bytes: u64,
-    last_error: Option<String>,
-}
-
 pub fn start_session(
     app: &AppHandle,
     tab_id: &str,
@@ -370,8 +363,9 @@ pub async fn delete_terminal_logs(
 pub async fn reveal_terminal_log(app: AppHandle, id: String) -> Result<(), String> {
     let (directory, _, _) = app.state::<SessionLogState>().directory_state()?;
     let path = run_blocking(move || library::first_file(&directory, &id)).await?;
-    app.opener()
-        .reveal_item_in_dir(path)
+    app.state::<Arc<dyn OpenTargets>>()
+        .reveal(path)
+        .await
         .map_err(|error| format!("Failed to show terminal log: {error}"))
 }
 
@@ -399,8 +393,9 @@ pub async fn open_terminal_log_directory(app: AppHandle) -> Result<(), String> {
         Ok(directory)
     })
     .await?;
-    app.opener()
-        .open_path(directory.to_string_lossy().into_owned(), None::<&str>)
+    app.state::<Arc<dyn OpenTargets>>()
+        .open_file(directory)
+        .await
         .map_err(|error| format!("Failed to open terminal log directory: {error}"))
 }
 
@@ -428,24 +423,33 @@ fn now_unix_ms() -> u64 {
 }
 
 fn emit_error(app: &AppHandle, tab_id: &str, message: &str) {
-    let _ = app.emit_to(
-        tauri::EventTarget::any(),
-        "terminal-log-error",
-        serde_json::json!({ "tabId": tab_id, "message": message }),
-    );
+    let _ = crate::event_sink::TauriEventSink::new(app.clone()).emit(AppEvent::SessionLog(
+        SessionLogEvent::Error(LogErrorPayload {
+            tab_id: Some(tab_id.to_string()),
+            message: message.to_string(),
+            phase: None,
+        }),
+    ));
 }
 
 /// A session's log could not start; the session runs without one.
 fn emit_start_error(app: &AppHandle, tab_id: &str, message: &str) {
-    let _ = app.emit_to(
-        tauri::EventTarget::any(),
-        "terminal-log-error",
-        serde_json::json!({ "tabId": tab_id, "message": message, "phase": "start" }),
-    );
+    let _ = crate::event_sink::TauriEventSink::new(app.clone()).emit(AppEvent::SessionLog(
+        SessionLogEvent::Error(LogErrorPayload {
+            tab_id: Some(tab_id.to_string()),
+            message: message.to_string(),
+            phase: Some(LogErrorPhase::Start),
+        }),
+    ));
 }
 
 fn emit_status(app: &AppHandle, state: &SessionLogState) {
     if let Ok(status) = state.status() {
-        let _ = app.emit_to(tauri::EventTarget::any(), "terminal-log-status", status);
+        let _ = crate::event_sink::TauriEventSink::new(app.clone())
+            .emit(AppEvent::SessionLog(SessionLogEvent::Status(status)));
     }
 }
+
+#[cfg(test)]
+#[path = "session_log_legacy_tests.rs"]
+mod legacy_contract_tests;

@@ -1,11 +1,11 @@
 //! Reads what the script's FreeBSD section prints: CPU ticks, memory pages
 //! and the ZFS cache from `sysctl`, swap from `swapinfo`.
 
+use tterm_core::events::ssh::LinuxDistributionInfo;
+
 use super::bsd::{parse_common, Sysctl};
 use super::{extract_block, parse_os_release};
-use crate::monitor::types::{
-    CpuCoreTimes, CpuTimes, LinuxDistributionInfo, MemoryMetrics, ServerMetricsSnapshot,
-};
+use crate::monitor::types::{CpuCoreTimes, CpuTimes, MemoryMetrics, ServerMetricsSnapshot};
 
 /// `kern.cp_time` counts user, nice, system, interrupt and idle ticks.
 const CPU_STATES: usize = 5;

@@ -1,5 +1,7 @@
 //! Connecting and logging in to one jump host of a chain.
 
+use tterm_core::events::ssh::SshConnectionProgressPayload;
+
 use super::config::{compatibility_client_config, unverifiable_host_key_error};
 use super::connect::{connect_first_hop, emit_terminal_status, open_proxy_stream, ConnectContext};
 use super::handler::JumpHostHandler;
@@ -9,7 +11,7 @@ use crate::proxy::command::CommandTarget;
 use crate::proxy::ProxyEndpoint;
 use crate::ssh::auth::{authenticate, AuthPrompter, AuthTarget};
 use crate::ssh::openssh_known_hosts::request_host_certificates;
-use crate::ssh::types::{emit_connection_progress, SshConnectError, SshConnectionProgressPayload};
+use crate::ssh::types::{emit_connection_progress, SshConnectError};
 use russh::{client, Channel};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};

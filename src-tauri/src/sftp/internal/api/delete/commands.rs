@@ -64,6 +64,7 @@ pub async fn sftp_delete_entries(
     let batch_id = next_delete_batch_id();
     tokio::spawn(run_delete_batch(DeleteBatch {
         app: app.clone(),
+        events: std::sync::Arc::new(crate::event_sink::TauriEventSink::new(app.clone())),
         tab_id,
         plan,
         prompts: prompt_state.inner().clone(),

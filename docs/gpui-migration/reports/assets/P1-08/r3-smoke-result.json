@@ -1,0 +1,137 @@
+{
+  "identifier": "com.stone.tTerm.p1-08-r3",
+  "checks": [
+    {
+      "name": "profiles",
+      "value": [],
+      "phase": "normal"
+    },
+    {
+      "name": "tray_saved",
+      "value": "quit",
+      "phase": "normal"
+    },
+    {
+      "name": "tray_saved",
+      "value": "tray",
+      "phase": "normal"
+    },
+    {
+      "name": "tray_saved",
+      "value": "quit",
+      "phase": "normal"
+    },
+    {
+      "name": "tray_saved",
+      "value": "tray",
+      "phase": "normal"
+    },
+    {
+      "name": "concurrent_pair",
+      "value": "both completed (completion order not asserted)",
+      "phase": "normal"
+    },
+    {
+      "name": "shell_command_status",
+      "value": {
+        "supported": true,
+        "installed": false
+      },
+      "phase": "normal"
+    },
+    {
+      "name": "folder_menu_status",
+      "value": {
+        "supported": true,
+        "installed": true
+      },
+      "phase": "normal"
+    },
+    {
+      "name": "ready_to_exit",
+      "value": true,
+      "phase": "normal"
+    },
+    {
+      "name": "quit_event",
+      "value": "app-will-quit",
+      "phase": "normal"
+    },
+    {
+      "name": "profiles",
+      "value": [],
+      "phase": "missing-home"
+    },
+    {
+      "name": "tray_saved",
+      "value": "quit",
+      "phase": "missing-home"
+    },
+    {
+      "name": "tray_saved",
+      "value": "tray",
+      "phase": "missing-home"
+    },
+    {
+      "name": "tray_saved",
+      "value": "quit",
+      "phase": "missing-home"
+    },
+    {
+      "name": "tray_saved",
+      "value": "tray",
+      "phase": "missing-home"
+    },
+    {
+      "name": "concurrent_pair",
+      "value": "both completed (completion order not asserted)",
+      "phase": "missing-home"
+    },
+    {
+      "name": "shell_command_status",
+      "value": {
+        "supported": true,
+        "installed": false
+      },
+      "phase": "missing-home"
+    },
+    {
+      "name": "folder_menu_status",
+      "value": {
+        "supported": true,
+        "installed": false
+      },
+      "phase": "missing-home"
+    },
+    {
+      "name": "ready_to_exit",
+      "value": true,
+      "phase": "missing-home"
+    },
+    {
+      "name": "quit_event",
+      "value": "app-will-quit",
+      "phase": "missing-home"
+    }
+  ],
+  "normal_exit": 0,
+  "missing_home_before_launch": true,
+  "missing-home_exit": 0,
+  "cleanup": [
+    "/Users/stone/Library/Application Support/com.stone.tTerm.p1-08-r3",
+    "/Users/stone/Library/Caches/com.stone.tTerm.p1-08-r3",
+    "/Users/stone/Library/WebKit/com.stone.tTerm.p1-08-r3",
+    "/Users/stone/Library/Preferences/com.stone.tTerm.p1-08-r3.plist",
+    "/Users/stone/Code/rust/tTerm-P1-08/target/p1-08-r3-manual/this-home-does-not-exist",
+    {
+      "account": "key::__secret_data_key__",
+      "keyring_exit": 0
+    },
+    {
+      "account": "__probe__",
+      "keyring_exit": 44
+    },
+    "/Users/stone/Code/rust/tTerm-P1-08/target/debug/bundle/dev/tTerm P1-08 R3.app"
+  ],
+  "commit": "f15cdb12d2a1a084f64a975121f438420578bdac"
+}

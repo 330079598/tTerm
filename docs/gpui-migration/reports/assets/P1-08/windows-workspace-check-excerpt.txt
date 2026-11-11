@@ -1,0 +1,13 @@
+warning: ring@0.17.14: In file included from /Users/stone/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/ring-0.17.14/crypto/curve25519/curve25519.c:24:
+warning: ring@0.17.14: In file included from /Users/stone/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/ring-0.17.14/crypto/curve25519/internal.h:20:
+warning: ring@0.17.14: In file included from /Users/stone/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/ring-0.17.14/crypto/curve25519/../internal.h:20:
+warning: ring@0.17.14: /Users/stone/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/ring-0.17.14/include/ring-core/check.h:27:11: fatal error: 'assert.h' file not found
+warning: ring@0.17.14:    27 | # include <assert.h>
+error: failed to run custom build command for `ring v0.17.14`
+  process didn't exit successfully: `/Users/stone/Code/rust/tTerm-P1-08/target/debug/build/ring-4a8f878f869c6e47/build-script-build` (exit status: 1)
+  cargo:warning=In file included from /Users/stone/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/ring-0.17.14/crypto/curve25519/curve25519.c:24:
+  cargo:warning=In file included from /Users/stone/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/ring-0.17.14/crypto/curve25519/internal.h:20:
+  cargo:warning=In file included from /Users/stone/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/ring-0.17.14/crypto/curve25519/../internal.h:20:
+  cargo:warning=/Users/stone/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/ring-0.17.14/include/ring-core/check.h:27:11: fatal error: 'assert.h' file not found
+  cargo:warning=   27 | # include <assert.h>
+  error occurred in cc-rs: command did not execute successfully (status code exit status: 1): LC_ALL="C" "cc" "-O2" "-ffunction-sections" "-fdata-sections" "-g" "-fno-omit-frame-pointer" "-mno-omit-leaf-frame-pointer" "-m64" "--target=x86_64-pc-windows-msvc" "-I" "/Users/stone/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/ring-0.17.14/include" "-I" "/Users/stone/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/ring-0.17.14/pregenerated" "-Wall" "-Wextra" "-fvisibility=hidden" "-std=c1x" "-Wall" "-Wbad-function-cast" "-Wcast-align" "-Wcast-qual" "-Wconversion" "-Wmissing-field-initializers" "-Wmissing-include-dirs" "-Wnested-externs" "-Wredundant-decls" "-Wshadow" "-Wsign-compare" "-Wsign-conversion" "-Wstrict-prototypes" "-Wundef" "-Wuninitialized" "-g3" "-DNDEBUG" "-o" "/Users/stone/Code/rust/tTerm-P1-08/target/x86_64-pc-windows-msvc/debug/build/ring-9fa577fd80cd87dc/out/25ac62e5b3c53843-curve25519.o" "-c" "/Users/stone/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/ring-0.17.14/crypto/curve25519/curve25519.c"

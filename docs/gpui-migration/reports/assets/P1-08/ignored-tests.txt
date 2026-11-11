@@ -1,0 +1,52 @@
+test agent_integration::remote::tests::real_sshd_reads_the_home_directory_and_each_agents_place ... ignored, spawns a real sshd; run with --ignored real_sshd
+test backup::remote::tests::live_archive_upload_prune_and_restore ... ignored
+test backup::tests::real_pre_database_backups_import ... ignored
+test backup::webdav::tests::live_conditional_requests ... ignored
+test backup::webdav::tests::live_server_round_trip ... ignored
+test db::legacy_import::tests::imports_a_real_config_directory_copy ... ignored
+test monitor::metrics::real_sshd_tests::real_sshd_collects_metrics_for_this_system ... ignored, spawns a real sshd; run with --ignored real_sshd
+test proxy::real_proxy_tests::real_proxy_command_carries_a_session ... ignored, spawns a real sshd, nc and ssh -W; run with --ignored real_proxy
+test proxy::real_proxy_tests::real_proxy_http_connect_from_tinyproxy_carries_a_session ... ignored, spawns a real sshd and tinyproxy; run with --ignored real_proxy
+test proxy::real_proxy_tests::real_proxy_socks5_from_openssh_carries_a_session ... ignored, spawns a real sshd and ssh -D; run with --ignored real_proxy
+test sftp::internal::api::archive::real_sshd_tests::real_sshd_cancelling_stops_the_command_on_the_host ... ignored, spawns a real sshd; run with --ignored real_sshd
+test sftp::internal::api::archive::real_sshd_tests::real_sshd_decompresses_a_single_file_and_names_missing_tools ... ignored, spawns a real sshd; run with --ignored real_sshd
+test sftp::internal::api::archive::real_sshd_tests::real_sshd_extracting_keeps_existing_files_unless_overwriting ... ignored, spawns a real sshd; run with --ignored real_sshd
+test sftp::internal::api::archive::real_sshd_tests::real_sshd_round_trips_tar_and_zip_archives ... ignored, spawns a real sshd; run with --ignored real_sshd
+test sftp::internal::api::download::directory::tests::real_sshd_plans_files_and_folders_of_a_selection ... ignored, spawns a real sshd; run with --ignored real_sshd
+test sftp::internal::api::external::real_sshd_tests::real_sshd_external_edit_refuses_folders ... ignored, spawns a real sshd; run with --ignored real_sshd
+test sftp::internal::api::external::real_sshd_tests::real_sshd_external_edit_round_trip_keeps_the_file_as_it_was ... ignored, spawns a real sshd; run with --ignored real_sshd
+test sftp::internal::api::external::real_sshd_tests::real_sshd_external_edit_upload_stops_at_a_remote_change ... ignored, spawns a real sshd; run with --ignored real_sshd
+test sftp::internal::api::permissions::tests::real_sshd_applies_the_mode ... ignored, spawns a real sshd; run with --ignored real_sshd
+test sftp::internal::api::search::real_sshd_tests::real_sshd_find_searches_subfolders ... ignored, spawns a real sshd; run with --ignored real_sshd
+test sftp::internal::api::search::real_sshd_tests::real_sshd_find_stops_at_the_result_limit ... ignored, spawns a real sshd; run with --ignored real_sshd
+test sftp::internal::api::search::real_sshd_tests::real_sshd_sftp_only_account_falls_back_to_walking ... ignored, spawns a real sshd; run with --ignored real_sshd
+test sftp::internal::sudo::host_tests::real_sudo_account_limited_to_some_commands_cannot_start_sftp ... ignored, needs a host with sudo; see the module docs
+test sftp::internal::sudo::host_tests::real_sudo_account_outside_sudoers_is_refused ... ignored, needs a host with sudo; see the module docs
+test sftp::internal::sudo::host_tests::real_sudo_asks_when_nothing_is_saved_and_again_after_a_typo ... ignored, needs a host with sudo; see the module docs
+test sftp::internal::sudo::host_tests::real_sudo_password_account_works_as_root ... ignored, needs a host with sudo; see the module docs
+test sftp::internal::sudo::host_tests::real_sudo_passwordless_account_with_fish_needs_no_password ... ignored, needs a host with sudo; see the module docs
+test sftp::internal::sudo::host_tests::real_sudo_requiretty_is_named ... ignored, needs a host with sudo; see the module docs
+test sftp::internal::sudo::host_tests::real_sudo_wrong_password_fails_at_once ... ignored, needs a host with sudo; see the module docs
+test ssh::auth::real_sshd_tests::real_sshd_accepts_a_pem_rsa_key_file ... ignored, spawns a real sshd; run with --ignored real_sshd
+test ssh::auth::real_sshd_tests::real_sshd_accepts_an_rsa_key_file ... ignored, spawns a real sshd; run with --ignored real_sshd
+test ssh::auth::real_sshd_tests::real_sshd_accepts_the_certificate_beside_a_key_file ... ignored, spawns a real sshd; run with --ignored real_sshd
+test ssh::auth::real_sshd_tests::real_sshd_key_alone_is_not_enough_when_two_methods_are_required ... ignored, spawns a real sshd; run with --ignored real_sshd
+test ssh::auth::real_sshd_tests::real_sshd_pam_prompts_reach_the_user ... ignored, spawns a real sshd; run with --ignored real_sshd
+test ssh::auth::real_sshd_tests::real_sshd_partial_success_moves_on_to_the_next_method ... ignored, spawns a real sshd; run with --ignored real_sshd
+test ssh::auth::real_sshd_tests::real_sshd_with_only_an_rsa_host_key_is_verified ... ignored, spawns a real sshd; run with --ignored real_sshd
+test ssh::jump::real_sshd_tests::real_sshd_carries_two_targets_over_one_shared_hop ... ignored, spawns a real sshd; run with --ignored real_sshd
+test ssh::remote_os::tests::real_sshd_names_this_system ... ignored, spawns a real sshd; run with --ignored real_sshd
+test ssh::secret_store::keyring_backend::tests::list_real_accounts ... ignored
+test ssh::shell_integration::real_shell_integration_tests::real_shell_integration_marks_commands_in_each_shell ... ignored, runs the real sh and the bash, zsh and fish found on PATH
+test ssh::shell_integration::real_shell_integration_tests::real_shell_integration_over_sshd_marks_commands_in_the_login_shell ... ignored, spawns a real sshd; run with --ignored real_shell_integration
+test ssh::shell_integration::real_shell_integration_tests::real_shell_integration_reports_the_directory_with_marks_off ... ignored, runs the real sh and the bash, zsh and fish found on PATH
+test sync::tests::live_devices_sync_through_a_server ... ignored
+test sync::tests::live_devices_syncing_at_once_lose_nothing ... ignored
+test zmodem::real_interop_tests::engine_receives_a_binary_file_from_real_sz ... ignored, requires the real `sz` binary from lrzsz
+test zmodem::real_interop_tests::engine_receives_a_small_text_file_from_real_sz ... ignored, requires the real `sz` binary from lrzsz
+test zmodem::real_interop_tests::engine_sends_a_binary_file_to_real_rz ... ignored, requires the real `rz` binary from lrzsz
+test zmodem::real_pty_interop_tests::manual_trigger_receives_from_real_sz_with_auto_detect_disabled ... ignored, requires the real `sz` binary from lrzsz, and spawns a real local PTY
+test zmodem::real_pty_interop_tests::wired_driver_receives_a_file_from_real_sz_over_a_real_pty ... ignored, requires the real `sz` binary from lrzsz, and spawns a real local PTY
+test zmodem::real_pty_send_interop_tests::wired_send_uploads_a_file_to_real_rz_over_a_real_pty ... ignored, requires the real `rz` binary from lrzsz, and spawns a real local PTY
+test zmodem::real_ssh_interop_tests::wired_driver_receives_a_file_from_real_sz_over_a_real_ssh_channel ... ignored, spawns a local sshd and requires the real `sz` binary from lrzsz
+test zmodem::real_ssh_send_interop_tests::wired_send_uploads_a_file_to_real_rz_over_a_real_ssh_channel ... ignored, spawns a local sshd and requires the real `rz` binary from lrzsz
