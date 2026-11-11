@@ -11000,6 +11000,7 @@ dependencies = [
  "dirs 7.0.0",
  "serde",
  "serde_json",
+ "tterm-terminal",
  "uuid",
 ]
 
@@ -11038,6 +11039,8 @@ dependencies = [
  "alacritty_terminal",
  "regex",
  "regress",
+ "serde",
+ "serde_json",
 ]
 
 [[package]]
