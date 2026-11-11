@@ -6,7 +6,7 @@
 //! well, since a window closed to the tray has no taskbar button to carry it.
 
 use serde::Deserialize;
-use tauri::AppHandle;
+use std::sync::Arc;
 
 /// An overlay drawn by the frontend, as RGBA rows from the top.
 #[derive(Debug, Clone, Deserialize)]
@@ -35,33 +35,38 @@ impl OverlayImage {
 /// count drawn for the Windows taskbar; other systems ignore it.
 #[tauri::command]
 pub async fn set_unseen_notifications(
-    app: AppHandle,
+    count: u32,
+    overlay: Option<OverlayImage>,
+    services: tauri::State<'_, Arc<crate::services::AppServices>>,
+) -> Result<(), String> {
+    set_unseen(
+        services.shared.platform.main_window.as_ref(),
+        services.shared.platform.badge.as_ref(),
+        count,
+        overlay,
+    )
+    .await
+}
+
+async fn set_unseen(
+    window: &dyn tterm_platform::window::MainWindow,
+    badge: &dyn tterm_platform::notifications::AppBadge,
     count: u32,
     overlay: Option<OverlayImage>,
 ) -> Result<(), String> {
     let overlay = overlay.map(OverlayImage::check).transpose()?;
-    use tauri::Manager;
-    let _ = app
-        .state::<std::sync::Arc<dyn tterm_platform::window::MainWindow>>()
-        .set_attention(count > 0);
+    let _ = window.set_attention(count > 0);
     let overlay = overlay.map(|image| tterm_platform::notifications::RgbaImage {
         rgba: image.rgba,
         width: image.width,
         height: image.height,
     });
-    app.state::<std::sync::Arc<dyn tterm_platform::notifications::AppBadge>>()
-        .set_unseen(count, overlay)
-        .await
+    badge.set_unseen(count, overlay).await
 }
 /// Restores a taskbar overlay after the main window is shown again.
-pub fn restore(app: &AppHandle) {
-    use tauri::Manager;
-    if let Some(badge) =
-        app.try_state::<std::sync::Arc<dyn tterm_platform::notifications::AppBadge>>()
-    {
-        if let Err(error) = badge.restore() {
-            eprintln!("{error}");
-        }
+pub fn restore(badge: &dyn tterm_platform::notifications::AppBadge) {
+    if let Err(error) = badge.restore() {
+        eprintln!("{error}");
     }
 }
 

@@ -1,0 +1,12 @@
+src-tauri/src/notification/mod.rs:74:pub fn init(app: &AppHandle) {
+src-tauri/src/notification/mod.rs:86:    app.manage(std::sync::Arc::new(native)
+src-tauri/src/notification/mod.rs:87:        as std::sync::Arc<dyn tterm_platform::notifications::Notifications>);
+src-tauri/src/notification/mod.rs:95:    app.state::<std::sync::Arc<dyn tterm_platform::notifications::Notifications>>()
+src-tauri/src/notification/mod.rs:111:        .state::<std::sync::Arc<dyn tterm_platform::notifications::Notifications>>()
+src-tauri/src/system_integration/mod.rs:22:struct IntegrationState(Result<Arc<dyn SystemIntegration>, String>);
+src-tauri/src/system_integration/mod.rs:25:pub fn initialize(app: &AppHandle) {
+src-tauri/src/system_integration/mod.rs:29:fn initialize_with<R: tauri::Runtime>(
+src-tauri/src/system_integration/mod.rs:41:    app.manage(IntegrationState(integration));
+src-tauri/src/system_integration/mod.rs:44:fn integration<R: tauri::Runtime>(
+src-tauri/src/system_integration/mod.rs:47:    app.try_state::<IntegrationState>()
+src-tauri/src/system_integration/mod.rs:132:            .try_state::<super::IntegrationState>()

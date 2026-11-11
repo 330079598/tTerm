@@ -7,22 +7,32 @@ use super::storage::{
     upsert_tunnel,
 };
 use super::types::TunnelRule;
+use crate::background::tray::TrayContext;
 use crate::core::blocking::run_blocking;
 use crate::core::session::saved_hops::load_saved_hop_password;
 use crate::core::session::{
     load_saved_ssh_password, normalize_connection, resolve_ssh_password, types::JumpHostOptions,
     types::PtyConnectionOptions,
 };
-use crate::event_sink::TauriEventSink;
 use crate::profiles::types::SavedProfile;
+use crate::ssh::context::ConnectionContext;
+use crate::ssh::secret_store::types::SecretStoreState;
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
-use tauri::{AppHandle, Manager, State};
+
 use tokio::sync::{watch, Mutex};
 use tokio::task::JoinHandle;
 use tterm_core::events::tunnel::{TunnelState, TunnelStatus, TunnelTraffic};
+
+/// Concrete dependencies shared by tunnel starts and reconnection tasks.
+#[derive(Clone)]
+pub(crate) struct TunnelContext {
+    pub connection: ConnectionContext,
+    pub secrets: SecretStoreState,
+    pub tray: TrayContext,
+}
 
 const STOP_TIMEOUT: Duration = Duration::from_secs(5);
 
@@ -41,14 +51,18 @@ pub struct TunnelManager {
 }
 
 impl TunnelManager {
-    fn reporter_for(&self, app: &AppHandle, id: &str) -> Arc<TunnelReporter> {
-        let sink: Arc<dyn tterm_core::events::EventSink> =
-            Arc::new(TauriEventSink::new(app.clone()));
+    fn reporter_for(&self, context: &TunnelContext, id: &str) -> Arc<TunnelReporter> {
         self.reporters
             .lock()
             .unwrap_or_else(|e| e.into_inner())
             .entry(id.to_string())
-            .or_insert_with(|| TunnelReporter::new(app.clone(), sink, id.to_string()))
+            .or_insert_with(|| {
+                TunnelReporter::new(
+                    context.tray.clone(),
+                    context.connection.events.clone(),
+                    id.to_string(),
+                )
+            })
             .clone()
     }
 
@@ -200,14 +214,12 @@ fn find_profile(profile_id: &str) -> Result<SavedProfile, String> {
     Ok(profile)
 }
 
-#[tauri::command]
-pub async fn list_tunnels() -> Result<Vec<TunnelRule>, String> {
+async fn list_tunnels_service() -> Result<Vec<TunnelRule>, String> {
     run_blocking(load_tunnels).await
 }
 
-#[tauri::command]
-pub async fn list_tunnel_statuses(
-    manager: State<'_, Arc<TunnelManager>>,
+async fn list_tunnel_statuses_service(
+    manager: &TunnelManager,
 ) -> Result<Vec<TunnelStatus>, String> {
     let (rules, saved) =
         run_blocking(|| Ok((load_tunnels()?, crate::db::read(list_tunnel_traffic)?))).await?;
@@ -218,10 +230,9 @@ pub async fn list_tunnel_statuses(
 }
 
 /// Zeroes a tunnel's lifetime traffic and starts counting again from now.
-#[tauri::command]
-pub async fn reset_tunnel_traffic_totals(
+async fn reset_tunnel_traffic_totals_service(
     id: String,
-    manager: State<'_, Arc<TunnelManager>>,
+    manager: &TunnelManager,
 ) -> Result<(), String> {
     let reporter = manager.reporter(&id);
     run_blocking(move || match reporter {
@@ -234,9 +245,12 @@ pub async fn reset_tunnel_traffic_totals(
     .await
 }
 
-#[tauri::command]
-pub async fn save_tunnel(app: AppHandle, mut tunnel: TunnelRule) -> Result<TunnelRule, String> {
+async fn save_tunnel_service(
+    tray: &TrayContext,
+    tunnel: &mut TunnelRule,
+) -> Result<TunnelRule, String> {
     tunnel.validate()?;
+    let tunnel = tunnel.clone();
     let tunnel = run_blocking(move || {
         let profile = find_profile(&tunnel.profile_id)?;
         connection_options_for_profile(&profile)?;
@@ -244,19 +258,18 @@ pub async fn save_tunnel(app: AppHandle, mut tunnel: TunnelRule) -> Result<Tunne
         Ok(tunnel)
     })
     .await?;
-    crate::background::tray::refresh_tunnels(&app);
+    crate::background::tray::refresh_tunnels(tray);
     Ok(tunnel)
 }
 
-#[tauri::command]
-pub async fn delete_tunnel(
-    app: AppHandle,
+async fn delete_tunnel_service(
+    tray: &TrayContext,
     id: String,
-    manager: State<'_, Arc<TunnelManager>>,
+    manager: &TunnelManager,
 ) -> Result<(), String> {
     manager.discard(&id).await;
     crate::db::write(|transaction| delete_tunnel_rule(transaction, &id))?;
-    crate::background::tray::refresh_tunnels(&app);
+    crate::background::tray::refresh_tunnels(tray);
     Ok(())
 }
 
@@ -264,10 +277,8 @@ pub async fn delete_tunnel(
 /// failing, and spawns its task. `auto` marks an unattended start: missing
 /// secrets are recorded on the tunnel's status rather than prompted for.
 async fn start_rule(
-    app: &AppHandle,
+    context: &TunnelContext,
     manager: &TunnelManager,
-    secret_state: &crate::ssh::secret_store::types::SecretStoreState,
-    prompts: &std::sync::Arc<tterm_core::prompts::PromptBroker>,
     id: &str,
     credentials: &TunnelCredentials,
     auto: bool,
@@ -297,23 +308,23 @@ async fn start_rule(
         &mut plan,
         |plan| {
             load_saved_ssh_password(
-                secret_state,
+                &context.secrets,
                 plan.profile_id.as_deref(),
                 Some(plan.profile_name.as_str()),
             )
         },
-        |plan, jump| load_saved_hop_password(secret_state, plan, jump),
+        |plan, jump| load_saved_hop_password(&context.secrets, plan, jump),
     )?;
     if !requests.is_empty() {
         if auto {
             manager
-                .reporter_for(app, id)
+                .reporter_for(context, id)
                 .set_state(TunnelState::NeedsCredentials, None);
         }
         return Ok(StartOutcome::NeedsCredentials { requests });
     }
     // Persists entered passwords when the user asked to remember them.
-    resolve_ssh_password(secret_state, &mut plan)?;
+    resolve_ssh_password(&context.secrets, &mut plan)?;
 
     // Check and register under one lock so a double click cannot start two
     // tasks for the same rule.
@@ -325,14 +336,14 @@ async fn start_rule(
         return Ok(StartOutcome::Started);
     }
 
-    let reporter = manager.reporter_for(app, id);
+    let reporter = manager.reporter_for(context, id);
     let (stop_tx, stop_rx) = watch::channel(false);
     let task = tokio::spawn(run_tunnel(
         RunContext {
-            app: app.clone(),
+            connection: context.connection.clone(),
             rule,
             plan,
-            prompts: prompts.clone(),
+            prompts: context.connection.prompts.clone(),
             reporter,
             hub: manager.hub.clone(),
         },
@@ -342,50 +353,21 @@ async fn start_rule(
     Ok(StartOutcome::Started)
 }
 
-#[tauri::command]
-pub async fn start_tunnel(
-    app: AppHandle,
-    id: String,
-    credentials: Option<TunnelCredentials>,
-    manager: State<'_, Arc<TunnelManager>>,
-    secret_state: State<'_, crate::ssh::secret_store::types::SecretStoreState>,
-    prompts: State<'_, std::sync::Arc<tterm_core::prompts::PromptBroker>>,
-) -> Result<StartOutcome, String> {
-    start_rule(
-        &app,
-        &manager,
-        &secret_state,
-        prompts.inner(),
-        &id,
-        &credentials.unwrap_or_default(),
-        false,
-    )
-    .await
-}
-
 /// Starts a rule with no one at the tunnels page to ask (on launch, or from
 /// the tray menu): a missing secret or an error is left on its status for the
 /// page to show. Returns whether the tunnel is starting.
-pub(crate) async fn start_unattended(app: &AppHandle, id: &str) -> bool {
-    let manager = app.state::<Arc<TunnelManager>>();
-    let secret_state = app.state::<crate::ssh::secret_store::types::SecretStoreState>();
-    let prompts = app.state::<std::sync::Arc<tterm_core::prompts::PromptBroker>>();
-    let result = start_rule(
-        app,
-        &manager,
-        &secret_state,
-        prompts.inner(),
-        id,
-        &TunnelCredentials::default(),
-        true,
-    )
-    .await;
+pub(crate) async fn start_unattended(
+    context: &TunnelContext,
+    manager: &TunnelManager,
+    id: &str,
+) -> bool {
+    let result = start_rule(context, manager, id, &TunnelCredentials::default(), true).await;
     match result {
         Ok(StartOutcome::Started) => true,
         Ok(StartOutcome::NeedsCredentials { .. }) => false,
         Err(message) => {
             manager
-                .reporter_for(app, id)
+                .reporter_for(context, id)
                 .set_state(TunnelState::Error, Some(message));
             false
         }
@@ -394,23 +376,16 @@ pub(crate) async fn start_unattended(app: &AppHandle, id: &str) -> bool {
 
 /// Starts every rule flagged `auto_start`. Runs once per app launch so that
 /// reloading the window does not revive tunnels the user stopped.
-#[tauri::command]
-pub async fn auto_start_tunnels(
-    app: AppHandle,
-    manager: State<'_, Arc<TunnelManager>>,
+async fn auto_start_tunnels_service(
+    context: &TunnelContext,
+    manager: &TunnelManager,
 ) -> Result<(), String> {
     if manager.auto_started.swap(true, Ordering::SeqCst) {
         return Ok(());
     }
     for rule in load_tunnels()?.into_iter().filter(|rule| rule.auto_start) {
-        start_unattended(&app, &rule.id).await;
+        start_unattended(context, manager, &rule.id).await;
     }
-    Ok(())
-}
-
-#[tauri::command]
-pub async fn stop_tunnel(id: String, manager: State<'_, Arc<TunnelManager>>) -> Result<(), String> {
-    manager.stop(&id).await;
     Ok(())
 }
 
@@ -460,4 +435,74 @@ mod tests {
         }));
         assert!(connection_options_for_profile(&profile).is_err());
     }
+}
+
+#[tauri::command]
+pub async fn list_tunnels() -> Result<Vec<TunnelRule>, String> {
+    list_tunnels_service().await
+}
+#[tauri::command]
+pub async fn list_tunnel_statuses(
+    services: tauri::State<'_, Arc<crate::services::AppServices>>,
+) -> Result<Vec<TunnelStatus>, String> {
+    list_tunnel_statuses_service(&services.app.tunnels).await
+}
+#[tauri::command]
+pub async fn reset_tunnel_traffic_totals(
+    id: String,
+    services: tauri::State<'_, Arc<crate::services::AppServices>>,
+) -> Result<(), String> {
+    reset_tunnel_traffic_totals_service(id, &services.app.tunnels).await
+}
+#[tauri::command]
+pub async fn save_tunnel(
+    mut tunnel: TunnelRule,
+    services: tauri::State<'_, Arc<crate::services::AppServices>>,
+) -> Result<TunnelRule, String> {
+    save_tunnel_service(&crate::app_context::tray(&services), &mut tunnel).await
+}
+#[tauri::command]
+pub async fn delete_tunnel(
+    id: String,
+    services: tauri::State<'_, Arc<crate::services::AppServices>>,
+) -> Result<(), String> {
+    delete_tunnel_service(
+        &crate::app_context::tray(&services),
+        id,
+        &services.app.tunnels,
+    )
+    .await
+}
+#[tauri::command]
+pub async fn start_tunnel(
+    id: String,
+    credentials: Option<TunnelCredentials>,
+    services: tauri::State<'_, Arc<crate::services::AppServices>>,
+) -> Result<StartOutcome, String> {
+    start_rule(
+        &crate::app_context::tunnel(&services),
+        &services.app.tunnels,
+        &id,
+        &credentials.unwrap_or_default(),
+        false,
+    )
+    .await
+}
+#[tauri::command]
+pub async fn auto_start_tunnels(
+    services: tauri::State<'_, Arc<crate::services::AppServices>>,
+) -> Result<(), String> {
+    auto_start_tunnels_service(
+        &crate::app_context::tunnel(&services),
+        &services.app.tunnels,
+    )
+    .await
+}
+#[tauri::command]
+pub async fn stop_tunnel(
+    id: String,
+    services: tauri::State<'_, Arc<crate::services::AppServices>>,
+) -> Result<(), String> {
+    services.app.tunnels.stop(&id).await;
+    Ok(())
 }

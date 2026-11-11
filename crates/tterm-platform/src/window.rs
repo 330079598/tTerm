@@ -2,6 +2,10 @@
 
 /// The main window is bound by the client; methods dispatch without blocking its UI thread.
 pub trait MainWindow: Send + Sync {
+    /// Persists window placement before an installer can terminate the process.
+    fn save_before_update(&self) -> crate::PlatformFuture<'_, ()>;
+    /// Hides the window when the tray is usable, otherwise minimizes it.
+    fn send_to_background(&self, tray_present: bool) -> Result<(), String>;
     /// Unminimizes, shows, and focuses the bound main window.
     fn show_and_focus(&self) -> Result<(), String>;
     /// Shows the main window only when backgrounded or minimized.

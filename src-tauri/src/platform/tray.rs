@@ -42,6 +42,9 @@ impl TauriTray {
     }
 }
 impl Tray for TauriTray {
+    fn dispatch(&self, task: Box<dyn FnOnce() + Send>) -> Result<(), String> {
+        self.app.run_on_main_thread(task).map_err(|e| e.to_string())
+    }
     fn present(&self, model: TrayModel) -> Result<(), String> {
         let model = self
             .removal
@@ -67,7 +70,7 @@ impl Tray for TauriTray {
         let app = self.app.clone();
         let removal = self.removal.clone();
         if let Err(error) = self.app.run_on_main_thread(move || {
-            crate::background::tray::hide(&app);
+            crate::platform::tray_native::hide(&app);
             let mut removal = removal.lock().unwrap_or_else(|error| error.into_inner());
             if let Some(model) = removal.deferred.take() {
                 if let Err(error) = present(&app, model) {
@@ -106,7 +109,7 @@ impl Tray for TauriTray {
 
 fn present(app: &AppHandle, model: TrayModel) -> Result<(), String> {
     let menu = build_menu(app, &model.entries).map_err(|error| error.to_string())?;
-    crate::background::tray::present_menu(app, menu).map_err(|error| error.to_string())
+    crate::platform::tray_native::present_menu(app, menu).map_err(|error| error.to_string())
 }
 
 fn build_menu(

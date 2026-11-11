@@ -1,0 +1,19 @@
+2026-11-11 macOS arm64, /Users/stone/Code/rust/tTerm-P1-07d
+Observed execution summary (not a raw console transcript).
+
+pnpm lint: exit 0
+pnpm format:check: exit 0, All matched files use Prettier code style!
+pnpm check:tokens: exit 0
+pnpm typecheck: exit 0
+pnpm exec vitest run src --maxWorkers=3: exit 0
+  Test Files 183 passed (183)
+  Tests 1354 passed (1354)
+  Start at 16:06:14
+  Duration 18.91s
+node --test scripts/parity/layout.test.mjs: exit 0, 2 passed / 0 failed
+pnpm check:size: exit 0, file-size: 1182 files within their limits
+
+Vite native config compatibility warnings and jsdom HTMLCanvasElement.getContext
+messages appeared; no assertion or command failed.
+The limited-worker Vitest command and layout test execute the same test sets as
+pnpm test, following dispatch.md section 6.

@@ -9,8 +9,8 @@ use tterm_core::events::{AppEvent, EventSink};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
 
-use tauri::{AppHandle, Manager, State};
 use tokio::sync::Notify;
+use tterm_platform::process::ProcessControl;
 
 /// How long a quit waits for the UI. A webview that hangs or is gone must
 /// not keep the app from quitting.
@@ -26,6 +26,14 @@ pub struct QuitState {
 }
 
 impl QuitState {
+    fn set_save_before_quit(&self, enabled: bool) {
+        self.save_before_quit.store(enabled, Ordering::SeqCst);
+    }
+
+    fn ready(&self) {
+        self.saved.notify_one();
+    }
+
     /// Whether this quit should wait for the UI. A second quit while the first
     /// still waits is the user insisting, and goes ahead at once.
     fn should_wait(&self) -> bool {
@@ -33,33 +41,33 @@ impl QuitState {
     }
 }
 
+/// Dependencies retained only until the final exit request.
+#[derive(Clone)]
+pub(crate) struct QuitContext {
+    pub state: Arc<QuitState>,
+    pub events: Arc<dyn EventSink>,
+    pub process: Arc<dyn ProcessControl>,
+    pub runtime: tokio::runtime::Handle,
+}
+
 /// Quits the app once the UI has saved, or once it took too long to.
-pub fn quit<R: tauri::Runtime>(app: &AppHandle<R>) {
-    if !quit_after_save(app) {
-        if let Err(error) = app
-            .state::<std::sync::Arc<dyn tterm_platform::process::ProcessControl>>()
-            .exit(0)
-        {
+pub(crate) fn quit(context: &QuitContext) {
+    if !quit_after_save(context) {
+        if let Err(error) = context.process.exit(0) {
             eprintln!("Failed to exit tTerm: {error}");
         }
     }
 }
 
-/// Starts a quit that waits for the UI to save. Returns `false` when there
-/// is nothing to wait for, and the caller is to exit at once.
-pub fn quit_after_save<R: tauri::Runtime>(app: &AppHandle<R>) -> bool {
-    let state = app.state::<Arc<QuitState>>();
-    if !begin_save(&state, &crate::event_sink::TauriEventSink::new(app.clone())) {
+/// Returns false when the caller should exit immediately.
+pub(crate) fn quit_after_save(context: &QuitContext) -> bool {
+    if !begin_save(&context.state, context.events.as_ref()) {
         return false;
     }
-    let app = app.clone();
-    tauri::async_runtime::spawn(async move {
-        let state = app.state::<Arc<QuitState>>();
-        wait_for_save(&state).await;
-        if let Err(error) = app
-            .state::<std::sync::Arc<dyn tterm_platform::process::ProcessControl>>()
-            .exit(0)
-        {
+    let context = context.clone();
+    context.runtime.clone().spawn(async move {
+        wait_for_save(&context.state).await;
+        if let Err(error) = context.process.exit(0) {
             eprintln!("Failed to exit tTerm: {error}");
         }
     });
@@ -79,16 +87,19 @@ async fn wait_for_save(state: &QuitState) {
 
 /// The UI tells whether it has something to save before a quit.
 #[tauri::command]
-pub fn set_save_before_quit(enabled: bool, state: State<'_, Arc<QuitState>>) {
-    state.save_before_quit.store(enabled, Ordering::SeqCst);
+pub fn set_save_before_quit(
+    enabled: bool,
+    services: tauri::State<'_, Arc<crate::services::AppServices>>,
+) {
+    services.app.quit.set_save_before_quit(enabled);
 }
 
 /// The UI's answer to `app-will-quit`: it has saved, and the app may quit.
 #[tauri::command]
-pub fn ready_to_quit(state: State<'_, Arc<QuitState>>) {
+pub fn ready_to_quit(services: tauri::State<'_, Arc<crate::services::AppServices>>) {
     // A permit is kept when the quit is not waiting yet, so an answer that
     // comes first is not lost.
-    state.saved.notify_one();
+    services.app.quit.ready();
 }
 
 #[cfg(test)]
@@ -111,27 +122,25 @@ mod tests {
         for answer in [true, false] {
             let process =
                 std::sync::Arc::new(RecordingProcess(std::sync::atomic::AtomicUsize::new(0)));
-            let app = tauri::test::mock_builder()
-                .manage(Arc::new(QuitState::default()))
-                .manage(
-                    process.clone() as std::sync::Arc<dyn tterm_platform::process::ProcessControl>
-                )
-                .build(tauri::test::mock_context(tauri::test::noop_assets()))
-                .unwrap();
-            app.state::<Arc<QuitState>>()
-                .save_before_quit
-                .store(true, Ordering::SeqCst);
-            quit(app.handle());
+            let state = Arc::new(QuitState::default());
+            let context = QuitContext {
+                state: state.clone(),
+                events: Arc::new(tterm_core::events::recording::RecordingEventSink::default()),
+                process: process.clone(),
+                runtime: tokio::runtime::Handle::current(),
+            };
+            state.save_before_quit.store(true, Ordering::SeqCst);
+            quit(&context);
             tokio::task::yield_now().await;
             assert_eq!(process.0.load(Ordering::SeqCst), 0);
             if answer {
-                app.state::<Arc<QuitState>>().saved.notify_one();
+                state.saved.notify_one();
             } else {
                 tokio::time::sleep(SAVE_TIMEOUT + Duration::from_millis(100)).await;
             }
             tokio::time::sleep(Duration::from_millis(50)).await;
             assert_eq!(process.0.load(Ordering::SeqCst), 1);
-            quit(app.handle());
+            quit(&context);
             assert_eq!(process.0.load(Ordering::SeqCst), 2);
         }
     }

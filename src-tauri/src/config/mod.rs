@@ -454,8 +454,23 @@ pub async fn save_config(app: tauri::AppHandle, config: AppConfig) -> Result<(),
         log_state.validate_config(&config)?;
         save_config_file(&config)?;
         crate::sftp::internal::api::apply_bandwidth_limits(&config);
-        crate::background::apply_config(&app, &config);
-        crate::system_integration::apply_config(&app, &config);
+        crate::background::apply_config(
+            &app.state::<std::sync::Arc<crate::services::AppServices>>()
+                .app
+                .close_behavior,
+            &crate::app_context::tray(&app.state::<std::sync::Arc<crate::services::AppServices>>()),
+            &config,
+        );
+        app.state::<std::sync::Arc<crate::services::AppServices>>()
+            .shared
+            .runtime
+            .block_on(crate::system_integration::apply_config(
+                &app.state::<std::sync::Arc<crate::services::AppServices>>()
+                    .shared
+                    .platform
+                    .integration,
+                &config,
+            ));
         log_state.apply_config(
             &crate::connection_context::log(
                 &app.state::<std::sync::Arc<crate::services::AppServices>>(),
