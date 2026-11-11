@@ -538,3 +538,36 @@ fn leaves_program_colored_cells() {
         ]
     );
 }
+
+#[test]
+fn ucs2_matches_non_ascii_text_without_utf8_slicing() {
+    for (pattern, text, expected) in [
+        ("error.", "error中", vec![(0, 6)]),
+        (r"\S", "é", vec![(0, 1)]),
+        ("[^x]", "é", vec![(0, 1)]),
+        (r"[\x80-\xff]", "é", vec![(0, 1)]),
+        ("ошибка", "ОШИБКА", vec![(0, 6)]),
+        (r"\s", "　", vec![(0, 1)]),
+        ("s", "ſ S", vec![(2, 3)]),
+        ("k", "K K", vec![(0, 1)]),
+        (".", "😀", vec![(0, 1), (1, 2)]),
+        ("(?=.)|x", "😀x", vec![]),
+    ] {
+        let rules = compile_highlight_set(
+            &set(vec![rule(|value| {
+                value.kind = "regex".into();
+                value.pattern = pattern.into();
+            })]),
+            &palette(),
+        );
+        let spans = match_highlights(text, &rules);
+        assert_eq!(
+            spans
+                .iter()
+                .map(|span| (span.start, span.end))
+                .collect::<Vec<_>>(),
+            expected,
+            "{pattern}: {text}"
+        );
+    }
+}

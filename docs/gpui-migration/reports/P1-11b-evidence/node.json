@@ -1,0 +1,249 @@
+{
+  "matches": [
+    {
+      "pattern": "error.",
+      "text": "error中",
+      "error": null,
+      "spans": [
+        [
+          0,
+          6
+        ]
+      ]
+    },
+    {
+      "pattern": "\\S",
+      "text": "é",
+      "error": null,
+      "spans": [
+        [
+          0,
+          1
+        ]
+      ]
+    },
+    {
+      "pattern": "[^x]",
+      "text": "é",
+      "error": null,
+      "spans": [
+        [
+          0,
+          1
+        ]
+      ]
+    },
+    {
+      "pattern": "[\\x80-\\xff]",
+      "text": "é",
+      "error": null,
+      "spans": [
+        [
+          0,
+          1
+        ]
+      ]
+    },
+    {
+      "pattern": "ошибка",
+      "text": "ОШИБКА",
+      "error": null,
+      "spans": [
+        [
+          0,
+          6
+        ]
+      ]
+    },
+    {
+      "pattern": "\\s",
+      "text": "　",
+      "error": null,
+      "spans": [
+        [
+          0,
+          1
+        ]
+      ]
+    },
+    {
+      "pattern": "s",
+      "text": "ſ S",
+      "error": null,
+      "spans": [
+        [
+          2,
+          3
+        ]
+      ]
+    },
+    {
+      "pattern": "k",
+      "text": "K K",
+      "error": null,
+      "spans": [
+        [
+          0,
+          1
+        ]
+      ]
+    },
+    {
+      "pattern": ".",
+      "text": "😀",
+      "error": null,
+      "spans": [
+        [
+          0,
+          1
+        ],
+        [
+          1,
+          2
+        ]
+      ]
+    },
+    {
+      "pattern": "(?=.)|x",
+      "text": "😀x",
+      "error": null,
+      "spans": []
+    },
+    {
+      "pattern": "a{",
+      "text": "a{",
+      "error": null,
+      "spans": [
+        [
+          0,
+          2
+        ]
+      ]
+    },
+    {
+      "pattern": "]",
+      "text": "]",
+      "error": null,
+      "spans": [
+        [
+          0,
+          1
+        ]
+      ]
+    },
+    {
+      "pattern": "x{2,1}",
+      "text": "xxx",
+      "error": "invalid",
+      "spans": []
+    }
+  ],
+  "addresses": [
+    {
+      "text": "10.0.0.0/33",
+      "matches": [
+        "10.0.0.0"
+      ]
+    },
+    {
+      "text": "Add::add",
+      "matches": []
+    },
+    {
+      "text": "x10.0.0.1",
+      "matches": []
+    },
+    {
+      "text": "1.2.3.4.5",
+      "matches": []
+    }
+  ],
+  "colors": [
+    {
+      "value": "0 100% 50%",
+      "hex": "#ff0000"
+    },
+    {
+      "value": "rgb(1, 2, 3",
+      "hex": "#010203"
+    },
+    {
+      "value": "rgb(-1,2,3)",
+      "hex": null
+    },
+    {
+      "value": "hsl(0, 100, 50)",
+      "hex": null
+    },
+    {
+      "value": "hsl(720 100% 50%)",
+      "hex": "#ff0000"
+    }
+  ],
+  "builtin": {
+    "id": "builtin",
+    "name": "",
+    "rules": [
+      {
+        "id": "builtin-errors",
+        "enabled": true,
+        "pattern": "errors?|fail(?:ed|ure|s)?|fatal|denied|refused|panic(?:ked)?|critical",
+        "kind": "regex",
+        "case_sensitive": false,
+        "whole_word": true,
+        "foreground": "red",
+        "background": null
+      },
+      {
+        "id": "builtin-warnings",
+        "enabled": true,
+        "pattern": "warn(?:ing|ings)?|timeout|timed out|deprecated",
+        "kind": "regex",
+        "case_sensitive": false,
+        "whole_word": true,
+        "foreground": "yellow",
+        "background": null
+      },
+      {
+        "id": "builtin-success",
+        "enabled": true,
+        "pattern": "success(?:ful|fully)?|succeeded|passed",
+        "kind": "regex",
+        "case_sensitive": false,
+        "whole_word": true,
+        "foreground": "green",
+        "background": null
+      },
+      {
+        "id": "builtin-ipv4",
+        "enabled": true,
+        "pattern": "(?<![\\w.])(?:25[0-5]|2[0-4]\\d|1\\d\\d|[1-9]?\\d)(?:\\.(?:25[0-5]|2[0-4]\\d|1\\d\\d|[1-9]?\\d)){3}(?:/(?:3[0-2]|[12]?\\d))?(?![\\w]|\\.\\d)",
+        "kind": "regex",
+        "case_sensitive": false,
+        "whole_word": false,
+        "foreground": "cyan",
+        "background": null
+      },
+      {
+        "id": "builtin-ipv6",
+        "enabled": true,
+        "pattern": "(?<![\\w:])(?=[\\da-f:]*\\d)(?:(?:[\\da-f]{1,4}:){7}[\\da-f]{1,4}|(?:[\\da-f]{1,4}:){1,7}:|(?:[\\da-f]{1,4}:){1,6}:[\\da-f]{1,4}|(?:[\\da-f]{1,4}:){1,5}(?::[\\da-f]{1,4}){1,2}|(?:[\\da-f]{1,4}:){1,4}(?::[\\da-f]{1,4}){1,3}|(?:[\\da-f]{1,4}:){1,3}(?::[\\da-f]{1,4}){1,4}|(?:[\\da-f]{1,4}:){1,2}(?::[\\da-f]{1,4}){1,5}|[\\da-f]{1,4}:(?::[\\da-f]{1,4}){1,6}|:(?::[\\da-f]{1,4}){1,7})(?:/\\d{1,3})?(?![\\w:])",
+        "kind": "regex",
+        "case_sensitive": false,
+        "whole_word": false,
+        "foreground": "cyan",
+        "background": null
+      },
+      {
+        "id": "builtin-mac",
+        "enabled": true,
+        "pattern": "(?<![\\w:-])(?:[\\da-f]{2}(?::[\\da-f]{2}){5}|[\\da-f]{2}(?:-[\\da-f]{2}){5}|[\\da-f]{4}\\.[\\da-f]{4}\\.[\\da-f]{4})(?![\\w:-])",
+        "kind": "regex",
+        "case_sensitive": false,
+        "whole_word": false,
+        "foreground": "magenta",
+        "background": null
+      }
+    ]
+  }
+}

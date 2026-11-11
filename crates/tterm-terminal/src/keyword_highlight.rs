@@ -162,7 +162,7 @@ pub fn highlight_pattern_error(rule: &HighlightRule) -> Option<&'static str> {
     let Ok(regex) = Regex::with_flags(&source(rule), flags(rule)) else {
         return Some("invalid");
     };
-    if regex.find_ascii("").is_some() {
+    if regex.find_from_ucs2(&[], 0).next().is_some() {
         Some("matchesEmpty")
     } else {
         None
@@ -305,36 +305,20 @@ pub fn compile_highlight_set(
         })
         .collect()
 }
-fn utf16_offset(value: &str, byte: usize) -> usize {
-    value[..byte].encode_utf16().count()
-}
-fn truncate_utf16(value: &str, max: usize) -> String {
-    let mut units = 0;
-    let mut end = 0;
-    for (i, c) in value.char_indices() {
-        let next = units + c.len_utf16();
-        if next > max {
-            break;
-        }
-        units = next;
-        end = i + c.len_utf8();
-    }
-    value[..end].to_string()
-}
 /// Finds non-overlapping spans, with earlier rules taking precedence.
 pub fn match_highlights(text: &str, rules: &[CompiledHighlightRule]) -> Vec<HighlightSpan> {
-    let input = truncate_utf16(text, MAX_HIGHLIGHT_TEXT);
+    let input: Vec<u16> = text.encode_utf16().take(MAX_HIGHLIGHT_TEXT).collect();
     let mut accepted = Vec::new();
     for rule in rules {
         if accepted.len() >= MAX_SPANS_PER_LINE {
             break;
         }
-        for matched in rule.regex.find_iter_ascii(&input) {
+        for matched in rule.regex.find_from_ucs2(&input, 0) {
             if matched.start() == matched.end() {
                 continue;
             }
-            let start = utf16_offset(&input, matched.start());
-            let end = utf16_offset(&input, matched.end());
+            let start = matched.start();
+            let end = matched.end();
             if accepted
                 .iter()
                 .any(|span: &HighlightSpan| start < span.end && span.start < end)
