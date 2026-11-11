@@ -1,0 +1,14 @@
+✔ command signatures match the checked in baseline (33.551542ms)
+✔ command signatures include the generated handler list (17.029292ms)
+✔ parameters after injected state retain their IPC names and types (0.172416ms)
+✔ managed state scanner allows only the container, runtime and window tracker (1.481375ms)
+✔ Tauri state readers match the remaining managed registrations (27.865875ms)
+✔ services contain no Tauri adapter types (0.76975ms)
+ℹ tests 6
+ℹ suites 0
+ℹ pass 6
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 98.564292

@@ -1,0 +1,10 @@
+Environment: macOS 27.2 (26B123), arm64; node v24.20.0, pnpm 11.25.0.
+Command: pnpm lint && pnpm format:check && pnpm check:tokens && pnpm typecheck && pnpm test && pnpm check:size
+Exit: 0
+pnpm lint: passed
+pnpm format:check: All matched files use Prettier code style!
+pnpm check:tokens: passed
+pnpm typecheck: passed
+pnpm test: Test Files 183 passed (183); Tests 1354 passed (1354); node layout tests 2 passed, 0 failed.
+pnpm check:size: file-size: 1198 files within their limits
+Warnings: existing Vite native config-loader import warnings and jsdom HTMLCanvasElement.getContext notices; no failed tests.

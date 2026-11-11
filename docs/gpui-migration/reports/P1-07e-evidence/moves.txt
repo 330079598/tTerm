@@ -1,0 +1,13 @@
+$ git show -M --format=oneline --stat 16291814
+16291814e81ea281815b37a58c9f53e1adb96b5e :truck: align SFTP command module directories with their operations
+ src-tauri/src/sftp/internal/api/delete/{commands.rs => commands/mod.rs} | 0
+ src-tauri/src/sftp/internal/api/delete/{ => commands}/operations.rs     | 0
+ src-tauri/src/sftp/internal/api/upload/{commands.rs => commands/mod.rs} | 0
+ src-tauri/src/sftp/internal/api/upload/{ => commands}/operations.rs     | 0
+ 4 files changed, 0 insertions(+), 0 deletions(-)
+
+$ git show -M --format=oneline --stat ef9294a2
+ef9294a26fe0f5b70279dd690bbed1a1bcdabb8a :truck: place command library service and tests in their own module directory
+ src-tauri/src/command_library/{ => service}/commands/tests.rs | 0
+ src-tauri/src/command_library/{service.rs => service/mod.rs}  | 0
+ 2 files changed, 0 insertions(+), 0 deletions(-)

@@ -1,0 +1,42 @@
+Environment: macOS arm64; cargo 1.99.1; worktree-local target; CARGO_BUILD_JOBS=3.
+Each commit also passed: node scripts/migration/command-signatures.mjs --check (exit 0, no output).
+
+76bd0740
+$ CARGO_BUILD_JOBS=3 cargo check --workspace --all-targets
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.97s
+
+3121a8ea
+$ CARGO_BUILD_JOBS=3 cargo check --workspace --all-targets
+    Checking tTerm v0.8.1 (/Users/stone/Code/rust/tTerm-P1-07e/src-tauri)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 5.50s
+
+e4fab7bf
+$ CARGO_BUILD_JOBS=3 cargo check --workspace --all-targets
+    Checking tTerm v0.8.1 (/Users/stone/Code/rust/tTerm-P1-07e/src-tauri)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 7.41s
+
+78d84dcc
+$ CARGO_BUILD_JOBS=3 cargo check --workspace --all-targets
+    Checking tTerm v0.8.1 (/Users/stone/Code/rust/tTerm-P1-07e/src-tauri)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 5.50s
+
+16291814
+$ CARGO_BUILD_JOBS=3 cargo check --workspace --all-targets
+    Checking tTerm v0.8.1 (/Users/stone/Code/rust/tTerm-P1-07e/src-tauri)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 6.95s
+
+ef9294a2
+$ CARGO_BUILD_JOBS=3 cargo check --workspace --all-targets
+    Checking tTerm v0.8.1 (/Users/stone/Code/rust/tTerm-P1-07e/src-tauri)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 2.07s
+
+95e770ab
+$ CARGO_BUILD_JOBS=3 cargo check --workspace --all-targets
+    Checking tTerm v0.8.1 (/Users/stone/Code/rust/tTerm-P1-07e/src-tauri)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 4.53s
+
+Report/evidence commit (same production tree as 95e770ab)
+$ CARGO_BUILD_JOBS=3 cargo check --workspace --all-targets
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 1.10s
+$ node scripts/migration/command-signatures.mjs --check
+exit: 0 (no output)
