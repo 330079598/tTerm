@@ -297,7 +297,7 @@ fn change(agent: Agent, install: bool) -> Result<AgentIntegrationStatus, String>
 async fn blocking<T: Send + 'static>(
     work: impl FnOnce() -> T + Send + 'static,
 ) -> Result<T, String> {
-    tauri::async_runtime::spawn_blocking(work)
+    tokio::task::spawn_blocking(work)
         .await
         .map_err(|error| error.to_string())
 }
