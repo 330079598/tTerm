@@ -84,8 +84,10 @@ pub fn apply_config(app: &AppHandle, cfg: &AppConfig) {
 
 fn sync_tray(app: &AppHandle, behavior: CloseBehavior, language: &str) -> tauri::Result<()> {
     if behavior == CloseBehavior::Quit {
-        tray::hide(app);
-        return Ok(());
+        // Dropping the last macOS status-item reference must happen on the UI
+        // thread, including when save_config calls this from a blocking worker.
+        let handle = app.clone();
+        return app.run_on_main_thread(move || tray::hide(&handle));
     }
     tray::show(app, language)
 }
