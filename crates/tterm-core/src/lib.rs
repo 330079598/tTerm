@@ -12,3 +12,5 @@ pub mod keymap;
 pub mod paths;
 /// Session output endpoints shared by client adapters (P1-06).
 pub mod session;
+/// Shared SFTP value and streaming types (P1-04).
+pub mod sftp;

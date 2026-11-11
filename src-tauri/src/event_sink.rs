@@ -6,12 +6,14 @@ use tterm_core::events::{AppEvent, EventSink, EventTarget};
 mod background; // P1-03.
 mod launch_dir; // P1-03.
 mod notification; // P1-03.
+pub(crate) mod search; // P1-04.
 mod serial; // P1-03.
 mod session_log; // P1-03.
+mod sftp;
 mod ssh; // P1-03.
 mod terminal; // P1-03.
 mod tunnel;
-pub(crate) mod zmodem; // P1-03.
+pub(crate) mod zmodem; // P1-03. // P1-04.
 
 use serde::Serialize;
 use serde_json::Value;
@@ -43,6 +45,7 @@ impl TauriEventSink {
             AppEvent::Zmodem(event) => zmodem::wire(event)?,        // P1-03.
             AppEvent::Background(event) => background::wire(event)?, // P1-03.
             AppEvent::Ssh(event) => ssh::wire(event)?,              // P1-03.
+            AppEvent::Sftp(event) => sftp::wire(event)?,            // P1-04.
         };
         Ok((event.name(), event.target(), payload))
     }

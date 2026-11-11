@@ -1,4 +1,5 @@
 use super::*;
+use tterm_core::sftp::conflict::ConflictPolicy;
 
 fn item(name: &str, size: u64, mtime: i64) -> DirectoryDownloadItem {
     DirectoryDownloadItem {
