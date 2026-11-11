@@ -190,7 +190,7 @@ impl PromptBroker {
     }
 
     fn cancel_matching(&self, matches: impl Fn(&OwnerState) -> bool, session: Option<&SessionKey>) {
-        let senders = {
+        let (senders, expired) = {
             let mut state = self.shared.lock();
             if let Some(session) = session {
                 state.closed_sessions.insert(session.clone());
@@ -225,11 +225,15 @@ impl PromptBroker {
                 .filter(|(_, e)| e.waiters.is_empty())
                 .map(|(id, _)| *id)
                 .collect();
-            for id in empty {
-                state.take(id);
-            }
-            senders
+            let expired: Vec<_> = empty
+                .into_iter()
+                .filter_map(|id| state.take(id).and_then(Entry::expiration))
+                .collect();
+            (senders, expired)
         };
+        for event in expired {
+            let _ = self.shared.events.emit(event);
+        }
         for sender in senders {
             let _ = sender.send(PromptOutcome::Cancelled);
         }

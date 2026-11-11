@@ -43,8 +43,16 @@ export function useSessionScopedState({ sessionResetKey }: UseSessionScopedState
   const startError = startErrorState?.sessionKey === sessionResetKey ? startErrorState.value : null
 
   const setHostKeyPrompt = useCallback(
-    (value: HostKeyPromptState | null) => {
-      setHostKeyPromptState(value ? { sessionKey: sessionResetKey, value } : null)
+    (update: React.SetStateAction<HostKeyPromptState | null>) => {
+      setHostKeyPromptState((current) => {
+        // An old listener must not replace state belonging to a newer session.
+        if (current && current.sessionKey !== sessionResetKey && typeof update === "function") {
+          return current
+        }
+        const previous = current?.sessionKey === sessionResetKey ? current.value : null
+        const value = typeof update === "function" ? update(previous) : update
+        return value ? { sessionKey: sessionResetKey, value } : null
+      })
     },
     [sessionResetKey]
   )

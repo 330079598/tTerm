@@ -52,6 +52,7 @@ pub(crate) fn host_key(
     tab_id: &str,
     payload: tterm_core::events::ssh::SshHostKeyPromptPayload,
 ) -> Result<tterm_core::prompts::PromptWait, String> {
+    let request_id = payload.request_id.clone();
     broker.begin(
         tterm_core::prompts::PromptRequest {
             id: tterm_core::prompts::PromptId(payload.request_id.clone()),
@@ -62,7 +63,12 @@ pub(crate) fn host_key(
                     payload,
                 },
             ),
-            expired_event: None,
+            expired_event: Some(tterm_core::events::AppEvent::Ssh(
+                tterm_core::events::ssh::SshEvent::HostKeyPromptExpired {
+                    tab_id: tab_id.to_string(),
+                    request_id,
+                },
+            )),
         },
         tterm_core::prompts::PromptOptions {
             owner: owner.clone(),

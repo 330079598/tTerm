@@ -87,7 +87,7 @@ async fn cancelling_one_question_keeps_owner_open() {
     );
     assert!(!owner.is_closed());
     drop(begin(&broker, &owner, PromptKind::Auth, "second"));
-    assert_eq!(sink.events().len(), 2);
+    assert_eq!(sink.events().len(), 3);
     empty(&broker);
 }
 
@@ -120,7 +120,7 @@ async fn timeout_removes_request_and_emits_only_the_supplied_expiration() {
 }
 
 #[tokio::test]
-async fn owner_cancellation_rejects_new_questions_without_expiration() {
+async fn owner_cancellation_expires_question_once_and_rejects_new_questions() {
     let (broker, sink, owner) = setup();
     let wait = begin(&broker, &owner, PromptKind::Auth, "cancel");
     broker.cancel_owner(&owner);
@@ -138,7 +138,7 @@ async fn owner_cancellation_rejects_new_questions_without_expiration() {
             )
             .is_err()
     );
-    assert_eq!(sink.events(), vec![event("cancel")]);
+    assert_eq!(sink.events(), vec![event("cancel"), event("expired")]);
     empty(&broker);
 }
 
@@ -338,6 +338,7 @@ async fn reply_and_cancel_have_exactly_one_winner() {
     empty(&broker);
 }
 
+mod cancellation;
 mod proxy_tests;
 
 #[tokio::test]
@@ -369,7 +370,7 @@ async fn false_host_reply_and_cancel_before_wait_are_not_timeouts() {
     task.abort();
     assert!(task.await.unwrap_err().is_cancelled());
     empty(&broker);
-    assert_eq!(sink.events().len(), 2);
+    assert_eq!(sink.events().len(), 3);
 }
 
 #[test]

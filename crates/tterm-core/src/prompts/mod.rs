@@ -59,7 +59,7 @@ pub struct PromptRequest {
     pub id: PromptId,
     pub kind: PromptKind,
     pub event: AppEvent,
-    /// Emitted only when a waiting request times out, never on owner cancellation.
+    /// Dismisses an unanswered question on timeout or when its last waiter ends.
     pub expired_event: Option<AppEvent>,
 }
 

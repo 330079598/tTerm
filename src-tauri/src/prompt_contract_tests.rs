@@ -186,6 +186,16 @@ fn prompt_contract_expired_events_are_strings_with_legacy_names_and_any_target()
     use tterm_core::events::{proxy::ProxyEvent, ssh::SshEvent, AppEvent};
     assert_eq!(
         wire(
+            AppEvent::Ssh(SshEvent::HostKeyPromptExpired {
+                tab_id: "p1-05-tab".into(),
+                request_id: "host-request".into(),
+            }),
+            "ssh-hostkey-prompt-expired-p1-05-tab"
+        ),
+        json!("host-request")
+    );
+    assert_eq!(
+        wire(
             AppEvent::Ssh(SshEvent::AuthPromptExpired {
                 tab_id: "p1-05-tab".into(),
                 request_id: "auth-request".into()

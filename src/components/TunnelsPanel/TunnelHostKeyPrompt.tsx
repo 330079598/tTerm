@@ -17,18 +17,28 @@ export const TunnelHostKeyPrompt: React.FC = () => {
 
   useEffect(() => {
     let disposed = false
-    let unlisten: (() => void) | null = null
-    listen<HostKeyPromptState>("ssh-hostkey-prompt-tunnels", (event) =>
-      setQueue((current) => [...current, event.payload])
+    const unlisteners: (() => void)[] = []
+    const register = (promise: Promise<() => void>) => {
+      void promise
+        .then((off) => {
+          if (disposed) off()
+          else unlisteners.push(off)
+        })
+        .catch((error) => console.error("Failed to listen for tunnel host key prompts:", error))
+    }
+    register(
+      listen<HostKeyPromptState>("ssh-hostkey-prompt-tunnels", (event) =>
+        setQueue((current) => [...current, event.payload])
+      )
     )
-      .then((off) => {
-        if (disposed) off()
-        else unlisten = off
-      })
-      .catch((error) => console.error("Failed to listen for tunnel host key prompts:", error))
+    register(
+      listen<string>("ssh-hostkey-prompt-expired-tunnels", (event) =>
+        setQueue((current) => current.filter((prompt) => prompt.requestId !== event.payload))
+      )
+    )
     return () => {
       disposed = true
-      unlisten?.()
+      unlisteners.forEach((off) => off())
     }
   }, [])
 

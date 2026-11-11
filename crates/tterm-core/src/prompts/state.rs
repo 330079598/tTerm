@@ -17,6 +17,17 @@ pub(super) struct Entry {
     pub resolving: bool,
 }
 
+impl Entry {
+    /// A claimed question is already dismissed; its old ID may have a new group.
+    pub fn expiration(self) -> Option<crate::events::AppEvent> {
+        if self.resolving {
+            None
+        } else {
+            self.request.expired_event
+        }
+    }
+}
+
 #[derive(Default)]
 pub(super) struct Pending {
     pub sequence: u64,
@@ -60,22 +71,27 @@ impl Shared {
     }
 
     pub fn remove_waiter(&self, generation: u64, waiter: u64) {
-        let removed = {
+        let (removed, expired) = {
             let mut state = self.lock();
             let removed = state
                 .entries
                 .get_mut(&generation)
                 .and_then(|entry| entry.waiters.remove(&waiter));
-            if state
+            let expired = if state
                 .entries
                 .get(&generation)
                 .is_some_and(|entry| entry.waiters.is_empty())
             {
-                state.take(generation);
-            }
-            removed
+                state.take(generation).and_then(Entry::expiration)
+            } else {
+                None
+            };
+            (removed, expired)
         };
         drop(removed);
+        if let Some(event) = expired {
+            let _ = self.events.emit(event);
+        }
     }
 }
 

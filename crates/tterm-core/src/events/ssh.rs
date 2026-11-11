@@ -203,12 +203,14 @@ pub enum SshEvent {
         tab_id: String,
         payload: SshHostKeyPromptPayload,
     },
+    /// P1-05: dismisses a host-key question on cancellation or timeout.
+    HostKeyPromptExpired { tab_id: String, request_id: String },
     /// P1-05: asks for one round of authentication answers.
     AuthPrompt {
         tab_id: String,
         payload: AuthPromptPayload,
     },
-    /// P1-05: closes an authentication question after its timeout.
+    /// P1-05: closes an authentication question after cancellation or timeout.
     AuthPromptExpired { tab_id: String, request_id: String },
     /// Reports a tab's connection phase and its associated details.
     ConnectionProgress {
@@ -225,6 +227,10 @@ impl SshEvent {
             // P1-05.
             Self::HostKeyPrompt { tab_id, .. } => EventName::TabScoped {
                 prefix: "ssh-hostkey-prompt",
+                tab_id: tab_id.clone(),
+            },
+            Self::HostKeyPromptExpired { tab_id, .. } => EventName::TabScoped {
+                prefix: "ssh-hostkey-prompt-expired",
                 tab_id: tab_id.clone(),
             },
             Self::AuthPrompt { tab_id, .. } => EventName::TabScoped {
@@ -247,6 +253,7 @@ impl SshEvent {
         match self {
             // P1-05.
             Self::HostKeyPrompt { .. }
+            | Self::HostKeyPromptExpired { .. }
             | Self::AuthPrompt { .. }
             | Self::AuthPromptExpired { .. } => EventTarget::Any,
             Self::ConnectionProgress { .. } => EventTarget::Any,

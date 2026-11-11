@@ -89,7 +89,7 @@ export type UseTerminalLifecycleOptions = {
   keywordHighlighterRef: React.RefObject<KeywordHighlighter | null>
   searchResultsDisposableRef: React.RefObject<IDisposable | null>
   setConnectionState: (value: ConnectionState) => void
-  setHostKeyPrompt: (value: HostKeyPromptState | null) => void
+  setHostKeyPrompt: React.Dispatch<React.SetStateAction<HostKeyPromptState | null>>
   setConnectionProgress: (value: SshConnectionProgress | null) => void
   /** Why the local shell failed to start, for the bar that offers another. */
   setStartError: (value: string | null) => void
