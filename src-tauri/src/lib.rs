@@ -24,6 +24,7 @@ mod profiles;
 mod prompt_scope;
 mod proxy;
 mod serial;
+mod services;
 mod session;
 mod session_log;
 mod session_sink;
@@ -84,9 +85,19 @@ pub fn run() {
         .enable_all()
         .build()
         .expect("failed to build tokio runtime");
+    let runtime_handle = runtime.handle().clone();
+    let external_edit_state = Arc::new(sftp::internal::api::external::ExternalEditState::default());
+    let monitor_prompts = Arc::new(monitor::prompts::PendingMonitorPrompts::default());
+    let pending_updates = Arc::new(updater::PendingUpdateDownloads::default());
     let secret_store = ssh::secret_store::types::SecretStoreState::new();
     ssh::key_vault::install(secret_store.clone());
-    let session_log_state = session_log::SessionLogState::default();
+    let session_log_state = Arc::new(session_log::SessionLogState::default());
+    let tunnel_manager = Arc::new(tunnel::commands::TunnelManager::default());
+    let close_behavior = Arc::new(background::CloseBehaviorState::default());
+    let quit_state = Arc::new(background::quit::QuitState::default());
+    let exit_guard = Arc::new(background::exit_guard::ExitGuardState::default());
+    let launch_dirs = Arc::new(launch_dir::LaunchDirs::default());
+    let tray_state = Arc::new(background::tray::TrayState::default());
 
     let builder = tauri::Builder::default()
         // Registered first so a second launch exits before touching the
@@ -122,25 +133,25 @@ pub fn run() {
     );
 
     builder
-        .manage(pty_map)
-        .manage(sftp_pool)
-        .manage(sftp::internal::api::external::ExternalEditState::default())
-        .manage(monitor_sessions)
-        .manage(monitor::prompts::PendingMonitorPrompts::default())
-        .manage(transfer_cancel_map)
-        .manage(zmodem_map)
-        .manage(zmodem_armed_send_map)
-        .manage(zmodem_manual_detect_map)
+        .manage(pty_map.clone())
+        .manage(sftp_pool.clone())
+        .manage(external_edit_state.clone())
+        .manage(monitor_sessions.clone())
+        .manage(monitor_prompts.clone())
+        .manage(transfer_cancel_map.clone())
+        .manage(zmodem_map.clone())
+        .manage(zmodem_armed_send_map.clone())
+        .manage(zmodem_manual_detect_map.clone())
         .manage(TokioRuntimeState { runtime })
-        .manage(updater::PendingUpdateDownloads::default())
-        .manage(secret_store)
-        .manage(session_log_state)
-        .manage(tunnel::commands::TunnelManager::default())
-        .manage(background::CloseBehaviorState::default())
-        .manage(background::quit::QuitState::default())
-        .manage(background::exit_guard::ExitGuardState::default())
-        .manage(launch_dir::LaunchDirs::default())
-        .manage(background::tray::TrayState::default())
+        .manage(pending_updates.clone())
+        .manage(secret_store.clone())
+        .manage(session_log_state.clone())
+        .manage(tunnel_manager.clone())
+        .manage(close_behavior.clone())
+        .manage(quit_state.clone())
+        .manage(exit_guard.clone())
+        .manage(launch_dirs.clone())
+        .manage(tray_state.clone())
         .on_window_event(|window, event| {
             if let tauri::WindowEvent::CloseRequested { api, .. } = event {
                 if background::on_close_requested(window) {
@@ -362,14 +373,58 @@ pub fn run() {
             agent_integration::remote::remote_agent_integration_status,
             agent_integration::remote::change_remote_agent_integration,
         ])
-        .setup(|app| {
+        .setup(move |app| {
             let app_handle = app.handle().clone();
             app_paths::initialize(&app_handle)?;
             app_identity::initialize(&app_handle);
-            platform::initialize(&app_handle);
-            app.manage(Arc::new(tterm_core::prompts::PromptBroker::new(Arc::new(
-                event_sink::TauriEventSink::new(app_handle.clone()),
-            ))));
+            let platform_services = platform::initialize(&app_handle);
+            app.manage(platform_services.badge.clone());
+            app.manage(platform_services.tray.clone());
+            app.manage(platform_services.file_drag.clone());
+            app.manage(platform_services.main_window.clone());
+            app.manage(platform_services.process.clone());
+            app.manage(platform_services.verification.clone());
+            app.manage(platform_services.updates.clone());
+            app.manage(platform_services.open.clone());
+            app.manage(platform_services.clipboard.clone());
+            let events: Arc<dyn tterm_core::events::EventSink> =
+                Arc::new(event_sink::TauriEventSink::new(app_handle.clone()));
+            let prompts = Arc::new(tterm_core::prompts::PromptBroker::new(events.clone()));
+            let services = Arc::new(services::AppServices {
+                shared: services::shared::SharedServices {
+                    events,
+                    prompts: prompts.clone(),
+                    secrets: secret_store.clone(),
+                    runtime: runtime_handle.clone(),
+                    platform: platform_services,
+                },
+                session: services::session::SessionServices {
+                    ptys: pty_map.clone(),
+                    zmodem: zmodem_map.clone(),
+                    zmodem_armed_send: zmodem_armed_send_map.clone(),
+                    zmodem_manual_detect: zmodem_manual_detect_map.clone(),
+                    monitors: monitor_sessions.clone(),
+                    monitor_prompts: monitor_prompts.clone(),
+                },
+                sftp: services::sftp::SftpServices {
+                    pool: sftp_pool.clone(),
+                    transfer_cancel: transfer_cancel_map.clone(),
+                    external_edit: external_edit_state.clone(),
+                },
+                app: services::app::AppLevelServices {
+                    tunnels: tunnel_manager.clone(),
+                    session_log: session_log_state.clone(),
+                    close_behavior: close_behavior.clone(),
+                    quit: quit_state.clone(),
+                    exit_guard: exit_guard.clone(),
+                    launch_dirs: launch_dirs.clone(),
+                    tray: tray_state.clone(),
+                    pending_updates: pending_updates.clone(),
+                },
+            });
+            services.validate_wiring();
+            app.manage(prompts);
+            app.manage(services);
             system_integration::initialize(&app_handle);
             launch_dir::open_from_startup(&app_handle);
 
@@ -451,13 +506,14 @@ pub fn run() {
                     }
                 }
                 tauri::RunEvent::Exit => {
-                    app.state::<Arc<tterm_core::prompts::PromptBroker>>()
-                        .shutdown();
+                    let Some(services) = app.try_state::<Arc<services::AppServices>>() else {
+                        return;
+                    };
+                    services.shared.prompts.shutdown();
                     window_state::save(app);
                     launch_dir::forget_startup_dir(app);
                     // Tunnels may still be running; keep what they carried.
-                    app.state::<tunnel::commands::TunnelManager>()
-                        .save_traffic();
+                    services.app.tunnels.save_traffic();
                     // Logs keep what they have not written out yet.
                     session_log::shutdown(app);
                     sftp::internal::api::external::shutdown(app);

@@ -8,31 +8,25 @@ mod verification;
 mod window;
 
 use std::sync::Arc;
-use tauri::{AppHandle, Manager};
-use tterm_platform::{clipboard::Clipboard, open::OpenTargets};
+use tauri::AppHandle;
+use tterm_platform::window::WindowHost;
 
-/// Registers each Tauri-bound capability separately for later service assembly.
-pub fn initialize(app: &AppHandle) {
-    app.manage(Arc::new(badge::TauriBadge(app.clone()))
-        as Arc<dyn tterm_platform::notifications::AppBadge>);
-    app.manage(Arc::new(tray::TauriTray::new(app.clone())) as Arc<dyn tterm_platform::tray::Tray>);
-    app.manage(
-        Arc::new(tterm_platform::native::drag::NativeFileDrag(Arc::new(
-            window::TauriWindow(app.clone()),
-        ))) as Arc<dyn tterm_platform::drag::FileDrag>,
-    );
-    app.manage(
-        Arc::new(window::TauriWindow(app.clone())) as Arc<dyn tterm_platform::window::MainWindow>
-    );
-    app.manage(Arc::new(window::TauriProcess(app.clone()))
-        as Arc<dyn tterm_platform::process::ProcessControl>);
-    app.manage(Arc::new(verification::TauriVerification(app.clone()))
-        as Arc<dyn tterm_platform::verification::UserVerification>);
-    app.manage(
-        Arc::new(updates::TauriUpdates(app.clone())) as Arc<dyn tterm_platform::updates::Updates>
-    );
-    app.manage(Arc::new(open::TauriOpen(app.clone())) as Arc<dyn OpenTargets>);
-    app.manage(Arc::new(clipboard::TauriClipboard(app.clone())) as Arc<dyn Clipboard>);
+/// Builds the client adapters used by the shared service container.
+pub fn initialize(app: &AppHandle) -> crate::services::shared::PlatformServices {
+    let main_window: Arc<dyn tterm_platform::window::MainWindow> =
+        Arc::new(window::TauriWindow(app.clone()));
+    let window_host: Arc<dyn WindowHost> = Arc::new(window::TauriWindow(app.clone()));
+    crate::services::shared::PlatformServices {
+        badge: Arc::new(badge::TauriBadge(app.clone())),
+        tray: Arc::new(tray::TauriTray::new(app.clone())),
+        file_drag: Arc::new(tterm_platform::native::drag::NativeFileDrag(window_host)),
+        main_window,
+        process: Arc::new(window::TauriProcess(app.clone())),
+        verification: Arc::new(verification::TauriVerification(app.clone())),
+        updates: Arc::new(updates::TauriUpdates(app.clone())),
+        open: Arc::new(open::TauriOpen(app.clone())),
+        clipboard: Arc::new(clipboard::TauriClipboard(app.clone())),
+    }
 }
 
 pub(crate) fn main_window_host(app: tauri::AppHandle) -> impl tterm_platform::window::WindowHost {
