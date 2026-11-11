@@ -22,17 +22,24 @@ impl AuthPrompter {
     /// Binds all rounds of this authentication to the connection attempt.
     pub fn with_owner(&self, owner: &tterm_core::prompts::PromptOwner) -> Self {
         match self {
-            Self::Tab { app, tab_id, .. } => Self::Tab {
-                app: app.clone(),
+            Self::Tab { app, tab_id, .. } => Self::Scoped {
+                broker: app
+                    .state::<std::sync::Arc<tterm_core::prompts::PromptBroker>>()
+                    .inner()
+                    .clone(),
+                window: app
+                    .state::<std::sync::Arc<dyn tterm_platform::window::MainWindow>>()
+                    .inner()
+                    .clone(),
                 tab_id: tab_id.clone(),
-                owner: Some(owner.clone()),
+                owner: owner.clone(),
             },
             other => other.clone(),
         }
     }
 
     pub(super) fn ensure_open(&self) -> Result<(), SshConnectError> {
-        if matches!(self, Self::Tab { owner: Some(owner), .. } if owner.is_closed()) {
+        if matches!(self, Self::Scoped { owner, .. } if owner.is_closed()) {
             return Err(SshConnectError::Permanent(
                 "SSH authentication was cancelled".into(),
             ));
@@ -70,7 +77,7 @@ impl AuthPrompter {
     pub(super) async fn ask(
         &self,
         target: &AuthTarget<'_>,
-        mut payload: AuthPromptPayload,
+        payload: AuthPromptPayload,
     ) -> Result<Vec<String>, SshConnectError> {
         self.ensure_open()?;
         let subject = if payload.kind == "sudo" {
@@ -78,6 +85,7 @@ impl AuthPrompter {
         } else {
             target.subject()
         };
+        #[cfg(test)]
         let cancelled =
             || SshConnectError::Permanent(format!("{subject} authentication was cancelled"));
 
@@ -99,41 +107,22 @@ impl AuthPrompter {
                         &fallback.owner
                     }
                 };
-                let request_id = uuid::Uuid::new_v4().to_string();
-                payload.request_id = request_id.clone();
-                let wait = pending
-                    .begin(
-                        tterm_core::prompts::PromptRequest {
-                            id: tterm_core::prompts::PromptId(request_id.clone()),
-                            kind: tterm_core::prompts::PromptKind::Auth,
-                            event: AppEvent::Ssh(SshEvent::AuthPrompt {
-                                tab_id: tab_id.clone(),
-                                payload,
-                            }),
-                            expired_event: Some(AppEvent::Ssh(SshEvent::AuthPromptExpired {
-                                tab_id: tab_id.clone(),
-                                request_id,
-                            })),
-                        },
-                        tterm_core::prompts::PromptOptions {
-                            owner: owner.clone(),
-                            timeout: PROMPT_TIMEOUT,
-                        },
-                    )
-                    .map_err(SshConnectError::Permanent)?;
-                crate::prompt_scope::reveal(app);
-                match wait.wait().await.map_err(SshConnectError::Permanent)? {
-                    tterm_core::prompts::PromptOutcome::Answered(
-                        tterm_core::prompts::PromptReply::Auth(Some(answers)),
-                    ) => Ok(answers),
-                    tterm_core::prompts::PromptOutcome::TimedOut => {
-                        Err(SshConnectError::Permanent(format!(
-                            "{subject} authentication timed out waiting for your input"
-                        )))
-                    }
-                    _ => Err(cancelled()),
-                }
+                ask_scoped(
+                    pending.inner(),
+                    owner,
+                    tab_id,
+                    payload,
+                    subject,
+                    &**app.state::<std::sync::Arc<dyn tterm_platform::window::MainWindow>>(),
+                )
+                .await
             }
+            Self::Scoped {
+                broker,
+                owner,
+                tab_id,
+                window,
+            } => ask_scoped(broker, owner, tab_id, payload, subject, window.as_ref()).await,
             #[cfg(test)]
             Self::Scripted(script) => {
                 let mut script = script.lock().expect("scripted prompts lock");
@@ -155,5 +144,49 @@ pub(super) fn describe_prompts(payload: &AuthPromptPayload) -> String {
         payload.kind.to_string()
     } else {
         texts.join(", ")
+    }
+}
+
+async fn ask_scoped(
+    pending: &tterm_core::prompts::PromptBroker,
+    owner: &tterm_core::prompts::PromptOwner,
+    tab_id: &str,
+    mut payload: AuthPromptPayload,
+    subject: &str,
+    window: &dyn tterm_platform::window::MainWindow,
+) -> Result<Vec<String>, SshConnectError> {
+    let request_id = uuid::Uuid::new_v4().to_string();
+    payload.request_id = request_id.clone();
+    let wait = pending
+        .begin(
+            tterm_core::prompts::PromptRequest {
+                id: tterm_core::prompts::PromptId(request_id.clone()),
+                kind: tterm_core::prompts::PromptKind::Auth,
+                event: AppEvent::Ssh(SshEvent::AuthPrompt {
+                    tab_id: tab_id.to_string(),
+                    payload,
+                }),
+                expired_event: Some(AppEvent::Ssh(SshEvent::AuthPromptExpired {
+                    tab_id: tab_id.to_string(),
+                    request_id,
+                })),
+            },
+            tterm_core::prompts::PromptOptions {
+                owner: owner.clone(),
+                timeout: PROMPT_TIMEOUT,
+            },
+        )
+        .map_err(SshConnectError::Permanent)?;
+    let _ = window.reveal_for_prompt();
+    match wait.wait().await.map_err(SshConnectError::Permanent)? {
+        tterm_core::prompts::PromptOutcome::Answered(tterm_core::prompts::PromptReply::Auth(
+            Some(answers),
+        )) => Ok(answers),
+        tterm_core::prompts::PromptOutcome::TimedOut => Err(SshConnectError::Permanent(format!(
+            "{subject} authentication timed out waiting for your input"
+        ))),
+        _ => Err(SshConnectError::Permanent(format!(
+            "{subject} authentication was cancelled"
+        ))),
     }
 }

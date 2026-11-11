@@ -4,7 +4,8 @@
 //! so registering, cancelling and testing the broker do not depend on Tauri.
 
 mod pending;
-mod proxy;
+/// Shared proxy approval claims, resolved after persistence.
+pub mod proxy;
 mod state;
 
 use crate::events::AppEvent;

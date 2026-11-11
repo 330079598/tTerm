@@ -194,6 +194,13 @@ pub enum AuthPrompter {
         tab_id: String,
         owner: Option<tterm_core::prompts::PromptOwner>,
     },
+    /// One connection's UI capabilities, without a Tauri handle.
+    Scoped {
+        broker: std::sync::Arc<tterm_core::prompts::PromptBroker>,
+        owner: tterm_core::prompts::PromptOwner,
+        tab_id: String,
+        window: std::sync::Arc<dyn tterm_platform::window::MainWindow>,
+    },
     /// Background sessions (monitoring, tunnels) have nowhere to show a
     /// prompt, so anything that needs one fails with an explanation.
     Unavailable,

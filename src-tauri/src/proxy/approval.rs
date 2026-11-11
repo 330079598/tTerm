@@ -141,16 +141,27 @@ pub async fn respond_proxy_command_prompt(
     prompts: State<'_, Arc<PromptBroker>>,
 ) -> Result<(), String> {
     let pending = prompts.claim_proxy(&request_id)?;
-    let saved = if allow {
-        let command = match &pending.request().event {
-            AppEvent::Proxy(ProxyEvent::CommandPrompt(prompt)) => prompt.command.clone(),
-            _ => return Err("The proxy command question has expired.".into()),
-        };
-        run_blocking(move || crate::db::write(|transaction| self::allow(transaction, &command)))
-            .await
-    } else {
-        Ok(())
+    let command = match &pending.request().event {
+        AppEvent::Proxy(ProxyEvent::CommandPrompt(prompt)) => prompt.command.clone(),
+        _ => return Err("The proxy command question has expired.".into()),
     };
+    let saved = async move {
+        if allow {
+            run_blocking(move || crate::db::write(|transaction| self::allow(transaction, &command)))
+                .await
+        } else {
+            Ok(())
+        }
+    };
+    resolve_approval(pending, allow, saved).await
+}
+
+async fn resolve_approval(
+    pending: tterm_core::prompts::proxy::ProxyResolution,
+    allow: bool,
+    saved: impl std::future::Future<Output = Result<(), String>>,
+) -> Result<(), String> {
+    let saved = saved.await;
     // When the command cannot be remembered, the waiting connections stop
     // rather than run it and ask again next time.
     let allowed = allow && saved.is_ok();
@@ -177,5 +188,73 @@ mod tests {
         assert!(is_allowed(&connection, command).expect("read"));
         assert!(!is_allowed(&connection, &format!("{command} ")).expect("read"));
         assert_eq!(command_hash("").len(), 64);
+    }
+    fn pending() -> (Arc<PromptBroker>, tterm_core::prompts::PromptWait) {
+        let broker = Arc::new(PromptBroker::new(Arc::new(
+            tterm_core::events::recording::RecordingEventSink::default(),
+        )));
+        let owner = broker.register_owner(None).unwrap();
+        let wait = broker
+            .begin(
+                PromptRequest {
+                    id: PromptId("hash".into()),
+                    kind: PromptKind::ProxyCommand,
+                    event: AppEvent::Proxy(ProxyEvent::CommandPrompt(ProxyCommandPrompt {
+                        request_id: "hash".into(),
+                        proxy_name: "p1-05".into(),
+                        command: "nc %h %p".into(),
+                    })),
+                    expired_event: None,
+                },
+                PromptOptions {
+                    owner,
+                    timeout: Duration::from_secs(120),
+                },
+            )
+            .unwrap();
+        (broker, wait)
+    }
+
+    #[tokio::test]
+    async fn approval_waits_for_persistence_and_failure_denies_execution() {
+        let (broker, wait) = pending();
+        let claim = broker.claim_proxy("hash").unwrap();
+        let (save, saved) = tokio::sync::oneshot::channel::<Result<(), String>>();
+        let task = tokio::spawn(resolve_approval(claim, true, async {
+            saved.await.unwrap()
+        }));
+        let waiter = tokio::spawn(wait.wait());
+        tokio::task::yield_now().await;
+        assert!(
+            !waiter.is_finished(),
+            "approval must not precede the DB result"
+        );
+        save.send(Err("database write failed".into())).unwrap();
+        assert_eq!(task.await.unwrap().unwrap_err(), "database write failed");
+        assert_eq!(
+            waiter.await.unwrap().unwrap(),
+            PromptOutcome::Answered(PromptReply::ProxyCommand(false))
+        );
+    }
+
+    #[tokio::test]
+    async fn abandoned_approval_rejects_and_success_releases_only_after_save() {
+        let (broker, wait) = pending();
+        let claim = broker.claim_proxy("hash").unwrap();
+        let task = tokio::spawn(resolve_approval(claim, true, std::future::pending()));
+        task.abort();
+        assert!(task.await.unwrap_err().is_cancelled());
+        assert_eq!(
+            wait.wait().await.unwrap(),
+            PromptOutcome::Answered(PromptReply::ProxyCommand(false))
+        );
+        let (broker, wait) = pending();
+        resolve_approval(broker.claim_proxy("hash").unwrap(), true, async { Ok(()) })
+            .await
+            .unwrap();
+        assert_eq!(
+            wait.wait().await.unwrap(),
+            PromptOutcome::Answered(PromptReply::ProxyCommand(true))
+        );
     }
 }

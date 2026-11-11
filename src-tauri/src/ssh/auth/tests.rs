@@ -15,7 +15,9 @@ use crate::ssh::typed_passwords;
 use super::methods::is_password_prompt;
 use super::{authenticate, AuthMethod, AuthPrompter, AuthTarget, AuthUsed, ScriptedPrompts};
 
+mod broker;
 mod certificates;
+mod orbstack;
 
 const USER: &str = "ops";
 const PASSWORD: &str = "hunter2";
