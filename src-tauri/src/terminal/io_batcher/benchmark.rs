@@ -2,6 +2,7 @@
 use super::pty_fixture::PtyFixture;
 use super::*;
 use std::path::PathBuf;
+use tauri::ipc::{Channel, InvokeResponseBody};
 
 const TOTAL_BYTES: usize = 50_000_000;
 const ACK_BATCH: usize = 64 * 1024;

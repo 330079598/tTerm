@@ -7,8 +7,8 @@ use tterm_core::events::terminal::CwdPayload;
 use tterm_core::events::terminal::TerminalEvent;
 use tterm_core::events::{AppEvent, EventSink};
 
+use std::sync::Arc;
 use std::time::Duration;
-use tauri::AppHandle;
 use tokio::sync::watch;
 
 const POLL_INTERVAL: Duration = Duration::from_secs(2);
@@ -16,7 +16,7 @@ const POLL_INTERVAL: Duration = Duration::from_secs(2);
 /// Emits `pty-cwd-<tab id>` whenever the shell's directory changes, until the
 /// session stops or the shell exits.
 pub fn spawn_cwd_watcher(
-    app: AppHandle,
+    events: Arc<dyn EventSink>,
     tab_id: String,
     session_nonce: u32,
     pid: u32,
@@ -25,7 +25,6 @@ pub fn spawn_cwd_watcher(
     if pid == 0 {
         return;
     }
-    let events = crate::event_sink::TauriEventSink::new(app);
     std::thread::spawn(move || {
         let mut last: Option<String> = None;
         while !*stop_rx.borrow() {
@@ -33,7 +32,7 @@ pub fn spawn_cwd_watcher(
             let Some(cwd) = process_cwd(pid) else {
                 break;
             };
-            emit_changed_cwd(&events, &tab_id, session_nonce, &mut last, cwd);
+            emit_changed_cwd(events.as_ref(), &tab_id, session_nonce, &mut last, cwd);
             std::thread::sleep(POLL_INTERVAL);
         }
     });

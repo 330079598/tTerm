@@ -1,8 +1,8 @@
 use super::pty_fixture::PtyFixture;
 use super::*;
+use tauri::ipc::{Channel, InvokeResponseBody};
 use tterm_core::session::recording::{RecordingSessionSink, SessionRecord};
 use tterm_core::session::sink::SessionSink;
-
 struct ReaderGuard {
     flow: Arc<OutputFlow>,
     reader: Option<std::thread::JoinHandle<()>>,

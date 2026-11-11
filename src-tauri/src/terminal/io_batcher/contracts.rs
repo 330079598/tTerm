@@ -1,5 +1,6 @@
 //! Raw-channel contracts captured before changing the output endpoint.
 use super::*;
+use tauri::ipc::{Channel, InvokeResponseBody};
 
 #[test]
 fn binary_channel_keeps_nul_non_utf8_and_capped_messages() {

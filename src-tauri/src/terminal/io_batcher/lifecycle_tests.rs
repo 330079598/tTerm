@@ -1,5 +1,5 @@
 use super::*;
-
+use tauri::ipc::{Channel, InvokeResponseBody};
 #[test]
 fn adapter_close_releases_a_blocked_sender_and_drains_queued_bytes() {
     let captured = Arc::new(Mutex::new(0usize));

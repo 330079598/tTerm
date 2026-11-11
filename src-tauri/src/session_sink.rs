@@ -1,6 +1,7 @@
 //! P1-06: Tauri's tab-scoped raw output and lifecycle endpoint.
+pub(crate) mod output;
 use crate::event_sink::TauriEventSink;
-use crate::terminal::io_batcher::TerminalOutput;
+use crate::session_sink::output::TerminalOutput;
 use tauri::{AppHandle, Runtime};
 use tterm_core::events::ssh::{SshConnectionProgressPayload, SshEvent};
 use tterm_core::events::terminal::TerminalEvent;

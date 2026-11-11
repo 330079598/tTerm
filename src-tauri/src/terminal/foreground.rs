@@ -3,8 +3,6 @@
 //! a program killed before it could turn reporting off leaves the terminal
 //! sending every mouse move to the shell's line editor as text.
 
-use tauri::State;
-
 use crate::core::state::{ActiveSession, PtyMap};
 
 /// Programs that are shells, so a session leader running one again is at its
@@ -23,8 +21,17 @@ const SHELLS: &[&str] = &[
 pub async fn pty_shell_in_foreground(
     tab_id: String,
     session_nonce: u32,
-    state: State<'_, PtyMap>,
+    services: tauri::State<'_, std::sync::Arc<crate::services::AppServices>>,
 ) -> Result<bool, String> {
+    let state = services.session.ptys.clone();
+    pty_shell_in_foreground_service(state, (tab_id, session_nonce)).await
+}
+async fn pty_shell_in_foreground_service(
+    state: PtyMap,
+    arguments: (String, u32),
+) -> Result<bool, String> {
+    let (tab_id, session_nonce) = arguments;
+
     let map = state.read().await;
     let Some(session) = map.get(&tab_id) else {
         return Ok(false);

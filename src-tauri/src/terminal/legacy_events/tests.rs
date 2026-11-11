@@ -22,7 +22,11 @@ fn legacy_output_name_target_and_json_are_frozen_before_migration() {
         ("bad:�", r#""bad:�""#),
     ];
     for (text, _) in cases {
-        emit_output(app.handle(), "tab-with-hyphens", text.to_string());
+        emit_output(
+            &crate::event_sink::TauriEventSink::new(app.handle().clone()),
+            "tab-with-hyphens",
+            text.to_string(),
+        );
     }
     assert_eq!(
         *received.lock().unwrap(),
@@ -41,7 +45,7 @@ fn legacy_exit_preserves_null_empty_and_error_reasons() {
     let sink = crate::session_sink::TauriSessionSink::new(
         "tab-6".into(),
         app.handle().clone(),
-        crate::terminal::io_batcher::TerminalOutput::new(tauri::ipc::Channel::new(|_| Ok(()))),
+        crate::session_sink::output::TerminalOutput::new(tauri::ipc::Channel::new(|_| Ok(()))),
     );
     for reason in [None, Some(""), Some("SSH channel closed")] {
         sink.exited(reason.map(str::to_string)).unwrap();
