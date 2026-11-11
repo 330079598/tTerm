@@ -230,7 +230,7 @@ fn store_profile(
 #[tauri::command]
 pub async fn delete_profile(
     secret_state: tauri::State<'_, crate::ssh::secret_store::types::SecretStoreState>,
-    tunnels: tauri::State<'_, crate::tunnel::commands::TunnelManager>,
+    tunnels: tauri::State<'_, std::sync::Arc<crate::tunnel::commands::TunnelManager>>,
     id: String,
 ) -> Result<(), String> {
     // A running tunnel holds the host's connection settings and would keep
@@ -249,7 +249,7 @@ pub async fn delete_profile(
 #[tauri::command]
 pub async fn delete_profiles(
     secret_state: tauri::State<'_, crate::ssh::secret_store::types::SecretStoreState>,
-    tunnels: tauri::State<'_, crate::tunnel::commands::TunnelManager>,
+    tunnels: tauri::State<'_, std::sync::Arc<crate::tunnel::commands::TunnelManager>>,
     ids: Vec<String>,
 ) -> Result<(), String> {
     let ids: HashSet<String> = ids.into_iter().collect();
