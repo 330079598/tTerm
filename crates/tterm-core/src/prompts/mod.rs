@@ -93,6 +93,7 @@ pub struct PromptWait {
     id: PromptId,
     receiver: Option<oneshot::Receiver<PromptOutcome>>,
     timeout: Duration,
+    first_waiter: bool,
 }
 
 /// Holds pending senders and publishes requests through the existing EventSink.

@@ -101,6 +101,7 @@ impl PromptBroker {
             id: request.id,
             receiver: Some(receiver),
             timeout: options.timeout,
+            first_waiter: event.is_some(),
         };
         if let Some(event) = event {
             let _ = self.shared.events.emit(event);
@@ -206,6 +207,11 @@ impl PromptBroker {
 }
 
 impl PromptWait {
+    /// Only the first waiter reveals the UI for a shared proxy question.
+    pub fn is_first_waiter(&self) -> bool {
+        self.first_waiter
+    }
+
     /// Returns the unchanged wire ID; internal generations never cross IPC.
     pub fn id(&self) -> &super::PromptId {
         &self.id
