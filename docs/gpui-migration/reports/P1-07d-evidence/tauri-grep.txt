@@ -1,0 +1,147 @@
+src-tauri/src/app_state.rs:62:#[tauri::command]
+src-tauri/src/app_state.rs:67:#[tauri::command]
+src-tauri/src/launch_dir.rs:11:use tauri::{AppHandle, Manager};
+src-tauri/src/launch_dir.rs:33:#[tauri::command]
+src-tauri/src/launch_dir.rs:34:pub fn take_launch_dirs(state: tauri::State<'_, Arc<LaunchDirs>>) -> Vec<LaunchDir> {
+src-tauri/src/launch_dir.rs:40:pub fn open_from_startup(app: &AppHandle) {
+src-tauri/src/launch_dir.rs:62:pub fn open_from_second_launch(app: &AppHandle, args: &[String], cwd: &str) {
+src-tauri/src/launch_dir.rs:71:pub fn forget_startup_dir(app: &AppHandle) {
+src-tauri/src/launch_dir.rs:127:fn queue(app: &AppHandle, dirs: Vec<LaunchDir>) {
+src-tauri/src/launch_dir.rs:131:        &crate::event_sink::TauriEventSink::new(app.clone()),
+src-tauri/src/launch_dir.rs:147:fn marker_path(app: &AppHandle) -> Option<PathBuf> {
+src-tauri/src/updater.rs:7:use tauri::{ipc::Channel, Manager};
+src-tauri/src/updater.rs:60:#[tauri::command]
+src-tauri/src/updater.rs:62:    app: tauri::AppHandle,
+src-tauri/src/updater.rs:79:#[tauri::command]
+src-tauri/src/updater.rs:81:    app: tauri::AppHandle,
+src-tauri/src/updater.rs:82:    downloads: tauri::State<'_, Arc<PendingUpdateDownloads>>,
+src-tauri/src/updater.rs:111:#[tauri::command]
+src-tauri/src/updater.rs:113:    app: tauri::AppHandle,
+src-tauri/src/updater.rs:114:    downloads: tauri::State<'_, Arc<PendingUpdateDownloads>>,
+src-tauri/src/updater.rs:138:#[tauri::command]
+src-tauri/src/updater.rs:140:    app: tauri::AppHandle,
+src-tauri/src/updater.rs:141:    downloads: tauri::State<'_, Arc<PendingUpdateDownloads>>,
+src-tauri/src/updater.rs:234:pub fn cleanup_stale_pending_update_files(app: &tauri::AppHandle) -> Result<(), String> {
+src-tauri/src/system_integration/mod.rs:4:use tauri::{AppHandle, Manager};
+src-tauri/src/system_integration/mod.rs:25:pub fn initialize(app: &AppHandle) {
+src-tauri/src/system_integration/mod.rs:29:fn initialize_with<R: tauri::Runtime>(
+src-tauri/src/system_integration/mod.rs:30:    app: &AppHandle<R>,
+src-tauri/src/system_integration/mod.rs:44:fn integration<R: tauri::Runtime>(
+src-tauri/src/system_integration/mod.rs:45:    app: &AppHandle<R>,
+src-tauri/src/system_integration/mod.rs:55:fn context(app: &AppHandle) -> Result<IntegrationContext, String> {
+src-tauri/src/system_integration/mod.rs:65:#[tauri::command]
+src-tauri/src/system_integration/mod.rs:66:pub async fn shell_command_status(app: AppHandle) -> Result<IntegrationStatus, String> {
+src-tauri/src/system_integration/mod.rs:69:#[tauri::command]
+src-tauri/src/system_integration/mod.rs:71:    app: AppHandle,
+src-tauri/src/system_integration/mod.rs:80:#[tauri::command]
+src-tauri/src/system_integration/mod.rs:81:pub async fn folder_menu_status(app: AppHandle) -> Result<IntegrationStatus, String> {
+src-tauri/src/system_integration/mod.rs:84:#[tauri::command]
+src-tauri/src/system_integration/mod.rs:85:pub async fn set_folder_menu(app: AppHandle, installed: bool) -> Result<IntegrationStatus, String> {
+src-tauri/src/system_integration/mod.rs:97:pub fn apply_config(app: &AppHandle, cfg: &crate::config::AppConfig) {
+src-tauri/src/system_integration/mod.rs:119:    use tauri::Manager;
+src-tauri/src/system_integration/mod.rs:123:        let app = tauri::test::mock_builder()
+src-tauri/src/system_integration/mod.rs:124:            .build(tauri::test::mock_context(tauri::test::noop_assets()))
+src-tauri/src/background/exit_guard.rs:13:use tauri::{AppHandle, Manager, State};
+src-tauri/src/background/exit_guard.rs:38:pub fn blockers(app: &AppHandle) -> QuitBlockers {
+src-tauri/src/background/exit_guard.rs:47:pub fn hold_exit_for_confirmation(app: &AppHandle) -> bool {
+src-tauri/src/background/exit_guard.rs:52:        &crate::event_sink::TauriEventSink::new(app.clone()),
+src-tauri/src/background/exit_guard.rs:70:#[tauri::command]
+src-tauri/src/background/exit_guard.rs:71:pub fn confirm_quit_app(app: AppHandle, state: State<'_, Arc<ExitGuardState>>) {
+src-tauri/src/background/exit_guard.rs:76:#[tauri::command]
+src-tauri/src/notification/mod.rs:13:use tauri::ipc::Response;
+src-tauri/src/notification/mod.rs:14:use tauri::AppHandle;
+src-tauri/src/notification/mod.rs:51:fn activated(app: &AppHandle, tab_id: Option<String>) {
+src-tauri/src/notification/mod.rs:54:            use tauri::Manager;
+src-tauri/src/notification/mod.rs:59:        &crate::event_sink::TauriEventSink::new(app.clone()),
+src-tauri/src/notification/mod.rs:74:pub fn init(app: &AppHandle) {
+src-tauri/src/notification/mod.rs:85:    use tauri::Manager;
+src-tauri/src/notification/mod.rs:92:#[tauri::command]
+src-tauri/src/notification/mod.rs:93:pub async fn show_notification(app: AppHandle, request: NotificationRequest) -> Result<(), String> {
+src-tauri/src/notification/mod.rs:94:    use tauri::Manager;
+src-tauri/src/notification/mod.rs:106:#[tauri::command]
+src-tauri/src/notification/mod.rs:107:pub async fn notification_permission(app: AppHandle) -> NotificationPermission {
+src-tauri/src/notification/mod.rs:108:    use tauri::Manager;
+src-tauri/src/notification/mod.rs:128:#[tauri::command]
+src-tauri/src/notification/mod.rs:134:#[tauri::command]
+src-tauri/src/background/mod.rs:15:use tauri::{AppHandle, Manager, State, Window};
+src-tauri/src/background/mod.rs:79:pub fn apply_config(app: &AppHandle, cfg: &AppConfig) {
+src-tauri/src/background/mod.rs:87:fn sync_tray(app: &AppHandle, behavior: CloseBehavior, language: &str) -> Result<(), String> {
+src-tauri/src/background/mod.rs:98:pub fn show_main_window(app: &AppHandle) {
+src-tauri/src/background/mod.rs:109:fn request_quit(app: &AppHandle) {
+src-tauri/src/background/mod.rs:136:pub fn reveal_for_prompt(app: &AppHandle) {
+src-tauri/src/background/mod.rs:160:            if !emit_close_request(&state, &crate::event_sink::TauriEventSink::new(app.clone())) {
+src-tauri/src/background/mod.rs:186:fn quit_unless_held(app: &AppHandle) {
+src-tauri/src/background/mod.rs:195:pub fn on_exit_requested(app: &AppHandle) -> bool {
+src-tauri/src/background/mod.rs:201:#[tauri::command]
+src-tauri/src/background/mod.rs:203:    app: AppHandle,
+src-tauri/src/agent_integration/mod.rs:300:    tauri::async_runtime::spawn_blocking(work)
+src-tauri/src/agent_integration/mod.rs:305:#[tauri::command]
+src-tauri/src/agent_integration/mod.rs:310:#[tauri::command]
+src-tauri/src/agent_integration/mod.rs:315:#[tauri::command]
+src-tauri/src/notification/badge.rs:9:use tauri::AppHandle;
+src-tauri/src/notification/badge.rs:36:#[tauri::command]
+src-tauri/src/notification/badge.rs:38:    app: AppHandle,
+src-tauri/src/notification/badge.rs:43:    use tauri::Manager;
+src-tauri/src/notification/badge.rs:57:pub fn restore(app: &AppHandle) {
+src-tauri/src/notification/badge.rs:58:    use tauri::Manager;
+src-tauri/src/agent_integration/remote.rs:20:use tauri::{AppHandle, State};
+src-tauri/src/agent_integration/remote.rs:285:#[tauri::command]
+src-tauri/src/agent_integration/remote.rs:287:    app: AppHandle,
+src-tauri/src/agent_integration/remote.rs:311:#[tauri::command]
+src-tauri/src/agent_integration/remote.rs:317:    app: AppHandle,
+src-tauri/src/background/tray.rs:13:use tauri::image::Image;
+src-tauri/src/background/tray.rs:14:use tauri::menu::{Menu, MenuEvent};
+src-tauri/src/background/tray.rs:15:use tauri::tray::{MouseButton, MouseButtonState, TrayIcon, TrayIconBuilder, TrayIconEvent};
+src-tauri/src/background/tray.rs:16:use tauri::{AppHandle, Manager};
+src-tauri/src/background/tray.rs:93:pub(crate) fn show(app: &AppHandle, language: &str) -> Result<(), String> {
+src-tauri/src/background/tray.rs:110:pub(crate) fn present_menu(app: &AppHandle, menu: Menu<tauri::Wry>) -> tauri::Result<()> {
+src-tauri/src/background/tray.rs:129:pub(crate) fn hide(app: &AppHandle) {
+src-tauri/src/background/tray.rs:139:pub fn set_attention(app: &AppHandle, attention: bool) {
+src-tauri/src/background/tray.rs:153:fn tray_icon(app: &AppHandle, attention: bool) -> Option<Image<'_>> {
+src-tauri/src/background/tray.rs:196:pub fn refresh_tunnels(app: &AppHandle) {
+src-tauri/src/background/tray.rs:218:fn rebuild_if_changed(app: &AppHandle) -> tauri::Result<()> {
+src-tauri/src/background/tray.rs:237:        .map_err(|e| tauri::Error::Io(std::io::Error::other(e)))?;
+src-tauri/src/background/tray.rs:244:fn invalidate(app: &AppHandle) {
+src-tauri/src/background/tray.rs:252:fn menu_tunnels(app: &AppHandle) -> Vec<MenuTunnel> {
+src-tauri/src/background/tray.rs:326:fn on_menu_event(app: &AppHandle, event: MenuEvent) {
+src-tauri/src/background/tray.rs:340:fn open_tunnels_page(app: &AppHandle) {
+src-tauri/src/background/tray.rs:342:    let _ = crate::event_sink::TauriEventSink::new(app.clone())
+src-tauri/src/background/tray.rs:347:fn check_updates(app: &AppHandle) {
+src-tauri/src/background/tray.rs:352:    let _ = crate::event_sink::TauriEventSink::new(app.clone())
+src-tauri/src/background/tray.rs:358:#[tauri::command]
+src-tauri/src/background/tray.rs:359:pub fn take_tray_update_check(state: tauri::State<'_, Arc<TrayState>>) -> bool {
+src-tauri/src/background/tray.rs:366:fn toggle_tunnel(app: &AppHandle, id: String) {
+src-tauri/src/background/tray.rs:368:    tauri::async_runtime::spawn(async move {
+src-tauri/src/background/tray.rs:401:fn tooltip(app: &AppHandle) -> String {
+src-tauri/src/background/quit.rs:12:use tauri::{AppHandle, Manager, State};
+src-tauri/src/background/quit.rs:37:pub fn quit<R: tauri::Runtime>(app: &AppHandle<R>) {
+src-tauri/src/background/quit.rs:50:pub fn quit_after_save<R: tauri::Runtime>(app: &AppHandle<R>) -> bool {
+src-tauri/src/background/quit.rs:52:    if !begin_save(&state, &crate::event_sink::TauriEventSink::new(app.clone())) {
+src-tauri/src/background/quit.rs:56:    tauri::async_runtime::spawn(async move {
+src-tauri/src/background/quit.rs:81:#[tauri::command]
+src-tauri/src/background/quit.rs:87:#[tauri::command]
+src-tauri/src/background/quit.rs:114:            let app = tauri::test::mock_builder()
+src-tauri/src/background/quit.rs:119:                .build(tauri::test::mock_context(tauri::test::noop_assets()))
+src-tauri/src/tunnel/commands.rs:22:use tauri::{AppHandle, Manager, State};
+src-tauri/src/tunnel/commands.rs:44:    fn reporter_for(&self, app: &AppHandle, id: &str) -> Arc<TunnelReporter> {
+src-tauri/src/tunnel/commands.rs:46:            Arc::new(TauriEventSink::new(app.clone()));
+src-tauri/src/tunnel/commands.rs:203:#[tauri::command]
+src-tauri/src/tunnel/commands.rs:208:#[tauri::command]
+src-tauri/src/tunnel/commands.rs:221:#[tauri::command]
+src-tauri/src/tunnel/commands.rs:237:#[tauri::command]
+src-tauri/src/tunnel/commands.rs:238:pub async fn save_tunnel(app: AppHandle, mut tunnel: TunnelRule) -> Result<TunnelRule, String> {
+src-tauri/src/tunnel/commands.rs:251:#[tauri::command]
+src-tauri/src/tunnel/commands.rs:253:    app: AppHandle,
+src-tauri/src/tunnel/commands.rs:267:    app: &AppHandle,
+src-tauri/src/tunnel/commands.rs:345:#[tauri::command]
+src-tauri/src/tunnel/commands.rs:347:    app: AppHandle,
+src-tauri/src/tunnel/commands.rs:369:pub(crate) async fn start_unattended(app: &AppHandle, id: &str) -> bool {
+src-tauri/src/tunnel/commands.rs:397:#[tauri::command]
+src-tauri/src/tunnel/commands.rs:399:    app: AppHandle,
+src-tauri/src/tunnel/commands.rs:411:#[tauri::command]
+src-tauri/src/tunnel/runtime.rs:16:use tauri::AppHandle;
+src-tauri/src/tunnel/runtime.rs:17:use tauri::Manager;
+src-tauri/src/tunnel/runtime.rs:250:    pub app: AppHandle,
+src-tauri/src/tunnel/runtime/reporter.rs:9:use tauri::AppHandle;
+src-tauri/src/tunnel/runtime/reporter.rs:37:    app: AppHandle,
+src-tauri/src/tunnel/runtime/reporter.rs:46:    pub fn new(app: AppHandle, sink: Arc<dyn EventSink>, id: String) -> Arc<Self> {
