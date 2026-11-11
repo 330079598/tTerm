@@ -4,11 +4,11 @@ use super::session::types::SessionPlan;
 use super::state::{ActiveSession, ActiveSsh, ChannelContext, SessionExitSignal, SessionKind};
 use crate::ssh::client::SshChannelIo;
 use crate::ssh::client::SshExitSignal;
+use crate::ssh::context::ConnectionContext;
 use crate::zmodem::session::ZmodemSettings;
 use std::sync::Arc;
 use std::sync::PoisonError;
 use std::time::Duration;
-use tauri::AppHandle;
 use tokio::sync::{mpsc, watch};
 
 /// Nominal delay before the first reconnect attempt.
@@ -39,7 +39,7 @@ pub(crate) fn map_ssh_exit_signal(result: SshExitSignal) -> SessionExitSignal {
 #[derive(Clone)]
 pub(crate) struct TabConnection {
     pub channel: ChannelContext,
-    pub app: AppHandle,
+    pub app: ConnectionContext,
     pub plan: SessionPlan,
     pub prompt_state: std::sync::Arc<tterm_core::prompts::PromptBroker>,
     pub stop_rx: watch::Receiver<bool>,
@@ -170,12 +170,12 @@ async fn clear_attempt(channel: &ChannelContext) {
 }
 
 /// Reports a session that ended for good, without a reconnect.
-fn report_exit(app: &AppHandle, channel: &ChannelContext, signal: &SessionExitSignal) {
+fn report_exit(app: &ConnectionContext, channel: &ChannelContext, signal: &SessionExitSignal) {
     let exit_reason = match signal {
         SessionExitSignal::Recoverable { reason, .. }
         | SessionExitSignal::NonRecoverable(reason) => {
             let text = crate::terminal::legacy_events::status_line("31", reason);
-            crate::session_log::record_output(app, &channel.tab_id, text.as_bytes());
+            crate::session_log::record_output(&app.log, &channel.tab_id, text.as_bytes());
             let _ = channel.sink.emit(tterm_core::events::AppEvent::Terminal(
                 tterm_core::events::terminal::TerminalEvent::Output {
                     tab_id: channel.tab_id.clone(),
@@ -187,7 +187,7 @@ fn report_exit(app: &AppHandle, channel: &ChannelContext, signal: &SessionExitSi
         SessionExitSignal::Terminated => None,
     };
     let _ = channel.sink.exited(exit_reason.map(str::to_string));
-    crate::session_log::end_session(app, &channel.tab_id);
+    crate::session_log::end_session(&app.log, &channel.tab_id);
 }
 
 /// The retry budget of one SSH tab's automatic reconnects.
@@ -201,7 +201,7 @@ impl SshBackoff {
     /// budget is spent, after reporting the disconnect, or when the tab stops.
     async fn wait(
         &mut self,
-        app: &AppHandle,
+        app: &ConnectionContext,
         channel: &ChannelContext,
         reason: String,
         connected_duration: Duration,
@@ -227,7 +227,7 @@ impl SshBackoff {
                 .retry_max(max_attempts),
             );
             let _ = channel.sink.exited(Some(reason));
-            crate::session_log::end_session(app, &channel.tab_id);
+            crate::session_log::end_session(&app.log, &channel.tab_id);
             return false;
         }
 

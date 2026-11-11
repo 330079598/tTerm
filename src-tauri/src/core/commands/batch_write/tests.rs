@@ -1,6 +1,6 @@
 use super::*;
 use crate::core::state::AtomicTerminalSize;
-use crate::terminal::io_batcher::TerminalOutput;
+use crate::session_sink::output::TerminalOutput;
 use tokio::sync::{mpsc, watch};
 
 fn output() -> TerminalOutput {
@@ -179,36 +179,16 @@ async fn ack_ignores_stale_nonce_and_missing_tabs() {
             serial_view: None,
         },
     )])));
-    use tauri::Manager;
-    let app = tauri::test::mock_builder()
-        .build(tauri::test::mock_context(tauri::test::noop_assets()))
+    super::super::ack_pty_output_service(map.clone(), ("ack-tab".into(), 8, 5))
+        .await
         .unwrap();
-    app.manage(map);
-    super::super::ack_pty_output(
-        "ack-tab".into(),
-        8,
-        5,
-        app.state::<crate::core::state::PtyMap>(),
-    )
-    .await
-    .unwrap();
-    super::super::ack_pty_output(
-        "missing".into(),
-        7,
-        5,
-        app.state::<crate::core::state::PtyMap>(),
-    )
-    .await
-    .unwrap();
+    super::super::ack_pty_output_service(map.clone(), ("missing".into(), 7, 5))
+        .await
+        .unwrap();
     assert!(sink.records().is_empty());
-    super::super::ack_pty_output(
-        "ack-tab".into(),
-        7,
-        5,
-        app.state::<crate::core::state::PtyMap>(),
-    )
-    .await
-    .unwrap();
+    super::super::ack_pty_output_service(map, ("ack-tab".into(), 7, 5))
+        .await
+        .unwrap();
     assert_eq!(
         sink.records(),
         [tterm_core::session::recording::SessionRecord::Ack(5)]
