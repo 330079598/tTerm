@@ -539,43 +539,67 @@ fn leaves_program_colored_cells() {
     );
 }
 
-#[test]
-fn ucs2_matches_non_ascii_text_without_utf8_slicing() {
-    for (pattern, text, expected) in [
-        ("error.", "error中", vec![(0, 6)]),
-        (r"\S", "é", vec![(0, 1)]),
-        ("[^x]", "é", vec![(0, 1)]),
-        (r"[\x80-\xff]", "é", vec![(0, 1)]),
-        ("ошибка", "ОШИБКА", vec![(0, 6)]),
-        (r"\s", "　", vec![(0, 1)]),
-        ("s", "ſ S", vec![(2, 3)]),
-        ("k", "K K", vec![(0, 1)]),
-        (".", "😀", vec![(0, 1), (1, 2)]),
-        ("(?=.)|x", "😀x", vec![]),
-    ] {
-        let rules = compile_highlight_set(
-            &set(vec![rule(|value| {
-                value.kind = "regex".into();
-                value.pattern = pattern.into();
-            })]),
-            &palette(),
-        );
-        let spans = match_highlights(text, &rules);
-        assert_eq!(
-            spans
-                .iter()
-                .map(|span| (span.start, span.end))
-                .collect::<Vec<_>>(),
-            expected,
-            "{pattern}: {text}"
-        );
-    }
+fn assert_ucs2_spans(pattern: &str, text: &str, expected: &[(usize, usize)]) {
+    let compiled = compile_highlight_set(
+        &set(vec![rule(|value| {
+            value.kind = "regex".into();
+            value.pattern = pattern.into();
+        })]),
+        &palette(),
+    );
+    assert_eq!(
+        match_highlights(text, &compiled)
+            .iter()
+            .map(|span| (span.start, span.end))
+            .collect::<Vec<_>>(),
+        expected,
+        "{pattern}: {text}"
+    );
 }
-
+#[test]
+fn ucs2_dot_after_ascii() {
+    assert_ucs2_spans(r"error.", "error中", &[(0, 6)]);
+}
+#[test]
+fn ucs2_non_whitespace() {
+    assert_ucs2_spans(r"\S", "é", &[(0, 1)]);
+}
+#[test]
+fn ucs2_negated_class() {
+    assert_ucs2_spans(r"[^x]", "é", &[(0, 1)]);
+}
+#[test]
+fn ucs2_latin1_class() {
+    assert_ucs2_spans(r"[\x80-\xff]", "é", &[(0, 1)]);
+}
+#[test]
+fn ucs2_cyrillic_case() {
+    assert_ucs2_spans(r"ошибка", "ОШИБКА", &[(0, 6)]);
+}
+#[test]
+fn ucs2_ideographic_whitespace() {
+    assert_ucs2_spans(r"\s", "　", &[(0, 1)]);
+}
+#[test]
+fn ucs2_long_s_legacy_case() {
+    assert_ucs2_spans(r"s", "ſ S", &[(2, 3)]);
+}
+#[test]
+fn ucs2_kelvin_legacy_case() {
+    assert_ucs2_spans(r"k", "K K", &[(0, 1)]);
+}
+#[test]
+fn ucs2_surrogate_pair_dot() {
+    assert_ucs2_spans(r".", "😀", &[(0, 1), (1, 2)]);
+}
+#[test]
+fn ucs2_zero_width_progress() {
+    assert_ucs2_spans(r"(?=.)|x", "😀x", &[]);
+}
 #[test]
 fn builtin_source_equals_the_real_typescript_set() {
     let oracle: serde_json::Value = serde_json::from_str(include_str!(
-        "../../../../../docs/gpui-migration/reports/P1-11b-evidence/node.json"
+        "../../../../docs/gpui-migration/reports/P1-11b-evidence/node.json"
     ))
     .unwrap();
     assert_eq!(
@@ -597,6 +621,30 @@ fn colors_match_typescript_permissive_css_syntax() {
             resolve_highlight_color(Some(value), &palette()).as_deref(),
             expected,
             "{value}"
+        );
+    }
+}
+
+#[test]
+fn annex_b_pattern_validation_matches_node() {
+    for (pattern, text, error, expected) in [
+        ("a{", "a{", None, vec![(0, 2)]),
+        ("]", "]", None, vec![(0, 1)]),
+        ("x{2,1}", "xxx", Some("invalid"), vec![]),
+    ] {
+        let rule = rule(|value| {
+            value.kind = "regex".into();
+            value.pattern = pattern.into();
+        });
+        assert_eq!(highlight_pattern_error(&rule), error, "{pattern}");
+        let compiled = compile_highlight_set(&set(vec![rule]), &palette());
+        assert_eq!(
+            match_highlights(text, &compiled)
+                .iter()
+                .map(|span| (span.start, span.end))
+                .collect::<Vec<_>>(),
+            expected,
+            "{pattern}"
         );
     }
 }
