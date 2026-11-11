@@ -39,12 +39,27 @@ pub fn build_agent_resume_command(
     cwd: String,
     shell: String,
 ) -> Option<String> {
-    build_agent_resume_command_service((agent, session_id, cwd, shell))
+    build_agent_resume_command_service(BuildAgentResumeCommandInput {
+        agent,
+        session_id,
+        cwd,
+        shell,
+    })
 }
-fn build_agent_resume_command_service(
-    arguments: (ResumeAgent, String, String, String),
-) -> Option<String> {
-    let (agent, session_id, cwd, shell) = arguments;
+struct BuildAgentResumeCommandInput {
+    agent: ResumeAgent,
+    session_id: String,
+    cwd: String,
+    shell: String,
+}
+
+fn build_agent_resume_command_service(arguments: BuildAgentResumeCommandInput) -> Option<String> {
+    let BuildAgentResumeCommandInput {
+        agent,
+        session_id,
+        cwd,
+        shell,
+    } = arguments;
 
     build_resume_command(&ResumeRequest {
         agent,

@@ -299,14 +299,12 @@ pub fn terminal_log_ids_for_tab(
     tab_id: String,
 ) -> Result<Vec<String>, String> {
     let state = services.app.session_log.clone();
-    terminal_log_ids_for_tab_service(state, (tab_id,))
+    terminal_log_ids_for_tab_service(state, tab_id)
 }
 fn terminal_log_ids_for_tab_service(
     state: Arc<SessionLogState>,
-    arguments: (String,),
+    tab_id: String,
 ) -> Result<Vec<String>, String> {
-    let (tab_id,) = arguments;
-
     Ok(state
         .lock_manager()?
         .logged
@@ -324,13 +322,19 @@ pub async fn set_terminal_log_recording(
     services: tauri::State<'_, std::sync::Arc<crate::services::AppServices>>,
 ) -> Result<TerminalLogStatus, String> {
     let app = crate::connection_context::log(&services);
-    set_terminal_log_recording_service(app, (tab_id, recording)).await
+    set_terminal_log_recording_service(app, SetTerminalLogRecordingInput { tab_id, recording })
+        .await
 }
+struct SetTerminalLogRecordingInput {
+    tab_id: String,
+    recording: bool,
+}
+
 async fn set_terminal_log_recording_service(
     app: crate::session_log::LogContext,
-    arguments: (String, bool),
+    arguments: SetTerminalLogRecordingInput,
 ) -> Result<TerminalLogStatus, String> {
-    let (tab_id, recording) = arguments;
+    let SetTerminalLogRecordingInput { tab_id, recording } = arguments;
 
     run_blocking(move || app.state.set_recording(&app, &tab_id, recording)).await
 }
@@ -357,16 +361,14 @@ pub async fn load_terminal_log_recording(
     services: tauri::State<'_, std::sync::Arc<crate::services::AppServices>>,
 ) -> Result<Response, String> {
     let app = crate::connection_context::log(&services);
-    load_terminal_log_recording_service(app, (id,))
+    load_terminal_log_recording_service(app, id)
         .await
         .map(Response::new)
 }
 async fn load_terminal_log_recording_service(
     app: crate::session_log::LogContext,
-    arguments: (String,),
+    id: String,
 ) -> Result<Vec<u8>, String> {
-    let (id,) = arguments;
-
     let (directory, _, _) = app.state.directory_state()?;
     run_blocking(move || {
         app.state.flush_log(&id);
@@ -382,16 +384,14 @@ pub async fn load_terminal_log_text(
     services: tauri::State<'_, std::sync::Arc<crate::services::AppServices>>,
 ) -> Result<Response, String> {
     let app = crate::connection_context::log(&services);
-    load_terminal_log_text_service(app, (id,))
+    load_terminal_log_text_service(app, id)
         .await
         .map(Response::new)
 }
 async fn load_terminal_log_text_service(
     app: crate::session_log::LogContext,
-    arguments: (String,),
+    id: String,
 ) -> Result<Vec<u8>, String> {
-    let (id,) = arguments;
-
     let (directory, _, _) = app.state.directory_state()?;
     run_blocking(move || {
         app.state.flush_log(&id);
@@ -407,13 +407,18 @@ pub async fn export_terminal_log_asciicast(
     services: tauri::State<'_, std::sync::Arc<crate::services::AppServices>>,
 ) -> Result<(), String> {
     let app = crate::connection_context::log(&services);
-    export_terminal_log_asciicast_service(app, (id, path)).await
+    export_terminal_log_asciicast_service(app, ExportTerminalLogAsciicastInput { id, path }).await
 }
+struct ExportTerminalLogAsciicastInput {
+    id: String,
+    path: String,
+}
+
 async fn export_terminal_log_asciicast_service(
     app: crate::session_log::LogContext,
-    arguments: (String, String),
+    arguments: ExportTerminalLogAsciicastInput,
 ) -> Result<(), String> {
-    let (id, path) = arguments;
+    let ExportTerminalLogAsciicastInput { id, path } = arguments;
 
     let (directory, _, _) = app.state.directory_state()?;
     run_blocking(move || {
@@ -429,14 +434,12 @@ pub async fn delete_terminal_log(
     services: tauri::State<'_, std::sync::Arc<crate::services::AppServices>>,
 ) -> Result<(), String> {
     let app = crate::connection_context::log(&services);
-    delete_terminal_log_service(app, (id,)).await
+    delete_terminal_log_service(app, id).await
 }
 async fn delete_terminal_log_service(
     app: crate::session_log::LogContext,
-    arguments: (String,),
+    id: String,
 ) -> Result<(), String> {
-    let (id,) = arguments;
-
     let state = &app.state;
     let (directory, _, in_use) = state.directory_state()?;
     run_blocking(move || library::delete(&directory, &id, &in_use)).await?;
@@ -452,14 +455,12 @@ pub async fn delete_terminal_logs(
     services: tauri::State<'_, std::sync::Arc<crate::services::AppServices>>,
 ) -> Result<library::DeleteReport, String> {
     let app = crate::connection_context::log(&services);
-    delete_terminal_logs_service(app, (ids,)).await
+    delete_terminal_logs_service(app, ids).await
 }
 async fn delete_terminal_logs_service(
     app: crate::session_log::LogContext,
-    arguments: (Vec<String>,),
+    ids: Vec<String>,
 ) -> Result<library::DeleteReport, String> {
-    let (ids,) = arguments;
-
     let state = &app.state;
     let (directory, _, in_use) = state.directory_state()?;
     let report = run_blocking(move || Ok(library::delete_many(&directory, &ids, &in_use))).await?;
@@ -474,15 +475,13 @@ pub async fn reveal_terminal_log(
 ) -> Result<(), String> {
     let app = crate::connection_context::log(&services);
     let open = services.shared.platform.open.clone();
-    reveal_terminal_log_service(app, open, (id,)).await
+    reveal_terminal_log_service(app, open, id).await
 }
 async fn reveal_terminal_log_service(
     app: crate::session_log::LogContext,
     open: std::sync::Arc<dyn OpenTargets>,
-    arguments: (String,),
+    id: String,
 ) -> Result<(), String> {
-    let (id,) = arguments;
-
     let (directory, _, _) = app.state.directory_state()?;
     let path = run_blocking(move || library::first_file(&directory, &id)).await?;
     open.reveal(path)
@@ -493,10 +492,17 @@ async fn reveal_terminal_log_service(
 /// Saves what a terminal shows (its text) to a file the user picked.
 #[tauri::command]
 pub async fn save_terminal_contents(path: String, contents: String) -> Result<(), String> {
-    save_terminal_contents_service((path, contents)).await
+    save_terminal_contents_service(SaveTerminalContentsInput { path, contents }).await
 }
-async fn save_terminal_contents_service(arguments: (String, String)) -> Result<(), String> {
-    let (path, contents) = arguments;
+struct SaveTerminalContentsInput {
+    path: String,
+    contents: String,
+}
+
+async fn save_terminal_contents_service(
+    arguments: SaveTerminalContentsInput,
+) -> Result<(), String> {
+    let SaveTerminalContentsInput { path, contents } = arguments;
 
     run_blocking(move || {
         fs::write(&path, contents).map_err(|error| format!("Failed to save '{path}': {error}"))

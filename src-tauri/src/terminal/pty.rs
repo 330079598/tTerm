@@ -284,12 +284,15 @@ pub fn local_terminal_shell_name(
     shell: Option<String>,
     custom_path: Option<String>,
 ) -> Option<String> {
-    local_terminal_shell_name_service((shell, custom_path))
+    local_terminal_shell_name_service(LocalTerminalShellNameInput { shell, custom_path })
 }
-fn local_terminal_shell_name_service(
-    arguments: (Option<String>, Option<String>),
-) -> Option<String> {
-    let (shell, custom_path) = arguments;
+struct LocalTerminalShellNameInput {
+    shell: Option<String>,
+    custom_path: Option<String>,
+}
+
+fn local_terminal_shell_name_service(arguments: LocalTerminalShellNameInput) -> Option<String> {
+    let LocalTerminalShellNameInput { shell, custom_path } = arguments;
 
     #[cfg(target_os = "windows")]
     {

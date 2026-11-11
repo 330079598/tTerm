@@ -81,12 +81,27 @@ pub async fn record_serial_send(
     mode: SerialSendMode,
     text: String,
 ) -> Result<Vec<SerialSend>, String> {
-    record_serial_send_service((connection_key, mode, text)).await
+    record_serial_send_service(RecordSerialSendInput {
+        connection_key,
+        mode,
+        text,
+    })
+    .await
 }
+struct RecordSerialSendInput {
+    connection_key: String,
+    mode: SerialSendMode,
+    text: String,
+}
+
 async fn record_serial_send_service(
-    arguments: (String, SerialSendMode, String),
+    arguments: RecordSerialSendInput,
 ) -> Result<Vec<SerialSend>, String> {
-    let (connection_key, mode, text) = arguments;
+    let RecordSerialSendInput {
+        connection_key,
+        mode,
+        text,
+    } = arguments;
 
     validate_key(&connection_key)?;
     run_blocking(move || {
@@ -105,12 +120,17 @@ pub async fn delete_serial_send(
     connection_key: String,
     id: String,
 ) -> Result<Vec<SerialSend>, String> {
-    delete_serial_send_service((connection_key, id)).await
+    delete_serial_send_service(DeleteSerialSendInput { connection_key, id }).await
 }
+struct DeleteSerialSendInput {
+    connection_key: String,
+    id: String,
+}
+
 async fn delete_serial_send_service(
-    arguments: (String, String),
+    arguments: DeleteSerialSendInput,
 ) -> Result<Vec<SerialSend>, String> {
-    let (connection_key, id) = arguments;
+    let DeleteSerialSendInput { connection_key, id } = arguments;
 
     validate_key(&connection_key)?;
     run_blocking(move || {

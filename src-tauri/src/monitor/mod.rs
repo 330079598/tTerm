@@ -32,19 +32,33 @@ pub async fn get_server_metrics_snapshot(
         secret_state,
         monitor_sessions,
         registry,
-        (tab_id, session_nonce, connection),
+        GetServerMetricsSnapshotInput {
+            tab_id,
+            session_nonce,
+            connection,
+        },
     )
     .await
 }
+struct GetServerMetricsSnapshotInput {
+    tab_id: String,
+    session_nonce: u32,
+    connection: Option<PtyConnectionOptions>,
+}
+
 async fn get_server_metrics_snapshot_service(
     app: crate::ssh::context::ConnectionContext,
     prompt_state: std::sync::Arc<tterm_core::prompts::PromptBroker>,
     secret_state: SecretStoreState,
     monitor_sessions: MonitorSessionMap,
     registry: std::sync::Arc<prompts::PendingMonitorPrompts>,
-    arguments: (String, u32, Option<PtyConnectionOptions>),
+    arguments: GetServerMetricsSnapshotInput,
 ) -> Result<ServerMetricsSnapshot, String> {
-    let (tab_id, session_nonce, connection) = arguments;
+    let GetServerMetricsSnapshotInput {
+        tab_id,
+        session_nonce,
+        connection,
+    } = arguments;
 
     let mut plan = normalize_connection(connection)?;
     if !matches!(plan.kind, crate::core::state::SessionKind::Ssh) {
@@ -89,16 +103,32 @@ pub async fn release_server_monitor_session(
     let app = crate::connection_context::connection(&services);
     let monitor_sessions = services.session.monitors.clone();
     let registry = services.session.monitor_prompts.clone();
-    release_server_monitor_session_service(app, monitor_sessions, registry, (tab_id, session_nonce))
-        .await
+    release_server_monitor_session_service(
+        app,
+        monitor_sessions,
+        registry,
+        ReleaseServerMonitorSessionInput {
+            tab_id,
+            session_nonce,
+        },
+    )
+    .await
 }
+struct ReleaseServerMonitorSessionInput {
+    tab_id: String,
+    session_nonce: Option<u32>,
+}
+
 async fn release_server_monitor_session_service(
     app: crate::ssh::context::ConnectionContext,
     monitor_sessions: MonitorSessionMap,
     registry: std::sync::Arc<prompts::PendingMonitorPrompts>,
-    arguments: (String, Option<u32>),
+    arguments: ReleaseServerMonitorSessionInput,
 ) -> Result<(), String> {
-    let (tab_id, session_nonce) = arguments;
+    let ReleaseServerMonitorSessionInput {
+        tab_id,
+        session_nonce,
+    } = arguments;
 
     registry.cancel(&app.prompts, &tab_id, session_nonce);
     reap_idle_monitor_sessions(monitor_sessions.clone()).await;

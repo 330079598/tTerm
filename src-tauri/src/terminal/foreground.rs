@@ -24,13 +24,28 @@ pub async fn pty_shell_in_foreground(
     services: tauri::State<'_, std::sync::Arc<crate::services::AppServices>>,
 ) -> Result<bool, String> {
     let state = services.session.ptys.clone();
-    pty_shell_in_foreground_service(state, (tab_id, session_nonce)).await
+    pty_shell_in_foreground_service(
+        state,
+        PtyShellInForegroundInput {
+            tab_id,
+            session_nonce,
+        },
+    )
+    .await
 }
+struct PtyShellInForegroundInput {
+    tab_id: String,
+    session_nonce: u32,
+}
+
 async fn pty_shell_in_foreground_service(
     state: PtyMap,
-    arguments: (String, u32),
+    arguments: PtyShellInForegroundInput,
 ) -> Result<bool, String> {
-    let (tab_id, session_nonce) = arguments;
+    let PtyShellInForegroundInput {
+        tab_id,
+        session_nonce,
+    } = arguments;
 
     let map = state.read().await;
     let Some(session) = map.get(&tab_id) else {

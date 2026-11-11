@@ -1,3 +1,4 @@
+mod arguments;
 use super::blocking::run_blocking;
 use super::state::{
     ActiveSession, PtyMap, PtySession, ZmodemArmedSendMap, ZmodemManualDetectMap, ZmodemMap,
@@ -6,6 +7,11 @@ use crate::services::AppServices;
 use crate::ssh::context::ConnectionContext;
 #[cfg(target_os = "windows")]
 use crate::terminal;
+use arguments::{
+    AckPtyOutputInput, GetSudoPasswordSourceInput, HasSavedPasswordInput, KillPtyInput,
+    ResetPtyConsoleInput, ResizePtyInput, RespondSshHostKeyPromptInput, WritePtyBatchInput,
+    WritePtyInput, WriteSavedPasswordForSudoInput,
+};
 use batch_write::{
     snapshot_batch_targets, write_guarded_batch, PtyWriteResult, PtyWriteStatus, PtyWriteTarget,
 };
@@ -166,15 +172,28 @@ pub fn write_pty(
     let app = crate::connection_context::connection(&services);
     let state = services.session.ptys.clone();
     let zmodem_state = services.session.zmodem.clone();
-    write_pty_service(app, state, zmodem_state, (tab_id, session_nonce, data))
+    write_pty_service(
+        app,
+        state,
+        zmodem_state,
+        WritePtyInput {
+            tab_id,
+            session_nonce,
+            data,
+        },
+    )
 }
 fn write_pty_service(
     app: crate::ssh::context::ConnectionContext,
     state: PtyMap,
     zmodem_state: ZmodemMap,
-    arguments: (String, u32, String),
+    arguments: WritePtyInput,
 ) -> Result<(), String> {
-    let (tab_id, session_nonce, data) = arguments;
+    let WritePtyInput {
+        tab_id,
+        session_nonce,
+        data,
+    } = arguments;
 
     let map = state.blocking_read();
     let session = map
@@ -231,10 +250,23 @@ pub async fn reset_pty_console(
     services: tauri::State<'_, std::sync::Arc<crate::services::AppServices>>,
 ) -> Result<(), String> {
     let state = services.session.ptys.clone();
-    reset_pty_console_service(state, (tab_id, session_nonce)).await
+    reset_pty_console_service(
+        state,
+        ResetPtyConsoleInput {
+            tab_id,
+            session_nonce,
+        },
+    )
+    .await
 }
-async fn reset_pty_console_service(state: PtyMap, arguments: (String, u32)) -> Result<(), String> {
-    let (tab_id, session_nonce) = arguments;
+async fn reset_pty_console_service(
+    state: PtyMap,
+    arguments: ResetPtyConsoleInput,
+) -> Result<(), String> {
+    let ResetPtyConsoleInput {
+        tab_id,
+        session_nonce,
+    } = arguments;
 
     let pid = {
         let map = state.read().await;
@@ -268,13 +300,22 @@ pub async fn ack_pty_output(
     services: tauri::State<'_, std::sync::Arc<crate::services::AppServices>>,
 ) -> Result<(), String> {
     let state = services.session.ptys.clone();
-    ack_pty_output_service(state, (tab_id, session_nonce, bytes)).await
+    ack_pty_output_service(
+        state,
+        AckPtyOutputInput {
+            tab_id,
+            session_nonce,
+            bytes,
+        },
+    )
+    .await
 }
-async fn ack_pty_output_service(
-    state: PtyMap,
-    arguments: (String, u32, usize),
-) -> Result<(), String> {
-    let (tab_id, session_nonce, bytes) = arguments;
+async fn ack_pty_output_service(state: PtyMap, arguments: AckPtyOutputInput) -> Result<(), String> {
+    let AckPtyOutputInput {
+        tab_id,
+        session_nonce,
+        bytes,
+    } = arguments;
 
     let map = state.read().await;
     if let Some(session) = map.get(&tab_id) {
@@ -295,14 +336,26 @@ pub fn write_pty_batch(
     let targets = std::mem::take(&mut targets);
     let app = crate::connection_context::connection(&services);
     let state = services.session.ptys.clone();
-    write_pty_batch_service(app, state, (targets, guard_target, data))
+    write_pty_batch_service(
+        app,
+        state,
+        WritePtyBatchInput {
+            targets,
+            guard_target,
+            data,
+        },
+    )
 }
 fn write_pty_batch_service(
     app: crate::ssh::context::ConnectionContext,
     state: PtyMap,
-    arguments: (Vec<PtyWriteTarget>, Option<PtyWriteTarget>, String),
+    arguments: WritePtyBatchInput,
 ) -> Vec<PtyWriteResult> {
-    let (mut targets, guard_target, data) = arguments;
+    let WritePtyBatchInput {
+        mut targets,
+        guard_target,
+        data,
+    } = arguments;
 
     if let Some(guard_tab_id) = guard_target.as_ref().map(|target| target.tab_id.as_str()) {
         targets.retain(|target| target.tab_id != guard_tab_id);
@@ -339,14 +392,28 @@ pub fn resize_pty(
 ) -> Result<(), String> {
     let app = crate::connection_context::connection(&services);
     let state = services.session.ptys.clone();
-    resize_pty_service(app, state, (tab_id, session_nonce, rows, cols))
+    resize_pty_service(
+        app,
+        state,
+        ResizePtyInput {
+            tab_id,
+            session_nonce,
+            rows,
+            cols,
+        },
+    )
 }
 fn resize_pty_service(
     app: crate::ssh::context::ConnectionContext,
     state: PtyMap,
-    arguments: (String, u32, u16, u16),
+    arguments: ResizePtyInput,
 ) -> Result<(), String> {
-    let (tab_id, session_nonce, rows, cols) = arguments;
+    let ResizePtyInput {
+        tab_id,
+        session_nonce,
+        rows,
+        cols,
+    } = arguments;
 
     let map = state.blocking_read();
     let session = map
@@ -404,7 +471,10 @@ pub fn kill_pty(
         zmodem_state,
         zmodem_armed_send_state,
         zmodem_manual_detect_state,
-        (tab_id, session_nonce),
+        KillPtyInput {
+            tab_id,
+            session_nonce,
+        },
     )
 }
 fn kill_pty_service(
@@ -413,9 +483,12 @@ fn kill_pty_service(
     zmodem_state: ZmodemMap,
     zmodem_armed_send_state: ZmodemArmedSendMap,
     zmodem_manual_detect_state: ZmodemManualDetectMap,
-    arguments: (String, u32),
+    arguments: KillPtyInput,
 ) -> Result<(), String> {
-    let (tab_id, session_nonce) = arguments;
+    let KillPtyInput {
+        tab_id,
+        session_nonce,
+    } = arguments;
 
     let session = {
         let mut sessions = state.blocking_write();
@@ -450,13 +523,16 @@ pub fn respond_ssh_host_key_prompt(
     services: tauri::State<'_, std::sync::Arc<crate::services::AppServices>>,
 ) -> Result<(), String> {
     let prompt_state = services.shared.prompts.clone();
-    respond_ssh_host_key_prompt_service(prompt_state, (request_id, trust))
+    respond_ssh_host_key_prompt_service(
+        prompt_state,
+        RespondSshHostKeyPromptInput { request_id, trust },
+    )
 }
 fn respond_ssh_host_key_prompt_service(
     prompt_state: std::sync::Arc<tterm_core::prompts::PromptBroker>,
-    arguments: (String, bool),
+    arguments: RespondSshHostKeyPromptInput,
 ) -> Result<(), String> {
-    let (request_id, trust) = arguments;
+    let RespondSshHostKeyPromptInput { request_id, trust } = arguments;
 
     prompt_state.reply_host_key(&request_id, trust)
 }
@@ -468,13 +544,23 @@ pub async fn has_saved_password(
     services: tauri::State<'_, std::sync::Arc<crate::services::AppServices>>,
 ) -> Result<bool, String> {
     let secret_state = services.shared.secrets.clone();
-    has_saved_password_service(secret_state, (profile_id, profile_name)).await
+    has_saved_password_service(
+        secret_state,
+        HasSavedPasswordInput {
+            profile_id,
+            profile_name,
+        },
+    )
+    .await
 }
 async fn has_saved_password_service(
     secret_state: crate::ssh::secret_store::types::SecretStoreState,
-    arguments: (Option<String>, Option<String>),
+    arguments: HasSavedPasswordInput,
 ) -> Result<bool, String> {
-    let (profile_id, profile_name) = arguments;
+    let HasSavedPasswordInput {
+        profile_id,
+        profile_name,
+    } = arguments;
 
     let secret_state = secret_state.clone();
     run_blocking(move || {
@@ -549,13 +635,23 @@ pub async fn get_sudo_password_source(
     services: tauri::State<'_, std::sync::Arc<crate::services::AppServices>>,
 ) -> Result<Option<super::session::SudoPasswordSource>, String> {
     let secret_state = services.shared.secrets.clone();
-    get_sudo_password_source_service(secret_state, (profile_id, profile_name)).await
+    get_sudo_password_source_service(
+        secret_state,
+        GetSudoPasswordSourceInput {
+            profile_id,
+            profile_name,
+        },
+    )
+    .await
 }
 async fn get_sudo_password_source_service(
     secret_state: crate::ssh::secret_store::types::SecretStoreState,
-    arguments: (Option<String>, Option<String>),
+    arguments: GetSudoPasswordSourceInput,
 ) -> Result<Option<super::session::SudoPasswordSource>, String> {
-    let (profile_id, profile_name) = arguments;
+    let GetSudoPasswordSourceInput {
+        profile_id,
+        profile_name,
+    } = arguments;
 
     let secret_state = secret_state.clone();
     run_blocking(move || {
@@ -575,14 +671,12 @@ pub async fn has_saved_sudo_password(
     services: tauri::State<'_, std::sync::Arc<crate::services::AppServices>>,
 ) -> Result<bool, String> {
     let secret_state = services.shared.secrets.clone();
-    has_saved_sudo_password_service(secret_state, (profile_id,)).await
+    has_saved_sudo_password_service(secret_state, profile_id).await
 }
 async fn has_saved_sudo_password_service(
     secret_state: crate::ssh::secret_store::types::SecretStoreState,
-    arguments: (String,),
+    profile_id: String,
 ) -> Result<bool, String> {
-    let (profile_id,) = arguments;
-
     let secret_state = secret_state.clone();
     run_blocking(move || {
         Ok(secret_state
@@ -613,16 +707,28 @@ pub async fn write_saved_password_for_sudo(
     write_saved_password_for_sudo_service(
         app,
         secret_state,
-        (tab_id, session_nonce, profile_id, profile_name, prompt),
+        WriteSavedPasswordForSudoInput {
+            tab_id,
+            session_nonce,
+            profile_id,
+            profile_name,
+            prompt,
+        },
     )
     .await
 }
 async fn write_saved_password_for_sudo_service(
     app: crate::ssh::context::ConnectionContext,
     secret_state: crate::ssh::secret_store::types::SecretStoreState,
-    arguments: (String, u32, Option<String>, Option<String>, String),
+    arguments: WriteSavedPasswordForSudoInput,
 ) -> Result<bool, String> {
-    let (tab_id, session_nonce, profile_id, profile_name, prompt) = arguments;
+    let WriteSavedPasswordForSudoInput {
+        tab_id,
+        session_nonce,
+        profile_id,
+        profile_name,
+        prompt,
+    } = arguments;
 
     run_blocking(move || {
         write_saved_password_for_sudo_blocking(

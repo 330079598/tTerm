@@ -166,13 +166,22 @@ pub async fn respond_proxy_command_prompt(
     services: tauri::State<'_, std::sync::Arc<crate::services::AppServices>>,
 ) -> Result<(), String> {
     let prompts = services.shared.prompts.clone();
-    respond_proxy_command_prompt_service(prompts, (request_id, allow)).await
+    respond_proxy_command_prompt_service(
+        prompts,
+        RespondProxyCommandPromptInput { request_id, allow },
+    )
+    .await
 }
+struct RespondProxyCommandPromptInput {
+    request_id: String,
+    allow: bool,
+}
+
 async fn respond_proxy_command_prompt_service(
     prompts: Arc<PromptBroker>,
-    arguments: (String, bool),
+    arguments: RespondProxyCommandPromptInput,
 ) -> Result<(), String> {
-    let (request_id, allow) = arguments;
+    let RespondProxyCommandPromptInput { request_id, allow } = arguments;
 
     let pending = prompts.claim_proxy(&request_id)?;
     let command = match &pending.request().event {

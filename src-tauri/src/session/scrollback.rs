@@ -196,13 +196,11 @@ pub(crate) fn clear_all() -> Result<(), String> {
 
 #[tauri::command]
 pub async fn save_scrollback_snapshots(snapshots: Vec<ScrollbackSnapshot>) -> Result<(), String> {
-    save_scrollback_snapshots_service((snapshots,)).await
+    save_scrollback_snapshots_service(snapshots).await
 }
 async fn save_scrollback_snapshots_service(
-    arguments: (Vec<ScrollbackSnapshot>,),
+    snapshots: Vec<ScrollbackSnapshot>,
 ) -> Result<(), String> {
-    let (snapshots,) = arguments;
-
     run_blocking(move || write_snapshots(&snapshot_dir()?, &snapshots)).await
 }
 
@@ -211,13 +209,11 @@ async fn save_scrollback_snapshots_service(
 pub async fn load_scrollback_snapshots(
     tab_ids: Vec<String>,
 ) -> Result<Vec<SavedScrollback>, String> {
-    load_scrollback_snapshots_service((tab_ids,)).await
+    load_scrollback_snapshots_service(tab_ids).await
 }
 async fn load_scrollback_snapshots_service(
-    arguments: (Vec<String>,),
+    tab_ids: Vec<String>,
 ) -> Result<Vec<SavedScrollback>, String> {
-    let (tab_ids,) = arguments;
-
     run_blocking(move || read_snapshots(&snapshot_dir()?, &tab_ids.into_iter().collect())).await
 }
 

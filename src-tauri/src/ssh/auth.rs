@@ -225,13 +225,27 @@ pub fn respond_ssh_auth_prompt(
     services: tauri::State<'_, std::sync::Arc<crate::services::AppServices>>,
 ) -> Result<(), String> {
     let pending = services.shared.prompts.clone();
-    respond_ssh_auth_prompt_service(pending, (request_id, responses))
+    respond_ssh_auth_prompt_service(
+        pending,
+        RespondSshAuthPromptInput {
+            request_id,
+            responses,
+        },
+    )
 }
+struct RespondSshAuthPromptInput {
+    request_id: String,
+    responses: Option<Vec<String>>,
+}
+
 fn respond_ssh_auth_prompt_service(
     pending: std::sync::Arc<tterm_core::prompts::PromptBroker>,
-    arguments: (String, Option<Vec<String>>),
+    arguments: RespondSshAuthPromptInput,
 ) -> Result<(), String> {
-    let (request_id, responses) = arguments;
+    let RespondSshAuthPromptInput {
+        request_id,
+        responses,
+    } = arguments;
 
     pending.reply_auth(&request_id, responses)
 }

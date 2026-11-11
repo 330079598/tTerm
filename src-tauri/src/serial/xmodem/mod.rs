@@ -107,17 +107,34 @@ pub async fn serial_send_files(
         events,
         state,
         zmodem_state,
-        (tab_id, session_nonce, protocol, local_paths),
+        SerialSendFilesInput {
+            tab_id,
+            session_nonce,
+            protocol,
+            local_paths,
+        },
     )
     .await
 }
+struct SerialSendFilesInput {
+    tab_id: String,
+    session_nonce: u32,
+    protocol: XmodemProtocol,
+    local_paths: Vec<String>,
+}
+
 async fn serial_send_files_service(
     events: std::sync::Arc<dyn tterm_core::events::EventSink>,
     state: PtyMap,
     zmodem_state: ZmodemMap,
-    arguments: (String, u32, XmodemProtocol, Vec<String>),
+    arguments: SerialSendFilesInput,
 ) -> Result<(), String> {
-    let (tab_id, session_nonce, protocol, local_paths) = arguments;
+    let SerialSendFilesInput {
+        tab_id,
+        session_nonce,
+        protocol,
+        local_paths,
+    } = arguments;
 
     if local_paths.is_empty() {
         return Ok(());
@@ -161,17 +178,34 @@ pub async fn serial_receive_files(
         events,
         state,
         zmodem_state,
-        (tab_id, session_nonce, protocol, destination),
+        SerialReceiveFilesInput {
+            tab_id,
+            session_nonce,
+            protocol,
+            destination,
+        },
     )
     .await
 }
+struct SerialReceiveFilesInput {
+    tab_id: String,
+    session_nonce: u32,
+    protocol: XmodemProtocol,
+    destination: String,
+}
+
 async fn serial_receive_files_service(
     events: std::sync::Arc<dyn tterm_core::events::EventSink>,
     state: PtyMap,
     zmodem_state: ZmodemMap,
-    arguments: (String, u32, XmodemProtocol, String),
+    arguments: SerialReceiveFilesInput,
 ) -> Result<(), String> {
-    let (tab_id, session_nonce, protocol, destination) = arguments;
+    let SerialReceiveFilesInput {
+        tab_id,
+        session_nonce,
+        protocol,
+        destination,
+    } = arguments;
 
     let destination = run_blocking(move || disk::Destination::new(protocol, &destination)).await?;
     let (emit, claim, link) =

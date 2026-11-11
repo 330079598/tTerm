@@ -1,4 +1,5 @@
 use super::*;
+use crate::core::commands::arguments::AckPtyOutputInput;
 use crate::core::state::AtomicTerminalSize;
 use crate::terminal::output::TerminalOutput;
 use tokio::sync::{mpsc, watch};
@@ -179,16 +180,37 @@ async fn ack_ignores_stale_nonce_and_missing_tabs() {
             serial_view: None,
         },
     )])));
-    super::super::ack_pty_output_service(map.clone(), ("ack-tab".into(), 8, 5))
-        .await
-        .unwrap();
-    super::super::ack_pty_output_service(map.clone(), ("missing".into(), 7, 5))
-        .await
-        .unwrap();
+    super::super::ack_pty_output_service(
+        map.clone(),
+        AckPtyOutputInput {
+            tab_id: "ack-tab".into(),
+            session_nonce: 8,
+            bytes: 5,
+        },
+    )
+    .await
+    .unwrap();
+    super::super::ack_pty_output_service(
+        map.clone(),
+        AckPtyOutputInput {
+            tab_id: "missing".into(),
+            session_nonce: 7,
+            bytes: 5,
+        },
+    )
+    .await
+    .unwrap();
     assert!(sink.records().is_empty());
-    super::super::ack_pty_output_service(map, ("ack-tab".into(), 7, 5))
-        .await
-        .unwrap();
+    super::super::ack_pty_output_service(
+        map,
+        AckPtyOutputInput {
+            tab_id: "ack-tab".into(),
+            session_nonce: 7,
+            bytes: 5,
+        },
+    )
+    .await
+    .unwrap();
     assert_eq!(
         sink.records(),
         [tterm_core::session::recording::SessionRecord::Ack(5)]

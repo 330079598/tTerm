@@ -238,13 +238,31 @@ pub async fn save_proxy(
     services: tauri::State<'_, std::sync::Arc<crate::services::AppServices>>,
 ) -> Result<Vec<ProxyServerEntry>, String> {
     let secret_state = services.shared.secrets.clone();
-    save_proxy_service(secret_state, (server, password, clear_password)).await
+    save_proxy_service(
+        secret_state,
+        SaveProxyInput {
+            server,
+            password,
+            clear_password,
+        },
+    )
+    .await
 }
+struct SaveProxyInput {
+    server: ProxyServer,
+    password: Option<String>,
+    clear_password: bool,
+}
+
 async fn save_proxy_service(
     secret_state: SecretStoreState,
-    arguments: (ProxyServer, Option<String>, bool),
+    arguments: SaveProxyInput,
 ) -> Result<Vec<ProxyServerEntry>, String> {
-    let (server, password, clear_password) = arguments;
+    let SaveProxyInput {
+        server,
+        password,
+        clear_password,
+    } = arguments;
 
     let secret_state = secret_state.clone();
     let password = password.map(Zeroizing::new);
@@ -288,14 +306,12 @@ pub async fn delete_proxy(
     services: tauri::State<'_, std::sync::Arc<crate::services::AppServices>>,
 ) -> Result<Vec<ProxyServerEntry>, String> {
     let secret_state = services.shared.secrets.clone();
-    delete_proxy_service(secret_state, (id,)).await
+    delete_proxy_service(secret_state, id).await
 }
 async fn delete_proxy_service(
     secret_state: SecretStoreState,
-    arguments: (String,),
+    id: String,
 ) -> Result<Vec<ProxyServerEntry>, String> {
-    let (id,) = arguments;
-
     let secret_state = secret_state.clone();
     run_blocking(move || {
         crate::db::write(|transaction| storage::delete_proxy(transaction, &id))?;

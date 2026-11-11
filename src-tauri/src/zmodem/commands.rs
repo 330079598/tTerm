@@ -35,16 +35,27 @@ pub fn zmodem_cancel(
         pty_state,
         zmodem_state,
         armed_send_state,
-        (tab_id, session_nonce),
+        ZmodemCancelInput {
+            tab_id,
+            session_nonce,
+        },
     )
 }
+struct ZmodemCancelInput {
+    tab_id: String,
+    session_nonce: u32,
+}
+
 fn zmodem_cancel_service(
     pty_state: PtyMap,
     zmodem_state: ZmodemMap,
     armed_send_state: ZmodemArmedSendMap,
-    arguments: (String, u32),
+    arguments: ZmodemCancelInput,
 ) -> Result<(), String> {
-    let (tab_id, session_nonce) = arguments;
+    let ZmodemCancelInput {
+        tab_id,
+        session_nonce,
+    } = arguments;
 
     {
         let map = zmodem_state.read().unwrap_or_else(PoisonError::into_inner);
@@ -113,16 +124,30 @@ pub fn zmodem_start_send(
         events,
         zmodem_state,
         armed_send_state,
-        (tab_id, session_nonce, local_paths),
+        ZmodemStartSendInput {
+            tab_id,
+            session_nonce,
+            local_paths,
+        },
     )
 }
+struct ZmodemStartSendInput {
+    tab_id: String,
+    session_nonce: u32,
+    local_paths: Vec<String>,
+}
+
 fn zmodem_start_send_service(
     events: std::sync::Arc<dyn tterm_core::events::EventSink>,
     zmodem_state: ZmodemMap,
     armed_send_state: ZmodemArmedSendMap,
-    arguments: (String, u32, Vec<String>),
+    arguments: ZmodemStartSendInput,
 ) -> Result<(), String> {
-    let (tab_id, session_nonce, local_paths) = arguments;
+    let ZmodemStartSendInput {
+        tab_id,
+        session_nonce,
+        local_paths,
+    } = arguments;
 
     let cancel_requested = {
         let map = zmodem_state.read().unwrap_or_else(PoisonError::into_inner);
@@ -186,14 +211,29 @@ pub fn zmodem_arm_manual_detect(
 ) -> Result<(), String> {
     let pty_state = services.session.ptys.clone();
     let manual_detect_state = services.session.zmodem_manual_detect.clone();
-    zmodem_arm_manual_detect_service(pty_state, manual_detect_state, (tab_id, session_nonce))
+    zmodem_arm_manual_detect_service(
+        pty_state,
+        manual_detect_state,
+        ZmodemArmManualDetectInput {
+            tab_id,
+            session_nonce,
+        },
+    )
 }
+struct ZmodemArmManualDetectInput {
+    tab_id: String,
+    session_nonce: u32,
+}
+
 fn zmodem_arm_manual_detect_service(
     pty_state: PtyMap,
     manual_detect_state: ZmodemManualDetectMap,
-    arguments: (String, u32),
+    arguments: ZmodemArmManualDetectInput,
 ) -> Result<(), String> {
-    let (tab_id, session_nonce) = arguments;
+    let ZmodemArmManualDetectInput {
+        tab_id,
+        session_nonce,
+    } = arguments;
 
     let sessions = pty_state.blocking_read();
     match sessions.get(&tab_id) {
