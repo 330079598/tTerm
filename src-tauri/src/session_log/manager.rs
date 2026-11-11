@@ -4,6 +4,7 @@ use super::retention::Retention;
 use super::rotating;
 use super::worker::{self, LogHandle};
 use super::writer::{SessionWriter, Stamp};
+use super::LogContext;
 use super::{
     emit_error, emit_start_error, emit_status, LogConfig, SessionLogPolicy, SessionLogState,
     SessionMetadata, TerminalLogStatus,
@@ -17,7 +18,6 @@ use std::path::{Path, PathBuf};
 use std::sync::atomic::Ordering;
 use std::sync::MutexGuard;
 use std::time::Duration;
-use tauri::AppHandle;
 
 /// How long quitting waits for logs to write out what they still hold.
 const SHUTDOWN_WAIT: Duration = Duration::from_secs(3);
@@ -63,7 +63,7 @@ impl LogManager {
     /// Starts a log for a tab's session and remembers it as the tab's.
     fn start_writer(
         &mut self,
-        app: &AppHandle,
+        app: &LogContext,
         tab_id: &str,
         entry: &SessionEntry,
         event: &str,
@@ -91,7 +91,7 @@ impl LogManager {
     /// Starts the log of a tracked session that has none.
     fn start_tracked_writer(
         &mut self,
-        app: &AppHandle,
+        app: &LogContext,
         tab_id: &str,
         event: &str,
     ) -> Result<(), String> {
@@ -134,7 +134,7 @@ impl SessionLogState {
         Ok(())
     }
 
-    pub fn apply_config(&self, app: &AppHandle, app_config: &AppConfig) -> Result<(), String> {
+    pub fn apply_config(&self, app: &LogContext, app_config: &AppConfig) -> Result<(), String> {
         let config = LogConfig::from_app_config(app_config)?;
         if config.record_by_default {
             validate_directory(&config.files.directory)?;
@@ -185,7 +185,7 @@ impl SessionLogState {
     /// cannot start is reported but never stops the session from connecting.
     pub(super) fn start_session(
         &self,
-        app: &AppHandle,
+        app: &LogContext,
         tab_id: &str,
         session_nonce: u32,
         plan: &SessionPlan,
@@ -236,7 +236,7 @@ impl SessionLogState {
     /// passes through here, so that case must stay cheap.
     fn manager_if_active(
         &self,
-        app: &AppHandle,
+        app: &LogContext,
         tab_id: &str,
     ) -> Option<MutexGuard<'_, LogManager>> {
         if !self.active.load(Ordering::Relaxed) {
@@ -254,7 +254,7 @@ impl SessionLogState {
     /// Queues output or input for the tab's log. Never waits on the disk.
     pub(super) fn record_bytes(
         &self,
-        app: &AppHandle,
+        app: &LogContext,
         tab_id: &str,
         direction: &'static str,
         data: &[u8],
@@ -280,7 +280,7 @@ impl SessionLogState {
 
     pub(super) fn record_event(
         &self,
-        app: &AppHandle,
+        app: &LogContext,
         tab_id: &str,
         event: &'static str,
         detail: serde_json::Value,
@@ -309,7 +309,7 @@ impl SessionLogState {
 
     pub(super) fn set_recording(
         &self,
-        app: &AppHandle,
+        app: &LogContext,
         tab_id: &str,
         recording: bool,
     ) -> Result<TerminalLogStatus, String> {
@@ -351,7 +351,7 @@ impl SessionLogState {
         self.status()
     }
 
-    pub(super) fn end_session(&self, app: &AppHandle, tab_id: &str) {
+    pub(super) fn end_session(&self, app: &LogContext, tab_id: &str) {
         let writer = self.manager.lock().ok().and_then(|mut manager| {
             let writer = manager
                 .sessions

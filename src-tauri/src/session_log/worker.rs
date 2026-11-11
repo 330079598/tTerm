@@ -2,14 +2,14 @@
 //! never holds up the terminal. The terminal side only queues what happened
 //! and when; the thread turns that into log lines and writes them out.
 
+use super::emit_error;
 use super::writer::{SessionWriter, Stamp};
-use super::{emit_error, SessionLogState};
+use super::LogContext;
 use std::sync::atomic::{AtomicU64, AtomicUsize, Ordering};
 use std::sync::mpsc::{self, Receiver, RecvTimeoutError, Sender};
 use std::sync::{Arc, LazyLock, Mutex};
 use std::thread::JoinHandle;
 use std::time::{Duration, Instant};
-use tauri::{AppHandle, Manager};
 
 /// Output a session may have waiting to be written. Past this the disk is not
 /// keeping up, so output is dropped, and the gap noted in the log, rather than
@@ -69,7 +69,7 @@ pub(super) struct LogHandle {
 impl LogHandle {
     /// Starts the thread that writes `writer`'s log.
     pub(super) fn spawn(
-        app: &AppHandle,
+        app: &LogContext,
         tab_id: &str,
         writer: SessionWriter,
     ) -> Result<Self, String> {
@@ -79,7 +79,7 @@ impl LogHandle {
         let thread = std::thread::Builder::new()
             .name("tterm-session-log".to_string())
             .spawn({
-                let app = app.clone();
+                let app = app.downgrade();
                 let tab_id = tab_id.to_string();
                 let queue = queue.clone();
                 move || run(&app, &tab_id, writer, &receiver, &queue)
@@ -171,7 +171,7 @@ pub(super) fn wait_for_closing(limit: Duration) {
 /// Reports write errors without repeating the same one for every chunk while
 /// the disk stays unwritable.
 struct Reporter<'a> {
-    app: &'a AppHandle,
+    app: &'a super::WeakLogContext,
     tab_id: &'a str,
     last: Option<String>,
 }
@@ -188,10 +188,10 @@ impl Reporter<'_> {
         if self.last.as_ref() == Some(&err) {
             return;
         }
-        self.app
-            .state::<Arc<SessionLogState>>()
-            .set_error(err.clone());
-        emit_error(self.app, self.tab_id, &err);
+        if let Some(app) = self.app.upgrade() {
+            app.state.set_error(err.clone());
+            emit_error(&app, self.tab_id, &err);
+        }
         self.last = Some(err);
     }
 }
@@ -208,7 +208,7 @@ fn record_gap(writer: &mut SessionWriter, dropped: u64, at: Stamp) -> Result<(),
 }
 
 fn run(
-    app: &AppHandle,
+    app: &super::WeakLogContext,
     tab_id: &str,
     mut writer: SessionWriter,
     receiver: &Receiver<Message>,
@@ -276,10 +276,12 @@ fn run(
         }
         if since_maintenance >= MAINTENANCE_BYTES {
             since_maintenance = 0;
-            app.state::<Arc<SessionLogState>>()
-                .schedule_maintenance(app, false);
+            if let Some(app) = app.upgrade() {
+                app.state.schedule_maintenance(&app, false);
+            }
         }
     }
-    app.state::<Arc<SessionLogState>>()
-        .schedule_maintenance(app, false);
+    if let Some(app) = app.upgrade() {
+        app.state.schedule_maintenance(&app, false);
+    }
 }

@@ -30,7 +30,6 @@ use std::sync::Arc;
 use std::sync::Mutex;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 use tauri::ipc::Response;
-use tauri::{AppHandle, Manager, State};
 use tterm_platform::open::OpenTargets;
 
 const LOG_FORMAT_RAW: &str = "raw";
@@ -207,57 +206,87 @@ pub struct SessionLogState {
     recovered_directory: Mutex<Option<PathBuf>>,
 }
 
-pub fn start_session(
-    app: &AppHandle,
+/// Session logging dependencies captured before spawning readers and writers.
+#[derive(Clone)]
+pub(crate) struct LogContext {
+    pub state: Arc<SessionLogState>,
+    pub events: Arc<dyn EventSink>,
+}
+
+/// Writers keep a weak state reference so the log manager cannot own itself.
+#[derive(Clone)]
+pub(super) struct WeakLogContext {
+    state: std::sync::Weak<SessionLogState>,
+    events: Arc<dyn EventSink>,
+}
+
+impl LogContext {
+    pub(super) fn downgrade(&self) -> WeakLogContext {
+        WeakLogContext {
+            state: Arc::downgrade(&self.state),
+            events: self.events.clone(),
+        }
+    }
+}
+
+impl WeakLogContext {
+    fn upgrade(&self) -> Option<LogContext> {
+        Some(LogContext {
+            state: self.state.upgrade()?,
+            events: self.events.clone(),
+        })
+    }
+}
+
+pub(crate) fn start_session(
+    app: &LogContext,
     tab_id: &str,
     session_nonce: u32,
     plan: &SessionPlan,
     rows: u16,
     cols: u16,
 ) {
-    app.state::<Arc<SessionLogState>>()
-        .start_session(app, tab_id, session_nonce, plan, rows, cols)
+    app.state
+        .start_session(app, tab_id, session_nonce, plan, rows, cols);
 }
-
-pub fn record_input(app: &AppHandle, tab_id: &str, data: &[u8]) {
-    app.state::<Arc<SessionLogState>>()
-        .record_bytes(app, tab_id, "input", data);
+pub(crate) fn record_input(app: &LogContext, tab_id: &str, data: &[u8]) {
+    app.state.record_bytes(app, tab_id, "input", data);
 }
-
-pub fn record_output(app: &AppHandle, tab_id: &str, data: &[u8]) {
-    app.state::<Arc<SessionLogState>>()
-        .record_bytes(app, tab_id, "output", data);
+pub(crate) fn record_output(app: &LogContext, tab_id: &str, data: &[u8]) {
+    app.state.record_bytes(app, tab_id, "output", data);
 }
-
-pub fn record_resize(app: &AppHandle, tab_id: &str, rows: u16, cols: u16) {
-    app.state::<Arc<SessionLogState>>()
-        .resize(tab_id, rows, cols);
+pub(crate) fn record_resize(app: &LogContext, tab_id: &str, rows: u16, cols: u16) {
+    app.state.resize(tab_id, rows, cols);
 }
-
-pub fn record_credential_injection(app: &AppHandle, tab_id: &str) {
-    app.state::<Arc<SessionLogState>>().record_event(
+pub(crate) fn record_credential_injection(app: &LogContext, tab_id: &str) {
+    app.state.record_event(
         app,
         tab_id,
         "credential_injected",
         serde_json::json!({ "redacted": true }),
     );
 }
-
-pub fn end_session(app: &AppHandle, tab_id: &str) {
-    app.state::<Arc<SessionLogState>>().end_session(app, tab_id);
+pub(crate) fn end_session(app: &LogContext, tab_id: &str) {
+    app.state.end_session(app, tab_id);
 }
-
 /// Ends every log, writing out what they still hold; tTerm is quitting.
-pub fn shutdown(app: &AppHandle) {
-    app.state::<Arc<SessionLogState>>().shutdown();
+pub(crate) fn shutdown(state: &SessionLogState) {
+    state.shutdown();
 }
 
 /// The logging status; the disk usage in it is remeasured in the background
 /// and sent again with `terminal-log-status` if it changed.
 #[tauri::command]
 pub fn get_terminal_log_status(
-    app: AppHandle,
-    state: State<'_, Arc<SessionLogState>>,
+    services: tauri::State<'_, std::sync::Arc<crate::services::AppServices>>,
+) -> Result<TerminalLogStatus, String> {
+    let app = crate::connection_context::log(&services);
+    let state = services.app.session_log.clone();
+    get_terminal_log_status_service(app, state)
+}
+fn get_terminal_log_status_service(
+    app: crate::session_log::LogContext,
+    state: Arc<SessionLogState>,
 ) -> Result<TerminalLogStatus, String> {
     state.schedule_maintenance(&app, false);
     state.status()
@@ -266,9 +295,18 @@ pub fn get_terminal_log_status(
 /// The logs a tab has written since tTerm started, oldest first.
 #[tauri::command]
 pub fn terminal_log_ids_for_tab(
-    state: State<'_, Arc<SessionLogState>>,
+    services: tauri::State<'_, std::sync::Arc<crate::services::AppServices>>,
     tab_id: String,
 ) -> Result<Vec<String>, String> {
+    let state = services.app.session_log.clone();
+    terminal_log_ids_for_tab_service(state, (tab_id,))
+}
+fn terminal_log_ids_for_tab_service(
+    state: Arc<SessionLogState>,
+    arguments: (String,),
+) -> Result<Vec<String>, String> {
+    let (tab_id,) = arguments;
+
     Ok(state
         .lock_manager()?
         .logged
@@ -281,65 +319,125 @@ pub fn terminal_log_ids_for_tab(
 /// tab closes.
 #[tauri::command]
 pub async fn set_terminal_log_recording(
-    app: AppHandle,
     tab_id: String,
     recording: bool,
+    services: tauri::State<'_, std::sync::Arc<crate::services::AppServices>>,
 ) -> Result<TerminalLogStatus, String> {
-    run_blocking(move || {
-        app.state::<Arc<SessionLogState>>()
-            .set_recording(&app, &tab_id, recording)
-    })
-    .await
+    let app = crate::connection_context::log(&services);
+    set_terminal_log_recording_service(app, (tab_id, recording)).await
+}
+async fn set_terminal_log_recording_service(
+    app: crate::session_log::LogContext,
+    arguments: (String, bool),
+) -> Result<TerminalLogStatus, String> {
+    let (tab_id, recording) = arguments;
+
+    run_blocking(move || app.state.set_recording(&app, &tab_id, recording)).await
 }
 
 /// The saved sessions in the log directory, newest first.
 #[tauri::command]
-pub async fn list_terminal_logs(app: AppHandle) -> Result<Vec<library::LogSession>, String> {
-    let (directory, _, in_use) = app.state::<Arc<SessionLogState>>().directory_state()?;
+pub async fn list_terminal_logs(
+    services: tauri::State<'_, std::sync::Arc<crate::services::AppServices>>,
+) -> Result<Vec<library::LogSession>, String> {
+    let app = crate::connection_context::log(&services);
+    list_terminal_logs_service(app).await
+}
+async fn list_terminal_logs_service(
+    app: crate::session_log::LogContext,
+) -> Result<Vec<library::LogSession>, String> {
+    let (directory, _, in_use) = app.state.directory_state()?;
     run_blocking(move || library::list(&directory, &in_use)).await
 }
 
 /// A session's raw log as replay frames (see `library::load_recording`).
 #[tauri::command]
-pub async fn load_terminal_log_recording(app: AppHandle, id: String) -> Result<Response, String> {
-    let (directory, _, _) = app.state::<Arc<SessionLogState>>().directory_state()?;
+pub async fn load_terminal_log_recording(
+    id: String,
+    services: tauri::State<'_, std::sync::Arc<crate::services::AppServices>>,
+) -> Result<Response, String> {
+    let app = crate::connection_context::log(&services);
+    load_terminal_log_recording_service(app, (id,))
+        .await
+        .map(Response::new)
+}
+async fn load_terminal_log_recording_service(
+    app: crate::session_log::LogContext,
+    arguments: (String,),
+) -> Result<Vec<u8>, String> {
+    let (id,) = arguments;
+
+    let (directory, _, _) = app.state.directory_state()?;
     run_blocking(move || {
-        app.state::<Arc<SessionLogState>>().flush_log(&id);
+        app.state.flush_log(&id);
         library::load_recording(&directory, &id)
     })
     .await
-    .map(Response::new)
 }
 
 /// A session's plain-text log as UTF-8 bytes.
 #[tauri::command]
-pub async fn load_terminal_log_text(app: AppHandle, id: String) -> Result<Response, String> {
-    let (directory, _, _) = app.state::<Arc<SessionLogState>>().directory_state()?;
+pub async fn load_terminal_log_text(
+    id: String,
+    services: tauri::State<'_, std::sync::Arc<crate::services::AppServices>>,
+) -> Result<Response, String> {
+    let app = crate::connection_context::log(&services);
+    load_terminal_log_text_service(app, (id,))
+        .await
+        .map(Response::new)
+}
+async fn load_terminal_log_text_service(
+    app: crate::session_log::LogContext,
+    arguments: (String,),
+) -> Result<Vec<u8>, String> {
+    let (id,) = arguments;
+
+    let (directory, _, _) = app.state.directory_state()?;
     run_blocking(move || {
-        app.state::<Arc<SessionLogState>>().flush_log(&id);
+        app.state.flush_log(&id);
         library::load_text(&directory, &id)
     })
     .await
-    .map(Response::new)
 }
 
 #[tauri::command]
 pub async fn export_terminal_log_asciicast(
-    app: AppHandle,
     id: String,
     path: String,
+    services: tauri::State<'_, std::sync::Arc<crate::services::AppServices>>,
 ) -> Result<(), String> {
-    let (directory, _, _) = app.state::<Arc<SessionLogState>>().directory_state()?;
+    let app = crate::connection_context::log(&services);
+    export_terminal_log_asciicast_service(app, (id, path)).await
+}
+async fn export_terminal_log_asciicast_service(
+    app: crate::session_log::LogContext,
+    arguments: (String, String),
+) -> Result<(), String> {
+    let (id, path) = arguments;
+
+    let (directory, _, _) = app.state.directory_state()?;
     run_blocking(move || {
-        app.state::<Arc<SessionLogState>>().flush_log(&id);
+        app.state.flush_log(&id);
         library::export_asciicast(&directory, &id, Path::new(&path))
     })
     .await
 }
 
 #[tauri::command]
-pub async fn delete_terminal_log(app: AppHandle, id: String) -> Result<(), String> {
-    let state = app.state::<Arc<SessionLogState>>();
+pub async fn delete_terminal_log(
+    id: String,
+    services: tauri::State<'_, std::sync::Arc<crate::services::AppServices>>,
+) -> Result<(), String> {
+    let app = crate::connection_context::log(&services);
+    delete_terminal_log_service(app, (id,)).await
+}
+async fn delete_terminal_log_service(
+    app: crate::session_log::LogContext,
+    arguments: (String,),
+) -> Result<(), String> {
+    let (id,) = arguments;
+
+    let state = &app.state;
     let (directory, _, in_use) = state.directory_state()?;
     run_blocking(move || library::delete(&directory, &id, &in_use)).await?;
     state.schedule_maintenance(&app, false);
@@ -350,10 +448,19 @@ pub async fn delete_terminal_log(app: AppHandle, id: String) -> Result<(), Strin
 /// being logged) is reported and does not stop the rest.
 #[tauri::command]
 pub async fn delete_terminal_logs(
-    app: AppHandle,
     ids: Vec<String>,
+    services: tauri::State<'_, std::sync::Arc<crate::services::AppServices>>,
 ) -> Result<library::DeleteReport, String> {
-    let state = app.state::<Arc<SessionLogState>>();
+    let app = crate::connection_context::log(&services);
+    delete_terminal_logs_service(app, (ids,)).await
+}
+async fn delete_terminal_logs_service(
+    app: crate::session_log::LogContext,
+    arguments: (Vec<String>,),
+) -> Result<library::DeleteReport, String> {
+    let (ids,) = arguments;
+
+    let state = &app.state;
     let (directory, _, in_use) = state.directory_state()?;
     let report = run_blocking(move || Ok(library::delete_many(&directory, &ids, &in_use))).await?;
     state.schedule_maintenance(&app, false);
@@ -361,11 +468,24 @@ pub async fn delete_terminal_logs(
 }
 
 #[tauri::command]
-pub async fn reveal_terminal_log(app: AppHandle, id: String) -> Result<(), String> {
-    let (directory, _, _) = app.state::<Arc<SessionLogState>>().directory_state()?;
+pub async fn reveal_terminal_log(
+    id: String,
+    services: tauri::State<'_, std::sync::Arc<crate::services::AppServices>>,
+) -> Result<(), String> {
+    let app = crate::connection_context::log(&services);
+    let open = services.shared.platform.open.clone();
+    reveal_terminal_log_service(app, open, (id,)).await
+}
+async fn reveal_terminal_log_service(
+    app: crate::session_log::LogContext,
+    open: std::sync::Arc<dyn OpenTargets>,
+    arguments: (String,),
+) -> Result<(), String> {
+    let (id,) = arguments;
+
+    let (directory, _, _) = app.state.directory_state()?;
     let path = run_blocking(move || library::first_file(&directory, &id)).await?;
-    app.state::<Arc<dyn OpenTargets>>()
-        .reveal(path)
+    open.reveal(path)
         .await
         .map_err(|error| format!("Failed to show terminal log: {error}"))
 }
@@ -373,6 +493,11 @@ pub async fn reveal_terminal_log(app: AppHandle, id: String) -> Result<(), Strin
 /// Saves what a terminal shows (its text) to a file the user picked.
 #[tauri::command]
 pub async fn save_terminal_contents(path: String, contents: String) -> Result<(), String> {
+    save_terminal_contents_service((path, contents)).await
+}
+async fn save_terminal_contents_service(arguments: (String, String)) -> Result<(), String> {
+    let (path, contents) = arguments;
+
     run_blocking(move || {
         fs::write(&path, contents).map_err(|error| format!("Failed to save '{path}': {error}"))
     })
@@ -380,9 +505,19 @@ pub async fn save_terminal_contents(path: String, contents: String) -> Result<()
 }
 
 #[tauri::command]
-pub async fn open_terminal_log_directory(app: AppHandle) -> Result<(), String> {
+pub async fn open_terminal_log_directory(
+    services: tauri::State<'_, std::sync::Arc<crate::services::AppServices>>,
+) -> Result<(), String> {
+    let app = crate::connection_context::log(&services);
+    let open = services.shared.platform.open.clone();
+    open_terminal_log_directory_service(app, open).await
+}
+async fn open_terminal_log_directory_service(
+    app: crate::session_log::LogContext,
+    open: std::sync::Arc<dyn OpenTargets>,
+) -> Result<(), String> {
     let configured = app
-        .state::<Arc<SessionLogState>>()
+        .state
         .lock_manager()?
         .config
         .as_ref()
@@ -394,16 +529,23 @@ pub async fn open_terminal_log_directory(app: AppHandle) -> Result<(), String> {
         Ok(directory)
     })
     .await?;
-    app.state::<Arc<dyn OpenTargets>>()
-        .open_file(directory)
+    open.open_file(directory)
         .await
         .map_err(|error| format!("Failed to open terminal log directory: {error}"))
 }
 
 #[tauri::command]
-pub async fn retry_terminal_logging(app: AppHandle) -> Result<TerminalLogStatus, String> {
+pub async fn retry_terminal_logging(
+    services: tauri::State<'_, std::sync::Arc<crate::services::AppServices>>,
+) -> Result<TerminalLogStatus, String> {
+    let app = crate::connection_context::log(&services);
+    retry_terminal_logging_service(app).await
+}
+async fn retry_terminal_logging_service(
+    app: crate::session_log::LogContext,
+) -> Result<TerminalLogStatus, String> {
     run_blocking(move || {
-        let state = app.state::<Arc<SessionLogState>>();
+        let state = &app.state;
         let config = crate::config::load_config_file()?;
         {
             let mut manager = state.lock_manager()?;
@@ -423,34 +565,35 @@ fn now_unix_ms() -> u64 {
         .min(u64::MAX as u128) as u64
 }
 
-fn emit_error(app: &AppHandle, tab_id: &str, message: &str) {
-    let _ = crate::event_sink::TauriEventSink::new(app.clone()).emit(AppEvent::SessionLog(
-        SessionLogEvent::Error(LogErrorPayload {
+fn emit_error(app: &LogContext, tab_id: &str, message: &str) {
+    let _ = app.events.emit(AppEvent::SessionLog(SessionLogEvent::Error(
+        LogErrorPayload {
             tab_id: Some(tab_id.to_string()),
             message: message.to_string(),
             phase: None,
-        }),
-    ));
+        },
+    )));
 }
 
 /// A session's log could not start; the session runs without one.
-fn emit_start_error(app: &AppHandle, tab_id: &str, message: &str) {
-    let _ = crate::event_sink::TauriEventSink::new(app.clone()).emit(AppEvent::SessionLog(
-        SessionLogEvent::Error(LogErrorPayload {
+fn emit_start_error(app: &LogContext, tab_id: &str, message: &str) {
+    let _ = app.events.emit(AppEvent::SessionLog(SessionLogEvent::Error(
+        LogErrorPayload {
             tab_id: Some(tab_id.to_string()),
             message: message.to_string(),
             phase: Some(LogErrorPhase::Start),
-        }),
-    ));
+        },
+    )));
 }
 
-fn emit_status(app: &AppHandle, state: &SessionLogState) {
+fn emit_status(app: &LogContext, state: &SessionLogState) {
     if let Ok(status) = state.status() {
-        let _ = crate::event_sink::TauriEventSink::new(app.clone())
+        let _ = app
+            .events
             .emit(AppEvent::SessionLog(SessionLogEvent::Status(status)));
     }
 }
 
 #[cfg(test)]
-#[path = "session_log_legacy_tests.rs"]
+#[path = "../session_log_legacy_tests.rs"]
 mod legacy_contract_tests;
