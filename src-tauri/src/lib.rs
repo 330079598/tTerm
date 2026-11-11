@@ -450,6 +450,8 @@ pub fn run() {
                     }
                 }
                 tauri::RunEvent::Exit => {
+                    app.state::<Arc<tterm_core::prompts::PromptBroker>>()
+                        .shutdown();
                     window_state::save(app);
                     launch_dir::forget_startup_dir(app);
                     // Tunnels may still be running; keep what they carried.

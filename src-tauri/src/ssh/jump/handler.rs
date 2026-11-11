@@ -8,7 +8,7 @@ use crate::ssh::store::{
 };
 use crate::ssh::types::{
     emit_connection_progress, ConnectionStatusOptions, HostKeyVerificationMode,
-    HOST_KEY_PROMPT_TIMEOUT, HOST_KEY_REJECTED_REASON,
+    HOST_KEY_REJECTED_REASON,
 };
 use russh::client;
 use russh::keys::ssh_key::HashAlg;
@@ -146,23 +146,8 @@ impl client::Handler for JumpHostHandler {
             known_fingerprint,
         };
 
-        let wait = self.prompts.begin(
-            tterm_core::prompts::PromptRequest {
-                id: tterm_core::prompts::PromptId(request_id),
-                kind: tterm_core::prompts::PromptKind::HostKey,
-                event: tterm_core::events::AppEvent::Ssh(
-                    tterm_core::events::ssh::SshEvent::HostKeyPrompt {
-                        tab_id: self.tab_id.clone(),
-                        payload,
-                    },
-                ),
-                expired_event: None,
-            },
-            tterm_core::prompts::PromptOptions {
-                owner: self.prompt_owner.clone(),
-                timeout: HOST_KEY_PROMPT_TIMEOUT,
-            },
-        );
+        let wait =
+            crate::prompt_scope::host_key(&self.prompts, &self.prompt_owner, &self.tab_id, payload);
         crate::prompt_scope::reveal(&self.app);
 
         self.emit_status(

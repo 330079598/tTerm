@@ -31,6 +31,15 @@ impl AuthPrompter {
         }
     }
 
+    pub(super) fn ensure_open(&self) -> Result<(), SshConnectError> {
+        if matches!(self, Self::Tab { owner: Some(owner), .. } if owner.is_closed()) {
+            return Err(SshConnectError::Permanent(
+                "SSH authentication was cancelled".into(),
+            ));
+        }
+        Ok(())
+    }
+
     /// Asks for the account's password on `target` for sudo, which the file
     /// manager's sudo mode needs when none is saved. `retry` says sudo turned
     /// down the one typed before.
@@ -63,6 +72,7 @@ impl AuthPrompter {
         target: &AuthTarget<'_>,
         mut payload: AuthPromptPayload,
     ) -> Result<Vec<String>, SshConnectError> {
+        self.ensure_open()?;
         let subject = if payload.kind == "sudo" {
             "sudo"
         } else {

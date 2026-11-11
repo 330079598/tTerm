@@ -371,3 +371,21 @@ async fn false_host_reply_and_cancel_before_wait_are_not_timeouts() {
     empty(&broker);
     assert_eq!(sink.events().len(), 2);
 }
+
+#[test]
+fn closed_nonce_cannot_register_late_owner_but_explicit_new_lifetime_can() {
+    let (broker, _, _) = setup();
+    let session = SessionKey {
+        tab_id: "late".into(),
+        session_nonce: 42,
+    };
+    broker.cancel_session(&session);
+    assert!(broker.register_owner(Some(session.clone())).is_err());
+    let newer = SessionKey {
+        session_nonce: 43,
+        ..session.clone()
+    };
+    assert!(broker.register_owner(Some(newer)).is_ok());
+    broker.open_session(&session);
+    assert!(broker.register_owner(Some(session)).is_ok());
+}

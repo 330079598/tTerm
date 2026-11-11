@@ -102,7 +102,8 @@ async fn connect_sftp(
     let (jump_chain, ssh) = connect_authenticated_ssh(app, tab_id, plan, prompts).await?;
 
     let launcher = if plan.sftp_sudo {
-        let prompter = AuthPrompter::tab(app, tab_id);
+        let scope = crate::prompt_scope::PromptScope::for_tab(app, tab_id).await?;
+        let prompter = AuthPrompter::tab(app, tab_id).with_owner(&scope.owner);
         let target = AuthTarget {
             host: plan.host.as_deref().unwrap_or_default(),
             port: plan.port,

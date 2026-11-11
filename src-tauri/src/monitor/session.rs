@@ -141,6 +141,13 @@ pub(crate) async fn get_or_open_monitor_session(
         .clone()
         .ok_or_else(|| "SSH username is required".to_string())?;
 
+    let prompt_scope = crate::prompt_scope::PromptScope::new(
+        prompts.clone(),
+        Some(tterm_core::prompts::SessionKey {
+            tab_id: tab_id.to_string(),
+            session_nonce,
+        }),
+    )?;
     let (jump_chain, ssh) = open_target_ssh_session(
         ConnectContext {
             app,
@@ -150,7 +157,7 @@ pub(crate) async fn get_or_open_monitor_session(
             host_key_verification_mode:
                 crate::ssh::types::HostKeyVerificationMode::PromptAndPersist,
             // Monitoring starts on its own; a prompt would appear out of nowhere.
-            prompt_owner: None,
+            prompt_owner: Some(&prompt_scope.owner),
             auth_prompter: &crate::ssh::auth::AuthPrompter::Unavailable,
         },
         SshTarget::from_plan(plan, &host, &username),

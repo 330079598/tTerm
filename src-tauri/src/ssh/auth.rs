@@ -316,7 +316,9 @@ where
         }
     };
 
+    prompter.ensure_open()?;
     for _ in 0..MAX_STEPS {
+        prompter.ensure_open()?;
         let remaining = match result {
             AuthResult::Success => {
                 if let (

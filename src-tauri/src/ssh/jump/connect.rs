@@ -289,21 +289,7 @@ pub async fn open_target_ssh_session_with_forwarding(
     );
     let target_config = Arc::new(target_config);
 
-    let handler = SshClientHandler {
-        app: app.clone(),
-        tab_id: tab_id.to_string(),
-        profile_id: target.profile_id.map(str::to_string),
-        profile_name: target.profile_name.to_string(),
-        host: target_host.to_string(),
-        port: target_port,
-        prompts: ctx.prompts.clone(),
-        prompt_owner: owner.clone(),
-        user_rejected_host_key: Arc::new(AtomicBool::new(false)),
-        status_options,
-        host_key_verification_mode: ctx.host_key_verification_mode,
-        forwarded_tcpip_tx,
-        agent_forward_enabled: target.agent_forward,
-    };
+    let handler = target_handler(ctx, target, owner.clone(), forwarded_tcpip_tx);
     let host_key_rejected = handler.user_rejected_host_key.clone();
 
     let (jump_chain_opt, mut target_session) = if target.jump_hosts.is_empty() {
@@ -406,4 +392,29 @@ pub async fn open_target_ssh_session_with_forwarding(
     }
 
     Ok((jump_chain_opt, target_session))
+}
+
+fn target_handler(
+    ctx: ConnectContext<'_>,
+    target: SshTarget<'_>,
+    owner: tterm_core::prompts::PromptOwner,
+    forwarded_tcpip_tx: Option<
+        tokio::sync::mpsc::UnboundedSender<crate::ssh::types::ForwardedTcpIp>,
+    >,
+) -> SshClientHandler {
+    SshClientHandler {
+        app: ctx.app.clone(),
+        tab_id: ctx.tab_id.to_string(),
+        profile_id: target.profile_id.map(str::to_string),
+        profile_name: target.profile_name.to_string(),
+        host: target.host.to_string(),
+        port: target.port,
+        prompts: ctx.prompts.clone(),
+        prompt_owner: owner,
+        user_rejected_host_key: Arc::new(AtomicBool::new(false)),
+        status_options: ctx.status_options,
+        host_key_verification_mode: ctx.host_key_verification_mode,
+        forwarded_tcpip_tx,
+        agent_forward_enabled: target.agent_forward,
+    }
 }

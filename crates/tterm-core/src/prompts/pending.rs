@@ -20,9 +20,21 @@ impl PromptBroker {
         }
     }
 
+    /// Starts a terminal generation while the client still holds its session lock.
+    /// Side operations cannot reopen a closed session by merely registering an owner.
+    pub fn open_session(&self, session: &SessionKey) {
+        self.shared.lock().closed_sessions.remove(session);
+    }
+
     /// Mints an owner for one operation, optionally tied to a terminal nonce.
     pub fn register_owner(&self, session: Option<SessionKey>) -> Result<PromptOwner, String> {
         let mut state = self.shared.lock();
+        if session
+            .as_ref()
+            .is_some_and(|session| state.closed_sessions.contains(session))
+        {
+            return Err("Prompt session is closed".into());
+        }
         if state.shutdown {
             return Err("Prompt broker is shut down".into());
         }
@@ -147,24 +159,33 @@ impl PromptBroker {
     /// Closes only this operation, including requests already claimed for approval.
     pub fn cancel_owner(&self, owner: &PromptOwner) {
         if owner.inner.broker.ptr_eq(&Arc::downgrade(&self.shared)) {
-            self.cancel_matching(|candidate| candidate.id == owner.inner.id, false);
+            self.cancel_matching(|candidate| candidate.id == owner.inner.id, None);
         }
     }
 
     /// A stale terminal close never cancels a new nonce of the same tab.
     pub fn cancel_session(&self, session: &SessionKey) {
-        self.cancel_matching(|owner| owner.session.as_ref() == Some(session), false);
+        self.cancel_matching(
+            |owner| owner.session.as_ref() == Some(session),
+            Some(session),
+        );
     }
 
     /// Called only at committed application shutdown, not when asking to quit.
     pub fn shutdown(&self) {
-        self.cancel_matching(|_| true, true);
+        {
+            let mut state = self.shared.lock();
+            state.shutdown = true;
+        }
+        self.cancel_matching(|_| true, None);
     }
 
-    fn cancel_matching(&self, matches: impl Fn(&OwnerState) -> bool, shutdown: bool) {
+    fn cancel_matching(&self, matches: impl Fn(&OwnerState) -> bool, session: Option<&SessionKey>) {
         let senders = {
             let mut state = self.shared.lock();
-            state.shutdown |= shutdown;
+            if let Some(session) = session {
+                state.closed_sessions.insert(session.clone());
+            }
             let ids: Vec<_> = state
                 .owners
                 .values()

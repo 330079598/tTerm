@@ -20,12 +20,18 @@ use tokio::sync::{mpsc, watch, Mutex as TokioMutex};
 mod batch_write;
 
 fn stop_pty_session(
-    tab_id: &str,
+    context: (&AppHandle, &str),
     session: PtySession,
     zmodem_state: &ZmodemMap,
     zmodem_armed_send_state: &ZmodemArmedSendMap,
     zmodem_manual_detect_state: &ZmodemManualDetectMap,
 ) {
+    let (app, tab_id) = context;
+    app.state::<std::sync::Arc<tterm_core::prompts::PromptBroker>>()
+        .cancel_session(&tterm_core::prompts::SessionKey {
+            tab_id: tab_id.to_string(),
+            session_nonce: session.session_nonce,
+        });
     let _ = session.stop_tx.send(true);
     // Nobody will acknowledge this channel's output again.
     session.sink.close_output();
@@ -130,7 +136,7 @@ fn create_pty_blocking(
 
     if let Some(session) = sessions.remove(&tab_id) {
         stop_pty_session(
-            &tab_id,
+            (&app, &tab_id),
             session,
             &zmodem_state,
             &zmodem_armed_send_state,
@@ -138,6 +144,10 @@ fn create_pty_blocking(
         );
     }
 
+    prompt_state.open_session(&tterm_core::prompts::SessionKey {
+        tab_id: tab_id.clone(),
+        session_nonce,
+    });
     crate::session_log::start_session(&app, &tab_id, session_nonce, &plan, rows, cols);
 
     let (exit_tx, exit_rx) = mpsc::unbounded_channel::<SessionExitSignal>();
@@ -519,7 +529,7 @@ pub fn kill_pty(
 
     if let Some(session) = session {
         stop_pty_session(
-            &tab_id,
+            (&app, &tab_id),
             session,
             zmodem_state.inner(),
             zmodem_armed_send_state.inner(),

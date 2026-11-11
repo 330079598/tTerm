@@ -26,7 +26,7 @@ pub enum PromptKind {
 }
 
 /// The terminal generation that owns an operation, when one exists.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct SessionKey {
     pub tab_id: String,
     pub session_nonce: u32,
