@@ -1,3 +1,5 @@
+//! Synchronous session output, lifecycle and flow-control adapter contracts.
+
 use std::time::Duration;
 
 use crate::events::EventSink;

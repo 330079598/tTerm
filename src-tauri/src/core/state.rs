@@ -134,6 +134,7 @@ pub struct PtySession {
     /// The frontend's output channel. Its flow control is acknowledged by
     /// `ack_pty_output` as xterm.js parses.
     pub output: crate::terminal::io_batcher::TerminalOutput,
+    /// Shares output flow and lifecycle delivery across this tab's attempts.
     pub sink: Arc<dyn tterm_core::session::sink::SessionSink>,
     /// Serial: how the tab shows what it receives, which its bar can change
     /// while the device is away too.

@@ -8,12 +8,19 @@ use std::time::Instant;
 /// An observed endpoint call, in the order the recorder received it.
 #[derive(Debug, Clone, PartialEq)]
 pub enum SessionRecord {
+    /// One already batched raw output message.
     Bytes(Vec<u8>),
+    /// A typed event forwarded through the endpoint.
     Event(AppEvent),
+    /// A final exit report with its original optional reason.
     Exit(Option<String>),
+    /// A connection phase report using the shared SSH payload.
     State(crate::events::ssh::SshConnectionProgressPayload),
+    /// Parsed bytes acknowledged by the receiver.
     Ack(usize),
+    /// Permanent output teardown releasing flow-control waiters.
     Close,
+    /// Successful input that starts the immediate-response window.
     Input,
 }
 

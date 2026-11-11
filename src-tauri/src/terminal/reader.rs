@@ -83,8 +83,10 @@ pub trait OutputFilter: Send {
     fn filter(&mut self, output: Vec<u8>) -> FilteredOutput;
 }
 
+/// Records bytes at the reader's existing logging points without exposing an app handle.
 pub(crate) type ReaderLog = Box<dyn Fn(&[u8]) + Send>;
 
+/// Binds a tab's log callback before handing it to the blocking reader thread.
 pub(crate) fn reader_log(app: &AppHandle, tab_id: &str) -> ReaderLog {
     let app = app.clone();
     let tab_id = tab_id.to_string();
