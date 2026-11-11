@@ -22,6 +22,7 @@ pub(super) struct Pending {
     pub sequence: u64,
     pub shutdown: bool,
     pub closed_sessions: HashSet<SessionKey>,
+    pub latest_sessions: HashMap<String, SessionKey>,
     pub owners: HashMap<u64, Weak<OwnerState>>,
     pub active: HashMap<Key, u64>,
     pub entries: HashMap<u64, Entry>,

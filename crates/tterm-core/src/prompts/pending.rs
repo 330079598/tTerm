@@ -23,7 +23,16 @@ impl PromptBroker {
     /// Starts a terminal generation while the client still holds its session lock.
     /// Side operations cannot reopen a closed session by merely registering an owner.
     pub fn open_session(&self, session: &SessionKey) {
-        self.shared.lock().closed_sessions.remove(session);
+        let mut state = self.shared.lock();
+        state.closed_sessions.remove(session);
+        state
+            .latest_sessions
+            .insert(session.tab_id.clone(), session.clone());
+    }
+
+    /// Retains a closed generation so late side operations cannot become anonymous.
+    pub fn session_for_tab(&self, tab_id: &str) -> Option<SessionKey> {
+        self.shared.lock().latest_sessions.get(tab_id).cloned()
     }
 
     /// Mints an owner for one operation, optionally tied to a terminal nonce.

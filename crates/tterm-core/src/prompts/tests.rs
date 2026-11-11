@@ -389,3 +389,18 @@ fn closed_nonce_cannot_register_late_owner_but_explicit_new_lifetime_can() {
     broker.open_session(&session);
     assert!(broker.register_owner(Some(session)).is_ok());
 }
+
+#[test]
+fn removed_tab_retains_closed_generation_for_late_side_operations() {
+    let (broker, _, _) = setup();
+    let session = SessionKey {
+        tab_id: "closed-tab".into(),
+        session_nonce: 9,
+    };
+    broker.open_session(&session);
+    broker.cancel_session(&session);
+    let retained = broker.session_for_tab("closed-tab").unwrap();
+    assert_eq!(retained, session);
+    assert!(broker.register_owner(Some(retained)).is_err());
+    assert!(broker.session_for_tab("tunnels").is_none());
+}

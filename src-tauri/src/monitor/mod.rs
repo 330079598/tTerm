@@ -1,4 +1,5 @@
 pub(crate) mod metrics;
+pub(crate) mod prompts;
 mod session;
 pub(crate) mod types;
 
@@ -60,10 +61,18 @@ pub async fn get_server_metrics_snapshot(
 
 #[tauri::command]
 pub async fn release_server_monitor_session(
+    app: AppHandle,
     tab_id: String,
     session_nonce: Option<u32>,
     monitor_sessions: State<'_, MonitorSessionMap>,
 ) -> Result<(), String> {
+    use tauri::Manager;
+    app.state::<prompts::PendingMonitorPrompts>().cancel(
+        app.state::<std::sync::Arc<tterm_core::prompts::PromptBroker>>()
+            .inner(),
+        &tab_id,
+        session_nonce,
+    );
     reap_idle_monitor_sessions(monitor_sessions.inner().clone()).await;
     release_monitor_session_inner(
         monitor_sessions.inner().clone(),

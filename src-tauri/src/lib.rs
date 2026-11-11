@@ -126,6 +126,7 @@ pub fn run() {
         .manage(sftp_pool)
         .manage(sftp::internal::api::external::ExternalEditState::default())
         .manage(monitor_sessions)
+        .manage(monitor::prompts::PendingMonitorPrompts::default())
         .manage(transfer_cancel_map)
         .manage(zmodem_map)
         .manage(zmodem_armed_send_map)
