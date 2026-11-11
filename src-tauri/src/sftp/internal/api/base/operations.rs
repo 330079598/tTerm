@@ -22,8 +22,7 @@ pub(super) async fn sftp_release_tab_connections_service(
     let SftpReleaseTabConnectionsDependencies { pool } = dependencies;
     let SftpReleaseTabConnectionsInput { tab_id } = input;
 
-    let pool_state = &pool;
-    release_tab_connections(pool_state, &tab_id).await;
+    release_tab_connections(&pool, &tab_id).await;
     Ok(())
 }
 
@@ -54,15 +53,11 @@ pub(super) async fn sftp_list_directory_service(
         path,
     } = input;
 
-    let app = context;
-    let prompt_state = prompts.clone();
-    let secret_state = &secrets;
-    let pool_state = &pool;
-    let plan = ensure_ssh_plan(secret_state, connection)?;
+    let plan = ensure_ssh_plan(&secrets, connection)?;
 
     let requested_path = crate::sftp::internal::paths::sanitize_target_path(path);
 
-    with_sftp!(&app, &tab_id, &plan, prompt_state.clone(), pool_state, sftp => {
+    with_sftp!(&context, &tab_id, &plan, prompts, &pool, sftp => {
         let current_path = match requested_path {
             Some(path) => sftp.canonicalize(path).await.map_err(map_sftp_error)?,
             None => resolve_initial_directory(sftp, &plan).await?,
@@ -114,13 +109,9 @@ pub(super) async fn sftp_create_directory_service(
         path,
     } = input;
 
-    let app = context;
-    let prompt_state = prompts.clone();
-    let secret_state = &secrets;
-    let pool_state = &pool;
-    let plan = ensure_ssh_plan(secret_state, connection)?;
+    let plan = ensure_ssh_plan(&secrets, connection)?;
 
-    with_sftp!(&app, &tab_id, &plan, prompt_state.clone(), pool_state, sftp => {
+    with_sftp!(&context, &tab_id, &plan, prompts, &pool, sftp => {
         sftp.create_dir(path).await.map_err(map_sftp_error)
     })
 }
@@ -154,14 +145,9 @@ pub(super) async fn sftp_rename_entry_service(
         new_path,
     } = input;
 
-    let app = context;
-    let prompt_state = prompts.clone();
-    let secret_state = &secrets;
-    let pool_state = &pool;
+    let plan = ensure_ssh_plan(&secrets, connection)?;
 
-    let plan = ensure_ssh_plan(secret_state, connection)?;
-
-    with_sftp!(&app, &tab_id, &plan, prompt_state.clone(), pool_state, sftp => {
+    with_sftp!(&context, &tab_id, &plan, prompts, &pool, sftp => {
         sftp.rename(old_path, new_path).await.map_err(map_sftp_error)
     })
 }

@@ -42,21 +42,15 @@ pub(super) async fn sftp_search_entries_service(
         on_event,
     } = input;
 
-    let app = context;
-    let prompt_state = prompts.clone();
-    let secret_state = &secrets;
-    let pool_state = &pool;
-    let cancel_map = &cancel;
-
     let host = SftpHost {
-        app: &app,
+        app: &context,
         tab_id: &tab_id,
         connection,
-        prompts: prompt_state.clone(),
-        secret_state,
-        pool: pool_state,
+        prompts,
+        secret_state: &secrets,
+        pool: &pool,
     };
-    with_cancel(cancel_map, &search_id, |cancel| {
+    with_cancel(&cancel, &search_id, |cancel| {
         search(host, request, on_event, cancel)
     })
     .await

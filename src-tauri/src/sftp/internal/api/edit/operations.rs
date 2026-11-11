@@ -36,13 +36,9 @@ pub(super) async fn sftp_open_file_for_edit_service(
         path,
     } = input;
 
-    let app = context;
-    let prompt_state = prompts.clone();
-    let secret_state = &secrets;
-    let pool_state = &pool;
-    let plan = ensure_ssh_plan(secret_state, connection)?;
+    let plan = ensure_ssh_plan(&secrets, connection)?;
 
-    with_sftp!(&app, &tab_id, &plan, prompt_state.clone(), pool_state, sftp => {
+    with_sftp!(&context, &tab_id, &plan, prompts, &pool, sftp => {
         load_editable_file(sftp, &path).await
     })
 }
@@ -78,14 +74,9 @@ pub(super) async fn sftp_save_edited_file_service(
         baseline,
     } = input;
 
-    let app = context;
-    let prompt_state = prompts.clone();
-    let secret_state = &secrets;
-    let pool_state = &pool;
+    let plan = ensure_ssh_plan(&secrets, connection)?;
 
-    let plan = ensure_ssh_plan(secret_state, connection)?;
-
-    with_sftp!(&app, &tab_id, &plan, prompt_state.clone(), pool_state, sftp => {
+    with_sftp!(&context, &tab_id, &plan, prompts, &pool, sftp => {
         save_editable_file(sftp, &path, &content, &baseline).await
     })
 }

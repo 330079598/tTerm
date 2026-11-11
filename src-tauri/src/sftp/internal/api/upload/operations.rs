@@ -50,15 +50,10 @@ pub(super) async fn sftp_check_upload_conflicts_service(
         remote_base_path,
     } = input;
 
-    let app = context;
-    let prompt_state = prompts.clone();
-    let secret_state = &secrets;
-    let pool_state = &pool;
-
-    let plan = ensure_ssh_plan(secret_state, connection)?;
+    let plan = ensure_ssh_plan(&secrets, connection)?;
     let upload_plan = collect_upload_plan(&local_paths, &remote_base_path, None).await?;
 
-    with_sftp!(&app, &tab_id, &plan, prompt_state.clone(), pool_state, sftp => {
+    with_sftp!(&context, &tab_id, &plan, prompts, &pool, sftp => {
         Ok(collect_upload_conflicts(sftp, &upload_plan).await)
     })
 }
@@ -98,14 +93,7 @@ pub(super) async fn sftp_upload_file_service(
         transfer_id,
     } = input;
 
-    let app = context;
-    let prompt_state = prompts.clone();
-    let secret_state = &secrets;
-    let pool_state = &pool;
-    let cancel_map = &cancel;
-
-    let events: Arc<dyn EventSink> = events.clone();
-    let plan = ensure_ssh_plan(secret_state, connection)?;
+    let plan = ensure_ssh_plan(&secrets, connection)?;
 
     let metadata = fs::metadata(&local_path)
         .await
@@ -120,14 +108,13 @@ pub(super) async fn sftp_upload_file_service(
         remote_path,
     };
 
-    let (_sftp, channels) =
-        prepare_transfer(&app, &tab_id, &plan, prompt_state.clone(), pool_state).await?;
+    let (_sftp, channels) = prepare_transfer(&context, &tab_id, &plan, prompts, &pool).await?;
 
     upload_single_file_with_progress(
         &events,
         &tab_id,
         channels,
-        cancel_map,
+        &cancel,
         None,
         &plan_item,
         &transfer_id,
@@ -172,21 +159,14 @@ pub(super) async fn sftp_upload_paths_service(
         conflict_policy,
     } = input;
 
-    let app = context;
-    let prompt_state = prompts.clone();
-    let secret_state = &secrets;
-    let pool_state = &pool;
-    let cancel_map = &cancel;
-
-    let events: Arc<dyn EventSink> = events.clone();
-    let plan = ensure_ssh_plan(secret_state, connection)?;
+    let plan = ensure_ssh_plan(&secrets, connection)?;
     let root_summary = inspect_upload_roots(&local_paths).await?;
     let batch_id = next_transfer_id();
 
     let mut batch_cancel_rx = None;
     if root_summary.has_directories {
         let (batch_cancel_tx, next_batch_cancel_rx) = watch::channel(false);
-        cancel_map
+        cancel
             .write()
             .await
             .insert(batch_id.clone(), batch_cancel_tx);
@@ -221,7 +201,7 @@ pub(super) async fn sftp_upload_paths_service(
                             succeeded: 0,
                         },
                     }));
-                    cancel_map.write().await.remove(&batch_id);
+                    cancel.write().await.remove(&batch_id);
 
                     if cancelled {
                         return Ok(UploadBatchResult {
@@ -237,10 +217,9 @@ pub(super) async fn sftp_upload_paths_service(
         };
 
     let result: Result<UploadBatchResult, String> =
-        match prepare_transfer(&app, &tab_id, &plan, prompt_state.clone(), pool_state).await {
+        match prepare_transfer(&context, &tab_id, &plan, prompts, &pool).await {
             Ok((sftp, channels)) => {
-                let cancel_map = cancel_map.clone();
-                let events = events.clone();
+                let cancel = cancel.clone();
                 let tab_id = tab_id.clone();
                 let batch_id = batch_id.clone();
                 let directories = upload_plan.directories.clone();
@@ -251,8 +230,8 @@ pub(super) async fn sftp_upload_paths_service(
 
                 super::batch::run(
                     super::batch::UploadBatch {
-                        cancel_map,
-                        events,
+                        cancel_map: cancel,
+                        events: events.clone(),
                         tab_id,
                         batch_id,
                         directories,
@@ -292,7 +271,7 @@ pub(super) async fn sftp_upload_paths_service(
             tab_id: tab_id.to_string(),
             payload: event,
         }));
-        cancel_map.write().await.remove(&batch_id);
+        cancel.write().await.remove(&batch_id);
     }
 
     result
@@ -311,8 +290,7 @@ pub(super) async fn sftp_cancel_upload_service(
     let SftpCancelUploadDependencies { cancel } = dependencies;
     let SftpCancelUploadInput { transfer_id } = input;
 
-    let cancel_map = &cancel;
-    let map = cancel_map.read().await;
+    let map = cancel.read().await;
     if let Some(sender) = map.get(&transfer_id) {
         let _ = sender.send(true);
         Ok(())

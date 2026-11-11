@@ -51,23 +51,15 @@ pub(super) async fn sftp_download_file_service(
         local_path,
     } = input;
 
-    let app = context;
-    let prompt_state = prompts.clone();
-    let secret_state = &secrets;
-    let pool_state = &pool;
-    let cancel_map = &cancel;
+    let plan = ensure_ssh_plan(&secrets, connection)?;
 
-    let events: Arc<dyn EventSink> = events.clone();
-    let plan = ensure_ssh_plan(secret_state, connection)?;
-
-    let (_sftp, channels) =
-        prepare_transfer(&app, &tab_id, &plan, prompt_state.clone(), pool_state).await?;
+    let (_sftp, channels) = prepare_transfer(&context, &tab_id, &plan, prompts, &pool).await?;
 
     download_file_with_progress(
         &events,
         &tab_id,
         channels,
-        cancel_map,
+        &cancel,
         &transfer_id,
         &remote_path,
         &local_path,
@@ -114,23 +106,15 @@ pub(super) async fn sftp_download_paths_service(
         conflict_policy,
     } = input;
 
-    let app = context;
-    let prompt_state = prompts.clone();
-    let secret_state = &secrets;
-    let pool_state = &pool;
-    let cancel_map = &cancel;
+    let plan = ensure_ssh_plan(&secrets, connection)?;
 
-    let events: Arc<dyn EventSink> = events.clone();
-    let plan = ensure_ssh_plan(secret_state, connection)?;
-
-    let (sftp, channels) =
-        prepare_transfer(&app, &tab_id, &plan, prompt_state.clone(), pool_state).await?;
+    let (sftp, channels) = prepare_transfer(&context, &tab_id, &plan, prompts, &pool).await?;
 
     download_directory_with_progress(
         DownloadTarget {
             events: &events,
             tab_id: &tab_id,
-            cancel_map,
+            cancel_map: &cancel,
         },
         &sftp,
         &channels,
@@ -174,11 +158,6 @@ pub(super) async fn sftp_check_download_conflicts_service(
         local_parent_path,
     } = input;
 
-    let app = context;
-    let prompt_state = prompts.clone();
-    let secret_state = &secrets;
-    let pool_state = &pool;
-
     let local_parent = PathBuf::from(&local_parent_path);
     let mut any_root_exists = false;
     for remote_path in &remote_paths {
@@ -195,8 +174,8 @@ pub(super) async fn sftp_check_download_conflicts_service(
         return Ok(ConflictReport::default());
     }
 
-    let plan = ensure_ssh_plan(secret_state, connection)?;
-    with_sftp!(&app, &tab_id, &plan, prompt_state.clone(), pool_state, sftp => {
+    let plan = ensure_ssh_plan(&secrets, connection)?;
+    with_sftp!(&context, &tab_id, &plan, prompts, &pool, sftp => {
         let download_plan = collect_download_plan(sftp, &remote_paths).await?;
         let mut report = ConflictReport {
             file_count: download_plan.files.len(),

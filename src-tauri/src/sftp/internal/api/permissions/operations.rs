@@ -35,14 +35,9 @@ pub(super) async fn sftp_set_permissions_service(
         mode,
     } = input;
 
-    let app = context;
-    let prompt_state = prompts.clone();
-    let secret_state = &secrets;
-    let pool_state = &pool;
+    let plan = ensure_ssh_plan(&secrets, connection)?;
 
-    let plan = ensure_ssh_plan(secret_state, connection)?;
-
-    with_sftp!(&app, &tab_id, &plan, prompt_state.clone(), pool_state, sftp => {
+    with_sftp!(&context, &tab_id, &plan, prompts, &pool, sftp => {
         set_permissions(sftp, &paths, mode).await
     })
 }
