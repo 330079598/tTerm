@@ -1,12 +1,12 @@
 //! The current user's part of the registry, as tTerm reads and changes it.
 
-use windows::core::{HSTRING, PCWSTR};
 use windows::Win32::Foundation::ERROR_FILE_NOT_FOUND;
 use windows::Win32::System::Registry::{
-    RegCloseKey, RegCreateKeyExW, RegDeleteTreeW, RegOpenKeyExW, RegQueryValueExW, RegSetValueExW,
     HKEY, HKEY_CURRENT_USER, KEY_QUERY_VALUE, KEY_SET_VALUE, REG_OPTION_NON_VOLATILE,
-    REG_VALUE_TYPE,
+    REG_VALUE_TYPE, RegCloseKey, RegCreateKeyExW, RegDeleteTreeW, RegOpenKeyExW, RegQueryValueExW,
+    RegSetValueExW,
 };
+use windows::core::{HSTRING, PCWSTR};
 
 /// A key under `HKEY_CURRENT_USER`, closed when dropped.
 pub struct Key {

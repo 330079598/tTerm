@@ -1,11 +1,11 @@
 //! The user's PATH in the registry, which every new process starts with.
 
-use windows::core::w;
 use windows::Win32::Foundation::{LPARAM, WPARAM};
 use windows::Win32::System::Registry::{REG_EXPAND_SZ, REG_VALUE_TYPE};
 use windows::Win32::UI::WindowsAndMessaging::{
-    SendMessageTimeoutW, HWND_BROADCAST, SMTO_ABORTIFHUNG, WM_SETTINGCHANGE,
+    HWND_BROADCAST, SMTO_ABORTIFHUNG, SendMessageTimeoutW, WM_SETTINGCHANGE,
 };
+use windows::core::w;
 
 use super::registry::Key;
 
@@ -31,7 +31,11 @@ pub fn set(dir: &str, present: bool) -> Result<(), String> {
     // tTerm's shells start with its own environment, read when it started.
     let current = std::env::var("PATH").unwrap_or_default();
     if has_entry(&current, dir) != present {
-        std::env::set_var("PATH", changed(&current, dir, present));
+        // SAFETY: this module is compiled only on Windows, where environment
+        // mutation is thread-safe according to std::env::set_var's contract.
+        unsafe {
+            std::env::set_var("PATH", changed(&current, dir, present));
+        }
     }
     Ok(())
 }

@@ -5,11 +5,10 @@
 
 use std::collections::HashMap;
 
-use tauri::AppHandle;
 use tokio::sync::OnceCell;
+use zbus::Connection;
 use zbus::names::BusName;
 use zbus::zvariant::Value;
-use zbus::Connection;
 
 const INTERFACE: &str = "com.canonical.Unity.LauncherEntry";
 /// Docks find the app from the signal's first argument; any path will do.
@@ -21,13 +20,13 @@ static CONNECTION: OnceCell<Connection> = OnceCell::const_new();
 
 /// Shows `count` on the launcher whose desktop file is tTerm's, or hides it
 /// at zero.
-pub async fn set_count(app: &AppHandle, count: u32) -> Result<(), String> {
+pub async fn set_count(name: &str, count: u32) -> Result<(), String> {
     let connection = CONNECTION
         .get_or_try_init(Connection::session)
         .await
         .map_err(|error| format!("Failed to reach the session bus to show the count: {error}"))?;
     // The desktop file the deb and rpm packages install, as Tauri names it.
-    let app_uri = format!("application://{}.desktop", app.package_info().name);
+    let app_uri = format!("application://{}.desktop", name);
     connection
         .emit_signal(
             None::<BusName<'_>>,

@@ -9976,6 +9976,7 @@ dependencies = [
  "tauri-plugin-updater",
  "tokio",
  "tterm-core",
+ "tterm-platform",
  "ttf-parser",
  "unicode-width",
  "uuid",
@@ -10989,8 +10990,12 @@ name = "tterm-core"
 version = "0.1.0"
 dependencies = [
  "dirs 7.0.0",
+ "gethostname",
  "serde",
  "serde_json",
+ "tokio",
+ "tterm-platform",
+ "uuid",
 ]
 
 [[package]]
@@ -11020,6 +11025,21 @@ dependencies = [
 [[package]]
 name = "tterm-platform"
 version = "0.1.0"
+dependencies = [
+ "block2 0.6.2",
+ "libc",
+ "objc2 0.6.4",
+ "objc2-app-kit 0.3.2",
+ "objc2-foundation 0.3.2",
+ "objc2-local-authentication",
+ "objc2-uniform-type-identifiers",
+ "objc2-user-notifications",
+ "tokio",
+ "uuid",
+ "windows 0.62.2",
+ "windows-future 0.3.2",
+ "zbus",
+]
 
 [[package]]
 name = "tterm-terminal"

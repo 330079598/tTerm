@@ -2,7 +2,7 @@
 //! one and for a drive. Windows 11 lists it under "Show more options", where
 //! programs that do not ship a shell extension appear.
 
-use tauri::AppHandle;
+use super::IntegrationContext;
 use windows::Win32::System::Registry::REG_SZ;
 
 use super::launcher::tterm_exe;
@@ -19,7 +19,7 @@ const VERB_KEYS: [&str; 3] = [
 pub struct FolderMenu;
 
 impl FolderMenu {
-    pub fn new(_app: &AppHandle) -> Result<Self, String> {
+    pub fn new(_app: &IntegrationContext) -> Result<Self, String> {
         Ok(Self)
     }
 

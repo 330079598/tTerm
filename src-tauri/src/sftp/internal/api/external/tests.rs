@@ -231,7 +231,10 @@ fn session_folders_are_private() {
 #[cfg(target_os = "macos")]
 #[test]
 fn macos_lists_the_applications_for_text_with_icons() {
-    let apps = super::apps::apps_for("notes.txt");
+    let apps = super::apps::apps_for("notes.txt")
+        .into_iter()
+        .map(super::AppChoice::from)
+        .collect::<Vec<_>>();
     assert!(
         apps.iter().any(|app| app.path.ends_with("TextEdit.app")),
         "TextEdit opens text"
@@ -241,12 +244,18 @@ fn macos_lists_the_applications_for_text_with_icons() {
         .iter()
         .find(|app| app.path.ends_with("TextEdit.app"))
         .unwrap();
-    let icons = super::apps::icons_for(vec![text_edit.path.clone()]);
+    let icons = super::apps::icons_for(vec![text_edit.path.clone()])
+        .into_iter()
+        .map(|(path, bytes)| (path, bytes.map(super::png_data_url)))
+        .collect::<std::collections::HashMap<_, _>>();
     assert!(icons[&text_edit.path]
         .as_deref()
         .is_some_and(|icon| icon.starts_with("data:image/png;base64,")));
     // Drawn once, the icon comes with the list from then on.
-    let again = super::apps::apps_for("notes.txt");
+    let again = super::apps::apps_for("notes.txt")
+        .into_iter()
+        .map(super::AppChoice::from)
+        .collect::<Vec<_>>();
     assert!(again
         .iter()
         .any(|app| app.path == text_edit.path && app.icon.is_some()));

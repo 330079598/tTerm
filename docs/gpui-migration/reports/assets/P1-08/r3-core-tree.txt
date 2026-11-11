@@ -1,0 +1,66 @@
+tterm-core v0.1.0 (/Users/stone/Code/rust/tTerm-P1-08/crates/tterm-core)
+├── dirs v7.0.0
+│   └── dirs-sys v0.5.0
+│       ├── libc v0.2.189
+│       └── option-ext v0.2.0
+├── gethostname v1.1.0
+│   └── rustix v1.1.5
+│       ├── bitflags v2.13.2
+│       ├── errno v0.3.14
+│       │   └── libc v0.2.189
+│       └── libc v0.2.189
+├── serde v1.0.229
+│   ├── serde_core v1.0.229
+│   └── serde_derive v1.0.229 (proc-macro)
+│       ├── proc-macro2 v1.0.107
+│       │   └── unicode-ident v1.0.26
+│       ├── quote v1.0.47
+│       │   └── proc-macro2 v1.0.107 (*)
+│       └── syn v3.0.6
+│           ├── proc-macro2 v1.0.107 (*)
+│           ├── quote v1.0.47 (*)
+│           └── unicode-ident v1.0.26
+├── serde_json v1.0.151
+│   ├── itoa v1.0.18
+│   ├── memchr v2.8.3
+│   ├── serde_core v1.0.229
+│   └── zmij v1.0.23
+├── tokio v1.53.1
+│   └── pin-project-lite v0.2.17
+├── tterm-platform v0.1.0 (/Users/stone/Code/rust/tTerm-P1-08/crates/tterm-platform)
+│   ├── block2 v0.6.2
+│   │   └── objc2 v0.6.4
+│   │       └── objc2-encode v4.1.0
+│   ├── libc v0.2.189
+│   ├── objc2 v0.6.4 (*)
+│   ├── objc2-app-kit v0.3.2
+│   │   ├── bitflags v2.13.2
+│   │   ├── block2 v0.6.2 (*)
+│   │   ├── objc2 v0.6.4 (*)
+│   │   ├── objc2-core-foundation v0.3.2
+│   │   │   ├── bitflags v2.13.2
+│   │   │   └── objc2 v0.6.4 (*)
+│   │   ├── objc2-foundation v0.3.2
+│   │   │   ├── bitflags v2.13.2
+│   │   │   ├── objc2 v0.6.4 (*)
+│   │   │   └── objc2-core-foundation v0.3.2 (*)
+│   │   └── objc2-uniform-type-identifiers v0.3.2
+│   │       ├── objc2 v0.6.4 (*)
+│   │       └── objc2-foundation v0.3.2 (*)
+│   ├── objc2-foundation v0.3.2 (*)
+│   ├── objc2-local-authentication v0.3.2
+│   │   ├── block2 v0.6.2 (*)
+│   │   ├── objc2 v0.6.4 (*)
+│   │   └── objc2-foundation v0.3.2 (*)
+│   ├── objc2-uniform-type-identifiers v0.3.2 (*)
+│   ├── objc2-user-notifications v0.3.2
+│   │   ├── bitflags v2.13.2
+│   │   ├── block2 v0.6.2 (*)
+│   │   ├── objc2 v0.6.4 (*)
+│   │   └── objc2-foundation v0.3.2 (*)
+│   ├── tokio v1.53.1 (*)
+│   └── uuid v1.26.1
+│       └── getrandom v0.4.3
+│           ├── cfg-if v1.0.5
+│           └── libc v0.2.189
+└── uuid v1.26.1 (*)

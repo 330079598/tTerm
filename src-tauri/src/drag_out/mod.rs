@@ -7,11 +7,6 @@
 //! Only Windows and macOS build it; Linux file managers share no protocol
 //! for this that tTerm could rely on, so the frontend does not offer it there.
 
-#[cfg(target_os = "macos")]
-mod macos;
-#[cfg(target_os = "windows")]
-mod windows;
-
 use serde::{Deserialize, Serialize};
 
 /// One dragged entry; the drag shows its name or icon.
@@ -46,37 +41,38 @@ pub async fn start_drag_out(
     if items.is_empty() {
         return Ok(DragOutResult::Cancelled);
     }
-    platform_drag_out(window, items).await
+    use tauri::Manager;
+    let drag = window
+        .app_handle()
+        .state::<std::sync::Arc<dyn tterm_platform::drag::FileDrag>>();
+    let result = drag
+        .start(
+            items
+                .into_iter()
+                .map(|item| tterm_platform::drag::DragOutItem {
+                    name: item.name,
+                    is_dir: item.is_dir,
+                })
+                .collect(),
+        )
+        .await?;
+    Ok(match result {
+        tterm_platform::drag::DragOutResult::Dropped { directory } => {
+            DragOutResult::Dropped { directory }
+        }
+        tterm_platform::drag::DragOutResult::Cancelled => DragOutResult::Cancelled,
+        tterm_platform::drag::DragOutResult::UnknownTarget => DragOutResult::UnknownTarget,
+    })
 }
 
 /// Called once the download into a dropped-on folder has ended, so the file
 /// manager shows what it wrote there without a manual refresh.
 #[tauri::command]
-pub async fn refresh_drop_folder(directory: String) -> Result<(), String> {
-    #[cfg(target_os = "windows")]
-    crate::core::blocking::run_blocking(move || {
-        windows::refresh_folder(std::path::Path::new(&directory));
-        Ok(())
-    })
-    .await?;
-    // Finder follows the folder's changes on its own.
-    #[cfg(target_os = "macos")]
-    let _ = directory;
-    Ok(())
-}
-
-#[cfg(target_os = "windows")]
-async fn platform_drag_out(
-    window: tauri::WebviewWindow,
-    items: Vec<DragOutItem>,
-) -> Result<DragOutResult, String> {
-    windows::drag_out(window, items).await
-}
-
-#[cfg(target_os = "macos")]
-async fn platform_drag_out(
-    window: tauri::WebviewWindow,
-    items: Vec<DragOutItem>,
-) -> Result<DragOutResult, String> {
-    macos::drag_out(window, items).await
+pub async fn refresh_drop_folder(app: tauri::AppHandle, directory: String) -> Result<(), String> {
+    let drag = tterm_platform::native::drag::NativeFileDrag(std::sync::Arc::new(
+        crate::platform::main_window_host(app),
+    ));
+    use tterm_platform::drag::FileDrag;
+    drag.refresh_folder(std::path::PathBuf::from(directory))
+        .await
 }

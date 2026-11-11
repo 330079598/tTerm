@@ -1,4 +1,5 @@
 mod agent_integration;
+mod app_identity;
 mod app_paths;
 mod app_state;
 mod background;
@@ -18,6 +19,7 @@ mod main_window;
 mod migrate;
 mod monitor;
 mod notification;
+mod platform;
 mod profiles;
 mod proxy;
 mod serial;
@@ -91,7 +93,13 @@ pub fn run() {
         // Registered first so a second launch exits before touching the
         // database, tunnels or migrations the running instance owns.
         .plugin(tauri_plugin_single_instance::init(|app, argv, cwd| {
-            launch_dir::open_from_second_launch(app, &argv, &cwd);
+            tterm_core::launch::receive(
+                tterm_platform::launch::LaunchRequest {
+                    args: argv,
+                    cwd: cwd.into(),
+                },
+                |args, cwd| launch_dir::open_from_second_launch(app, args, cwd),
+            );
             background::show_main_window(app);
         }))
         .plugin(tauri_plugin_clipboard_manager::init())
@@ -360,6 +368,9 @@ pub fn run() {
         .setup(|app| {
             let app_handle = app.handle().clone();
             app_paths::initialize(&app_handle)?;
+            app_identity::initialize(&app_handle);
+            platform::initialize(&app_handle);
+            system_integration::initialize(&app_handle);
             launch_dir::open_from_startup(&app_handle);
 
             if let Err(err) = updater::cleanup_stale_pending_update_files(&app_handle) {

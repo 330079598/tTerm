@@ -3,8 +3,7 @@
 //! applications takes a second the first time, so the list comes with the
 //! icons drawn before and the rest are asked for after it shows.
 
-use super::AppChoice;
-use base64::Engine;
+use crate::open::ApplicationChoice as AppChoice;
 use objc2::AllocAnyThread;
 use objc2_app_kit::{
     NSBitmapImageFileType, NSBitmapImageRep, NSCompositingOperation, NSDeviceRGBColorSpace,
@@ -20,15 +19,15 @@ const ICON_PIXELS: isize = 64;
 
 /// Icons drawn so far, by application path: drawing one takes tens of
 /// milliseconds, and a kind of file can have a dozen applications.
-static ICONS: LazyLock<Mutex<HashMap<String, Option<String>>>> =
+static ICONS: LazyLock<Mutex<HashMap<String, Option<Vec<u8>>>>> =
     LazyLock::new(|| Mutex::new(HashMap::new()));
 
-fn icons() -> std::sync::MutexGuard<'static, HashMap<String, Option<String>>> {
+fn icons() -> std::sync::MutexGuard<'static, HashMap<String, Option<Vec<u8>>>> {
     ICONS.lock().unwrap_or_else(PoisonError::into_inner)
 }
 
 /// The icons of the applications at `paths`, drawing those not drawn yet.
-pub(super) fn icons_for(paths: Vec<String>) -> HashMap<String, Option<String>> {
+pub fn icons_for(paths: Vec<String>) -> HashMap<String, Option<Vec<u8>>> {
     let workspace = NSWorkspace::sharedWorkspace();
     paths
         .into_iter()
@@ -59,7 +58,7 @@ fn path_of(url: &NSURL) -> Option<String> {
 }
 
 /// The icon as a PNG data URL, or None when it cannot be drawn.
-fn icon_data_url(image: &NSImage) -> Option<String> {
+fn icon_data_url(image: &NSImage) -> Option<Vec<u8>> {
     // SAFETY: a null `planes` asks the rep to allocate its own buffer; the
     // other arguments describe an ordinary 8-bit RGBA bitmap.
     let rep = unsafe {
@@ -93,15 +92,12 @@ fn icon_data_url(image: &NSImage) -> Option<String> {
     let png = unsafe {
         rep.representationUsingType_properties(NSBitmapImageFileType::PNG, &NSDictionary::new())
     }?;
-    Some(format!(
-        "data:image/png;base64,{}",
-        base64::engine::general_purpose::STANDARD.encode(png.to_vec())
-    ))
+    Some(png.to_vec())
 }
 
 /// The applications that open `file_name`, its default one first, then by
 /// name, with the icons drawn so far.
-pub(super) fn apps_for(file_name: &str) -> Vec<AppChoice> {
+pub fn apps_for(file_name: &str) -> Vec<AppChoice> {
     let Some(content_type) = content_type(file_name) else {
         return Vec::new();
     };
