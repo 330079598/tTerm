@@ -61,6 +61,7 @@ fn activate_with_events(show: impl FnOnce(), events: &dyn EventSink, tab_id: Opt
 pub fn create(
     identifier: String,
     window: std::sync::Arc<dyn tterm_platform::window::MainWindow>,
+    badge: std::sync::Arc<dyn tterm_platform::notifications::AppBadge>,
     events: std::sync::Arc<dyn EventSink>,
 ) -> std::sync::Arc<dyn tterm_platform::notifications::Notifications> {
     std::sync::Arc::new(tterm_platform::native::notification::NativeNotifications {
@@ -68,7 +69,7 @@ pub fn create(
         activated: std::sync::Arc::new(move |tab_id| {
             activate_with_events(
                 || {
-                    let _ = window.show_and_focus();
+                    crate::background::show_main_window(window.as_ref(), badge.as_ref());
                 },
                 events.as_ref(),
                 tab_id,
@@ -89,10 +90,14 @@ pub async fn show_notification(
     request: NotificationRequest,
     services: tauri::State<'_, Arc<AppServices>>,
 ) -> Result<(), String> {
-    services
-        .shared
-        .platform
-        .notifications
+    show(services.shared.platform.notifications.as_ref(), request).await
+}
+
+async fn show(
+    notifications: &dyn tterm_platform::notifications::Notifications,
+    request: NotificationRequest,
+) -> Result<(), String> {
+    notifications
         .show(tterm_platform::notifications::NotificationRequest {
             title: request.title,
             subtitle: request.subtitle,
@@ -104,17 +109,22 @@ pub async fn show_notification(
 }
 
 #[tauri::command]
-pub async fn notification_permission(
-    services: tauri::State<'_, Arc<AppServices>>,
-) -> NotificationPermission {
-    use tterm_platform::notifications::NotificationPermission as P;
-    let permission = services
+pub async fn notification_permission(app: tauri::AppHandle) -> NotificationPermission {
+    use tauri::Manager;
+    let notifications = app
+        .state::<Arc<AppServices>>()
         .shared
         .platform
         .notifications
-        .permission()
-        .await
-        .unwrap_or(P::NotDetermined);
+        .clone();
+    permission(notifications.as_ref()).await
+}
+
+async fn permission(
+    notifications: &dyn tterm_platform::notifications::Notifications,
+) -> NotificationPermission {
+    use tterm_platform::notifications::NotificationPermission as P;
+    let permission = notifications.permission().await.unwrap_or(P::NotDetermined);
     match permission {
         P::Granted => NotificationPermission::Granted,
         P::Denied => NotificationPermission::Denied,
