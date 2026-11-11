@@ -433,14 +433,32 @@
       "name": "download_app_update",
       "module": "updater",
       "attributes": {},
-      "params": [],
+      "params": [
+        {
+          "name": "channel",
+          "type": "String"
+        },
+        {
+          "name": "on_event",
+          "type": "Channel<AppUpdateDownloadEvent>"
+        }
+      ],
       "returns": "Result<bool, String>"
     },
     {
       "name": "download_install_app_update",
       "module": "updater",
       "attributes": {},
-      "params": [],
+      "params": [
+        {
+          "name": "channel",
+          "type": "String"
+        },
+        {
+          "name": "on_event",
+          "type": "Channel<AppUpdateDownloadEvent>"
+        }
+      ],
       "returns": "Result<bool, String>"
     },
     {
@@ -777,7 +795,12 @@
       "name": "install_downloaded_app_update",
       "module": "updater",
       "attributes": {},
-      "params": [],
+      "params": [
+        {
+          "name": "channel",
+          "type": "String"
+        }
+      ],
       "returns": "Result<bool, String>"
     },
     {
@@ -1552,7 +1575,16 @@
       "name": "save_profile",
       "module": "profiles::commands",
       "attributes": {},
-      "params": [],
+      "params": [
+        {
+          "name": "profile",
+          "type": "SavedProfile"
+        },
+        {
+          "name": "typed_password_tab_id",
+          "type": "Option<String>"
+        }
+      ],
       "returns": "Result<(), String>"
     },
     {
@@ -1645,7 +1677,7 @@
       "attributes": {},
       "params": [
         {
-          "name": "mut tunnel",
+          "name": "tunnel",
           "type": "TunnelRule"
         }
       ],
@@ -2703,7 +2735,12 @@
       "name": "terminal_log_ids_for_tab",
       "module": "session_log",
       "attributes": {},
-      "params": [],
+      "params": [
+        {
+          "name": "tab_id",
+          "type": "String"
+        }
+      ],
       "returns": "Result<Vec<String>, String>"
     },
     {
@@ -2712,7 +2749,7 @@
       "attributes": {},
       "params": [
         {
-          "name": "mut profile",
+          "name": "profile",
           "type": "SavedProfile"
         },
         {
@@ -2792,7 +2829,7 @@
       "attributes": {},
       "params": [
         {
-          "name": "mut targets",
+          "name": "targets",
           "type": "Vec<PtyWriteTarget>"
         },
         {
