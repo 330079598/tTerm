@@ -364,7 +364,9 @@ pub async fn sftp_external_edit_upload(
 /// The files open from the tab.
 #[tauri::command]
 pub async fn sftp_external_edit_list(tab_id: String, app: AppHandle) -> Vec<ExternalEdit> {
-    let services = app.state::<Arc<AppServices>>();
+    let Some(services) = app.try_state::<Arc<AppServices>>() else {
+        return Vec::new();
+    };
     sftp_external_edit_list_service(
         SftpExternalEditListDependencies {
             state: services.sftp.external_edit.clone(),
@@ -393,7 +395,9 @@ pub async fn sftp_external_edit_stop(
 /// as their changes were never uploaded.
 #[tauri::command]
 pub async fn sftp_external_edit_release_tab(tab_id: String, app: AppHandle) -> Vec<ExternalEdit> {
-    let services = app.state::<Arc<AppServices>>();
+    let Some(services) = app.try_state::<Arc<AppServices>>() else {
+        return Vec::new();
+    };
     sftp_external_edit_release_tab_service(
         SftpExternalEditReleaseTabDependencies {
             state: services.sftp.external_edit.clone(),
