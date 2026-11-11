@@ -3,14 +3,13 @@
 use super::{RemoteBackupEntry, FILE_EXTENSION, FILE_PREFIX, TIMESTAMP_FORMAT, TIMESTAMP_LEN};
 use crate::backup::webdav::DavEntry;
 use chrono::{DateTime, NaiveDateTime, Utc};
-use tauri::AppHandle;
 
 pub(super) fn now_ms() -> i64 {
     Utc::now().timestamp_millis()
 }
 
-pub(super) fn user_agent(app: &AppHandle) -> Result<String, String> {
-    Ok(format!("tTerm/{}", crate::app_identity::get(app)?.version))
+pub(super) fn user_agent(app_version: &str) -> String {
+    format!("tTerm/{app_version}")
 }
 
 pub(super) fn device_name() -> String {

@@ -1,7 +1,7 @@
 //! Scheduled backups, recovery points and the backup history.
 
 use super::apply::is_default_or_existing_directory;
-use super::archive::build_archive;
+use super::archive::build_archive_for_version;
 use super::diff::value_array_len;
 use super::export::collect_payload;
 use super::remote;
@@ -18,10 +18,9 @@ use std::cmp::Reverse;
 use std::collections::HashSet;
 use std::fs;
 use std::path::{Path, PathBuf};
-use tauri::AppHandle;
 
 pub(super) fn run_due_automatic_backup_blocking(
-    app: AppHandle,
+    app_version: String,
     frontend_state: Option<Value>,
     force: bool,
     secret_state: &SecretStoreState,
@@ -38,10 +37,10 @@ pub(super) fn run_due_automatic_backup_blocking(
         "automatic-{}.tterm-backup",
         Utc::now().format("%Y%m%d-%H%M%S-%3f")
     ));
-    let payload = collect_payload(&app, &settings.selection, frontend_state, secret_state)?;
+    let payload = collect_payload(&settings.selection, frontend_state, secret_state)?;
     let profile_count = value_array_len(payload.profiles.as_ref());
     let command_count = payload.commands.as_ref().map_or(0, Vec::len);
-    let archive = build_archive(&app, &settings.selection, &payload, None)?;
+    let archive = build_archive_for_version(&app_version, &settings.selection, &payload, None)?;
     config::atomic::atomic_write_private(&path, archive)?;
     crate::db::write(|transaction| {
         meta::set(
@@ -151,7 +150,7 @@ pub(super) fn delete_backup_history_entry_blocking(path: String) -> Result<bool,
 }
 
 pub(super) fn create_pre_import_backup(
-    app: &AppHandle,
+    app_version: &str,
     selection: &BackupSelection,
     secret_state: &SecretStoreState,
 ) -> Result<PathBuf, String> {
@@ -163,8 +162,8 @@ pub(super) fn create_pre_import_backup(
         Utc::now().format("%Y%m%d-%H%M%S-%3f")
     ));
     let safe_selection = selection.without_secrets();
-    let payload = collect_payload(app, &safe_selection, None, secret_state)?;
-    let archive = build_archive(app, &safe_selection, &payload, None)?;
+    let payload = collect_payload(&safe_selection, None, secret_state)?;
+    let archive = build_archive_for_version(app_version, &safe_selection, &payload, None)?;
     config::atomic::atomic_write_private(&path, archive)?;
     Ok(path)
 }
@@ -173,7 +172,7 @@ pub(super) fn create_pre_import_backup(
 /// managed backup folder, without passwords, and keeps the newest `keep` of
 /// that prefix. Used before a sync changes local data.
 pub(crate) fn create_recovery_backup(
-    app: &AppHandle,
+    app_version: &str,
     prefix: &str,
     frontend_state: Option<Value>,
     secret_state: &SecretStoreState,
@@ -194,8 +193,8 @@ pub(crate) fn create_recovery_backup(
         themes: true,
         ..BackupSelection::default()
     };
-    let payload = collect_payload(app, &selection, frontend_state, secret_state)?;
-    let archive = build_archive(app, &selection, &payload, None)?;
+    let payload = collect_payload(&selection, frontend_state, secret_state)?;
+    let archive = build_archive_for_version(app_version, &selection, &payload, None)?;
     config::atomic::atomic_write_private(&path, archive)?;
     enforce_retention(&backup_dir, &format!("{prefix}-"), keep)?;
     Ok(path)
