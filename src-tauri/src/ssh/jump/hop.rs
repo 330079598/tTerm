@@ -13,7 +13,6 @@ use crate::ssh::auth::{authenticate, AuthPrompter, AuthTarget};
 use crate::ssh::openssh_known_hosts::request_host_certificates;
 use crate::ssh::types::{emit_connection_progress, SshConnectError};
 use russh::{client, Channel};
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
@@ -69,7 +68,7 @@ fn build_jump_handler(
             .prompt_owner
             .cloned()
             .ok_or_else(|| SshConnectError::Permanent("Jump prompt owner is unavailable".into()))?,
-        user_rejected_host_key: Arc::new(AtomicBool::new(false)),
+        host_key_failure: Arc::new(std::sync::Mutex::new(None)),
         failure_reason: Arc::new(Mutex::new(None)),
         status_options: ctx.status_options,
         host_key_verification_mode: ctx.host_key_verification_mode,
@@ -78,14 +77,12 @@ fn build_jump_handler(
 
 fn map_jump_connect_error(
     error: russh::Error,
-    host_key_rejected: Arc<AtomicBool>,
+    host_key_failure: Arc<Mutex<Option<SshConnectError>>>,
     failure_reason: Arc<Mutex<Option<String>>>,
     hop_index: usize,
 ) -> SshConnectError {
-    // The rejection flag is checked first so a user-refused host key is
-    // classified correctly even though the handler also records a reason.
-    if host_key_rejected.load(Ordering::Relaxed) {
-        return SshConnectError::HostKeyRejected;
+    if let Some(error) = crate::ssh::host_key_prompt::failure(&host_key_failure) {
+        return error;
     }
     if let Some(unverifiable) = unverifiable_host_key_error(&error) {
         return unverifiable.with_prefix(&format!("Jump host #{hop_index}: "));
@@ -118,7 +115,7 @@ pub(super) async fn connect_jump_direct(
         ..
     } = ctx;
     let jump_handler = build_jump_handler(ctx, jump_plan, hop_index, total_hops)?;
-    let host_key_rejected = jump_handler.user_rejected_host_key.clone();
+    let host_key_failure = jump_handler.host_key_failure.clone();
     let failure_reason = jump_handler.failure_reason.clone();
     let mut jump_config = compatibility_client_config(15, 3);
     request_host_certificates(&mut jump_config, &jump_plan.host, jump_plan.port, None);
@@ -169,7 +166,7 @@ pub(super) async fn connect_jump_direct(
     )
     .await
     .map_err(|_| SshConnectError::Network(format!("Jump host #{hop_index} connection timed out")))?
-    .map_err(|e| map_jump_connect_error(e, host_key_rejected, failure_reason, hop_index))?;
+    .map_err(|e| map_jump_connect_error(e, host_key_failure, failure_reason, hop_index))?;
 
     emit_connection_progress(
         app,
@@ -231,7 +228,7 @@ where
         ..
     } = ctx;
     let jump_handler = build_jump_handler(ctx, jump_plan, hop_index, total_hops)?;
-    let host_key_rejected = jump_handler.user_rejected_host_key.clone();
+    let host_key_failure = jump_handler.host_key_failure.clone();
     let failure_reason = jump_handler.failure_reason.clone();
     let mut jump_config = compatibility_client_config(15, 3);
     request_host_certificates(&mut jump_config, &jump_plan.host, jump_plan.port, None);
@@ -266,7 +263,7 @@ where
     )
     .await
     .map_err(|_| SshConnectError::Network(format!("Jump host #{hop_index} connection timed out")))?
-    .map_err(|e| map_jump_connect_error(e, host_key_rejected, failure_reason, hop_index))?;
+    .map_err(|e| map_jump_connect_error(e, host_key_failure, failure_reason, hop_index))?;
 
     emit_connection_progress(
         app,

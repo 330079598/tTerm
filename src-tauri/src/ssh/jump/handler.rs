@@ -7,12 +7,10 @@ use crate::ssh::store::{
     load_known_host, now_unix_ms, save_known_host_entry, KnownHostRecord, JUMP_HOST_PROFILE_PREFIX,
 };
 use crate::ssh::types::{
-    emit_connection_progress, ConnectionStatusOptions, HostKeyVerificationMode,
-    HOST_KEY_REJECTED_REASON,
+    emit_connection_progress, ConnectionStatusOptions, HostKeyVerificationMode, SshConnectError,
 };
 use russh::client;
 use russh::keys::ssh_key::HashAlg;
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use tauri::AppHandle;
 
@@ -28,7 +26,7 @@ pub struct JumpHostHandler {
     pub total_hops: usize,
     pub prompts: std::sync::Arc<tterm_core::prompts::PromptBroker>,
     pub prompt_owner: tterm_core::prompts::PromptOwner,
-    pub user_rejected_host_key: Arc<AtomicBool>,
+    pub host_key_failure: Arc<Mutex<Option<SshConnectError>>>,
     pub failure_reason: Arc<Mutex<Option<String>>>,
     pub status_options: ConnectionStatusOptions,
     pub host_key_verification_mode: HostKeyVerificationMode,
@@ -158,20 +156,10 @@ impl client::Handler for JumpHostHandler {
             ),
         );
 
-        let approved = match wait {
-            Ok(wait) => matches!(
-                wait.wait().await,
-                Ok(tterm_core::prompts::PromptOutcome::Answered(
-                    tterm_core::prompts::PromptReply::HostKey(true)
-                ))
-            ),
-            Err(_) => false,
-        };
-
-        if !approved {
-            self.user_rejected_host_key.store(true, Ordering::Relaxed);
-            self.set_failure_reason(HOST_KEY_REJECTED_REASON.to_string());
-            self.emit_status("31", HOST_KEY_REJECTED_REASON);
+        if let Err(error) = crate::ssh::host_key_prompt::resolve(wait, &self.host_key_failure).await
+        {
+            self.set_failure_reason(error.to_string());
+            self.emit_status("31", error.message());
             return Err(russh::Error::Disconnect);
         }
 

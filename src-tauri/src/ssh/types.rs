@@ -5,8 +5,7 @@ use tterm_core::events::EventSink;
 
 use crate::ssh::openssh_known_hosts::verify::KnownHostVerdict;
 use crate::ssh::openssh_known_hosts::{check_presented_key, listed_record};
-use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 
 pub const HOST_KEY_PROMPT_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(120);
 pub const HOST_KEY_REJECTED_REASON: &str = "SSH host fingerprint rejected by user";
@@ -19,6 +18,8 @@ pub const HOST_KEY_REJECTED_REASON: &str = "SSH host fingerprint rejected by use
 pub enum SshConnectError {
     /// The user refused the host key (or a changed known host was rejected).
     HostKeyRejected,
+    /// The connection operation ended before the user answered.
+    Cancelled(String),
     /// A permanent failure — rejected credentials, an unusable key, or a local
     /// known_hosts store error. Retrying cannot succeed.
     Permanent(String),
@@ -39,7 +40,7 @@ impl SshConnectError {
     pub fn message(&self) -> &str {
         match self {
             Self::HostKeyRejected => HOST_KEY_REJECTED_REASON,
-            Self::Permanent(message) | Self::Network(message) => message,
+            Self::Cancelled(message) | Self::Permanent(message) | Self::Network(message) => message,
         }
     }
 
@@ -47,6 +48,7 @@ impl SshConnectError {
     pub fn with_prefix(self, prefix: &str) -> Self {
         match self {
             Self::HostKeyRejected => Self::HostKeyRejected,
+            Self::Cancelled(message) => Self::Cancelled(format!("{prefix}{message}")),
             Self::Permanent(message) => Self::Permanent(format!("{prefix}{message}")),
             Self::Network(message) => Self::Network(format!("{prefix}{message}")),
         }
@@ -177,7 +179,7 @@ pub struct SshClientHandler {
     pub port: u16,
     pub prompts: std::sync::Arc<tterm_core::prompts::PromptBroker>,
     pub prompt_owner: tterm_core::prompts::PromptOwner,
-    pub user_rejected_host_key: Arc<AtomicBool>,
+    pub host_key_failure: Arc<Mutex<Option<SshConnectError>>>,
     pub status_options: ConnectionStatusOptions,
     pub host_key_verification_mode: HostKeyVerificationMode,
     /// Receives channels the server opens for remote port forwards. `None`
@@ -370,19 +372,9 @@ impl russh::client::Handler for SshClientHandler {
             "Waiting for user confirmation of SSH host fingerprint...",
         );
 
-        let approved = match wait {
-            Ok(wait) => matches!(
-                wait.wait().await,
-                Ok(tterm_core::prompts::PromptOutcome::Answered(
-                    tterm_core::prompts::PromptReply::HostKey(true)
-                ))
-            ),
-            Err(_) => false,
-        };
-
-        if !approved {
-            self.user_rejected_host_key.store(true, Ordering::Relaxed);
-            self.emit_status("31", HOST_KEY_REJECTED_REASON);
+        if let Err(error) = crate::ssh::host_key_prompt::resolve(wait, &self.host_key_failure).await
+        {
+            self.emit_status("31", error.message());
             return Err(russh::Error::Disconnect);
         }
 

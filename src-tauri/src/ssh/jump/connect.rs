@@ -14,7 +14,6 @@ use crate::ssh::types::{
     SshConnectError,
 };
 use russh::{client, Disconnect};
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use tauri::AppHandle;
 
@@ -290,7 +289,7 @@ pub async fn open_target_ssh_session_with_forwarding(
     let target_config = Arc::new(target_config);
 
     let handler = target_handler(ctx, target, owner.clone(), forwarded_tcpip_tx);
-    let host_key_rejected = handler.user_rejected_host_key.clone();
+    let host_key_failure = handler.host_key_failure.clone();
 
     let (jump_chain_opt, mut target_session) = if target.jump_hosts.is_empty() {
         emit_connection_progress(
@@ -317,8 +316,8 @@ pub async fn open_target_ssh_session_with_forwarding(
         let sess = connect_first_hop(target_config, target_host, target_port, stream, handler)
             .await
             .map_err(|e| {
-                if host_key_rejected.load(Ordering::Relaxed) {
-                    SshConnectError::HostKeyRejected
+                if let Some(error) = crate::ssh::host_key_prompt::failure(&host_key_failure) {
+                    error
                 } else if let Some(unverifiable) = unverifiable_host_key_error(&e) {
                     unverifiable
                 } else {
@@ -337,7 +336,10 @@ pub async fn open_target_ssh_session_with_forwarding(
             target_config,
             target.proxy,
         )
-        .await?;
+        .await
+        .map_err(|error| {
+            crate::ssh::host_key_prompt::failure(&host_key_failure).unwrap_or(error)
+        })?;
         (Some(chain), target_sess)
     };
 
@@ -411,7 +413,7 @@ fn target_handler(
         port: target.port,
         prompts: ctx.prompts.clone(),
         prompt_owner: owner,
-        user_rejected_host_key: Arc::new(AtomicBool::new(false)),
+        host_key_failure: Arc::new(std::sync::Mutex::new(None)),
         status_options: ctx.status_options,
         host_key_verification_mode: ctx.host_key_verification_mode,
         forwarded_tcpip_tx,

@@ -6,7 +6,6 @@ use crate::core::session::types::SessionPlan;
 use crate::ssh::{
     types::ConnectionStatusOptions, types::HostKeyVerificationMode, types::SshClientHandler,
 };
-use std::sync::atomic::AtomicBool;
 use std::sync::Arc;
 
 pub(super) fn test_connection_handler(
@@ -26,7 +25,7 @@ pub(super) fn test_connection_handler(
         host: host.to_string(),
         port,
         prompts,
-        user_rejected_host_key: Arc::new(AtomicBool::new(false)),
+        host_key_failure: Arc::new(std::sync::Mutex::new(None)),
         status_options: ConnectionStatusOptions::SILENT,
         host_key_verification_mode: verification.0,
         prompt_owner: verification.1,

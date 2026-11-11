@@ -107,7 +107,29 @@ pub(crate) async fn ensure_allowed(
     if wait.is_first_waiter() {
         crate::prompt_scope::reveal(app);
     }
-    match wait.wait().await.map_err(SshConnectError::Permanent)? {
+    approval_outcome(
+        wait.wait().await.map_err(SshConnectError::Cancelled)?,
+        owner,
+        proxy_name,
+    )
+}
+
+fn approval_outcome(
+    outcome: PromptOutcome,
+    owner: &tterm_core::prompts::PromptOwner,
+    proxy_name: &str,
+) -> Result<(), SshConnectError> {
+    if owner.is_closed()
+        || matches!(
+            outcome,
+            PromptOutcome::Cancelled | PromptOutcome::ReceiverClosed
+        )
+    {
+        return Err(SshConnectError::Cancelled(format!(
+            "The proxy command of \"{proxy_name}\" was cancelled."
+        )));
+    }
+    match outcome {
         PromptOutcome::Answered(PromptReply::ProxyCommand(true)) if !owner.is_closed() => Ok(()),
         PromptOutcome::TimedOut => Err(SshConnectError::Permanent(format!(
             "The proxy command of \"{proxy_name}\" timed out waiting for you to allow it."
@@ -189,6 +211,34 @@ mod tests {
         assert!(!is_allowed(&connection, &format!("{command} ")).expect("read"));
         assert_eq!(command_hash("").len(), 64);
     }
+    #[test]
+    fn cancelled_proxy_approval_is_distinct_from_denial() {
+        let (broker, _wait) = pending();
+        let owner = broker.register_owner(None).unwrap();
+        for outcome in [PromptOutcome::Cancelled, PromptOutcome::ReceiverClosed] {
+            let error = approval_outcome(outcome, &owner, "test").unwrap_err();
+            assert!(matches!(error, SshConnectError::Cancelled(_)));
+            assert!(error.to_string().contains("cancelled"));
+        }
+        assert!(matches!(
+            approval_outcome(
+                PromptOutcome::Answered(PromptReply::ProxyCommand(false)),
+                &owner,
+                "test"
+            ),
+            Err(SshConnectError::Permanent(_))
+        ));
+        broker.cancel_owner(&owner);
+        assert!(matches!(
+            approval_outcome(
+                PromptOutcome::Answered(PromptReply::ProxyCommand(true)),
+                &owner,
+                "test"
+            ),
+            Err(SshConnectError::Cancelled(_))
+        ));
+    }
+
     fn pending() -> (Arc<PromptBroker>, tterm_core::prompts::PromptWait) {
         let broker = Arc::new(PromptBroker::new(Arc::new(
             tterm_core::events::recording::RecordingEventSink::default(),

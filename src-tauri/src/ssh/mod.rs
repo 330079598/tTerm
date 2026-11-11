@@ -1,6 +1,7 @@
 pub mod agent;
 pub mod auth;
 pub(crate) mod client;
+pub(crate) mod host_key_prompt;
 pub mod jump;
 pub(crate) mod key_file;
 pub(crate) mod key_vault;
