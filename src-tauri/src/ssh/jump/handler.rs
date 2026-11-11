@@ -1,5 +1,6 @@
 use tterm_core::events::ssh::SshConnectionProgressPayload;
 use tterm_core::events::ssh::SshHostKeyPromptPayload;
+use tterm_core::events::EventSink;
 
 use crate::core::state::HostPromptMap;
 use crate::ssh::openssh_known_hosts::verify::KnownHostVerdict;
@@ -15,7 +16,7 @@ use russh::client;
 use russh::keys::ssh_key::HashAlg;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
-use tauri::{AppHandle, Emitter};
+use tauri::AppHandle;
 use tokio::sync::oneshot;
 
 /// russh handler for the jump host leg of the connection.
@@ -150,10 +151,12 @@ impl client::Handler for JumpHostHandler {
             known_fingerprint,
         };
 
-        let event_name = format!("ssh-hostkey-prompt-{}", self.tab_id);
-        let _ = self
-            .app
-            .emit_to(tauri::EventTarget::any(), &event_name, payload);
+        let _ = crate::event_sink::TauriEventSink::new(self.app.clone()).emit(
+            tterm_core::events::AppEvent::Ssh(tterm_core::events::ssh::SshEvent::HostKeyPrompt {
+                tab_id: self.tab_id.clone(),
+                payload,
+            }),
+        );
         crate::background::reveal_for_prompt(&self.app);
 
         self.emit_status(

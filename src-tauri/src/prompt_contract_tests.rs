@@ -31,17 +31,11 @@ fn prompt_contract_host_key_unknown_and_changed_include_null_or_old_fingerprint(
         "port": 22505, "algorithm": "ssh-ed25519", "fingerprint": "SHA256:new",
         "reason": "unknown", "knownFingerprint": null
     });
-    assert_eq!(
-        serde_json::to_value(host_key("p1-05", None)).unwrap(),
-        expected
-    );
+    assert_eq!(host_wire(host_key("p1-05", None)), expected);
     let mut changed = expected;
     changed["reason"] = json!("mismatch");
     changed["knownFingerprint"] = json!("SHA256:old");
-    assert_eq!(
-        serde_json::to_value(host_key("p1-05", Some("SHA256:old"))).unwrap(),
-        changed
-    );
+    assert_eq!(host_wire(host_key("p1-05", Some("SHA256:old"))), changed);
 }
 
 #[test]
@@ -51,7 +45,7 @@ fn prompt_contract_jump_host_uses_synthetic_profile_without_hop_fields() {
         crate::ssh::store::JUMP_HOST_PROFILE_PREFIX
     );
     assert_eq!(
-        serde_json::to_value(host_key(&profile, None)).unwrap(),
+        host_wire(host_key(&profile, None)),
         json!({
             "requestId": "host-request", "profileName": "jump:test.invalid:22505",
             "host": "test.invalid", "port": 22505, "algorithm": "ssh-ed25519",
@@ -83,7 +77,7 @@ fn auth(kind: &'static str) -> AuthPromptPayload {
 fn prompt_contract_auth_kinds_omit_optional_hop_fields() {
     for kind in ["password", "passphrase", "sudo", "keyboard-interactive"] {
         assert_eq!(
-            serde_json::to_value(auth(kind)).unwrap(),
+            auth_wire(auth(kind)),
             json!({
                 "requestId": "auth-request", "host": "test.invalid", "port": 22505,
                 "username": "alice", "kind": kind, "name": "", "instructions": "",
@@ -111,7 +105,7 @@ fn prompt_contract_auth_multi_field_round_and_sudo_retry() {
         },
     ];
     assert_eq!(
-        serde_json::to_value(payload).unwrap(),
+        auth_wire(payload),
         json!({
             "requestId": "auth-request", "host": "test.invalid", "port": 22505,
             "username": "alice", "hopIndex": 2, "totalHops": 3,
@@ -124,7 +118,7 @@ fn prompt_contract_auth_multi_field_round_and_sudo_retry() {
     sudo.retry = true;
     sudo.prompts[0].text = "Password".into();
     assert_eq!(
-        serde_json::to_value(sudo).unwrap(),
+        auth_wire(sudo),
         json!({
             "requestId": "auth-request", "host": "test.invalid", "port": 22505,
             "username": "alice", "kind": "sudo", "name": "", "instructions": "",
@@ -141,7 +135,12 @@ fn prompt_contract_proxy_payload_and_expired_string() {
         command: "nc %h %p".into(),
     };
     assert_eq!(
-        serde_json::to_value(&prompt).unwrap(),
+        wire(
+            tterm_core::events::AppEvent::Proxy(
+                tterm_core::events::proxy::ProxyEvent::CommandPrompt(prompt.clone())
+            ),
+            "proxy-command-prompt"
+        ),
         json!({
             "requestId": "legacy-command-hash", "proxyName": "p1-05", "command": "nc %h %p"
         })
@@ -156,36 +155,50 @@ fn prompt_contract_proxy_payload_and_expired_string() {
     );
 }
 
-// These assertions tie the fixture names and scopes to the still-unmigrated
-// call sites. C3 replaces them with executable typed-event wire assertions.
-fn compact(source: &str) -> String {
-    source.split_whitespace().collect()
+fn wire(event: tterm_core::events::AppEvent, expected_name: &str) -> Value {
+    let (name, target, payload) = crate::event_sink::TauriEventSink::wire(&event).unwrap();
+    assert_eq!(name.as_string(), expected_name);
+    assert_eq!(target, tterm_core::events::EventTarget::Any);
+    payload
+}
+
+fn host_wire(payload: SshHostKeyPromptPayload) -> Value {
+    wire(
+        tterm_core::events::AppEvent::Ssh(tterm_core::events::ssh::SshEvent::HostKeyPrompt {
+            tab_id: "p1-05-tab".into(),
+            payload,
+        }),
+        "ssh-hostkey-prompt-p1-05-tab",
+    )
+}
+fn auth_wire(payload: AuthPromptPayload) -> Value {
+    wire(
+        tterm_core::events::AppEvent::Ssh(tterm_core::events::ssh::SshEvent::AuthPrompt {
+            tab_id: "p1-05-tab".into(),
+            payload,
+        }),
+        "ssh-auth-prompt-p1-05-tab",
+    )
 }
 
 #[test]
-fn prompt_contract_legacy_ssh_send_sites_use_any_target_and_tab_names() {
-    for source in [
-        include_str!("ssh/types.rs"),
-        include_str!("ssh/jump/handler.rs"),
-    ] {
-        let source = compact(source);
-        assert!(source.contains("format!(\"ssh-hostkey-prompt-{}\",self.tab_id)"));
-        assert!(source.contains(".emit_to(tauri::EventTarget::any(),&event_name,payload)"));
-    }
-    let source = compact(include_str!("ssh/auth/prompter.rs"));
-    assert!(source.contains("format!(\"ssh-auth-prompt-{tab_id}\")"));
-    assert!(source.contains(".emit_to(tauri::EventTarget::any(),&event_name,payload)"));
-    assert!(source.contains(concat!(
-        ".emit_to(tauri::EventTarget::any(),",
-        "&format!(\"ssh-auth-prompt-expired-{tab_id}\"),request_id,)"
-    )));
-}
-
-#[test]
-fn prompt_contract_legacy_proxy_send_sites_use_any_target_and_static_names() {
-    let source = compact(include_str!("proxy/approval.rs"));
-    assert!(source.contains("constPROMPT_EVENT:&str=\"proxy-command-prompt\";"));
-    assert!(source.contains("constPROMPT_EXPIRED_EVENT:&str=\"proxy-command-prompt-expired\";"));
-    assert!(source.contains(".emit_to(tauri::EventTarget::any(),PROMPT_EVENT,prompt)"));
-    assert!(source.contains(".emit_to(tauri::EventTarget::any(),PROMPT_EXPIRED_EVENT,&request_id)"));
+fn prompt_contract_expired_events_are_strings_with_legacy_names_and_any_target() {
+    use tterm_core::events::{proxy::ProxyEvent, ssh::SshEvent, AppEvent};
+    assert_eq!(
+        wire(
+            AppEvent::Ssh(SshEvent::AuthPromptExpired {
+                tab_id: "p1-05-tab".into(),
+                request_id: "auth-request".into()
+            }),
+            "ssh-auth-prompt-expired-p1-05-tab"
+        ),
+        json!("auth-request")
+    );
+    assert_eq!(
+        wire(
+            AppEvent::Proxy(ProxyEvent::CommandPromptExpired("hash".into())),
+            "proxy-command-prompt-expired"
+        ),
+        json!("hash")
+    );
 }

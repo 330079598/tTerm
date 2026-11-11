@@ -6,8 +6,10 @@ use super::methods::prompt_payload;
 use super::{AuthPromptMap, AuthPrompter, AuthTarget, PROMPT_TIMEOUT};
 use crate::ssh::types::SshConnectError;
 use std::sync::Mutex;
-use tauri::{Emitter, Manager};
+use tauri::Manager;
 use tokio::sync::oneshot;
+use tterm_core::events::ssh::SshEvent;
+use tterm_core::events::{AppEvent, EventSink};
 use zeroize::Zeroizing;
 
 impl AuthPrompter {
@@ -76,8 +78,12 @@ impl AuthPrompter {
                 let (tx, rx) = oneshot::channel();
                 lock(&pending).insert(request_id.clone(), tx);
 
-                let event_name = format!("ssh-auth-prompt-{tab_id}");
-                let _ = app.emit_to(tauri::EventTarget::any(), &event_name, payload);
+                let _ = crate::event_sink::TauriEventSink::new(app.clone()).emit(AppEvent::Ssh(
+                    SshEvent::AuthPrompt {
+                        tab_id: tab_id.clone(),
+                        payload,
+                    },
+                ));
                 crate::background::reveal_for_prompt(app);
 
                 match tokio::time::timeout(PROMPT_TIMEOUT, rx).await {
@@ -86,10 +92,11 @@ impl AuthPrompter {
                     Err(_) => {
                         lock(&pending).remove(&request_id);
                         // Tell the frontend to close the dialog it is still showing.
-                        let _ = app.emit_to(
-                            tauri::EventTarget::any(),
-                            &format!("ssh-auth-prompt-expired-{tab_id}"),
-                            request_id,
+                        let _ = crate::event_sink::TauriEventSink::new(app.clone()).emit(
+                            AppEvent::Ssh(SshEvent::AuthPromptExpired {
+                                tab_id: tab_id.clone(),
+                                request_id,
+                            }),
                         );
                         Err(SshConnectError::Permanent(format!(
                             "{subject} authentication timed out waiting for your input"

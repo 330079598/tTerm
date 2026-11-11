@@ -6,6 +6,8 @@
 //! What was allowed is kept in this device's database by the SHA-256 of the
 //! command, outside sync and backups, so a changed command asks again.
 use tterm_core::events::proxy::ProxyCommandPrompt;
+use tterm_core::events::proxy::ProxyEvent;
+use tterm_core::events::{AppEvent, EventSink};
 
 use crate::core::blocking::run_blocking;
 use crate::db::sql_error;
@@ -16,13 +18,11 @@ use std::collections::HashMap;
 use std::fmt::Write as _;
 use std::sync::{Arc, Mutex, MutexGuard};
 use std::time::Duration;
-use tauri::{AppHandle, Emitter, Manager, State};
+use tauri::{AppHandle, Manager, State};
 use tokio::sync::oneshot;
 
 /// As long as the host key and sign-in prompts wait for an answer.
 const PROMPT_TIMEOUT: Duration = Duration::from_secs(120);
-const PROMPT_EVENT: &str = "proxy-command-prompt";
-const PROMPT_EXPIRED_EVENT: &str = "proxy-command-prompt-expired";
 
 struct PendingPrompt {
     prompt: ProxyCommandPrompt,
@@ -110,7 +110,8 @@ pub(crate) async fn ensure_allowed(
         (entry.waiters.len() == 1).then(|| entry.prompt.clone())
     };
     if let Some(prompt) = ask {
-        let _ = app.emit_to(tauri::EventTarget::any(), PROMPT_EVENT, prompt);
+        let _ = crate::event_sink::TauriEventSink::new(app.clone())
+            .emit(AppEvent::Proxy(ProxyEvent::CommandPrompt(prompt)));
         crate::background::reveal_for_prompt(app);
     }
 
@@ -121,7 +122,9 @@ pub(crate) async fn ensure_allowed(
         ))),
         Err(_) => {
             if prompts.lock().remove(&request_id).is_some() {
-                let _ = app.emit_to(tauri::EventTarget::any(), PROMPT_EXPIRED_EVENT, &request_id);
+                let _ = crate::event_sink::TauriEventSink::new(app.clone()).emit(AppEvent::Proxy(
+                    ProxyEvent::CommandPromptExpired(request_id.clone()),
+                ));
             }
             Err(SshConnectError::Permanent(format!(
                 "The proxy command of \"{proxy_name}\" timed out waiting for you to allow it."

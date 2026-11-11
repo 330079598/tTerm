@@ -198,6 +198,18 @@ use super::{EventName, EventTarget};
 /// P1-03: typed ssh notifications with the existing delivery contract.
 #[derive(Debug, Clone, PartialEq)]
 pub enum SshEvent {
+    /// P1-05: asks whether the presented host key may be trusted.
+    HostKeyPrompt {
+        tab_id: String,
+        payload: SshHostKeyPromptPayload,
+    },
+    /// P1-05: asks for one round of authentication answers.
+    AuthPrompt {
+        tab_id: String,
+        payload: AuthPromptPayload,
+    },
+    /// P1-05: closes an authentication question after its timeout.
+    AuthPromptExpired { tab_id: String, request_id: String },
     /// Reports a tab's connection phase and its associated details.
     ConnectionProgress {
         tab_id: String,
@@ -210,6 +222,19 @@ impl SshEvent {
     /// Returns the legacy transport name.
     pub fn name(&self) -> EventName {
         match self {
+            // P1-05.
+            Self::HostKeyPrompt { tab_id, .. } => EventName::TabScoped {
+                prefix: "ssh-hostkey-prompt",
+                tab_id: tab_id.clone(),
+            },
+            Self::AuthPrompt { tab_id, .. } => EventName::TabScoped {
+                prefix: "ssh-auth-prompt",
+                tab_id: tab_id.clone(),
+            },
+            Self::AuthPromptExpired { tab_id, .. } => EventName::TabScoped {
+                prefix: "ssh-auth-prompt-expired",
+                tab_id: tab_id.clone(),
+            },
             Self::ConnectionProgress { tab_id, .. } => EventName::TabScoped {
                 prefix: "ssh-connection-progress",
                 tab_id: tab_id.clone(),
@@ -220,13 +245,17 @@ impl SshEvent {
     /// Returns the event's delivery scope.
     pub fn target(&self) -> EventTarget {
         match self {
+            // P1-05.
+            Self::HostKeyPrompt { .. }
+            | Self::AuthPrompt { .. }
+            | Self::AuthPromptExpired { .. } => EventTarget::Any,
             Self::ConnectionProgress { .. } => EventTarget::Any,
             Self::RemoteOs(_) => EventTarget::Default,
         }
     }
 }
 
-#[derive(Debug, Serialize, Clone)]
+#[derive(Debug, Serialize, Clone, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct SshHostKeyPromptPayload {
     pub request_id: String,

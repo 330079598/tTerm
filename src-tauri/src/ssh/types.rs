@@ -7,7 +7,6 @@ use crate::ssh::openssh_known_hosts::verify::KnownHostVerdict;
 use crate::ssh::openssh_known_hosts::{check_presented_key, listed_record};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
-use tauri::Emitter;
 
 pub const HOST_KEY_PROMPT_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(120);
 pub const HOST_KEY_REJECTED_REASON: &str = "SSH host fingerprint rejected by user";
@@ -365,10 +364,12 @@ impl russh::client::Handler for SshClientHandler {
             known_fingerprint,
         };
 
-        let event_name = format!("ssh-hostkey-prompt-{}", self.tab_id);
-        let _ = self
-            .app
-            .emit_to(tauri::EventTarget::any(), &event_name, payload);
+        let _ = crate::event_sink::TauriEventSink::new(self.app.clone()).emit(
+            tterm_core::events::AppEvent::Ssh(tterm_core::events::ssh::SshEvent::HostKeyPrompt {
+                tab_id: self.tab_id.clone(),
+                payload,
+            }),
+        );
         crate::background::reveal_for_prompt(&self.app);
 
         self.emit_status(
