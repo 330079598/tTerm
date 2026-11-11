@@ -13,8 +13,6 @@ use connections::{
 use reporter::TunnelReporter;
 use std::sync::Arc;
 use std::time::Duration;
-use tauri::AppHandle;
-use tauri::Manager;
 use tokio::sync::watch;
 use tokio::task::JoinSet;
 use tterm_core::events::tunnel::TunnelState;
@@ -247,7 +245,7 @@ async fn run_remote_session(
 }
 
 pub struct RunContext {
-    pub app: AppHandle,
+    pub connection: crate::ssh::context::ConnectionContext,
     pub rule: TunnelRule,
     pub plan: SessionPlan,
     pub prompts: std::sync::Arc<tterm_core::prompts::PromptBroker>,
@@ -296,7 +294,7 @@ async fn sleep_unless_stopped(
 /// server that forbids forwarding) end it.
 pub async fn run_tunnel(ctx: RunContext, mut stop_rx: watch::Receiver<bool>) {
     let RunContext {
-        app,
+        connection,
         rule,
         plan,
         prompts,
@@ -343,9 +341,7 @@ pub async fn run_tunnel(ctx: RunContext, mut stop_rx: watch::Receiver<bool>) {
                 .map_err(crate::ssh::types::SshConnectError::Cancelled)?;
             let (jump_chain, handle) = open_target_ssh_session_with_forwarding(
                 ConnectContext {
-                    app: &crate::connection_context::connection(
-                        &app.state::<std::sync::Arc<crate::services::AppServices>>(),
-                    ),
+                    app: &connection,
                     tab_id: TUNNEL_EVENT_TAB_ID,
                     prompts: &prompts,
                     status_options: ConnectionStatusOptions::QUIET,
