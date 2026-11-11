@@ -1,0 +1,164 @@
+src-tauri/src/proxy/approval.rs:143:#[tauri::command]
+src-tauri/src/proxy/approval.rs:145:    services: tauri::State<'_, std::sync::Arc<crate::services::AppServices>>,
+src-tauri/src/proxy/approval.rs:162:#[tauri::command]
+src-tauri/src/proxy/approval.rs:166:    services: tauri::State<'_, std::sync::Arc<crate::services::AppServices>>,
+src-tauri/src/monitor/mod.rs:17:#[tauri::command]
+src-tauri/src/monitor/mod.rs:22:    services: tauri::State<'_, std::sync::Arc<crate::services::AppServices>>,
+src-tauri/src/monitor/mod.rs:83:#[tauri::command]
+src-tauri/src/monitor/mod.rs:87:    services: tauri::State<'_, std::sync::Arc<crate::services::AppServices>>,
+src-tauri/src/session/scrollback.rs:197:#[tauri::command]
+src-tauri/src/session/scrollback.rs:210:#[tauri::command]
+src-tauri/src/session/scrollback.rs:224:#[tauri::command]
+src-tauri/src/session/mod.rs:134:#[tauri::command]
+src-tauri/src/session/mod.rs:142:#[tauri::command]
+src-tauri/src/session/mod.rs:158:#[tauri::command]
+src-tauri/src/core/blocking.rs:2:/// thread. A synchronous `#[tauri::command]` runs on the main thread and
+src-tauri/src/terminal/io_batcher.rs:377:    let app = tauri::test::mock_builder()
+src-tauri/src/terminal/io_batcher.rs:378:        .build(tauri::test::mock_context(tauri::test::noop_assets()))
+src-tauri/src/terminal/pty.rs:195:#[tauri::command]
+src-tauri/src/terminal/pty.rs:265:#[tauri::command]
+src-tauri/src/terminal/pty.rs:282:#[tauri::command]
+src-tauri/src/session_log/mod.rs:32:use tauri::ipc::Response;
+src-tauri/src/session_log/mod.rs:279:#[tauri::command]
+src-tauri/src/session_log/mod.rs:281:    services: tauri::State<'_, std::sync::Arc<crate::services::AppServices>>,
+src-tauri/src/session_log/mod.rs:296:#[tauri::command]
+src-tauri/src/session_log/mod.rs:298:    services: tauri::State<'_, std::sync::Arc<crate::services::AppServices>>,
+src-tauri/src/session_log/mod.rs:320:#[tauri::command]
+src-tauri/src/session_log/mod.rs:324:    services: tauri::State<'_, std::sync::Arc<crate::services::AppServices>>,
+src-tauri/src/session_log/mod.rs:339:#[tauri::command]
+src-tauri/src/session_log/mod.rs:341:    services: tauri::State<'_, std::sync::Arc<crate::services::AppServices>>,
+src-tauri/src/session_log/mod.rs:354:#[tauri::command]
+src-tauri/src/session_log/mod.rs:357:    services: tauri::State<'_, std::sync::Arc<crate::services::AppServices>>,
+src-tauri/src/session_log/mod.rs:379:#[tauri::command]
+src-tauri/src/session_log/mod.rs:382:    services: tauri::State<'_, std::sync::Arc<crate::services::AppServices>>,
+src-tauri/src/session_log/mod.rs:403:#[tauri::command]
+src-tauri/src/session_log/mod.rs:407:    services: tauri::State<'_, std::sync::Arc<crate::services::AppServices>>,
+src-tauri/src/session_log/mod.rs:426:#[tauri::command]
+src-tauri/src/session_log/mod.rs:429:    services: tauri::State<'_, std::sync::Arc<crate::services::AppServices>>,
+src-tauri/src/session_log/mod.rs:449:#[tauri::command]
+src-tauri/src/session_log/mod.rs:452:    services: tauri::State<'_, std::sync::Arc<crate::services::AppServices>>,
+src-tauri/src/session_log/mod.rs:470:#[tauri::command]
+src-tauri/src/session_log/mod.rs:473:    services: tauri::State<'_, std::sync::Arc<crate::services::AppServices>>,
+src-tauri/src/session_log/mod.rs:494:#[tauri::command]
+src-tauri/src/session_log/mod.rs:507:#[tauri::command]
+src-tauri/src/session_log/mod.rs:509:    services: tauri::State<'_, std::sync::Arc<crate::services::AppServices>>,
+src-tauri/src/session_log/mod.rs:537:#[tauri::command]
+src-tauri/src/session_log/mod.rs:539:    services: tauri::State<'_, std::sync::Arc<crate::services::AppServices>>,
+src-tauri/src/core/commands/batch_write/tests.rs:7:    crate::session_sink::output::new(tauri::ipc::Channel::new(|_| Ok(())))
+src-tauri/src/serial/history/mod.rs:66:#[tauri::command]
+src-tauri/src/serial/history/mod.rs:78:#[tauri::command]
+src-tauri/src/serial/history/mod.rs:103:#[tauri::command]
+src-tauri/src/serial/history/mod.rs:126:#[tauri::command]
+src-tauri/src/zmodem/commands.rs:25:#[tauri::command]
+src-tauri/src/zmodem/commands.rs:29:    services: tauri::State<'_, std::sync::Arc<crate::services::AppServices>>,
+src-tauri/src/zmodem/commands.rs:102:#[tauri::command]
+src-tauri/src/zmodem/commands.rs:107:    services: tauri::State<'_, std::sync::Arc<crate::services::AppServices>>,
+src-tauri/src/zmodem/commands.rs:181:#[tauri::command]
+src-tauri/src/zmodem/commands.rs:185:    services: tauri::State<'_, std::sync::Arc<crate::services::AppServices>>,
+src-tauri/src/proxy/mod.rs:217:#[tauri::command]
+src-tauri/src/proxy/mod.rs:219:    services: tauri::State<'_, std::sync::Arc<crate::services::AppServices>>,
+src-tauri/src/proxy/mod.rs:233:#[tauri::command]
+src-tauri/src/proxy/mod.rs:238:    services: tauri::State<'_, std::sync::Arc<crate::services::AppServices>>,
+src-tauri/src/proxy/mod.rs:285:#[tauri::command]
+src-tauri/src/proxy/mod.rs:288:    services: tauri::State<'_, std::sync::Arc<crate::services::AppServices>>,
+src-tauri/src/core/commands/mod.rs:15:use tauri::{AppHandle, State};
+src-tauri/src/core/commands/mod.rs:72:#[tauri::command]
+src-tauri/src/core/commands/mod.rs:78:    app: AppHandle,
+src-tauri/src/core/commands/mod.rs:79:    webview: tauri::Webview,
+src-tauri/src/core/commands/mod.rs:85:    output_channel: tauri::ipc::JavaScriptChannelId,
+src-tauri/src/core/commands/mod.rs:159:#[tauri::command]
+src-tauri/src/core/commands/mod.rs:164:    services: tauri::State<'_, std::sync::Arc<crate::services::AppServices>>,
+src-tauri/src/core/commands/mod.rs:227:#[tauri::command]
+src-tauri/src/core/commands/mod.rs:231:    services: tauri::State<'_, std::sync::Arc<crate::services::AppServices>>,
+src-tauri/src/core/commands/mod.rs:263:#[tauri::command]
+src-tauri/src/core/commands/mod.rs:268:    services: tauri::State<'_, std::sync::Arc<crate::services::AppServices>>,
+src-tauri/src/core/commands/mod.rs:288:#[tauri::command]
+src-tauri/src/core/commands/mod.rs:293:    services: tauri::State<'_, std::sync::Arc<crate::services::AppServices>>,
+src-tauri/src/core/commands/mod.rs:332:#[tauri::command]
+src-tauri/src/core/commands/mod.rs:338:    services: tauri::State<'_, std::sync::Arc<crate::services::AppServices>>,
+src-tauri/src/core/commands/mod.rs:390:#[tauri::command]
+src-tauri/src/core/commands/mod.rs:394:    services: tauri::State<'_, std::sync::Arc<crate::services::AppServices>>,
+src-tauri/src/core/commands/mod.rs:446:#[tauri::command]
+src-tauri/src/core/commands/mod.rs:450:    services: tauri::State<'_, std::sync::Arc<crate::services::AppServices>>,
+src-tauri/src/core/commands/mod.rs:464:#[tauri::command]
+src-tauri/src/core/commands/mod.rs:468:    services: tauri::State<'_, std::sync::Arc<crate::services::AppServices>>,
+src-tauri/src/core/commands/mod.rs:491:#[tauri::command]
+src-tauri/src/core/commands/mod.rs:503:    services: tauri::State<'_, std::sync::Arc<crate::services::AppServices>>,
+src-tauri/src/core/commands/mod.rs:545:#[tauri::command]
+src-tauri/src/core/commands/mod.rs:549:    services: tauri::State<'_, std::sync::Arc<crate::services::AppServices>>,
+src-tauri/src/core/commands/mod.rs:572:#[tauri::command]
+src-tauri/src/core/commands/mod.rs:575:    services: tauri::State<'_, std::sync::Arc<crate::services::AppServices>>,
+src-tauri/src/core/commands/mod.rs:602:#[tauri::command]
+src-tauri/src/core/commands/mod.rs:609:    services: tauri::State<'_, std::sync::Arc<crate::services::AppServices>>,
+src-tauri/src/core/agent_resume.rs:35:#[tauri::command]
+src-tauri/src/serial/mod.rs:212:#[tauri::command]
+src-tauri/src/serial/mod.rs:221:#[tauri::command]
+src-tauri/src/serial/mod.rs:227:    services: tauri::State<'_, std::sync::Arc<crate::services::AppServices>>,
+src-tauri/src/serial/mod.rs:244:#[tauri::command]
+src-tauri/src/serial/mod.rs:250:    services: tauri::State<'_, std::sync::Arc<crate::services::AppServices>>,
+src-tauri/src/serial/mod.rs:268:#[tauri::command]
+src-tauri/src/serial/mod.rs:273:    services: tauri::State<'_, std::sync::Arc<crate::services::AppServices>>,
+src-tauri/src/serial/mod.rs:306:#[tauri::command]
+src-tauri/src/serial/mod.rs:311:    services: tauri::State<'_, std::sync::Arc<crate::services::AppServices>>,
+src-tauri/src/serial/mod.rs:331:#[tauri::command]
+src-tauri/src/serial/mod.rs:336:    services: tauri::State<'_, std::sync::Arc<crate::services::AppServices>>,
+src-tauri/src/ssh/known_host_commands.rs:4:#[tauri::command]
+src-tauri/src/ssh/known_host_commands.rs:10:#[tauri::command]
+src-tauri/src/serial/xmodem/mod.rs:91:#[tauri::command]
+src-tauri/src/serial/xmodem/mod.rs:101:    services: tauri::State<'_, std::sync::Arc<crate::services::AppServices>>,
+src-tauri/src/serial/xmodem/mod.rs:145:#[tauri::command]
+src-tauri/src/serial/xmodem/mod.rs:155:    services: tauri::State<'_, std::sync::Arc<crate::services::AppServices>>,
+src-tauri/src/ssh/typed_passwords.rs:60:#[tauri::command]
+src-tauri/src/ssh/typed_passwords.rs:66:#[tauri::command]
+src-tauri/src/ssh/key_vault/mod.rs:175:#[tauri::command]
+src-tauri/src/ssh/key_vault/mod.rs:177:    services: tauri::State<'_, std::sync::Arc<crate::services::AppServices>>,
+src-tauri/src/ssh/key_vault/mod.rs:190:#[tauri::command]
+src-tauri/src/ssh/key_vault/mod.rs:193:    services: tauri::State<'_, std::sync::Arc<crate::services::AppServices>>,
+src-tauri/src/ssh/key_vault/mod.rs:218:#[tauri::command]
+src-tauri/src/ssh/key_vault/mod.rs:221:    services: tauri::State<'_, std::sync::Arc<crate::services::AppServices>>,
+src-tauri/src/ssh/key_vault/mod.rs:243:#[tauri::command]
+src-tauri/src/ssh/key_vault/mod.rs:246:    services: tauri::State<'_, std::sync::Arc<crate::services::AppServices>>,
+src-tauri/src/ssh/key_vault/mod.rs:280:#[tauri::command]
+src-tauri/src/ssh/key_vault/mod.rs:283:    services: tauri::State<'_, std::sync::Arc<crate::services::AppServices>>,
+src-tauri/src/ssh/key_vault/mod.rs:305:#[tauri::command]
+src-tauri/src/ssh/key_vault/mod.rs:308:    services: tauri::State<'_, std::sync::Arc<crate::services::AppServices>>,
+src-tauri/src/ssh/auth.rs:221:#[tauri::command]
+src-tauri/src/ssh/auth.rs:225:    services: tauri::State<'_, std::sync::Arc<crate::services::AppServices>>,
+src-tauri/src/ssh/secret_commands.rs:55:#[tauri::command]
+src-tauri/src/ssh/secret_commands.rs:57:    services: tauri::State<'_, std::sync::Arc<crate::services::AppServices>>,
+src-tauri/src/ssh/secret_commands.rs:71:#[tauri::command]
+src-tauri/src/ssh/secret_commands.rs:73:    app: tauri::AppHandle,
+src-tauri/src/ssh/secret_commands.rs:75:    services: tauri::State<'_, std::sync::Arc<crate::services::AppServices>>,
+src-tauri/src/ssh/secret_commands.rs:93:#[tauri::command]
+src-tauri/src/ssh/secret_commands.rs:95:    services: tauri::State<'_, std::sync::Arc<crate::services::AppServices>>,
+src-tauri/src/ssh/secret_commands.rs:108:#[tauri::command]
+src-tauri/src/ssh/secret_commands.rs:110:    services: tauri::State<'_, std::sync::Arc<crate::services::AppServices>>,
+src-tauri/src/ssh/secret_commands.rs:123:#[tauri::command]
+src-tauri/src/ssh/secret_commands.rs:125:    services: tauri::State<'_, std::sync::Arc<crate::services::AppServices>>,
+src-tauri/src/ssh/secret_commands.rs:137:#[tauri::command]
+src-tauri/src/ssh/secret_commands.rs:140:    services: tauri::State<'_, std::sync::Arc<crate::services::AppServices>>,
+src-tauri/src/ssh/secret_commands.rs:155:#[tauri::command]
+src-tauri/src/ssh/secret_commands.rs:158:    services: tauri::State<'_, std::sync::Arc<crate::services::AppServices>>,
+src-tauri/src/ssh/secret_commands.rs:177:#[tauri::command]
+src-tauri/src/ssh/secret_commands.rs:179:    services: tauri::State<'_, std::sync::Arc<crate::services::AppServices>>,
+src-tauri/src/ssh/secret_commands.rs:192:#[tauri::command]
+src-tauri/src/ssh/secret_commands.rs:195:    services: tauri::State<'_, std::sync::Arc<crate::services::AppServices>>,
+src-tauri/src/ssh/secret_commands.rs:216:#[tauri::command]
+src-tauri/src/ssh/secret_commands.rs:219:    services: tauri::State<'_, std::sync::Arc<crate::services::AppServices>>,
+src-tauri/src/ssh/secret_commands.rs:246:#[tauri::command]
+src-tauri/src/ssh/secret_commands.rs:248:    services: tauri::State<'_, std::sync::Arc<crate::services::AppServices>>,
+src-tauri/src/ssh/secret_commands.rs:288:#[tauri::command]
+src-tauri/src/ssh/secret_commands.rs:291:    services: tauri::State<'_, std::sync::Arc<crate::services::AppServices>>,
+src-tauri/src/ssh/secret_commands.rs:327:#[tauri::command]
+src-tauri/src/ssh/secret_commands.rs:330:    services: tauri::State<'_, std::sync::Arc<crate::services::AppServices>>,
+src-tauri/src/terminal/io_batcher/contracts.rs:3:use tauri::ipc::{Channel, InvokeResponseBody};
+src-tauri/src/terminal/foreground.rs:20:#[tauri::command]
+src-tauri/src/terminal/foreground.rs:24:    services: tauri::State<'_, std::sync::Arc<crate::services::AppServices>>,
+src-tauri/src/terminal/io_batcher/benchmark.rs:5:use tauri::ipc::{Channel, InvokeResponseBody};
+src-tauri/src/terminal/io_batcher/tests.rs:2:use tauri::ipc::{Channel, InvokeResponseBody};
+src-tauri/src/terminal/io_batcher/lifecycle_tests.rs:2:use tauri::ipc::{Channel, InvokeResponseBody};
+src-tauri/src/terminal/legacy_events/tests.rs:3:use tauri::test::{mock_builder, mock_context, noop_assets};
+src-tauri/src/terminal/legacy_events/tests.rs:4:use tauri::Listener;
+src-tauri/src/terminal/legacy_events/tests.rs:26:            &crate::event_sink::TauriEventSink::new(app.handle().clone()),
+src-tauri/src/terminal/legacy_events/tests.rs:48:        crate::session_sink::output::new(tauri::ipc::Channel::new(|_| Ok(()))),
+src-tauri/src/terminal/io_batcher/real_pty_tests.rs:3:use tauri::ipc::{Channel, InvokeResponseBody};
