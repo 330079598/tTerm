@@ -15,6 +15,7 @@
 | reqwest                              | crates.io                      | `0.13.5`                                                      | 不适用                                                                      | MIT OR Apache-2.0                                            | 2026-11-05 | GPUI 侧不使用同一个 reqwest：`gpui-kit-assets` 依赖改名发布的 `gpui-pre-reqwest 0.12.15`（reqwest 0.12 的快照），两个实现会同时链进二进制，见报告「偏差」第 5 条。                                        |
 | vte                                  | crates.io                      | `0.15.0`                                                      | 不适用                                                                      | Apache-2.0 OR MIT                                            | 2026-11-05 | 只有一个版本：`alacritty_terminal 0.26.0` 与 `src-tauri` 都要 0.15，没有 `cargo tree -d` 冲突。                                                                                                           |
 | windows / objc2                      | crates.io                      | windows `0.62.2`、objc2 `0.6.4`                               | 不适用                                                                      | windows 为 `MIT OR Apache-2.0`，objc2 为 `MIT`               | 2026-11-05 | tTerm 与 `gpui-pre` 共用这两个版本，类型可以跨 crate 传递。锁文件里另有 windows 0.58/0.61 与 objc2 0.5.3，只出现在 GPUI 自身或 Tauri 插件内部，不与本行交叉，见报告「重复依赖」。                         |
+| regress | crates.io | `=0.12.0` | 不适用 | MIT OR Apache-2.0 | 2026-11-11 | 关键词高亮使用 `utf16` feature 与 UCS-2 API；`regex` 不支持用户保存的 JS 环视和反向引用。2026-11-11 `cargo search regress --limit 3` 确认最新稳定版；非 `u` 大小写折叠仍错误匹配 `ſ`，未通过验收，见 P1-11b 报告。个人维护（ridiculousfish）。 |
 | 工具链（`rust-toolchain.toml`）      | 仓库根 `rust-toolchain.toml`   | `1.99.1`                                                      | 不适用                                                                      | 不适用                                                       | 2026-11-05 | 合并树里声明 `rust-version` 最高的是 `oo7 0.6.0` 的 1.92（只被 Linux 的 ashpd 门户用到），其次是 tauri 的 1.90；`gpui-pre` 自己不声明 `rust-version`。1.99.1 满足全部要求，维持不变。                     |
 
 填写要求：
@@ -31,5 +32,3 @@
 ## 打补丁退路
 
 需要给 GPUI 打补丁时用 Cargo 的 `[patch.crates-io]` 指向同版本源码，不 fork 整个 Zed（[决策 007](decisions/007-official-sources-and-terminal-route.md) 第 4 条）。P0-06 实测过的步骤与实际输出写在 [P0-06 报告](reports/P0-06.md#打补丁退路的实测步骤)，本次没有提交任何补丁。
-
-| regress | crates.io | `=0.12.0` | 不适用 | MIT OR Apache-2.0 | 2026-11-10 | ECMAScript 2018 正则引擎；用于关键词高亮以保持 JS 的环视、反向引用、ASCII `\w`/`\b`/`\d` 与大小写折叠语义。选择 `regress` 而不是 `regex` 是因为用户保存的规则本来就是 JavaScript RegExp。项目由个人 ridiculousfish 维护，需关注维护风险。 |
