@@ -7,24 +7,8 @@
 //! write time rather than trusting the pre-flight report keeps the policy
 //! honest when the destination changes in between.
 
-use serde::{Deserialize, Serialize};
-
-/// How an existing destination file is treated. `Overwrite` is the default so
-/// that callers which predate conflict handling keep their behaviour.
-#[derive(Clone, Copy, Debug, Default, Deserialize, Serialize, PartialEq, Eq)]
-#[serde(rename_all = "camelCase")]
-pub enum ConflictPolicy {
-    #[default]
-    Overwrite,
-    Skip,
-    /// Overwrite only when the source is strictly newer than the destination.
-    /// Transfers do not carry mtimes across, so a destination written by an
-    /// earlier transfer carries its transfer time: re-sending an unchanged
-    /// source is skipped, while a source edited after that transfer wins.
-    OverwriteIfNewer,
-    /// Keep both: write to the first free `name (n).ext`.
-    Rename,
-}
+use serde::Serialize;
+use tterm_core::sftp::conflict::ConflictPolicy;
 
 /// What the destination currently holds, as far as a stat can tell.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

@@ -497,3 +497,6 @@ async fn open_download_source(
         .map(|handle| handle.handle)
         .map_err(|err| failed(format!("Failed to open remote source '{path}': {err}")))
 }
+
+#[cfg(test)]
+mod cadence_tests;

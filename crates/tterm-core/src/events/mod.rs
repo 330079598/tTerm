@@ -5,6 +5,7 @@ pub mod launch_dir;
 pub mod notification;
 pub mod serial;
 pub mod session_log;
+pub mod sftp; // P1-04.
 pub mod ssh;
 pub mod terminal;
 pub mod tunnel;
@@ -15,6 +16,7 @@ use launch_dir::LaunchDirEvent;
 use notification::NotificationEvent;
 use serial::SerialEvent;
 use session_log::SessionLogEvent;
+use sftp::SftpEvent;
 use ssh::SshEvent;
 use terminal::TerminalEvent;
 use tunnel::TunnelEvent;
@@ -41,6 +43,8 @@ pub enum AppEvent {
     Background(BackgroundEvent),
     /// P1-03: SSH connection progress and remote operating system reports.
     Ssh(SshEvent),
+    /// SFTP transfers and external edits (P1-04).
+    Sftp(SftpEvent),
 }
 
 /// The logical delivery scope of an event.
@@ -88,6 +92,7 @@ impl AppEvent {
             Self::Zmodem(event) => event.target(),    // P1-03.
             Self::Background(event) => event.target(), // P1-03.
             Self::Ssh(event) => event.target(),       // P1-03.
+            Self::Sftp(event) => event.target(),      // P1-04.
         }
     }
 
@@ -103,6 +108,7 @@ impl AppEvent {
             Self::Zmodem(event) => event.name(),    // P1-03.
             Self::Background(event) => event.name(), // P1-03.
             Self::Ssh(event) => event.name(),       // P1-03.
+            Self::Sftp(event) => event.name(),      // P1-04.
         }
     }
 }

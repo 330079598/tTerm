@@ -14,5 +14,7 @@ pub mod keymap;
 pub mod launch;
 /// Application directories resolved by the client at startup.
 pub mod paths;
+/// Shared SFTP value and streaming types (P1-04).
+pub mod sftp;
 /// Update routing and cache policy.
 pub mod updates;

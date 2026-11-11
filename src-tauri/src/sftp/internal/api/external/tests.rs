@@ -3,6 +3,7 @@ use super::remote::RemoteStamp;
 use super::watch::{self, Look, Step, Watched};
 use super::*;
 use std::time::{Duration, SystemTime};
+use tterm_core::events::sftp::external::{EditStatus, ExternalEdit};
 
 /// A folder for one test, removed when it ends.
 struct TempDir {
