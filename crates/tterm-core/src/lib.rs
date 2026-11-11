@@ -10,6 +10,8 @@ pub mod events;
 pub mod identity;
 /// Keyboard shortcut parsing, display, conflicts and dispatch.
 pub mod keymap;
+/// Keyword highlight configuration and editing.
+pub mod keyword_highlight;
 /// Shared launch forwarding entry point.
 pub mod launch;
 /// Application directories resolved by the client at startup.

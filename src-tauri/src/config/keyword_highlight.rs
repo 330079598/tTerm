@@ -68,3 +68,6 @@ impl Default for HighlightRule {
         }
     }
 }
+
+#[cfg(test)]
+mod tests;
