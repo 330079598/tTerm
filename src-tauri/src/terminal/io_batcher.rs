@@ -4,7 +4,7 @@ use std::sync::mpsc::{Receiver, RecvError, RecvTimeoutError, SyncSender, TryRecv
 use std::sync::{Arc, Condvar, Mutex, PoisonError};
 use std::time::{Duration, Instant};
 use tauri::ipc::{Channel, InvokeResponseBody};
-use tterm_core::session::sink::SessionSink;
+use tterm_core::session::sink::{SessionSink, INPUT_ANSWER_WINDOW};
 
 /// Bounded queue capacity between the reader and the sender thread. When the
 /// webview cannot keep up (see [`OutputFlow`]), the reader blocks here instead
@@ -21,13 +21,6 @@ const MAX_CHUNK_BYTES: usize = 512 * 1024;
 /// is sent at once instead, so the echo of a keystroke never waits out a
 /// window.
 pub const BATCH_INTERVAL: Duration = Duration::from_millis(8);
-/// Output this soon after input is taken as its answer: an echo, a redrawn
-/// prompt. Output that comes on its own, such as a spinner's frame, waits one
-/// window after a quiet spell too, because programs often write a frame in
-/// pieces (back to column 0, erase, draw; or draw, then move the cursor back
-/// to an input box) and sending the first piece alone shows the cursor where
-/// the frame is still being drawn.
-pub const INPUT_ANSWER_WINDOW: Duration = Duration::from_millis(150);
 /// Bytes sent to the webview but not yet acknowledged as parsed by xterm.js
 /// before the sender stops. Large enough to keep the IPC pipe busy, small
 /// enough that Ctrl+C reaches the screen within a frame or two.

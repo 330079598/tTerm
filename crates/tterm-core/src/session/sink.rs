@@ -1,5 +1,14 @@
+use std::time::Duration;
+
 use crate::events::EventSink;
 use crate::events::ssh::SshConnectionProgressPayload;
+
+/// Output arriving within this window of successful input may bypass batching.
+///
+/// After a quiet spell, this keeps an echo or redrawn prompt immediate. Output
+/// without recent input still waits one batching window, because programs may
+/// draw a frame in pieces and showing the first piece alone causes flicker.
+pub const INPUT_ANSWER_WINDOW: Duration = Duration::from_millis(150);
 
 /// Receives a tab's already batched output on its existing sender thread.
 ///

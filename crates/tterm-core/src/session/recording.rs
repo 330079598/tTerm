@@ -1,9 +1,9 @@
 //! A bounded-use recorder for tests, never a production flow-control algorithm.
 
 use crate::events::{AppEvent, EventSink};
-use crate::session::sink::SessionSink;
+use crate::session::sink::{INPUT_ANSWER_WINDOW, SessionSink};
 use std::sync::{Mutex, PoisonError};
-use std::time::{Duration, Instant};
+use std::time::Instant;
 
 /// An observed endpoint call, in the order the recorder received it.
 #[derive(Debug, Clone, PartialEq)]
@@ -96,7 +96,7 @@ impl SessionSink for RecordingSessionSink {
             .lock()
             .unwrap_or_else(PoisonError::into_inner)
             .last_input
-            .is_some_and(|at| at.elapsed() < Duration::from_millis(150))
+            .is_some_and(|at| at.elapsed() < INPUT_ANSWER_WINDOW)
     }
 }
 
