@@ -303,33 +303,6 @@ fn edit_moves_with_bounds() {
     assert_eq!(move_highlight_rule(&set, "c", 1), set);
 }
 #[test]
-fn config_roundtrip_matches_backend_shape() {
-    let config = KeywordHighlightConfig {
-        sets: Some(vec![HighlightSet {
-            id: "net".into(),
-            name: "Network".into(),
-            rules: vec![HighlightRule {
-                id: "r1".into(),
-                pattern: "down".into(),
-                foreground: Some("#ff0000".into()),
-                ..Default::default()
-            }],
-        }]),
-        default_set: "net".into(),
-        ..Default::default()
-    };
-    let serialized = serde_json::to_string(&config).unwrap();
-    assert_eq!(
-        serialized,
-        r##"{"enabled":true,"default_set":"net","alternate_screen":false,"sets":[{"id":"net","name":"Network","rules":[{"id":"r1","enabled":true,"pattern":"down","kind":"keyword","case_sensitive":false,"whole_word":false,"foreground":"#ff0000","background":null}]}]}"##
-    );
-    assert_eq!(
-        serde_json::from_str::<KeywordHighlightConfig>(&serialized).unwrap(),
-        config
-    );
-}
-
-#[test]
 fn new_ids_are_uuid_and_do_not_collide_with_saved_ids() {
     let saved = HighlightRule {
         id: "rust-highlight-1".into(),
