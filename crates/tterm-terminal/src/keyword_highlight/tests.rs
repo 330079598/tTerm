@@ -107,6 +107,10 @@ fn js_whole_word_and_ascii_semantics() {
         )
         .is_empty()
     );
+    // Known deviation accepted by stone (2026-11-11): JS `/s/gi` does not
+    // match U+017F because legacy case folding keeps a non-ASCII character
+    // whose uppercase is ASCII; regress 0.12.0 folds it to `s`. TS gives
+    // `["S"]`. See the P1-11b report and docs/gpui-migration/third-party.md.
     assert_eq!(
         matched(
             "ſ S",
@@ -115,7 +119,7 @@ fn js_whole_word_and_ascii_semantics() {
                 r.pattern = "s".into();
             })]
         ),
-        vec!["S"]
+        vec!["ſ", "S"]
     );
     assert_eq!(
         matched(
@@ -582,7 +586,9 @@ fn ucs2_ideographic_whitespace() {
 }
 #[test]
 fn ucs2_long_s_legacy_case() {
-    assert_ucs2_spans(r"s", "ſ S", &[(2, 3)]);
+    // Known deviation: TS gives only `(2, 3)`; regress 0.12.0 also matches
+    // U+017F at `(0, 1)` (see `js_whole_word_and_ascii_semantics`).
+    assert_ucs2_spans(r"s", "ſ S", &[(0, 1), (2, 3)]);
 }
 #[test]
 fn ucs2_kelvin_legacy_case() {
