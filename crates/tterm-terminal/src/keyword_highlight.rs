@@ -8,6 +8,9 @@ use regress::{Flags, Regex};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
+mod color;
+use color::parse_color;
+
 /// Palette values keyed by the frontend's sixteen terminal color names.
 pub type HighlightPalette = HashMap<String, String>;
 /// One configured highlight rule.
@@ -184,107 +187,6 @@ pub fn highlight_pattern_error(rule: &HighlightRule) -> Option<&'static str> {
     } else {
         None
     }
-}
-fn parse_color(value: &str) -> Option<String> {
-    let value = value.trim();
-    if let Some(hex) = value.strip_prefix('#') {
-        let expanded = match hex.len() {
-            3 => hex.chars().flat_map(|c| [c, c]).collect::<String>(),
-            6 => hex.to_string(),
-            _ => return None,
-        };
-        if !expanded.chars().all(|c| c.is_ascii_hexdigit()) {
-            return None;
-        }
-        return Some(format!("#{}", expanded.to_ascii_lowercase()));
-    }
-    let lower = value.to_ascii_lowercase();
-    let body = if lower.starts_with("rgb(") || lower.starts_with("rgba(") {
-        value[value.find('(')? + 1..].strip_suffix(')')?
-    } else if lower.starts_with("hsl(") || lower.starts_with("hsla(") {
-        return parse_hsl(value);
-    } else {
-        return None;
-    };
-    let parts: Vec<&str> = body
-        .split(|c: char| c == ',' || c.is_ascii_whitespace())
-        .filter(|v| !v.is_empty())
-        .collect();
-    if parts.len() < 3 {
-        return None;
-    }
-    let channel = |v: &str| {
-        v.parse::<f32>()
-            .ok()
-            .map(|n| n.clamp(0.0, 255.0).round() as u8)
-    };
-    Some(format!(
-        "#{:02x}{:02x}{:02x}",
-        channel(parts[0])?,
-        channel(parts[1])?,
-        channel(parts[2])?
-    ))
-}
-fn parse_hsl(value: &str) -> Option<String> {
-    let body = value[value.find('(')? + 1..].strip_suffix(')')?;
-    let parts: Vec<&str> = body
-        .split(|c: char| c == ',' || c.is_ascii_whitespace())
-        .filter(|v| !v.is_empty())
-        .collect();
-    if parts.len() < 3 {
-        return None;
-    }
-    let h = parts[0].trim_end_matches("deg").parse::<f32>().ok()?;
-    let s = parts[1]
-        .trim_end_matches('%')
-        .parse::<f32>()
-        .ok()?
-        .clamp(0.0, 100.0)
-        / 100.0;
-    let l = parts[2]
-        .trim_end_matches('%')
-        .parse::<f32>()
-        .ok()?
-        .clamp(0.0, 100.0)
-        / 100.0;
-    let q = if l < 0.5 {
-        l * (1.0 + s)
-    } else {
-        l + s - l * s
-    };
-    let p = 2.0 * l - q;
-    let f = |mut t: f32| {
-        if t < 0.0 {
-            t += 1.0
-        }
-        if t > 1.0 {
-            t -= 1.0
-        }
-        if t < 1.0 / 6.0 {
-            p + (q - p) * 6.0 * t
-        } else if t < 0.5 {
-            q
-        } else if t < 2.0 / 3.0 {
-            p + (q - p) * (2.0 / 3.0 - t) * 6.0
-        } else {
-            p
-        }
-    };
-    let (r, g, b) = if s == 0.0 {
-        (l, l, l)
-    } else {
-        (
-            f(h / 360.0 + 1.0 / 3.0),
-            f(h / 360.0),
-            f(h / 360.0 - 1.0 / 3.0),
-        )
-    };
-    Some(format!(
-        "#{:02x}{:02x}{:02x}",
-        (r * 255.0).round() as u8,
-        (g * 255.0).round() as u8,
-        (b * 255.0).round() as u8
-    ))
 }
 /// Resolves a palette value using the same CSS parser and xterm fallbacks as TS.
 pub fn resolve_highlight_color(color: Option<&str>, palette: &HighlightPalette) -> Option<String> {

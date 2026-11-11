@@ -583,3 +583,20 @@ fn builtin_source_equals_the_real_typescript_set() {
         oracle["builtin"]
     );
 }
+
+#[test]
+fn colors_match_typescript_permissive_css_syntax() {
+    for (value, expected) in [
+        ("0 100% 50%", Some("#ff0000")),
+        ("rgb(1, 2, 3", Some("#010203")),
+        ("rgb(-1,2,3)", None),
+        ("hsl(0, 100, 50)", None),
+        ("hsl(720 100% 50%)", Some("#ff0000")),
+    ] {
+        assert_eq!(
+            resolve_highlight_color(Some(value), &palette()).as_deref(),
+            expected,
+            "{value}"
+        );
+    }
+}
