@@ -10,12 +10,12 @@ pub mod events;
 pub mod identity;
 /// Keyboard shortcut parsing, display, conflicts and dispatch.
 pub mod keymap;
+/// Keyword highlight configuration and editing.
+pub mod keyword_highlight;
 /// Shared launch forwarding entry point.
 pub mod launch;
 /// Application directories resolved by the client at startup.
 pub mod paths;
-/// Keyword highlight configuration and editing.
-pub mod keyword_highlight;
 /// Session output endpoints shared by client adapters (P1-06).
 pub mod session;
 /// Shared SFTP value and streaming types (P1-04).
