@@ -22,6 +22,7 @@ use merge::{merge_collection, same_data};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use snapshot::{removed_ids, PROFILES, PROFILE_GROUPS, SERIAL_SENDS, SETTINGS, TUNNELS};
+use std::sync::Arc;
 use std::sync::Mutex;
 use tauri::{AppHandle, State};
 
@@ -149,7 +150,7 @@ pub async fn run_sync(
     frontend_state: Option<Value>,
     check_remote: bool,
     secret_state: State<'_, SecretStoreState>,
-    tunnels: State<'_, TunnelManager>,
+    tunnels: State<'_, Arc<TunnelManager>>,
 ) -> Result<SyncOutcome, String> {
     let Ok(_guard) = SYNC_LOCK.try_lock() else {
         return Ok(SyncOutcome::skipped("busy"));

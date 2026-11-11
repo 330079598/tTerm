@@ -2,6 +2,7 @@
 //! settings no longer keep, measuring how much space the directory takes,
 //! and cleaning up after compression a quit cut short.
 
+use std::sync::Arc;
 use tterm_core::events::session_log::{LogErrorPayload, SessionLogEvent};
 use tterm_core::events::{AppEvent, EventSink};
 
@@ -38,7 +39,7 @@ impl SessionLogState {
         let spawned = std::thread::Builder::new()
             .name("tterm-log-maintenance".to_string())
             .spawn(move || {
-                let state = app.state::<SessionLogState>();
+                let state = app.state::<Arc<SessionLogState>>();
                 loop {
                     state.maintain(&app);
                     if state.maintenance_again.swap(false, Ordering::AcqRel) {

@@ -1,6 +1,7 @@
 //! Opens a local terminal in the directory tTerm is started with, the way
 //! `tterm .` in a shell or a file manager's "Open in tTerm" asks for one.
 
+use std::sync::Arc;
 use tterm_core::events::launch_dir::LaunchDirEvent;
 use tterm_core::events::{AppEvent, EventSink};
 
@@ -30,8 +31,8 @@ pub struct LaunchDirs(Mutex<Vec<LaunchDir>>);
 /// Takes the directories waiting to be opened. The frontend calls it once it
 /// has restored the session and again on every `launch-dirs`.
 #[tauri::command]
-pub fn take_launch_dirs(state: tauri::State<'_, LaunchDirs>) -> Vec<LaunchDir> {
-    std::mem::take(&mut *state.0.lock().unwrap_or_else(|e| e.into_inner()))
+pub fn take_launch_dirs(state: tauri::State<'_, Arc<LaunchDirs>>) -> Vec<LaunchDir> {
+    std::mem::take(&mut *state.inner().0.lock().unwrap_or_else(|e| e.into_inner()))
 }
 
 /// Queues the directories tTerm was started with, unless this start is a
@@ -125,7 +126,7 @@ fn unquoted(arg: &str) -> String {
 
 fn queue(app: &AppHandle, dirs: Vec<LaunchDir>) {
     queue_with_events(
-        &app.state::<LaunchDirs>(),
+        &app.state::<Arc<LaunchDirs>>(),
         dirs,
         &crate::event_sink::TauriEventSink::new(app.clone()),
     );

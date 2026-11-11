@@ -215,26 +215,27 @@ pub fn start_session(
     rows: u16,
     cols: u16,
 ) {
-    app.state::<SessionLogState>()
+    app.state::<Arc<SessionLogState>>()
         .start_session(app, tab_id, session_nonce, plan, rows, cols)
 }
 
 pub fn record_input(app: &AppHandle, tab_id: &str, data: &[u8]) {
-    app.state::<SessionLogState>()
+    app.state::<Arc<SessionLogState>>()
         .record_bytes(app, tab_id, "input", data);
 }
 
 pub fn record_output(app: &AppHandle, tab_id: &str, data: &[u8]) {
-    app.state::<SessionLogState>()
+    app.state::<Arc<SessionLogState>>()
         .record_bytes(app, tab_id, "output", data);
 }
 
 pub fn record_resize(app: &AppHandle, tab_id: &str, rows: u16, cols: u16) {
-    app.state::<SessionLogState>().resize(tab_id, rows, cols);
+    app.state::<Arc<SessionLogState>>()
+        .resize(tab_id, rows, cols);
 }
 
 pub fn record_credential_injection(app: &AppHandle, tab_id: &str) {
-    app.state::<SessionLogState>().record_event(
+    app.state::<Arc<SessionLogState>>().record_event(
         app,
         tab_id,
         "credential_injected",
@@ -243,12 +244,12 @@ pub fn record_credential_injection(app: &AppHandle, tab_id: &str) {
 }
 
 pub fn end_session(app: &AppHandle, tab_id: &str) {
-    app.state::<SessionLogState>().end_session(app, tab_id);
+    app.state::<Arc<SessionLogState>>().end_session(app, tab_id);
 }
 
 /// Ends every log, writing out what they still hold; tTerm is quitting.
 pub fn shutdown(app: &AppHandle) {
-    app.state::<SessionLogState>().shutdown();
+    app.state::<Arc<SessionLogState>>().shutdown();
 }
 
 /// The logging status; the disk usage in it is remeasured in the background
@@ -256,7 +257,7 @@ pub fn shutdown(app: &AppHandle) {
 #[tauri::command]
 pub fn get_terminal_log_status(
     app: AppHandle,
-    state: State<'_, SessionLogState>,
+    state: State<'_, Arc<SessionLogState>>,
 ) -> Result<TerminalLogStatus, String> {
     state.schedule_maintenance(&app, false);
     state.status()
@@ -265,7 +266,7 @@ pub fn get_terminal_log_status(
 /// The logs a tab has written since tTerm started, oldest first.
 #[tauri::command]
 pub fn terminal_log_ids_for_tab(
-    state: State<'_, SessionLogState>,
+    state: State<'_, Arc<SessionLogState>>,
     tab_id: String,
 ) -> Result<Vec<String>, String> {
     Ok(state
@@ -285,7 +286,7 @@ pub async fn set_terminal_log_recording(
     recording: bool,
 ) -> Result<TerminalLogStatus, String> {
     run_blocking(move || {
-        app.state::<SessionLogState>()
+        app.state::<Arc<SessionLogState>>()
             .set_recording(&app, &tab_id, recording)
     })
     .await
@@ -294,16 +295,16 @@ pub async fn set_terminal_log_recording(
 /// The saved sessions in the log directory, newest first.
 #[tauri::command]
 pub async fn list_terminal_logs(app: AppHandle) -> Result<Vec<library::LogSession>, String> {
-    let (directory, _, in_use) = app.state::<SessionLogState>().directory_state()?;
+    let (directory, _, in_use) = app.state::<Arc<SessionLogState>>().directory_state()?;
     run_blocking(move || library::list(&directory, &in_use)).await
 }
 
 /// A session's raw log as replay frames (see `library::load_recording`).
 #[tauri::command]
 pub async fn load_terminal_log_recording(app: AppHandle, id: String) -> Result<Response, String> {
-    let (directory, _, _) = app.state::<SessionLogState>().directory_state()?;
+    let (directory, _, _) = app.state::<Arc<SessionLogState>>().directory_state()?;
     run_blocking(move || {
-        app.state::<SessionLogState>().flush_log(&id);
+        app.state::<Arc<SessionLogState>>().flush_log(&id);
         library::load_recording(&directory, &id)
     })
     .await
@@ -313,9 +314,9 @@ pub async fn load_terminal_log_recording(app: AppHandle, id: String) -> Result<R
 /// A session's plain-text log as UTF-8 bytes.
 #[tauri::command]
 pub async fn load_terminal_log_text(app: AppHandle, id: String) -> Result<Response, String> {
-    let (directory, _, _) = app.state::<SessionLogState>().directory_state()?;
+    let (directory, _, _) = app.state::<Arc<SessionLogState>>().directory_state()?;
     run_blocking(move || {
-        app.state::<SessionLogState>().flush_log(&id);
+        app.state::<Arc<SessionLogState>>().flush_log(&id);
         library::load_text(&directory, &id)
     })
     .await
@@ -328,9 +329,9 @@ pub async fn export_terminal_log_asciicast(
     id: String,
     path: String,
 ) -> Result<(), String> {
-    let (directory, _, _) = app.state::<SessionLogState>().directory_state()?;
+    let (directory, _, _) = app.state::<Arc<SessionLogState>>().directory_state()?;
     run_blocking(move || {
-        app.state::<SessionLogState>().flush_log(&id);
+        app.state::<Arc<SessionLogState>>().flush_log(&id);
         library::export_asciicast(&directory, &id, Path::new(&path))
     })
     .await
@@ -338,7 +339,7 @@ pub async fn export_terminal_log_asciicast(
 
 #[tauri::command]
 pub async fn delete_terminal_log(app: AppHandle, id: String) -> Result<(), String> {
-    let state = app.state::<SessionLogState>();
+    let state = app.state::<Arc<SessionLogState>>();
     let (directory, _, in_use) = state.directory_state()?;
     run_blocking(move || library::delete(&directory, &id, &in_use)).await?;
     state.schedule_maintenance(&app, false);
@@ -352,7 +353,7 @@ pub async fn delete_terminal_logs(
     app: AppHandle,
     ids: Vec<String>,
 ) -> Result<library::DeleteReport, String> {
-    let state = app.state::<SessionLogState>();
+    let state = app.state::<Arc<SessionLogState>>();
     let (directory, _, in_use) = state.directory_state()?;
     let report = run_blocking(move || Ok(library::delete_many(&directory, &ids, &in_use))).await?;
     state.schedule_maintenance(&app, false);
@@ -361,7 +362,7 @@ pub async fn delete_terminal_logs(
 
 #[tauri::command]
 pub async fn reveal_terminal_log(app: AppHandle, id: String) -> Result<(), String> {
-    let (directory, _, _) = app.state::<SessionLogState>().directory_state()?;
+    let (directory, _, _) = app.state::<Arc<SessionLogState>>().directory_state()?;
     let path = run_blocking(move || library::first_file(&directory, &id)).await?;
     app.state::<Arc<dyn OpenTargets>>()
         .reveal(path)
@@ -381,7 +382,7 @@ pub async fn save_terminal_contents(path: String, contents: String) -> Result<()
 #[tauri::command]
 pub async fn open_terminal_log_directory(app: AppHandle) -> Result<(), String> {
     let configured = app
-        .state::<SessionLogState>()
+        .state::<Arc<SessionLogState>>()
         .lock_manager()?
         .config
         .as_ref()
@@ -402,7 +403,7 @@ pub async fn open_terminal_log_directory(app: AppHandle) -> Result<(), String> {
 #[tauri::command]
 pub async fn retry_terminal_logging(app: AppHandle) -> Result<TerminalLogStatus, String> {
     run_blocking(move || {
-        let state = app.state::<SessionLogState>();
+        let state = app.state::<Arc<SessionLogState>>();
         let config = crate::config::load_config_file()?;
         {
             let mut manager = state.lock_manager()?;

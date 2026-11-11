@@ -2,6 +2,7 @@
 //! leave tTerm running: it brings the window back, starts and stops tunnels,
 //! and quits. It carries a red dot while system notifications wait unseen.
 
+use std::sync::Arc;
 use tterm_core::events::background::BackgroundEvent;
 use tterm_core::events::tunnel::TunnelState;
 use tterm_core::events::{AppEvent, EventSink};
@@ -95,7 +96,7 @@ pub(crate) fn show(app: &AppHandle, language: &str) -> Result<(), String> {
     static MENU_HANDLER: Once = Once::new();
     MENU_HANDLER.call_once(|| app.on_menu_event(on_menu_event));
 
-    let state = app.state::<TrayState>();
+    let state = app.state::<Arc<TrayState>>();
     *state.language.lock().unwrap_or_else(|e| e.into_inner()) = language.to_string();
     let tunnels = menu_tunnels(app);
     *state.shown.lock().unwrap_or_else(|e| e.into_inner()) = Some(tunnels.clone());
@@ -107,7 +108,7 @@ pub(crate) fn show(app: &AppHandle, language: &str) -> Result<(), String> {
 
 /// Installs the already-rendered native menu without reading domain state.
 pub(crate) fn present_menu(app: &AppHandle, menu: Menu<tauri::Wry>) -> tauri::Result<()> {
-    let state = app.state::<TrayState>();
+    let state = app.state::<Arc<TrayState>>();
     if let Some(tray) = app.tray_by_id(TRAY_ID) {
         return tray.set_menu(Some(menu));
     }
@@ -127,7 +128,7 @@ pub(crate) fn present_menu(app: &AppHandle, menu: Menu<tauri::Wry>) -> tauri::Re
 
 pub(crate) fn hide(app: &AppHandle) {
     app.remove_tray_by_id(TRAY_ID);
-    *app.state::<TrayState>()
+    *app.state::<Arc<TrayState>>()
         .shown
         .lock()
         .unwrap_or_else(|e| e.into_inner()) = None;
@@ -136,7 +137,7 @@ pub(crate) fn hide(app: &AppHandle) {
 /// Puts the red dot on the tray icon while notifications wait unseen, or
 /// takes it off. Remembered for a tray icon added later.
 pub fn set_attention(app: &AppHandle, attention: bool) {
-    let Some(state) = app.try_state::<TrayState>() else {
+    let Some(state) = app.try_state::<Arc<TrayState>>() else {
         return;
     };
     if state.attention.swap(attention, Ordering::SeqCst) == attention {
@@ -193,7 +194,7 @@ fn with_dot(icon: &Image<'_>) -> Image<'static> {
 /// changed. Callable from any thread; the menu is rebuilt on the main thread,
 /// and several changes in a row rebuild it once.
 pub fn refresh_tunnels(app: &AppHandle) {
-    let Some(state) = app.try_state::<TrayState>() else {
+    let Some(state) = app.try_state::<Arc<TrayState>>() else {
         return;
     };
     if app.tray_by_id(TRAY_ID).is_none() || state.refresh_pending.swap(true, Ordering::SeqCst) {
@@ -202,7 +203,7 @@ pub fn refresh_tunnels(app: &AppHandle) {
     let handle = app.clone();
     let scheduled = app.run_on_main_thread(move || {
         handle
-            .state::<TrayState>()
+            .state::<Arc<TrayState>>()
             .refresh_pending
             .store(false, Ordering::SeqCst);
         if let Err(error) = rebuild_if_changed(&handle) {
@@ -218,7 +219,7 @@ fn rebuild_if_changed(app: &AppHandle) -> tauri::Result<()> {
     if app.tray_by_id(TRAY_ID).is_none() {
         return Ok(());
     }
-    let state = app.state::<TrayState>();
+    let state = app.state::<Arc<TrayState>>();
     let tunnels = menu_tunnels(app);
     let mut shown = state.shown.lock().unwrap_or_else(|e| e.into_inner());
     if shown.as_ref() == Some(&tunnels) {
@@ -241,7 +242,7 @@ fn rebuild_if_changed(app: &AppHandle) -> tauri::Result<()> {
 /// Forgets what the menu shows so the next refresh rebuilds it. A check item
 /// flips itself when clicked, before the tunnel has changed at all.
 fn invalidate(app: &AppHandle) {
-    *app.state::<TrayState>()
+    *app.state::<Arc<TrayState>>()
         .shown
         .lock()
         .unwrap_or_else(|e| e.into_inner()) = None;
@@ -249,7 +250,7 @@ fn invalidate(app: &AppHandle) {
 }
 
 fn menu_tunnels(app: &AppHandle) -> Vec<MenuTunnel> {
-    let manager = app.state::<TunnelManager>();
+    let manager = app.state::<Arc<TunnelManager>>();
     crate::tunnel::storage::load_tunnels()
         .unwrap_or_else(|error| {
             eprintln!("Failed to list tunnels for the tray menu: {error}");
@@ -345,7 +346,7 @@ fn open_tunnels_page(app: &AppHandle) {
 /// Shows the window first, so the result of the check is in sight.
 fn check_updates(app: &AppHandle) {
     super::show_main_window(app);
-    app.state::<TrayState>()
+    app.state::<Arc<TrayState>>()
         .update_check_requested
         .store(true, Ordering::SeqCst);
     let _ = crate::event_sink::TauriEventSink::new(app.clone())
@@ -355,7 +356,7 @@ fn check_updates(app: &AppHandle) {
 /// Hands the UI an update check asked for from the tray, once. The UI asks
 /// both when told about a click and when it starts listening.
 #[tauri::command]
-pub fn take_tray_update_check(state: tauri::State<'_, TrayState>) -> bool {
+pub fn take_tray_update_check(state: tauri::State<'_, Arc<TrayState>>) -> bool {
     state.update_check_requested.swap(false, Ordering::SeqCst)
 }
 
@@ -365,7 +366,7 @@ pub fn take_tray_update_check(state: tauri::State<'_, TrayState>) -> bool {
 fn toggle_tunnel(app: &AppHandle, id: String) {
     let app = app.clone();
     tauri::async_runtime::spawn(async move {
-        let manager = app.state::<TunnelManager>();
+        let manager = app.state::<Arc<TunnelManager>>();
         if manager.state_of(&id).is_active() {
             manager.stop(&id).await;
         } else if !crate::tunnel::commands::start_unattended(&app, &id).await {
@@ -404,9 +405,9 @@ fn tooltip(app: &AppHandle) -> String {
         .try_read()
         .map(|sessions| sessions.len())
         .ok();
-    let tunnels = app.state::<TunnelManager>().active_count();
+    let tunnels = app.state::<Arc<TunnelManager>>().active_count();
     let language = app
-        .state::<TrayState>()
+        .state::<Arc<TrayState>>()
         .language
         .lock()
         .unwrap_or_else(|e| e.into_inner())

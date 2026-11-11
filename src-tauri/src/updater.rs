@@ -79,7 +79,7 @@ pub async fn check_app_update(
 #[tauri::command]
 pub async fn download_app_update(
     app: tauri::AppHandle,
-    downloads: tauri::State<'_, PendingUpdateDownloads>,
+    downloads: tauri::State<'_, Arc<PendingUpdateDownloads>>,
     channel: String,
     on_event: Channel<AppUpdateDownloadEvent>,
 ) -> Result<bool, String> {
@@ -111,7 +111,7 @@ pub async fn download_app_update(
 #[tauri::command]
 pub async fn install_downloaded_app_update(
     app: tauri::AppHandle,
-    downloads: tauri::State<'_, PendingUpdateDownloads>,
+    downloads: tauri::State<'_, Arc<PendingUpdateDownloads>>,
     channel: String,
 ) -> Result<bool, String> {
     let Some(download) = downloads.0.read().await.get(&channel).cloned() else {
@@ -138,7 +138,7 @@ pub async fn install_downloaded_app_update(
 #[tauri::command]
 pub async fn download_install_app_update(
     app: tauri::AppHandle,
-    downloads: tauri::State<'_, PendingUpdateDownloads>,
+    downloads: tauri::State<'_, Arc<PendingUpdateDownloads>>,
     channel: String,
     on_event: Channel<AppUpdateDownloadEvent>,
 ) -> Result<bool, String> {

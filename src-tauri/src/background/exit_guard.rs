@@ -3,6 +3,7 @@
 //! The backend holds the exit and tells the UI what is at stake; the answer
 //! comes back as `confirm_quit_app` or `cancel_quit_prompt`.
 
+use std::sync::Arc;
 use tterm_core::events::background::BackgroundEvent;
 use tterm_core::events::background::QuitBlockers;
 use tterm_core::events::{AppEvent, EventSink};
@@ -36,7 +37,7 @@ impl ExitGuardState {
 /// What a quit would end right now.
 pub fn blockers(app: &AppHandle) -> QuitBlockers {
     QuitBlockers {
-        tunnels: app.state::<TunnelManager>().active_count(),
+        tunnels: app.state::<Arc<TunnelManager>>().active_count(),
         unuploaded_files: crate::sftp::internal::api::external::unuploaded_files(app),
     }
 }
@@ -46,7 +47,7 @@ pub fn blockers(app: &AppHandle) -> QuitBlockers {
 pub fn hold_exit_for_confirmation(app: &AppHandle) -> bool {
     let blockers = blockers(app);
     emit_confirmation(
-        &app.state::<ExitGuardState>(),
+        &app.state::<Arc<ExitGuardState>>(),
         blockers,
         &crate::event_sink::TauriEventSink::new(app.clone()),
     )
@@ -67,13 +68,13 @@ fn emit_confirmation(
 }
 
 #[tauri::command]
-pub fn confirm_quit_app(app: AppHandle, state: State<'_, ExitGuardState>) {
+pub fn confirm_quit_app(app: AppHandle, state: State<'_, Arc<ExitGuardState>>) {
     state.confirmed.store(true, Ordering::SeqCst);
     super::quit::quit(&app);
 }
 
 #[tauri::command]
-pub fn cancel_quit_prompt(state: State<'_, ExitGuardState>) {
+pub fn cancel_quit_prompt(state: State<'_, Arc<ExitGuardState>>) {
     state.prompt_open.store(false, Ordering::SeqCst);
 }
 
