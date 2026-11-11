@@ -42,3 +42,6 @@ impl AppServices {
         );
     }
 }
+
+#[cfg(test)]
+mod tests;
