@@ -57,6 +57,7 @@ pub mod damage;
 pub mod event;
 pub mod grid;
 pub mod hint;
+pub mod keyword_highlight;
 pub mod mode;
 pub mod palette;
 pub mod search;

@@ -18,7 +18,8 @@ serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 gethostname = "=1.1.0"
 tterm-platform = { path = "../tterm-platform" }
-uuid = { version = "1", features = ["v4"] }
+tterm-terminal = { path = "../tterm-terminal" }
+uuid = { version = "=1.26.1", features = ["v4"] }
 # Reuses the locked runtime used by the Tauri backend.
 tokio = { version = "=1.53.1", features = ["fs", "sync", "time"] }
 

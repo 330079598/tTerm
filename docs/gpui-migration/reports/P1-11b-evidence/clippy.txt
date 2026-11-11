@@ -1,0 +1,7 @@
+    Checking regress v0.12.0
+    Checking tterm-terminal v0.1.0 (/Users/stone/Code/rust/tTerm-P1-11b/crates/tterm-terminal)
+    Checking tterm-terminal-view v0.1.0 (/Users/stone/Code/rust/tTerm-P1-11b/crates/tterm-terminal-view)
+    Checking tterm-core v0.1.0 (/Users/stone/Code/rust/tTerm-P1-11b/crates/tterm-core)
+    Checking tTerm v0.8.1 (/Users/stone/Code/rust/tTerm-P1-11b/src-tauri)
+    Checking tterm-gpui v0.1.0 (/Users/stone/Code/rust/tTerm-P1-11b/crates/tterm-gpui)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 12.09s
