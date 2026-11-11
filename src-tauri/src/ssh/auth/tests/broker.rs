@@ -8,6 +8,13 @@ use tterm_platform::window::MainWindow;
 #[derive(Default)]
 pub(super) struct Window(AtomicUsize);
 impl MainWindow for Window {
+    fn save_before_update(&self) -> tterm_platform::PlatformFuture<'_, ()> {
+        Box::pin(async { Ok(()) })
+    }
+    fn send_to_background(&self, _: bool) -> Result<(), String> {
+        Ok(())
+    }
+
     fn show_and_focus(&self) -> Result<(), String> {
         Ok(())
     }

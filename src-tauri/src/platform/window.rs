@@ -4,16 +4,54 @@ use tterm_platform::window::{MainWindow, NativeHandles, WindowHost};
 
 pub(super) struct TauriWindow(pub AppHandle);
 impl MainWindow for TauriWindow {
+    fn save_before_update(&self) -> tterm_platform::PlatformFuture<'_, ()> {
+        let app = self.0.clone();
+        Box::pin(async move {
+            crate::window_state::save_now(app).await;
+            Ok(())
+        })
+    }
+    fn send_to_background(&self, tray_present: bool) -> Result<(), String> {
+        if let Some(window) = self.0.get_webview_window("main") {
+            if tray_present {
+                let _ = window.hide();
+            } else {
+                let _ = window.minimize();
+            }
+        }
+        Ok(())
+    }
     fn show_and_focus(&self) -> Result<(), String> {
-        crate::background::show_main_window(&self.0);
+        if let Some(window) = self.0.get_webview_window("main") {
+            let _ = window.unminimize();
+            let _ = window.show();
+            let _ = window.set_focus();
+        }
         Ok(())
     }
     fn reveal_for_prompt(&self) -> Result<(), String> {
-        crate::background::reveal_for_prompt(&self.0);
-        Ok(())
+        let app = self.0.clone();
+        self.0
+            .run_on_main_thread(move || {
+                if let Some(window) = app.get_webview_window("main") {
+                    if !window.is_visible().unwrap_or(true)
+                        || window.is_minimized().unwrap_or(false)
+                    {
+                        let _ = TauriWindow(app.clone()).show_and_focus();
+                        if let Some(services) =
+                            app.try_state::<std::sync::Arc<crate::services::AppServices>>()
+                        {
+                            crate::notification::badge::restore(
+                                services.shared.platform.badge.as_ref(),
+                            );
+                        }
+                    }
+                }
+            })
+            .map_err(|e| e.to_string())
     }
     fn set_attention(&self, attention: bool) -> Result<(), String> {
-        crate::background::tray::set_attention(&self.0, attention);
+        crate::platform::tray_native::set_attention(&self.0, attention);
         Ok(())
     }
 }
