@@ -1,4 +1,3 @@
-#[path = "operations.rs"]
 mod operations;
 use super::{DeleteBatchStartResult, DeleteEntryRequest, DeleteOptions, DeletePreviewResult};
 use crate::core::session::types::PtyConnectionOptions;

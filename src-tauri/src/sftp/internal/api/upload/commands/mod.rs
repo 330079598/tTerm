@@ -1,4 +1,3 @@
-#[path = "operations.rs"]
 mod operations;
 use super::{batch, UploadBatchResult, UploadFilePlanItem, UploadPlan};
 use crate::core::session::types::PtyConnectionOptions;
