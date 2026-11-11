@@ -6,7 +6,10 @@ use super::archive::{
     build_archive_for_version, decode_archive, decrypt_payload, derive_key, encrypt_payload,
     validate_relative_path,
 };
-use super::automatic::{adopt_automatic_backup_settings, read_automatic_backup_settings};
+use super::automatic::{
+    adopt_automatic_backup_settings, read_automatic_backup_settings,
+    validate_automatic_backup_settings, write_automatic_backup_settings,
+};
 use super::export::{filter_frontend_state, secret_travels, strip_sensitive_fields};
 use super::snapshot::{restore_database, snapshot_database, DatabaseSnapshot};
 use super::*;

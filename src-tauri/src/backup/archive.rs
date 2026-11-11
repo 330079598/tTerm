@@ -26,24 +26,9 @@ use std::collections::HashSet;
 use std::fs;
 use std::io::{Cursor, Read, Write};
 use std::path::{Component, Path};
-use tauri::AppHandle;
 use zeroize::Zeroize;
 use zip::write::SimpleFileOptions;
 use zip::{CompressionMethod, ZipArchive, ZipWriter};
-
-pub(super) fn build_archive(
-    app: &AppHandle,
-    selection: &BackupSelection,
-    payload: &BackupPayload,
-    password: Option<&str>,
-) -> Result<Vec<u8>, String> {
-    build_archive_for_version(
-        &crate::app_identity::get(app)?.version.clone(),
-        selection,
-        payload,
-        password,
-    )
-}
 
 pub(super) fn build_archive_for_version(
     app_version: &str,

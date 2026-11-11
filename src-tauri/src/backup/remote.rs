@@ -3,29 +3,25 @@
 //! password and the server password are kept with the other saved passwords,
 //! so scheduled uploads can include credentials and need no prompt.
 
-use super::archive::build_archive;
+mod service;
+
+use super::archive::build_archive_for_version;
 use super::diff::value_array_len;
 use super::export::collect_payload;
 use super::webdav::{split_remote_directory, WebDavClient};
-use super::{normalized_backup_path, BackupSelection, MAX_BACKUP_SIZE};
+use super::BackupSelection;
 use crate::config;
 use crate::core::blocking::run_blocking;
 use crate::db::meta;
-use crate::ssh::secret_store::{store::get_secret, store::put_secret};
-use crate::ssh::{
-    secret_store::types::SecretStoreState, secret_store::verification::VerificationPurpose,
-};
+use crate::ssh::secret_store::store::get_secret;
+use crate::ssh::secret_store::types::SecretStoreState;
 use chrono::Utc;
-use files::{
-    backup_file_name, device_name, now_ms, remote_backups, stale_backups, user_agent,
-    validate_file_name,
-};
+use files::{backup_file_name, device_name, now_ms, stale_backups, user_agent};
 use rusqlite::Connection;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::fs;
-use std::sync::atomic::{AtomicBool, Ordering};
-use tauri::{AppHandle, State};
+use std::sync::atomic::AtomicBool;
 use zeroize::Zeroizing;
 
 mod files;
@@ -159,10 +155,9 @@ pub struct RemoteBackupEntry {
 
 #[tauri::command]
 pub async fn get_webdav_backup_status(
-    secret_state: State<'_, SecretStoreState>,
+    services: tauri::State<'_, std::sync::Arc<crate::services::AppServices>>,
 ) -> Result<WebDavBackupStatus, String> {
-    let secret_state = secret_state.inner().clone();
-    run_blocking(move || status(&secret_state)).await
+    service::get_webdav_backup_status(&services.shared.secrets).await
 }
 
 /// Saves the settings. A password left `None` or empty keeps the saved one.
@@ -171,102 +166,36 @@ pub async fn save_webdav_backup_settings(
     settings: WebDavBackupSettings,
     password: Option<String>,
     backup_password: Option<String>,
-    secret_state: State<'_, SecretStoreState>,
+    services: tauri::State<'_, std::sync::Arc<crate::services::AppServices>>,
 ) -> Result<WebDavBackupStatus, String> {
-    let secret_state = secret_state.inner().clone();
-    let password = non_empty(password).map(Zeroizing::new);
-    let backup_password = non_empty(backup_password).map(Zeroizing::new);
-    run_blocking(move || {
-        let settings = normalized_settings(settings)?;
-        if backup_password
-            .as_deref()
-            .is_some_and(|value| value.chars().count() < 8)
-        {
-            return Err("Backup password must contain at least 8 characters.".to_string());
-        }
-        let saved = secret_state.saved_keys()?;
-        if password.is_none() && !saved.iter().any(|key| key == PASSWORD_KEY) {
-            return Err("Enter the WebDAV password.".to_string());
-        }
-        if backup_password.is_none() && !saved.iter().any(|key| key == BACKUP_PASSWORD_KEY) {
-            return Err("Enter a backup password to encrypt WebDAV backups.".to_string());
-        }
-        // Scheduled uploads and sync send saved passwords to this server,
-        // encrypted with this backup password: whoever picks either can
-        // read them.
-        if !same_account(&settings, &load_settings()?) || backup_password.is_some() {
-            secret_state.require_verification(VerificationPurpose::Sensitive)?;
-        }
-        let data_key = if password.is_some() || backup_password.is_some() {
-            Some(secret_state.data_key()?)
-        } else {
-            None
-        };
-        // The server and its passwords are saved together or not at all.
-        crate::db::write(|transaction| {
-            if let Some(data_key) = data_key.as_ref() {
-                if let Some(password) = password.as_deref() {
-                    put_secret(transaction, data_key, PASSWORD_KEY, password)?;
-                }
-                if let Some(password) = backup_password.as_deref() {
-                    put_secret(transaction, data_key, BACKUP_PASSWORD_KEY, password)?;
-                }
-            }
-            save_keeping_history(transaction, settings)
-        })?;
-        status(&secret_state)
-    })
+    service::save_webdav_backup_settings(
+        settings,
+        password,
+        backup_password,
+        &services.shared.secrets,
+    )
     .await
 }
 
 /// Forgets the server, its password and the backup password. Remote files stay.
 #[tauri::command]
 pub async fn clear_webdav_backup_settings(
-    secret_state: State<'_, SecretStoreState>,
+    services: tauri::State<'_, std::sync::Arc<crate::services::AppServices>>,
 ) -> Result<WebDavBackupStatus, String> {
-    let secret_state = secret_state.inner().clone();
-    run_blocking(move || {
-        crate::db::write(|transaction| clear_settings(transaction))?;
-        status(&secret_state)
-    })
-    .await
+    service::clear_webdav_backup_settings(&services.shared.secrets).await
 }
 
 /// Checks the server and credentials and creates the remote folder. Uses
 /// the entered password when given, else the saved one.
 #[tauri::command]
 pub async fn test_webdav_connection(
-    app: AppHandle,
+    app: tauri::AppHandle,
     settings: WebDavBackupSettings,
     password: Option<String>,
-    secret_state: State<'_, SecretStoreState>,
+    services: tauri::State<'_, std::sync::Arc<crate::services::AppServices>>,
 ) -> Result<(), String> {
-    let secret_state = secret_state.inner().clone();
-    let password = non_empty(password).map(Zeroizing::new);
-    let (settings, password) = run_blocking(move || {
-        let settings = normalized_settings(settings)?;
-        let password = match password {
-            Some(password) => password,
-            // The saved password only goes to the server it was saved for.
-            None if !same_account(&settings, &load_settings()?) => {
-                return Err("Enter the WebDAV password.".to_string())
-            }
-            None => saved_secret(&secret_state, PASSWORD_KEY)?
-                .ok_or_else(|| "Enter the WebDAV password.".to_string())?,
-        };
-        Ok((settings, password))
-    })
-    .await?;
-    let client = WebDavClient::new(
-        &settings.url,
-        &settings.username,
-        password,
-        &user_agent(&app)?,
-    )?;
-    client.check().await?;
-    client
-        .ensure_directory(&split_remote_directory(&settings.remote_directory)?)
-        .await
+    let app_version = crate::app_identity::get(&app)?.version.clone();
+    service::test_webdav_connection(app_version, settings, password, &services.shared.secrets).await
 }
 
 /// Uploads a backup when one is due, or now when `force` is set. A scheduled
@@ -274,31 +203,17 @@ pub async fn test_webdav_connection(
 /// running) returns `None` and tries again next time.
 #[tauri::command]
 pub async fn run_webdav_backup(
-    app: AppHandle,
+    app: tauri::AppHandle,
     frontend_state: Option<Value>,
     force: bool,
-    secret_state: State<'_, SecretStoreState>,
+    services: tauri::State<'_, std::sync::Arc<crate::services::AppServices>>,
 ) -> Result<Option<WebDavUploadResult>, String> {
-    struct Uploading;
-    impl Drop for Uploading {
-        fn drop(&mut self) {
-            UPLOADING.store(false, Ordering::Release);
-        }
-    }
-
-    if UPLOADING.swap(true, Ordering::AcqRel) {
-        return if force {
-            Err("A WebDAV backup is already being uploaded.".to_string())
-        } else {
-            Ok(None)
-        };
-    }
-    let _uploading = Uploading;
-    run_webdav_backup_locked(app, frontend_state, force, secret_state.inner()).await
+    let app_version = crate::app_identity::get(&app)?.version.clone();
+    service::run_webdav_backup(app_version, frontend_state, force, &services.shared.secrets).await
 }
 
 async fn run_webdav_backup_locked(
-    app: AppHandle,
+    app_version: String,
     frontend_state: Option<Value>,
     force: bool,
     secret_state: &SecretStoreState,
@@ -317,7 +232,7 @@ async fn run_webdav_backup_locked(
     if !force && secret_state.data_key().is_err() {
         return Ok(None);
     }
-    let result = upload(&app, &settings, frontend_state, secret_state).await;
+    let result = upload(&app_version, &settings, frontend_state, secret_state).await;
     let message = result.as_ref().err().cloned();
     run_blocking(move || {
         crate::db::write(|transaction| match message {
@@ -333,7 +248,7 @@ async fn run_webdav_backup_locked(
 }
 
 async fn upload(
-    app: &AppHandle,
+    app_version: &str,
     settings: &WebDavBackupSettings,
     frontend_state: Option<Value>,
     secret_state: &SecretStoreState,
@@ -341,7 +256,7 @@ async fn upload(
     let settings = normalized_settings(settings.clone())?;
     let directory = split_remote_directory(&settings.remote_directory)?;
     let (password, archive, profile_count, command_count, secret_count) = {
-        let app = app.clone();
+        let app_version = app_version.to_string();
         let secret_state = secret_state.clone();
         let selection = settings.selection.clone();
         run_blocking(move || {
@@ -349,8 +264,13 @@ async fn upload(
                 .ok_or_else(|| "The WebDAV password is not saved.".to_string())?;
             let backup_password = saved_secret(&secret_state, BACKUP_PASSWORD_KEY)?
                 .ok_or_else(|| "The WebDAV backup password is not saved.".to_string())?;
-            let payload = collect_payload(&app, &selection, frontend_state, &secret_state)?;
-            let archive = build_archive(&app, &selection, &payload, Some(&backup_password))?;
+            let payload = collect_payload(&selection, frontend_state, &secret_state)?;
+            let archive = build_archive_for_version(
+                &app_version,
+                &selection,
+                &payload,
+                Some(&backup_password),
+            )?;
             Ok((
                 password,
                 archive,
@@ -366,7 +286,7 @@ async fn upload(
         &settings.url,
         &settings.username,
         password,
-        &user_agent(app)?,
+        &user_agent(app_version),
     )?;
     client.ensure_directory(&directory).await?;
     let device = device_name();
@@ -398,42 +318,29 @@ async fn upload(
 
 #[tauri::command]
 pub async fn list_webdav_backups(
-    app: AppHandle,
-    secret_state: State<'_, SecretStoreState>,
+    app: tauri::AppHandle,
+    services: tauri::State<'_, std::sync::Arc<crate::services::AppServices>>,
 ) -> Result<Vec<RemoteBackupEntry>, String> {
-    let (client, directory) = connect(&app, secret_state.inner()).await?;
-    let entries = client.list(&directory).await?;
-    Ok(remote_backups(&entries, &device_name()))
+    let app_version = crate::app_identity::get(&app)?.version.clone();
+    service::list_webdav_backups(app_version, &services.shared.secrets).await
 }
 
 /// Downloads a remote backup next to the config so the import flow can
 /// inspect it like a local file. Returns the local path.
 #[tauri::command]
 pub async fn download_webdav_backup(
-    app: AppHandle,
+    app: tauri::AppHandle,
     file_name: String,
-    secret_state: State<'_, SecretStoreState>,
+    services: tauri::State<'_, std::sync::Arc<crate::services::AppServices>>,
 ) -> Result<String, String> {
-    validate_file_name(&file_name)?;
-    let (client, directory) = connect(&app, secret_state.inner()).await?;
-    let data = client.get(&directory, &file_name, MAX_BACKUP_SIZE).await?;
-    run_blocking(move || {
-        // Only the backup being restored is kept.
-        clear_downloads()?;
-        let downloads = config::paths::ensure_config_dir()?.join(DOWNLOAD_DIRECTORY);
-        fs::create_dir_all(&downloads)
-            .map_err(|error| format!("Failed to create the WebDAV download folder: {error}"))?;
-        let path = downloads.join(&file_name);
-        config::atomic::atomic_write_private(&path, data)?;
-        Ok(path.to_string_lossy().into_owned())
-    })
-    .await
+    let app_version = crate::app_identity::get(&app)?.version.clone();
+    service::download_webdav_backup(app_version, file_name, &services.shared.secrets).await
 }
 
 /// Deletes the downloaded backup once the import view lets go of it.
 #[tauri::command]
 pub async fn discard_webdav_download() -> Result<(), String> {
-    run_blocking(clear_downloads).await
+    service::discard_webdav_download().await
 }
 
 /// Removes downloaded backups; also run at startup for any a quit left behind.
@@ -448,60 +355,45 @@ pub(crate) fn clear_downloads() -> Result<(), String> {
 
 #[tauri::command]
 pub async fn delete_webdav_backup(
-    app: AppHandle,
+    app: tauri::AppHandle,
     file_name: String,
-    secret_state: State<'_, SecretStoreState>,
+    services: tauri::State<'_, std::sync::Arc<crate::services::AppServices>>,
 ) -> Result<(), String> {
-    validate_file_name(&file_name)?;
-    let (client, directory) = connect(&app, secret_state.inner()).await?;
-    client.delete(&directory, &file_name).await
+    let app_version = crate::app_identity::get(&app)?.version.clone();
+    service::delete_webdav_backup(app_version, file_name, &services.shared.secrets).await
 }
 
 /// Deletes several remote backups, carrying on past a file that fails.
 #[tauri::command]
 pub async fn delete_webdav_backups(
-    app: AppHandle,
+    app: tauri::AppHandle,
     file_names: Vec<String>,
-    secret_state: State<'_, SecretStoreState>,
+    services: tauri::State<'_, std::sync::Arc<crate::services::AppServices>>,
 ) -> Result<WebDavDeleteResult, String> {
-    for file_name in &file_names {
-        validate_file_name(file_name)?;
-    }
-    let (client, directory) = connect(&app, secret_state.inner()).await?;
-    let mut deleted = Vec::new();
-    let mut error = None;
-    for file_name in file_names {
-        match client.delete(&directory, &file_name).await {
-            Ok(()) => deleted.push(file_name),
-            Err(failure) => {
-                error.get_or_insert(failure);
-            }
-        }
-    }
-    Ok(WebDavDeleteResult { deleted, error })
+    let app_version = crate::app_identity::get(&app)?.version.clone();
+    service::delete_webdav_backups(app_version, file_names, &services.shared.secrets).await
 }
 
 /// Saves a remote backup to a path the user picked. Returns that path.
 #[tauri::command]
 pub async fn save_webdav_backup(
-    app: AppHandle,
+    app: tauri::AppHandle,
     file_name: String,
     output_path: String,
-    secret_state: State<'_, SecretStoreState>,
+    services: tauri::State<'_, std::sync::Arc<crate::services::AppServices>>,
 ) -> Result<String, String> {
-    validate_file_name(&file_name)?;
-    let output = normalized_backup_path(&output_path)?;
-    let (client, directory) = connect(&app, secret_state.inner()).await?;
-    let data = client.get(&directory, &file_name, MAX_BACKUP_SIZE).await?;
-    run_blocking(move || {
-        config::atomic::atomic_write_private(&output, data)?;
-        Ok(output.to_string_lossy().into_owned())
-    })
+    let app_version = crate::app_identity::get(&app)?.version.clone();
+    service::save_webdav_backup(
+        app_version,
+        file_name,
+        output_path,
+        &services.shared.secrets,
+    )
     .await
 }
 
 async fn connect(
-    app: &AppHandle,
+    app_version: &str,
     secret_state: &SecretStoreState,
 ) -> Result<(WebDavClient, Vec<String>), String> {
     let secret_state = secret_state.clone();
@@ -520,7 +412,7 @@ async fn connect(
         &settings.url,
         &settings.username,
         password,
-        &user_agent(app)?,
+        &user_agent(app_version),
     )?;
     Ok((client, directory))
 }
@@ -539,7 +431,7 @@ pub(crate) struct SyncTarget {
 
 /// `None` when WebDAV is not set up. Needs the saved passwords unlocked.
 pub(crate) async fn sync_target(
-    app: &AppHandle,
+    app_version: &str,
     secret_state: &SecretStoreState,
 ) -> Result<Option<SyncTarget>, String> {
     let secret_state = secret_state.clone();
@@ -564,7 +456,7 @@ pub(crate) async fn sync_target(
             &settings.url,
             &settings.username,
             password,
-            &user_agent(app)?,
+            &user_agent(app_version),
         )?,
         directory: split_remote_directory(&settings.remote_directory)?,
         key: format!(
@@ -573,7 +465,7 @@ pub(crate) async fn sync_target(
         ),
         password: backup_password,
         device: device_name(),
-        app_version: crate::app_identity::get(app)?.version.clone(),
+        app_version: app_version.to_string(),
     }))
 }
 
