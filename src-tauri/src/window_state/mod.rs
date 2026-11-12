@@ -127,11 +127,10 @@ pub fn restore(window: &WebviewWindow) {
             eprintln!("Failed to read the window state: {error}");
             None
         });
-    if let Some(saved) = saved {
-        if let Err(error) = apply(window, saved) {
+    if let Some(saved) = saved
+        && let Err(error) = apply(window, saved) {
             eprintln!("Failed to restore the window state: {error}");
         }
-    }
     let tracker = Tracker {
         latest: Mutex::new(saved),
         ..Tracker::default()

@@ -84,8 +84,8 @@ fn zmodem_cancel_service(
     }
 
     let sessions = pty_state.blocking_read();
-    if let Some(session) = sessions.get(&tab_id) {
-        if session.session_nonce == session_nonce {
+    if let Some(session) = sessions.get(&tab_id)
+        && session.session_nonce == session_nonce {
             let mut active_guard = session.active.blocking_lock();
             match active_guard.as_mut() {
                 Some(ActiveSession::Local(local)) => {
@@ -100,7 +100,6 @@ fn zmodem_cancel_service(
                 None => {}
             }
         }
-    }
 
     Ok(())
 }

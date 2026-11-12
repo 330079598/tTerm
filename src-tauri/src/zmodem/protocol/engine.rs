@@ -670,11 +670,9 @@ mod tests {
             if let HeaderOutcome::Found {
                 header, consumed, ..
             } = scan_header(&bytes[start..])
-            {
-                if start + consumed == bytes.len() {
+                && start + consumed == bytes.len() {
                     return Some(header.frame_type);
                 }
-            }
         }
         None
     }

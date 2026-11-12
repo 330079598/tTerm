@@ -90,11 +90,10 @@ fn resolve_host_key_check(
     port: u16,
     fingerprint: &str,
 ) -> HostKeyCheckOutcome {
-    if let Some(record) = known {
-        if record.host == host && record.port == port && record.fingerprint == fingerprint {
+    if let Some(record) = known
+        && record.host == host && record.port == port && record.fingerprint == fingerprint {
             return HostKeyCheckOutcome::TrustedKnown;
         }
-    }
 
     match (mode, known.is_some()) {
         (HostKeyVerificationMode::TrustUnknownForSession, false) => {

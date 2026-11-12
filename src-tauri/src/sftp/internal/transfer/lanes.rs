@@ -32,15 +32,14 @@ pub(super) async fn execute_parallel(
     checkpoint: Option<&CheckpointWriter>,
 ) -> Result<(), TransferError> {
     let mut lanes = options.parallelism.min(channels.sessions.len()).max(1);
-    if let Some(limits) = channels.limits.as_ref() {
-        if limits.max_open_handles > 0 {
+    if let Some(limits) = channels.limits.as_ref()
+        && limits.max_open_handles > 0 {
             // Every lane holds one handle for the whole transfer; reserve one
             // more for the control session's checkpoint/metadata traffic.
             lanes = lanes
                 .min((limits.max_open_handles as usize).saturating_sub(1))
                 .max(1);
         }
-    }
 
     let queue = Arc::new(Mutex::new(VecDeque::from(run.chunks.clone())));
     let shared = Arc::new(LaneShared {
@@ -313,8 +312,8 @@ async fn record_chunk_completion(shared: &LaneShared, index: usize) {
         // Handed to the background checkpoint writer without blocking: when
         // its queue is full the snapshot is dropped, which only widens the
         // re-send window after a crash — never the byte correctness.
-        if let Some(tx) = shared.checkpoint_tx.as_ref() {
-            if tx.try_send(snapshot).is_ok() {
+        if let Some(tx) = shared.checkpoint_tx.as_ref()
+            && tx.try_send(snapshot).is_ok() {
                 // The cadence clock advances only once the snapshot is
                 // actually queued: a dropped one must leave the interval
                 // backstop due, so the next completion retries the hand-off
@@ -322,7 +321,6 @@ async fn record_chunk_completion(shared: &LaneShared, index: usize) {
                 let mut state = shared.sidecar_state.lock().await;
                 state.last_checkpoint = Instant::now();
             }
-        }
     }
 
     let total = shared.transferred.load(Ordering::SeqCst);

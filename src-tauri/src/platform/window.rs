@@ -33,9 +33,9 @@ impl MainWindow for TauriWindow {
         let app = self.0.clone();
         self.0
             .run_on_main_thread(move || {
-                if let Some(window) = app.get_webview_window("main") {
-                    if !window.is_visible().unwrap_or(true)
-                        || window.is_minimized().unwrap_or(false)
+                if let Some(window) = app.get_webview_window("main")
+                    && (!window.is_visible().unwrap_or(true)
+                        || window.is_minimized().unwrap_or(false))
                     {
                         let _ = TauriWindow(app.clone()).show_and_focus();
                         if let Some(services) =
@@ -46,7 +46,6 @@ impl MainWindow for TauriWindow {
                             );
                         }
                     }
-                }
             })
             .map_err(|e| e.to_string())
     }

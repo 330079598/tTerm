@@ -136,8 +136,8 @@ pub(super) async fn prepare_terminal(
         }
     }
 
-    if early_output.is_none() {
-        if let Err(err) = channel.request_shell(false).await {
+    if early_output.is_none()
+        && let Err(err) = channel.request_shell(false).await {
             finish_output(sender);
             return Err(SshExitSignal {
                 terminated: false,
@@ -146,7 +146,6 @@ pub(super) async fn prepare_terminal(
                 connected_duration: None,
             });
         }
-    }
 
     Ok(PreparedTerminal {
         channel,

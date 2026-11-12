@@ -340,11 +340,10 @@ impl<C: HubConnection> SessionHub<C> {
         if let Some(lease) = slot.lease() {
             return Ok(lease);
         }
-        if let Some(failure) = &slot.lock().failure {
-            if failure.at >= asked_at && failure.credentials == key.credentials {
+        if let Some(failure) = &slot.lock().failure
+            && failure.at >= asked_at && failure.credentials == key.credentials {
                 return Err(failure.error.clone());
             }
-        }
 
         let (tx, mut rx) = mpsc::unbounded_channel::<ForwardedTcpIp>();
         match dial(tx).await {

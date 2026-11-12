@@ -88,11 +88,10 @@ fn map_jump_connect_error(
         return unverifiable.with_prefix(&format!("Jump host #{hop_index}: "));
     }
 
-    if let Ok(mut reason) = failure_reason.lock() {
-        if let Some(reason) = reason.take() {
+    if let Ok(mut reason) = failure_reason.lock()
+        && let Some(reason) = reason.take() {
             return SshConnectError::Permanent(reason);
         }
-    }
 
     SshConnectError::Network(format!(
         "Jump host #{hop_index}: {}",

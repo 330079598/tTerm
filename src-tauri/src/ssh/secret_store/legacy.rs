@@ -121,11 +121,10 @@ impl LegacyVault {
         let verifier = self.file.secrets.iter().find(|record| {
             record.profile_id == VERIFIER_PROFILE_ID && record.kind == SECRET_KIND_VERIFIER
         });
-        if let Some(record) = verifier {
-            if decrypt(&key, record)?.as_str() != VERIFIER_PLAINTEXT {
+        if let Some(record) = verifier
+            && decrypt(&key, record)?.as_str() != VERIFIER_PLAINTEXT {
                 return Err(wrong_password());
             }
-        }
 
         let mut passwords = Vec::new();
         for record in &self.file.secrets {

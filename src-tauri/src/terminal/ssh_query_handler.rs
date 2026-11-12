@@ -115,8 +115,8 @@ where
         // DCS XTGETTCAP: ESC P + q <hex> ESC \
         // Terminal capability query (xterm extension)
         // Response: ESC P {0/1} + r {hex} ESC \ (0=unknown, 1=supported)
-        if !matched && rest.starts_with(b"\x1bP+q") {
-            if let Some(end) = find_dcs_end(rest) {
+        if !matched && rest.starts_with(b"\x1bP+q")
+            && let Some(end) = find_dcs_end(rest) {
                 let hex_query = &rest[4..end.index];
 
                 // "Co" = 436f/436F in hex (terminal colors capability)
@@ -135,7 +135,6 @@ where
                 i += end.index + end.terminator_len;
                 matched = true;
             }
-        }
 
         if !matched && is_incomplete_query(rest) {
             pending.extend_from_slice(rest);

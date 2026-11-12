@@ -88,14 +88,13 @@ impl client::Handler for JumpHostHandler {
                 .map(|listed| listed_record(&self.host, self.port, &algorithm, listed))
         });
 
-        if let Some(record) = &known {
-            if record.host == self.host
+        if let Some(record) = &known
+            && record.host == self.host
                 && record.port == self.port
                 && record.fingerprint == fingerprint
             {
                 return Ok(true);
             }
-        }
 
         if self.host_key_verification_mode == HostKeyVerificationMode::TrustUnknownForSession {
             if known.is_none() {

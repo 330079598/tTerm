@@ -141,14 +141,13 @@ impl PortClaim {
 /// Tells the device a transfer that failed on this side is over. One the
 /// device cancelled, or that lost the device, needs no telling.
 pub(super) fn cancel_on_failure(link: &mut TapLink, result: &Result<(), TransferError>) {
-    if let Err(error) = result {
-        if !matches!(
+    if let Err(error) = result
+        && !matches!(
             error,
             TransferError::CancelledByDevice | TransferError::Disconnected
         ) {
             protocol::send_cancel(link);
         }
-    }
 }
 
 pub(super) struct TransferParams {

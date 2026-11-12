@@ -180,8 +180,8 @@ impl ZmodemReceiveDriver {
 
     /// Processes one chunk of incoming bytes.
     pub fn process(&mut self, chunk: &[u8]) -> ZmodemStepOutcome {
-        if let Some(transfer) = &self.transfer {
-            if transfer.cancel_requested.load(Ordering::Relaxed) {
+        if let Some(transfer) = &self.transfer
+            && transfer.cancel_requested.load(Ordering::Relaxed) {
                 self.on_local_cancel();
                 return ZmodemStepOutcome {
                     passthrough: chunk.to_vec(),
@@ -189,7 +189,6 @@ impl ZmodemReceiveDriver {
                     send_requested: None,
                 };
             }
-        }
 
         if self.transfer.is_none() {
             if !self.auto_detect_enabled && !self.manual_override.load(Ordering::Relaxed) {
@@ -379,8 +378,8 @@ impl ZmodemReceiveDriver {
     }
 
     fn on_peer_cancelled(&mut self) {
-        if let Some(transfer) = self.transfer.as_ref() {
-            if transfer.file.is_some() {
+        if let Some(transfer) = self.transfer.as_ref()
+            && transfer.file.is_some() {
                 (self.emit)(TransferEvent::Complete(TransferCompletePayload {
                     transfer_id: transfer.transfer_id.clone(),
                     success: false,
@@ -388,7 +387,6 @@ impl ZmodemReceiveDriver {
                     error: Some("Cancelled by the remote rz/sz process".to_string()),
                 }));
             }
-        }
         self.zmodem_map
             .write()
             .unwrap_or_else(PoisonError::into_inner)
@@ -397,8 +395,8 @@ impl ZmodemReceiveDriver {
     }
 
     fn on_local_cancel(&mut self) {
-        if let Some(transfer) = self.transfer.as_ref() {
-            if transfer.file.is_some() {
+        if let Some(transfer) = self.transfer.as_ref()
+            && transfer.file.is_some() {
                 (self.emit)(TransferEvent::Complete(TransferCompletePayload {
                     transfer_id: transfer.transfer_id.clone(),
                     success: false,
@@ -406,7 +404,6 @@ impl ZmodemReceiveDriver {
                     error: None,
                 }));
             }
-        }
         self.zmodem_map
             .write()
             .unwrap_or_else(PoisonError::into_inner)

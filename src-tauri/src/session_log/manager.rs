@@ -165,11 +165,10 @@ impl SessionLogState {
                     writer.close("logging_disabled");
                 }
             }
-            if records && manager.sessions[&tab_id].writer.is_none() {
-                if let Err(err) = manager.start_tracked_writer(app, &tab_id, "logging_enabled") {
+            if records && manager.sessions[&tab_id].writer.is_none()
+                && let Err(err) = manager.start_tracked_writer(app, &tab_id, "logging_enabled") {
                     error = Some(err);
                 }
-            }
         }
         manager.last_error = error.clone();
         self.sync_active(&manager);

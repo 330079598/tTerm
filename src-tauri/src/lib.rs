@@ -151,8 +151,8 @@ pub fn run() {
     builder
         .manage(TokioRuntimeState { runtime })
         .on_window_event(|window, event| {
-            if let tauri::WindowEvent::CloseRequested { api, .. } = event {
-                if window
+            if let tauri::WindowEvent::CloseRequested { api, .. } = event
+                && window
                     .app_handle()
                     .try_state::<Arc<services::AppServices>>()
                     .is_some_and(|services| {
@@ -166,7 +166,6 @@ pub fn run() {
                 {
                     api.prevent_close();
                 }
-            }
         })
         .invoke_handler(tauri::generate_handler![
             backup::export_backup,

@@ -247,8 +247,8 @@ pub async fn prepare_transfer(
         }
     }
 
-    if let Some(error) = open_error {
-        if sessions.is_empty() {
+    if let Some(error) = open_error
+        && sessions.is_empty() {
             // Every channel failed. Only evict the pooled connection when
             // the transport itself is gone: a live connection that merely
             // refuses new channels (e.g. a tight MaxSessions limit) must
@@ -259,7 +259,6 @@ pub async fn prepare_transfer(
             }
             return Err(error);
         }
-    }
 
     // Elastic degradation: with at least one channel open, run the transfer
     // with as many lanes as we actually got instead of failing the transfer

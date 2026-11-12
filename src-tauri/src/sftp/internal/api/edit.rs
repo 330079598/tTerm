@@ -90,23 +90,21 @@ fn attributes_to_restore(
     replaced: &FileAttributes,
 ) -> Vec<FileAttributes> {
     let mut requests = Vec::new();
-    if let (Some(uid), Some(gid)) = (original.uid, original.gid) {
-        if (replaced.uid, replaced.gid) != (Some(uid), Some(gid)) {
+    if let (Some(uid), Some(gid)) = (original.uid, original.gid)
+        && (replaced.uid, replaced.gid) != (Some(uid), Some(gid)) {
             requests.push(FileAttributes {
                 uid: Some(uid),
                 gid: Some(gid),
                 ..FileAttributes::empty()
             });
         }
-    }
-    if let Some(mode) = original.permissions.map(|mode| mode & PERMISSION_MASK) {
-        if replaced.permissions.map(|now| now & PERMISSION_MASK) != Some(mode) {
+    if let Some(mode) = original.permissions.map(|mode| mode & PERMISSION_MASK)
+        && replaced.permissions.map(|now| now & PERMISSION_MASK) != Some(mode) {
             requests.push(FileAttributes {
                 permissions: Some(mode),
                 ..FileAttributes::empty()
             });
         }
-    }
     requests
 }
 

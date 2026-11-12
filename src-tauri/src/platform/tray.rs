@@ -72,11 +72,10 @@ impl Tray for TauriTray {
         if let Err(error) = self.app.run_on_main_thread(move || {
             crate::platform::tray_native::hide(&app);
             let mut removal = removal.lock().unwrap_or_else(|error| error.into_inner());
-            if let Some(model) = removal.deferred.take() {
-                if let Err(error) = present(&app, model) {
+            if let Some(model) = removal.deferred.take()
+                && let Err(error) = present(&app, model) {
                     eprintln!("Failed to restore the tray after removal: {error}");
                 }
-            }
             removal.removing = false;
         }) {
             let mut removal = self

@@ -61,11 +61,10 @@ fn parse_env(output: &str) -> HashMap<String, String> {
         if line.trim_end() == LOGIN_MARKER {
             continue;
         }
-        if let Some((name, value)) = line.split_once('=') {
-            if wanted.contains(&name) {
+        if let Some((name, value)) = line.split_once('=')
+            && wanted.contains(&name) {
                 env.insert(name.to_string(), value.to_string());
             }
-        }
     }
     env
 }
@@ -261,11 +260,10 @@ async fn change(
                     .map_err(|error| format!("Failed to remove {path}: {error}"))?;
                 // The folder it had to itself; fails, as it should, when
                 // something else is in it.
-                if plugin.path.len() > 2 {
-                    if let Some((folder, _)) = path.rsplit_once('/') {
+                if plugin.path.len() > 2
+                    && let Some((folder, _)) = path.rsplit_once('/') {
                         let _ = sftp.remove_dir(folder).await;
                     }
-                }
             }
         }
     }

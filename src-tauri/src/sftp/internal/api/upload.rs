@@ -55,12 +55,11 @@ fn percent_decode(input: &str) -> String {
             let h2 = chars.next();
             if let (Some(h1), Some(h2)) = (h1, h2) {
                 let s = [h1, h2];
-                if let Ok(hex_str) = std::str::from_utf8(&s) {
-                    if let Ok(byte) = u8::from_str_radix(hex_str, 16) {
+                if let Ok(hex_str) = std::str::from_utf8(&s)
+                    && let Ok(byte) = u8::from_str_radix(hex_str, 16) {
                         bytes.push(byte);
                         continue;
                     }
-                }
                 bytes.push(b'%');
                 bytes.push(h1);
                 bytes.push(h2);
@@ -325,11 +324,10 @@ async fn upload_single_file_with_progress(
     let transfer_id_for_progress = transfer_id.to_string();
     let local_path_for_progress = plan_item.local_path.clone();
     let progress: ProgressSink = Arc::new(move |update: TransferProgress| {
-        if let Some(receiver) = batch_cancel_rx.as_ref() {
-            if *receiver.borrow() {
+        if let Some(receiver) = batch_cancel_rx.as_ref()
+            && *receiver.borrow() {
                 let _ = cancel_tx.send(true);
             }
-        }
 
         let progress = if update.total > 0 {
             ((update.transferred as f64 / update.total as f64) * 100.0).min(100.0) as u32

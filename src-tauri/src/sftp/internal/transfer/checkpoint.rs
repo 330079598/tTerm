@@ -35,11 +35,9 @@ impl SidecarStore {
                     .await
                     .ok()
                     .flatten()
-                {
-                    if let Ok(sidecar) = serde_json::from_slice::<TransferSidecar>(&data) {
+                    && let Ok(sidecar) = serde_json::from_slice::<TransferSidecar>(&data) {
                         return Some(sidecar);
                     }
-                }
                 // The save swap (write tmp -> remove primary -> rename) can
                 // crash after the remove but before the rename, leaving only
                 // the temp copy. Recover it instead of discarding the whole
@@ -57,11 +55,10 @@ impl SidecarStore {
                 Some(sidecar)
             }
             SidecarStore::Local { path } => {
-                if let Ok(data) = tokio::fs::read(path).await {
-                    if let Ok(sidecar) = serde_json::from_slice::<TransferSidecar>(&data) {
+                if let Ok(data) = tokio::fs::read(path).await
+                    && let Ok(sidecar) = serde_json::from_slice::<TransferSidecar>(&data) {
                         return Some(sidecar);
                     }
-                }
                 // Same recovery as the remote store for the failed
                 // remove-then-rename fallback in `save`.
                 let tmp = path.with_extension("json.tmp");

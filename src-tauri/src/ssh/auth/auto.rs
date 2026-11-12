@@ -82,14 +82,13 @@ where
 
     let mut offered = Vec::new();
     if remaining.contains(&MethodKind::PublicKey) {
-        if local_identities {
-            if let Some(verdict) =
+        if local_identities
+            && let Some(verdict) =
                 crate::ssh::agent::try_agent_identities(session, target.username, &mut offered)
                     .await
             {
                 return Ok((verdict, AuthUsed::Agent, None));
             }
-        }
         for path in identity_files(key_path, local_identities) {
             if !remaining.contains(&MethodKind::PublicKey) {
                 break;

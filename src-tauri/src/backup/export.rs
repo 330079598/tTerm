@@ -246,11 +246,10 @@ pub(super) fn filter_frontend_state(
 ) -> Option<Value> {
     let source = state?.as_object()?.clone();
     let mut filtered = serde_json::Map::new();
-    if selection.themes {
-        if let Some(value) = source.get("customThemes") {
+    if selection.themes
+        && let Some(value) = source.get("customThemes") {
             filtered.insert("customThemes".to_string(), value.clone());
         }
-    }
     if selection.settings {
         for key in [
             "recentCommands",

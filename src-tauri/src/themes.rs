@@ -44,11 +44,10 @@ pub(crate) fn replace_themes(connection: &Connection, themes: &[Value]) -> Resul
         let mut statement = connection
             .prepare("SELECT id FROM custom_themes")
             .map_err(sql_error("Failed to read themes"))?;
-        let rows = statement
+        statement
             .query_map([], |row| row.get::<_, String>(0))
             .and_then(Iterator::collect::<Result<Vec<_>, _>>)
-            .map_err(sql_error("Failed to read themes"))?;
-        rows
+            .map_err(sql_error("Failed to read themes"))?
     };
     for id in existing.iter().filter(|id| !ids.contains(id.as_str())) {
         delete_theme(connection, id)?;

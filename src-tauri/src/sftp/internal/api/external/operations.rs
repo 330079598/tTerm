@@ -111,11 +111,10 @@ pub(super) async fn sftp_external_edit_open_service(
 
     let local = PathBuf::from(&edit.local_path);
     let launched = launch(opener.as_ref(), open_in, &local).await;
-    if !matches!(launched, Ok(true)) && started {
-        if let Some(session) = state.remove(&edit.id) {
+    if !matches!(launched, Ok(true)) && started
+        && let Some(session) = state.remove(&edit.id) {
             end_sessions(vec![session]).await;
         }
-    }
     Ok(launched?.then_some(edit))
 }
 

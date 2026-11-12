@@ -186,11 +186,10 @@ impl Link for ScriptedSender {
 
     fn write(&mut self, bytes: &[u8]) -> std::io::Result<()> {
         self.said.extend_from_slice(bytes);
-        if self.pending.is_empty() {
-            if let Some(turn) = self.turns.pop_front() {
+        if self.pending.is_empty()
+            && let Some(turn) = self.turns.pop_front() {
                 self.pending.extend(turn);
             }
-        }
         Ok(())
     }
 

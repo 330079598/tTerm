@@ -246,11 +246,10 @@ pub(crate) async fn prepare<H: client::Handler>(
         }
         Err(_) => Err(UnavailableReason::TimedOut),
     };
-    if let Err(reason) = &result {
-        if is_lasting(reason) {
+    if let Err(reason) = &result
+        && is_lasting(reason) {
             lasting_reasons().insert(host.to_string(), reason.clone());
         }
-    }
     result
 }
 

@@ -509,11 +509,10 @@ fn import_backup_blocking(
                 if let Err(err) = restore_database_snapshot(&database_snapshot) {
                     rollback_errors.push(err);
                 }
-                if let Some(commands) = command_snapshot.as_ref() {
-                    if let Err(err) = replace_commands(commands) {
+                if let Some(commands) = command_snapshot.as_ref()
+                    && let Err(err) = replace_commands(commands) {
                         rollback_errors.push(err);
                     }
-                }
                 if rollback_errors.is_empty() {
                     return Err(format!("Import failed and was rolled back: {error}"));
                 }

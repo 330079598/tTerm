@@ -376,11 +376,9 @@ pub(crate) fn parse_multistatus(body: &str, directory: &Url) -> Result<Vec<DavEn
                     .local_name()
                     .as_ref()
                     .eq_ignore_ascii_case("collection")
-                {
-                    if let Some(raw) = current.as_mut() {
+                    && let Some(raw) = current.as_mut() {
                         raw.is_collection = true;
                     }
-                }
             }
             Event::Text(value) => text.push_str(&value.xml10_content()),
             Event::CData(value) => text.push_str(&value.xml10_content()),
@@ -401,8 +399,8 @@ pub(crate) fn parse_multistatus(body: &str, directory: &Url) -> Result<Vec<DavEn
                         "getcontentlength" => raw.size = text.trim().parse().unwrap_or(0),
                         "getlastmodified" => raw.modified_at = parse_http_date(text.trim()),
                         "response" => {
-                            if let Some(raw) = current.take() {
-                                if let Some(name) =
+                            if let Some(raw) = current.take()
+                                && let Some(name) =
                                     entry_name(&raw.href, directory, &directory_path)
                                 {
                                     entries.push(DavEntry {
@@ -412,7 +410,6 @@ pub(crate) fn parse_multistatus(body: &str, directory: &Url) -> Result<Vec<DavEn
                                         modified_at: raw.modified_at,
                                     });
                                 }
-                            }
                         }
                         _ => {}
                     }

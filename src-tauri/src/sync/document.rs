@@ -116,13 +116,11 @@ struct CachedKey {
 
 fn key_for(password: &str, kdf: &KdfSpec) -> Result<Zeroizing<[u8; 32]>, String> {
     let digest: [u8; 32] = Sha256::digest(password.as_bytes()).into();
-    if let Ok(cache) = KEY_CACHE.lock() {
-        if let Some(cached) = cache.as_ref() {
-            if cached.kdf == *kdf && cached.password_digest == digest {
+    if let Ok(cache) = KEY_CACHE.lock()
+        && let Some(cached) = cache.as_ref()
+            && cached.kdf == *kdf && cached.password_digest == digest {
                 return Ok(cached.key.clone());
             }
-        }
-    }
     let salt = BASE64
         .decode(&kdf.salt_b64)
         .map_err(|_| "Sync file key salt is invalid.".to_string())?;

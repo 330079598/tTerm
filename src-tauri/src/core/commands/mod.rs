@@ -322,11 +322,10 @@ async fn ack_pty_output_service(state: PtyMap, arguments: AckPtyOutputInput) -> 
     } = arguments;
 
     let map = state.read().await;
-    if let Some(session) = map.get(&tab_id) {
-        if session.session_nonce == session_nonce {
+    if let Some(session) = map.get(&tab_id)
+        && session.session_nonce == session_nonce {
             session.sink.ack_output(bytes);
         }
-    }
     Ok(())
 }
 

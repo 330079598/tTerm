@@ -76,11 +76,10 @@ pub(super) async fn save_profile(
     mut profile: SavedProfile,
     typed_password_tab_id: Option<String>,
 ) -> Result<(), String> {
-    if let Some(tab_id) = typed_password_tab_id.as_deref() {
-        if profile.remember_password {
+    if let Some(tab_id) = typed_password_tab_id.as_deref()
+        && profile.remember_password {
             fill_typed_passwords(&mut profile, tab_id);
         }
-    }
     // Saving its passwords waits for startup to unlock saved passwords, which
     // may sit on a credential store prompt; keep that off the main thread.
     let secret_state = secret_state.clone();
@@ -98,12 +97,11 @@ fn fill_typed_passwords(profile: &mut SavedProfile, tab_id: &str) {
         profile.auth_method.as_deref(),
         Some("key" | "agent" | "interactive")
     );
-    if uses_password && profile.password.as_deref().is_none_or(str::is_empty) {
-        if let (Some(host), Some(username)) = (profile.host.as_deref(), profile.username.as_deref())
+    if uses_password && profile.password.as_deref().is_none_or(str::is_empty)
+        && let (Some(host), Some(username)) = (profile.host.as_deref(), profile.username.as_deref())
         {
             profile.password = typed(host, profile.port.unwrap_or(22), username);
         }
-    }
     for jump in &mut profile.jump_hosts {
         if jump.auth_method == "password" && jump.password.as_deref().is_none_or(str::is_empty) {
             jump.password = typed(&jump.host, jump.port, &jump.username);
@@ -118,8 +116,8 @@ fn store_profile(
     let group_path = profile.group_path.take();
     normalize_profile(&mut profile);
 
-    if profile.auth_method.as_deref() != Some("key") && profile.remember_password {
-        if let Some(password) = profile
+    if profile.auth_method.as_deref() != Some("key") && profile.remember_password
+        && let Some(password) = profile
             .password
             .as_deref()
             .filter(|value| !value.is_empty())
@@ -132,7 +130,6 @@ fn store_profile(
                 );
             }
         }
-    }
 
     if !profile.remember_password || profile.auth_method.as_deref() == Some("key") {
         let _ = secret_state.delete_password(profile.id.as_str());

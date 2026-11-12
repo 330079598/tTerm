@@ -126,15 +126,13 @@ pub(super) async fn run_transfer(
         TransferDirection::Upload => {
             if let Some(parent) =
                 crate::sftp::internal::paths::parent_remote_path(&paths.final_path)
-            {
-                if !parent.is_empty() {
+                && !parent.is_empty() {
                     ensure_remote_dir_all(control.as_ref(), &parent).await?;
                 }
-            }
         }
         TransferDirection::Download => {
-            if let Some(parent) = paths.local_path.parent() {
-                if !parent.as_os_str().is_empty() {
+            if let Some(parent) = paths.local_path.parent()
+                && !parent.as_os_str().is_empty() {
                     tokio::fs::create_dir_all(parent).await.map_err(|err| {
                         failed(format!(
                             "Failed to create local directory '{}': {err}",
@@ -142,7 +140,6 @@ pub(super) async fn run_transfer(
                         ))
                     })?;
                 }
-            }
         }
     }
 
@@ -471,8 +468,8 @@ async fn discard_partial(
                 Err(SftpError::Status(status)) => status.status_code == StatusCode::NoSuchFile,
                 Err(_) => false,
             };
-            if !gone {
-                if let Ok(opened) = control
+            if !gone
+                && let Ok(opened) = control
                     .open(
                         &paths.part_path,
                         OpenFlags::CREATE | OpenFlags::WRITE | OpenFlags::TRUNCATE,
@@ -482,7 +479,6 @@ async fn discard_partial(
                 {
                     let _ = control.close(opened.handle.as_str()).await;
                 }
-            }
         }
         TransferDirection::Download => {
             let gone = match tokio::fs::remove_file(&paths.local_path_part()).await {

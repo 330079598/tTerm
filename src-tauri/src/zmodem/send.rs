@@ -180,8 +180,8 @@ pub fn run(params: ZmodemSendParams) {
 
     // No more files: wait for the peer's final "ready" signal, send ZFIN,
     // and give it one chance to echo back before closing out either way.
-    if !cancel_requested.load(Ordering::Relaxed) {
-        if let Some(fin) =
+    if !cancel_requested.load(Ordering::Relaxed)
+        && let Some(fin) =
             feed_until_ready(&mut engine, &incoming, &active, &cancel_requested, |e| {
                 e.finish_send()
             })
@@ -192,7 +192,6 @@ pub fn run(params: ZmodemSendParams) {
                 write_back(&active, &result.outgoing);
             }
         }
-    }
 
     zmodem_map
         .write()

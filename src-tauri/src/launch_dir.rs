@@ -85,11 +85,10 @@ pub fn forget_startup_dir(paths: &AppPaths) {
     let Some(marker) = marker_path(paths) else {
         return;
     };
-    if let Err(error) = std::fs::remove_file(&marker) {
-        if error.kind() != std::io::ErrorKind::NotFound {
+    if let Err(error) = std::fs::remove_file(&marker)
+        && error.kind() != std::io::ErrorKind::NotFound {
             eprintln!("Failed to remove '{}': {error}", marker.display());
         }
-    }
 }
 
 /// The directories named in `args`, a command line with the program first,

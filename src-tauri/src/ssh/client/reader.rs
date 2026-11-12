@@ -54,11 +54,10 @@ impl IncomingOutput<'_> {
         };
         if !bytes.is_empty() {
             let outcome = self.zmodem_driver.process(&bytes);
-            if !outcome.outgoing.is_empty() {
-                if let Err(err) = writer_stream.write_all(&outcome.outgoing).await {
+            if !outcome.outgoing.is_empty()
+                && let Err(err) = writer_stream.write_all(&outcome.outgoing).await {
                     return Err(format!("SSH write failed: {err}"));
                 }
-            }
             if let Some(remainder) = outcome.send_requested {
                 let tx = crate::zmodem::arm_send(self.tab, remainder);
                 self.zmodem_send_pipe.arm(tx);
@@ -159,8 +158,8 @@ pub(super) async fn read_connection(connection: ConnectedSession) -> SshExitSign
                 }
             }
             incoming = input_rx.recv() => {
-                if let Some(data) = incoming {
-                    if let Err(err) = writer_stream.write_all(&data).await {
+                if let Some(data) = incoming
+                    && let Err(err) = writer_stream.write_all(&data).await {
                         finish_output(&mut sender);
                         return SshExitSignal {
                             terminated: false,
@@ -169,11 +168,10 @@ pub(super) async fn read_connection(connection: ConnectedSession) -> SshExitSign
                             connected_duration: Some(connected_at.elapsed()),
                         };
                     }
-                }
             }
             resize = resize_rx.recv() => {
-                if let Some((next_rows, next_cols)) = resize {
-                    if let Err(err) = writer.window_change(next_cols as u32, next_rows as u32, 0, 0).await {
+                if let Some((next_rows, next_cols)) = resize
+                    && let Err(err) = writer.window_change(next_cols as u32, next_rows as u32, 0, 0).await {
                         finish_output(&mut sender);
                         return SshExitSignal {
                             terminated: false,
@@ -182,7 +180,6 @@ pub(super) async fn read_connection(connection: ConnectedSession) -> SshExitSign
                             connected_duration: Some(connected_at.elapsed()),
                         };
                     }
-                }
             }
             event = reader.wait() => {
                 match event {

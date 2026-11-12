@@ -56,11 +56,10 @@ pub fn resolve_proxy(
     let password = if server.username.is_some() {
         let key = proxy_secret_key(id);
         let password = secret_state.get_password(&key)?;
-        if password.is_none() {
-            if let Some(reason) = secret_state.unreadable_reason(&[key.as_str()])? {
+        if password.is_none()
+            && let Some(reason) = secret_state.unreadable_reason(&[key.as_str()])? {
                 return Err(reason.to_string());
             }
-        }
         password.map(Zeroizing::new)
     } else {
         None

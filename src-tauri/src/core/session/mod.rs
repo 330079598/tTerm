@@ -346,20 +346,18 @@ pub fn load_saved_ssh_password(
     let profile_id = profile_id.map(str::trim).filter(|v| !v.is_empty());
     let profile_name = profile_name.map(str::trim).filter(|v| !v.is_empty());
 
-    if let Some(profile_id) = profile_id {
-        if let Some(password) = secret_state.get_password(profile_id)? {
+    if let Some(profile_id) = profile_id
+        && let Some(password) = secret_state.get_password(profile_id)? {
             return Ok(Some(password));
         }
-    }
 
-    if let Some(profile_name) = profile_name {
-        if let Some(password) = secret_state.get_password(profile_name)? {
+    if let Some(profile_name) = profile_name
+        && let Some(password) = secret_state.get_password(profile_name)? {
             if let Some(profile_id) = profile_id {
                 let _ = secret_state.save_password(profile_id, &password);
             }
             return Ok(Some(password));
         }
-    }
 
     Ok(None)
 }
@@ -437,25 +435,23 @@ pub fn load_saved_jump_host_password(
         _ => None,
     };
 
-    if let Some(secret_key) = canonical_identity_key.as_deref() {
-        if let Some(password) = secret_state.get_password(secret_key)? {
+    if let Some(secret_key) = canonical_identity_key.as_deref()
+        && let Some(password) = secret_state.get_password(secret_key)? {
             return Ok(Some(password));
         }
-    }
 
     if let (Some(profile_name), Some(host), Some(port), Some(username)) =
         (profile_name, host, port, username)
     {
         let name_identity_key =
             jump_host_identity_secret_key(None, profile_name, host, port, username);
-        if canonical_identity_key.as_deref() != Some(name_identity_key.as_str()) {
-            if let Some(password) = secret_state.get_password(&name_identity_key)? {
+        if canonical_identity_key.as_deref() != Some(name_identity_key.as_str())
+            && let Some(password) = secret_state.get_password(&name_identity_key)? {
                 if let Some(secret_key) = canonical_identity_key.as_deref() {
                     let _ = secret_state.save_password(secret_key, &password);
                 }
                 return Ok(Some(password));
             }
-        }
     }
 
     if allow_legacy_fallback {

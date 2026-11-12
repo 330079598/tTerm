@@ -27,11 +27,9 @@ pub(crate) fn expand_home_path(path: &str) -> PathBuf {
     if let Some(rest) = trimmed
         .strip_prefix("~/")
         .or_else(|| trimmed.strip_prefix("~\\"))
-    {
-        if let Some(home) = home_dir() {
+        && let Some(home) = home_dir() {
             return home.join(rest);
         }
-    }
 
     PathBuf::from(trimmed)
 }

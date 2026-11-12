@@ -228,11 +228,10 @@ impl russh_sftp::server::Handler for SftpHandler {
         pflags: OpenFlags,
         attrs: FileAttributes,
     ) -> Result<Handle, Self::Error> {
-        if let Some(modes) = &self.options.recorded_open_modes {
-            if let Ok(mut modes) = modes.lock() {
+        if let Some(modes) = &self.options.recorded_open_modes
+            && let Ok(mut modes) = modes.lock() {
                 modes.push((filename.clone(), attrs.permissions));
             }
-        }
         let path = self.real_path(&filename);
         let options = std::fs::OpenOptions::from(pflags);
         let file = options.open(&path).map_err(|_| StatusCode::NoSuchFile)?;

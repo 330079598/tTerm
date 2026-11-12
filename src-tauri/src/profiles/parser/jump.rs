@@ -116,8 +116,8 @@ impl Chain<'_> {
             }
 
             let resolved = resolve_host(self.config, &spec.host);
-            if index == 0 {
-                if let Some(own_jump) = first_option(&resolved.options, "proxyjump") {
+            if index == 0
+                && let Some(own_jump) = first_option(&resolved.options, "proxyjump") {
                     if depth >= MAX_CHAIN_DEPTH {
                         self.warnings.push(format!(
                             "The ProxyJump of '{}' was not followed: jump hosts go deeper than {MAX_CHAIN_DEPTH}.",
@@ -129,7 +129,6 @@ impl Chain<'_> {
                         self.visited.pop();
                     }
                 }
-            }
             hops.push(self.hop(spec, &resolved.options));
         }
         hops

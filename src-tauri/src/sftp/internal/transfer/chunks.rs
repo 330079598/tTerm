@@ -77,11 +77,10 @@ pub(super) fn io_write_step(limits: Option<&LimitsExtension>) -> u64 {
     let mut step = limits
         .and_then(|limits| (limits.max_write_len > 0).then_some(limits.max_write_len))
         .unwrap_or(DEFAULT_IO_STEP);
-    if let Some(limits) = limits {
-        if limits.max_packet_len > 0 {
+    if let Some(limits) = limits
+        && limits.max_packet_len > 0 {
             step = step.min(limits.max_packet_len.saturating_sub(1024));
         }
-    }
     step.max(1)
 }
 
@@ -90,11 +89,10 @@ pub(super) fn io_read_step(limits: Option<&LimitsExtension>) -> u64 {
     let mut step = limits
         .and_then(|limits| (limits.max_read_len > 0).then_some(limits.max_read_len))
         .unwrap_or(DEFAULT_IO_STEP);
-    if let Some(limits) = limits {
-        if limits.max_packet_len > 0 {
+    if let Some(limits) = limits
+        && limits.max_packet_len > 0 {
             step = step.min(limits.max_packet_len.saturating_sub(1024));
         }
-    }
     step.max(1)
 }
 

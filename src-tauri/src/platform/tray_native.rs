@@ -59,11 +59,10 @@ pub fn set_attention(app: &AppHandle, attention: bool) {
     if state.attention.swap(attention, Ordering::SeqCst) == attention {
         return;
     }
-    if let Some(tray) = app.tray_by_id(TRAY_ID) {
-        if let Err(error) = tray.set_icon(tray_icon(app, attention)) {
+    if let Some(tray) = app.tray_by_id(TRAY_ID)
+        && let Err(error) = tray.set_icon(tray_icon(app, attention)) {
             eprintln!("Failed to update the tray icon: {error}");
         }
-    }
 }
 
 fn tray_icon(app: &AppHandle, attention: bool) -> Option<Image<'_>> {

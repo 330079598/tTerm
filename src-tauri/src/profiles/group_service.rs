@@ -71,14 +71,13 @@ pub(crate) async fn move_profiles_to_group(
 ) -> Result<(), String> {
     run_blocking(move || {
         crate::db::write(|transaction| {
-            if let Some(group_id) = group_id.as_deref() {
-                if !list_groups(transaction)?
+            if let Some(group_id) = group_id.as_deref()
+                && !list_groups(transaction)?
                     .iter()
                     .any(|group| group.id == group_id)
                 {
                     return Err("This group no longer exists".to_string());
                 }
-            }
             move_profiles(transaction, &ids, group_id.as_deref(), target_id.as_deref())
         })
     })

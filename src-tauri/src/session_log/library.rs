@@ -468,8 +468,8 @@ fn read_frames(
                 }
                 "header" | "data" => {}
                 _ => {
-                    if let Some((cols, rows)) = event.detail.as_ref().and_then(size_of) {
-                        if each(Frame::Resize {
+                    if let Some((cols, rows)) = event.detail.as_ref().and_then(size_of)
+                        && each(Frame::Resize {
                             at_us: event.elapsed_us,
                             cols,
                             rows,
@@ -478,7 +478,6 @@ fn read_frames(
                         {
                             return Ok(());
                         }
-                    }
                 }
             }
         }

@@ -240,22 +240,20 @@ pub fn load_known_host(
     let profile_id = profile_id.map(str::trim).filter(|value| !value.is_empty());
     let host = host.trim();
 
-    if let Some(profile_id) = profile_id {
-        if let Some(entry) =
+    if let Some(profile_id) = profile_id
+        && let Some(entry) =
             find_known_host_entry(&store, profile_name, Some(profile_id), host, port)
         {
             return Ok(Some(entry));
         }
-    }
 
     let mut entry = find_known_host_entry(&store, profile_name, None, host, port);
 
-    if let (Some(profile_id), Some(record)) = (profile_id, entry.as_mut()) {
-        if record.profile_id.as_deref() != Some(profile_id) {
+    if let (Some(profile_id), Some(record)) = (profile_id, entry.as_mut())
+        && record.profile_id.as_deref() != Some(profile_id) {
             record.profile_id = Some(profile_id.to_string());
             let _ = save_known_host_entry(record.clone());
         }
-    }
 
     Ok(entry)
 }
