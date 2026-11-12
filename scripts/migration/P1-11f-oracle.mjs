@@ -170,10 +170,11 @@ function itermColor(key, hex) {
 }
 
 function itermBody(entries) {
+  const body = entries.map(([key, hex]) => itermColor(key, hex)).join("\n\t")
   return `<?xml version="1.0" encoding="UTF-8"?>
 <plist version="1.0">
 <dict>
-${entries.map(([key, hex]) => itermColor(key, hex)).join("\n")}
+\t${body}
 </dict>
 </plist>`
 }
