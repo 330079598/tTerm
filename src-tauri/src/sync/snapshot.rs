@@ -4,7 +4,6 @@
 //! by a newer tTerm on another device are kept in the remote document.
 
 use super::document::Collections;
-use super::merge::{Collection, SyncRecord};
 use crate::config::AppConfig;
 use crate::profiles::types::{ProfileGroup, SavedProfile};
 use crate::proxy::ProxyServer;
@@ -18,6 +17,7 @@ use serde_json::Value;
 use tterm_core::command_library::models::SavedCommand;
 use tterm_core::db::sql_error;
 use tterm_core::ssh::store::{KnownHostRecord, KnownHostStore};
+use tterm_core::sync::merge::{Collection, SyncRecord};
 use tterm_core::tunnel::types::TunnelRule;
 
 pub(crate) const PROFILES: &str = "profiles";

@@ -8,7 +8,6 @@
 //! writes the result locally together with the new base.
 
 mod document;
-mod merge;
 pub(crate) mod snapshot;
 mod state;
 
@@ -19,13 +18,13 @@ use crate::core::blocking::run_blocking;
 use crate::ssh::secret_store::types::SecretStoreState;
 use crate::tunnel::manager::TunnelManager;
 use document::{Collections, MAX_DOCUMENT_SIZE, SYNC_FILE_NAME};
-use merge::{merge_collection, same_data};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use snapshot::{PROFILE_GROUPS, PROFILES, SERIAL_SENDS, SETTINGS, TUNNELS, removed_ids};
 use std::sync::Mutex;
 use tterm_core::backup::webdav::{Fetched, Stored, WebDavClient};
 use tterm_core::db::meta;
+use tterm_core::sync::merge::{merge_collection, same_data};
 
 use snapshot::SyncSelection;
 
@@ -501,7 +500,8 @@ fn normalize_lenient(collections: &Collections, categories: &[&str]) -> Collecti
         if let Some(collection) = collections.get(category) {
             let entry = normalized.entry(category.to_string()).or_default();
             for (id, record) in collection {
-                let single = merge::Collection::from([(id.clone(), record.clone())]);
+                let single =
+                    tterm_core::sync::merge::Collection::from([(id.clone(), record.clone())]);
                 if let Ok(mut done) = snapshot::normalize(category, &single)
                     && let Some(record) = done.remove(id)
                 {

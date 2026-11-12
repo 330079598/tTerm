@@ -60,6 +60,8 @@ pub mod session_log;
 pub mod sftp;
 /// SSH connections, their authentication and the stores behind them.
 pub mod ssh;
+/// Merging the records two devices wrote during sync.
+pub mod sync;
 /// Local and remote terminal sessions and their output.
 pub mod terminal;
 /// Notification requests and the rules for announcing them.

@@ -14,7 +14,7 @@ use std::collections::{BTreeMap, BTreeSet};
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub(crate) struct SyncRecord {
+pub struct SyncRecord {
     pub data: Value,
     /// Unix milliseconds of the last change, when the store records one.
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -27,14 +27,14 @@ impl SyncRecord {
     }
 }
 
-pub(crate) type Collection = BTreeMap<String, SyncRecord>;
+pub type Collection = BTreeMap<String, SyncRecord>;
 
 fn data(record: Option<&SyncRecord>) -> Option<&Value> {
     record.map(|record| &record.data)
 }
 
 #[derive(Debug, Default, PartialEq)]
-pub(crate) struct MergeOutcome {
+pub struct MergeOutcome {
     pub merged: Collection,
     /// Ids of records changed differently on both sides.
     pub conflicts: Vec<String>,
@@ -43,7 +43,7 @@ pub(crate) struct MergeOutcome {
 /// Merges one collection. `base` is `None` before the first sync, which makes
 /// the merge a union: nothing can have been deleted since a base that never
 /// existed.
-pub(crate) fn merge_collection(
+pub fn merge_collection(
     base: Option<&Collection>,
     local: &Collection,
     remote: &Collection,
@@ -127,7 +127,7 @@ fn merge_record(base: Option<&SyncRecord>, l: &SyncRecord, r: &SyncRecord) -> Sy
 }
 
 /// Whether two collections hold the same data, ignoring timestamps.
-pub(crate) fn same_data(left: &Collection, right: &Collection) -> bool {
+pub fn same_data(left: &Collection, right: &Collection) -> bool {
     left.len() == right.len()
         && left
             .iter()
