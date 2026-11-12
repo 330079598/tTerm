@@ -1,5 +1,6 @@
 pub mod agent;
 pub mod auth;
+pub(crate) mod auth_commands;
 pub(crate) mod client;
 pub(crate) mod context;
 pub(crate) mod host_key_prompt;
@@ -17,4 +18,5 @@ pub(crate) mod store;
 #[cfg(all(test, unix))]
 pub(crate) mod test_sshd;
 pub mod typed_passwords;
+pub(crate) mod typed_passwords_commands;
 pub(crate) mod types;

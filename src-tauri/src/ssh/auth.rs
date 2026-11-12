@@ -217,28 +217,12 @@ pub struct ScriptedPrompts {
     pub asked: Vec<AuthPromptPayload>,
 }
 
-/// Delivers the user's answers to a waiting prompt; `responses: None` cancels.
-#[tauri::command]
-pub fn respond_ssh_auth_prompt(
-    request_id: String,
-    responses: Option<Vec<String>>,
-    services: tauri::State<'_, std::sync::Arc<crate::services::AppServices>>,
-) -> Result<(), String> {
-    let pending = services.shared.prompts.clone();
-    respond_ssh_auth_prompt_service(
-        pending,
-        RespondSshAuthPromptInput {
-            request_id,
-            responses,
-        },
-    )
-}
-struct RespondSshAuthPromptInput {
-    request_id: String,
-    responses: Option<Vec<String>>,
+pub(super) struct RespondSshAuthPromptInput {
+    pub(super) request_id: String,
+    pub(super) responses: Option<Vec<String>>,
 }
 
-fn respond_ssh_auth_prompt_service(
+pub(super) fn respond_ssh_auth_prompt_service(
     pending: std::sync::Arc<tterm_core::prompts::PromptBroker>,
     arguments: RespondSshAuthPromptInput,
 ) -> Result<(), String> {

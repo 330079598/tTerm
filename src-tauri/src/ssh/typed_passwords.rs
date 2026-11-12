@@ -57,13 +57,11 @@ pub fn forget(tab_id: &str, host: &str, port: u16, username: &str) {
 
 /// Whether a password was typed for this account in this tab, for the save
 /// dialog to offer storing it.
-#[tauri::command]
 pub fn has_typed_password(tab_id: String, host: String, port: u16, username: String) -> bool {
     passwords().contains_key(&Account::new(&tab_id, &host, port, &username))
 }
 
 /// The tab was closed: nothing it typed is needed anymore.
-#[tauri::command]
 pub fn forget_typed_passwords(tab_id: String) {
     passwords().retain(|account, _| account.tab_id != tab_id);
 }
