@@ -64,6 +64,8 @@ pub mod search;
 pub mod selection;
 pub mod snapshot;
 pub mod terminal;
+/// Theme colors, their persisted text form, and shared color math.
+pub mod theme;
 
 #[cfg(test)]
 mod tests;
