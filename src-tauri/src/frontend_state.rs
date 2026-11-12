@@ -7,6 +7,15 @@
 //! old copy, importing it again if an older version changed it, and every
 //! new value is written back to localStorage so a rollback sees it too.
 //!
+//! The GPUI build shares these rows and must follow the same contract. It
+//! must not delete a `frontend.` row: clearing a value means writing the
+//! empty value with the same shape (an empty array, `null` where the shape
+//! allows it, or `false`). It must not write `frontend.migrated` or any
+//! `frontend.synced.*` fingerprint; a marker without the matching
+//! fingerprints makes a later Tauri start import stale localStorage values.
+//! If the marker exists and one of these rows is missing or cannot be parsed,
+//! the next Tauri start reimports that key from localStorage.
+//!
 //! Removing the localStorage originals is planned for 0.10.0, one release
 //! after the 0.9.0 transition build, once users have had time to upgrade.
 
