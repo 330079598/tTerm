@@ -1,0 +1,34 @@
+commit d99e11cfe794508b8af9861fa9bc0b725a4f9a18
+Author: stone <330079598@qq.com>
+Date:   Thu Nov 12 17:36:48 2026 +0800
+
+    :bug: drop the phantom run_blocking command from the signature baseline
+    
+    The scanner reads a documented #[tauri::command] mention in the doc comment
+    of run_blocking as if it were an attribute, so the baseline listed a
+    function that was never a command. The file now lives in tterm-core and the
+    scanner only walks src-tauri/src, so the entry has to go with it. The real
+    commands and the handler list are unchanged.
+
+diff --git a/scripts/migration/command-signatures.json b/scripts/migration/command-signatures.json
+index f7300527..54c05cfd 100644
+--- a/scripts/migration/command-signatures.json
++++ b/scripts/migration/command-signatures.json
+@@ -1340,17 +1340,6 @@
+       ],
+       "returns": "Result<(), String>"
+     },
+-    {
+-      "name": "run_blocking",
+-      "attributes": {},
+-      "params": [
+-        {
+-          "name": "work",
+-          "type": "F"
+-        }
+-      ],
+-      "returns": "Result<T, String>\nwhere\n    T: Send + 'static,\n    F: FnOnce() -> Result<T, String> + Send + 'static,"
+-    },
+     {
+       "name": "run_due_automatic_backup",
+       "attributes": {},
