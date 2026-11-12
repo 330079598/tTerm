@@ -19,11 +19,13 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::{Duration, Instant};
 
 use super::detect;
-use super::events;
-use super::protocol::consts::ZDLE;
-use super::protocol::{consts::ZmodemDirection, engine::ZmodemAction, engine::ZmodemEngine};
 use crate::core::state::ChannelContext;
 use crate::core::{state::ZmodemMap, state::ZmodemTabHandle};
+use tterm_core::zmodem::events;
+use tterm_core::zmodem::protocol::consts::ZDLE;
+use tterm_core::zmodem::protocol::{
+    consts::ZmodemDirection, engine::ZmodemAction, engine::ZmodemEngine,
+};
 
 /// How often (at most) a data chunk triggers a progress event, so a fast
 /// local transfer doesn't flood the frontend with one IPC message per
@@ -137,7 +139,7 @@ impl ZmodemReceiveDriver {
             Box::new(move |event| {
                 let name = event.name("").as_string();
                 let kind = name.strip_prefix("zmodem-").unwrap().trim_end_matches('-');
-                let payload = super::wire::transfer_wire(&event).unwrap();
+                let payload = tterm_core::zmodem::wire::transfer_wire(&event).unwrap();
                 emit(kind, payload);
             }),
             tab_id,
@@ -538,7 +540,7 @@ mod tests {
     fn manual_override_forces_detection_on_when_auto_detect_is_disabled() {
         let zmodem_map: ZmodemMap =
             Arc::new(std::sync::RwLock::new(std::collections::HashMap::new()));
-        let trigger = super::super::protocol::consts::TRIGGER_ZRQINIT;
+        let trigger = tterm_core::zmodem::protocol::consts::TRIGGER_ZRQINIT;
         let mut driver = ZmodemReceiveDriver::with_test_emit(
             |_, _| {},
             "manual-tab".to_string(),
@@ -566,7 +568,7 @@ mod tests {
     fn manual_override_is_one_shot_for_send_triggers() {
         let zmodem_map: ZmodemMap =
             Arc::new(std::sync::RwLock::new(std::collections::HashMap::new()));
-        let trigger = super::super::protocol::consts::TRIGGER_ZRINIT;
+        let trigger = tterm_core::zmodem::protocol::consts::TRIGGER_ZRINIT;
         let mut driver = ZmodemReceiveDriver::with_test_emit(
             |_, _| {},
             "manual-send-tab".to_string(),

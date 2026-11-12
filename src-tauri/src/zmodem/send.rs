@@ -33,10 +33,12 @@ use std::time::{Duration, Instant};
 
 use tokio::sync::Mutex as TokioMutex;
 
-use super::events;
-use super::protocol::{consts::ZmodemDirection, engine::ZmodemAction, engine::ZmodemEngine};
 use crate::core::state::ActiveSession;
 use crate::core::state::ZmodemMap;
+use tterm_core::zmodem::events;
+use tterm_core::zmodem::protocol::{
+    consts::ZmodemDirection, engine::ZmodemAction, engine::ZmodemEngine,
+};
 
 /// Forces a local PTY into raw mode for the duration of a send session, and
 /// restores the original settings when the returned guard drops. Binary

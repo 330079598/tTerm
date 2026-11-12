@@ -66,3 +66,5 @@ pub mod theme;
 pub mod updates;
 /// Workspace panes, tab navigation and tab menu models.
 pub mod workspace;
+/// The I/O-free half of the ZMODEM file transfer.
+pub mod zmodem;

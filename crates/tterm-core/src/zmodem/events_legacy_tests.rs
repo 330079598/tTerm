@@ -1,4 +1,4 @@
-use tterm_core::events::zmodem::{
+use crate::events::zmodem::{
     TransferCompletePayload, TransferProgressPayload, TransferStartPayload,
 };
 
@@ -6,7 +6,7 @@ use serde_json::Value;
 fn check(key: &str, actual: Value) {
     let fixtures: Value = serde_json::from_str(include_str!(concat!(
         env!("CARGO_MANIFEST_DIR"),
-        "/src/event_sink/fixtures/p1_03.json"
+        "/../../src-tauri/src/event_sink/fixtures/p1_03.json"
     )))
     .unwrap();
     assert_eq!(actual, fixtures[key], "{key}");

@@ -1,9 +1,9 @@
+use crate::events::zmodem::TransferEvent;
 use serde_json::Value;
-use tterm_core::events::zmodem::TransferEvent;
 
 /// Serializes a transfer event into the JSON payload used by the Tauri
 /// ZMODEM and serial transfer events.
-pub(crate) fn transfer_wire(event: &TransferEvent) -> Result<Value, String> {
+pub fn transfer_wire(event: &TransferEvent) -> Result<Value, String> {
     match event {
         TransferEvent::Start(payload) => serde_json::to_value(payload),
         TransferEvent::Progress(payload) => serde_json::to_value(payload),

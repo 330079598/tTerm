@@ -18,7 +18,7 @@ use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command, Stdio};
 
-use crate::zmodem::protocol::{
+use tterm_core::zmodem::protocol::{
     consts::ZmodemDirection, engine::ZmodemAction, engine::ZmodemEngine,
 };
 

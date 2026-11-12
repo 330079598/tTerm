@@ -139,7 +139,7 @@ impl ZmodemEngine {
         }
     }
 
-    #[cfg(test)]
+    #[cfg(any(test, feature = "test-support"))]
     pub fn is_done(&self) -> bool {
         matches!(self.state, State::Done)
     }

@@ -57,7 +57,7 @@ async fn claim_port(
             tab_id.clone(),
             ZmodemTabHandle {
                 session_nonce,
-                transfer_id: crate::zmodem::events::new_transfer_id(),
+                transfer_id: tterm_core::zmodem::events::new_transfer_id(),
                 cancel_requested: cancel_requested.clone(),
             },
         );
