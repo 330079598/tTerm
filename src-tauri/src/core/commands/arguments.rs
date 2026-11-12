@@ -11,12 +11,6 @@ pub(super) struct ResetPtyConsoleInput {
     pub(super) session_nonce: u32,
 }
 
-pub(super) struct AckPtyOutputInput {
-    pub(super) tab_id: String,
-    pub(super) session_nonce: u32,
-    pub(super) bytes: usize,
-}
-
 pub(super) struct WritePtyBatchInput {
     pub(super) targets: Vec<PtyWriteTarget>,
     pub(super) guard_target: Option<PtyWriteTarget>,

@@ -1,5 +1,4 @@
 use super::*;
-use crate::core::commands::arguments::AckPtyOutputInput;
 use crate::core::state::AtomicTerminalSize;
 use crate::terminal::output::TerminalOutput;
 use tokio::sync::{mpsc, watch};
@@ -180,7 +179,7 @@ async fn ack_ignores_stale_nonce_and_missing_tabs() {
             serial_view: None,
         },
     )])));
-    super::super::ack_pty_output_service(
+    super::ack_pty_output_service(
         map.clone(),
         AckPtyOutputInput {
             tab_id: "ack-tab".into(),
@@ -190,7 +189,7 @@ async fn ack_ignores_stale_nonce_and_missing_tabs() {
     )
     .await
     .unwrap();
-    super::super::ack_pty_output_service(
+    super::ack_pty_output_service(
         map.clone(),
         AckPtyOutputInput {
             tab_id: "missing".into(),
@@ -201,7 +200,7 @@ async fn ack_ignores_stale_nonce_and_missing_tabs() {
     .await
     .unwrap();
     assert!(sink.records().is_empty());
-    super::super::ack_pty_output_service(
+    super::ack_pty_output_service(
         map,
         AckPtyOutputInput {
             tab_id: "ack-tab".into(),
