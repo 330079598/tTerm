@@ -3,9 +3,9 @@
 use super::apply::{json_key, read_json_value, to_backup_value};
 use super::remote;
 use super::{BackupDiff, BackupPayload, CategoryDiff};
-use crate::command_library::repository::CommandRepository;
 use serde_json::Value;
 use std::collections::HashMap;
+use tterm_core::command_library::repository::CommandRepository;
 
 pub(super) fn calculate_diff(payload: &BackupPayload) -> Result<BackupDiff, String> {
     let existing_profiles = to_backup_value(&crate::profiles::storage::load_profiles()?)?;

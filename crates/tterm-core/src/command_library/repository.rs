@@ -1,6 +1,6 @@
 use super::{models::CommandVariable, models::SavedCommand};
+use crate::db::Database;
 use rusqlite::{Connection, OptionalExtension, Row, Transaction, params};
-use tterm_core::db::Database;
 
 pub struct CommandRepository<'a> {
     database: &'a Database,
@@ -175,7 +175,7 @@ impl<'a> CommandRepository<'a> {
 }
 
 /// Every command, for callers that already hold the connection.
-pub(crate) fn list_commands(connection: &Connection) -> Result<Vec<SavedCommand>, String> {
+pub fn list_commands(connection: &Connection) -> Result<Vec<SavedCommand>, String> {
     let mut statement = connection
         .prepare(
             "SELECT id, name, command_text, description, scope_type, scope_id, shell_type, \
@@ -200,10 +200,7 @@ pub(crate) fn list_commands(connection: &Connection) -> Result<Vec<SavedCommand>
 }
 
 /// Saves a command inside the caller's transaction.
-pub(crate) fn save_command(
-    transaction: &Transaction<'_>,
-    command: &SavedCommand,
-) -> Result<(), String> {
+pub fn save_command(transaction: &Transaction<'_>, command: &SavedCommand) -> Result<(), String> {
     validate(command)?;
     transaction
         .execute(
@@ -246,7 +243,7 @@ pub(crate) fn save_command(
 }
 
 /// Deletes a command inside the caller's transaction.
-pub(crate) fn delete_command(transaction: &Transaction<'_>, id: &str) -> Result<bool, String> {
+pub fn delete_command(transaction: &Transaction<'_>, id: &str) -> Result<bool, String> {
     transaction
         .execute(
             "DELETE FROM saved_commands_fts WHERE command_id = ?1",

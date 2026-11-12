@@ -2,13 +2,13 @@ use super::snapshot::{
     COMMANDS, KNOWN_HOSTS, PROFILE_GROUPS, PROFILES, PROXIES, SECRETS, SERIAL_SENDS, THEMES,
 };
 use super::*;
-use crate::command_library::{models::SavedCommand, repository::CommandRepository};
 use crate::profiles::types::ProfileGroup;
 use crate::ssh::secret_store::{
     crypto::SecretKey as DataKey, store::get_secret, store::put_secret,
 };
 use crate::ssh::store::KnownHostRecord;
 use serde_json::json;
+use tterm_core::command_library::{models::SavedCommand, repository::CommandRepository};
 use tterm_core::db::Database;
 
 const CATEGORIES: [&str; 9] = [

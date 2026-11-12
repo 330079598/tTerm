@@ -5,7 +5,6 @@
 
 use super::document::Collections;
 use super::merge::{Collection, SyncRecord};
-use crate::command_library::models::SavedCommand;
 use crate::config::AppConfig;
 use crate::profiles::types::{ProfileGroup, SavedProfile};
 use crate::proxy::ProxyServer;
@@ -18,6 +17,7 @@ use crate::tunnel::types::TunnelRule;
 use rusqlite::{Connection, Transaction, params};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use tterm_core::command_library::models::SavedCommand;
 use tterm_core::db::sql_error;
 
 pub(crate) const PROFILES: &str = "profiles";
@@ -175,7 +175,7 @@ pub(crate) fn collect(
                 })
                 .collect(),
             SECRETS => collect_secrets(connection, data_key)?,
-            COMMANDS => crate::command_library::repository::list_commands(connection)?
+            COMMANDS => tterm_core::command_library::repository::list_commands(connection)?
                 .into_iter()
                 .map(|command| Ok((command.id.clone(), command_record(&command)?)))
                 .collect::<Result<_, String>>()?,
@@ -573,9 +573,9 @@ pub(crate) fn apply_database(
             }
         }
         COMMANDS => {
-            let current = crate::command_library::repository::list_commands(transaction)?;
+            let current = tterm_core::command_library::repository::list_commands(transaction)?;
             for id in &removed {
-                crate::command_library::repository::delete_command(transaction, id)?;
+                tterm_core::command_library::repository::delete_command(transaction, id)?;
             }
             for (id, record) in changed(local, merged) {
                 let existing = current.iter().find(|command| &command.id == id);
@@ -583,7 +583,7 @@ pub(crate) fn apply_database(
                 command.updated_at = record
                     .updated_at
                     .unwrap_or_else(|| chrono::Utc::now().timestamp_millis());
-                crate::command_library::repository::save_command(transaction, &command)?;
+                tterm_core::command_library::repository::save_command(transaction, &command)?;
             }
         }
         SERIAL_SENDS => {

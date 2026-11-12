@@ -8,6 +8,8 @@
 pub mod agent_status;
 /// Notifications and agent reports carried by terminal OSC sequences.
 pub mod attention_reports;
+/// The saved command library every client shares.
+pub mod command_library;
 /// Command lines, timing and shell-integration marks for one terminal.
 pub mod command_tracking;
 /// Configuration values both clients keep: the config directory, keymap

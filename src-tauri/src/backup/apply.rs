@@ -5,7 +5,6 @@ use super::automatic::restore_automatic_backup_settings;
 use super::export::secret_travels;
 use super::remote;
 use super::{BackupImportOptions, BackupLogFile, BackupPayload, BackupSelection, MissingKeyFile};
-use crate::command_library::{models::SavedCommand, repository::CommandRepository};
 use crate::config::local_shells::LocalShell;
 use crate::config::{self, AppConfig};
 use crate::profiles::groups::{list_groups, repair, replace_groups, with_legacy_groups};
@@ -23,6 +22,7 @@ use serde_json::Value;
 use std::collections::{BTreeMap, HashMap};
 use std::fs;
 use std::path::{Path, PathBuf};
+use tterm_core::command_library::{models::SavedCommand, repository::CommandRepository};
 
 /// Whether importing hands the WebDAV settings to another server or backup
 /// password, which scheduled uploads and sync would then send saved

@@ -1,8 +1,10 @@
-use super::models::SaveCommandInput;
-use super::{models::CommandVariable, models::SavedCommand, repository::CommandRepository};
 use crate::core::blocking::run_blocking;
 use chrono::Utc;
 use std::collections::HashSet;
+use tterm_core::command_library::models::CommandVariable;
+use tterm_core::command_library::models::SaveCommandInput;
+use tterm_core::command_library::models::SavedCommand;
+use tterm_core::command_library::repository::CommandRepository;
 
 pub(super) async fn list_saved_commands() -> Result<Vec<SavedCommand>, String> {
     run_blocking(|| CommandRepository::new(tterm_core::db::get()?).list()).await

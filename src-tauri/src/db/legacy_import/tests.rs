@@ -396,10 +396,11 @@ fn imports_a_real_config_directory_copy() {
     let expected_sftp = json("sftp_directories.json");
 
     let database = Database::open(&dir.join("tterm.db")).expect("open database copy");
-    let commands_before = crate::command_library::repository::CommandRepository::new(&database)
-        .list()
-        .unwrap()
-        .len();
+    let commands_before =
+        tterm_core::command_library::repository::CommandRepository::new(&database)
+            .list()
+            .unwrap()
+            .len();
     assert!(import_json_files(&database, &dir).expect("import"));
 
     database
@@ -450,7 +451,7 @@ fn imports_a_real_config_directory_copy() {
         })
         .expect("verify import");
     assert_eq!(
-        crate::command_library::repository::CommandRepository::new(&database)
+        tterm_core::command_library::repository::CommandRepository::new(&database)
             .list()
             .unwrap()
             .len(),

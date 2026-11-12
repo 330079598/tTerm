@@ -8,7 +8,6 @@ use super::{
     AutomaticBackupSettings, BackupExportOptions, BackupLogFile, BackupPayload, BackupSelection,
     MigrationSecretRecord,
 };
-use crate::command_library::repository::CommandRepository;
 use crate::config;
 use crate::profiles::types::SavedProfile;
 use crate::serial::history::store as serial_sends;
@@ -19,6 +18,7 @@ use serde::Serialize;
 use serde_json::Value;
 use std::fs;
 use std::path::{Component, PathBuf};
+use tterm_core::command_library::repository::CommandRepository;
 
 pub(super) fn validate_export_options(options: &BackupExportOptions) -> Result<(), String> {
     if !options.selection.any() {
