@@ -505,17 +505,21 @@ fn is_tab_icon_choice(value: &str) -> bool {
     TAB_ICON_IDS.contains(&value)
 }
 
-fn is_hex_color(value: &str) -> bool {
-    let Ok(regex) = Regex::with_flags(
+static HEX_COLOR: LazyLock<Option<Regex>> = LazyLock::new(|| {
+    Regex::with_flags(
         "^#[0-9a-f]{6}$",
         Flags {
             icase: true,
             ..Flags::default()
         },
-    ) else {
-        return false;
-    };
-    regex.find(value).is_some()
+    )
+    .ok()
+});
+
+fn is_hex_color(value: &str) -> bool {
+    HEX_COLOR
+        .as_ref()
+        .is_some_and(|regex| regex.find(value).is_some())
 }
 
 /// A saved style with unknown icons and malformed colors left out.
