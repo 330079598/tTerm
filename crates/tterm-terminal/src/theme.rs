@@ -29,6 +29,9 @@ use crate::palette::{Rgba, TerminalPalette};
 /// JavaScript-compatible string and number helpers.
 pub mod js;
 
+mod css;
+
+use self::css::parse_palette_color;
 use self::js::{js_number_to_string, js_round, js_trim};
 
 /// The interface color keys, in the order the frontend serializes them.
@@ -685,30 +688,6 @@ pub fn contrast_ratio(first: &str, second: &str) -> Option<f64> {
     let lighter = first.max(second);
     let darker = first.min(second);
     Some((lighter + 0.05) / (darker + 0.05))
-}
-
-fn parse_palette_color(value: &str) -> Option<Rgba> {
-    if let Some(color) = Rgba::parse(value) {
-        return Some(color);
-    }
-    let mut color = Rgba::parse(&color_to_hex(value)?)?;
-    let normalized = js_trim(value);
-    let alpha = if let Some((_, tail)) = normalized.rsplit_once('/') {
-        tail.trim_end_matches(')').trim().parse::<f64>().ok()
-    } else if normalized.get(..5)?.eq_ignore_ascii_case("hsla(") {
-        normalized
-            .trim_end_matches(')')
-            .split([' ', ','])
-            .filter(|part| !part.is_empty())
-            .nth(3)
-            .and_then(|part| part.parse::<f64>().ok())
-    } else {
-        None
-    };
-    if let Some(alpha) = alpha {
-        color.a = (alpha.clamp(0.0, 1.0) * 255.0).round() as u8;
-    }
-    Some(color)
 }
 
 fn shift(base: Hsl, h: f64, s: f64, l: f64) -> Hsl {

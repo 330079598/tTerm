@@ -4,6 +4,8 @@ use serde_json::Value;
 
 const ORACLE_JSON: &str =
     include_str!("../../../../docs/gpui-migration/reports/P1-11f-evidence/node.json");
+const CSS_ORACLE_JSON: &str =
+    include_str!("../../../../docs/gpui-migration/reports/P1-11f-evidence/css-colors.json");
 
 fn oracle() -> Value {
     serde_json::from_str(ORACLE_JSON).expect("the oracle JSON is valid")
@@ -256,6 +258,59 @@ fn palette_text_round_trips_unknown_terminal_keys_and_nulls() {
     assert_eq!(serialized["background"], "#000000");
     assert_eq!(serialized["selectionForeground"], Value::Null);
     assert_eq!(serialized["unknownTerminal"], "kept");
+}
+
+#[test]
+fn palette_colors_match_xterm() {
+    let oracle: Value =
+        serde_json::from_str(CSS_ORACLE_JSON).expect("the CSS oracle JSON is valid");
+    for case in oracle["xterm"].as_array().expect("an array") {
+        let value = case["value"].as_str().expect("a color string");
+        if value.to_ascii_lowercase().starts_with("hsl") {
+            continue;
+        }
+        let rgba = case["rgba"].as_array().expect("four channels");
+        let expected = Rgba::new(
+            rgba[0].as_u64().expect("red") as u8,
+            rgba[1].as_u64().expect("green") as u8,
+            rgba[2].as_u64().expect("blue") as u8,
+            rgba[3].as_u64().expect("alpha") as u8,
+        );
+        let mut palette = PaletteText::default();
+        palette.background = value.to_string();
+        assert_eq!(palette.to_terminal_palette().background, expected, "{value}");
+    }
+}
+
+#[test]
+fn translucent_hsl_keeps_the_typescript_rgb_and_css_alpha() {
+    let oracle: Value =
+        serde_json::from_str(CSS_ORACLE_JSON).expect("the CSS oracle JSON is valid");
+    for case in oracle["themePalette"].as_array().expect("an array") {
+        let value = case["value"].as_str().expect("a color string");
+        let rgba = case["rgba"].as_array().expect("four channels");
+        let expected = Rgba::new(
+            rgba[0].as_u64().expect("red") as u8,
+            rgba[1].as_u64().expect("green") as u8,
+            rgba[2].as_u64().expect("blue") as u8,
+            rgba[3].as_u64().expect("alpha") as u8,
+        );
+        let mut palette = PaletteText::default();
+        palette.background = value.to_string();
+        assert_eq!(palette.to_terminal_palette().background, expected, "{value}");
+    }
+}
+
+#[test]
+fn a_blurred_background_keeps_its_rgb_and_zero_alpha() {
+    let palette: PaletteText =
+        serde_json::from_value(oracle()["terminalPalette"]["defaultPalette"].clone())
+            .expect("the default palette");
+    let palette = palette.with_window_blur(true);
+    assert_eq!(
+        palette.to_terminal_palette().background,
+        Rgba::new(0x1b, 0x1d, 0x23, 0)
+    );
 }
 
 #[test]
