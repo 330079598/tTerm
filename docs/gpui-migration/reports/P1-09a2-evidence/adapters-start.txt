@@ -1,0 +1,238 @@
+config/mod.rs  (23 movable dependents)
+    backup/apply.rs: AppConfig config
+    backup/archive.rs: AppConfig
+    backup/automatic.rs: config
+    backup/diff.rs: config
+    backup/export.rs: config
+    backup/remote/service.rs: config
+    backup/snapshot.rs: config
+    config/defaults.rs: AppConfig
+    config/local_shells.rs: AppConfig
+    config/reconnect.rs: load_config_file
+    config/save.rs: AppConfig load_config_file save_config_file
+    core/session/mod.rs: ssh_shell_integration_enabled
+    proxy/resolve.rs: load_config_file
+    session_log/manager.rs: AppConfig
+    sftp/internal/api.rs: AppConfig load_config_file
+    ssh/client.rs: tab_icons_enabled
+    ssh/client/setup.rs: command_marks_enabled
+    ssh/secret_store/mod.rs: config load_config_file save_config_file
+    ssh/secret_store/verification.rs: load_config_file
+    sync/snapshot.rs: AppConfig load_config_file save_config_file
+    terminal/local_integration.rs: command_marks_enabled local_shell_integration_enabled
+    terminal/windows_shell.rs: command_marks_enabled
+    zmodem/session.rs: load_config_file
+session_log/mod.rs  (21 movable dependents)
+    config/save.rs: LogContext
+    connection_context.rs: LogContext
+    core/commands/create.rs: start_session
+    core/session/mod.rs: SessionLogPolicy
+    core/session/types.rs: SessionLogPolicy
+    core/supervisor.rs: end_session record_output
+    services/app.rs: SessionLogState
+    session_log/maintenance.rs: CLEANUP_INTERVAL LogContext SessionLogState emit_status
+    session_log/manager.rs: LogConfig LogContext SessionLogPolicy SessionLogState SessionMetadata TerminalLogStatus emit_error emit_start_error emit_status
+    session_log/naming.rs: LogFiles SessionMetadata
+    session_log/plain.rs: MAX_QUEUED_PLAIN_LINES
+    session_log/rotating.rs: LogContext WeakLogContext
+    session_log/worker.rs: LogContext WeakLogContext emit_error
+    session_log/writer.rs: LogConfig LogContext SessionMetadata
+    ssh/client/output.rs: LogContext record_output
+    ssh/client/reader.rs: LogContext record_output
+    ssh/context.rs: LogContext
+    ssh/jump/connect.rs: record_output
+    ssh/jump/handler.rs: record_output
+    ssh/types.rs: record_output
+    terminal/reader.rs: LogContext record_output
+proxy/mod.rs  (17 movable dependents)
+    backup/apply.rs: ProxyServer
+    backup/archive.rs: ProxyServer
+    backup/snapshot.rs: ProxyServer
+    core/session/types.rs: ProxyChoice ProxyEndpoint
+    profiles/commands/import/proxy.rs: ProxyChoice ProxyKind ProxyServer proxy
+    profiles/parser/proxy_command.rs: ProxyKind
+    profiles/storage.rs: proxy_secret_key
+    profiles/types.rs: ProxyChoice ProxyKind
+    proxy/connect.rs: ProxyEndpoint ProxyKind
+    proxy/http_connect.rs: ProxyEndpoint
+    proxy/resolve.rs: ProxyChoice ProxyEndpoint ProxyServer proxy_secret_key
+    proxy/socks5.rs: ProxyEndpoint
+    proxy/storage.rs: ProxyServer
+    ssh/jump/connect.rs: ProxyEndpoint ProxyKind proxy
+    ssh/jump/hop.rs: ProxyEndpoint
+    ssh/jump/pool.rs: ProxyEndpoint
+    sync/snapshot.rs: ProxyServer
+ssh/auth.rs  (14 movable dependents)
+    core/session/types.rs: AuthMethod
+    monitor/session.rs: AuthPrompter
+    profiles/commands/connection_check.rs: AuthPrompter AuthTarget authenticate
+    profiles/service.rs: AuthPrompter
+    sftp/internal/connection.rs: AuthPrompter AuthTarget auth
+    ssh/auth/auto.rs: AuthPrompter AuthTarget AuthUsed DEFAULT_IDENTITY_FILES TYPING_ATTEMPTS
+    ssh/auth/methods.rs: AuthPrompter AuthTarget EXCHANGE_TIMEOUT MAX_STEPS
+    ssh/auth/prompter.rs: AuthPrompter AuthTarget PROMPT_TIMEOUT
+    ssh/client.rs: AuthPrompter
+    ssh/jump/connect.rs: AuthMethod AuthPrompter AuthTarget auth authenticate
+    ssh/jump/hop.rs: AuthPrompter AuthTarget auth authenticate
+    ssh/test_sshd.rs: AuthMethod AuthPrompter AuthTarget authenticate
+    ssh/types.rs: AuthUsed
+    tunnel/runtime.rs: AuthPrompter
+terminal/io_batcher.rs  (9 movable dependents)
+    core/commands/create.rs: TerminalOutputSender
+    core/supervisor.rs: TerminalOutputSender
+    serial/session.rs: TerminalOutputSender
+    ssh/client.rs: TerminalOutputSender
+    ssh/client/output.rs: TerminalOutputSender
+    ssh/client/reader.rs: TerminalOutputSender
+    ssh/client/setup.rs: TerminalOutputSender
+    terminal/output.rs: OutputFlow
+    terminal/reader.rs: TerminalOutputSender
+backup/mod.rs  (8 movable dependents)
+    backup/apply.rs: BackupImportOptions BackupLogFile BackupPayload BackupSelection MissingKeyFile
+    backup/archive.rs: BACKUP_AAD BackupCrypto BackupManifest BackupPayload BackupSelection DecodedBundle ENCRYPTED_PAYLOAD_ENTRY FORMAT_NAME FORMAT_VERSION MANIFEST_ENTRY MAX_BACKUP_SIZE MAX_PAYLOAD_SIZE PAYLOAD_ENTRY
+    backup/automatic.rs: AUTOMATIC_LAST_BACKUP_AT_KEY AUTOMATIC_SETTINGS_FILE AUTOMATIC_SETTINGS_KEY AutomaticBackupSettings BackupExportResult BackupHistoryEntry BackupSelection
+    backup/diff.rs: BackupDiff BackupPayload CategoryDiff
+    backup/export.rs: AutomaticBackupSettings BackupExportOptions BackupLogFile BackupPayload BackupSelection MigrationSecretRecord
+    backup/remote/service.rs: MAX_BACKUP_SIZE backup normalized_backup_path
+    backup/service.rs: AutomaticBackupSettings BackupExportOptions BackupExportResult BackupHistoryEntry BackupImportOptions BackupImportResult BackupInspectInput BackupInspectResult export_backup_blocking import_backup_blocking inspect_backup_blocking
+    backup/snapshot.rs: AUTOMATIC_SETTINGS_KEY BackupPayload BackupSelection
+backup/remote.rs  (8 movable dependents)
+    backup/apply.rs: remote
+    backup/archive.rs: remote
+    backup/automatic.rs: remote
+    backup/diff.rs: remote
+    backup/export.rs: remote
+    backup/remote/files.rs: FILE_EXTENSION FILE_PREFIX RemoteBackupEntry TIMESTAMP_FORMAT TIMESTAMP_LEN
+    backup/remote/service.rs: BACKUP_PASSWORD_KEY DOWNLOAD_DIRECTORY PASSWORD_KEY RemoteBackupEntry UPLOADING WebDavBackupSettings WebDavBackupStatus WebDavDeleteResult WebDavUploadResult clear_downloads clear_settings connect load_settings non_empty normalized_settings run_webdav_backup_locked same_account save_keeping_history saved_secret status
+    backup/snapshot.rs: remote
+serial/mod.rs  (8 movable dependents)
+    core/session/mod.rs: SerialPlan
+    core/session/types.rs: SerialOptions SerialPlan
+    core/state.rs: SerialView
+    profiles/types.rs: SerialOptions
+    serial/open.rs: SerialFlowControl SerialOptions SerialParity
+    serial/output.rs: SerialReceiveNewline SerialView
+    serial/ports.rs: SerialOptions SerialPortEntry SerialUsbId
+    serial/session.rs: SerialLine SerialLineEnding SerialOptions
+agent_integration/mod.rs  (5 movable dependents)
+    agent_integration/claude_code.rs: agent_integration
+    agent_integration/codex.rs: REPORT_ARG agent_integration
+    agent_integration/console_report.rs: REPORT_ARG
+    agent_integration/hooks.rs: IntegrationState REPORT_MARKER
+    agent_integration/plugin_file.rs: IntegrationState REPORT_MARKER
+session/mod.rs  (5 movable dependents)
+    backup/apply.rs: write_session
+    backup/archive.rs: SessionData
+    backup/export.rs: read_session
+    backup/snapshot.rs: SESSION_KEY
+    db/legacy_import.rs: import_file
+ssh/key_vault/mod.rs  (5 movable dependents)
+    ssh/auth/methods.rs: key_vault
+    ssh/key_file.rs: key_vault
+    ssh/key_vault/entry.rs: VaultKeySummary
+    ssh/key_vault/import.rs: ImportVaultKeyInput MAX_FILE_BYTES
+    ssh/key_vault/store.rs: SECRET_PREFIX reference_id secret_key
+sync/mod.rs  (5 movable dependents)
+    backup/apply.rs: restore_settings
+    backup/export.rs: load_settings
+    backup/snapshot.rs: SETTINGS_KEY
+    db/legacy_import.rs: import_settings_file
+    sync/service.rs: SYNC_LOCK SyncOutcome SyncSettings SyncStatus set_last_error status sync write_settings
+app_state.rs  (4 movable dependents)
+    backup/apply.rs: collapsed_profile_group_keys set_collapsed_profile_group_keys
+    backup/export.rs: collapsed_profile_group_keys
+    backup/snapshot.rs: COLLAPSED_PROFILE_GROUP_KEYS
+    db/legacy_import.rs: import_from_config_file
+background/tray/mod.rs  (4 movable dependents)
+    app_context.rs: TrayContext
+    config/save.rs: TrayContext
+    services/app.rs: TrayState
+    tunnel/runtime/reporter.rs: TrayContext refresh_tunnels
+serial/history/mod.rs  (4 movable dependents)
+    backup/apply.rs: SerialSend history
+    backup/snapshot.rs: SerialSend
+    serial/history/store.rs: HISTORY_LIMIT SerialSend SerialSendMode
+    sync/snapshot.rs: SerialSend history
+sftp/internal/api/external/mod.rs  (4 movable dependents)
+    services/sftp.rs: ExternalEditState
+    sftp/internal/api/external/operations.rs: AppChoice ExternalEditState Host OpenIn OpenWithChoices UploadOutcome emit end_sessions file_name_of fingerprint launch png_data_url start_session
+    sftp/internal/api/external/sessions.rs: EditSession ExternalEditState
+    sftp/internal/api/external/watch.rs: ExternalEditState
+themes.rs  (4 movable dependents)
+    backup/apply.rs: list_themes mark_themes_imported replace_themes
+    backup/export.rs: list_themes themes_imported
+    backup/snapshot.rs: list_themes replace_themes
+    sync/snapshot.rs: delete_theme upsert_theme
+tunnel/commands.rs  (4 movable dependents)
+    app_context.rs: TunnelContext
+    profiles/service.rs: TunnelManager
+    services/app.rs: TunnelManager
+    sync/service.rs: TunnelManager
+background/mod.rs  (3 movable dependents)
+    app_context.rs: BackgroundContext
+    config/save.rs: CloseBehaviorState apply_config
+    services/app.rs: CloseBehaviorState
+serial/xmodem/mod.rs  (3 movable dependents)
+    serial/xmodem/disk.rs: XmodemProtocol
+    serial/xmodem/protocol.rs: XmodemProtocol
+    serial/xmodem/transfer.rs: XmodemProtocol
+sftp/internal/api/base.rs  (3 movable dependents)
+    sftp/internal/api/base/operations.rs: read_directory_entries resolve_initial_directory
+    sftp/internal/api/search/find.rs: directory_entry
+    sftp/internal/api/search/walk.rs: directory_entry
+sftp/internal/api/download.rs  (3 movable dependents)
+    sftp/internal/api/download/directory.rs: is_cancelled transfer_options transfer_outcome
+    sftp/internal/api/download/items.rs: next_transfer_id
+    sftp/internal/api/download/operations.rs: download_file_with_progress
+sftp/internal/api/search.rs  (3 movable dependents)
+    sftp/internal/api/search/find.rs: ResultSink
+    sftp/internal/api/search/operations.rs: SearchRequest SearchSummary search
+    sftp/internal/api/search/walk.rs: ResultSink
+terminal/pty.rs  (3 movable dependents)
+    backup/apply.rs: has_terminal_shell wsl_distro_installed
+    terminal/unix_shell.rs: TerminalShellProfile apply_macos_login_shell_env find_executable_in macos_shell_path pty resolve_home_dir
+    terminal/windows_shell.rs: TerminalShellProfile find_executable_in pty resolve_home_dir shell_program_name
+background/quit.rs  (2 movable dependents)
+    app_context.rs: QuitContext
+    services/app.rs: QuitState
+proxy/approval.rs  (2 movable dependents)
+    proxy/connect.rs: ProxyPromptContext ensure_allowed
+    ssh/jump/connect.rs: ProxyPromptContext
+sftp/internal/api/archive.rs  (2 movable dependents)
+    sftp/internal/api/archive/operations.rs: CompressRequest ExtractRequest RemoteOperationResult compress extract
+    sftp/internal/api/archive/script.rs: ArchiveFormat
+sftp/internal/api/upload/commands/mod.rs  (2 movable dependents)
+    sftp/internal/api/upload/commands/operations.rs: UploadBatch collect_upload_conflicts run
+    sftp/internal/api/upload/items.rs: resolve_upload_target
+ssh/typed_passwords.rs  (2 movable dependents)
+    profiles/service.rs: get
+    ssh/auth/auto.rs: typed_passwords
+background/exit_guard.rs  (1 movable dependents)
+    services/app.rs: ExitGuardState
+command_library/commands.rs  (1 movable dependents)
+    command_library/service/mod.rs: SaveCommandInput
+config/window_background.rs  (1 movable dependents)
+    db/legacy_import.rs: import_file
+core/commands/mod.rs  (1 movable dependents)
+    core/commands/create.rs: stop_pty_session
+event_sink/zmodem.rs  (1 movable dependents)
+    zmodem/session.rs: transfer_wire
+launch_dir.rs  (1 movable dependents)
+    services/app.rs: LaunchDirs
+profiles/commands.rs  (1 movable dependents)
+    profiles/service.rs: TestConnectionResult
+session/scrollback.rs  (1 movable dependents)
+    backup/apply.rs: clear_all
+sftp/internal/api/delete/commands/mod.rs  (1 movable dependents)
+    sftp/internal/api/delete/commands/operations.rs: delete_directory_recursive
+sftp/internal/api/edit.rs  (1 movable dependents)
+    sftp/internal/api/edit/operations.rs: SftpEditBaseline SftpEditableFile SftpSaveEditedFileResult load_editable_file save_editable_file
+sftp/internal/api/permissions.rs  (1 movable dependents)
+    sftp/internal/api/permissions/operations.rs: set_permissions
+system_integration/mod.rs  (1 movable dependents)
+    config/save.rs: apply_config
+updater.rs  (1 movable dependents)
+    services/app.rs: PendingUpdateDownloads
+window_state/mod.rs  (1 movable dependents)
+    window_state/placement.rs: Bounds
+247 movable files, 43 adapter or stay files still needed
