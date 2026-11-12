@@ -1,4 +1,4 @@
-    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.36s
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1.31s
      Running unittests src/lib.rs (target/debug/deps/t_term_lib-a4658f22393d846c)
 agent_integration::claude_code::tests::hook_includes_a_valid_session_id_and_discards_shell_text: test
 agent_integration::claude_code::tests::hook_prints_the_json_claude_code_expects: test
