@@ -271,3 +271,54 @@ fn oracle_pane_sizes_handle_zero_exponents_and_non_finite_values() {
         r#"{"type":"split","orientation":"horizontal","children":[{"type":"pane","tabId":"a"},{"type":"pane","tabId":"b"},{"type":"pane","tabId":"c"},{"type":"pane","tabId":"d"},{"type":"pane","tabId":"e"},{"type":"pane","tabId":"f"},{"type":"pane","tabId":"g"}],"sizes":[0,1e+21,1e-7,-1e-7,null,null,0.3333333333333333]}"#
     );
 }
+
+#[test]
+fn oracle_drag_sash_results_roundtrip_byte_for_byte_through_json() {
+    let oracle = super::oracle_json();
+    let cases = oracle["paneLayout"]["drag"]["cases"]
+        .as_array()
+        .expect("the oracle has drag cases");
+    assert!(!cases.is_empty());
+
+    for case in cases {
+        let expected_json = case["resultJson"]
+            .as_str()
+            .expect("a drag result JSON string");
+        let expected: Vec<f64> = serde_json::from_str(expected_json).expect("a drag result list");
+        assert_eq!(
+            serde_json::to_string(&expected).expect("serialized drag results"),
+            expected_json
+        );
+
+        let sizes: Vec<f64> = case["sizes"]
+            .as_array()
+            .expect("sizes")
+            .iter()
+            .map(|value| value.as_f64().expect("a size"))
+            .collect();
+        let minimums: Vec<f64> = case["minimums"]
+            .as_array()
+            .expect("minimums")
+            .iter()
+            .map(|value| value.as_f64().expect("a minimum"))
+            .collect();
+        let actual = drag_sash(
+            &sizes,
+            case["index"].as_i64().expect("an index"),
+            case["delta"].as_f64().expect("a delta"),
+            case["room"].as_f64().expect("room"),
+            &minimums,
+        );
+        assert_eq!(actual, expected);
+    }
+}
+
+#[test]
+fn oracle_parses_the_seventeen_digit_drag_result_exactly() {
+    let value: f64 = serde_json::from_str("0.46311066799601197").expect("a float");
+    assert_eq!(value.to_bits(), 0.46311066799601197_f64.to_bits());
+    assert_eq!(
+        serde_json::to_string(&value).expect("a serialized float"),
+        "0.46311066799601197"
+    );
+}

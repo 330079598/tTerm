@@ -104,6 +104,18 @@ const negativeLayout = paneLayout.layoutPaneTree(
   { left: -10, top: -3, width: 5, height: 10 },
   0
 )
+const dragCases = [
+  { sizes: [0.5, 0.5], index: 0, delta: -37, room: 1003, minimums: [200, 200] },
+  { sizes: [0.5, 0.5], index: 0, delta: 37, room: 1003, minimums: [200, 200] },
+  {
+    sizes: [0.3333333333333333, 0.6666666666666666],
+    index: 0,
+    delta: -17,
+    room: 997,
+    minimums: [100, 200],
+  },
+  { sizes: [0.25, 0.75], index: 0, delta: 11, room: 999, minimums: [100, 300] },
+]
 const rect = (id, left, top, right, bottom) => ({ id, left, top, right, bottom })
 const capture = (call) => {
   try {
@@ -369,6 +381,16 @@ const result = {
       clamped: paneLayout.dragSash([0.5, 0.5], 0, 400, 1000, [200, 200]),
       invalidRoom: paneLayout.dragSash([0.5, 0.5], 0, 100, 0, [200, 200]),
       invalidIndex: paneLayout.dragSash([0.5, 0.5], 1, 100, 1000, [200, 200]),
+      cases: dragCases.map((candidate) => {
+        const result = paneLayout.dragSash(
+          candidate.sizes,
+          candidate.index,
+          candidate.delta,
+          candidate.room,
+          candidate.minimums
+        )
+        return { ...candidate, result, resultJson: JSON.stringify(result) }
+      }),
     },
     split: [
       paneLayout.getSplitAt(tree, [1])?.orientation ?? null,
