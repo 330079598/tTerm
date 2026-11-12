@@ -365,7 +365,7 @@ pub fn run() {
             updater::download_install_app_update,
             main_window::toggle_devtools,
             ime_focus::repair_ime_focus,
-            launch_dir::take_launch_dirs,
+            launch_dir::commands::take_launch_dirs,
             system_integration::shell_command_status,
             system_integration::set_shell_command,
             system_integration::folder_menu_status,
