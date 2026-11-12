@@ -8,20 +8,20 @@ use crate::ssh::secret_store::types::SecretStoreState;
 use std::sync::Arc;
 use tterm_core::prompts::PromptBroker;
 
-pub(super) struct SftpCompressEntriesInput {
-    pub(super) tab_id: String,
-    pub(super) connection: Option<PtyConnectionOptions>,
-    pub(super) operation_id: String,
-    pub(super) request: CompressRequest,
+pub(crate) struct SftpCompressEntriesInput {
+    pub(crate) tab_id: String,
+    pub(crate) connection: Option<PtyConnectionOptions>,
+    pub(crate) operation_id: String,
+    pub(crate) request: CompressRequest,
 }
-pub(super) struct SftpCompressEntriesDependencies {
-    pub(super) context: SftpContext,
-    pub(super) prompts: Arc<PromptBroker>,
-    pub(super) secrets: SecretStoreState,
-    pub(super) pool: SftpConnectionPool,
-    pub(super) cancel: TransferCancelMap,
+pub(crate) struct SftpCompressEntriesDependencies {
+    pub(crate) context: SftpContext,
+    pub(crate) prompts: Arc<PromptBroker>,
+    pub(crate) secrets: SecretStoreState,
+    pub(crate) pool: SftpConnectionPool,
+    pub(crate) cancel: TransferCancelMap,
 }
-pub(super) async fn sftp_compress_entries_service(
+pub(crate) async fn sftp_compress_entries_service(
     dependencies: SftpCompressEntriesDependencies,
     input: SftpCompressEntriesInput,
 ) -> Result<RemoteOperationResult, String> {
@@ -53,20 +53,20 @@ pub(super) async fn sftp_compress_entries_service(
     .await
 }
 
-pub(super) struct SftpExtractArchiveInput {
-    pub(super) tab_id: String,
-    pub(super) connection: Option<PtyConnectionOptions>,
-    pub(super) operation_id: String,
-    pub(super) request: ExtractRequest,
+pub(crate) struct SftpExtractArchiveInput {
+    pub(crate) tab_id: String,
+    pub(crate) connection: Option<PtyConnectionOptions>,
+    pub(crate) operation_id: String,
+    pub(crate) request: ExtractRequest,
 }
-pub(super) struct SftpExtractArchiveDependencies {
-    pub(super) context: SftpContext,
-    pub(super) prompts: Arc<PromptBroker>,
-    pub(super) secrets: SecretStoreState,
-    pub(super) pool: SftpConnectionPool,
-    pub(super) cancel: TransferCancelMap,
+pub(crate) struct SftpExtractArchiveDependencies {
+    pub(crate) context: SftpContext,
+    pub(crate) prompts: Arc<PromptBroker>,
+    pub(crate) secrets: SecretStoreState,
+    pub(crate) pool: SftpConnectionPool,
+    pub(crate) cancel: TransferCancelMap,
 }
-pub(super) async fn sftp_extract_archive_service(
+pub(crate) async fn sftp_extract_archive_service(
     dependencies: SftpExtractArchiveDependencies,
     input: SftpExtractArchiveInput,
 ) -> Result<RemoteOperationResult, String> {
@@ -98,13 +98,13 @@ pub(super) async fn sftp_extract_archive_service(
     .await
 }
 
-pub(super) struct SftpCancelRemoteOperationInput {
-    pub(super) operation_id: String,
+pub(crate) struct SftpCancelRemoteOperationInput {
+    pub(crate) operation_id: String,
 }
-pub(super) struct SftpCancelRemoteOperationDependencies {
-    pub(super) cancel: TransferCancelMap,
+pub(crate) struct SftpCancelRemoteOperationDependencies {
+    pub(crate) cancel: TransferCancelMap,
 }
-pub(super) async fn sftp_cancel_remote_operation_service(
+pub(crate) async fn sftp_cancel_remote_operation_service(
     dependencies: SftpCancelRemoteOperationDependencies,
     input: SftpCancelRemoteOperationInput,
 ) -> Result<(), String> {

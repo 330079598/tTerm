@@ -1,4 +1,4 @@
-use super::operations::{
+use super::download::operations::{
     SftpCheckDownloadConflictsDependencies, SftpCheckDownloadConflictsInput,
     SftpDownloadFileDependencies, SftpDownloadFileInput, SftpDownloadPathsDependencies,
     SftpDownloadPathsInput, get_file_size_service, sftp_check_download_conflicts_service,

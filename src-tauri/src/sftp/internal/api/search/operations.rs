@@ -9,21 +9,21 @@ use std::sync::Arc;
 use tterm_core::prompts::PromptBroker;
 use tterm_core::sftp::search::SearchResultSink;
 
-pub(super) struct SftpSearchEntriesInput {
-    pub(super) tab_id: String,
-    pub(super) connection: Option<PtyConnectionOptions>,
-    pub(super) search_id: String,
-    pub(super) request: SearchRequest,
-    pub(super) on_event: Arc<dyn SearchResultSink>,
+pub(crate) struct SftpSearchEntriesInput {
+    pub(crate) tab_id: String,
+    pub(crate) connection: Option<PtyConnectionOptions>,
+    pub(crate) search_id: String,
+    pub(crate) request: SearchRequest,
+    pub(crate) on_event: Arc<dyn SearchResultSink>,
 }
-pub(super) struct SftpSearchEntriesDependencies {
-    pub(super) context: SftpContext,
-    pub(super) prompts: Arc<PromptBroker>,
-    pub(super) secrets: SecretStoreState,
-    pub(super) pool: SftpConnectionPool,
-    pub(super) cancel: TransferCancelMap,
+pub(crate) struct SftpSearchEntriesDependencies {
+    pub(crate) context: SftpContext,
+    pub(crate) prompts: Arc<PromptBroker>,
+    pub(crate) secrets: SecretStoreState,
+    pub(crate) pool: SftpConnectionPool,
+    pub(crate) cancel: TransferCancelMap,
 }
-pub(super) async fn sftp_search_entries_service(
+pub(crate) async fn sftp_search_entries_service(
     dependencies: SftpSearchEntriesDependencies,
     input: SftpSearchEntriesInput,
 ) -> Result<SearchSummary, String> {

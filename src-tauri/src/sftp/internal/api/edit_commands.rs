@@ -1,8 +1,8 @@
-use super::operations::{
+use super::edit::operations::{
     SftpOpenFileForEditDependencies, SftpOpenFileForEditInput, SftpSaveEditedFileDependencies,
     SftpSaveEditedFileInput, sftp_open_file_for_edit_service, sftp_save_edited_file_service,
 };
-use super::{SftpEditBaseline, SftpEditableFile, SftpSaveEditedFileResult};
+use super::edit::{SftpEditBaseline, SftpEditableFile, SftpSaveEditedFileResult};
 use crate::core::session::types::PtyConnectionOptions;
 use crate::services::AppServices;
 use tauri::State;

@@ -2,9 +2,7 @@
 //! `find` does the walking where it can; otherwise the walk runs over SFTP.
 //! Matches stream to the drawer as they are found.
 
-#[path = "search_commands.rs"]
-pub(crate) mod commands;
-mod operations;
+pub(super) mod operations;
 use std::sync::Arc;
 use tterm_core::sftp::entry::SftpDirectoryEntry;
 use tterm_core::sftp::search::{SearchEvent, SearchResultSink};

@@ -16,22 +16,22 @@ use tterm_core::events::EventSink;
 use tterm_core::prompts::PromptBroker;
 use tterm_core::sftp::conflict::ConflictPolicy;
 
-pub(super) struct SftpDownloadFileInput {
-    pub(super) tab_id: String,
-    pub(super) connection: Option<PtyConnectionOptions>,
-    pub(super) transfer_id: String,
-    pub(super) remote_path: String,
-    pub(super) local_path: String,
+pub(crate) struct SftpDownloadFileInput {
+    pub(crate) tab_id: String,
+    pub(crate) connection: Option<PtyConnectionOptions>,
+    pub(crate) transfer_id: String,
+    pub(crate) remote_path: String,
+    pub(crate) local_path: String,
 }
-pub(super) struct SftpDownloadFileDependencies {
-    pub(super) context: SftpContext,
-    pub(super) prompts: Arc<PromptBroker>,
-    pub(super) secrets: SecretStoreState,
-    pub(super) pool: SftpConnectionPool,
-    pub(super) cancel: TransferCancelMap,
-    pub(super) events: Arc<dyn EventSink>,
+pub(crate) struct SftpDownloadFileDependencies {
+    pub(crate) context: SftpContext,
+    pub(crate) prompts: Arc<PromptBroker>,
+    pub(crate) secrets: SecretStoreState,
+    pub(crate) pool: SftpConnectionPool,
+    pub(crate) cancel: TransferCancelMap,
+    pub(crate) events: Arc<dyn EventSink>,
 }
-pub(super) async fn sftp_download_file_service(
+pub(crate) async fn sftp_download_file_service(
     dependencies: SftpDownloadFileDependencies,
     input: SftpDownloadFileInput,
 ) -> Result<(), String> {
@@ -67,24 +67,24 @@ pub(super) async fn sftp_download_file_service(
     .await
 }
 
-pub(super) struct SftpDownloadPathsInput {
-    pub(super) tab_id: String,
-    pub(super) connection: Option<PtyConnectionOptions>,
-    pub(super) transfer_id: String,
-    pub(super) remote_paths: Vec<String>,
-    pub(super) local_parent_path: String,
-    pub(super) skip_existing: Option<bool>,
-    pub(super) conflict_policy: Option<ConflictPolicy>,
+pub(crate) struct SftpDownloadPathsInput {
+    pub(crate) tab_id: String,
+    pub(crate) connection: Option<PtyConnectionOptions>,
+    pub(crate) transfer_id: String,
+    pub(crate) remote_paths: Vec<String>,
+    pub(crate) local_parent_path: String,
+    pub(crate) skip_existing: Option<bool>,
+    pub(crate) conflict_policy: Option<ConflictPolicy>,
 }
-pub(super) struct SftpDownloadPathsDependencies {
-    pub(super) context: SftpContext,
-    pub(super) prompts: Arc<PromptBroker>,
-    pub(super) secrets: SecretStoreState,
-    pub(super) pool: SftpConnectionPool,
-    pub(super) cancel: TransferCancelMap,
-    pub(super) events: Arc<dyn EventSink>,
+pub(crate) struct SftpDownloadPathsDependencies {
+    pub(crate) context: SftpContext,
+    pub(crate) prompts: Arc<PromptBroker>,
+    pub(crate) secrets: SecretStoreState,
+    pub(crate) pool: SftpConnectionPool,
+    pub(crate) cancel: TransferCancelMap,
+    pub(crate) events: Arc<dyn EventSink>,
 }
-pub(super) async fn sftp_download_paths_service(
+pub(crate) async fn sftp_download_paths_service(
     dependencies: SftpDownloadPathsDependencies,
     input: SftpDownloadPathsInput,
 ) -> Result<(), String> {
@@ -129,19 +129,19 @@ pub(super) async fn sftp_download_paths_service(
     .await
 }
 
-pub(super) struct SftpCheckDownloadConflictsInput {
-    pub(super) tab_id: String,
-    pub(super) connection: Option<PtyConnectionOptions>,
-    pub(super) remote_paths: Vec<String>,
-    pub(super) local_parent_path: String,
+pub(crate) struct SftpCheckDownloadConflictsInput {
+    pub(crate) tab_id: String,
+    pub(crate) connection: Option<PtyConnectionOptions>,
+    pub(crate) remote_paths: Vec<String>,
+    pub(crate) local_parent_path: String,
 }
-pub(super) struct SftpCheckDownloadConflictsDependencies {
-    pub(super) context: SftpContext,
-    pub(super) prompts: Arc<PromptBroker>,
-    pub(super) secrets: SecretStoreState,
-    pub(super) pool: SftpConnectionPool,
+pub(crate) struct SftpCheckDownloadConflictsDependencies {
+    pub(crate) context: SftpContext,
+    pub(crate) prompts: Arc<PromptBroker>,
+    pub(crate) secrets: SecretStoreState,
+    pub(crate) pool: SftpConnectionPool,
 }
-pub(super) async fn sftp_check_download_conflicts_service(
+pub(crate) async fn sftp_check_download_conflicts_service(
     dependencies: SftpCheckDownloadConflictsDependencies,
     input: SftpCheckDownloadConflictsInput,
 ) -> Result<ConflictReport, String> {
@@ -203,7 +203,7 @@ pub(super) async fn sftp_check_download_conflicts_service(
 }
 
 /// Reads file metadata away from the calling thread.
-pub(super) async fn get_file_size_service(local_path: String) -> Result<u64, String> {
+pub(crate) async fn get_file_size_service(local_path: String) -> Result<u64, String> {
     tokio::task::spawn_blocking(move || {
         std::fs::metadata(&local_path)
             .map(|metadata| metadata.len())

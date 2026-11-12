@@ -1,6 +1,4 @@
-#[path = "base_commands.rs"]
-pub(crate) mod commands;
-mod operations;
+pub(super) mod operations;
 use crate::core::session::types::SessionPlan;
 use crate::sftp::internal::connection::map_sftp_error;
 use crate::sftp::store;

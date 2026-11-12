@@ -1,4 +1,4 @@
-use super::operations::{
+use super::permissions::operations::{
     SftpSetPermissionsDependencies, SftpSetPermissionsInput, sftp_set_permissions_service,
 };
 use crate::core::session::types::PtyConnectionOptions;

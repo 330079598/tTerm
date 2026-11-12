@@ -9,18 +9,18 @@ use crate::ssh::secret_store::types::SecretStoreState;
 use std::sync::Arc;
 use tterm_core::prompts::PromptBroker;
 
-pub(super) struct SftpOpenFileForEditInput {
-    pub(super) tab_id: String,
-    pub(super) connection: Option<PtyConnectionOptions>,
-    pub(super) path: String,
+pub(crate) struct SftpOpenFileForEditInput {
+    pub(crate) tab_id: String,
+    pub(crate) connection: Option<PtyConnectionOptions>,
+    pub(crate) path: String,
 }
-pub(super) struct SftpOpenFileForEditDependencies {
-    pub(super) context: SftpContext,
-    pub(super) prompts: Arc<PromptBroker>,
-    pub(super) secrets: SecretStoreState,
-    pub(super) pool: SftpConnectionPool,
+pub(crate) struct SftpOpenFileForEditDependencies {
+    pub(crate) context: SftpContext,
+    pub(crate) prompts: Arc<PromptBroker>,
+    pub(crate) secrets: SecretStoreState,
+    pub(crate) pool: SftpConnectionPool,
 }
-pub(super) async fn sftp_open_file_for_edit_service(
+pub(crate) async fn sftp_open_file_for_edit_service(
     dependencies: SftpOpenFileForEditDependencies,
     input: SftpOpenFileForEditInput,
 ) -> Result<SftpEditableFile, String> {
@@ -43,20 +43,20 @@ pub(super) async fn sftp_open_file_for_edit_service(
     })
 }
 
-pub(super) struct SftpSaveEditedFileInput {
-    pub(super) tab_id: String,
-    pub(super) connection: Option<PtyConnectionOptions>,
-    pub(super) path: String,
-    pub(super) content: String,
-    pub(super) baseline: SftpEditBaseline,
+pub(crate) struct SftpSaveEditedFileInput {
+    pub(crate) tab_id: String,
+    pub(crate) connection: Option<PtyConnectionOptions>,
+    pub(crate) path: String,
+    pub(crate) content: String,
+    pub(crate) baseline: SftpEditBaseline,
 }
-pub(super) struct SftpSaveEditedFileDependencies {
-    pub(super) context: SftpContext,
-    pub(super) prompts: Arc<PromptBroker>,
-    pub(super) secrets: SecretStoreState,
-    pub(super) pool: SftpConnectionPool,
+pub(crate) struct SftpSaveEditedFileDependencies {
+    pub(crate) context: SftpContext,
+    pub(crate) prompts: Arc<PromptBroker>,
+    pub(crate) secrets: SecretStoreState,
+    pub(crate) pool: SftpConnectionPool,
 }
-pub(super) async fn sftp_save_edited_file_service(
+pub(crate) async fn sftp_save_edited_file_service(
     dependencies: SftpSaveEditedFileDependencies,
     input: SftpSaveEditedFileInput,
 ) -> Result<SftpSaveEditedFileResult, String> {

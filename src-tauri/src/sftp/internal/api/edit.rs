@@ -1,6 +1,4 @@
-#[path = "edit_commands.rs"]
-pub(crate) mod commands;
-mod operations;
+pub(super) mod operations;
 use crate::sftp::internal::api::permissions::PERMISSION_MASK;
 use crate::sftp::internal::connection::map_sftp_error;
 use russh_sftp::client::SftpSession;

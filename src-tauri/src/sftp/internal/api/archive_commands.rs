@@ -1,10 +1,10 @@
-use super::operations::{
+use super::archive::operations::{
     SftpCancelRemoteOperationDependencies, SftpCancelRemoteOperationInput,
     SftpCompressEntriesDependencies, SftpCompressEntriesInput, SftpExtractArchiveDependencies,
     SftpExtractArchiveInput, sftp_cancel_remote_operation_service, sftp_compress_entries_service,
     sftp_extract_archive_service,
 };
-use super::{CompressRequest, ExtractRequest, RemoteOperationResult};
+use super::archive::{CompressRequest, ExtractRequest, RemoteOperationResult};
 use crate::core::session::types::PtyConnectionOptions;
 use crate::services::AppServices;
 use tauri::State;

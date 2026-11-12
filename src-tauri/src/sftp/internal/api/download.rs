@@ -1,6 +1,4 @@
-#[path = "download_commands.rs"]
-pub(crate) mod commands;
-mod operations;
+pub(super) mod operations;
 use tterm_core::events::sftp::SftpEvent;
 use tterm_core::events::{AppEvent, EventSink};
 mod items;

@@ -2,9 +2,7 @@
 //! the work runs as `tar`, `zip` and friends over a command channel of the
 //! tab's pooled connection, and nothing crosses the network but the result.
 
-#[path = "archive_commands.rs"]
-pub(crate) mod commands;
-mod operations;
+pub(super) mod operations;
 
 #[cfg(all(test, unix))]
 mod real_sshd_tests;

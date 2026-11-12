@@ -9,13 +9,13 @@ use crate::ssh::secret_store::types::SecretStoreState;
 use std::sync::Arc;
 use tterm_core::prompts::PromptBroker;
 
-pub(super) struct SftpReleaseTabConnectionsInput {
-    pub(super) tab_id: String,
+pub(crate) struct SftpReleaseTabConnectionsInput {
+    pub(crate) tab_id: String,
 }
-pub(super) struct SftpReleaseTabConnectionsDependencies {
-    pub(super) pool: SftpConnectionPool,
+pub(crate) struct SftpReleaseTabConnectionsDependencies {
+    pub(crate) pool: SftpConnectionPool,
 }
-pub(super) async fn sftp_release_tab_connections_service(
+pub(crate) async fn sftp_release_tab_connections_service(
     dependencies: SftpReleaseTabConnectionsDependencies,
     input: SftpReleaseTabConnectionsInput,
 ) -> Result<(), String> {
@@ -26,18 +26,18 @@ pub(super) async fn sftp_release_tab_connections_service(
     Ok(())
 }
 
-pub(super) struct SftpListDirectoryInput {
-    pub(super) tab_id: String,
-    pub(super) connection: Option<PtyConnectionOptions>,
-    pub(super) path: Option<String>,
+pub(crate) struct SftpListDirectoryInput {
+    pub(crate) tab_id: String,
+    pub(crate) connection: Option<PtyConnectionOptions>,
+    pub(crate) path: Option<String>,
 }
-pub(super) struct SftpListDirectoryDependencies {
-    pub(super) context: SftpContext,
-    pub(super) prompts: Arc<PromptBroker>,
-    pub(super) secrets: SecretStoreState,
-    pub(super) pool: SftpConnectionPool,
+pub(crate) struct SftpListDirectoryDependencies {
+    pub(crate) context: SftpContext,
+    pub(crate) prompts: Arc<PromptBroker>,
+    pub(crate) secrets: SecretStoreState,
+    pub(crate) pool: SftpConnectionPool,
 }
-pub(super) async fn sftp_list_directory_service(
+pub(crate) async fn sftp_list_directory_service(
     dependencies: SftpListDirectoryDependencies,
     input: SftpListDirectoryInput,
 ) -> Result<SftpDirectoryListing, String> {
@@ -82,18 +82,18 @@ pub(super) async fn sftp_list_directory_service(
     })
 }
 
-pub(super) struct SftpCreateDirectoryInput {
-    pub(super) tab_id: String,
-    pub(super) connection: Option<PtyConnectionOptions>,
-    pub(super) path: String,
+pub(crate) struct SftpCreateDirectoryInput {
+    pub(crate) tab_id: String,
+    pub(crate) connection: Option<PtyConnectionOptions>,
+    pub(crate) path: String,
 }
-pub(super) struct SftpCreateDirectoryDependencies {
-    pub(super) context: SftpContext,
-    pub(super) prompts: Arc<PromptBroker>,
-    pub(super) secrets: SecretStoreState,
-    pub(super) pool: SftpConnectionPool,
+pub(crate) struct SftpCreateDirectoryDependencies {
+    pub(crate) context: SftpContext,
+    pub(crate) prompts: Arc<PromptBroker>,
+    pub(crate) secrets: SecretStoreState,
+    pub(crate) pool: SftpConnectionPool,
 }
-pub(super) async fn sftp_create_directory_service(
+pub(crate) async fn sftp_create_directory_service(
     dependencies: SftpCreateDirectoryDependencies,
     input: SftpCreateDirectoryInput,
 ) -> Result<(), String> {
@@ -116,19 +116,19 @@ pub(super) async fn sftp_create_directory_service(
     })
 }
 
-pub(super) struct SftpRenameEntryInput {
-    pub(super) tab_id: String,
-    pub(super) connection: Option<PtyConnectionOptions>,
-    pub(super) old_path: String,
-    pub(super) new_path: String,
+pub(crate) struct SftpRenameEntryInput {
+    pub(crate) tab_id: String,
+    pub(crate) connection: Option<PtyConnectionOptions>,
+    pub(crate) old_path: String,
+    pub(crate) new_path: String,
 }
-pub(super) struct SftpRenameEntryDependencies {
-    pub(super) context: SftpContext,
-    pub(super) prompts: Arc<PromptBroker>,
-    pub(super) secrets: SecretStoreState,
-    pub(super) pool: SftpConnectionPool,
+pub(crate) struct SftpRenameEntryDependencies {
+    pub(crate) context: SftpContext,
+    pub(crate) prompts: Arc<PromptBroker>,
+    pub(crate) secrets: SecretStoreState,
+    pub(crate) pool: SftpConnectionPool,
 }
-pub(super) async fn sftp_rename_entry_service(
+pub(crate) async fn sftp_rename_entry_service(
     dependencies: SftpRenameEntryDependencies,
     input: SftpRenameEntryInput,
 ) -> Result<(), String> {

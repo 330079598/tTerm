@@ -1,7 +1,7 @@
-use super::operations::{
+use super::search::operations::{
     SftpSearchEntriesDependencies, SftpSearchEntriesInput, sftp_search_entries_service,
 };
-use super::{SearchRequest, SearchSummary};
+use super::search::{SearchRequest, SearchSummary};
 use crate::core::session::types::PtyConnectionOptions;
 use crate::event_sink::search::TauriSearchResultSink;
 use std::sync::Arc;

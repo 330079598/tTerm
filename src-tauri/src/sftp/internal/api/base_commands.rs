@@ -1,4 +1,4 @@
-use super::operations::{
+use super::base::operations::{
     SftpCreateDirectoryDependencies, SftpCreateDirectoryInput, SftpListDirectoryDependencies,
     SftpListDirectoryInput, SftpReleaseTabConnectionsDependencies, SftpReleaseTabConnectionsInput,
     SftpRenameEntryDependencies, SftpRenameEntryInput, sftp_create_directory_service,

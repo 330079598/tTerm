@@ -43,14 +43,20 @@ macro_rules! with_sftp {
 }
 
 pub mod archive;
+pub(crate) mod archive_commands;
 pub mod base;
+pub(crate) mod base_commands;
 pub mod conflict;
 pub mod delete;
 pub mod download;
+pub(crate) mod download_commands;
 pub mod edit;
+pub(crate) mod edit_commands;
 pub mod external;
 pub mod permissions;
+pub(crate) mod permissions_commands;
 pub mod search;
+pub(crate) mod search_commands;
 pub mod upload;
 
 use crate::core::session::types::{PtyConnectionOptions, SessionPlan};
