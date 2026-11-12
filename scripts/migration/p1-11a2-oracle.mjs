@@ -478,11 +478,13 @@ Date.now = () => savedNow
 
 function savedSetup({
   username = "alice",
+  omitUsername = false,
   profileId = "p1",
   profileName = "web",
   source = null,
   onInput = undefined,
   line = SUDO_PROMPT,
+  patterns = [],
 } = {}) {
   const shown = []
   const offers = []
@@ -516,7 +518,7 @@ function savedSetup({
     connectionRef: {
       current: {
         type: "ssh",
-        username,
+        ...(omitUsername ? {} : { username }),
         profileId,
         profileName,
         loginScript: "cd /srv\r\n\r\necho ready\r\n",
@@ -525,7 +527,7 @@ function savedSetup({
     onSensitivePromptRef: { current: () => sensitive.push("sensitive") },
     onSavedPasswordPromptChange: (...args) => offers.push(args),
     setSavedPasswordPrompt: (state) => shown.push(state),
-    sudoPromptPatternsRef: { current: [] },
+    sudoPromptPatternsRef: { current: patterns },
     onInputRef: {
       current: onInput
         ? async (request) => {
@@ -754,6 +756,69 @@ async function typingUnicodeScenario() {
   return { afterUnicode, afterEmpty, afterBackspace }
 }
 
+async function customPromptUserScenario({ username, omitUsername, line }) {
+  invokeState.calls = []
+  invokeState.results = ["login"]
+  const setup = savedSetup({
+    username,
+    omitUsername,
+    source: "login",
+    patterns: [new RegExp("^PIN:(?<user>.*)$")],
+  })
+  await setup.check(line)
+  return {
+    username,
+    omitUsername,
+    line,
+    shown: setup.shown,
+    offers: setup.offers,
+    sensitive: setup.sensitive.length,
+    calls: invokeState.calls,
+    currentPromptKey: setup.ctx.session.currentPromptKey,
+  }
+}
+
+async function namedPromptWithoutUsernameScenario() {
+  invokeState.calls = []
+  invokeState.results = ["login"]
+  const setup = savedSetup({ omitUsername: true, source: "login" })
+  await setup.check(SUDO_PROMPT)
+  return {
+    shown: setup.shown,
+    offers: setup.offers,
+    sensitive: setup.sensitive.length,
+    calls: invokeState.calls,
+    currentPromptKey: setup.ctx.session.currentPromptKey,
+  }
+}
+
+async function rejectedLockoutScenario() {
+  savedNow = 100_000
+  Date.now = () => savedNow
+  invokeState.calls = []
+  invokeState.results = [null]
+  const setup = savedSetup()
+  setup.ctx.session.lastPasswordFill = { prompt: SUDO_PROMPT, at: 80_001 }
+  await setup.check(SUDO_PROMPT)
+  const rejected = {
+    shown: [...setup.shown],
+    calls: invokeState.calls.length,
+  }
+  setup.ctx.session.lineFeedCount += 1
+  invokeState.calls = []
+  await setup.check(SUDO_PROMPT)
+  return {
+    rejected,
+    afterNewPrompt: {
+      shown: setup.shown,
+      offers: setup.offers,
+      sensitive: setup.sensitive.length,
+      calls: invokeState.calls,
+      currentPromptKey: setup.ctx.session.currentPromptKey,
+    },
+  }
+}
+
 const savedOracle = {
   lookupScenarios,
   fill,
@@ -771,6 +836,18 @@ const savedOracle = {
   ],
   lineFeedKey: await lineFeedScenario(),
   typingUnicode: await typingUnicodeScenario(),
+  customPromptUsers: {
+    missingUsername: await customPromptUserScenario({
+      omitUsername: true,
+      line: "PIN:",
+    }),
+    emptyUsername: await customPromptUserScenario({
+      username: "",
+      line: "PIN:",
+    }),
+  },
+  namedPromptWithoutUsername: await namedPromptWithoutUsernameScenario(),
+  rejectedLockout: await rejectedLockoutScenario(),
 }
 
 console.log(

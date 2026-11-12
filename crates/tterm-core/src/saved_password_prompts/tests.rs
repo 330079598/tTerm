@@ -58,6 +58,17 @@ impl Harness {
         actions
     }
 
+    fn check_with_patterns(
+        &mut self,
+        line: &str,
+        patterns: &[regress::Regex],
+        now_ms: u64,
+    ) -> Vec<SavedPasswordPromptAction> {
+        let actions = self.prompts.check_password_prompt(line, patterns, now_ms);
+        self.apply(&actions);
+        actions
+    }
+
     fn resolve(&mut self, source: Option<SudoPasswordSource>) -> Vec<SavedPasswordPromptAction> {
         let check_id = self
             .lookups
@@ -359,6 +370,86 @@ fn oracle_an_empty_username_still_allows_a_prompt_without_a_username() {
             None,
             SudoPasswordSource::Login,
         )))
+    );
+}
+
+#[test]
+fn oracle_custom_prompt_users_follow_ts_empty_and_missing_username_rules() {
+    let patterns =
+        tterm_terminal::sudo_prompt::compile_prompt_patterns(&["^PIN:(?<user>.*)$".to_string()]);
+
+    let mut missing_username = Harness::with_connection(
+        Some(PromptConnection {
+            username: None,
+            ..ssh_connection("alice", Some("p1"), Some("web"))
+        }),
+        false,
+    );
+    missing_username.check_with_patterns("PIN:", &patterns, 100_000);
+    assert!(missing_username.lookups.is_empty());
+    assert_eq!(missing_username.sensitive, 1);
+    assert_eq!(
+        missing_username.shown.last(),
+        Some(&Some(manual("PIN:", Some(""), 0)))
+    );
+
+    let mut empty_username =
+        Harness::with_connection(Some(ssh_connection("", Some("p1"), Some("web"))), false);
+    empty_username.check_with_patterns("PIN:", &patterns, 100_000);
+    assert_eq!(
+        empty_username.lookups,
+        vec![Lookup {
+            check_id: 2,
+            prompt: "PIN:".to_string(),
+            user: Some(String::new()),
+            profile_id: Some("p1".to_string()),
+            profile_name: Some("web".to_string()),
+        }]
+    );
+
+    let mut named_prompt = Harness::with_connection(
+        Some(PromptConnection {
+            username: None,
+            ..ssh_connection("alice", Some("p1"), Some("web"))
+        }),
+        false,
+    );
+    named_prompt.check(SUDO_PROMPT, 100_000);
+    assert!(named_prompt.lookups.is_empty());
+    assert_eq!(named_prompt.sensitive, 1);
+    assert_eq!(
+        named_prompt.shown.last(),
+        Some(&Some(manual(SUDO_PROMPT, Some("alice"), 0)))
+    );
+}
+
+#[test]
+fn oracle_a_rejected_password_is_not_offered_again_in_the_session() {
+    let mut harness = Harness::new();
+    harness
+        .prompts
+        .note_password_written(true, 80_001, SUDO_PROMPT);
+    harness.check(SUDO_PROMPT, 100_000);
+    assert_eq!(
+        harness.shown.last(),
+        Some(&Some(SavedPasswordPromptState::Rejected {
+            prompt: SUDO_PROMPT.to_string(),
+            user: Some("alice".to_string()),
+        }))
+    );
+    assert!(harness.lookups.is_empty());
+
+    harness.prompts.note_line_feed();
+    harness.check(SUDO_PROMPT, 100_001);
+    assert!(harness.lookups.is_empty());
+    assert_eq!(harness.sensitive, 2);
+    assert_eq!(
+        harness.shown.last(),
+        Some(&Some(manual(SUDO_PROMPT, Some("alice"), 0)))
+    );
+    assert_eq!(
+        harness.prompts.current_prompt_key(),
+        Some("1:[sudo] password for alice:")
     );
 }
 
