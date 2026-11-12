@@ -17,12 +17,11 @@
 //! engine (`regress`) where the TypeScript side uses a `RegExp`, because
 //! `\s`, `\d` and case folding differ between the two dialects.
 
-use std::collections::BTreeMap;
 use std::sync::LazyLock;
 
 use regress::Regex;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
-use serde_json::Value;
+use serde_json::{Map, Value};
 
 use crate::palette::{Rgba, TerminalPalette};
 
@@ -227,7 +226,7 @@ pub struct ThemeColors {
     pub titlebar: String,
     /// Color keys a newer frontend wrote, kept so they survive a save.
     #[serde(flatten, default)]
-    pub extra: BTreeMap<String, Value>,
+    pub extra: Map<String, Value>,
 }
 
 impl ThemeColors {
@@ -262,7 +261,7 @@ impl ThemeColors {
             tab_active_border: "207 100% 48%".into(),
             tab_hover: "220 13% 24%".into(),
             titlebar: "220 13% 16%".into(),
-            extra: BTreeMap::new(),
+            extra: Map::new(),
         }
     }
 }
@@ -324,7 +323,7 @@ pub struct PaletteText {
     pub selection_foreground: OptionalText,
     /// Terminal color keys a newer frontend wrote.
     #[serde(flatten, default)]
-    pub extra: BTreeMap<String, Value>,
+    pub extra: Map<String, Value>,
 }
 
 impl Default for PaletteText {
@@ -352,7 +351,7 @@ impl Default for PaletteText {
             bright_cyan: String::new(),
             bright_white: String::new(),
             selection_foreground: OptionalText::Missing,
-            extra: BTreeMap::new(),
+            extra: Map::new(),
         }
     }
 }
@@ -429,7 +428,7 @@ impl PaletteText {
                 if light { -28.0 } else { 22.0 },
             )),
             selection_foreground: OptionalText::Missing,
-            extra: BTreeMap::new(),
+            extra: Map::new(),
         }
     }
 

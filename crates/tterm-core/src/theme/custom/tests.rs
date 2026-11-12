@@ -99,6 +99,32 @@ fn normalized_custom_theme_json_matches_the_oracle_byte_for_byte() {
 }
 
 #[test]
+fn merged_extra_key_order_matches_the_oracle_byte_for_byte() {
+    let oracle = oracle();
+    let preset = &PRESET_THEMES[2];
+    let case = oracle["custom"]["merge"]
+        .as_array()
+        .expect("an array")
+        .iter()
+        .find(|case| case["name"] == "with extra key order")
+        .expect("the extra-order merge case");
+    let override_theme = normalize_custom_themes(&[case["input"].clone()], now())
+        .into_iter()
+        .next()
+        .expect("one custom theme");
+    assert_eq!(
+        serde_json::to_string(&merge_preset_theme_with_override(
+            preset,
+            Some(&override_theme)
+        ))
+        .expect("the merged preset serializes"),
+        oracle["serialization"]["mergedExtraOrderJson"]
+            .as_str()
+            .expect("merged extra-order JSON")
+    );
+}
+
+#[test]
 fn normalization_keeps_missing_null_and_unknown_members_apart() {
     let themes = normalize_custom_themes(
         &[json!({
