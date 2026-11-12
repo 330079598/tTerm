@@ -356,7 +356,7 @@ pub fn get_preset_theme(theme_id: &str) -> Option<&'static PresetTheme> {
 /// built-in default.
 pub fn resolve_theme_definition(theme_id: &str, custom_themes: &[CustomTheme]) -> Theme {
     if let Some(theme) = custom_themes.iter().find(|theme| theme.id == theme_id) {
-        return Theme::Custom(theme.clone());
+        return Theme::Custom(Box::new(theme.clone()));
     }
     if let Some(theme) = get_preset_theme(theme_id) {
         return Theme::Preset(theme.clone());

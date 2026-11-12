@@ -450,7 +450,7 @@ pub enum Theme {
     /// A built-in theme.
     Preset(PresetTheme),
     /// A user theme.
-    Custom(CustomTheme),
+    Custom(Box<CustomTheme>),
     /// A library theme.
     Catalog(CatalogTheme),
 }
