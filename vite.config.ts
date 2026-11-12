@@ -6,7 +6,7 @@ import { defineConfig, type PluginOption } from "vite";
 import packageJson from "./package.json" with { type: "json" };
 import react from "@vitejs/plugin-react";
 import { tanstackRouter } from "@tanstack/router-plugin/vite";
-import { patchWebglAddon } from "./src/lib/xtermWebglPatches";
+import { patchWebglAddon } from "./src/lib/xtermWebglPatches.ts";
 const host = process.env.TAURI_DEV_HOST;
 const require = createRequire(import.meta.url);
 const rootDir = dirname(fileURLToPath(import.meta.url));
