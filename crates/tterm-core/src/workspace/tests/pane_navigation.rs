@@ -264,12 +264,30 @@ fn oracle_keeps_the_input_order_when_neighbours_are_equally_recent() {
 }
 
 #[test]
-fn oracle_treats_an_empty_active_id_as_absent() {
+fn oracle_returns_none_when_no_pane_has_an_empty_id() {
     assert_eq!(
         find_pane_in_direction(&tall_left(), Some(""), PaneDirection::Right, &[]),
         None
     );
     assert_eq!(get_sibling_pane_id(&tall_left(), Some(""), 1), None);
+}
+
+#[test]
+fn oracle_treats_an_empty_active_id_as_a_pane_id() {
+    let oracle = super::oracle_json();
+    let expected = &oracle["paneNavigation"]["emptyId"];
+    let panes = vec![
+        pane("", 0.0, 0.0, 50.0, 50.0),
+        pane("x", 58.0, 0.0, 100.0, 50.0),
+    ];
+    assert_eq!(
+        get_sibling_pane_id(&panes, Some(""), 1).as_deref(),
+        expected["sibling"].as_str()
+    );
+    assert_eq!(
+        find_pane_in_direction(&panes, Some(""), PaneDirection::Right, &[]).as_deref(),
+        expected["direction"].as_str()
+    );
 }
 
 #[test]

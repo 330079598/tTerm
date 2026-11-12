@@ -133,7 +133,7 @@ pub fn get_sibling_pane_id(
     active_id: Option<&str>,
     offset: i64,
 ) -> Option<String> {
-    let active_id = active_id.filter(|id| !id.is_empty())?;
+    let active_id = active_id?;
     let ordered = sort_panes_by_reading_order(panes);
     let index = ordered.iter().position(|pane| pane.id == active_id)?;
     if ordered.len() < 2 {
@@ -189,7 +189,7 @@ pub fn find_pane_in_direction(
     recent_ids: &[String],
 ) -> Option<String> {
     let visible: Vec<&PaneRect> = panes.iter().filter(|pane| is_visible(pane)).collect();
-    let active_id = active_id.filter(|id| !id.is_empty())?;
+    let active_id = active_id?;
     let active = visible.iter().find(|pane| pane.id == active_id)?;
 
     #[derive(Clone)]

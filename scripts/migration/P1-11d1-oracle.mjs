@@ -163,6 +163,7 @@ const readingOrderStress = [
   rect("R2", 1008, 205, 1504, 600),
   rect("R1", 1008, 0, 1504, 200),
 ]
+const emptyIdPanes = [rect("", 0, 0, 50, 50), rect("x", 58, 0, 100, 50)]
 const readingOrderSeventy = Array.from({ length: 70 }, (_, index) => {
   const group = index % 3
   const left = (2 - group) * 1000 + index
@@ -459,6 +460,10 @@ const result = {
         sibling: paneNavigation.getSiblingPaneId(input, "R1", 1) ?? null,
       })),
       seventyNative: sortedReadingOrderIds(readingOrderSeventy),
+    },
+    emptyId: {
+      sibling: paneNavigation.getSiblingPaneId(emptyIdPanes, "", 1) ?? null,
+      direction: paneNavigation.findPaneInDirection(emptyIdPanes, "", "right") ?? null,
     },
     sorted: paneNavigation.sortPanesByReadingOrder([
       rect("right", 504, 0, 1000, 600),
