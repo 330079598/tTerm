@@ -52,6 +52,8 @@ pub mod remote_cwd;
 pub mod saved_password_prompts;
 /// Session output endpoints shared by client adapters (P1-06).
 pub mod session;
+/// Terminal session logs and the screen they replay.
+pub mod session_log;
 /// Shared SFTP value and streaming types (P1-04).
 pub mod sftp;
 /// SSH connections, their authentication and the stores behind them.

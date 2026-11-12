@@ -15,7 +15,7 @@ use std::ops::ControlFlow;
 use std::path::{Path, PathBuf};
 use std::time::UNIX_EPOCH;
 
-pub(super) const PLAIN_HEADER: &str = "# tTerm session log";
+pub const PLAIN_HEADER: &str = "# tTerm session log";
 const MAX_HEADER_BYTES: u64 = 64 * 1024;
 /// Output a replay may load at once; longer recordings are left to export.
 const MAX_REPLAY_BYTES: usize = 256 * 1024 * 1024;
@@ -24,7 +24,7 @@ const MAX_TEXT_BYTES: u64 = 64 * 1024 * 1024;
 const DEFAULT_SIZE: (u16, u16) = (80, 24);
 /// How many folders deep below the log directory logs are looked for; the
 /// name template may not go deeper.
-pub(super) const MAX_FOLDER_DEPTH: usize = 5;
+pub const MAX_FOLDER_DEPTH: usize = 5;
 
 const FRAME_OUTPUT: u8 = 0;
 const FRAME_RESIZE: u8 = 1;
@@ -83,7 +83,7 @@ fn open_log(path: &Path) -> Result<Box<dyn Read>, String> {
 /// Who and what a log recorded, from its header.
 #[derive(Clone, Debug, Default, PartialEq, Eq, Deserialize)]
 #[serde(rename_all = "camelCase", default)]
-pub(super) struct LogMetadata {
+pub struct LogMetadata {
     pub session_type: String,
     pub profile: String,
     pub host: String,
@@ -112,7 +112,7 @@ struct RawHeaderMetadata {
 }
 
 /// The header of a tTerm log, or `None` for any other file.
-pub(super) fn read_metadata(path: &Path) -> Option<LogMetadata> {
+pub fn read_metadata(path: &Path) -> Option<LogMetadata> {
     let reader = BufReader::new(open_log(path).ok()?.take(MAX_HEADER_BYTES));
     let mut lines = reader.lines();
     let first = lines.next()?.ok()?;
@@ -189,7 +189,7 @@ struct LogFile {
 }
 
 /// A file in the log directory or one of its folders.
-pub(super) struct FoundFile {
+pub struct FoundFile {
     pub path: PathBuf,
     /// The folders between the log directory and the file, joined by `/`;
     /// empty for a file at the top.
@@ -225,7 +225,7 @@ fn read_folder(path: &Path, folder: &str) -> std::io::Result<(Vec<FoundFile>, Ve
 /// Every file in `directory` and its folders, down to `MAX_FOLDER_DEPTH`
 /// folders deep. A folder that cannot be read is skipped; only the log
 /// directory itself must be readable, and a missing one has no files.
-pub(super) fn walk(directory: &Path) -> Result<Vec<FoundFile>, String> {
+pub fn walk(directory: &Path) -> Result<Vec<FoundFile>, String> {
     let (mut found, folders) = match read_folder(directory, "") {
         Ok(entries) => entries,
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(Vec::new()),
@@ -254,7 +254,7 @@ pub(super) fn walk(directory: &Path) -> Result<Vec<FoundFile>, String> {
 }
 
 /// `relative`'s `/`-separated parts joined onto `directory`.
-pub(super) fn join_relative(directory: &Path, relative: &str) -> PathBuf {
+pub fn join_relative(directory: &Path, relative: &str) -> PathBuf {
     relative
         .split('/')
         .fold(directory.to_path_buf(), |path, part| path.join(part))
@@ -262,7 +262,7 @@ pub(super) fn join_relative(directory: &Path, relative: &str) -> PathBuf {
 
 /// Removes `from` and the folders above it that are left empty, up to but not
 /// including `root`.
-pub(super) fn remove_empty_folders(root: &Path, from: &Path) {
+pub fn remove_empty_folders(root: &Path, from: &Path) {
     let mut current = from;
     while current != root && current.starts_with(root) {
         if fs::remove_dir(current).is_err() {
@@ -307,7 +307,7 @@ fn group_sessions(found: Vec<FoundFile>) -> BTreeMap<String, Vec<LogFile>> {
     sessions
 }
 
-pub(super) fn list(directory: &Path, in_use: &HashSet<PathBuf>) -> Result<Vec<LogSession>, String> {
+pub fn list(directory: &Path, in_use: &HashSet<PathBuf>) -> Result<Vec<LogSession>, String> {
     let mut sessions = Vec::new();
     for (id, files) in group_sessions(walk(directory)?) {
         let Some(metadata) = files.iter().find_map(|file| read_metadata(&file.path)) else {
@@ -489,7 +489,7 @@ fn read_frames(
 /// and the microseconds since the log started (u64), then for output a
 /// length (u32) and the bytes, for a size change columns and rows (u16 each).
 /// All little-endian.
-pub(super) fn load_recording(directory: &Path, id: &str) -> Result<Vec<u8>, String> {
+pub fn load_recording(directory: &Path, id: &str) -> Result<Vec<u8>, String> {
     let files = files_of_kind(files_of(directory, id)?, Kind::Raw);
     if files.is_empty() {
         return Err("This session has no raw log to replay".to_string());
@@ -524,7 +524,7 @@ pub(super) fn load_recording(directory: &Path, id: &str) -> Result<Vec<u8>, Stri
 
 /// A session's plain-text log, its parts joined without their repeated
 /// headers.
-pub(super) fn load_text(directory: &Path, id: &str) -> Result<Vec<u8>, String> {
+pub fn load_text(directory: &Path, id: &str) -> Result<Vec<u8>, String> {
     let files = files_of_kind(files_of(directory, id)?, Kind::Plain);
     if files.is_empty() {
         return Err("This session has no plain-text log".to_string());
@@ -608,7 +608,7 @@ impl Utf8Stream {
 }
 
 /// Writes a session's raw log as an asciicast v2 recording (asciinema).
-pub(super) fn export_asciicast(directory: &Path, id: &str, target: &Path) -> Result<(), String> {
+pub fn export_asciicast(directory: &Path, id: &str, target: &Path) -> Result<(), String> {
     let files = files_of(directory, id)?;
     let metadata = files
         .iter()
@@ -695,7 +695,7 @@ fn seconds(at_us: u64) -> f64 {
 
 /// Deletes every file of a session that is not being written, and the
 /// folders the session leaves empty.
-pub(super) fn delete(directory: &Path, id: &str, in_use: &HashSet<PathBuf>) -> Result<(), String> {
+pub fn delete(directory: &Path, id: &str, in_use: &HashSet<PathBuf>) -> Result<(), String> {
     let files = files_of(directory, id)?;
     if files.iter().any(|file| in_use.contains(&file.path)) {
         return Err("This session is still being logged; stop logging it first".to_string());
@@ -733,11 +733,7 @@ pub struct DeleteFailure {
 
 /// Deletes each session as `delete` does; one that cannot be deleted does not
 /// stop the rest.
-pub(super) fn delete_many(
-    directory: &Path,
-    ids: &[String],
-    in_use: &HashSet<PathBuf>,
-) -> DeleteReport {
+pub fn delete_many(directory: &Path, ids: &[String], in_use: &HashSet<PathBuf>) -> DeleteReport {
     let mut report = DeleteReport::default();
     for id in ids {
         match delete(directory, id, in_use) {
@@ -752,7 +748,7 @@ pub(super) fn delete_many(
 }
 
 /// The file to show in the file manager for a session.
-pub(super) fn first_file(directory: &Path, id: &str) -> Result<PathBuf, String> {
+pub fn first_file(directory: &Path, id: &str) -> Result<PathBuf, String> {
     files_of(directory, id)?
         .into_iter()
         .next()

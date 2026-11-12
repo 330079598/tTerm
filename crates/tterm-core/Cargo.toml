@@ -18,7 +18,9 @@ serde = { version = "1", features = ["derive"] }
 serde_json = { version = "1", features = ["float_roundtrip", "preserve_order", "raw_value"] }
 indexmap = "=2.14.2"
 base64 = "=0.23.1"
+chrono = { version = "=0.4.45", default-features = false, features = ["clock"] }
 crc32fast = "=1.5.2"
+flate2 = "=1.1.10"
 # RSA key files are signed with ring instead of the `rsa` crate; russh and
 # rustls already link both.
 hmac = "=0.13.0"
@@ -30,6 +32,8 @@ russh = { version = "=0.63.3", default-features = false, features = ["ring", "rs
 russh-sftp = "=3.0.1"
 sha1 = "=0.11.0"
 sha2 = "=0.11.0"
+unicode-width = "=0.2.2"
+vte = "=0.15.0"
 zeroize = "=1.9.0"
 rusqlite = { version = "=0.40.2", features = ["bundled"] }
 gethostname = "=1.1.0"

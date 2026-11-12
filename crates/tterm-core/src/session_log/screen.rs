@@ -14,7 +14,7 @@ const TAB_WIDTH: usize = 8;
 /// Placeholder for the right half of a wide character.
 const WIDE_TAIL: char = '\0';
 
-pub(super) enum ScreenLine {
+pub enum ScreenLine {
     /// A logical line of output (rows joined where they wrapped), stamped
     /// with when its first character appeared.
     Text { at: DateTime<Local>, text: String },
@@ -742,13 +742,13 @@ impl Perform for Screen {
 }
 
 /// The output side of a plain-text log: bytes in, logged lines out.
-pub(super) struct OutputLog {
+pub struct OutputLog {
     parser: vte::Parser,
     screen: Screen,
 }
 
 impl OutputLog {
-    pub(super) fn new(rows: u16, cols: u16) -> Self {
+    pub fn new(rows: u16, cols: u16) -> Self {
         Self {
             parser: vte::Parser::new(),
             screen: Screen::new(rows, cols),
@@ -756,26 +756,26 @@ impl OutputLog {
     }
 
     /// Parses output that arrived `at`.
-    pub(super) fn advance(&mut self, at: DateTime<Local>, data: &[u8]) -> Vec<ScreenLine> {
+    pub fn advance(&mut self, at: DateTime<Local>, data: &[u8]) -> Vec<ScreenLine> {
         self.screen.now = at;
         self.parser.advance(&mut self.screen, data);
         std::mem::take(&mut self.screen.output)
     }
 
-    pub(super) fn resize(&mut self, at: DateTime<Local>, rows: u16, cols: u16) -> Vec<ScreenLine> {
+    pub fn resize(&mut self, at: DateTime<Local>, rows: u16, cols: u16) -> Vec<ScreenLine> {
         self.screen.now = at;
         self.screen.resize(rows, cols);
         std::mem::take(&mut self.screen.output)
     }
 
     /// Logs everything still on screen; the session is over.
-    pub(super) fn finish(&mut self, at: DateTime<Local>) -> Vec<ScreenLine> {
+    pub fn finish(&mut self, at: DateTime<Local>) -> Vec<ScreenLine> {
         self.screen.now = at;
         self.screen.finish();
         std::mem::take(&mut self.screen.output)
     }
 
-    pub(super) fn oldest_pending(&self) -> Option<DateTime<Local>> {
+    pub fn oldest_pending(&self) -> Option<DateTime<Local>> {
         self.screen.oldest_pending()
     }
 }

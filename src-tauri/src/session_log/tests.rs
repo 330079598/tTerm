@@ -325,7 +325,7 @@ fn log_workers_write_and_release_state_without_a_client() {
     record_resize(&context, "p107-log", 30, 100);
     let id = state.lock_manager().unwrap().logged["p107-log"][0].clone();
     state.flush_log(&id);
-    let recording = library::load_recording(&directory, &id).unwrap();
+    let recording = tterm_core::session_log::library::load_recording(&directory, &id).unwrap();
     assert!(!recording.is_empty());
     assert_eq!(state.status().unwrap().recording_tab_ids, ["p107-log"]);
     end_session(&context, "p107-log");

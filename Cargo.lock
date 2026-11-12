@@ -10999,8 +10999,10 @@ name = "tterm-core"
 version = "0.1.0"
 dependencies = [
  "base64 0.23.1",
+ "chrono",
  "crc32fast",
  "dirs 7.0.0",
+ "flate2",
  "gethostname",
  "hmac 0.13.0",
  "indexmap 2.14.2",
@@ -11019,7 +11021,9 @@ dependencies = [
  "tokio",
  "tterm-platform",
  "tterm-terminal",
+ "unicode-width",
  "uuid",
+ "vte",
  "zeroize",
 ]
 

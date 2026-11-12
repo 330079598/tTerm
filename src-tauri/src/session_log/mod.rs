@@ -3,14 +3,12 @@ use tterm_core::events::session_log::{LogErrorPayload, LogErrorPhase, SessionLog
 use tterm_core::events::{AppEvent, EventSink};
 
 pub(crate) mod commands;
-mod library;
 mod maintenance;
 mod manager;
 mod naming;
 mod plain;
 mod retention;
 mod rotating;
-mod screen;
 #[cfg(test)]
 mod tests;
 mod worker;
@@ -110,10 +108,12 @@ impl LogConfig {
         if name_template.chars().count() > 180 {
             return Err("Terminal log file name is too long".to_string());
         }
-        if template_parts(name_template).count() > library::MAX_FOLDER_DEPTH + 1 {
+        if template_parts(name_template).count()
+            > tterm_core::session_log::library::MAX_FOLDER_DEPTH + 1
+        {
             return Err(format!(
                 "Terminal log file name can have at most {} folders",
-                library::MAX_FOLDER_DEPTH
+                tterm_core::session_log::library::MAX_FOLDER_DEPTH
             ));
         }
 
@@ -310,9 +310,9 @@ async fn set_terminal_log_recording_service(
 
 async fn list_terminal_logs_service(
     app: crate::session_log::LogContext,
-) -> Result<Vec<library::LogSession>, String> {
+) -> Result<Vec<tterm_core::session_log::library::LogSession>, String> {
     let (directory, _, in_use) = app.state.directory_state()?;
-    run_blocking(move || library::list(&directory, &in_use)).await
+    run_blocking(move || tterm_core::session_log::library::list(&directory, &in_use)).await
 }
 
 async fn load_terminal_log_recording_service(
@@ -322,7 +322,7 @@ async fn load_terminal_log_recording_service(
     let (directory, _, _) = app.state.directory_state()?;
     run_blocking(move || {
         app.state.flush_log(&id);
-        library::load_recording(&directory, &id)
+        tterm_core::session_log::library::load_recording(&directory, &id)
     })
     .await
 }
@@ -334,7 +334,7 @@ async fn load_terminal_log_text_service(
     let (directory, _, _) = app.state.directory_state()?;
     run_blocking(move || {
         app.state.flush_log(&id);
-        library::load_text(&directory, &id)
+        tterm_core::session_log::library::load_text(&directory, &id)
     })
     .await
 }
@@ -353,7 +353,7 @@ async fn export_terminal_log_asciicast_service(
     let (directory, _, _) = app.state.directory_state()?;
     run_blocking(move || {
         app.state.flush_log(&id);
-        library::export_asciicast(&directory, &id, Path::new(&path))
+        tterm_core::session_log::library::export_asciicast(&directory, &id, Path::new(&path))
     })
     .await
 }
@@ -364,7 +364,8 @@ async fn delete_terminal_log_service(
 ) -> Result<(), String> {
     let state = &app.state;
     let (directory, _, in_use) = state.directory_state()?;
-    run_blocking(move || library::delete(&directory, &id, &in_use)).await?;
+    run_blocking(move || tterm_core::session_log::library::delete(&directory, &id, &in_use))
+        .await?;
     state.schedule_maintenance(&app, false);
     Ok(())
 }
@@ -372,10 +373,15 @@ async fn delete_terminal_log_service(
 async fn delete_terminal_logs_service(
     app: crate::session_log::LogContext,
     ids: Vec<String>,
-) -> Result<library::DeleteReport, String> {
+) -> Result<tterm_core::session_log::library::DeleteReport, String> {
     let state = &app.state;
     let (directory, _, in_use) = state.directory_state()?;
-    let report = run_blocking(move || Ok(library::delete_many(&directory, &ids, &in_use))).await?;
+    let report = run_blocking(move || {
+        Ok(tterm_core::session_log::library::delete_many(
+            &directory, &ids, &in_use,
+        ))
+    })
+    .await?;
     state.schedule_maintenance(&app, false);
     Ok(report)
 }
@@ -386,7 +392,8 @@ async fn reveal_terminal_log_service(
     id: String,
 ) -> Result<(), String> {
     let (directory, _, _) = app.state.directory_state()?;
-    let path = run_blocking(move || library::first_file(&directory, &id)).await?;
+    let path =
+        run_blocking(move || tterm_core::session_log::library::first_file(&directory, &id)).await?;
     open.reveal(path)
         .await
         .map_err(|error| format!("Failed to show terminal log: {error}"))

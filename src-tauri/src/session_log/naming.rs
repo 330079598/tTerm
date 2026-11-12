@@ -1,9 +1,10 @@
 //! Log file names: the name template filled in for a session, and the paths
 //! of a log's parts.
 
-use super::{LogFiles, SessionMetadata, library};
+use super::{LogFiles, SessionMetadata};
 use chrono::Local;
 use std::path::{Path, PathBuf};
+use tterm_core::session_log::library;
 
 /// The template's parts: folders, then the file name. `/` and `\\` both
 /// separate them; empty parts are dropped.
