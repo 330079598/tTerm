@@ -239,6 +239,7 @@ const importCases = [
   importCase(
     "ghostty from the TypeScript test",
     ghosttyText({
+      foreground: "cccccc",
       lines: ["cursor-color = #aeafad", "selection-background = #264f78"],
     }),
     "Dark Modern"
