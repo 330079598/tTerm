@@ -1,15 +1,13 @@
 //! Opens a local terminal in the directory tTerm is started with, the way
 //! `tterm .` in a shell or a file manager's "Open in tTerm" asks for one.
 
-use tterm_core::events::launch_dir::LaunchDirEvent;
-use tterm_core::events::{AppEvent, EventSink};
+use crate::events::launch_dir::LaunchDirEvent;
+use crate::events::{AppEvent, EventSink};
 
+use crate::paths::AppPaths;
 use serde::Serialize;
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;
-use tterm_core::paths::AppPaths;
-
-pub(crate) mod commands;
 
 /// Kept while an instance started with a directory runs. A restart, after an
 /// update or from the app, starts tTerm with the arguments it was started
@@ -30,7 +28,7 @@ pub struct LaunchDir {
 pub struct LaunchDirs(Mutex<Vec<LaunchDir>>);
 
 impl LaunchDirs {
-    pub(crate) fn take(&self) -> Vec<LaunchDir> {
+    pub fn take(&self) -> Vec<LaunchDir> {
         std::mem::take(&mut *self.0.lock().unwrap_or_else(|e| e.into_inner()))
     }
 }

@@ -39,6 +39,8 @@ pub mod keymap;
 pub mod keyword_highlight;
 /// Shared launch forwarding entry point.
 pub mod launch;
+/// Directories handed to a running tTerm by a second launch.
+pub mod launch_dir;
 /// Types a login script into a shell one command at a time.
 pub mod login_script;
 /// Distribution reports from a local WSL launcher.

@@ -99,7 +99,7 @@ pub fn run() {
     let close_behavior = Arc::new(background::CloseBehaviorState::default());
     let quit_state = Arc::new(background::quit::QuitState::default());
     let exit_guard = Arc::new(background::exit_guard::ExitGuardState::default());
-    let launch_dirs = Arc::new(launch_dir::LaunchDirs::default());
+    let launch_dirs = Arc::new(tterm_core::launch_dir::LaunchDirs::default());
     let tray_state = Arc::new(background::tray::TrayState::default());
 
     let builder = tauri::Builder::default()
@@ -113,7 +113,7 @@ pub fn run() {
                 },
                 |args, cwd| {
                     if let Some(services) = app.try_state::<Arc<services::AppServices>>() {
-                        launch_dir::open_from_second_launch(
+                        tterm_core::launch_dir::open_from_second_launch(
                             &services.app.launch_dirs,
                             services.shared.events.as_ref(),
                             args,
@@ -447,7 +447,7 @@ pub fn run() {
             });
             services.validate_wiring();
             app.manage(services.clone());
-            launch_dir::open_from_startup(
+            tterm_core::launch_dir::open_from_startup(
                 &services.app.launch_dirs,
                 services.shared.events.as_ref(),
                 services.shared.paths.as_ref(),
@@ -562,7 +562,7 @@ pub fn run() {
                     services.shared.prompts.shutdown();
                     window_state::save(app);
                     if let Ok(paths) = app_paths::get(app) {
-                        launch_dir::forget_startup_dir(&paths);
+                        tterm_core::launch_dir::forget_startup_dir(&paths);
                     }
                     // Tunnels may still be running; keep what they carried.
                     services.app.tunnels.save_traffic();

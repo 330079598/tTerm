@@ -2,7 +2,7 @@
 
 use std::sync::Arc;
 
-use super::LaunchDir;
+use tterm_core::launch_dir::LaunchDir;
 
 /// Takes the directories waiting to be opened. The frontend calls it once it
 /// has restored the session and again on every `launch-dirs`.

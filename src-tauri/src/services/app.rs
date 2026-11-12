@@ -1,10 +1,11 @@
 use std::sync::Arc;
 
+use tterm_core::launch_dir::LaunchDirs;
+
 use crate::{
     background::{
         CloseBehaviorState, exit_guard::ExitGuardState, quit::QuitState, tray::TrayState,
     },
-    launch_dir::LaunchDirs,
     session_log::SessionLogState,
     tunnel::manager::TunnelManager,
     updater::PendingUpdateDownloads,
