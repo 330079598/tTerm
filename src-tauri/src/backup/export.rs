@@ -50,7 +50,6 @@ pub(super) fn validate_export_options(options: &BackupExportOptions) -> Result<(
 pub(super) fn collect_payload(
     _app: &AppHandle,
     selection: &BackupSelection,
-    frontend_state: Option<Value>,
     secret_state: &SecretStoreState,
 ) -> Result<BackupPayload, String> {
     let data_key = if selection.secrets {
@@ -113,7 +112,14 @@ pub(super) fn collect_payload(
         },
         frontend_state: with_saved_themes(
             selection,
-            filter_frontend_state(selection, frontend_state),
+            filter_frontend_state(
+                selection,
+                if selection.settings || selection.themes {
+                    Some(crate::frontend_state::backup_state_for_app()?)
+                } else {
+                    None
+                },
+            ),
         )?,
         webdav_backup,
         automatic_backup,

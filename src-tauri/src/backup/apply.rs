@@ -324,6 +324,7 @@ pub(super) fn apply_database_payload(
             crate::app_state::set_collapsed_profile_group_keys(transaction, &keys)?;
         }
     }
+    restore_frontend_state(transaction, payload, &options.selection)?;
     if options.selection.session {
         if let Some(session) = payload.session.clone() {
             crate::session::write_session(transaction, from_backup_value(session)?)?;
@@ -449,6 +450,22 @@ pub(super) fn apply_database_payload(
         }
     }
     Ok(profiles_imported)
+}
+
+/// Older versions restored these fields for a themes-only import too, even
+/// though the rest of the settings were left alone.
+fn restore_frontend_state(
+    transaction: &rusqlite::Connection,
+    payload: &BackupPayload,
+    selection: &BackupSelection,
+) -> Result<(), String> {
+    if !(selection.settings || selection.themes) {
+        return Ok(());
+    }
+    if let Some(state) = payload.frontend_state.as_ref() {
+        crate::frontend_state::apply_backup_state(transaction, state)?;
+    }
+    Ok(())
 }
 
 pub(super) fn to_backup_value<T: Serialize>(value: &T) -> Result<Value, String> {

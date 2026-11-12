@@ -1107,6 +1107,178 @@ fn frontend_state_is_filtered_by_selected_category() {
 }
 
 #[test]
+fn a_legacy_backup_moves_its_frontend_state_into_app_meta() {
+    let path = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("tests/fixtures/legacy-frontend-state.tterm-backup");
+    let bundle = decode_archive(&path, None).expect("decode the old backup");
+    let payload = bundle.payload.expect("the backup is not encrypted");
+    let database = crate::db::Database::open_in_memory().unwrap();
+    let options = BackupImportOptions {
+        selection: BackupSelection {
+            settings: true,
+            themes: true,
+            ..Default::default()
+        },
+        backup_password: None,
+        use_webdav_password: false,
+        conflict_strategy: "replace".to_string(),
+    };
+    database
+        .write(|connection| apply_database_payload(connection, &payload, &options))
+        .unwrap();
+
+    let state = database
+        .read(crate::frontend_state::read_all)
+        .expect("read the imported state");
+    assert_eq!(state["recentCommands"][0]["id"], "legacy-command");
+    assert_eq!(state["recentQuickConnections"][0]["host"], "legacy.example");
+    assert_eq!(state["recentProfiles"][0]["profileId"], "legacy-profile");
+    assert_eq!(
+        state["sftpColumnWidths"],
+        serde_json::json!([300, 170, 100, 100, 126, 148])
+    );
+    assert_eq!(state["sftpView"]["sort"]["column"], "size");
+}
+
+#[test]
+fn custom_themes_and_recent_records_in_one_backup_both_import() {
+    let database = crate::db::Database::open_in_memory().unwrap();
+    let mut payload = BackupPayload::default();
+    payload.frontend_state = Some(serde_json::json!({
+        "customThemes": [{"id": "theme", "name": "Mine"}],
+        "recentCommands": [{"id": "command", "commandText": "ls", "lastUsedAt": 1, "useCount": 2}],
+        "recentQuickConnections": [],
+        "recentProfiles": [{"profileId": "profile", "lastUsedAt": 2}],
+        "sftpColumnWidths": [300, 170, 100, 100, 126, 148],
+        "sftpView": {"showHidden": false},
+    }));
+    let options = BackupImportOptions {
+        selection: BackupSelection {
+            settings: true,
+            themes: true,
+            ..Default::default()
+        },
+        backup_password: None,
+        use_webdav_password: false,
+        conflict_strategy: "replace".to_string(),
+    };
+
+    database
+        .write(|connection| apply_database_payload(connection, &payload, &options))
+        .unwrap();
+
+    database
+        .read(|connection| {
+            assert_eq!(
+                crate::themes::list_themes(connection)?,
+                vec![serde_json::json!({"id": "theme", "name": "Mine"})]
+            );
+            let state = crate::frontend_state::read_all(connection)?;
+            assert_eq!(state["recentCommands"][0]["id"], "command");
+            assert_eq!(state["recentProfiles"][0]["profileId"], "profile");
+            Ok(())
+        })
+        .unwrap();
+}
+
+#[test]
+fn importing_only_themes_restores_frontend_state_and_keeps_rollback() {
+    let database = crate::db::Database::open_in_memory().unwrap();
+    database
+        .write(|connection| {
+            meta::set(
+                connection,
+                "frontend.recent_commands",
+                &serde_json::json!([{"id": "mine"}]),
+            )?;
+            crate::themes::replace_themes(connection, &[serde_json::json!({"id": "mine"})])
+        })
+        .unwrap();
+    let mut payload = BackupPayload::default();
+    payload.frontend_state = Some(serde_json::json!({
+        "customThemes": [{"id": "theirs"}],
+        "recentCommands": [{"id": "theirs"}],
+    }));
+    let options = BackupImportOptions {
+        selection: BackupSelection {
+            themes: true,
+            ..Default::default()
+        },
+        backup_password: None,
+        use_webdav_password: false,
+        conflict_strategy: "replace".to_string(),
+    };
+
+    database
+        .write(|connection| {
+            let snapshot = snapshot_database(connection, &options.selection)?;
+            apply_database_payload(connection, &payload, &options)?;
+            assert_eq!(
+                crate::frontend_state::read_all(connection)?["recentCommands"][0]["id"],
+                "theirs"
+            );
+            assert_eq!(
+                crate::themes::list_themes(connection)?,
+                vec![serde_json::json!({"id": "theirs"})]
+            );
+
+            restore_database(connection, &snapshot)?;
+            assert_eq!(
+                crate::frontend_state::read_all(connection)?["recentCommands"][0]["id"],
+                "mine"
+            );
+            assert_eq!(
+                crate::themes::list_themes(connection)?,
+                vec![serde_json::json!({"id": "mine"})]
+            );
+            Ok(())
+        })
+        .unwrap();
+}
+
+#[test]
+fn a_new_backup_frontend_state_matches_the_old_shape_field_by_field() {
+    let database = crate::db::Database::open_in_memory().unwrap();
+    database
+        .write(|connection| {
+            meta::set(
+                connection,
+                "frontend.recent_commands",
+                &serde_json::json!([{"id": "new-command"}]),
+            )?;
+            meta::set(
+                connection,
+                "frontend.recent_profiles",
+                &serde_json::json!([{"profileId": "new-profile", "lastUsedAt": 2}]),
+            )?;
+            meta::set(
+                connection,
+                "frontend.sftp_view",
+                &serde_json::json!({"showHidden": true}),
+            )
+        })
+        .unwrap();
+    let selection = BackupSelection {
+        settings: true,
+        ..Default::default()
+    };
+    let state = database
+        .read(crate::frontend_state::backup_state)
+        .expect("read the backup state");
+    let filtered = filter_frontend_state(&selection, Some(state)).expect("filter the state");
+    assert_eq!(
+        filtered,
+        serde_json::json!({
+            "recentCommands": [{"id": "new-command"}],
+            "recentQuickConnections": [],
+            "recentProfiles": [{"profileId": "new-profile", "lastUsedAt": 2}],
+            "sftpColumnWidths": null,
+            "sftpView": {"showHidden": true},
+        })
+    );
+}
+
+#[test]
 fn session_sanitizer_removes_legacy_inline_credentials() {
     let value = serde_json::json!({
         "tabs": [{"connection": {"password": "do-not-export", "host": "example"}}],

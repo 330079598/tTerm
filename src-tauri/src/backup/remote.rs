@@ -279,6 +279,8 @@ pub async fn run_webdav_backup(
     force: bool,
     secret_state: State<'_, SecretStoreState>,
 ) -> Result<Option<WebDavUploadResult>, String> {
+    // Kept for older callers; backups read the frontend state from the database.
+    let _legacy_frontend_state = frontend_state;
     struct Uploading;
     impl Drop for Uploading {
         fn drop(&mut self) {
@@ -294,12 +296,11 @@ pub async fn run_webdav_backup(
         };
     }
     let _uploading = Uploading;
-    run_webdav_backup_locked(app, frontend_state, force, secret_state.inner()).await
+    run_webdav_backup_locked(app, force, secret_state.inner()).await
 }
 
 async fn run_webdav_backup_locked(
     app: AppHandle,
-    frontend_state: Option<Value>,
     force: bool,
     secret_state: &SecretStoreState,
 ) -> Result<Option<WebDavUploadResult>, String> {
@@ -317,7 +318,7 @@ async fn run_webdav_backup_locked(
     if !force && secret_state.data_key().is_err() {
         return Ok(None);
     }
-    let result = upload(&app, &settings, frontend_state, secret_state).await;
+    let result = upload(&app, &settings, secret_state).await;
     let message = result.as_ref().err().cloned();
     run_blocking(move || {
         crate::db::write(|transaction| match message {
@@ -335,7 +336,6 @@ async fn run_webdav_backup_locked(
 async fn upload(
     app: &AppHandle,
     settings: &WebDavBackupSettings,
-    frontend_state: Option<Value>,
     secret_state: &SecretStoreState,
 ) -> Result<WebDavUploadResult, String> {
     let settings = normalized_settings(settings.clone())?;
@@ -349,7 +349,7 @@ async fn upload(
                 .ok_or_else(|| "The WebDAV password is not saved.".to_string())?;
             let backup_password = saved_secret(&secret_state, BACKUP_PASSWORD_KEY)?
                 .ok_or_else(|| "The WebDAV backup password is not saved.".to_string())?;
-            let payload = collect_payload(&app, &selection, frontend_state, &secret_state)?;
+            let payload = collect_payload(&app, &selection, &secret_state)?;
             let archive = build_archive(&app, &selection, &payload, Some(&backup_password))?;
             Ok((
                 password,

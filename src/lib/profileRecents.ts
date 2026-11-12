@@ -1,3 +1,9 @@
+import {
+  cachedFrontendState,
+  isFrontendStateHydrated,
+  writeFrontendStateValue,
+} from "@/lib/frontendStateCache"
+
 /** When a saved connection last reached a shell or opened its port. */
 export interface RecentProfile {
   profileId: string
@@ -37,9 +43,12 @@ export function profileLastUsed(recents: readonly RecentProfile[]): Map<string, 
 
 export function loadRecentProfiles(storage: Pick<Storage, "getItem">): RecentProfile[] {
   try {
-    const value = storage.getItem(PROFILE_RECENTS_STORAGE_KEY)
-    if (!value) return []
-    const parsed: unknown = JSON.parse(value)
+    const hydrated = isFrontendStateHydrated()
+    const value = hydrated
+      ? cachedFrontendState("recentProfiles")
+      : storage.getItem(PROFILE_RECENTS_STORAGE_KEY)
+    if (value === undefined || value === null) return []
+    const parsed: unknown = hydrated ? value : JSON.parse(value as string)
     if (!Array.isArray(parsed)) return []
     return parsed
       .filter(
@@ -59,6 +68,10 @@ export function saveRecentProfiles(
   storage: Pick<Storage, "setItem">,
   recents: readonly RecentProfile[]
 ) {
+  if (isFrontendStateHydrated()) {
+    writeFrontendStateValue("recentProfiles", recents)
+    return
+  }
   try {
     storage.setItem(PROFILE_RECENTS_STORAGE_KEY, JSON.stringify(recents))
   } catch {

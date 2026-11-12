@@ -1,6 +1,12 @@
 import React, { useEffect, useMemo, useRef, useState } from "react"
 
-const SFTP_COLUMN_WIDTH_STORAGE_KEY = "tterm.sftp.columnWidths"
+import { SFTP_COLUMN_WIDTH_STORAGE_KEY } from "@/components/SftpDrawer/sftpView"
+import {
+  cachedFrontendState,
+  isFrontendStateHydrated,
+  writeFrontendStateValue,
+} from "@/lib/frontendStateCache"
+
 export const SFTP_COLUMN_DEFAULT_WEIGHTS = [300, 170, 100, 100, 126, 148] as const
 const SFTP_COLUMN_MIN_WEIGHTS = [180, 130, 78, 70, 92, 110] as const
 
@@ -30,14 +36,20 @@ function resizeColumnPair(startWeights: number[], index: number, deltaWeight: nu
   return nextWeights
 }
 
-function getInitialColumnWeights() {
+/** Reads the saved widths, using the loaded cache or the 0.8.x localStorage key. */
+export function loadSftpColumnWeights(
+  storage: Pick<Storage, "getItem"> = window.localStorage
+): number[] {
   try {
-    const storedWidths = window.localStorage.getItem(SFTP_COLUMN_WIDTH_STORAGE_KEY)
-    if (!storedWidths) {
+    const storedWidths = isFrontendStateHydrated()
+      ? cachedFrontendState("sftpColumnWidths")
+      : storage.getItem(SFTP_COLUMN_WIDTH_STORAGE_KEY)
+    if (storedWidths === undefined || storedWidths === null) {
       return [...SFTP_COLUMN_DEFAULT_WEIGHTS]
     }
 
-    const parsedWidths = JSON.parse(storedWidths)
+    const parsedWidths =
+      typeof storedWidths === "string" ? (JSON.parse(storedWidths) as unknown) : storedWidths
     if (
       !Array.isArray(parsedWidths) ||
       parsedWidths.length !== SFTP_COLUMN_DEFAULT_WEIGHTS.length
@@ -61,7 +73,7 @@ function getInitialColumnWeights() {
  * kept across sessions.
  */
 export function useSftpColumnWidths() {
-  const [columnWeights, setColumnWeights] = useState(getInitialColumnWeights)
+  const [columnWeights, setColumnWeights] = useState(loadSftpColumnWeights)
   const resizeStateRef = useRef<ResizeState | null>(null)
   const tableShellRef = useRef<HTMLDivElement>(null)
   const gridTemplateColumns = useMemo(
@@ -126,6 +138,10 @@ export function useSftpColumnWidths() {
   }, [])
 
   useEffect(() => {
+    if (isFrontendStateHydrated()) {
+      writeFrontendStateValue("sftpColumnWidths", columnWeights)
+      return
+    }
     window.localStorage.setItem(SFTP_COLUMN_WIDTH_STORAGE_KEY, JSON.stringify(columnWeights))
   }, [columnWeights])
 

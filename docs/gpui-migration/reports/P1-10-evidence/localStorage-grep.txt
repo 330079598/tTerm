@@ -1,0 +1,41 @@
+src/components/LogsPanel/replayView.ts:30:  storage: Pick<Storage, "getItem"> = window.localStorage
+src/components/LogsPanel/replayView.ts:53:  storage: Pick<Storage, "setItem"> = window.localStorage
+src/components/SftpDrawer/sftpView.ts:115:  storage: Pick<Storage, "getItem"> = window.localStorage
+src/components/SftpDrawer/sftpView.ts:141:  storage: Pick<Storage, "setItem"> = window.localStorage
+src/components/SftpDrawer/useSftpColumnWidths.ts:43:      : window.localStorage.getItem(SFTP_COLUMN_WIDTH_STORAGE_KEY)
+src/components/SftpDrawer/useSftpColumnWidths.ts:142:    window.localStorage.setItem(SFTP_COLUMN_WIDTH_STORAGE_KEY, JSON.stringify(columnWeights))
+src/components/TTermApp/useCommandLibraryActions.ts:31:    typeof window === "undefined" ? [] : loadRecentCommands(window.localStorage)
+src/components/TTermApp/useCommandLibraryActions.ts:108:      saveRecentCommands(window.localStorage, recentCommands)
+src/components/TTermApp/useProfileRecents.ts:44:    typeof window === "undefined" ? [] : loadRecentProfiles(window.localStorage)
+src/components/TTermApp/useProfileRecents.ts:51:        saveRecentProfiles(window.localStorage, next)
+src/components/TTermApp/useQuickConnect.tsx:40:    typeof window === "undefined" ? [] : loadRecentQuickConnections(window.localStorage)
+src/components/TTermApp/useQuickConnect.tsx:57:        saveRecentQuickConnections(window.localStorage, next)
+src/contexts/ThemeContext.test.tsx:101:  localStorage.clear()
+src/contexts/ThemeContext.test.tsx:122:    const cache = JSON.parse(localStorage.getItem("tterm-theme-cache")!)
+src/contexts/ThemeContext.test.tsx:132:    localStorage.setItem("tterm-cache-version", "2.0.0")
+src/contexts/ThemeContext.test.tsx:133:    localStorage.setItem(
+src/contexts/ThemeContext/useCustomThemeStore.ts:49:      // The first load hands the themes kept in localStorage to the database.
+src/lib/commandComposer.ts:90:    return localStorage.getItem(key) === "1"
+src/lib/commandComposer.ts:107:    localStorage.setItem(key, value ? "1" : "0")
+src/lib/customThemes.ts:66:/** The themes older versions kept in localStorage; `null` when there are none. */
+src/lib/customThemes.ts:69:    const stored = localStorage.getItem(LEGACY_STORAGE_KEY)
+src/lib/customThemes.ts:74:    console.error("Failed to read the themes kept in localStorage:", error)
+src/lib/customThemes.ts:81:    localStorage.removeItem(LEGACY_STORAGE_KEY)
+src/lib/serialSendStore.test.ts:13:  beforeEach(() => localStorage.clear())
+src/lib/serialSendStore.test.ts:31:    localStorage.setItem(SERIAL_SEND_ECHO_STORAGE_KEY, "not json")
+src/lib/serialSendStore.test.ts:33:    localStorage.setItem(SERIAL_SEND_ECHO_STORAGE_KEY, JSON.stringify([1, "port:COM1"]))
+src/lib/serialSendStore.ts:41:    const stored = JSON.parse(localStorage.getItem(SERIAL_SEND_ECHO_STORAGE_KEY) ?? "[]") as unknown
+src/lib/serialSendStore.ts:68:    localStorage.setItem(SERIAL_SEND_ECHO_STORAGE_KEY, JSON.stringify(hidden))
+src/lib/themePreloader.ts:19: * 1. localStorage as fast cache (primary)
+src/lib/themePreloader.ts:21: * 3. On startup: use localStorage first, then calibrate with Tauri config
+src/lib/themePreloader.ts:26: * - Auto-recovery if localStorage is cleared
+src/lib/themePreloader.ts:380:    const version = localStorage.getItem(CACHE_VERSION_KEY)
+src/lib/themePreloader.ts:408:    const cached = localStorage.getItem(THEME_CACHE_KEY)
+src/lib/themePreloader.ts:417: * Preload theme from localStorage and apply to DOM
+src/lib/themePreloader.ts:431:    const cached = localStorage.getItem(THEME_CACHE_KEY)
+src/lib/themePreloader.ts:456: * Cache theme configuration to localStorage
+src/lib/themePreloader.ts:467:    localStorage.setItem(THEME_CACHE_KEY, JSON.stringify(cacheWithTimestamp))
+src/lib/themePreloader.ts:468:    localStorage.setItem(CACHE_VERSION_KEY, CURRENT_CACHE_VERSION)
+src/lib/uiStyle.test.ts:11:  localStorage.clear()
+src/lib/uiStyle.ts:13:    localStorage.setItem(UI_STYLE_CACHE_KEY, style)
+src/lib/uiStyle.ts:26:    remembered = localStorage.getItem(UI_STYLE_CACHE_KEY)

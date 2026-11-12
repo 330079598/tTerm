@@ -1,12 +1,17 @@
 import { useSyncExternalStore } from "react"
 
 import type { PromptEvent, ShellPromptState } from "@/components/TerminalTab/commandMarks"
+import {
+  cachedFrontendState,
+  isFrontendStateHydrated,
+  writeFrontendStateValue,
+} from "@/lib/frontendStateCache"
 
 // The compose bar: text edited locally and sent to the focused terminal in
 // one go, so that over a slow link typing never waits on the round trip.
 
-const OPEN_STORAGE_KEY = "tterm.command-composer.open"
-const LINE_BY_LINE_STORAGE_KEY = "tterm.command-composer.line-by-line"
+export const COMMAND_COMPOSER_OPEN_STORAGE_KEY = "tterm.command-composer.open"
+export const COMMAND_COMPOSER_LINE_BY_LINE_STORAGE_KEY = "tterm.command-composer.line-by-line"
 const PASTE_START = "\x1b[200~"
 const PASTE_END = "\x1b[201~"
 
@@ -73,6 +78,14 @@ export function getComposerTarget(tabId: string) {
 }
 
 function loadFlag(key: string) {
+  if (isFrontendStateHydrated()) {
+    const value = cachedFrontendState(
+      key === COMMAND_COMPOSER_OPEN_STORAGE_KEY
+        ? "commandComposerOpen"
+        : "commandComposerLineByLine"
+    )
+    return value === true
+  }
   try {
     return localStorage.getItem(key) === "1"
   } catch {
@@ -81,6 +94,15 @@ function loadFlag(key: string) {
 }
 
 function saveFlag(key: string, value: boolean) {
+  if (isFrontendStateHydrated()) {
+    writeFrontendStateValue(
+      key === COMMAND_COMPOSER_OPEN_STORAGE_KEY
+        ? "commandComposerOpen"
+        : "commandComposerLineByLine",
+      value
+    )
+    return
+  }
   try {
     localStorage.setItem(key, value ? "1" : "0")
   } catch {
@@ -89,10 +111,10 @@ function saveFlag(key: string, value: boolean) {
 }
 
 let state = {
-  open: loadFlag(OPEN_STORAGE_KEY),
+  open: loadFlag(COMMAND_COMPOSER_OPEN_STORAGE_KEY),
   focusRequest: 0,
   /** Several lines run one at a time rather than go in as one paste. */
-  lineByLine: loadFlag(LINE_BY_LINE_STORAGE_KEY),
+  lineByLine: loadFlag(COMMAND_COMPOSER_LINE_BY_LINE_STORAGE_KEY),
   /** What is typed in the bar, kept here so the command library can add to it. */
   text: "",
   /**
@@ -106,9 +128,20 @@ const listeners = new Set<() => void>()
 function setState(next: typeof state) {
   const previous = state
   state = next
-  if (next.open !== previous.open) saveFlag(OPEN_STORAGE_KEY, next.open)
-  if (next.lineByLine !== previous.lineByLine) saveFlag(LINE_BY_LINE_STORAGE_KEY, next.lineByLine)
+  if (next.open !== previous.open) saveFlag(COMMAND_COMPOSER_OPEN_STORAGE_KEY, next.open)
+  if (next.lineByLine !== previous.lineByLine) {
+    saveFlag(COMMAND_COMPOSER_LINE_BY_LINE_STORAGE_KEY, next.lineByLine)
+  }
   for (const listener of listeners) listener()
+}
+
+/** Applies the flags loaded from the backend before React mounts. */
+export function refreshComposerPreferences(): void {
+  state = {
+    ...state,
+    open: loadFlag(COMMAND_COMPOSER_OPEN_STORAGE_KEY),
+    lineByLine: loadFlag(COMMAND_COMPOSER_LINE_BY_LINE_STORAGE_KEY),
+  }
 }
 
 /** Shows the bar and puts the keyboard in it. */

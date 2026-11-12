@@ -1,4 +1,9 @@
 import type { CommandDraft, ExecutedCommand, RecentCommand } from "@/types/command"
+import {
+  cachedFrontendState,
+  isFrontendStateHydrated,
+  writeFrontendStateValue,
+} from "@/lib/frontendStateCache"
 
 export const RECENT_COMMANDS_STORAGE_KEY = "tterm.recent-commands.v1"
 export const RECENT_COMMANDS_LIMIT = 100
@@ -60,9 +65,12 @@ export function addRecentCommand(
 
 export function loadRecentCommands(storage: Pick<Storage, "getItem">): RecentCommand[] {
   try {
-    const value = storage.getItem(RECENT_COMMANDS_STORAGE_KEY)
-    if (!value) return []
-    const parsed = JSON.parse(value)
+    const hydrated = isFrontendStateHydrated()
+    const value = hydrated
+      ? cachedFrontendState("recentCommands")
+      : storage.getItem(RECENT_COMMANDS_STORAGE_KEY)
+    if (value === undefined || value === null) return []
+    const parsed = hydrated ? value : (JSON.parse(value as string) as unknown)
     if (!Array.isArray(parsed)) return []
     return parsed
       .filter(
@@ -81,5 +89,9 @@ export function loadRecentCommands(storage: Pick<Storage, "getItem">): RecentCom
 }
 
 export function saveRecentCommands(storage: Pick<Storage, "setItem">, commands: RecentCommand[]) {
+  if (isFrontendStateHydrated()) {
+    writeFrontendStateValue("recentCommands", commands)
+    return
+  }
   storage.setItem(RECENT_COMMANDS_STORAGE_KEY, JSON.stringify(commands))
 }

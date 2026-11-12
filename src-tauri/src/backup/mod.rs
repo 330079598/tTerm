@@ -376,11 +376,10 @@ pub async fn run_due_automatic_backup(
     force: bool,
     secret_state: State<'_, SecretStoreState>,
 ) -> Result<Option<BackupExportResult>, String> {
+    // Kept for older callers; backups read the frontend state from the database.
+    let _legacy_frontend_state = frontend_state;
     let secret_state = secret_state.inner().clone();
-    run_blocking(move || {
-        run_due_automatic_backup_blocking(app, frontend_state, force, &secret_state)
-    })
-    .await
+    run_blocking(move || run_due_automatic_backup_blocking(app, force, &secret_state)).await
 }
 
 fn export_backup_blocking(
@@ -390,17 +389,15 @@ fn export_backup_blocking(
     secret_state: &SecretStoreState,
 ) -> Result<BackupExportResult, String> {
     validate_export_options(&options)?;
+    // The field stays in the command for older callers; the backend now
+    // reads this data from app_meta.
+    let _legacy_frontend_state = options.frontend_state.take();
     // The file is readable by whoever chose its password.
     if options.selection.secrets {
         secret_state.require_verification(VerificationPurpose::Sensitive)?;
     }
     let output = normalized_backup_path(&output_path)?;
-    let mut payload = collect_payload(
-        &app,
-        &options.selection,
-        options.frontend_state.take(),
-        secret_state,
-    )?;
+    let mut payload = collect_payload(&app, &options.selection, secret_state)?;
     let profile_count = value_array_len(payload.profiles.as_ref());
     let command_count = payload.commands.as_ref().map_or(0, Vec::len);
     let secret_count = payload.secrets.len();

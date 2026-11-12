@@ -4,6 +4,7 @@ import type { AppShell } from "@/components/TTermApp/appShell"
 import type { ProfileDialogState } from "@/components/TTermApp/useProfileDialogState"
 import { SavedProfile } from "@/components/ProfilesPanel"
 import { ToastAction } from "@/components/ui/toast"
+import { useFrontendStateRefresh } from "@/hooks/useFrontendStateRefresh"
 import { toast } from "@/hooks/use-toast"
 import { draftLocalProfileFromTab } from "@/lib/localProfiles"
 import { buildConnectionFromProfile } from "@/lib/profileConnections"
@@ -39,6 +40,10 @@ export function useQuickConnect(shell: AppShell, dialog: ProfileDialogState) {
   const [quickConnectRecents, setQuickConnectRecents] = useState<RecentQuickConnection[]>(() =>
     typeof window === "undefined" ? [] : loadRecentQuickConnections(window.localStorage)
   )
+  const refreshQuickConnectRecents = useCallback(() => {
+    setQuickConnectRecents(loadRecentQuickConnections(window.localStorage))
+  }, [])
+  useFrontendStateRefresh(refreshQuickConnectRecents)
 
   const handleOpenConnectionDialogFromLauncher = useCallback(
     (input: string, configHosts: readonly SshConfigHost[]) => {

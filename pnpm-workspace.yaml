@@ -1,0 +1,6 @@
+# pnpm 11 runs no dependency build scripts unless they are listed here.
+# esbuild ships its binary as an optional platform package, so its
+# postinstall check is not needed; a missing entry fails every install in a
+# fresh worktree.
+allowBuilds:
+  esbuild: false

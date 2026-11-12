@@ -6,6 +6,11 @@ import type {
   SshAuthUsed,
   Tab,
 } from "@/types/tab"
+import {
+  cachedFrontendState,
+  isFrontendStateHydrated,
+  writeFrontendStateValue,
+} from "@/lib/frontendStateCache"
 
 /** One `[user@]host[:port]` endpoint, as typed. */
 export interface QuickConnectEndpoint {
@@ -329,9 +334,12 @@ export function loadRecentQuickConnections(
   storage: Pick<Storage, "getItem">
 ): RecentQuickConnection[] {
   try {
-    const value = storage.getItem(QUICK_CONNECT_RECENTS_STORAGE_KEY)
-    if (!value) return []
-    const parsed: unknown = JSON.parse(value)
+    const hydrated = isFrontendStateHydrated()
+    const value = hydrated
+      ? cachedFrontendState("recentQuickConnections")
+      : storage.getItem(QUICK_CONNECT_RECENTS_STORAGE_KEY)
+    if (value === undefined || value === null) return []
+    const parsed: unknown = hydrated ? value : JSON.parse(value as string)
     if (!Array.isArray(parsed)) return []
     return parsed
       .filter(
@@ -354,6 +362,10 @@ export function saveRecentQuickConnections(
   storage: Pick<Storage, "setItem">,
   recents: readonly RecentQuickConnection[]
 ) {
+  if (isFrontendStateHydrated()) {
+    writeFrontendStateValue("recentQuickConnections", recents)
+    return
+  }
   try {
     storage.setItem(QUICK_CONNECT_RECENTS_STORAGE_KEY, JSON.stringify(recents))
   } catch {

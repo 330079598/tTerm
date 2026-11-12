@@ -13,14 +13,13 @@ import {
   type MigrationView,
   defaultSelection,
   cloneAvailableSelection,
-  restoreFrontendState,
   type BusyAction,
 } from "@/components/SettingsDialog/dataMigration"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { useTheme } from "@/contexts/ThemeContext"
 import { useUserVerification } from "@/contexts/UserVerificationContext"
 import { useToast } from "@/hooks/use-toast"
-import { readBackupFrontendState } from "@/lib/backupFrontendState"
+import { reloadFrontendState } from "@/lib/frontendStateCache"
 import { isVerificationCanceled } from "@/lib/userVerification"
 import { toErrorMessage } from "@/lib/utils"
 import type { RemoteBackupEntry } from "@/components/SettingsDialog/webdavBackup"
@@ -165,7 +164,6 @@ export const DataMigrationSettingsTab: React.FC = () => {
           options: {
             selection,
             backupPassword: backupPassword || null,
-            frontendState: readBackupFrontendState(),
           },
         })
       )
@@ -263,7 +261,12 @@ export const DataMigrationSettingsTab: React.FC = () => {
           },
         })
       )
-      restoreFrontendState(result.frontendState)
+      try {
+        await reloadFrontendState(result.frontendState)
+      } catch (error) {
+        // The import itself succeeded; a restart reads the new values again.
+        console.error("Failed to refresh the imported frontend state:", error)
+      }
       if (selection.session) suspendTerminalContentSaving()
       if (selection.themes) void reloadCustomThemes()
       setImportResult(result)
@@ -332,7 +335,6 @@ export const DataMigrationSettingsTab: React.FC = () => {
     try {
       await invoke("save_automatic_backup_settings", { settings: automaticSettings })
       await invoke("run_due_automatic_backup", {
-        frontendState: readBackupFrontendState(),
         force: true,
       })
       await refreshBackupManagement()

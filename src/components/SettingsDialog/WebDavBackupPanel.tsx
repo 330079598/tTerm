@@ -21,7 +21,6 @@ import { useConfig } from "@/contexts/ConfigContext"
 import { useUserVerification } from "@/contexts/UserVerificationContext"
 import { useToast } from "@/hooks/use-toast"
 import { WebDavSyncCard } from "@/components/SettingsDialog/WebDavSyncCard"
-import { readBackupFrontendState } from "@/lib/backupFrontendState"
 import { isVerificationCanceled } from "@/lib/userVerification"
 import { toErrorMessage } from "@/lib/utils"
 import { isVaultLocked, vaultUnlockable } from "@/lib/vaultLock"
@@ -185,7 +184,6 @@ export const WebDavBackupPanel: React.FC<WebDavBackupPanelProps> = ({
     try {
       const result = await withVaultUnlock(() =>
         invoke<WebDavUploadResult | null>("run_webdav_backup", {
-          frontendState: readBackupFrontendState(),
           force: true,
         })
       )
