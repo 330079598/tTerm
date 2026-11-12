@@ -254,6 +254,8 @@ export class AgentTracker {
   report() { this.speaking = true; return true }
   resumeSession() { return null }
   submit() {}
+  answer() {}
+  interrupt() {}
   get speaksForAgent() { return this.speaking }
 }
 `)
@@ -470,6 +472,14 @@ const savedUrl = moduleUrl("src/components/TerminalTab/savedPasswordPrompts.ts",
   "@/lib/terminalCommandCapture": terminalCommandCaptureUrl,
 })
 const { createSavedPasswordPrompts } = await import(savedUrl)
+const { attachTerminalInput } = await import(
+  moduleUrl("src/components/TerminalTab/terminalInput.ts", {
+    "@tauri-apps/api/core": invokeStub,
+    "@/components/TerminalTab/serialDisplay": stubUrl("export function getSerialDisplay() {}"),
+    "@/lib/serial": stubUrl("export function localEchoText(data) { return data }"),
+    "@/lib/terminalCommandCapture": terminalCommandCaptureUrl,
+  })
+)
 
 const SUDO_PROMPT = "[sudo] password for alice:"
 const NO_USER_PROMPT = "[sudo: authenticate] Password:"
@@ -743,6 +753,47 @@ async function newCommandPromptScenario() {
 }
 
 const newCommandPrompt = await newCommandPromptScenario()
+
+async function manualInputScenario(terminator, inProgram = false) {
+  invokeState.results = [null]
+  const setup = savedSetup()
+  await setup.check(SUDO_PROMPT)
+  const trackingSetup = freshTracking()
+  const tracker = createCommandTracking({ ...trackingSetup.ctx, session: setup.ctx.session })
+  if (inProgram) {
+    setup.ctx.term.buffer.active.type = "normal"
+    tracker.commandMarks.handleMark("C")
+  }
+  let input
+  setup.ctx.term.onData = (listener) => { input = listener }
+  attachTerminalInput({
+    ...setup.ctx,
+    waitingForReconnectRef: { current: false },
+    onReconnectRequestRef: { current: null },
+  }, {
+    ...tracker,
+    ...setup.prompts,
+    applyConnectionState() {},
+    predictiveEcho: { noteInput() {} },
+  })
+  const snapshots = []
+  for (const data of ["secret", "", terminator, "echo 密😀e\u0301", "\r"]) {
+    input(data)
+    snapshots.push({
+      data,
+      suspended: setup.ctx.session.commandCaptureSuspended,
+      state: { ...setup.ctx.session.commandCaptureState },
+      commands: trackingSetup.executed.map((command) => command.commandText),
+    })
+  }
+  return snapshots
+}
+
+const manualInput = []
+for (const terminator of ["\r", "\n", "\x03"]) {
+  manualInput.push(await manualInputScenario(terminator))
+}
+const manualInputBusy = await manualInputScenario("\r", true)
 Date.now = originalNow
 
 function loginScriptScenario(connection, script) {
@@ -861,6 +912,8 @@ const savedOracle = {
   staleLookup,
   failedLookup,
   newCommandPrompt,
+  manualInput,
+  manualInputBusy,
   loginScriptCases: [
     loginScriptScenario("ssh", "cd /srv\r\n\r\necho ready\r\n"),
     loginScriptScenario("terminal", null),

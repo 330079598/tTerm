@@ -8,7 +8,7 @@
 use serde::{Deserialize, Serialize};
 use tterm_terminal::sudo_prompt::{PasswordPromptMatch, match_password_prompt};
 use tterm_terminal::terminal_command_capture::{
-    TerminalCommandCaptureState, empty_command_capture_state,
+    TerminalCommandCaptureState, capture_terminal_input, empty_command_capture_state,
 };
 
 use crate::password_feedback::next_typed_length;
@@ -278,6 +278,29 @@ impl SavedPasswordPrompts {
     /// The command-line capture state left after a password prompt or fill.
     pub fn command_capture_state(&self) -> &TerminalCommandCaptureState {
         &self.command_capture_state
+    }
+
+    /// Updates the session's command capture as `terminalInput.ts:90-97` does.
+    ///
+    /// Call after `type_at_prompt` for keyboard input. Enter, LF and Ctrl+C
+    /// resume suspended capture without recording the password. The returned
+    /// commands go to `CommandTracking::emit_typed_command`; input to a running
+    /// program still updates the capture but returns no shell commands.
+    pub fn capture_input(&mut self, data: &str, in_program: bool) -> Vec<String> {
+        if self.command_capture_suspended {
+            if data.contains(['\r', '\n', '\u{0003}']) {
+                self.command_capture_suspended = false;
+                self.command_capture_state = empty_command_capture_state();
+            }
+            return Vec::new();
+        }
+        let captured = capture_terminal_input(&self.command_capture_state, data);
+        self.command_capture_state = captured.state;
+        if in_program {
+            Vec::new()
+        } else {
+            captured.commands
+        }
     }
 
     /// Checks the line under the cursor after output was parsed.

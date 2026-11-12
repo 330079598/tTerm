@@ -375,3 +375,65 @@ fn executed_command_json_uses_camel_case_and_omits_missing_profiles() {
     .expect("the command deserializes");
     assert_eq!(round_trip, executed("uptime", 1000));
 }
+
+#[test]
+fn oracle_manual_password_input_resumes_command_capture_without_recording_secrets() {
+    use tterm_terminal::terminal_command_capture::{
+        TerminalCommandCaptureState, empty_command_capture_state,
+    };
+
+    for (terminator, in_program) in [
+        ("\r", false),
+        ("\n", false),
+        ("\u{0003}", false),
+        ("\r", true),
+    ] {
+        let mut harness = Harness::new();
+        {
+            let mut prompts = harness.password_prompts.borrow_mut();
+            prompts.check_password_prompt("[sudo] password for alice:", &[], 1000);
+            prompts.resolve_saved_password_source(2, None);
+        }
+        let command = "echo 密😀e\u{0301}";
+        let mut captured_commands = Vec::new();
+        for (index, data) in ["secret", "", terminator, command, "\r"]
+            .into_iter()
+            .enumerate()
+        {
+            let commands = {
+                let mut prompts = harness.password_prompts.borrow_mut();
+                prompts.type_at_prompt(data);
+                let commands = prompts.capture_input(data, in_program);
+                assert_eq!(prompts.command_capture_suspended(), index < 2);
+                let expected = if index == 3 {
+                    TerminalCommandCaptureState {
+                        text: command.to_string(),
+                        cursor: 10,
+                        bracketed_paste: false,
+                        valid: true,
+                    }
+                } else {
+                    empty_command_capture_state()
+                };
+                assert_eq!(prompts.command_capture_state(), &expected);
+                commands
+            };
+            for captured in commands {
+                harness.typed(&captured, 1000);
+                captured_commands.push(captured);
+            }
+            let expected_commands = if index == 4 && !in_program {
+                vec![command.to_string()]
+            } else {
+                vec![]
+            };
+            assert_eq!(captured_commands, expected_commands);
+            let expected_history = if index == 4 && !in_program {
+                vec![executed(command, 1000)]
+            } else {
+                vec![]
+            };
+            assert_eq!(*harness.executed.borrow(), expected_history);
+        }
+    }
+}
