@@ -18,7 +18,12 @@ pub enum SplitOrientation {
 }
 
 /// A node of a tab's pane tree.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+///
+/// Saved sessions serialize this type. Reading saved trees is deferred to the
+/// second P1-11d group, whose `readPaneNode` accepts malformed sizes and drops
+/// only the invalid group; deriving `Deserialize` here would be stricter than
+/// the TypeScript format.
+#[derive(Debug, Clone, PartialEq, Serialize)]
 #[serde(tag = "type", rename_all = "lowercase")]
 pub enum PaneNode {
     /// One pane showing the tab with `tab_id`.
@@ -29,15 +34,21 @@ pub enum PaneNode {
     },
     /// A split whose children own the shares in `sizes`.
     Split {
+        /// The axis the children divide.
         orientation: SplitOrientation,
+        /// The panes or splits that make up the split.
         children: Vec<PaneNode>,
+        /// Each child's share of the split.
         #[serde(serialize_with = "serialize_sizes")]
         sizes: Vec<f64>,
     },
 }
 
 /// One tab of the tab bar and the panes it holds.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+///
+/// The saved session format serializes this type. Reading it belongs to the
+/// second P1-11d group with [`PaneNode`]'s reader.
+#[derive(Debug, Clone, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TabGroup {
     /// The group's unique id.

@@ -5,20 +5,20 @@
 //! runs the real TypeScript modules. `tabGroupsPersistence.ts` itself belongs
 //! to the second P1-11d1 group; only the container it writes is mirrored here.
 
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 
 use crate::workspace::pane_templates::{LayoutShape, PaneLayoutTemplate};
-use crate::workspace::tab_groups::{PaneNode, normalize_pane_tree};
+use crate::workspace::tab_groups::{PaneNode, SplitOrientation, normalize_pane_tree, pane_leaf};
 
 /// The current saved layout format, from `tabGroupsPersistence.ts`.
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize)]
 struct SavedTabGroups {
     version: u32,
     groups: Vec<SavedTabGroup>,
 }
 
 /// One saved group; the transient group id is left out.
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 struct SavedTabGroup {
     root: PaneNode,
@@ -33,9 +33,38 @@ const SHAPE_JSON: &str = r#"{"type":"split","orientation":"horizontal","children
 const NESTED_SHAPE_JSON: &str = r#"{"type":"split","orientation":"horizontal","children":[{"type":"pane"},{"type":"split","orientation":"vertical","children":[{"type":"pane"},{"type":"pane"}],"sizes":[0.5,0.5]}],"sizes":[0.5,0.5]}"#;
 const TEMPLATE_JSON: &str = r#"[{"id":"t1","name":"Ops","root":{"type":"split","orientation":"horizontal","children":[{"type":"pane"},{"type":"split","orientation":"vertical","children":[{"type":"pane"},{"type":"pane"}],"sizes":[0.5,0.5]}],"sizes":[0.5,0.5]}}]"#;
 
+fn saved_tree() -> PaneNode {
+    PaneNode::Split {
+        orientation: SplitOrientation::Horizontal,
+        children: vec![
+            pane_leaf("a"),
+            PaneNode::Split {
+                orientation: SplitOrientation::Vertical,
+                children: vec![pane_leaf("b"), pane_leaf("c")],
+                sizes: vec![0.25, 0.75],
+            },
+        ],
+        sizes: vec![0.5, 0.5],
+    }
+}
+
 #[test]
-fn saved_session_layout_roundtrips_to_the_typescript_bytes() {
-    let saved: SavedTabGroups = serde_json::from_str(SESSION_LAYOUT_JSON).unwrap();
+fn saved_session_layout_serializes_to_the_typescript_bytes() {
+    let saved = SavedTabGroups {
+        version: 2,
+        groups: vec![
+            SavedTabGroup {
+                root: saved_tree(),
+                active_tab_id: "c".to_owned(),
+                zoomed_tab_id: Some("b".to_owned()),
+            },
+            SavedTabGroup {
+                root: pane_leaf("d"),
+                active_tab_id: "d".to_owned(),
+                zoomed_tab_id: None,
+            },
+        ],
+    };
     assert_eq!(saved.version, 2);
     assert_eq!(saved.groups.len(), 2);
     assert_eq!(saved.groups[0].active_tab_id, "c");
@@ -45,8 +74,8 @@ fn saved_session_layout_roundtrips_to_the_typescript_bytes() {
 }
 
 #[test]
-fn normalized_pane_tree_roundtrips_to_the_typescript_bytes() {
-    let tree: PaneNode = serde_json::from_str(TREE_JSON).unwrap();
+fn normalized_pane_tree_serializes_to_the_typescript_bytes() {
+    let tree = saved_tree();
     assert_eq!(
         serde_json::to_string(&normalize_pane_tree(&tree)).unwrap(),
         TREE_JSON
@@ -71,13 +100,30 @@ fn saved_templates_roundtrip_to_the_typescript_bytes() {
 }
 
 #[test]
-fn reading_accepts_the_null_and_unknown_fields_the_frontend_reads() {
-    let legacy = r#"{"version":2,"unknown":"kept by neither side","groups":[{"root":{"type":"split","orientation":"vertical","children":[{"type":"pane","tabId":"a","extra":1},{"type":"pane","tabId":"b"}],"sizes":[0.5,0.5],"extra":true},"activeTabId":"a","zoomedTabId":null,"extra":[]}]}"#;
-    let saved: SavedTabGroups = serde_json::from_str(legacy).unwrap();
-    assert_eq!(saved.groups[0].active_tab_id, "a");
-    assert_eq!(saved.groups[0].zoomed_tab_id, None);
+fn omitted_zoomed_tab_id_stays_out_of_the_saved_bytes() {
+    let saved = SavedTabGroups {
+        version: 2,
+        groups: vec![SavedTabGroup {
+            root: pane_leaf("a"),
+            active_tab_id: "a".to_owned(),
+            zoomed_tab_id: None,
+        }],
+    };
     assert_eq!(
         serde_json::to_string(&saved).unwrap(),
-        r#"{"version":2,"groups":[{"root":{"type":"split","orientation":"vertical","children":[{"type":"pane","tabId":"a"},{"type":"pane","tabId":"b"}],"sizes":[0.5,0.5]},"activeTabId":"a"}]}"#
+        r#"{"version":2,"groups":[{"root":{"type":"pane","tabId":"a"},"activeTabId":"a"}]}"#
+    );
+}
+
+#[test]
+fn non_finite_pane_sizes_are_written_as_null() {
+    let tree = PaneNode::Split {
+        orientation: SplitOrientation::Vertical,
+        children: vec![pane_leaf("a"), pane_leaf("b")],
+        sizes: vec![f64::NAN, 0.5],
+    };
+    assert_eq!(
+        serde_json::to_string(&tree).unwrap(),
+        r#"{"type":"split","orientation":"vertical","children":[{"type":"pane","tabId":"a"},{"type":"pane","tabId":"b"}],"sizes":[null,0.5]}"#
     );
 }
