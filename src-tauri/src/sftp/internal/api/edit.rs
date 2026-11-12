@@ -49,10 +49,10 @@ fn file_name_from_remote_path(path: &str) -> Result<String, String> {
 }
 
 fn temp_remote_path(path: &str) -> Result<String, String> {
-    let parent = crate::sftp::internal::paths::parent_remote_path(path)
+    let parent = tterm_core::sftp::internal::paths::parent_remote_path(path)
         .ok_or_else(|| format!("Failed to determine parent directory for remote path '{path}'"))?;
     let file_name = file_name_from_remote_path(path)?;
-    Ok(crate::sftp::internal::paths::join_remote_path(
+    Ok(tterm_core::sftp::internal::paths::join_remote_path(
         &parent,
         &format!(".{file_name}.tterm-save-{}", uuid::Uuid::new_v4()),
     ))
@@ -147,7 +147,7 @@ async fn load_editable_file(sftp: &SftpSession, path: &str) -> Result<SftpEditab
         content,
         file_name: file_name_from_remote_path(path)?,
         modified_at: metadata_modified_at(&metadata),
-        path: crate::sftp::internal::paths::normalize_remote_path(path),
+        path: tterm_core::sftp::internal::paths::normalize_remote_path(path),
         size,
     })
 }

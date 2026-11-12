@@ -7,13 +7,13 @@ use super::matcher::NameMatcher;
 use crate::sftp::internal::api::base::directory_entry;
 use crate::sftp::internal::connection::map_sftp_error;
 use crate::sftp::internal::exec::cancelled;
-use crate::sftp::internal::paths::join_remote_path;
 use russh_sftp::client::SftpSession;
 use russh_sftp::client::fs::Metadata;
 use std::collections::VecDeque;
 use std::sync::Arc;
 use tokio::sync::watch;
 use tokio::task::JoinSet;
+use tterm_core::sftp::internal::paths::join_remote_path;
 
 /// How many folders are read at once.
 const WALK_CONCURRENCY: usize = 8;

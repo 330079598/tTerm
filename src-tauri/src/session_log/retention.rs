@@ -56,7 +56,7 @@ pub(super) fn clean(
     }
     let mut total: u64 = 0;
     let mut removable = Vec::new();
-    for found in super::library::walk(directory)? {
+    for found in tterm_core::session_log::library::walk(directory)? {
         if !has_log_suffix(&found.name) {
             continue;
         }
@@ -67,7 +67,7 @@ pub(super) fn clean(
         let modified = metadata.modified().unwrap_or(now);
         let held =
             in_use.contains(&path) || now.duration_since(modified).unwrap_or_default() < RECENT;
-        if !held && super::library::read_metadata(&path).is_none() {
+        if !held && tterm_core::session_log::library::read_metadata(&path).is_none() {
             continue;
         }
         total += metadata.len();
@@ -97,7 +97,7 @@ pub(super) fn clean(
                 report.removed += 1;
                 report.freed_bytes += file.size;
                 if let Some(folder) = file.path.parent() {
-                    super::library::remove_empty_folders(directory, folder);
+                    tterm_core::session_log::library::remove_empty_folders(directory, folder);
                 }
             }
             Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}

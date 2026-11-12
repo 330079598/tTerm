@@ -3,12 +3,12 @@ use super::files::{
 };
 use super::*;
 use crate::backup::MAX_BACKUP_SIZE;
-use crate::backup::webdav::DavEntry;
 use chrono::TimeZone;
+use tterm_core::backup::webdav::DavEntry;
 
 #[test]
 fn saving_settings_keeps_history_and_clearing_forgets_everything() {
-    let database = crate::db::Database::open_in_memory().unwrap();
+    let database = tterm_core::db::Database::open_in_memory().unwrap();
     database
         .write(|connection| {
             let settings = |url: &str| WebDavBackupSettings {

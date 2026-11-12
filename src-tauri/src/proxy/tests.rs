@@ -1,10 +1,10 @@
 use super::connect::connect_with_timeout;
 use super::*;
-use crate::db::Database;
 use crate::ssh::types::SshConnectError;
 use std::time::Duration;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::{TcpListener, TcpStream};
+use tterm_core::db::Database;
 
 const BANNER: &[u8] = b"SSH-2.0-test\r\n";
 

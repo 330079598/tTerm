@@ -2,9 +2,9 @@
 //! falls back to.
 
 use super::keymap::KeymapConfig;
-use super::update_channel::default_update_channel;
 use super::{AppConfig, keyword_highlight, panes, tab_agent_indicator, tab_icons};
 use sys_locale::get_locale;
+use tterm_core::config::update_channel::default_update_channel;
 
 fn normalize_language(locale: &str) -> String {
     let normalized_locale = locale.replace('_', "-").to_ascii_lowercase();

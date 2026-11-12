@@ -1,4 +1,3 @@
-use super::local::{self, FileStamp, Fingerprint};
 use super::operations::{
     SftpExternalEditReleaseTabDependencies, SftpExternalEditReleaseTabInput,
     sftp_external_edit_release_tab_service,
@@ -8,6 +7,7 @@ use super::watch::{self, Look, Step, Watched};
 use super::*;
 use std::time::{Duration, SystemTime};
 use tterm_core::events::sftp::external::{EditStatus, ExternalEdit};
+use tterm_core::sftp::internal::api::external::local::{FileStamp, Fingerprint};
 
 /// A folder for one test, removed when it ends.
 struct TempDir {
@@ -31,18 +31,42 @@ impl Drop for TempDir {
 
 #[test]
 fn local_names_keep_the_remote_name_outside_windows() {
-    assert_eq!(local::local_file_name("a:b*?.conf", false), "a:b*?.conf");
+    assert_eq!(
+        tterm_core::sftp::internal::api::external::local::local_file_name("a:b*?.conf", false),
+        "a:b*?.conf"
+    );
 }
 
 #[test]
 fn local_names_avoid_what_windows_forbids() {
-    assert_eq!(local::local_file_name("a:b*?.conf", true), "a_b__.conf");
-    assert_eq!(local::local_file_name("notes.txt. ", true), "notes.txt");
-    assert_eq!(local::local_file_name("...", true), "file");
-    assert_eq!(local::local_file_name("con.txt", true), "_con.txt");
-    assert_eq!(local::local_file_name("COM1", true), "_COM1");
-    assert_eq!(local::local_file_name("com10.log", true), "com10.log");
-    assert_eq!(local::local_file_name("console.log", true), "console.log");
+    assert_eq!(
+        tterm_core::sftp::internal::api::external::local::local_file_name("a:b*?.conf", true),
+        "a_b__.conf"
+    );
+    assert_eq!(
+        tterm_core::sftp::internal::api::external::local::local_file_name("notes.txt. ", true),
+        "notes.txt"
+    );
+    assert_eq!(
+        tterm_core::sftp::internal::api::external::local::local_file_name("...", true),
+        "file"
+    );
+    assert_eq!(
+        tterm_core::sftp::internal::api::external::local::local_file_name("con.txt", true),
+        "_con.txt"
+    );
+    assert_eq!(
+        tterm_core::sftp::internal::api::external::local::local_file_name("COM1", true),
+        "_COM1"
+    );
+    assert_eq!(
+        tterm_core::sftp::internal::api::external::local::local_file_name("com10.log", true),
+        "com10.log"
+    );
+    assert_eq!(
+        tterm_core::sftp::internal::api::external::local::local_file_name("console.log", true),
+        "console.log"
+    );
 }
 
 #[test]
@@ -54,10 +78,16 @@ fn files_the_system_would_run_are_told_apart() {
         "Tool.command",
         "a.tar.desktop",
     ] {
-        assert!(local::runs_when_opened(name), "{name}");
+        assert!(
+            tterm_core::sftp::internal::api::external::local::runs_when_opened(name),
+            "{name}"
+        );
     }
     for name in ["nginx.conf", "README", "app.log", "exe", "data.json"] {
-        assert!(!local::runs_when_opened(name), "{name}");
+        assert!(
+            !tterm_core::sftp::internal::api::external::local::runs_when_opened(name),
+            "{name}"
+        );
     }
 }
 
@@ -191,7 +221,7 @@ fn a_save_that_replaces_the_copy_is_seen() {
     let dir = TempDir::new();
     let path = dir.path.join("app.conf");
     std::fs::write(&path, "old").unwrap();
-    let synced = local::fingerprint(&path).unwrap();
+    let synced = tterm_core::sftp::internal::api::external::local::fingerprint(&path).unwrap();
 
     // Save the way many editors do: write another file, rename it over.
     let saved = dir.path.join(".app.conf.swp");
@@ -223,12 +253,14 @@ fn a_save_that_replaces_the_copy_is_seen() {
 fn session_folders_are_private() {
     use std::os::unix::fs::PermissionsExt;
     let root = TempDir::new();
-    let dir = local::create_session_dir(&root.path, "one").unwrap();
+    let dir =
+        tterm_core::sftp::internal::api::external::local::create_session_dir(&root.path, "one")
+            .unwrap();
     let mode = std::fs::metadata(&dir).unwrap().permissions().mode();
     assert_eq!(mode & 0o777, 0o700);
-    local::remove_stale(&root.path);
+    tterm_core::sftp::internal::api::external::local::remove_stale(&root.path);
     assert!(dir.exists(), "a fresh folder is not stale");
-    local::remove_session_dir(&dir);
+    tterm_core::sftp::internal::api::external::local::remove_session_dir(&dir);
     assert!(!dir.exists());
 }
 
@@ -284,7 +316,7 @@ async fn injected_watch_reports_saves_and_releases_its_dependencies() {
     let mut session = state.remove("one").unwrap();
     session.local = path.clone();
     session.edit.local_path = path.display().to_string();
-    session.synced = local::fingerprint(&path).unwrap();
+    session.synced = tterm_core::sftp::internal::api::external::local::fingerprint(&path).unwrap();
     session.observed = Some(session.synced.stamp);
     state.insert(session);
     let events = Arc::new(RecordingEventSink::default());
@@ -324,7 +356,11 @@ async fn injected_watch_reports_saves_and_releases_its_dependencies() {
 async fn release_service_removes_clean_copies_and_keeps_modified_copies_without_a_client() {
     let root = TempDir::new();
     for status in [EditStatus::Synced, EditStatus::Modified] {
-        let dir = local::create_session_dir(&root.path, &uuid::Uuid::new_v4().to_string()).unwrap();
+        let dir = tterm_core::sftp::internal::api::external::local::create_session_dir(
+            &root.path,
+            &uuid::Uuid::new_v4().to_string(),
+        )
+        .unwrap();
         let state = Arc::new(state_with_session(status));
         let mut session = state.remove("one").unwrap();
         session.dir = dir.clone();
@@ -342,4 +378,23 @@ async fn release_service_removes_clean_copies_and_keeps_modified_copies_without_
         assert_eq!(dir.exists(), status == EditStatus::Modified);
         assert_eq!(kept.len(), usize::from(status == EditStatus::Modified));
     }
+}
+
+#[test]
+fn external_edit_emitter_preserves_state_snapshot() {
+    let sink = tterm_core::events::recording::RecordingEventSink::default();
+    let edit = ExternalEdit {
+        id: "edit".into(),
+        tab_id: "tab".into(),
+        remote_path: "/remote".into(),
+        file_name: "file".into(),
+        local_path: "/local".into(),
+        status: EditStatus::Failed,
+        error: Some("offline".into()),
+    };
+    emit(&sink, &edit);
+    assert_eq!(
+        sink.events(),
+        vec![AppEvent::Sftp(SftpEvent::ExternalEditChanged(edit))]
+    );
 }

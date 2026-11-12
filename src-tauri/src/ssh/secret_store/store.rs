@@ -2,8 +2,8 @@
 //! ciphertext; encryption happens in `crypto`.
 
 use super::crypto::{self, KdfParams, SecretKey};
-use crate::db::sql_error;
 use rusqlite::{Connection, OptionalExtension, params};
+use tterm_core::db::sql_error;
 use zeroize::Zeroizing;
 
 pub(crate) const WRAP_SYSTEM: &str = "system";
@@ -82,7 +82,7 @@ pub(crate) fn save_wrap(
                 kdf,
                 sealed.nonce,
                 sealed.ciphertext,
-                crate::ssh::store::now_unix_ms()
+                tterm_core::ssh::store::now_unix_ms()
             ],
         )
         .map_err(sql_error("Failed to save the saved password key"))?;
@@ -135,7 +135,7 @@ pub(crate) fn put_secret(
                  ?2, ?3, ?4) \
              ON CONFLICT(key) DO UPDATE SET profile_id = excluded.profile_id, \
              nonce = excluded.nonce, ciphertext = excluded.ciphertext, updated_at = excluded.updated_at",
-            params![key, sealed.nonce, sealed.ciphertext, crate::ssh::store::now_unix_ms()],
+            params![key, sealed.nonce, sealed.ciphertext, tterm_core::ssh::store::now_unix_ms()],
         )
         .map_err(sql_error("Failed to save password"))?;
     Ok(())
@@ -227,7 +227,7 @@ pub(crate) fn migrated(connection: &Connection) -> Result<bool, String> {
 
 /// When the passwords of older versions were moved (unix ms).
 pub(crate) fn migrated_at(connection: &Connection) -> Result<Option<i64>, String> {
-    crate::db::meta::get(connection, MIGRATED_MARKER)
+    tterm_core::db::meta::get(connection, MIGRATED_MARKER)
 }
 
 pub(crate) fn mark_migrated(connection: &Connection) -> Result<(), String> {
@@ -244,7 +244,7 @@ pub(crate) fn mark_migrated(connection: &Connection) -> Result<(), String> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::db::Database;
+    use tterm_core::db::Database;
 
     fn insert_profile(connection: &Connection, id: &str) {
         connection

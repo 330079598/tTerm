@@ -210,7 +210,7 @@ Host keyless
 
     let (hosts, _) = import(config);
 
-    let home = super::paths::home_dir().expect("home directory");
+    let home = tterm_core::profiles::parser::paths::home_dir().expect("home directory");
     let expected = home
         .join(".ssh/id_ed25519-ca-cert.pub")
         .to_string_lossy()
@@ -342,7 +342,7 @@ Host bastion
 "#;
     let (hosts, _) = import(config);
     let host = |name: &str| hosts.iter().find(|host| host.name == name).unwrap();
-    let home = super::paths::home_dir().expect("home directory");
+    let home = tterm_core::profiles::parser::paths::home_dir().expect("home directory");
     let key = |name: &str| {
         home.join(format!(".ssh/{name}"))
             .to_string_lossy()
@@ -489,7 +489,7 @@ Host *
     let (hosts, _) = import(config);
     let db = &hosts[0];
     let key = |name: &str| {
-        super::paths::home_dir()
+        tterm_core::profiles::parser::paths::home_dir()
             .expect("home directory")
             .join(format!(".ssh/{name}"))
             .to_string_lossy()
@@ -551,7 +551,9 @@ Host *
   UserKnownHostsFile ~/.ssh/known_hosts_%n
 "#;
     let (config, _) = parse_ssh_config(config);
-    let home = |name: &str| super::paths::expand_home_path(&format!("~/.ssh/{name}"));
+    let home = |name: &str| {
+        tterm_core::profiles::parser::paths::expand_home_path(&format!("~/.ssh/{name}"))
+    };
 
     assert_eq!(
         super::known_hosts::named_known_hosts_files(&config, &["My DB", "db"], 22),

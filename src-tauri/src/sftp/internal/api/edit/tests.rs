@@ -1,6 +1,6 @@
 use super::*;
-use crate::sftp::internal::transfer::test_server::{ServerOptions, TestServer};
 use std::sync::{Arc, Mutex};
+use tterm_core::sftp::internal::transfer::test_server::{ServerOptions, TestServer};
 
 fn attributes(permissions: Option<u32>, uid: Option<u32>, gid: Option<u32>) -> FileAttributes {
     FileAttributes {

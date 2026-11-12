@@ -17,6 +17,29 @@ dirs = "=7.0.0"
 serde = { version = "1", features = ["derive"] }
 serde_json = { version = "1", features = ["float_roundtrip", "preserve_order", "raw_value"] }
 indexmap = { version = "=2.14.2", features = ["serde"] }
+base64 = "=0.23.1"
+chrono = { version = "=0.4.45", default-features = false, features = ["clock"] }
+crc32fast = "=1.5.2"
+flate2 = "=1.1.10"
+# RSA key files are signed with ring instead of the `rsa` crate; russh and
+# rustls already link both.
+hmac = "=0.13.0"
+num-bigint = "=0.5.1"
+percent-encoding = "=2.3.2"
+portable-pty = "=0.9.0"
+quick-xml = "=0.42.0"
+rand = "=0.10.3"
+reqwest = { version = "=0.13.5", default-features = false, features = ["rustls-no-provider"] }
+ring = "=0.17.14"
+rustls = { version = "=0.23.45", default-features = false, features = ["ring", "std", "tls12"] }
+russh = { version = "=0.63.3", default-features = false, features = ["ring", "rsa"] }
+russh-sftp = "=3.0.1"
+sha1 = "=0.11.0"
+sha2 = "=0.11.0"
+unicode-width = "=0.2.2"
+vte = "=0.15.0"
+zeroize = "=1.9.0"
+rusqlite = { version = "=0.40.2", features = ["bundled"] }
 gethostname = "=1.1.0"
 regress = { version = "=0.12.0", features = ["utf16"] }
 tterm-platform = { path = "../tterm-platform" }
@@ -24,6 +47,7 @@ tterm-terminal = { path = "../tterm-terminal" }
 uuid = { version = "=1.26.1", features = ["v4"] }
 # Reuses the locked runtime used by the Tauri backend.
 tokio = { version = "=1.53.1", features = ["fs", "sync", "time"] }
+ttf-parser = "=0.25.1"
 
 [dev-dependencies]
 tokio = { version = "=1.53.1", features = ["rt", "macros", "test-util"] }

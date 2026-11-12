@@ -15,7 +15,9 @@
 
 use std::path::{Path, PathBuf};
 
-use super::shell_scripts::{BASH_PROMPT, BASH_REPORT_CWD, UNIX_SCRIPTS, lf, write_scripts};
+use tterm_core::terminal::shell_scripts::{
+    BASH_PROMPT, BASH_REPORT_CWD, UNIX_SCRIPTS, lf, write_scripts,
+};
 
 /// bash prints `PS0` after reading a command and before running it.
 const BASH_PS0: &str = r"\e]133;C\e\\";
@@ -37,7 +39,7 @@ const POWERSHELL_PROMPT: &str = include_str!("shell_integration/prompt.ps1");
 /// directory, or `None` when they cannot be written; WSL then starts without
 /// integration.
 pub fn install() -> Option<PathBuf> {
-    let dir = crate::config::paths::ensure_config_dir()
+    let dir = tterm_core::config::paths::ensure_config_dir()
         .ok()?
         .join("shell-integration");
     install_into(&dir).ok()?;

@@ -84,14 +84,14 @@ pub fn run() {
     let zmodem_manual_detect_map: core::state::ZmodemManualDetectMap =
         Arc::new(std::sync::Mutex::new(std::collections::HashMap::new()));
     let runtime = tokio::runtime::Builder::new_multi_thread()
-        .worker_threads(core::runtime::tokio_worker_threads())
+        .worker_threads(tterm_core::core::runtime::tokio_worker_threads())
         .enable_all()
         .build()
         .expect("failed to build tokio runtime");
     let runtime_handle = runtime.handle().clone();
     let external_edit_state = Arc::new(sftp::internal::api::external::ExternalEditState::default());
     let monitor_prompts = Arc::new(monitor::prompts::PendingMonitorPrompts::default());
-    let pending_updates = Arc::new(updater::PendingUpdateDownloads::default());
+    let pending_updates = Arc::new(tterm_core::updater::PendingUpdateDownloads::default());
     let secret_store = ssh::secret_store::types::SecretStoreState::new();
     ssh::key_vault::install(secret_store.clone());
     let session_log_state = Arc::new(session_log::SessionLogState::default());
@@ -99,7 +99,7 @@ pub fn run() {
     let close_behavior = Arc::new(background::CloseBehaviorState::default());
     let quit_state = Arc::new(background::quit::QuitState::default());
     let exit_guard = Arc::new(background::exit_guard::ExitGuardState::default());
-    let launch_dirs = Arc::new(launch_dir::LaunchDirs::default());
+    let launch_dirs = Arc::new(tterm_core::launch_dir::LaunchDirs::default());
     let tray_state = Arc::new(background::tray::TrayState::default());
 
     let builder = tauri::Builder::default()
@@ -113,7 +113,7 @@ pub fn run() {
                 },
                 |args, cwd| {
                     if let Some(services) = app.try_state::<Arc<services::AppServices>>() {
-                        launch_dir::open_from_second_launch(
+                        tterm_core::launch_dir::open_from_second_launch(
                             &services.app.launch_dirs,
                             services.shared.events.as_ref(),
                             args,
@@ -447,15 +447,15 @@ pub fn run() {
             });
             services.validate_wiring();
             app.manage(services.clone());
-            launch_dir::open_from_startup(
+            tterm_core::launch_dir::open_from_startup(
                 &services.app.launch_dirs,
                 services.shared.events.as_ref(),
                 services.shared.paths.as_ref(),
             );
 
-            if let Err(err) =
-                updater::cleanup_stale_pending_update_files(services.shared.paths.as_ref())
-            {
+            if let Err(err) = tterm_core::updater::cleanup_stale_pending_update_files(
+                services.shared.paths.as_ref(),
+            ) {
                 eprintln!("Failed to clean stale update cache files: {}", err);
             }
 
@@ -463,7 +463,7 @@ pub fn run() {
                 eprintln!("Failed to clear WebDAV downloads: {error}");
             }
 
-            if let Err(error) = db::init() {
+            if let Err(error) = tterm_core::db::init() {
                 eprintln!("Failed to open database: {error}");
             }
 
@@ -473,12 +473,12 @@ pub fn run() {
 
             // After the legacy config merge so data from the old config
             // directory is imported along with everything else.
-            if let Err(error) = db::import_legacy_json_files() {
+            if let Err(error) = db::legacy_import::import_legacy_json_files() {
                 eprintln!("Failed to import JSON data into the database: {error}");
             }
 
             // Settings files and state older versions kept beside config.json.
-            if let Err(error) = db::import_settings_files() {
+            if let Err(error) = db::legacy_import::import_settings_files() {
                 eprintln!("Failed to move settings files into the database: {error}");
             }
 
@@ -562,7 +562,7 @@ pub fn run() {
                     services.shared.prompts.shutdown();
                     window_state::save(app);
                     if let Ok(paths) = app_paths::get(app) {
-                        launch_dir::forget_startup_dir(&paths);
+                        tterm_core::launch_dir::forget_startup_dir(&paths);
                     }
                     // Tunnels may still be running; keep what they carried.
                     services.app.tunnels.save_traffic();

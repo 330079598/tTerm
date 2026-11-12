@@ -18,10 +18,10 @@ pub(crate) mod resolve;
 mod socks5;
 pub(crate) mod storage;
 
-use crate::core::blocking::run_blocking;
 use crate::ssh::secret_store::types::{SecretLocation, SecretStoreState};
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
+use tterm_core::core::blocking::run_blocking;
 use zeroize::Zeroizing;
 
 /// The protocol a proxy server speaks.
@@ -206,7 +206,7 @@ fn normalize_command(mut server: ProxyServer) -> Result<ProxyServer, String> {
 
 fn list_entries(secret_state: &SecretStoreState) -> Result<Vec<ProxyServerEntry>, String> {
     let saved: HashSet<String> = secret_state.saved_keys()?.into_iter().collect();
-    Ok(crate::db::read(storage::list_proxies)?
+    Ok(tterm_core::db::read(storage::list_proxies)?
         .into_iter()
         .map(|server| ProxyServerEntry {
             has_password: server.username.is_some()
@@ -260,7 +260,7 @@ pub(super) async fn save_proxy_service(
                 secret_state.delete_password(&key)?;
             }
         }
-        crate::db::write(|transaction| {
+        tterm_core::db::write(|transaction| {
             storage::upsert_proxy(transaction, &server)?;
             // A command typed here needs no second confirmation to run.
             match &server.command {
@@ -279,7 +279,7 @@ async fn delete_proxy_service(
 ) -> Result<Vec<ProxyServerEntry>, String> {
     let secret_state = secret_state.clone();
     run_blocking(move || {
-        crate::db::write(|transaction| storage::delete_proxy(transaction, &id))?;
+        tterm_core::db::write(|transaction| storage::delete_proxy(transaction, &id))?;
         secret_state.delete_password(&proxy_secret_key(&id))?;
         list_entries(&secret_state)
     })

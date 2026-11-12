@@ -3,9 +3,9 @@ use super::types::{
     SavedProfile, SshConfigImportHost, SshConfigImportOptions, SshConfigImportPreview,
     SshConfigImportResult, TestConnectionResult,
 };
-use crate::config::tab_icons::TabIconStyle;
 use crate::services::AppServices;
 use std::sync::Arc;
+use tterm_core::config::tab_icons::TabIconStyle;
 
 pub(super) mod connection_check;
 pub(crate) mod groups;

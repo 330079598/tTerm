@@ -1,7 +1,7 @@
 use super::store::{clear, delete, list, list_all, record, replace_all, send_id};
 use super::{HISTORY_LIMIT, SerialSendMode, validate_key};
-use crate::db::Database;
 use serde_json::json;
+use tterm_core::db::Database;
 
 const KEY: &str = "profile:board";
 

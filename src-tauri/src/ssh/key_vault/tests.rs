@@ -1,7 +1,6 @@
 use super::entry::{VaultKey, inspect};
 use super::import::{ensure_new, read_import};
 use super::{ImportVaultKeyInput, REFERENCE_PREFIX, export, reference_id, store};
-use crate::db::Database;
 use crate::profiles::types::SavedProfile;
 use crate::ssh::secret_store::crypto::SecretKey as DataKey;
 use russh::keys::ssh_key::certificate::{Builder, CertType};
@@ -10,6 +9,7 @@ use russh::keys::{Certificate, HashAlg, PublicKey};
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::time::{SystemTime, UNIX_EPOCH};
+use tterm_core::db::Database;
 
 static COUNTER: AtomicUsize = AtomicUsize::new(0);
 

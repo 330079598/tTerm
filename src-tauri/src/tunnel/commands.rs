@@ -5,9 +5,9 @@ use super::manager::{
     auto_start_tunnels_service, delete_tunnel_service, list_tunnel_statuses_service,
     list_tunnels_service, reset_tunnel_traffic_totals_service, save_tunnel_service, start_rule,
 };
-use super::types::TunnelRule;
 use std::sync::Arc;
 use tterm_core::events::tunnel::TunnelStatus;
+use tterm_core::tunnel::types::TunnelRule;
 
 #[tauri::command]
 pub async fn list_tunnels() -> Result<Vec<TunnelRule>, String> {

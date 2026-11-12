@@ -53,10 +53,10 @@ pub struct SearchSummary {
 }
 
 /// Where matches go, up to `MAX_RESULTS`.
-pub(super) struct ResultSink {
-    channel: Arc<dyn SearchResultSink>,
-    found: usize,
-    truncated: bool,
+pub(crate) struct ResultSink {
+    pub(crate) channel: Arc<dyn SearchResultSink>,
+    pub(crate) found: usize,
+    pub(crate) truncated: bool,
 }
 
 impl ResultSink {
@@ -66,7 +66,7 @@ impl ResultSink {
 
     /// Sends `entries`, cut at the limit. False once the limit cut them,
     /// when the search should stop.
-    fn send(&mut self, mut entries: Vec<SftpDirectoryEntry>) -> bool {
+    pub(crate) fn send(&mut self, mut entries: Vec<SftpDirectoryEntry>) -> bool {
         if entries.len() > self.room() {
             entries.truncate(self.room());
             self.truncated = true;
@@ -78,7 +78,7 @@ impl ResultSink {
         !self.truncated
     }
 
-    fn progress(&self, scanned_folders: usize) {
+    pub(crate) fn progress(&self, scanned_folders: usize) {
         let _ = self.channel.send(SearchEvent::Progress { scanned_folders });
     }
 }
@@ -137,9 +137,6 @@ async fn search(
         skipped_folders,
     })
 }
-
-#[cfg(test)]
-mod contract_tests;
 
 #[cfg(test)]
 mod container_tests;

@@ -5,11 +5,11 @@
 use super::host::first_option;
 use super::jump::last_jump_host;
 use super::parse::SshConfig;
-use super::paths::expand_home_path;
 use super::resolve::resolve_host;
 use super::tokens::{PathTokens, expand_tokens};
-use super::words::split_ssh_words;
 use std::path::PathBuf;
+use tterm_core::profiles::parser::paths::expand_home_path;
+use tterm_core::profiles::parser::words::split_ssh_words;
 
 const KNOWN_HOSTS_OPTIONS: [&str; 2] = ["userknownhostsfile", "globalknownhostsfile"];
 

@@ -10,10 +10,10 @@ mod script;
 
 use crate::sftp::internal::api::SftpHost;
 use crate::sftp::internal::exec::{ScriptOutcome, run_to_end};
-use crate::sftp::internal::paths::join_remote_path;
 use script::{ArchiveScript, MISSING_TOOL_STATUS, compress_script, extract_script};
 use serde::{Deserialize, Serialize};
 use tokio::sync::watch;
+use tterm_core::sftp::internal::paths::join_remote_path;
 
 #[derive(Deserialize, Clone, Copy, Debug, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]

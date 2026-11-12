@@ -6,8 +6,8 @@ pub(crate) mod store;
 #[cfg(test)]
 mod tests;
 
-use crate::core::blocking::run_blocking;
 use serde::{Deserialize, Serialize};
+use tterm_core::core::blocking::run_blocking;
 
 /// How many sends a connection keeps; older ones are dropped.
 pub(crate) const HISTORY_LIMIT: usize = 30;
@@ -65,8 +65,10 @@ fn validate_key(connection_key: &str) -> Result<(), String> {
 
 async fn list_serial_sends_service(connection_key: String) -> Result<Vec<SerialSend>, String> {
     validate_key(&connection_key)?;
-    run_blocking(move || crate::db::read(|connection| store::list(connection, &connection_key)))
-        .await
+    run_blocking(move || {
+        tterm_core::db::read(|connection| store::list(connection, &connection_key))
+    })
+    .await
 }
 
 struct RecordSerialSendInput {
@@ -86,7 +88,7 @@ async fn record_serial_send_service(
 
     validate_key(&connection_key)?;
     run_blocking(move || {
-        crate::db::write(|transaction| {
+        tterm_core::db::write(|transaction| {
             let sent_at = chrono::Utc::now().timestamp_millis();
             store::record(transaction, &connection_key, mode, &text, sent_at)?;
             store::list(transaction, &connection_key)
@@ -107,7 +109,7 @@ async fn delete_serial_send_service(
 
     validate_key(&connection_key)?;
     run_blocking(move || {
-        crate::db::write(|transaction| {
+        tterm_core::db::write(|transaction| {
             store::delete(transaction, &[id])?;
             store::list(transaction, &connection_key)
         })
@@ -117,6 +119,8 @@ async fn delete_serial_send_service(
 
 async fn clear_serial_sends_service(connection_key: String) -> Result<(), String> {
     validate_key(&connection_key)?;
-    run_blocking(move || crate::db::write(|transaction| store::clear(transaction, &connection_key)))
-        .await
+    run_blocking(move || {
+        tterm_core::db::write(|transaction| store::clear(transaction, &connection_key))
+    })
+    .await
 }

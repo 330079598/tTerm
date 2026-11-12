@@ -29,14 +29,16 @@ pub async fn notification_permission(app: tauri::AppHandle) -> NotificationPermi
 /// the system's sounds for an app that is not packaged.
 #[tauri::command]
 pub async fn import_notification_sound(path: String) -> Result<String, String> {
-    crate::core::blocking::run_blocking(move || super::sound::import(std::path::Path::new(&path)))
-        .await
+    tterm_core::core::blocking::run_blocking(move || {
+        super::sound::import(std::path::Path::new(&path))
+    })
+    .await
 }
 
 /// The notification sound's bytes, which the frontend decodes and plays.
 #[tauri::command]
 pub async fn read_notification_sound() -> Result<Response, String> {
-    crate::core::blocking::run_blocking(super::sound::read)
+    tterm_core::core::blocking::run_blocking(super::sound::read)
         .await
         .map(Response::new)
 }

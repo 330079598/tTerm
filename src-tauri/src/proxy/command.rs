@@ -86,7 +86,7 @@ pub(crate) async fn spawn(command_line: &str) -> Result<CommandStream, SshConnec
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .kill_on_drop(true);
-    if let Some(home) = crate::profiles::parser::paths::home_dir() {
+    if let Some(home) = tterm_core::profiles::parser::paths::home_dir() {
         command.current_dir(home);
     }
     let mut child = command.spawn().map_err(|error| {
@@ -120,7 +120,7 @@ async fn shell_command(command_line: &str) -> Command {
     // tTerm opened from the Dock has a bare PATH, while the command was
     // written for the user's shell, where Homebrew and the like are on it.
     let login_path =
-        tokio::task::spawn_blocking(|| crate::core::login_shell::variable("PATH")).await;
+        tokio::task::spawn_blocking(|| tterm_core::core::login_shell::variable("PATH")).await;
     if let Ok(Some(path)) = login_path {
         command.env("PATH", path);
     }

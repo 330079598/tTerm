@@ -9,9 +9,9 @@ use super::{
     BackupImportOptions, BackupImportResult, BackupInspectInput, BackupInspectResult,
     export_backup_blocking, import_backup_blocking, inspect_backup_blocking,
 };
-use crate::core::blocking::run_blocking;
 use crate::ssh::secret_store::types::SecretStoreState;
 use serde_json::Value;
+use tterm_core::core::blocking::run_blocking;
 
 pub(super) async fn export_backup(
     app_version: String,
@@ -65,7 +65,9 @@ pub(super) async fn save_automatic_backup_settings(
 ) -> Result<AutomaticBackupSettings, String> {
     run_blocking(move || {
         validate_automatic_backup_settings(&settings)?;
-        crate::db::write(|transaction| write_automatic_backup_settings(transaction, &settings))?;
+        tterm_core::db::write(|transaction| {
+            write_automatic_backup_settings(transaction, &settings)
+        })?;
         load_automatic_backup_settings()
     })
     .await

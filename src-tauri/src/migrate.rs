@@ -1,7 +1,4 @@
-use crate::config;
 use crate::profiles;
-use crate::session;
-use crate::sftp;
 use crate::ssh;
 use serde::Serialize;
 use serde::de::DeserializeOwned;
@@ -18,8 +15,8 @@ const MIGRATED_CONFIG_FILES: &[&str] = &[
 ];
 
 pub fn migrate_legacy_config_files(app: &tauri::AppHandle) -> Result<(), String> {
-    let new_dir = config::paths::ensure_config_dir()?;
-    let old_dir = config::paths::legacy_config_path()?;
+    let new_dir = tterm_core::config::paths::ensure_config_dir()?;
+    let old_dir = tterm_core::config::paths::legacy_config_path()?;
 
     if same_path(&new_dir, &old_dir) || !old_dir.exists() {
         return Ok(());
@@ -27,8 +24,8 @@ pub fn migrate_legacy_config_files(app: &tauri::AppHandle) -> Result<(), String>
 
     // Once the database holds this data, copying the old files over would only
     // leave files nothing reads.
-    let database_holds_data = crate::db::legacy_json_imported();
-    let database_holds_session = session::file_imported();
+    let database_holds_data = crate::db::legacy_import::legacy_json_imported();
+    let database_holds_session = tterm_core::session_restore::file_imported();
     for name in MIGRATED_CONFIG_FILES {
         if database_holds_data && crate::db::legacy_import::IMPORTED_FILES.contains(name) {
             continue;
@@ -82,14 +79,14 @@ const RETIRED_FILE_KEEP_MS: i64 = 30 * 24 * 60 * 60 * 1_000;
 pub fn remove_retired_files(app: &tauri::AppHandle) -> Result<(), String> {
     let now = chrono::Utc::now().timestamp_millis();
     let mut errors = remove_retired(
-        &config::paths::get_config_path()?,
+        &tterm_core::config::paths::get_config_path()?,
         crate::db::legacy_import::IMPORTED_FILES,
-        crate::db::legacy_json_imported_at(),
+        crate::db::legacy_import::legacy_json_imported_at(),
         now,
     );
     let secrets_dir = secrets_dir(app)?;
     let secrets_migrated_at =
-        crate::db::read(ssh::secret_store::store::migrated_at).unwrap_or(None);
+        tterm_core::db::read(ssh::secret_store::store::migrated_at).unwrap_or(None);
     errors.extend(remove_retired(
         &secrets_dir,
         &[
@@ -193,8 +190,10 @@ fn merge_profiles_file(old_path: &Path, new_path: &Path) -> Result<(), String> {
 }
 
 fn merge_session_file(old_path: &Path, new_path: &Path) -> Result<(), String> {
-    let old_session = read_json_file::<session::SessionData>(old_path, "session")?;
-    let new_session = read_json_file::<session::SessionData>(new_path, "session")?;
+    let old_session =
+        read_json_file::<tterm_core::session_restore::SessionData>(old_path, "session")?;
+    let new_session =
+        read_json_file::<tterm_core::session_restore::SessionData>(new_path, "session")?;
 
     if old_session.last_saved > new_session.last_saved {
         write_json_file(new_path, &old_session, "session")?;
@@ -204,8 +203,10 @@ fn merge_session_file(old_path: &Path, new_path: &Path) -> Result<(), String> {
 }
 
 fn merge_known_hosts_file(old_path: &Path, new_path: &Path) -> Result<(), String> {
-    let old_store = read_json_file::<ssh::store::KnownHostStore>(old_path, "known hosts")?;
-    let mut new_store = read_json_file::<ssh::store::KnownHostStore>(new_path, "known hosts")?;
+    let old_store =
+        read_json_file::<tterm_core::ssh::store::KnownHostStore>(old_path, "known hosts")?;
+    let mut new_store =
+        read_json_file::<tterm_core::ssh::store::KnownHostStore>(new_path, "known hosts")?;
     let mut changed = false;
 
     for entry in old_store.entries {
@@ -231,11 +232,11 @@ fn merge_known_hosts_file(old_path: &Path, new_path: &Path) -> Result<(), String
 }
 
 fn merge_legacy_password_store_file(old_path: &Path, new_path: &Path) -> Result<(), String> {
-    let old_store = read_json_file::<ssh::store::LegacySshPasswordStore>(
+    let old_store = read_json_file::<tterm_core::ssh::store::LegacySshPasswordStore>(
         old_path,
         "legacy SSH password store",
     )?;
-    let mut new_store = read_json_file::<ssh::store::LegacySshPasswordStore>(
+    let mut new_store = read_json_file::<tterm_core::ssh::store::LegacySshPasswordStore>(
         new_path,
         "legacy SSH password store",
     )?;
@@ -260,10 +261,14 @@ fn merge_legacy_password_store_file(old_path: &Path, new_path: &Path) -> Result<
 }
 
 fn merge_sftp_directory_store_file(old_path: &Path, new_path: &Path) -> Result<(), String> {
-    let old_store =
-        read_json_file::<sftp::store::SftpDirectoryStore>(old_path, "SFTP directory store")?;
-    let mut new_store =
-        read_json_file::<sftp::store::SftpDirectoryStore>(new_path, "SFTP directory store")?;
+    let old_store = read_json_file::<tterm_core::sftp::store::SftpDirectoryStore>(
+        old_path,
+        "SFTP directory store",
+    )?;
+    let mut new_store = read_json_file::<tterm_core::sftp::store::SftpDirectoryStore>(
+        new_path,
+        "SFTP directory store",
+    )?;
     let mut changed = false;
 
     for entry in old_store.entries {
@@ -307,13 +312,13 @@ where
             e
         )
     })?;
-    crate::config::atomic::atomic_write(path, content)
+    tterm_core::config::atomic::atomic_write(path, content)
         .map_err(|e| format!("Failed to write {} file '{}': {}", label, path.display(), e))
 }
 
 fn migrate_legacy_secret_vault(app: &tauri::AppHandle) -> Result<(), String> {
     let new_secret_dir = secrets_dir(app)?;
-    let old_secret_dir = config::paths::legacy_config_path()?.join("secrets");
+    let old_secret_dir = tterm_core::config::paths::legacy_config_path()?.join("secrets");
     if same_path(&new_secret_dir, &old_secret_dir) || !old_secret_dir.exists() {
         return Ok(());
     }

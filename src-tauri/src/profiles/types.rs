@@ -139,7 +139,7 @@ pub struct SavedProfile {
     /// The icon and color this connection's tabs show; the logo of the host's
     /// distribution, once known, when unset.
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub tab_icon: Option<crate::config::tab_icons::TabIconStyle>,
+    pub tab_icon: Option<tterm_core::config::tab_icons::TabIconStyle>,
     /// The Linux distribution the host says it runs (`ubuntu`, `arch`), for its
     /// tabs' icon. Set on connecting; saving the profile keeps it while the
     /// host and port stay the same.
@@ -318,7 +318,7 @@ pub struct SshConfigImportHost {
     pub warnings: Vec<String>,
     pub unsupported_options: Vec<String>,
     /// `LocalForward` / `RemoteForward` / `DynamicForward` entries.
-    pub forwards: Vec<crate::tunnel::forwards::ForwardSpec>,
+    pub forwards: Vec<tterm_core::tunnel::forwards::ForwardSpec>,
     pub skipped: bool,
     pub skip_reason: Option<String>,
     pub existing_profile_id: Option<String>,

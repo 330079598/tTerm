@@ -14,12 +14,12 @@ use super::export::{filter_frontend_state, secret_travels, strip_sensitive_field
 use super::snapshot::{DatabaseSnapshot, restore_database, snapshot_database};
 use super::*;
 use crate::config::AppConfig;
-use crate::db::meta;
 use crate::ssh::secret_store::{
     crypto::SecretKey as DataKey, store::get_secret, store::put_secret, store::snapshot_secrets,
 };
 use chrono::Utc;
 use std::fs;
+use tterm_core::db::meta;
 
 fn db_profile(id: &str, name: &str, group: &str) -> Value {
     serde_json::json!({
@@ -158,15 +158,15 @@ fn seed_settings(connection: &rusqlite::Connection) -> Result<(), String> {
             ..crate::sync::SyncSettings::default()
         },
     )?;
-    crate::session::write_session(
+    tterm_core::session_restore::write_session(
         connection,
-        crate::session::SessionData {
+        tterm_core::session_restore::SessionData {
             active_tab_id: Some("mine".to_string()),
-            ..crate::session::SessionData::default()
+            ..tterm_core::session_restore::SessionData::default()
         },
     )?;
-    crate::app_state::set_collapsed_profile_group_keys(connection, &["mine".to_string()])?;
-    crate::themes::replace_themes(connection, &[serde_json::json!({"id": "mine"})])
+    tterm_core::app_state::set_collapsed_profile_group_keys(connection, &["mine".to_string()])?;
+    tterm_core::themes::replace_themes(connection, &[serde_json::json!({"id": "mine"})])
 }
 
 fn settings_summary(connection: &rusqlite::Connection) -> Value {
@@ -176,15 +176,15 @@ fn settings_summary(connection: &rusqlite::Connection) -> Value {
         "automatic": [automatic.frequency, automatic.last_backup_at],
         "webdav": [webdav.url, webdav.last_backup_at, webdav.last_error],
         "sync": crate::sync::read_settings(connection).unwrap().enabled,
-        "session": crate::session::read_session(connection).unwrap().and_then(|s| s.active_tab_id),
-        "themes": crate::themes::list_themes(connection).unwrap(),
-        "collapsed": crate::app_state::collapsed_profile_group_keys(connection).unwrap(),
+        "session": tterm_core::session_restore::read_session(connection).unwrap().and_then(|s| s.active_tab_id),
+        "themes": tterm_core::themes::list_themes(connection).unwrap(),
+        "collapsed": tterm_core::app_state::collapsed_profile_group_keys(connection).unwrap(),
     })
 }
 
 #[test]
 fn imported_settings_and_session_land_in_the_database_and_roll_back() {
-    let database = crate::db::Database::open_in_memory().unwrap();
+    let database = tterm_core::db::Database::open_in_memory().unwrap();
     database
         .write(|connection| {
             seed_settings(connection)?;
@@ -244,7 +244,7 @@ fn imported_settings_and_session_land_in_the_database_and_roll_back() {
 
 #[test]
 fn unselected_settings_and_session_are_not_touched() {
-    let database = crate::db::Database::open_in_memory().unwrap();
+    let database = tterm_core::db::Database::open_in_memory().unwrap();
     database
         .write(|connection| {
             seed_settings(connection)?;
@@ -264,10 +264,10 @@ fn unselected_settings_and_session_are_not_touched() {
 
 #[test]
 fn merged_collapsed_groups_add_to_this_devices() {
-    let database = crate::db::Database::open_in_memory().unwrap();
+    let database = tterm_core::db::Database::open_in_memory().unwrap();
     database
         .write(|connection| {
-            crate::app_state::set_collapsed_profile_group_keys(
+            tterm_core::app_state::set_collapsed_profile_group_keys(
                 connection,
                 &["ops".to_string(), "dev".to_string()],
             )?;
@@ -282,14 +282,14 @@ fn merged_collapsed_groups_add_to_this_devices() {
             };
             apply_database_payload(connection, &payload, &options)?;
             assert_eq!(
-                crate::app_state::collapsed_profile_group_keys(connection)?,
+                tterm_core::app_state::collapsed_profile_group_keys(connection)?,
                 ["ops", "dev", "prod"]
             );
 
             // Backups made before the field existed leave the state alone.
             apply_database_payload(connection, &BackupPayload::default(), &options)?;
             assert_eq!(
-                crate::app_state::collapsed_profile_group_keys(connection)?,
+                tterm_core::app_state::collapsed_profile_group_keys(connection)?,
                 ["ops", "dev", "prod"]
             );
             Ok(())
@@ -299,7 +299,7 @@ fn merged_collapsed_groups_add_to_this_devices() {
 
 #[test]
 fn merge_import_keeps_existing_data_and_updates_by_key() {
-    let database = crate::db::Database::open_in_memory().unwrap();
+    let database = tterm_core::db::Database::open_in_memory().unwrap();
     database
         .write(|connection| {
             seed_database(connection);
@@ -317,17 +317,17 @@ fn merge_import_keeps_existing_data_and_updates_by_key() {
             assert_eq!(group_ids(connection)?, ["dev", "ops"]);
             // Tunnels and proxies missing from an old backup are left alone.
             assert_eq!(
-                crate::tunnel::storage::list_tunnel_rules(connection)?.len(),
+                tterm_core::tunnel::storage::list_tunnel_rules(connection)?.len(),
                 1
             );
             assert_eq!(crate::proxy::storage::list_proxies(connection)?.len(), 1);
-            let hosts = crate::ssh::store::list_known_hosts(connection)?.entries;
+            let hosts = tterm_core::ssh::store::list_known_hosts(connection)?.entries;
             assert_eq!(
                 hosts.len(),
                 2,
                 "the duplicate known host is not added twice"
             );
-            let dirs = crate::sftp::store::list_sftp_directories(connection)?.entries;
+            let dirs = tterm_core::sftp::store::list_sftp_directories(connection)?.entries;
             assert_eq!(dirs.len(), 1);
             assert_eq!(dirs[0].last_path, "/b");
             Ok(())
@@ -360,12 +360,12 @@ fn merge_import_keeps_known_hosts_of_profiles_sharing_a_host_key() {
         known_hosts: true,
         ..BackupSelection::default()
     };
-    let database = crate::db::Database::open_in_memory().unwrap();
+    let database = tterm_core::db::Database::open_in_memory().unwrap();
     database
         .write(|connection| {
             apply_database_payload(connection, &payload, &options)?;
             apply_database_payload(connection, &payload, &options)?;
-            let names = crate::ssh::store::list_known_hosts(connection)?
+            let names = tterm_core::ssh::store::list_known_hosts(connection)?
                 .entries
                 .into_iter()
                 .map(|entry| entry.profile_name)
@@ -396,11 +396,11 @@ fn merge_import_never_lets_a_name_only_entry_replace_a_profile_entry() {
         known_hosts: true,
         ..BackupSelection::default()
     };
-    let database = crate::db::Database::open_in_memory().unwrap();
+    let database = tterm_core::db::Database::open_in_memory().unwrap();
     database
         .write(|connection| {
             apply_database_payload(connection, &payload, &options)?;
-            let entries = crate::ssh::store::list_known_hosts(connection)?.entries;
+            let entries = tterm_core::ssh::store::list_known_hosts(connection)?.entries;
             assert_eq!(entries.len(), 2);
             assert_eq!(entries[0].profile_id.as_deref(), Some("p1"));
             assert_eq!(entries[0].fingerprint, "SHA256:current");
@@ -411,7 +411,7 @@ fn merge_import_never_lets_a_name_only_entry_replace_a_profile_entry() {
 
 #[test]
 fn replacing_profiles_keeps_passwords_of_profiles_that_stay() {
-    let database = crate::db::Database::open_in_memory().unwrap();
+    let database = tterm_core::db::Database::open_in_memory().unwrap();
     let data_key = DataKey::generate();
     let profile = |id: &str| -> SavedProfile {
         serde_json::from_value(serde_json::json!({
@@ -460,7 +460,7 @@ fn replacing_profiles_keeps_passwords_of_profiles_that_stay() {
 
 #[test]
 fn replace_import_drops_data_missing_from_the_backup() {
-    let database = crate::db::Database::open_in_memory().unwrap();
+    let database = tterm_core::db::Database::open_in_memory().unwrap();
     database
         .write(|connection| {
             seed_database(connection);
@@ -471,11 +471,11 @@ fn replace_import_drops_data_missing_from_the_backup() {
             );
             assert_eq!(group_ids(connection)?, ["dev"]);
             assert_eq!(
-                crate::tunnel::storage::list_tunnel_rules(connection)?.len(),
+                tterm_core::tunnel::storage::list_tunnel_rules(connection)?.len(),
                 1
             );
             assert_eq!(
-                crate::ssh::store::list_known_hosts(connection)?
+                tterm_core::ssh::store::list_known_hosts(connection)?
                     .entries
                     .len(),
                 2
@@ -487,7 +487,7 @@ fn replace_import_drops_data_missing_from_the_backup() {
 
 #[test]
 fn unselected_categories_are_not_touched() {
-    let database = crate::db::Database::open_in_memory().unwrap();
+    let database = tterm_core::db::Database::open_in_memory().unwrap();
     database
         .write(|connection| {
             seed_database(connection);
@@ -499,7 +499,7 @@ fn unselected_categories_are_not_touched() {
             apply_database_payload(connection, &incoming_payload(), &options)?;
             assert_eq!(profile_summary(connection).len(), 2);
             assert_eq!(
-                crate::sftp::store::list_sftp_directories(connection)?.entries[0].last_path,
+                tterm_core::sftp::store::list_sftp_directories(connection)?.entries[0].last_path,
                 "/a"
             );
             Ok(())
@@ -509,7 +509,7 @@ fn unselected_categories_are_not_touched() {
 
 #[test]
 fn database_snapshot_undoes_an_import() {
-    let database = crate::db::Database::open_in_memory().unwrap();
+    let database = tterm_core::db::Database::open_in_memory().unwrap();
     database
         .write(|connection| {
             seed_database(connection);
@@ -532,7 +532,7 @@ fn database_snapshot_undoes_an_import() {
 
 #[test]
 fn exported_data_imports_back_unchanged() {
-    let source = crate::db::Database::open_in_memory().unwrap();
+    let source = tterm_core::db::Database::open_in_memory().unwrap();
     source
         .write(|connection| {
             seed_database(connection);
@@ -550,16 +550,16 @@ fn exported_data_imports_back_unchanged() {
                     &crate::profiles::groups::list_groups(connection)?,
                 )?);
                 payload.tunnels = Some(to_backup_value(
-                    &crate::tunnel::storage::list_tunnel_rules(connection)?,
+                    &tterm_core::tunnel::storage::list_tunnel_rules(connection)?,
                 )?);
                 payload.proxies = Some(to_backup_value(&crate::proxy::storage::list_proxies(
                     connection,
                 )?)?);
-                payload.known_hosts = Some(to_backup_value(&crate::ssh::store::list_known_hosts(
-                    connection,
-                )?)?);
+                payload.known_hosts = Some(to_backup_value(
+                    &tterm_core::ssh::store::list_known_hosts(connection)?,
+                )?);
                 payload.sftp_directories = Some(to_backup_value(
-                    &crate::sftp::store::list_sftp_directories(connection)?,
+                    &tterm_core::sftp::store::list_sftp_directories(connection)?,
                 )?);
                 payload
             })
@@ -567,7 +567,7 @@ fn exported_data_imports_back_unchanged() {
         .unwrap();
     validate_payload(&payload).expect("exported payload validates");
 
-    let target = crate::db::Database::open_in_memory().unwrap();
+    let target = tterm_core::db::Database::open_in_memory().unwrap();
     target
         .write(|connection| {
             apply_database_payload(connection, &payload, &import_options("replace"))?;
@@ -606,7 +606,7 @@ fn real_pre_database_backups_import() {
             })
             .unwrap_or(0);
         for strategy in ["replace", "merge"] {
-            let database = crate::db::Database::open_in_memory().unwrap();
+            let database = tterm_core::db::Database::open_in_memory().unwrap();
             database
                 .write(|connection| {
                     let mut options = import_options(strategy);
@@ -620,8 +620,8 @@ fn real_pre_database_backups_import() {
                     apply_database_payload(connection, payload, &options)?;
                     apply_database_payload(connection, payload, &options)?;
                     let profiles = crate::profiles::storage::list_saved_profiles(connection)?.len();
-                    let known = crate::ssh::store::list_known_hosts(connection)?.entries.len();
-                    let sftp = crate::sftp::store::list_sftp_directories(connection)?
+                    let known = tterm_core::ssh::store::list_known_hosts(connection)?.entries.len();
+                    let sftp = tterm_core::sftp::store::list_sftp_directories(connection)?
                         .entries
                         .len();
                     eprintln!(
@@ -932,7 +932,7 @@ fn imported_settings_bring_their_tab_icons_along() {
     imported.tab_icons.enabled = false;
     imported.tab_icons.shells.insert(
         "pwsh".to_string(),
-        crate::config::tab_icons::TabIconStyle {
+        tterm_core::config::tab_icons::TabIconStyle {
             icon: Some("rocket".to_string()),
             color: Some("#e5534b".to_string()),
         },
@@ -1164,7 +1164,7 @@ fn serial_sends_merge_by_their_later_use_or_replace() {
             .map(|send| (send.text, send.sent_at))
             .collect::<Vec<_>>()
     };
-    let backup = crate::db::Database::open_in_memory().unwrap();
+    let backup = tterm_core::db::Database::open_in_memory().unwrap();
     let incoming = backup
         .write(|connection| {
             store::record(connection, "port:COM3", SerialSendMode::Text, "AT", 9)?;
@@ -1172,7 +1172,7 @@ fn serial_sends_merge_by_their_later_use_or_replace() {
             store::list_all(connection)
         })
         .unwrap();
-    let database = crate::db::Database::open_in_memory().unwrap();
+    let database = tterm_core::db::Database::open_in_memory().unwrap();
     database
         .write(|connection| {
             store::record(connection, "port:COM3", SerialSendMode::Text, "AT", 5)?;

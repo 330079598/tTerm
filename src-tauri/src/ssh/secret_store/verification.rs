@@ -8,9 +8,10 @@
 //! there is nothing to check against and the operations run as before.
 
 use super::types::{SecretStorageMode, SecretStoreRuntime};
-use super::{open_with_password, os_verifier, store, types::SecretStoreState};
+use super::{open_with_password, store, types::SecretStoreState};
 use serde::Deserialize;
 use std::time::{Duration, Instant};
+use tterm_core::ssh::secret_store::os_verifier;
 use tterm_platform::verification::{CANCELED, UserVerification};
 
 /// Prefix of the error asking the UI to verify and retry. The method
@@ -107,7 +108,7 @@ impl SecretStoreState {
 
     pub(crate) fn verification_method(&self) -> Result<VerificationMethod, String> {
         let has_master_password =
-            crate::db::read(|connection| store::has_wrap(connection, store::WRAP_PASSWORD))?;
+            tterm_core::db::read(|connection| store::has_wrap(connection, store::WRAP_PASSWORD))?;
         Ok(VerificationMethod::choose(
             Self::mode()?,
             self.os_verifier_available()?,
@@ -158,7 +159,7 @@ impl SecretStoreState {
                 let password = password
                     .filter(|password| !password.is_empty())
                     .ok_or_else(|| "Enter the master password.".to_string())?;
-                if open_with_password(crate::db::get()?, password)?.is_none() {
+                if open_with_password(tterm_core::db::get()?, password)?.is_none() {
                     return Err("No master password is set.".to_string());
                 }
             }

@@ -8,7 +8,7 @@ use std::path::{Path, PathBuf};
 
 use portable_pty::CommandBuilder;
 
-use super::shell_scripts::{UNIX_SCRIPTS, write_scripts};
+use tterm_core::terminal::shell_scripts::{UNIX_SCRIPTS, write_scripts};
 
 /// The shells `unix/start.sh` integrates.
 fn is_supported(shell: &str) -> bool {
@@ -22,7 +22,7 @@ fn is_supported(shell: &str) -> bool {
 /// `<config dir>/shell-integration` and returns that directory, or `None`
 /// when they cannot be written; the shell then starts without integration.
 fn install() -> Option<PathBuf> {
-    let dir = crate::config::paths::ensure_config_dir()
+    let dir = tterm_core::config::paths::ensure_config_dir()
         .ok()?
         .join("shell-integration");
     write_scripts(&dir, UNIX_SCRIPTS.iter().copied()).ok()?;

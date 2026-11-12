@@ -2,8 +2,8 @@ use super::secret_store::{
     types::ChangeVaultPasswordInput, types::SecretBackendStatus, types::SecretStoreState,
     types::VaultPasswordInput, verification::VerificationPurpose,
 };
-use crate::core::blocking::run_blocking;
 use serde::{Deserialize, Serialize};
+use tterm_core::core::blocking::run_blocking;
 use zeroize::Zeroizing;
 
 #[derive(Debug, Clone, Deserialize)]

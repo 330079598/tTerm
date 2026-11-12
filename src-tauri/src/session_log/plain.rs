@@ -2,9 +2,9 @@
 //! they happened.
 
 use super::MAX_QUEUED_PLAIN_LINES;
-use super::screen::{OutputLog, ScreenLine};
 use chrono::{DateTime, Local};
 use std::collections::VecDeque;
+use tterm_core::session_log::screen::{OutputLog, ScreenLine};
 use vte::{Params, Perform};
 
 /// The plain-text log's lines in the order things happened. An output line

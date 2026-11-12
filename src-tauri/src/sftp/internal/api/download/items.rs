@@ -3,7 +3,6 @@ use super::directory::{
     resolve_download_target,
 };
 use super::next_transfer_id;
-use crate::sftp::internal::transfer::RemoteChannels;
 use std::path::Path;
 use tokio::sync::watch;
 use tterm_core::events::AppEvent;
@@ -12,6 +11,7 @@ use tterm_core::events::sftp::download::{
     DownloadItemCompleteEvent, DownloadItemStartEvent, DownloadProgressEvent,
 };
 use tterm_core::sftp::conflict::ConflictPolicy;
+use tterm_core::sftp::internal::transfer::RemoteChannels;
 
 #[derive(Default)]
 pub(super) struct DownloadCounts {

@@ -5,11 +5,11 @@
 //! it have set, and `Match final` makes a second pass that matches `Host`
 //! lines against the `HostName`.
 
-use super::matching::{MatchContext, criteria_match};
 use super::parse::{BlockCondition, SshConfig, SshConfigBlock};
-use super::pattern::{is_wildcard_host, wildcard_matches};
 use crate::profiles::types::RawSshHost;
 use std::collections::{HashMap, HashSet};
+use tterm_core::profiles::parser::matching::{MatchContext, criteria_match};
+use tterm_core::profiles::parser::pattern::{is_wildcard_host, wildcard_matches};
 
 /// Options `ssh` gathers from every matching block instead of keeping the
 /// first value.

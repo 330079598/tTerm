@@ -1,6 +1,6 @@
 //! Writing the same input to several sessions at once.
 
-use crate::core::state::{ActiveSession, PtySession};
+use crate::core::state::{ActiveSession, PtyMap, PtySession};
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
@@ -49,6 +49,33 @@ impl PtyWriteResult {
             error: Some(error),
         }
     }
+}
+
+/// Parsed-output bytes the webview reports as handled.
+pub(super) struct AckPtyOutputInput {
+    pub(super) tab_id: String,
+    pub(super) session_nonce: u32,
+    pub(super) bytes: usize,
+}
+
+/// Lets a paused output sender continue once the webview has parsed `bytes`.
+pub(super) async fn ack_pty_output_service(
+    state: PtyMap,
+    arguments: AckPtyOutputInput,
+) -> Result<(), String> {
+    let AckPtyOutputInput {
+        tab_id,
+        session_nonce,
+        bytes,
+    } = arguments;
+
+    let map = state.read().await;
+    if let Some(session) = map.get(&tab_id)
+        && session.session_nonce == session_nonce
+    {
+        session.sink.ack_output(bytes);
+    }
+    Ok(())
 }
 
 pub(super) enum BatchTarget {

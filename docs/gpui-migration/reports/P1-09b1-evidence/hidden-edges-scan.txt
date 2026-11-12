@@ -1,0 +1,48 @@
+batch 1: 8 files (+1 test/path files)
+batch 2: 3 files
+    BLOCKER db/mod.rs -> db/legacy_import.rs
+batch 3: 8 files
+batch 4: 3 files
+batch 5: 11 files
+batch 6: 15 files (+5 test/path files)
+    BLOCKER terminal/io_batcher/contracts.rs -> session_sink/output.rs
+    BLOCKER terminal/io_batcher/lifecycle_tests.rs -> session_sink/output.rs
+    BLOCKER terminal/io_batcher/tests.rs -> session_sink/output.rs
+    BLOCKER terminal/io_batcher/tests.rs -> terminal/reader.rs
+    BLOCKER terminal/legacy_events/tests.rs -> event_sink.rs
+    BLOCKER terminal/legacy_events/tests.rs -> session_sink.rs
+    BLOCKER terminal/legacy_events/tests.rs -> session_sink/output.rs
+batch 7: 8 files (+1 test/path files)
+batch 8: 17 files (+1 test/path files)
+batch 9: 5 files
+batch 10: 3 files (+2 test/path files)
+batch 11: 1 files (+1 test/path files)
+batch 12: 1 files (+1 test/path files)
+batch 13: 2 files (+1 test/path files)
+    BLOCKER agent_integration/hook_input/tests.rs -> agent_integration/claude_code.rs
+    BLOCKER agent_integration/hook_input/tests.rs -> agent_integration/codex.rs
+batch 14: 1 files
+batch 15: 1 files (+1 test/path files)
+batch 16: 5 files
+batch 17: 1 files
+batch 18: 1 files (+1 test/path files)
+batch 19: 2 files
+batch 20: 2 files
+    BLOCKER services/mod.rs -> services/app.rs
+    BLOCKER services/mod.rs -> services/session.rs
+    BLOCKER services/mod.rs -> services/sftp.rs
+batch 21: 2 files
+batch 22: 1 files
+batch 23: 1 files (+1 test/path files)
+    BLOCKER updater.rs -> sync/mod.rs
+batch 24: 2 files
+batch 25: 1 files
+batch 26: 1 files
+batch 27: 1 files (+1 test/path files)
+    BLOCKER ssh/shell_integration.rs -> ssh/client.rs
+batch 28: 2 files
+batch 29: 2 files
+    BLOCKER proxy/mod.rs -> proxy/approval.rs
+    BLOCKER proxy/mod.rs -> proxy/command.rs
+batch 30: 1 files
+batch 31: 1 files

@@ -147,7 +147,7 @@ async fn saved_sudo_password(
     let secret_state = app.secrets.clone();
     let profile_id = plan.profile_id.clone();
     let profile_name = plan.profile_name.clone();
-    crate::core::blocking::run_blocking(move || {
+    tterm_core::core::blocking::run_blocking(move || {
         let saved = crate::core::session::load_saved_sudo_password(
             &secret_state,
             profile_id.as_deref(),
@@ -310,7 +310,7 @@ mod tests {
 
     #[tokio::test]
     async fn a_session_that_refused_a_request_still_answers() {
-        use crate::sftp::internal::transfer::test_server::{ServerOptions, TestServer};
+        use tterm_core::sftp::internal::transfer::test_server::{ServerOptions, TestServer};
 
         let server = TestServer::start(ServerOptions::default()).await;
         let sftp = server.sftp_session().await;

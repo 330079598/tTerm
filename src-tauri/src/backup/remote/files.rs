@@ -1,8 +1,8 @@
 //! Backup file names on the server, and which backups to keep.
 
 use super::{FILE_EXTENSION, FILE_PREFIX, RemoteBackupEntry, TIMESTAMP_FORMAT, TIMESTAMP_LEN};
-use crate::backup::webdav::DavEntry;
 use chrono::{DateTime, NaiveDateTime, Utc};
+use tterm_core::backup::webdav::DavEntry;
 
 pub(super) fn now_ms() -> i64 {
     Utc::now().timestamp_millis()

@@ -72,7 +72,7 @@ pub(super) fn write_object(path: &Path, object: &Object) -> Result<(), String> {
         }
         Err(_) => {}
     }
-    crate::config::atomic::atomic_write(&target, text)
+    tterm_core::config::atomic::atomic_write(&target, text)
 }
 
 fn resolve_symlink(path: &Path) -> PathBuf {

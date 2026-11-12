@@ -32,8 +32,8 @@ pub(crate) async fn set_permissions(
 #[cfg(all(test, unix))]
 mod tests {
     use super::set_permissions;
-    use crate::sftp::internal::transfer::test_server::{ServerOptions, TestServer};
     use std::os::unix::fs::PermissionsExt;
+    use tterm_core::sftp::internal::transfer::test_server::{ServerOptions, TestServer};
 
     fn mode_of(path: &std::path::Path) -> u32 {
         std::fs::metadata(path)

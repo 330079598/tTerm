@@ -1,9 +1,9 @@
 //! The `serial_send_history` table.
 
 use super::{HISTORY_LIMIT, SerialSend, SerialSendMode};
-use crate::db::sql_error;
 use rusqlite::{Connection, Row, params};
 use sha2::{Digest, Sha256};
+use tterm_core::db::sql_error;
 
 /// The id of a send: the same on every device, so syncing two devices that
 /// sent the same thing keeps one record.

@@ -1,5 +1,4 @@
 mod arguments;
-use super::blocking::run_blocking;
 use super::session::stop::{StopPtyContext, stop_pty_session};
 use super::state::{ActiveSession, PtyMap, ZmodemArmedSendMap, ZmodemManualDetectMap, ZmodemMap};
 use crate::services::AppServices;
@@ -8,18 +7,20 @@ use crate::ssh::secret_store::types::SecretStoreState;
 #[cfg(target_os = "windows")]
 use crate::terminal;
 use arguments::{
-    AckPtyOutputInput, GetSudoPasswordSourceInput, HasSavedPasswordInput, KillPtyInput,
-    ResetPtyConsoleInput, ResizePtyInput, RespondSshHostKeyPromptInput, SudoPasswordContext,
-    WritePtyBatchInput, WritePtyInput, WriteSavedPasswordForSudoInput,
+    GetSudoPasswordSourceInput, HasSavedPasswordInput, KillPtyInput, ResetPtyConsoleInput,
+    ResizePtyInput, RespondSshHostKeyPromptInput, SudoPasswordContext, WritePtyBatchInput,
+    WritePtyInput, WriteSavedPasswordForSudoInput,
 };
 use batch_write::{
-    PtyWriteResult, PtyWriteStatus, PtyWriteTarget, snapshot_batch_targets, write_guarded_batch,
+    AckPtyOutputInput, PtyWriteResult, PtyWriteStatus, PtyWriteTarget, ack_pty_output_service,
+    snapshot_batch_targets, write_guarded_batch,
 };
 use std::io::Write;
 use std::sync::Arc;
 use std::sync::PoisonError;
 use tauri::{AppHandle, State};
 use tokio::sync::Mutex as TokioMutex;
+use tterm_core::core::blocking::run_blocking;
 
 mod batch_write;
 mod create;
@@ -266,22 +267,6 @@ pub async fn ack_pty_output(
     )
     .await
 }
-async fn ack_pty_output_service(state: PtyMap, arguments: AckPtyOutputInput) -> Result<(), String> {
-    let AckPtyOutputInput {
-        tab_id,
-        session_nonce,
-        bytes,
-    } = arguments;
-
-    let map = state.read().await;
-    if let Some(session) = map.get(&tab_id)
-        && session.session_nonce == session_nonce
-    {
-        session.sink.ack_output(bytes);
-    }
-    Ok(())
-}
-
 #[tauri::command]
 pub fn write_pty_batch(
     mut targets: Vec<PtyWriteTarget>,

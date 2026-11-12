@@ -177,7 +177,7 @@ fn config_dir(spec: &AgentSpec) -> Option<(PathBuf, ConfigSource)> {
     let custom = config
         .agent_config_dirs
         .get(spec.key)
-        .map(|dir| crate::profiles::parser::paths::expand_home_path(dir))
+        .map(|dir| tterm_core::profiles::parser::paths::expand_home_path(dir))
         .filter(|dir| dir.is_absolute());
     if let Some(dir) = custom {
         return Some((dir, ConfigSource::Setting));
@@ -185,13 +185,13 @@ fn config_dir(spec: &AgentSpec) -> Option<(PathBuf, ConfigSource)> {
     let from_environment = std::env::var(spec.variable)
         .ok()
         .filter(|dir| !dir.trim().is_empty())
-        .or_else(|| crate::core::login_shell::variable(spec.variable))
-        .map(|dir| crate::profiles::parser::paths::expand_home_path(&dir))
+        .or_else(|| tterm_core::core::login_shell::variable(spec.variable))
+        .map(|dir| tterm_core::profiles::parser::paths::expand_home_path(&dir))
         .filter(|dir| dir.is_absolute());
     if let Some(dir) = from_environment {
         return Some((join(dir, spec.under_variable), ConfigSource::Environment));
     }
-    crate::profiles::parser::paths::home_dir()
+    tterm_core::profiles::parser::paths::home_dir()
         .map(|home| (join(home, spec.default_dir), ConfigSource::Default))
 }
 

@@ -15,7 +15,7 @@ pub(super) struct ImportedProxies {
 impl ImportedProxies {
     pub(super) fn load() -> Result<Self, String> {
         Ok(Self {
-            saved: crate::db::read(list_proxies)?,
+            saved: tterm_core::db::read(list_proxies)?,
             added: Vec::new(),
         })
     }

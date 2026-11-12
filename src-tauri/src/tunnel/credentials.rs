@@ -89,7 +89,7 @@ fn check_key(path: &str, passphrase: Option<&str>) -> Result<KeyCheck, String> {
             Ok(KeyCheck::NeedsPassphrase { incorrect: true })
         }
         // Old PEM-format RSA keys are loaded when connecting, not by `russh`.
-        Err(_) if crate::ssh::rsa_signer::pem_key_is_usable(&key.text) => Ok(KeyCheck::Usable),
+        Err(_) if tterm_core::ssh::rsa_signer::pem_key_is_usable(&key.text) => Ok(KeyCheck::Usable),
         Err(err) => Err(crate::ssh::key_file::describe_key_error(
             "SSH key", &key.label, &err,
         )),

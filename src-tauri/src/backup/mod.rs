@@ -1,7 +1,5 @@
 pub(crate) mod commands;
 mod service;
-use crate::command_library::{models::SavedCommand, repository::CommandRepository};
-use crate::config;
 use crate::profiles::types::SavedProfile;
 use crate::ssh::{
     secret_store::types::SecretStoreState, secret_store::verification::VerificationPurpose,
@@ -9,6 +7,7 @@ use crate::ssh::{
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::path::{Path, PathBuf};
+use tterm_core::command_library::{models::SavedCommand, repository::CommandRepository};
 use zeroize::Zeroize;
 
 mod apply;
@@ -19,7 +18,6 @@ mod export;
 pub mod remote;
 pub(crate) mod remote_commands;
 mod snapshot;
-pub(crate) mod webdav;
 
 use apply::{
     apply_payload, ensure_selection_available, from_backup_value, import_redirects_webdav,
@@ -365,7 +363,7 @@ fn export_backup_blocking(
         &payload,
         options.backup_password.as_deref(),
     )?;
-    config::atomic::atomic_write_private(&output, archive)?;
+    tterm_core::config::atomic::atomic_write_private(&output, archive)?;
     if let Some(password) = options.backup_password.as_mut() {
         password.zeroize();
     }
@@ -453,7 +451,7 @@ fn import_backup_blocking(
     let file_snapshot = capture_file_snapshot(&options.selection, payload)?;
     let database_snapshot = capture_database_snapshot(&options.selection)?;
     let command_snapshot = if options.selection.command_library {
-        Some(CommandRepository::new(crate::db::get()?).list()?)
+        Some(CommandRepository::new(tterm_core::db::get()?).list()?)
     } else {
         None
     };

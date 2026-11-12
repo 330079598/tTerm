@@ -26,7 +26,7 @@ use russh::client::{self, Msg};
 use russh::{Channel, ChannelMsg};
 use sha2::{Digest, Sha256};
 
-use crate::terminal::shell_scripts::{UNIX_SCRIPTS, lf};
+use tterm_core::terminal::shell_scripts::{UNIX_SCRIPTS, lf};
 
 /// How long installing the scripts, or starting the shell with them, may
 /// take before the session falls back to a plain shell.

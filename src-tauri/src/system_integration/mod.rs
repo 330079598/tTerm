@@ -43,7 +43,7 @@ async fn set_folder_menu_service(
     integration: Arc<dyn SystemIntegration>,
     installed: bool,
 ) -> Result<IntegrationStatus, String> {
-    let language = crate::core::blocking::run_blocking(|| {
+    let language = tterm_core::core::blocking::run_blocking(|| {
         Ok(crate::config::load_config_file()
             .map(|config| config.language)
             .unwrap_or_default())

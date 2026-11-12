@@ -8,13 +8,13 @@ use super::methods::{
 use super::{AuthPrompter, AuthTarget, AuthUsed, DEFAULT_IDENTITY_FILES, TYPING_ATTEMPTS};
 use crate::ssh::agent::offered_before;
 use crate::ssh::key_file::{parse_certificate, read_key};
-use crate::ssh::typed_passwords;
 use crate::ssh::types::SshConnectError;
 use russh::client::AuthResult;
 use russh::keys::PrivateKey;
 use russh::keys::agent::AgentIdentity;
 use russh::{MethodKind, client};
 use std::path::PathBuf;
+use tterm_core::ssh::typed_passwords;
 use zeroize::Zeroizing;
 
 /// [`AuthMethod::Auto`]: what `ssh user@host` tries, in its order. Returns
@@ -202,10 +202,10 @@ where
 /// ones that exist.
 pub(super) fn identity_files(key_path: Option<&str>, local_identities: bool) -> Vec<PathBuf> {
     let mut files = key_path
-        .map(crate::profiles::parser::paths::expand_home_path)
+        .map(tterm_core::profiles::parser::paths::expand_home_path)
         .into_iter()
         .collect::<Vec<_>>();
-    let ssh_dir = crate::profiles::parser::paths::home_dir()
+    let ssh_dir = tterm_core::profiles::parser::paths::home_dir()
         .filter(|_| local_identities)
         .map(|home| home.join(".ssh"));
     for path in ssh_dir

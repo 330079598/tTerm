@@ -21,8 +21,8 @@ use std::time::Duration;
 use russh::client::{self, AuthResult};
 use russh::{MethodKind, MethodSet};
 
-use crate::ssh::typed_passwords;
 use crate::ssh::types::SshConnectError;
+use tterm_core::ssh::typed_passwords;
 
 /// Budget for one request/response exchange with the server.
 const EXCHANGE_TIMEOUT: Duration = Duration::from_secs(30);

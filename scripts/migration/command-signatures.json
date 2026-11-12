@@ -1341,17 +1341,6 @@
       "returns": "Result<(), String>"
     },
     {
-      "name": "run_blocking",
-      "attributes": {},
-      "params": [
-        {
-          "name": "work",
-          "type": "F"
-        }
-      ],
-      "returns": "Result<T, String>\nwhere\n    T: Send + 'static,\n    F: FnOnce() -> Result<T, String> + Send + 'static,"
-    },
-    {
       "name": "run_due_automatic_backup",
       "attributes": {},
       "params": [

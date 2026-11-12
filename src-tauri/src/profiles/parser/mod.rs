@@ -10,14 +10,10 @@ mod host;
 mod include;
 mod jump;
 mod known_hosts;
-mod matching;
 mod parse;
-pub(crate) mod paths;
-pub(crate) mod pattern;
 mod proxy_command;
 mod resolve;
 mod tokens;
-mod words;
 
 use super::storage::load_profiles;
 use super::types::{SshConfigImportHost, SshConfigImportPreview};
@@ -25,10 +21,10 @@ use host::build_import_host;
 use include::read_ssh_config;
 use known_hosts::named_known_hosts_files;
 use parse::SshConfig;
-use paths::normalize_import_source;
-use pattern::is_wildcard_host;
 use resolve::{import_entries, resolve_host};
 use std::path::PathBuf;
+use tterm_core::profiles::parser::paths::normalize_import_source;
+use tterm_core::profiles::parser::pattern::is_wildcard_host;
 
 pub(crate) fn build_ssh_config_import_preview(
     source_path: Option<String>,
@@ -61,7 +57,9 @@ pub(crate) fn resolve_config_host(name: &str) -> Result<Option<SshConfigImportHo
     if name.is_empty() || is_wildcard_host(name) {
         return Ok(None);
     }
-    let Some(source) = paths::home_dir().map(|home| home.join(".ssh").join("config")) else {
+    let Some(source) = tterm_core::profiles::parser::paths::home_dir()
+        .map(|home| home.join(".ssh").join("config"))
+    else {
         return Ok(None);
     };
     if !source.is_file() {
@@ -76,7 +74,9 @@ pub(crate) fn resolve_config_host(name: &str) -> Result<Option<SshConfigImportHo
 /// connected to on `port`. None when there is no config or it cannot be read,
 /// since the default files are read either way.
 pub(crate) fn config_known_hosts_files(names: &[&str], port: u16) -> Vec<PathBuf> {
-    let Some(source) = paths::home_dir().map(|home| home.join(".ssh").join("config")) else {
+    let Some(source) = tterm_core::profiles::parser::paths::home_dir()
+        .map(|home| home.join(".ssh").join("config"))
+    else {
         return Vec::new();
     };
     if !source.is_file() {

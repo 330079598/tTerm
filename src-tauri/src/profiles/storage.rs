@@ -1,14 +1,14 @@
 use super::types::{LocalTerminalOptions, SavedProfile, SavedSecretSummary};
-use crate::db::sql_error;
 use rusqlite::{Connection, OptionalExtension, params};
+use tterm_core::db::sql_error;
 
 /// Profiles in display order.
 pub(crate) fn load_profiles() -> Result<Vec<SavedProfile>, String> {
-    crate::db::read(list_saved_profiles)
+    tterm_core::db::read(list_saved_profiles)
 }
 
 pub(crate) fn find_profile(id: &str) -> Result<Option<SavedProfile>, String> {
-    crate::db::read(|connection| get_profile(connection, id))
+    tterm_core::db::read(|connection| get_profile(connection, id))
 }
 
 pub(crate) fn encode_profile(profile: &SavedProfile) -> Result<String, String> {
@@ -49,7 +49,7 @@ pub(crate) fn get_profile(
 /// Whether a saved profile offers sudo password autofill; `None` when no
 /// saved profile has this id (a connection that was never saved).
 pub fn profile_sudo_autofill(profile_id: &str) -> Result<Option<bool>, String> {
-    crate::db::read(|connection| get_profile(connection, profile_id))
+    tterm_core::db::read(|connection| get_profile(connection, profile_id))
         .map(|profile| profile.map(|profile| profile.sudo_autofill))
 }
 
@@ -315,7 +315,7 @@ pub fn saved_secret_summaries() -> Result<Vec<SavedSecretSummary>, String> {
         summaries.extend(profile_secret_summaries(&profile));
     }
     // Proxy passwords belong to no profile; they are listed under the proxy's name.
-    for server in crate::db::read(crate::proxy::storage::list_proxies)? {
+    for server in tterm_core::db::read(crate::proxy::storage::list_proxies)? {
         if server.username.is_none() {
             continue;
         }
@@ -354,7 +354,7 @@ pub(crate) fn delete_profile_secrets(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::db::Database;
+    use tterm_core::db::Database;
 
     fn profile(id: &str, group_id: Option<&str>) -> SavedProfile {
         serde_json::from_value(serde_json::json!({

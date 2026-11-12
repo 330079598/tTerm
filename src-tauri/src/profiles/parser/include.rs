@@ -1,10 +1,10 @@
 //! Opens an SSH config file and the files its `Include` lines name.
 
 use super::parse::{SshConfig, parse_ssh_config_with};
-use super::paths::{expand_home_path, home_dir};
-use super::pattern::{has_glob_pattern, wildcard_matches};
 use std::fs;
 use std::path::{Component, Path, PathBuf};
+use tterm_core::profiles::parser::paths::{expand_home_path, home_dir};
+use tterm_core::profiles::parser::pattern::{has_glob_pattern, wildcard_matches};
 
 /// How deep includes may nest, as `READCONF_MAX_DEPTH` in OpenSSH.
 const MAX_INCLUDE_DEPTH: usize = 16;

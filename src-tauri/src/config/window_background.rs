@@ -3,8 +3,8 @@
 //! frontend rewrites that file from its own copy of the config; the database
 //! is open before the window is built.
 
-use crate::db::meta;
 use rusqlite::Connection;
+use tterm_core::db::meta;
 
 const KEY: &str = "window_background";
 /// Where older versions kept it.
@@ -34,12 +34,12 @@ pub(super) fn write(connection: &Connection, color: &str) -> Result<(), String> 
 
 /// `None` when none is saved or the database is unavailable.
 pub fn load_window_background() -> Option<(u8, u8, u8)> {
-    crate::db::read(read).ok().flatten()
+    tterm_core::db::read(read).ok().flatten()
 }
 
 /// Moves the file older versions kept into the database.
 pub(crate) fn import_file(
-    database: &crate::db::Database,
+    database: &tterm_core::db::Database,
     config_dir: &std::path::Path,
 ) -> Result<(), String> {
     meta::import_file(
@@ -59,7 +59,7 @@ pub(crate) fn import_file(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::db::Database;
+    use tterm_core::db::Database;
 
     #[test]
     fn colors_round_trip_normalized() {

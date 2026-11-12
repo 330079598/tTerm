@@ -1,13 +1,15 @@
 use std::sync::Arc;
 
+use tterm_core::launch_dir::LaunchDirs;
+
+use tterm_core::updater::PendingUpdateDownloads;
+
 use crate::{
     background::{
         CloseBehaviorState, exit_guard::ExitGuardState, quit::QuitState, tray::TrayState,
     },
-    launch_dir::LaunchDirs,
     session_log::SessionLogState,
     tunnel::manager::TunnelManager,
-    updater::PendingUpdateDownloads,
 };
 
 pub struct AppLevelServices {

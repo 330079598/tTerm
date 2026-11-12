@@ -4,8 +4,8 @@
 //! itself, and `ssh -W %h:%p` becomes a jump host, as `ProxyJump` does. Any
 //! other command is kept to run as it is.
 
-use super::words::split_ssh_words;
 use crate::proxy::ProxyKind;
+use tterm_core::profiles::parser::words::split_ssh_words;
 
 /// What a host's `ProxyCommand` turns into.
 #[derive(Debug, Clone, PartialEq, Eq)]

@@ -8,24 +8,23 @@
 //! writes the result locally together with the new base.
 
 mod document;
-mod merge;
 pub(crate) mod snapshot;
 mod state;
 
 pub(crate) mod commands;
 mod service;
 
-use crate::backup::webdav::{Fetched, Stored, WebDavClient};
-use crate::core::blocking::run_blocking;
-use crate::db::meta;
 use crate::ssh::secret_store::types::SecretStoreState;
 use crate::tunnel::manager::TunnelManager;
 use document::{Collections, MAX_DOCUMENT_SIZE, SYNC_FILE_NAME};
-use merge::{merge_collection, same_data};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use snapshot::{PROFILE_GROUPS, PROFILES, SERIAL_SENDS, SETTINGS, TUNNELS, removed_ids};
 use std::sync::Mutex;
+use tterm_core::backup::webdav::{Fetched, Stored, WebDavClient};
+use tterm_core::core::blocking::run_blocking;
+use tterm_core::db::meta;
+use tterm_core::sync::merge::{merge_collection, same_data};
 
 use snapshot::SyncSelection;
 
@@ -135,10 +134,10 @@ async fn sync(
         let data_key = data_key.clone();
         let target_key = target.key.clone();
         run_blocking(move || {
-            crate::db::read(|connection| {
+            tterm_core::db::read(|connection| {
                 let categories = settings
                     .selection
-                    .categories(crate::themes::themes_imported(connection)?);
+                    .categories(tterm_core::themes::themes_imported(connection)?);
                 let local = snapshot::collect(connection, &data_key, &categories)?;
                 Ok((
                     categories,
@@ -412,7 +411,7 @@ async fn apply(
     }
 
     run_blocking(move || {
-        crate::db::write(|transaction| {
+        tterm_core::db::write(|transaction| {
             // Settings live in a file; writing them first means a failure
             // leaves the database, and so the base, untouched.
             if changed.contains(&SETTINGS) {
@@ -501,7 +500,8 @@ fn normalize_lenient(collections: &Collections, categories: &[&str]) -> Collecti
         if let Some(collection) = collections.get(category) {
             let entry = normalized.entry(category.to_string()).or_default();
             for (id, record) in collection {
-                let single = merge::Collection::from([(id.clone(), record.clone())]);
+                let single =
+                    tterm_core::sync::merge::Collection::from([(id.clone(), record.clone())]);
                 if let Ok(mut done) = snapshot::normalize(category, &single)
                     && let Some(record) = done.remove(id)
                 {
@@ -516,7 +516,7 @@ fn normalize_lenient(collections: &Collections, categories: &[&str]) -> Collecti
 fn status() -> Result<SyncStatus, String> {
     Ok(SyncStatus {
         settings: load_settings()?,
-        last_synced_at: crate::db::read(|connection| state::synced_at(connection, None))?,
+        last_synced_at: tterm_core::db::read(|connection| state::synced_at(connection, None))?,
         last_error: LAST_ERROR.lock().ok().and_then(|error| error.clone()),
     })
 }
@@ -537,7 +537,7 @@ pub(crate) fn restore_settings(
 }
 
 pub(crate) fn load_settings() -> Result<SyncSettings, String> {
-    crate::db::read(read_settings)
+    tterm_core::db::read(read_settings)
 }
 
 pub(crate) fn read_settings(connection: &rusqlite::Connection) -> Result<SyncSettings, String> {
@@ -553,7 +553,7 @@ fn write_settings(
 
 /// Moves `sync_settings.json` from older versions into the database.
 pub(crate) fn import_settings_file(
-    database: &crate::db::Database,
+    database: &tterm_core::db::Database,
     config_dir: &std::path::Path,
 ) -> Result<(), String> {
     meta::import_file(

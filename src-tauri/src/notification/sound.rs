@@ -7,8 +7,8 @@ use std::path::{Path, PathBuf};
 
 use base64::{Engine, engine::general_purpose::STANDARD as BASE64};
 
-use crate::config::atomic::atomic_write;
-use crate::config::paths::{ensure_config_dir, get_config_path};
+use tterm_core::config::atomic::atomic_write;
+use tterm_core::config::paths::{ensure_config_dir, get_config_path};
 
 /// The copy's name in the config folder.
 pub(crate) const SOUND_FILE: &str = "notification-sound";

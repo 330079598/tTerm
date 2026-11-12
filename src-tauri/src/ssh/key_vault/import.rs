@@ -48,7 +48,7 @@ pub(super) fn read_import(input: &ImportVaultKeyInput) -> Result<VaultKey, Strin
             .filter(|_| info.encrypted && input.remember_passphrase)
             .map(str::to_string),
         certificate,
-        created_at: crate::ssh::store::now_unix_ms(),
+        created_at: tterm_core::ssh::store::now_unix_ms(),
     })
 }
 

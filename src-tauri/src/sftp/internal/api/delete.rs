@@ -84,7 +84,7 @@ fn add_delete_entry_stats(stats: &mut DeleteStats, is_dir: bool) {
 }
 
 fn is_dangerous_delete_path(path: &str) -> bool {
-    let normalized = crate::sftp::internal::paths::normalize_remote_path(path);
+    let normalized = tterm_core::sftp::internal::paths::normalize_remote_path(path);
     normalized.is_empty() || normalized == "/" || normalized == "." || normalized == ".."
 }
 
@@ -172,7 +172,7 @@ fn collect_delete_stats<'a>(
         let entries = sftp.read_dir(&path).await.map_err(map_sftp_error)?;
         for entry in entries {
             let name = entry.file_name();
-            let entry_path = crate::sftp::internal::paths::join_remote_path(&path, &name);
+            let entry_path = tterm_core::sftp::internal::paths::join_remote_path(&path, &name);
             collect_delete_stats(sftp, entry_path, entry.metadata().is_dir(), stats, limit).await?;
             if stats.truncated {
                 break;
@@ -186,9 +186,6 @@ fn collect_delete_stats<'a>(
 mod batch;
 pub mod commands;
 mod recursive;
-
-#[cfg(test)]
-mod contract_tests;
 
 #[cfg(test)]
 mod container_tests;

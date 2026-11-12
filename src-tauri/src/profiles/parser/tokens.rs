@@ -1,9 +1,9 @@
 //! Fills in the `%` tokens and `${VAR}` references that `ssh` allows in
 //! `IdentityFile` and `CertificateFile` paths, such as `~/.ssh/%h.key`.
 
-use super::paths::{expand_home_path, home_dir};
 use sha1::{Digest, Sha1};
 use std::collections::HashMap;
+use tterm_core::profiles::parser::paths::{expand_home_path, home_dir};
 
 /// What the tokens of a key file path stand for.
 pub(super) struct PathTokens<'a> {

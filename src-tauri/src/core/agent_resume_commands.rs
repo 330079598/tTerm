@@ -1,4 +1,4 @@
-use super::agent_resume::{
+use tterm_core::core::agent_resume::{
     BuildAgentResumeCommandInput, ResumeAgent, build_agent_resume_command_service,
 };
 

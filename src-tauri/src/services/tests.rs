@@ -1,10 +1,11 @@
 use super::{app::AppLevelServices, session::SessionServices, sftp::SftpServices};
+use tterm_core::updater::PendingUpdateDownloads;
+
 use crate::{
     background::{
         CloseBehaviorState, exit_guard::ExitGuardState, quit::QuitState, tray::TrayState,
     },
     core::state::{PtyMap, ZmodemArmedSendMap, ZmodemManualDetectMap, ZmodemMap},
-    launch_dir::LaunchDirs,
     monitor::{prompts::PendingMonitorPrompts, types::MonitorSessionMap},
     session_log::SessionLogState,
     sftp::internal::{
@@ -12,9 +13,9 @@ use crate::{
         types::{SftpConnectionPool, TransferCancelMap},
     },
     tunnel::manager::TunnelManager,
-    updater::PendingUpdateDownloads,
 };
 use std::sync::Arc;
+use tterm_core::launch_dir::LaunchDirs;
 #[test]
 fn app_services_arc_ptr_eq_matches_legacy_states() {
     let ptys: PtyMap = Arc::new(Default::default());

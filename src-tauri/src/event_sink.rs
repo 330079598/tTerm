@@ -4,6 +4,8 @@ use tterm_core::events::EventName;
 use tterm_core::events::{AppEvent, EventSink, EventTarget};
 
 mod background; // P1-03.
+#[cfg(test)]
+mod contracts;
 mod launch_dir; // P1-03.
 mod notification; // P1-03.
 mod proxy; // P1-05.

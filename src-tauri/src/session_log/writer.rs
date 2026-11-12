@@ -4,11 +4,12 @@ use super::LogContext;
 use super::naming::{render_name, unique_base_name};
 use super::plain::PlainLog;
 use super::rotating::RotatingFile;
-use super::{LogConfig, SessionMetadata, library};
+use super::{LogConfig, SessionMetadata};
 use base64::Engine;
 use chrono::{DateTime, Local};
 use std::fs;
 use std::time::{Instant, SystemTime, UNIX_EPOCH};
+use tterm_core::session_log::library;
 
 /// When something happened, taken as it happened: the log is written later,
 /// on its own thread.

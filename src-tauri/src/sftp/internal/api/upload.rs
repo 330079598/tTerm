@@ -2,9 +2,6 @@ use tterm_core::events::sftp::SftpEvent;
 use tterm_core::events::{AppEvent, EventSink};
 mod batch;
 mod items;
-use crate::sftp::internal::transfer::{
-    self, ProgressSink, RemoteChannels, TransferOptions, TransferProgress,
-};
 use crate::sftp::internal::types::TransferCancelMap;
 use russh_sftp::client::SftpSession;
 use serde::Serialize;
@@ -12,6 +9,9 @@ use std::future::Future;
 use std::path::{Path, PathBuf};
 use std::pin::Pin;
 use std::sync::Arc;
+use tterm_core::sftp::internal::transfer::{
+    self, ProgressSink, RemoteChannels, TransferOptions, TransferProgress,
+};
 
 use tokio::fs;
 use tokio::sync::watch;
@@ -124,7 +124,7 @@ async fn collect_upload_plan(
 
         if metadata.is_dir() {
             let remote_root_path =
-                crate::sftp::internal::paths::join_remote_path(remote_base_path, &root_name);
+                tterm_core::sftp::internal::paths::join_remote_path(remote_base_path, &root_name);
             collect_directory_upload_plan(
                 &root_path,
                 &remote_root_path,
@@ -138,7 +138,7 @@ async fn collect_upload_plan(
                 file_size: metadata.len(),
                 local_path: root_path.to_string_lossy().into_owned(),
                 remote_dir: remote_base_path.to_string(),
-                remote_path: crate::sftp::internal::paths::join_remote_path(
+                remote_path: tterm_core::sftp::internal::paths::join_remote_path(
                     remote_base_path,
                     &root_name,
                 ),
@@ -197,7 +197,7 @@ fn collect_directory_upload_plan<'a>(
 
             if metadata.is_dir() {
                 let child_name = file_name_from_path(&path)?;
-                let child_remote_path = crate::sftp::internal::paths::join_remote_path(
+                let child_remote_path = tterm_core::sftp::internal::paths::join_remote_path(
                     current_remote_path,
                     &child_name,
                 );
@@ -211,8 +211,10 @@ fn collect_directory_upload_plan<'a>(
             }
 
             let file_name = file_name_from_path(&path)?;
-            let remote_path =
-                crate::sftp::internal::paths::join_remote_path(current_remote_path, &file_name);
+            let remote_path = tterm_core::sftp::internal::paths::join_remote_path(
+                current_remote_path,
+                &file_name,
+            );
 
             plan.files.push(UploadFilePlanItem {
                 file_name,
@@ -232,7 +234,7 @@ async fn ensure_remote_dir_all(
     remote_dir: &str,
     mut cancel_rx: Option<watch::Receiver<bool>>,
 ) -> Result<(), String> {
-    let normalized = crate::sftp::internal::paths::normalize_remote_path(remote_dir);
+    let normalized = tterm_core::sftp::internal::paths::normalize_remote_path(remote_dir);
     if normalized.is_empty() || normalized == "/" {
         return Ok(());
     }
@@ -248,7 +250,7 @@ async fn ensure_remote_dir_all(
             return Err("Upload cancelled by user".to_string());
         }
 
-        current = crate::sftp::internal::paths::join_remote_path(&current, segment);
+        current = tterm_core::sftp::internal::paths::join_remote_path(&current, segment);
         match sftp.create_dir(&current).await {
             Ok(_) => {}
             Err(err) => {
@@ -386,9 +388,6 @@ async fn upload_single_file_with_progress(
 }
 
 pub mod commands;
-
-#[cfg(test)]
-mod contract_tests;
 
 #[cfg(test)]
 mod event_tests;

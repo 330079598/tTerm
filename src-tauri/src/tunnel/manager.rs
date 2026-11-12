@@ -2,12 +2,6 @@ use super::credentials::{StartOutcome, TunnelCredentials, apply_credentials, col
 use super::hub::{SessionHub, SshConnection};
 use super::runtime::reporter::TunnelReporter;
 use super::runtime::{RunContext, run_tunnel};
-use super::storage::{
-    delete_tunnel as delete_tunnel_rule, list_tunnel_traffic, load_tunnels, reset_tunnel_traffic,
-    upsert_tunnel,
-};
-use super::types::TunnelRule;
-use crate::core::blocking::run_blocking;
 use crate::core::session::saved_hops::load_saved_hop_password;
 use crate::core::session::{
     load_saved_ssh_password, normalize_connection, resolve_ssh_password, types::JumpHostOptions,
@@ -20,6 +14,12 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
+use tterm_core::core::blocking::run_blocking;
+use tterm_core::tunnel::storage::{
+    delete_tunnel as delete_tunnel_rule, list_tunnel_traffic, load_tunnels, reset_tunnel_traffic,
+    upsert_tunnel,
+};
+use tterm_core::tunnel::types::TunnelRule;
 use tterm_platform::tray::Tray;
 
 use tokio::sync::{Mutex, watch};
@@ -232,7 +232,7 @@ pub(super) async fn list_tunnel_statuses_service(
     manager: &TunnelManager,
 ) -> Result<Vec<TunnelStatus>, String> {
     let (rules, saved) =
-        run_blocking(|| Ok((load_tunnels()?, crate::db::read(list_tunnel_traffic)?))).await?;
+        run_blocking(|| Ok((load_tunnels()?, tterm_core::db::read(list_tunnel_traffic)?))).await?;
     Ok(rules
         .iter()
         .map(|rule| manager.status_of(&rule.id, saved.get(&rule.id).copied().unwrap_or_default()))
@@ -248,8 +248,8 @@ pub(super) async fn reset_tunnel_traffic_totals_service(
     run_blocking(move || match reporter {
         Some(reporter) => reporter.reset_traffic(),
         None => {
-            let now = crate::ssh::store::now_unix_ms().max(0) as u64;
-            crate::db::write(|transaction| reset_tunnel_traffic(transaction, &id, now))
+            let now = tterm_core::ssh::store::now_unix_ms().max(0) as u64;
+            tterm_core::db::write(|transaction| reset_tunnel_traffic(transaction, &id, now))
         }
     })
     .await
@@ -264,7 +264,7 @@ pub(super) async fn save_tunnel_service(
     let tunnel = run_blocking(move || {
         let profile = find_profile(&tunnel.profile_id)?;
         connection_options_for_profile(&profile)?;
-        crate::db::write(|transaction| upsert_tunnel(transaction, &tunnel))?;
+        tterm_core::db::write(|transaction| upsert_tunnel(transaction, &tunnel))?;
         Ok(tunnel)
     })
     .await?;
@@ -278,7 +278,7 @@ pub(super) async fn delete_tunnel_service(
     manager: &TunnelManager,
 ) -> Result<(), String> {
     manager.discard(&id).await;
-    crate::db::write(|transaction| delete_tunnel_rule(transaction, &id))?;
+    tterm_core::db::write(|transaction| delete_tunnel_rule(transaction, &id))?;
     context.refresh_tray();
     Ok(())
 }

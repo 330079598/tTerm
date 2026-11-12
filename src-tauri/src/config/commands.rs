@@ -27,7 +27,7 @@ fn apply_saved_config(context: &SaveConfigContext, config: &AppConfig) -> Result
 
 #[tauri::command]
 pub async fn load_config() -> Result<AppConfig, String> {
-    crate::core::blocking::run_blocking(load_config_file).await
+    tterm_core::core::blocking::run_blocking(load_config_file).await
 }
 
 #[tauri::command]
@@ -42,7 +42,7 @@ pub async fn save_config(
         integration: services.shared.platform.integration.clone(),
         runtime: services.shared.runtime.clone(),
     };
-    crate::core::blocking::run_blocking(move || {
+    tterm_core::core::blocking::run_blocking(move || {
         let config = super::save::save_config(context.log.state.clone(), config)?;
         apply_saved_config(&context, &config)
     })
@@ -183,7 +183,7 @@ mod tests {
         };
         let caller = std::thread::current().id();
 
-        crate::core::blocking::run_blocking(move || apply_saved_config(&context, &config))
+        tterm_core::core::blocking::run_blocking(move || apply_saved_config(&context, &config))
             .await
             .unwrap();
 

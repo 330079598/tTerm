@@ -2,14 +2,14 @@ use super::snapshot::{
     COMMANDS, KNOWN_HOSTS, PROFILE_GROUPS, PROFILES, PROXIES, SECRETS, SERIAL_SENDS, THEMES,
 };
 use super::*;
-use crate::command_library::{models::SavedCommand, repository::CommandRepository};
-use crate::db::Database;
 use crate::profiles::types::ProfileGroup;
 use crate::ssh::secret_store::{
     crypto::SecretKey as DataKey, store::get_secret, store::put_secret,
 };
-use crate::ssh::store::KnownHostRecord;
 use serde_json::json;
+use tterm_core::command_library::{models::SavedCommand, repository::CommandRepository};
+use tterm_core::db::Database;
+use tterm_core::ssh::store::KnownHostRecord;
 
 const CATEGORIES: [&str; 9] = [
     PROFILES,
@@ -152,12 +152,12 @@ impl Device {
 
     fn save_themes(&self, themes: &[Value]) {
         self.database
-            .write(|transaction| crate::themes::replace_themes(transaction, themes))
+            .write(|transaction| tterm_core::themes::replace_themes(transaction, themes))
             .unwrap();
     }
 
     fn themes(&self) -> Vec<Value> {
-        self.database.read(crate::themes::list_themes).unwrap()
+        self.database.read(tterm_core::themes::list_themes).unwrap()
     }
 
     fn profile(&self, id: &str) -> Option<crate::profiles::types::SavedProfile> {
@@ -406,7 +406,7 @@ fn commands_sync_but_usage_counts_stay_per_device() {
 fn groups_tunnels_and_known_hosts_sync() {
     let mut remote = None;
     let (mut a, mut b) = (Device::new(), Device::new());
-    let rule: crate::tunnel::types::TunnelRule = serde_json::from_value(json!({
+    let rule: tterm_core::tunnel::types::TunnelRule = serde_json::from_value(json!({
         "id": "t1", "name": "db", "profileId": "p1", "kind": "local",
         "bindHost": "127.0.0.1", "bindPort": 8080, "destHost": "db", "destPort": 5432
     }))
@@ -421,8 +421,8 @@ fn groups_tunnels_and_known_hosts_sync() {
                     parent_id: None,
                 }],
             )?;
-            crate::tunnel::storage::replace_tunnels(transaction, &[rule])?;
-            crate::ssh::store::merge_known_host(
+            tterm_core::tunnel::storage::replace_tunnels(transaction, &[rule])?;
+            tterm_core::ssh::store::merge_known_host(
                 transaction,
                 &KnownHostRecord {
                     profile_id: Some("p1".to_string()),
@@ -448,11 +448,11 @@ fn groups_tunnels_and_known_hosts_sync() {
                 ["Empty group"]
             );
             assert_eq!(
-                crate::tunnel::storage::list_tunnel_rules(connection)?[0].dest_port,
+                tterm_core::tunnel::storage::list_tunnel_rules(connection)?[0].dest_port,
                 5432
             );
             assert_eq!(
-                crate::ssh::store::list_known_hosts(connection)?.entries[0].fingerprint,
+                tterm_core::ssh::store::list_known_hosts(connection)?.entries[0].fingerprint,
                 "SHA256:abc"
             );
             Ok(())
@@ -570,12 +570,15 @@ fn serial_sends_sync_as_one_history_and_clearing_travels() {
 fn categories_this_device_skips_are_carried_over() {
     let mut remote = Some(Collections::from([(
         "themes".to_string(),
-        merge::Collection::from([(
+        tterm_core::sync::merge::Collection::from([(
             "t".to_string(),
-            merge::SyncRecord::new(json!({"id": "t"}), None),
+            tterm_core::sync::merge::SyncRecord::new(json!({"id": "t"}), None),
         )]),
     )]));
-    let local = Collections::from([(PROFILES.to_string(), merge::Collection::new())]);
+    let local = Collections::from([(
+        PROFILES.to_string(),
+        tterm_core::sync::merge::Collection::new(),
+    )]);
     let merged = merge_all(&[PROFILES], None, &local, remote.as_ref());
     assert_eq!(merged["themes"], remote.as_ref().unwrap()["themes"]);
     assert!(merged[PROFILES].is_empty());
@@ -583,9 +586,9 @@ fn categories_this_device_skips_are_carried_over() {
     // A remote file without a category never deletes local records.
     let local = Collections::from([(
         PROFILES.to_string(),
-        merge::Collection::from([(
+        tterm_core::sync::merge::Collection::from([(
             "p".to_string(),
-            merge::SyncRecord::new(json!({"a": 1}), None),
+            tterm_core::sync::merge::SyncRecord::new(json!({"a": 1}), None),
         )]),
     )]);
     let base = local.clone();
@@ -872,16 +875,16 @@ fn a_sync_file_from_before_groups_had_ids_files_profiles_by_group_name() {
     let collections = Collections::from([
         (
             PROFILE_GROUPS.to_string(),
-            merge::Collection::from([(
+            tterm_core::sync::merge::Collection::from([(
                 "ops".to_string(),
-                merge::SyncRecord::new(json!(true), None),
+                tterm_core::sync::merge::SyncRecord::new(json!(true), None),
             )]),
         ),
         (
             PROFILES.to_string(),
-            merge::Collection::from([(
+            tterm_core::sync::merge::Collection::from([(
                 "p1".to_string(),
-                merge::SyncRecord::new(
+                tterm_core::sync::merge::SyncRecord::new(
                     json!({
                         "id": "p1", "name": "p1", "group": "ops", "connection_type": "ssh",
                         "host": "one.example", "_position": 0

@@ -1,0 +1,4 @@
+crates/tterm-core/src/events/ssh.rs:25:    pub username: Option<String>,
+crates/tterm-core/src/events/ssh.rs:285:    pub username: String,
+crates/tterm-core/src/workspace/app_navigation.rs:30:    pub username: Option<String>,
+count:        2

@@ -5,19 +5,17 @@
 //! out of backups and sync, so one machine's window layout never lands on
 //! another machine's screens.
 
-mod placement;
-mod state;
 #[cfg(test)]
 mod tests;
 
-use crate::db::meta;
-use placement::{Area, centered, top_edge_on_screen};
 use serde::{Deserialize, Serialize};
-use state::Bounds;
 use std::sync::Mutex;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::Duration;
 use tauri::{AppHandle, Manager, PhysicalPosition, PhysicalSize, WebviewWindow, WindowEvent};
+use tterm_core::db::meta;
+use tterm_core::window_state::placement::{Area, centered, top_edge_on_screen};
+use tterm_core::window_state::state::Bounds;
 
 const KEY: &str = "window_state";
 
@@ -114,7 +112,7 @@ fn observe(window: &WebviewWindow) -> tauri::Result<Observation> {
 /// Puts the main window back the way it was left and starts following its
 /// moves and resizes. Called on the hidden window before it is first shown.
 pub fn restore(window: &WebviewWindow) {
-    let saved = crate::db::read(|connection| meta::get::<SavedWindowState>(connection, KEY))
+    let saved = tterm_core::db::read(|connection| meta::get::<SavedWindowState>(connection, KEY))
         .unwrap_or_else(|error| {
             eprintln!("Failed to read the window state: {error}");
             None
@@ -210,7 +208,7 @@ pub fn save(app: &AppHandle) {
     let Some(state) = state else {
         return;
     };
-    if let Err(error) = crate::db::write(|transaction| meta::set(transaction, KEY, &state)) {
+    if let Err(error) = tterm_core::db::write(|transaction| meta::set(transaction, KEY, &state)) {
         eprintln!("Failed to save the window state: {error}");
     }
 }
@@ -218,7 +216,7 @@ pub fn save(app: &AppHandle) {
 /// Writes the main window's state before an update is installed: on Windows
 /// the installer ends the process without the exit [`save`] runs on.
 pub async fn save_now(app: AppHandle) {
-    let saved = crate::core::blocking::run_blocking(move || {
+    let saved = tterm_core::core::blocking::run_blocking(move || {
         save(&app);
         Ok(())
     })

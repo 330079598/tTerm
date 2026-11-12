@@ -117,7 +117,7 @@ impl DownloadedUpdate for Download {
     }
     fn install(self: Arc<Self>, bytes: Vec<u8>) -> PlatformFuture<'static, ()> {
         Box::pin(async move {
-            crate::core::blocking::run_blocking(move || {
+            tterm_core::core::blocking::run_blocking(move || {
                 self.update.install(bytes).map_err(|e| e.to_string())
             })
             .await

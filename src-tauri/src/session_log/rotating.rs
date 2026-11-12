@@ -245,7 +245,7 @@ pub(super) fn compress_file(path: &Path) -> Result<(), String> {
 /// is removed only after its archive is complete, so when both are left the
 /// log is the copy to keep. Files in use are left alone.
 pub(super) fn recover_compression(directory: &Path) {
-    let Ok(found) = super::library::walk(directory) else {
+    let Ok(found) = tterm_core::session_log::library::walk(directory) else {
         return;
     };
     let in_use = in_use();
@@ -265,7 +265,7 @@ pub(super) fn recover_compression(directory: &Path) {
             let log = file.path.with_file_name(log_name);
             if log.is_file()
                 && !in_use.contains(&log)
-                && super::library::read_metadata(&log).is_some()
+                && tterm_core::session_log::library::read_metadata(&log).is_some()
             {
                 let _ = fs::remove_file(&file.path);
             }

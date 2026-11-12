@@ -65,4 +65,6 @@ impl<R: Runtime> SessionSink for TauriSessionSink<R> {
 }
 
 #[cfg(test)]
+mod contracts;
+#[cfg(test)]
 mod tests;

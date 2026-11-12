@@ -8,7 +8,6 @@ use super::protocol::{self, Link, OutgoingFile, Received, TransferError};
 use crate::core::state::ZmodemMap;
 use crate::serial::io::SerialTap;
 use crate::terminal::types::PtyWriter;
-use crate::zmodem::events;
 use std::collections::VecDeque;
 use std::fs::File;
 use std::io::Write;
@@ -17,6 +16,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc::{Receiver, RecvTimeoutError};
 use std::sync::{Arc, PoisonError};
 use std::time::{Duration, Instant, UNIX_EPOCH};
+use tterm_core::zmodem::events;
 
 /// How often the transfer list hears how far a file has got.
 const PROGRESS_INTERVAL: Duration = Duration::from_millis(200);

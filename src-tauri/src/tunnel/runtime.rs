@@ -1,5 +1,4 @@
 use super::hub::{Lease, RouteGuard, SessionHub, SessionKey, SshConnection, SshHandle};
-use super::types::{TunnelKind, TunnelRule};
 use crate::core::session::types::SessionPlan;
 use crate::ssh::{
     jump::connect::ConnectContext, jump::connect::SshTarget,
@@ -16,6 +15,7 @@ use std::time::Duration;
 use tokio::sync::watch;
 use tokio::task::JoinSet;
 use tterm_core::events::tunnel::TunnelState;
+use tterm_core::tunnel::types::{TunnelKind, TunnelRule};
 
 mod connections;
 pub(super) mod reporter;

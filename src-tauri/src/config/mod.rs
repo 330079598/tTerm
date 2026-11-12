@@ -1,23 +1,17 @@
-pub(crate) mod atomic;
 pub(crate) mod commands;
 mod defaults;
 mod deserialize;
-pub mod keymap;
-pub mod keyword_highlight;
 pub mod local_shells;
-pub mod panes;
-pub(crate) mod paths;
 pub mod reconnect;
 mod save;
-pub mod tab_agent_indicator;
-pub mod tab_icons;
-mod update_channel;
 pub mod window_background;
 pub(crate) mod window_background_commands;
 
-use atomic::atomic_write;
 use keymap::KeymapConfig;
-use paths::{ensure_config_dir, get_config_path};
+use tterm_core::config::atomic::atomic_write;
+use tterm_core::config::paths::{ensure_config_dir, get_config_path};
+use tterm_core::config::update_channel;
+use tterm_core::config::{keymap, keyword_highlight, panes, tab_agent_indicator, tab_icons};
 
 use serde::{Deserialize, Serialize};
 use std::fs;

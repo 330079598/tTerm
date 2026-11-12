@@ -10,7 +10,6 @@ mod operations;
 use tterm_platform::native::open::apps;
 
 use tterm_core::events::sftp::external::{EditStatus, ExternalEdit};
-mod local;
 #[cfg(all(test, unix))]
 mod real_sshd_tests;
 mod remote;
@@ -19,7 +18,6 @@ mod sessions;
 mod tests;
 mod watch;
 
-use crate::core::blocking::run_blocking;
 use crate::core::session::types::SessionPlan;
 use crate::sftp::internal::api::download::download_file_with_progress;
 use crate::sftp::internal::api::prepare_transfer;
@@ -28,7 +26,6 @@ use crate::sftp::internal::connection::map_sftp_error;
 use crate::sftp::internal::types::{SftpConnectionPool, TransferCancelMap};
 #[cfg(target_os = "macos")]
 use base64::Engine;
-use local::{FileStamp, Fingerprint};
 use remote::RemoteStamp;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -36,8 +33,10 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::sync::Mutex;
 use std::sync::atomic::AtomicBool;
+use tterm_core::core::blocking::run_blocking;
 use tterm_core::events::sftp::SftpEvent;
 use tterm_core::events::{AppEvent, EventSink};
+use tterm_core::sftp::internal::api::external::local::{FileStamp, Fingerprint};
 #[cfg(target_os = "macos")]
 use tterm_platform::open::ApplicationChoice;
 use tterm_platform::open::OpenTargets;
@@ -188,7 +187,7 @@ fn file_name_of(remote_path: &str) -> Result<String, String> {
 }
 
 async fn fingerprint(path: PathBuf) -> Result<Fingerprint, String> {
-    run_blocking(move || local::fingerprint(&path)).await
+    run_blocking(move || tterm_core::sftp::internal::api::external::local::fingerprint(&path)).await
 }
 
 fn emit(events: &dyn EventSink, edit: &ExternalEdit) {
@@ -204,11 +203,14 @@ async fn start_session(
     file_name: &str,
     transfer_id: Option<&str>,
 ) -> Result<ExternalEdit, String> {
-    let root = local::edit_root(paths);
+    let root = tterm_core::sftp::internal::api::external::local::edit_root(paths);
     let id = uuid::Uuid::new_v4().to_string();
     let dir = {
         let id = id.clone();
-        run_blocking(move || local::create_session_dir(&root, &id)).await?
+        run_blocking(move || {
+            tterm_core::sftp::internal::api::external::local::create_session_dir(&root, &id)
+        })
+        .await?
     };
     let local = dir.join(file_name);
     let downloaded = async {
@@ -220,7 +222,7 @@ async fn start_session(
         Ok(downloaded) => downloaded,
         Err(error) => {
             let _ = run_blocking(move || {
-                local::remove_session_dir(&dir);
+                tterm_core::sftp::internal::api::external::local::remove_session_dir(&dir);
                 Ok(())
             })
             .await;
@@ -256,7 +258,9 @@ async fn end_sessions(sessions: Vec<EditSession>) -> Vec<ExternalEdit> {
         sessions.into_iter().partition(EditSession::has_changes);
     let dirs: Vec<_> = removed.into_iter().map(|session| session.dir).collect();
     let _ = run_blocking(move || {
-        dirs.iter().for_each(|dir| local::remove_session_dir(dir));
+        dirs.iter().for_each(|dir| {
+            tterm_core::sftp::internal::api::external::local::remove_session_dir(dir)
+        });
         Ok(())
     })
     .await;
@@ -288,15 +292,17 @@ pub fn unuploaded_files(state: &ExternalEditState) -> Vec<String> {
 
 /// Removes, at startup, copies left behind long ago.
 pub fn clean_up_on_start(paths: &tterm_core::paths::AppPaths, runtime: &tokio::runtime::Handle) {
-    let root = local::edit_root(paths);
-    runtime.spawn_blocking(move || local::remove_stale(&root));
+    let root = tterm_core::sftp::internal::api::external::local::edit_root(paths);
+    runtime.spawn_blocking(move || {
+        tterm_core::sftp::internal::api::external::local::remove_stale(&root)
+    });
 }
 
 /// Removes, at exit, the copies without changes of their own.
 pub fn shutdown(state: &ExternalEditState) {
     for session in state.remove_all() {
         if !session.has_changes() {
-            local::remove_session_dir(&session.dir);
+            tterm_core::sftp::internal::api::external::local::remove_session_dir(&session.dir);
         }
     }
 }
@@ -319,8 +325,6 @@ impl From<ApplicationChoice> for AppChoice {
         }
     }
 }
-#[cfg(test)]
-mod contract_tests;
 
 #[cfg(test)]
 mod container_tests;

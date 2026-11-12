@@ -1,5 +1,4 @@
 use super::*;
-use tauri::ipc::{Channel, InvokeResponseBody};
 use tterm_core::session::sink::INPUT_ANSWER_WINDOW;
 #[test]
 fn utf8_prefix_keeps_complete_sequences() {
@@ -49,14 +48,13 @@ impl ChunkRecorder {
         let chunks = self.chunks.clone();
         let flow = Arc::new(OutputFlow::default());
         let ack = flow.clone();
-        let channel = Channel::new(move |body: InvokeResponseBody| {
-            if let InvokeResponseBody::Raw(bytes) = body {
+        recording_output(
+            move |bytes| {
                 ack.ack(bytes.len());
                 chunks.lock().unwrap().push(bytes);
-            }
-            Ok(())
-        });
-        crate::session_sink::output::with_flow(channel, flow)
+            },
+            flow,
+        )
     }
 }
 
@@ -65,15 +63,9 @@ impl ChunkRecorder {
 fn unacked_output(stall_timeout: Duration) -> (TerminalOutput, Arc<Mutex<Vec<Vec<u8>>>>) {
     let chunks: Arc<Mutex<Vec<Vec<u8>>>> = Arc::new(Mutex::new(Vec::new()));
     let sink = chunks.clone();
-    let channel = Channel::new(move |body: InvokeResponseBody| {
-        if let InvokeResponseBody::Raw(bytes) = body {
-            sink.lock().unwrap().push(bytes);
-        }
-        Ok(())
-    });
     let flow = Arc::new(OutputFlow::with_stall_timeout(stall_timeout));
     (
-        crate::session_sink::output::with_flow(channel, flow),
+        recording_output(move |bytes| sink.lock().unwrap().push(bytes), flow),
         chunks,
     )
 }
@@ -318,11 +310,12 @@ fn rapid_messages_coalesce_into_fewer_chunks() {
 fn an_echo_after_a_quiet_spell_skips_the_batching_window() {
     let (delivered_tx, delivered_rx) = std::sync::mpsc::channel::<Instant>();
     let delivered_tx = Mutex::new(delivered_tx);
-    let channel = Channel::new(move |_body: InvokeResponseBody| {
-        let _ = delivered_tx.lock().unwrap().send(Instant::now());
-        Ok(())
-    });
-    let output = crate::session_sink::output::new(channel);
+    let output = recording_output(
+        move |_bytes| {
+            let _ = delivered_tx.lock().unwrap().send(Instant::now());
+        },
+        Arc::new(OutputFlow::default()),
+    );
     let mut sender = TerminalOutputSender::spawn("echo", test_sink(output.clone()));
     // Each echo follows a keystroke after a pause longer than the window, so
     // each must reach the webview well before a window could have elapsed.
@@ -444,12 +437,10 @@ fn reader_thread_delivers_batched_utf8_stream_in_order() {
     let received: std::sync::Arc<std::sync::Mutex<Vec<u8>>> =
         std::sync::Arc::new(std::sync::Mutex::new(Vec::new()));
     let sink_received = received.clone();
-    let channel = crate::session_sink::output::new(Channel::new(move |body| {
-        if let InvokeResponseBody::Raw(bytes) = body {
-            sink_received.lock().unwrap().extend_from_slice(&bytes);
-        }
-        Ok(())
-    }));
+    let channel = recording_output(
+        move |bytes| sink_received.lock().unwrap().extend_from_slice(&bytes),
+        Arc::new(OutputFlow::default()),
+    );
 
     let reader = FragmentedReader {
         data: expected.as_bytes().to_vec(),

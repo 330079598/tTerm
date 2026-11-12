@@ -1,7 +1,5 @@
-use super::{
-    models::{SaveCommandInput, SavedCommand},
-    service,
-};
+use tterm_core::command_library::models::{SaveCommandInput, SavedCommand};
+use tterm_core::command_library::service;
 
 #[tauri::command]
 pub async fn list_saved_commands() -> Result<Vec<SavedCommand>, String> {

@@ -2,10 +2,12 @@
 //! files its `Include` lines name in place.
 
 use super::include::IncludeReader;
-use super::matching::{MatchCriterion, local_user_name, parse_match_criteria};
 use super::tokens::local_host_name;
-use super::words::{split_keyword, split_ssh_words, strip_inline_comment};
 use std::mem;
+use tterm_core::profiles::parser::matching::{
+    MatchCriterion, local_user_name, parse_match_criteria,
+};
+use tterm_core::profiles::parser::words::{split_keyword, split_ssh_words, strip_inline_comment};
 
 /// The options tTerm imports.
 const SUPPORTED_OPTIONS: [&str; 17] = [

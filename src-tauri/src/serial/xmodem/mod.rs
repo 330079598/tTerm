@@ -16,11 +16,11 @@ mod receive_tests;
 mod tests;
 mod transfer;
 
-use crate::core::blocking::run_blocking;
 use crate::core::state::{PtyMap, ZmodemMap, ZmodemTabHandle};
 use serde::Deserialize;
 use std::sync::atomic::AtomicBool;
 use std::sync::{Arc, PoisonError, mpsc};
+use tterm_core::core::blocking::run_blocking;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
 #[serde(rename_all = "lowercase")]
@@ -57,7 +57,7 @@ async fn claim_port(
             tab_id.clone(),
             ZmodemTabHandle {
                 session_nonce,
-                transfer_id: crate::zmodem::events::new_transfer_id(),
+                transfer_id: tterm_core::zmodem::events::new_transfer_id(),
                 cancel_requested: cancel_requested.clone(),
             },
         );

@@ -4,21 +4,21 @@
 //! by a newer tTerm on another device are kept in the remote document.
 
 use super::document::Collections;
-use super::merge::{Collection, SyncRecord};
-use crate::command_library::models::SavedCommand;
 use crate::config::AppConfig;
-use crate::db::sql_error;
 use crate::profiles::types::{ProfileGroup, SavedProfile};
 use crate::proxy::ProxyServer;
 use crate::serial::history::{SerialSend, store as serial_sends};
 use crate::ssh::secret_store::{
     crypto::SecretKey as DataKey, store::delete_secret, store::get_secret, store::put_secret,
 };
-use crate::ssh::store::{KnownHostRecord, KnownHostStore};
-use crate::tunnel::types::TunnelRule;
 use rusqlite::{Connection, Transaction, params};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use tterm_core::command_library::models::SavedCommand;
+use tterm_core::db::sql_error;
+use tterm_core::ssh::store::{KnownHostRecord, KnownHostStore};
+use tterm_core::sync::merge::{Collection, SyncRecord};
+use tterm_core::tunnel::types::TunnelRule;
 
 pub(crate) const PROFILES: &str = "profiles";
 pub(crate) const PROFILE_GROUPS: &str = "profileGroups";
@@ -175,7 +175,7 @@ pub(crate) fn collect(
                 })
                 .collect(),
             SECRETS => collect_secrets(connection, data_key)?,
-            COMMANDS => crate::command_library::repository::list_commands(connection)?
+            COMMANDS => tterm_core::command_library::repository::list_commands(connection)?
                 .into_iter()
                 .map(|command| Ok((command.id.clone(), command_record(&command)?)))
                 .collect::<Result<_, String>>()?,
@@ -271,7 +271,7 @@ fn known_host_data(entry: &KnownHostRecord) -> Value {
 
 fn collect_known_hosts(connection: &Connection) -> Result<Collection, String> {
     // A later row for the same endpoint wins, as it does for lookups.
-    Ok(crate::ssh::store::list_known_hosts(connection)?
+    Ok(tterm_core::ssh::store::list_known_hosts(connection)?
         .entries
         .iter()
         .map(|entry| {
@@ -537,7 +537,7 @@ pub(crate) fn apply_database(
         }
         TUNNELS => {
             for id in &removed {
-                crate::tunnel::storage::delete_tunnel(transaction, id)?;
+                tterm_core::tunnel::storage::delete_tunnel(transaction, id)?;
             }
             for (id, record) in changed(local, merged) {
                 let (data, position) = take_position(&record.data);
@@ -573,9 +573,9 @@ pub(crate) fn apply_database(
             }
         }
         COMMANDS => {
-            let current = crate::command_library::repository::list_commands(transaction)?;
+            let current = tterm_core::command_library::repository::list_commands(transaction)?;
             for id in &removed {
-                crate::command_library::repository::delete_command(transaction, id)?;
+                tterm_core::command_library::repository::delete_command(transaction, id)?;
             }
             for (id, record) in changed(local, merged) {
                 let existing = current.iter().find(|command| &command.id == id);
@@ -583,7 +583,7 @@ pub(crate) fn apply_database(
                 command.updated_at = record
                     .updated_at
                     .unwrap_or_else(|| chrono::Utc::now().timestamp_millis());
-                crate::command_library::repository::save_command(transaction, &command)?;
+                tterm_core::command_library::repository::save_command(transaction, &command)?;
             }
         }
         SERIAL_SENDS => {
@@ -599,15 +599,15 @@ pub(crate) fn apply_database(
                 .values()
                 .map(known_host_from)
                 .collect::<Result<Vec<_>, _>>()?;
-            crate::ssh::store::replace_known_hosts(transaction, &KnownHostStore { entries })?;
+            tterm_core::ssh::store::replace_known_hosts(transaction, &KnownHostStore { entries })?;
         }
         THEMES => {
             for id in &removed {
-                crate::themes::delete_theme(transaction, id)?;
+                tterm_core::themes::delete_theme(transaction, id)?;
             }
             for (_, record) in changed(local, merged) {
                 let (theme, position) = take_position(&record.data);
-                crate::themes::upsert_theme(transaction, &theme, position)?;
+                tterm_core::themes::upsert_theme(transaction, &theme, position)?;
             }
         }
         SECRETS => {

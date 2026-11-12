@@ -4,14 +4,14 @@
 //! copy), and a look at the file itself sees every one of them the same way.
 
 use super::ExternalEditState;
-use super::local::{self, FileStamp, Fingerprint};
-use crate::core::blocking::run_blocking;
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::sync::atomic::Ordering;
 use std::time::Duration;
+use tterm_core::core::blocking::run_blocking;
 use tterm_core::events::sftp::SftpEvent;
 use tterm_core::events::{AppEvent, EventSink};
+use tterm_core::sftp::internal::api::external::local::{FileStamp, Fingerprint};
 
 const POLL_INTERVAL: Duration = Duration::from_secs(1);
 
@@ -60,14 +60,16 @@ pub(super) fn next_step(
 }
 
 pub(super) fn look_at(watched: &Watched) -> Look {
-    let current = local::stamp(&watched.local);
+    let current = tterm_core::sftp::internal::api::external::local::stamp(&watched.local);
     match next_step(watched.observed, watched.settling, current) {
         Step::Same => Look::Same,
         Step::Settling(stamp) => Look::Settling(stamp),
-        Step::Read => match local::fingerprint(&watched.local) {
-            Ok(fingerprint) => Look::Settled(fingerprint),
-            Err(_) => Look::Same,
-        },
+        Step::Read => {
+            match tterm_core::sftp::internal::api::external::local::fingerprint(&watched.local) {
+                Ok(fingerprint) => Look::Settled(fingerprint),
+                Err(_) => Look::Same,
+            }
+        }
     }
 }
 

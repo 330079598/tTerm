@@ -6,7 +6,7 @@ use std::time::SystemTime;
 
 use super::defaults::{default_reconnect_enabled, default_reconnect_max_attempts};
 use super::load_config_file;
-use super::paths::get_config_path;
+use tterm_core::config::paths::get_config_path;
 
 /// Resolved reconnect settings, cached against the config file's mtime: every
 /// session normalizes its connection on create, and re-reading + re-parsing the

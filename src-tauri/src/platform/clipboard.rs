@@ -17,7 +17,7 @@ impl Clipboard for TauriClipboard {
     }
     fn read_files(&self) -> PlatformFuture<'_, Vec<PathBuf>> {
         Box::pin(async {
-            crate::core::blocking::run_blocking(|| {
+            tterm_core::core::blocking::run_blocking(|| {
                 tterm_platform::native::clipboard_files::read_clipboard_file_paths()
                     .map(|paths| paths.into_iter().map(PathBuf::from).collect())
             })

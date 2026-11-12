@@ -12,14 +12,14 @@ use tterm_core::prompts::{
     PromptBroker, PromptId, PromptKind, PromptOptions, PromptOutcome, PromptReply, PromptRequest,
 };
 
-use crate::core::blocking::run_blocking;
-use crate::db::sql_error;
 use crate::ssh::types::SshConnectError;
 use rusqlite::{Connection, OptionalExtension, params};
 use sha2::{Digest, Sha256};
 use std::fmt::Write as _;
 use std::sync::Arc;
 use std::time::Duration;
+use tterm_core::core::blocking::run_blocking;
+use tterm_core::db::sql_error;
 
 /// As long as the host key and sign-in prompts wait for an answer.
 const PROMPT_TIMEOUT: Duration = Duration::from_secs(120);
@@ -50,7 +50,7 @@ pub(crate) fn allow(connection: &Connection, command: &str) -> Result<(), String
         .execute(
             "INSERT INTO trusted_proxy_commands (command_sha256, trusted_at) VALUES (?1, ?2) \
              ON CONFLICT(command_sha256) DO NOTHING",
-            params![command_hash(command), crate::ssh::store::now_unix_ms()],
+            params![command_hash(command), tterm_core::ssh::store::now_unix_ms()],
         )
         .map_err(sql_error("Failed to save the allowed proxy command"))?;
     Ok(())
@@ -71,7 +71,7 @@ pub(crate) async fn ensure_allowed(
 ) -> Result<(), SshConnectError> {
     let checked = command.to_string();
     let allowed =
-        run_blocking(move || crate::db::read(|connection| is_allowed(connection, &checked)))
+        run_blocking(move || tterm_core::db::read(|connection| is_allowed(connection, &checked)))
             .await
             .map_err(SshConnectError::Permanent)?;
     if allowed {
@@ -175,8 +175,10 @@ pub(super) async fn respond_proxy_command_prompt_service(
     };
     let saved = async move {
         if allow {
-            run_blocking(move || crate::db::write(|transaction| self::allow(transaction, &command)))
-                .await
+            run_blocking(move || {
+                tterm_core::db::write(|transaction| self::allow(transaction, &command))
+            })
+            .await
         } else {
             Ok(())
         }
@@ -206,7 +208,7 @@ mod tests {
         let connection = Connection::open_in_memory().expect("database");
         connection
             .execute_batch(include_str!(
-                "../../migrations/0010_trusted_proxy_commands.sql"
+                "../../../crates/tterm-core/migrations/0010_trusted_proxy_commands.sql"
             ))
             .expect("schema");
         let command = "cloudflared access ssh --hostname %h";

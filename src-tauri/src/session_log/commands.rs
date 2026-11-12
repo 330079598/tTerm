@@ -1,13 +1,14 @@
 use super::{
     ExportTerminalLogAsciicastInput, SaveTerminalContentsInput, SetTerminalLogRecordingInput,
     TerminalLogStatus, delete_terminal_log_service, delete_terminal_logs_service,
-    export_terminal_log_asciicast_service, get_terminal_log_status_service, library,
+    export_terminal_log_asciicast_service, get_terminal_log_status_service,
     list_terminal_logs_service, load_terminal_log_recording_service,
     load_terminal_log_text_service, open_terminal_log_directory_service,
     retry_terminal_logging_service, reveal_terminal_log_service, save_terminal_contents_service,
     set_terminal_log_recording_service, terminal_log_ids_for_tab_service,
 };
 use tauri::ipc::Response;
+use tterm_core::session_log::library;
 
 /// The logging status; the disk usage in it is remeasured in the background
 /// and sent again with `terminal-log-status` if it changed.

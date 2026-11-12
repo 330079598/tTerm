@@ -368,9 +368,22 @@ mod contracts;
 #[cfg(all(test, unix))]
 mod benchmark;
 #[cfg(all(test, unix))]
-mod pty_fixture;
-#[cfg(all(test, unix))]
 mod real_pty_tests;
+
+/// The production output endpoint writing into `sink` instead of a WebView.
+#[cfg(test)]
+fn recording_output(
+    sink: impl Fn(Vec<u8>) + Send + Sync + 'static,
+    flow: Arc<OutputFlow>,
+) -> TerminalOutput {
+    TerminalOutput::new(
+        Arc::new(move |bytes| {
+            sink(bytes);
+            Ok(())
+        }),
+        flow,
+    )
+}
 
 #[cfg(test)]
 fn test_sink(output: TerminalOutput) -> Arc<dyn SessionSink> {
