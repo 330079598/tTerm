@@ -3,7 +3,6 @@
 //! The backend holds the exit and tells the UI what is at stake; the answer
 //! comes back as `confirm_quit_app` or `cancel_quit_prompt`.
 
-use std::sync::Arc;
 use tterm_core::events::background::BackgroundEvent;
 use tterm_core::events::background::QuitBlockers;
 use tterm_core::events::{AppEvent, EventSink};
@@ -22,7 +21,7 @@ pub struct ExitGuardState {
 }
 
 impl ExitGuardState {
-    fn cancel(&self) {
+    pub(crate) fn cancel(&self) {
         self.prompt_open.store(false, Ordering::SeqCst);
     }
     fn should_hold(&self, blockers: &QuitBlockers) -> bool {
@@ -66,22 +65,9 @@ fn emit_confirmation(
     hold
 }
 
-#[tauri::command]
-pub fn confirm_quit_app(services: tauri::State<'_, Arc<crate::services::AppServices>>) {
-    confirm(
-        &services.app.exit_guard,
-        &crate::app_context::quit(&services),
-    );
-}
-
-fn confirm(state: &ExitGuardState, context: &super::quit::QuitContext) {
+pub(crate) fn confirm(state: &ExitGuardState, context: &super::quit::QuitContext) {
     state.confirmed.store(true, Ordering::SeqCst);
     super::quit::quit(context);
-}
-
-#[tauri::command]
-pub fn cancel_quit_prompt(services: tauri::State<'_, Arc<crate::services::AppServices>>) {
-    services.app.exit_guard.cancel();
 }
 
 #[cfg(test)]

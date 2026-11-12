@@ -13,6 +13,8 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use crate::core::state::PtyMap;
 use crate::tunnel::manager::TunnelManager;
 
+pub(crate) mod commands;
+
 pub(crate) const TRAY_ID: &str = "main";
 const MENU_SHOW: &str = "tray-show";
 const MENU_QUIT: &str = "tray-quit";
@@ -34,7 +36,7 @@ pub struct TrayState {
 }
 
 impl TrayState {
-    fn take_update_check(&self) -> bool {
+    pub(crate) fn take_update_check(&self) -> bool {
         self.update_check_requested.swap(false, Ordering::SeqCst)
     }
 }
@@ -326,14 +328,6 @@ pub(crate) fn check_updates(
     super::show_main_window(window, badge);
     state.update_check_requested.store(true, Ordering::SeqCst);
     let _ = events.emit(AppEvent::Background(BackgroundEvent::CheckUpdates));
-}
-
-/// Hands the UI an update check asked for from the tray, once.
-#[tauri::command]
-pub fn take_tray_update_check(
-    services: tauri::State<'_, Arc<crate::services::AppServices>>,
-) -> bool {
-    services.app.tray.take_update_check()
 }
 
 pub(crate) fn tooltip(ptys: &PtyMap, tunnels: &TunnelManager, state: &TrayState) -> String {

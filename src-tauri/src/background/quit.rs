@@ -26,11 +26,11 @@ pub struct QuitState {
 }
 
 impl QuitState {
-    fn set_save_before_quit(&self, enabled: bool) {
+    pub(crate) fn set_save_before_quit(&self, enabled: bool) {
         self.save_before_quit.store(enabled, Ordering::SeqCst);
     }
 
-    fn ready(&self) {
+    pub(crate) fn ready(&self) {
         self.saved.notify_one();
     }
 
@@ -83,23 +83,6 @@ fn begin_save(state: &QuitState, events: &dyn EventSink) -> bool {
 
 async fn wait_for_save(state: &QuitState) {
     let _ = tokio::time::timeout(SAVE_TIMEOUT, state.saved.notified()).await;
-}
-
-/// The UI tells whether it has something to save before a quit.
-#[tauri::command]
-pub fn set_save_before_quit(
-    enabled: bool,
-    services: tauri::State<'_, Arc<crate::services::AppServices>>,
-) {
-    services.app.quit.set_save_before_quit(enabled);
-}
-
-/// The UI's answer to `app-will-quit`: it has saved, and the app may quit.
-#[tauri::command]
-pub fn ready_to_quit(services: tauri::State<'_, Arc<crate::services::AppServices>>) {
-    // A permit is kept when the quit is not waiting yet, so an answer that
-    // comes first is not lost.
-    services.app.quit.ready();
 }
 
 #[cfg(test)]
