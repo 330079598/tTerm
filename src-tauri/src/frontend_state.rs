@@ -223,14 +223,18 @@ fn migrate(
         let canonical_value = canonical(&value)?;
         let fingerprint = meta::get::<String>(connection, fingerprint_key)?;
         if migrated {
-            if fingerprint.as_deref() == Some(&canonical_value) {
+            if stored.is_some() && fingerprint.as_deref() == Some(&canonical_value) {
                 continue;
             }
             if stored.as_ref() == Some(&value) {
                 store_fingerprint(connection, key, &value)?;
                 continue;
             }
-            if fingerprint.as_deref() != Some(&canonical_value) {
+            if stored.is_none() {
+                eprintln!(
+                    "Re-importing frontend state '{key}' because the stored value is missing or invalid."
+                );
+            } else if fingerprint.as_deref() != Some(&canonical_value) {
                 eprintln!(
                     "Re-importing frontend state '{key}' from localStorage after an older version changed it."
                 );
@@ -387,6 +391,23 @@ mod tests {
     #[test]
     fn a_stored_value_that_no_longer_parses_is_replaced_by_the_legacy_value() {
         let database = Database::open_in_memory().unwrap();
+        database
+            .write(|connection| {
+                meta::put_raw(connection, "frontend.recent_commands", Some("{broken"))
+            })
+            .unwrap();
+        let state = database
+            .write(|connection| migrate(connection, &legacy_state()))
+            .unwrap();
+        assert_eq!(state["recentCommands"][0]["id"], "c1");
+    }
+
+    #[test]
+    fn an_unreadable_stored_value_is_reimported_after_the_migration_marker_exists() {
+        let database = Database::open_in_memory().unwrap();
+        database
+            .write(|connection| migrate(connection, &legacy_state()))
+            .unwrap();
         database
             .write(|connection| {
                 meta::put_raw(connection, "frontend.recent_commands", Some("{broken"))
