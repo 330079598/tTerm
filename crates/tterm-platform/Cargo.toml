@@ -17,7 +17,7 @@ uuid = { version = "1", features = ["v4"] }
 objc2 = "0.6"
 # Touch ID / login password prompts (see ssh/secret_store/os_verifier.rs).
 objc2-local-authentication = { version = "0.3", default-features = false, features = ["std", "block2", "LAContext", "LAError"] }
-objc2-foundation = { version = "0.3", default-features = false, features = ["std", "NSArray", "NSData", "NSError", "NSString", "NSBundle", "NSDate", "NSDictionary", "NSFileManager", "NSGeometry", "NSObject", "NSOperation", "NSProcessInfo", "NSURL", "NSValue"] }
+objc2-foundation = { version = "0.3", default-features = false, features = ["std", "NSArray", "NSData", "NSEnumerator", "NSError", "NSString", "NSBundle", "NSDate", "NSDictionary", "NSFileManager", "NSGeometry", "NSObject", "NSOperation", "NSProcessInfo", "NSURL", "NSValue"] }
 # System notifications whose clicks lead back to their tab (see notification/macos.rs).
 objc2-user-notifications = { version = "0.3", default-features = false, features = ["std", "bitflags", "block2", "UNUserNotificationCenter", "UNNotification", "UNNotificationContent", "UNNotificationRequest", "UNNotificationResponse", "UNNotificationSettings", "UNNotificationSound", "UNNotificationTrigger"] }
 block2 = "0.6"
