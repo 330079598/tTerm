@@ -9,7 +9,7 @@ fn carries_the_osc_codes_the_frontend_uses() {
 }
 
 #[test]
-fn reads_osc7_paths_sent_by_tters_posix_shell_integration() {
+fn reads_osc7_paths_sent_by_tterm_posix_shell_integration() {
     assert_eq!(
         parse_cwd_report(7, "file:///home/me/project").as_deref(),
         Some("/home/me/project")

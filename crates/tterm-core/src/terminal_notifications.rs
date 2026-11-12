@@ -229,13 +229,14 @@ pub struct FinishedCommand {
     pub duration_ms: i64,
 }
 
+/// Receives the command that started and `None` once it is over.
+type RunningCallback = Box<dyn FnMut(Option<&str>)>;
+
 /// Times commands from shell integration marks.
 ///
 /// A command starts at Enter on its prompt or at its output mark (C),
 /// whichever comes first, and finishes at its done mark (D). A new prompt (A)
 /// without a done mark forgets it.
-type RunningCallback = Box<dyn FnMut(Option<&str>)>;
-
 #[derive(Default)]
 pub struct CommandTimer {
     started_at: Option<i64>,
