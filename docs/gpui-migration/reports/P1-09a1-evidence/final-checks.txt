@@ -1,0 +1,43 @@
+P1-09a1 final checks
+
+Commands and results:
+
+VITEST_MAX_WORKERS=3 pnpm lint
+  passed
+
+pnpm format:check
+  passed: All matched files use Prettier code style
+
+pnpm check:tokens
+  passed
+
+pnpm typecheck
+  passed (Vite config-loader warning only)
+
+VITEST_MAX_WORKERS=3 pnpm test
+  passed: 183 test files, 1354 tests
+  passed: layout 2 tests
+  passed: migration 8 tests
+
+pnpm check:size
+  passed: 1251 files within their limits
+
+CARGO_BUILD_JOBS=3 cargo fmt --all --check
+  passed
+
+CARGO_BUILD_JOBS=3 cargo clippy --workspace --all-targets -- -D warnings
+  passed
+
+CARGO_BUILD_JOBS=3 cargo test --workspace
+  sandbox run: only the known macOS application-enumeration test failed
+  escalated run: exit 0; no failed tests; 64 ignored
+
+node scripts/migration/command-signatures.mjs --check
+  passed
+
+git diff --check
+  passed
+
+CARGO_BUILD_JOBS=3 cargo test --workspace -- --list 2>/dev/null | grep -c ': test$'
+  start: 1829
+  final: 1829
