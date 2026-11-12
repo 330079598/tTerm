@@ -1,5 +1,4 @@
-use super::arguments::StopPtyContext;
-use super::stop_pty_session;
+use crate::core::session::stop::{StopPtyContext, stop_pty_session};
 use crate::core::session::{normalize_connection, resolve_ssh_password};
 use crate::core::state::{
     ActiveSession, AtomicTerminalSize, ChannelContext, PtyMap, PtySession, SessionExitSignal,

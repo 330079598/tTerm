@@ -1,4 +1,5 @@
 pub mod saved_hops;
+pub(crate) mod stop;
 pub(crate) mod types;
 
 use types::{

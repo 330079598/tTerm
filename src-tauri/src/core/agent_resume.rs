@@ -32,28 +32,16 @@ pub struct ResumeRequest<'a> {
     pub shell: &'a str,
 }
 
-#[tauri::command]
-pub fn build_agent_resume_command(
-    agent: ResumeAgent,
-    session_id: String,
-    cwd: String,
-    shell: String,
-) -> Option<String> {
-    build_agent_resume_command_service(BuildAgentResumeCommandInput {
-        agent,
-        session_id,
-        cwd,
-        shell,
-    })
-}
-struct BuildAgentResumeCommandInput {
-    agent: ResumeAgent,
-    session_id: String,
-    cwd: String,
-    shell: String,
+pub(super) struct BuildAgentResumeCommandInput {
+    pub(super) agent: ResumeAgent,
+    pub(super) session_id: String,
+    pub(super) cwd: String,
+    pub(super) shell: String,
 }
 
-fn build_agent_resume_command_service(arguments: BuildAgentResumeCommandInput) -> Option<String> {
+pub(super) fn build_agent_resume_command_service(
+    arguments: BuildAgentResumeCommandInput,
+) -> Option<String> {
     let BuildAgentResumeCommandInput {
         agent,
         session_id,

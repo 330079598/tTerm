@@ -1,8 +1,7 @@
 mod arguments;
 use super::blocking::run_blocking;
-use super::state::{
-    ActiveSession, PtyMap, PtySession, ZmodemArmedSendMap, ZmodemManualDetectMap, ZmodemMap,
-};
+use super::session::stop::{StopPtyContext, stop_pty_session};
+use super::state::{ActiveSession, PtyMap, ZmodemArmedSendMap, ZmodemManualDetectMap, ZmodemMap};
 use crate::services::AppServices;
 use crate::ssh::context::ConnectionContext;
 use crate::ssh::secret_store::types::SecretStoreState;
@@ -10,8 +9,8 @@ use crate::ssh::secret_store::types::SecretStoreState;
 use crate::terminal;
 use arguments::{
     AckPtyOutputInput, GetSudoPasswordSourceInput, HasSavedPasswordInput, KillPtyInput,
-    ResetPtyConsoleInput, ResizePtyInput, RespondSshHostKeyPromptInput, StopPtyContext,
-    SudoPasswordContext, WritePtyBatchInput, WritePtyInput, WriteSavedPasswordForSudoInput,
+    ResetPtyConsoleInput, ResizePtyInput, RespondSshHostKeyPromptInput, SudoPasswordContext,
+    WritePtyBatchInput, WritePtyInput, WriteSavedPasswordForSudoInput,
 };
 use batch_write::{
     PtyWriteResult, PtyWriteStatus, PtyWriteTarget, snapshot_batch_targets, write_guarded_batch,
@@ -25,53 +24,6 @@ use tokio::sync::Mutex as TokioMutex;
 mod batch_write;
 mod create;
 use create::{CreateContext, PtyIdentity, create_pty_blocking};
-
-fn stop_pty_session(
-    context: StopPtyContext<'_>,
-    session: PtySession,
-    zmodem_state: &ZmodemMap,
-    zmodem_armed_send_state: &ZmodemArmedSendMap,
-    zmodem_manual_detect_state: &ZmodemManualDetectMap,
-) {
-    let StopPtyContext { prompts, tab_id } = context;
-    prompts.cancel_session(&tterm_core::prompts::SessionKey {
-        tab_id: tab_id.to_string(),
-        session_nonce: session.session_nonce,
-    });
-    let _ = session.stop_tx.send(true);
-    // Nobody will acknowledge this channel's output again.
-    session.sink.close_output();
-
-    if let Some(active) = session.active.blocking_lock().take() {
-        match active {
-            ActiveSession::Local(mut local) => {
-                let _ = local.child.kill();
-            }
-            ActiveSession::Ssh(ssh) => {
-                ssh.task.abort();
-            }
-            // Dropping it closes the port.
-            ActiveSession::Serial(_) => {}
-        }
-    }
-
-    // The peer's rz/sz process (if any) dies with this channel; a ZMODEM
-    // session can't meaningfully survive it.
-    zmodem_state
-        .write()
-        .unwrap_or_else(PoisonError::into_inner)
-        .remove(tab_id);
-    zmodem_armed_send_state
-        .lock()
-        .unwrap_or_else(PoisonError::into_inner)
-        .remove(tab_id);
-    zmodem_manual_detect_state
-        .lock()
-        .unwrap_or_else(PoisonError::into_inner)
-        .remove(tab_id);
-
-    session.supervisor.abort();
-}
 
 /// Async so the work below runs off the main thread: reading saved passwords,
 /// waiting for the session map, and starting the shell (ConPTY, or the login
