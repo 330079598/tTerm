@@ -1,6 +1,7 @@
 use super::*;
 use crate::theme::types::{PresetThemeId, ThemeSlot};
 use serde_json::Value;
+use tterm_terminal::palette::TerminalPalette;
 
 const ORACLE_JSON: &str =
     include_str!("../../../../../docs/gpui-migration/reports/P1-11f-evidence/node.json");
@@ -15,6 +16,14 @@ fn presets_match_the_typescript_definitions() {
     assert_eq!(
         serde_json::to_value(PRESET_THEMES.as_slice()).expect("presets serialize"),
         oracle["definitions"]["presets"]
+    );
+}
+
+#[test]
+fn default_theme_palette_matches_the_terminal_default() {
+    assert_eq!(
+        PRESET_THEMES[0].terminal.to_terminal_palette(),
+        TerminalPalette::default()
     );
 }
 
