@@ -12,13 +12,13 @@ use crate::serial::history::{SerialSend, store as serial_sends};
 use crate::ssh::secret_store::{
     crypto::SecretKey as DataKey, store::delete_secret, store::get_secret, store::put_secret,
 };
-use crate::ssh::store::{KnownHostRecord, KnownHostStore};
 use crate::tunnel::types::TunnelRule;
 use rusqlite::{Connection, Transaction, params};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use tterm_core::command_library::models::SavedCommand;
 use tterm_core::db::sql_error;
+use tterm_core::ssh::store::{KnownHostRecord, KnownHostStore};
 
 pub(crate) const PROFILES: &str = "profiles";
 pub(crate) const PROFILE_GROUPS: &str = "profileGroups";
@@ -271,7 +271,7 @@ fn known_host_data(entry: &KnownHostRecord) -> Value {
 
 fn collect_known_hosts(connection: &Connection) -> Result<Collection, String> {
     // A later row for the same endpoint wins, as it does for lookups.
-    Ok(crate::ssh::store::list_known_hosts(connection)?
+    Ok(tterm_core::ssh::store::list_known_hosts(connection)?
         .entries
         .iter()
         .map(|entry| {
@@ -599,7 +599,7 @@ pub(crate) fn apply_database(
                 .values()
                 .map(known_host_from)
                 .collect::<Result<Vec<_>, _>>()?;
-            crate::ssh::store::replace_known_hosts(transaction, &KnownHostStore { entries })?;
+            tterm_core::ssh::store::replace_known_hosts(transaction, &KnownHostStore { entries })?;
         }
         THEMES => {
             for id in &removed {

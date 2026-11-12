@@ -203,8 +203,10 @@ fn merge_session_file(old_path: &Path, new_path: &Path) -> Result<(), String> {
 }
 
 fn merge_known_hosts_file(old_path: &Path, new_path: &Path) -> Result<(), String> {
-    let old_store = read_json_file::<ssh::store::KnownHostStore>(old_path, "known hosts")?;
-    let mut new_store = read_json_file::<ssh::store::KnownHostStore>(new_path, "known hosts")?;
+    let old_store =
+        read_json_file::<tterm_core::ssh::store::KnownHostStore>(old_path, "known hosts")?;
+    let mut new_store =
+        read_json_file::<tterm_core::ssh::store::KnownHostStore>(new_path, "known hosts")?;
     let mut changed = false;
 
     for entry in old_store.entries {
@@ -230,11 +232,11 @@ fn merge_known_hosts_file(old_path: &Path, new_path: &Path) -> Result<(), String
 }
 
 fn merge_legacy_password_store_file(old_path: &Path, new_path: &Path) -> Result<(), String> {
-    let old_store = read_json_file::<ssh::store::LegacySshPasswordStore>(
+    let old_store = read_json_file::<tterm_core::ssh::store::LegacySshPasswordStore>(
         old_path,
         "legacy SSH password store",
     )?;
-    let mut new_store = read_json_file::<ssh::store::LegacySshPasswordStore>(
+    let mut new_store = read_json_file::<tterm_core::ssh::store::LegacySshPasswordStore>(
         new_path,
         "legacy SSH password store",
     )?;

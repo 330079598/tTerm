@@ -248,7 +248,7 @@ pub(super) async fn reset_tunnel_traffic_totals_service(
     run_blocking(move || match reporter {
         Some(reporter) => reporter.reset_traffic(),
         None => {
-            let now = crate::ssh::store::now_unix_ms().max(0) as u64;
+            let now = tterm_core::ssh::store::now_unix_ms().max(0) as u64;
             tterm_core::db::write(|transaction| reset_tunnel_traffic(transaction, &id, now))
         }
     })

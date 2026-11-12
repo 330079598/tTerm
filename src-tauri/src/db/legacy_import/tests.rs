@@ -113,7 +113,7 @@ fn imports_every_file_once_and_renames_them() {
                 "b"
             );
             assert_eq!(
-                crate::ssh::store::list_known_hosts(connection)?.entries[0].fingerprint,
+                tterm_core::ssh::store::list_known_hosts(connection)?.entries[0].fingerprint,
                 "SHA256:x"
             );
             assert_eq!(
@@ -429,7 +429,8 @@ fn imports_a_real_config_directory_copy() {
                 expected_tunnels
             );
             assert_eq!(
-                serde_json::to_value(crate::ssh::store::list_known_hosts(connection)?).unwrap(),
+                serde_json::to_value(tterm_core::ssh::store::list_known_hosts(connection)?)
+                    .unwrap(),
                 expected_known_hosts
             );
             assert_eq!(

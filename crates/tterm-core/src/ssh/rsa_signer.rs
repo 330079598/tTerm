@@ -22,7 +22,7 @@ use russh::keys::ssh_key::{Mpint, PublicKey};
 
 /// Why an RSA challenge was not signed.
 #[derive(Debug)]
-pub(crate) enum RsaSignError {
+pub enum RsaSignError {
     /// The connection went away while waiting for the server.
     Disconnected,
     Sign(String),
@@ -45,11 +45,11 @@ impl std::fmt::Display for RsaSignError {
 
 /// Whether `pem` is an old PEM-format RSA key that [`RingRsaSigner`] can use
 /// even though `russh` refuses to load it.
-pub(crate) fn pem_key_is_usable(pem: &str) -> bool {
+pub fn pem_key_is_usable(pem: &str) -> bool {
     RingRsaSigner::from_pem(pem).is_some_and(|loaded| loaded.is_ok())
 }
 
-pub(crate) struct RingRsaSigner {
+pub struct RingRsaSigner {
     key_pair: KeyPair,
 }
 
@@ -63,7 +63,7 @@ impl RingRsaSigner {
     /// Loads the key into `ring`. SSH key files carry `d`, `p`, `q` and
     /// `q⁻¹ mod p`; the two CRT exponents `ring` also wants are derived here.
     /// `ring` accepts 2048 to 8192 bit keys and checks the components agree.
-    pub(crate) fn new(keypair: &RsaKeypair) -> Result<Self, String> {
+    pub fn new(keypair: &RsaKeypair) -> Result<Self, String> {
         let private = keypair.private();
         let d = positive_bytes(private.d(), "d")?;
         let p = positive_bytes(private.p(), "p")?;
@@ -94,7 +94,7 @@ impl RingRsaSigner {
     ///
     /// Returns `None` when `pem` is not such a key, so the caller keeps the
     /// error it already has.
-    pub(crate) fn from_pem(pem: &str) -> Option<Result<(Self, PublicKey), String>> {
+    pub fn from_pem(pem: &str) -> Option<Result<(Self, PublicKey), String>> {
         const PKCS1: &str = "RSA PRIVATE KEY";
         const PKCS8: &str = "PRIVATE KEY";
 

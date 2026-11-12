@@ -17,6 +17,15 @@ dirs = "=7.0.0"
 serde = { version = "1", features = ["derive"] }
 serde_json = { version = "1", features = ["float_roundtrip", "preserve_order", "raw_value"] }
 indexmap = "=2.14.2"
+base64 = "=0.23.1"
+# RSA key files are signed with ring instead of the `rsa` crate; russh and
+# rustls already link both.
+hmac = "=0.13.0"
+num-bigint = "=0.5.1"
+ring = "=0.17.14"
+russh = { version = "=0.63.3", default-features = false, features = ["ring", "rsa"] }
+sha1 = "=0.11.0"
+zeroize = "=1.9.0"
 rusqlite = { version = "=0.40.2", features = ["bundled"] }
 gethostname = "=1.1.0"
 regress = { version = "=0.12.0", features = ["utf16"] }

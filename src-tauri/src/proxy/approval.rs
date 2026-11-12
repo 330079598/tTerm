@@ -50,7 +50,7 @@ pub(crate) fn allow(connection: &Connection, command: &str) -> Result<(), String
         .execute(
             "INSERT INTO trusted_proxy_commands (command_sha256, trusted_at) VALUES (?1, ?2) \
              ON CONFLICT(command_sha256) DO NOTHING",
-            params![command_hash(command), crate::ssh::store::now_unix_ms()],
+            params![command_hash(command), tterm_core::ssh::store::now_unix_ms()],
         )
         .map_err(sql_error("Failed to save the allowed proxy command"))?;
     Ok(())

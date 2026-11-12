@@ -54,6 +54,8 @@ pub mod saved_password_prompts;
 pub mod session;
 /// Shared SFTP value and streaming types (P1-04).
 pub mod sftp;
+/// SSH connections, their authentication and the stores behind them.
+pub mod ssh;
 /// Notification requests and the rules for announcing them.
 pub mod terminal_notifications;
 /// Theme definitions, the bundled catalog, imports and custom themes.

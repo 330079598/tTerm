@@ -8,12 +8,12 @@ use crate::profiles::types::{ProfileGroup, SavedProfile};
 use crate::proxy::ProxyServer;
 use crate::sftp::store::SftpDirectoryStore;
 use crate::ssh::secret_store::{store::SecretRow, store::restore_secrets, store::snapshot_secrets};
-use crate::ssh::store::KnownHostStore;
 use crate::tunnel::types::TunnelRule;
 use serde_json::Value;
 use std::fs;
 use std::path::{Path, PathBuf};
 use tterm_core::db::meta;
+use tterm_core::ssh::store::KnownHostStore;
 
 /// Profiles with what travels with them: groups, tunnels and proxy servers.
 pub(super) type ProfilesSnapshot = (
@@ -84,7 +84,7 @@ pub(super) fn snapshot_database(
             None
         },
         known_hosts: if selection.known_hosts {
-            Some(crate::ssh::store::list_known_hosts(connection)?)
+            Some(tterm_core::ssh::store::list_known_hosts(connection)?)
         } else {
             None
         },
@@ -128,7 +128,7 @@ pub(super) fn restore_database(
         restore_secrets(transaction, secrets)?;
     }
     if let Some(store) = snapshot.known_hosts.as_ref() {
-        crate::ssh::store::replace_known_hosts(transaction, store)?;
+        tterm_core::ssh::store::replace_known_hosts(transaction, store)?;
     }
     if let Some(store) = snapshot.sftp_directories.as_ref() {
         crate::sftp::store::replace_sftp_directories(transaction, store)?;

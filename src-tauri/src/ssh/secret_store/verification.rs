@@ -8,9 +8,10 @@
 //! there is nothing to check against and the operations run as before.
 
 use super::types::{SecretStorageMode, SecretStoreRuntime};
-use super::{open_with_password, os_verifier, store, types::SecretStoreState};
+use super::{open_with_password, store, types::SecretStoreState};
 use serde::Deserialize;
 use std::time::{Duration, Instant};
+use tterm_core::ssh::secret_store::os_verifier;
 use tterm_platform::verification::{CANCELED, UserVerification};
 
 /// Prefix of the error asking the UI to verify and retry. The method

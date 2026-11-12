@@ -6,10 +6,10 @@ use crate::profiles::types::ProfileGroup;
 use crate::ssh::secret_store::{
     crypto::SecretKey as DataKey, store::get_secret, store::put_secret,
 };
-use crate::ssh::store::KnownHostRecord;
 use serde_json::json;
 use tterm_core::command_library::{models::SavedCommand, repository::CommandRepository};
 use tterm_core::db::Database;
+use tterm_core::ssh::store::KnownHostRecord;
 
 const CATEGORIES: [&str; 9] = [
     PROFILES,
@@ -422,7 +422,7 @@ fn groups_tunnels_and_known_hosts_sync() {
                 }],
             )?;
             crate::tunnel::storage::replace_tunnels(transaction, &[rule])?;
-            crate::ssh::store::merge_known_host(
+            tterm_core::ssh::store::merge_known_host(
                 transaction,
                 &KnownHostRecord {
                     profile_id: Some("p1".to_string()),
@@ -452,7 +452,7 @@ fn groups_tunnels_and_known_hosts_sync() {
                 5432
             );
             assert_eq!(
-                crate::ssh::store::list_known_hosts(connection)?.entries[0].fingerprint,
+                tterm_core::ssh::store::list_known_hosts(connection)?.entries[0].fingerprint,
                 "SHA256:abc"
             );
             Ok(())

@@ -10998,17 +10998,24 @@ checksum = "e421abadd41a4225275504ea4d6566923418b7f05506fbc9c0fe86ba7396114b"
 name = "tterm-core"
 version = "0.1.0"
 dependencies = [
+ "base64 0.23.1",
  "dirs 7.0.0",
  "gethostname",
+ "hmac 0.13.0",
  "indexmap 2.14.2",
+ "num-bigint 0.5.1",
  "regress",
+ "ring",
  "rusqlite",
+ "russh",
  "serde",
  "serde_json",
+ "sha1",
  "tokio",
  "tterm-platform",
  "tterm-terminal",
  "uuid",
+ "zeroize",
 ]
 
 [[package]]

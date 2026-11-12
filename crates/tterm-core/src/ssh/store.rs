@@ -1,10 +1,10 @@
+use crate::config::paths::ensure_config_dir;
+use crate::db::sql_error;
 use rusqlite::{Connection, OptionalExtension, params};
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::PathBuf;
 use std::time::{SystemTime, UNIX_EPOCH};
-use tterm_core::config::paths::ensure_config_dir;
-use tterm_core::db::sql_error;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct LegacySshPasswordRecord {
@@ -66,7 +66,7 @@ pub fn remove_legacy_password_store() -> Result<(), String> {
     Ok(())
 }
 
-pub(crate) fn list_known_hosts(connection: &Connection) -> Result<KnownHostStore, String> {
+pub fn list_known_hosts(connection: &Connection) -> Result<KnownHostStore, String> {
     let mut statement = connection
         .prepare(
             "SELECT profile_id, profile_name, host, port, algorithm, fingerprint, trusted_at \
@@ -91,7 +91,7 @@ pub(crate) fn list_known_hosts(connection: &Connection) -> Result<KnownHostStore
 }
 
 /// Prefix of the synthetic profile name jump hosts are trusted under.
-pub(crate) const JUMP_HOST_PROFILE_PREFIX: &str = "jump:";
+pub const JUMP_HOST_PROFILE_PREFIX: &str = "jump:";
 
 /// A trusted host key as listed in the settings.
 #[derive(Debug, Serialize, Clone, PartialEq, Eq)]
@@ -109,9 +109,7 @@ pub struct KnownHostEntry {
     pub trusted_at: i64,
 }
 
-pub(crate) fn list_known_host_entries(
-    connection: &Connection,
-) -> Result<Vec<KnownHostEntry>, String> {
+pub fn list_known_host_entries(connection: &Connection) -> Result<Vec<KnownHostEntry>, String> {
     let mut statement = connection
         .prepare(
             "SELECT known_hosts.id, coalesce(profiles.name, known_hosts.profile_name), \
@@ -142,10 +140,7 @@ pub(crate) fn list_known_host_entries(
 }
 
 /// Forgets the given entries; the next connection to those hosts asks again.
-pub(crate) fn delete_known_host_entries(
-    connection: &Connection,
-    ids: &[i64],
-) -> Result<usize, String> {
+pub fn delete_known_host_entries(connection: &Connection, ids: &[i64]) -> Result<usize, String> {
     let mut deleted = 0;
     for id in ids {
         deleted += connection
@@ -181,10 +176,7 @@ fn insert_known_host(connection: &Connection, entry: &KnownHostRecord) -> Result
 /// [`save_known_host`], an entry without an id never overwrites one with an
 /// id, so an old name-only record cannot clobber the current key of the
 /// profile that has since been given that name.
-pub(crate) fn merge_known_host(
-    connection: &Connection,
-    entry: &KnownHostRecord,
-) -> Result<(), String> {
+pub fn merge_known_host(connection: &Connection, entry: &KnownHostRecord) -> Result<(), String> {
     let existing_id = connection
         .query_row(
             "SELECT id FROM known_hosts WHERE host = ?1 AND port = ?2 AND \
@@ -217,10 +209,7 @@ pub(crate) fn merge_known_host(
     }
 }
 
-pub(crate) fn replace_known_hosts(
-    connection: &Connection,
-    store: &KnownHostStore,
-) -> Result<(), String> {
+pub fn replace_known_hosts(connection: &Connection, store: &KnownHostStore) -> Result<(), String> {
     connection
         .execute("DELETE FROM known_hosts", [])
         .map_err(sql_error("Failed to clear known hosts"))?;
@@ -236,7 +225,7 @@ pub fn load_known_host(
     host: &str,
     port: u16,
 ) -> Result<Option<KnownHostRecord>, String> {
-    let store = tterm_core::db::read(list_known_hosts)?;
+    let store = crate::db::read(list_known_hosts)?;
     let profile_id = profile_id.map(str::trim).filter(|value| !value.is_empty());
     let host = host.trim();
 
@@ -280,7 +269,7 @@ fn find_known_host_entry(
 }
 
 pub fn save_known_host_entry(entry: KnownHostRecord) -> Result<(), String> {
-    tterm_core::db::write(|transaction| save_known_host(transaction, &entry))
+    crate::db::write(|transaction| save_known_host(transaction, &entry))
 }
 
 /// Replaces the entry for the same profile id and endpoint, else the entry for
@@ -325,7 +314,7 @@ mod tests {
         KnownHostRecord, KnownHostStore, delete_known_host_entries, find_known_host_entry,
         list_known_host_entries, list_known_hosts, save_known_host,
     };
-    use tterm_core::db::Database;
+    use crate::db::Database;
 
     #[test]
     fn saving_a_known_host_prefers_the_profile_id_match() {

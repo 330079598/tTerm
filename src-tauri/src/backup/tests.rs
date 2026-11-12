@@ -321,7 +321,7 @@ fn merge_import_keeps_existing_data_and_updates_by_key() {
                 1
             );
             assert_eq!(crate::proxy::storage::list_proxies(connection)?.len(), 1);
-            let hosts = crate::ssh::store::list_known_hosts(connection)?.entries;
+            let hosts = tterm_core::ssh::store::list_known_hosts(connection)?.entries;
             assert_eq!(
                 hosts.len(),
                 2,
@@ -365,7 +365,7 @@ fn merge_import_keeps_known_hosts_of_profiles_sharing_a_host_key() {
         .write(|connection| {
             apply_database_payload(connection, &payload, &options)?;
             apply_database_payload(connection, &payload, &options)?;
-            let names = crate::ssh::store::list_known_hosts(connection)?
+            let names = tterm_core::ssh::store::list_known_hosts(connection)?
                 .entries
                 .into_iter()
                 .map(|entry| entry.profile_name)
@@ -400,7 +400,7 @@ fn merge_import_never_lets_a_name_only_entry_replace_a_profile_entry() {
     database
         .write(|connection| {
             apply_database_payload(connection, &payload, &options)?;
-            let entries = crate::ssh::store::list_known_hosts(connection)?.entries;
+            let entries = tterm_core::ssh::store::list_known_hosts(connection)?.entries;
             assert_eq!(entries.len(), 2);
             assert_eq!(entries[0].profile_id.as_deref(), Some("p1"));
             assert_eq!(entries[0].fingerprint, "SHA256:current");
@@ -475,7 +475,7 @@ fn replace_import_drops_data_missing_from_the_backup() {
                 1
             );
             assert_eq!(
-                crate::ssh::store::list_known_hosts(connection)?
+                tterm_core::ssh::store::list_known_hosts(connection)?
                     .entries
                     .len(),
                 2
@@ -555,9 +555,9 @@ fn exported_data_imports_back_unchanged() {
                 payload.proxies = Some(to_backup_value(&crate::proxy::storage::list_proxies(
                     connection,
                 )?)?);
-                payload.known_hosts = Some(to_backup_value(&crate::ssh::store::list_known_hosts(
-                    connection,
-                )?)?);
+                payload.known_hosts = Some(to_backup_value(
+                    &tterm_core::ssh::store::list_known_hosts(connection)?,
+                )?);
                 payload.sftp_directories = Some(to_backup_value(
                     &crate::sftp::store::list_sftp_directories(connection)?,
                 )?);
@@ -620,7 +620,7 @@ fn real_pre_database_backups_import() {
                     apply_database_payload(connection, payload, &options)?;
                     apply_database_payload(connection, payload, &options)?;
                     let profiles = crate::profiles::storage::list_saved_profiles(connection)?.len();
-                    let known = crate::ssh::store::list_known_hosts(connection)?.entries.len();
+                    let known = tterm_core::ssh::store::list_known_hosts(connection)?.entries.len();
                     let sftp = crate::sftp::store::list_sftp_directories(connection)?
                         .entries
                         .len();

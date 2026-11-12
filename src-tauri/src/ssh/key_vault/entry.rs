@@ -2,9 +2,9 @@
 //! text when it comes in.
 
 use super::VaultKeySummary;
-use crate::ssh::rsa_signer::RingRsaSigner;
 use russh::keys::{self, Certificate, HashAlg, PrivateKey, PublicKey};
 use serde::{Deserialize, Serialize};
+use tterm_core::ssh::rsa_signer::RingRsaSigner;
 use zeroize::Zeroize;
 
 /// A key as it is sealed in its saved secret.

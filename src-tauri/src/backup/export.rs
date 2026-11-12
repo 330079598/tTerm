@@ -93,7 +93,7 @@ pub(super) fn collect_payload(
         },
         known_hosts: read_selected_data(
             selection.known_hosts,
-            crate::ssh::store::list_known_hosts,
+            tterm_core::ssh::store::list_known_hosts,
         )?,
         sftp_directories: read_selected_data(
             selection.sftp_directories,

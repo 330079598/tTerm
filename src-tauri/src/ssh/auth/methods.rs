@@ -6,7 +6,6 @@ use super::{AuthPrompter, AuthTarget, EXCHANGE_TIMEOUT, MAX_STEPS};
 use crate::ssh::agent::offered_before;
 use crate::ssh::key_file::{display_path, parse_certificate, read_key};
 use crate::ssh::key_vault;
-use crate::ssh::rsa_signer::RingRsaSigner;
 use crate::ssh::types::SshConnectError;
 use russh::client::{AuthResult, KeyboardInteractiveAuthResponse};
 use russh::keys::agent::AgentIdentity;
@@ -14,6 +13,7 @@ use russh::keys::ssh_key::private::KeypairData;
 use russh::keys::{Certificate, HashAlg, PrivateKey, PrivateKeyWithHashAlg, PublicKey};
 use russh::{MethodKind, client};
 use std::sync::Arc;
+use tterm_core::ssh::rsa_signer::RingRsaSigner;
 use zeroize::Zeroizing;
 
 /// Whether a hidden keyboard-interactive prompt is asking for the account

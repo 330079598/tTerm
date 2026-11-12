@@ -42,7 +42,7 @@ fn prompt_contract_host_key_unknown_and_changed_include_null_or_old_fingerprint(
 fn prompt_contract_jump_host_uses_synthetic_profile_without_hop_fields() {
     let profile = format!(
         "{}test.invalid:22505",
-        crate::ssh::store::JUMP_HOST_PROFILE_PREFIX
+        tterm_core::ssh::store::JUMP_HOST_PROFILE_PREFIX
     );
     assert_eq!(
         host_wire(host_key(&profile, None)),

@@ -4,15 +4,15 @@ use tterm_core::events::ssh::SshHostKeyPromptPayload;
 use crate::ssh::context::ConnectionContext;
 use crate::ssh::openssh_known_hosts::verify::KnownHostVerdict;
 use crate::ssh::openssh_known_hosts::{check_presented_key, listed_record};
-use crate::ssh::store::{
-    JUMP_HOST_PROFILE_PREFIX, KnownHostRecord, load_known_host, now_unix_ms, save_known_host_entry,
-};
 use crate::ssh::types::{
     ConnectionStatusOptions, HostKeyVerificationMode, SshConnectError, emit_connection_progress,
 };
 use russh::client;
 use russh::keys::ssh_key::HashAlg;
 use std::sync::{Arc, Mutex};
+use tterm_core::ssh::store::{
+    JUMP_HOST_PROFILE_PREFIX, KnownHostRecord, load_known_host, now_unix_ms, save_known_host_entry,
+};
 
 /// russh handler for the jump host leg of the connection.
 /// Performs the same host-key verification as `SshClientHandler`:

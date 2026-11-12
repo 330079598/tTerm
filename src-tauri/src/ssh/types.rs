@@ -85,7 +85,7 @@ enum HostKeyCheckOutcome {
 
 fn resolve_host_key_check(
     mode: HostKeyVerificationMode,
-    known: Option<&crate::ssh::store::KnownHostRecord>,
+    known: Option<&tterm_core::ssh::store::KnownHostRecord>,
     host: &str,
     port: u16,
     fingerprint: &str,
@@ -295,7 +295,7 @@ impl russh::client::Handler for SshClientHandler {
             .host(self.host.clone(), self.port),
         );
 
-        let known = match crate::ssh::store::load_known_host(
+        let known = match tterm_core::ssh::store::load_known_host(
             &self.profile_name,
             self.profile_id.as_deref(),
             &self.host,
@@ -380,16 +380,17 @@ impl russh::client::Handler for SshClientHandler {
             return Err(russh::Error::Disconnect);
         }
 
-        let save_result =
-            crate::ssh::store::save_known_host_entry(crate::ssh::store::KnownHostRecord {
+        let save_result = tterm_core::ssh::store::save_known_host_entry(
+            tterm_core::ssh::store::KnownHostRecord {
                 profile_id: self.profile_id.clone(),
                 profile_name: self.profile_name.clone(),
                 host: self.host.clone(),
                 port: self.port,
                 algorithm: server_public_key.algorithm().to_string(),
                 fingerprint,
-                trusted_at: crate::ssh::store::now_unix_ms(),
-            });
+                trusted_at: tterm_core::ssh::store::now_unix_ms(),
+            },
+        );
 
         if let Err(err) = save_result {
             self.emit_status("31", &format!("Failed to save known host: {err}"));
@@ -423,8 +424,8 @@ mod tests {
         resolve_host_key_check,
     };
 
-    fn known_host(fingerprint: &str) -> crate::ssh::store::KnownHostRecord {
-        crate::ssh::store::KnownHostRecord {
+    fn known_host(fingerprint: &str) -> tterm_core::ssh::store::KnownHostRecord {
+        tterm_core::ssh::store::KnownHostRecord {
             profile_id: Some("profile-1".to_string()),
             profile_name: "demo".to_string(),
             host: "example.com".to_string(),

@@ -9,7 +9,6 @@ pub(crate) mod crypto;
 mod keyring_backend;
 pub(crate) mod legacy;
 mod migration;
-pub(crate) mod os_verifier;
 pub(crate) mod store;
 pub(crate) mod types;
 pub(crate) mod verification;
@@ -450,7 +449,7 @@ impl SecretStoreState {
         let secrets_dir = data_dir.join("secrets");
         let vault = legacy::LegacyVault::load(&secrets_dir)?;
         let old_mode = load_config_file()?.secret_storage_mode;
-        let plaintext = crate::ssh::store::load_legacy_password_store()?
+        let plaintext = tterm_core::ssh::store::load_legacy_password_store()?
             .profiles
             .into_iter()
             .map(|record| (record.profile_name, Zeroizing::new(record.password)))
@@ -493,7 +492,7 @@ impl SecretStoreState {
             eprintln!("Failed to retire the old vault files: {error}");
         }
         if cleanup.remove_plaintext
-            && let Err(error) = crate::ssh::store::remove_legacy_password_store()
+            && let Err(error) = tterm_core::ssh::store::remove_legacy_password_store()
         {
             eprintln!("Failed to remove the old password file: {error}");
         }

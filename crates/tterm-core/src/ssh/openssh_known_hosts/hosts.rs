@@ -1,14 +1,14 @@
 //! Matches the host names of a `known_hosts` entry the way `ssh` does in
 //! `hostfile.c`.
 
+use crate::profiles::parser::pattern::wildcard_matches;
 use hmac::{Hmac, KeyInit, Mac};
 use russh::keys::ssh_key::known_hosts::HostPatterns;
 use sha1::Sha1;
-use tterm_core::profiles::parser::pattern::wildcard_matches;
 
 /// How `ssh` names a host in `known_hosts`: on its own on port 22 and as
 /// `[host]:port` on any other, in lower case.
-pub(super) fn host_key_name(host: &str, port: u16) -> String {
+pub fn host_key_name(host: &str, port: u16) -> String {
     let host = host.to_ascii_lowercase();
     if port == 22 {
         host
@@ -20,7 +20,7 @@ pub(super) fn host_key_name(host: &str, port: u16) -> String {
 /// Whether an entry names the host [`host_key_name`] names. A hashed entry
 /// holds an HMAC-SHA1 of the name, and a matching `!pattern` rules the host
 /// out.
-pub(super) fn patterns_match(patterns: &HostPatterns, name: &str) -> bool {
+pub fn patterns_match(patterns: &HostPatterns, name: &str) -> bool {
     match patterns {
         HostPatterns::HashedName { salt, hash } => {
             let Ok(mut mac) = Hmac::<Sha1>::new_from_slice(salt) else {

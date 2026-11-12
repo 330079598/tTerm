@@ -8,13 +8,13 @@ use super::methods::{
 use super::{AuthPrompter, AuthTarget, AuthUsed, DEFAULT_IDENTITY_FILES, TYPING_ATTEMPTS};
 use crate::ssh::agent::offered_before;
 use crate::ssh::key_file::{parse_certificate, read_key};
-use crate::ssh::typed_passwords;
 use crate::ssh::types::SshConnectError;
 use russh::client::AuthResult;
 use russh::keys::PrivateKey;
 use russh::keys::agent::AgentIdentity;
 use russh::{MethodKind, client};
 use std::path::PathBuf;
+use tterm_core::ssh::typed_passwords;
 use zeroize::Zeroizing;
 
 /// [`AuthMethod::Auto`]: what `ssh user@host` tries, in its order. Returns

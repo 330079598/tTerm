@@ -91,7 +91,7 @@ pub(super) async fn save_profile(
 /// passwords typed there, unless new ones were entered in the dialog.
 fn fill_typed_passwords(profile: &mut SavedProfile, tab_id: &str) {
     let typed = |host: &str, port: u16, username: &str| {
-        crate::ssh::typed_passwords::get(tab_id, host, port, username)
+        tterm_core::ssh::typed_passwords::get(tab_id, host, port, username)
             .map(|password| password.to_string())
     };
     let uses_password = !matches!(
@@ -475,8 +475,8 @@ mod tests {
     #[test]
     fn saving_a_quick_connection_fills_in_the_passwords_typed_in_its_tab() {
         const TAB: &str = "profile-test-typed";
-        crate::ssh::typed_passwords::remember(TAB, "db", 22, "root", "target-secret");
-        crate::ssh::typed_passwords::remember(TAB, "bastion", 22, "ops", "jump-secret");
+        tterm_core::ssh::typed_passwords::remember(TAB, "db", 22, "root", "target-secret");
+        tterm_core::ssh::typed_passwords::remember(TAB, "bastion", 22, "ops", "jump-secret");
 
         let mut profile = quick_profile();
         fill_typed_passwords(&mut profile, TAB);
@@ -492,7 +492,7 @@ mod tests {
         fill_typed_passwords(&mut profile, TAB);
         assert_eq!(profile.password.as_deref(), Some("new-secret"));
 
-        crate::ssh::typed_passwords::forget_typed_passwords(TAB.to_string());
+        tterm_core::ssh::typed_passwords::forget_typed_passwords(TAB.to_string());
     }
 
     #[test]

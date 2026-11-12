@@ -10,7 +10,7 @@ use std::time::Duration;
 use russh::server::{Auth, Response};
 use russh::{MethodKind, MethodSet};
 
-use crate::ssh::typed_passwords;
+use tterm_core::ssh::typed_passwords;
 
 use super::methods::is_password_prompt;
 use super::{AuthMethod, AuthPrompter, AuthTarget, AuthUsed, ScriptedPrompts, authenticate};
