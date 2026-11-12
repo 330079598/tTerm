@@ -3,11 +3,16 @@ use crate::core::state::{
 };
 use std::sync::PoisonError;
 
+/// The prompt broker and tab that identify the session being stopped.
 pub(crate) struct StopPtyContext<'a> {
+    /// Broker used to cancel prompts owned by the session.
     pub(crate) prompts: &'a tterm_core::prompts::PromptBroker,
+    /// Tab that owns the session.
     pub(crate) tab_id: &'a str,
 }
 
+/// Stops a PTY session, cancels its prompts, closes its output, and removes
+/// its ZMODEM and supervisor state.
 pub(crate) fn stop_pty_session(
     context: StopPtyContext<'_>,
     session: PtySession,

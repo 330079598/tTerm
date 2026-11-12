@@ -188,7 +188,7 @@ impl AuthTarget<'_> {
 #[derive(Clone)]
 pub enum AuthPrompter {
     /// Emits `ssh-auth-prompt-{tab_id}`; the frontend answers through
-    /// [`respond_ssh_auth_prompt`].
+    /// `respond_ssh_auth_prompt`.
     Tab {
         app: crate::ssh::context::ConnectionContext,
         tab_id: String,
