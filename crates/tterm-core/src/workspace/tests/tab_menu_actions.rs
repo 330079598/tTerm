@@ -29,6 +29,7 @@ fn find_action<'a>(
 fn connection(profile_id: Option<&str>) -> TabConnection {
     TabConnection {
         profile_id: profile_id.map(str::to_owned),
+        ..TabConnection::default()
     }
 }
 

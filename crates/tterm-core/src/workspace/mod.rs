@@ -6,6 +6,9 @@
 
 /// Requests that open a singleton app page, from `src/lib/appNavigation.ts`.
 pub mod app_navigation;
+/// Local tab titles, directories and running commands, from
+/// `src/lib/localTabTitle.ts`.
+pub mod local_tab_title;
 /// Pane and sash geometry, from `src/lib/paneLayout.ts`.
 pub mod pane_layout;
 /// Directional pane navigation, from `src/lib/paneNavigation.ts`.
@@ -23,6 +26,10 @@ pub mod tab_attention;
 pub mod tab_closing;
 /// Split pane trees and tab groups, from `src/lib/tabGroups.ts`.
 pub mod tab_groups;
+/// Saved tab group layouts, from `src/lib/tabGroupsPersistence.ts`.
+pub mod tab_groups_persistence;
+/// Tab icons and icon settings, from `src/lib/tabIcons.ts`.
+pub mod tab_icons;
 /// Tab and pane context-menu items, from `src/lib/tabMenuActions.ts`.
 pub mod tab_menu_actions;
 /// Tab ordering for next, previous and nth-tab shortcuts, from
@@ -30,6 +37,8 @@ pub mod tab_menu_actions;
 pub mod tab_navigation;
 /// Tab-bar nudge state, from `src/lib/tabNudge.ts`.
 pub mod tab_nudge;
+/// Pure tab-list transitions, from `src/lib/tabsState.ts`.
+pub mod tabs_state;
 
 pub(crate) mod js_number;
 
