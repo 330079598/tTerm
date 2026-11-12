@@ -94,28 +94,55 @@ fn marks_a_tab_of_the_bar_while_any_of_its_panes_waits_for_a_password() {
 
 #[test]
 fn oracle_waits_the_full_delay_before_showing_a_command() {
+    let oracle = super::oracle_json();
+    let expected = &oracle["tabAttention"];
+    let delay = expected["commandScheduledDelay"]
+        .as_u64()
+        .expect("the command delay");
     let mut store = TabAttentionStore::new();
     store.set_tab_running_command("tab-1", Some("npm run dev"), 0);
-    store.advance_to(RUNNING_COMMAND_DELAY_MS - 1);
-    assert_eq!(store.running_commands().get("tab-1"), None);
-    store.advance_to(RUNNING_COMMAND_DELAY_MS);
     assert_eq!(
         store.running_commands().get("tab-1").map(String::as_str),
-        Some("npm run dev")
+        expected["commandImmediately"].as_str()
+    );
+    store.advance_to(delay - 1);
+    assert_eq!(
+        store.running_commands().get("tab-1").map(String::as_str),
+        expected["commandImmediately"].as_str()
+    );
+    store.advance_to(delay);
+    assert_eq!(
+        store.running_commands().get("tab-1").map(String::as_str),
+        expected["commandAfterDelay"].as_str()
     );
 }
 
 #[test]
 fn oracle_replaces_a_pending_command_with_the_newer_one() {
+    let oracle = super::oracle_json();
+    let expected = &oracle["tabAttention"];
     let mut store = TabAttentionStore::new();
-    store.set_tab_running_command("tab-1", Some("first"), 0);
-    store.set_tab_running_command("tab-1", Some("second"), 100);
+    store.set_tab_running_command("tab-1", Some("cd src"), 0);
+    store.set_tab_running_command("tab-1", Some("cd /tmp"), 100);
+    assert_eq!(expected["replacementPendingTimers"], 1);
+    assert_eq!(
+        store.running_commands().get("tab-1").map(String::as_str),
+        expected["replacementBeforeDelay"].as_str()
+    );
     store.advance_to(999);
-    assert_eq!(store.running_commands().get("tab-1"), None);
+    assert_eq!(
+        store.running_commands().get("tab-1").map(String::as_str),
+        expected["replacementBeforeDelay"].as_str()
+    );
     store.advance_to(1100);
     assert_eq!(
         store.running_commands().get("tab-1").map(String::as_str),
-        Some("second")
+        expected["replacementAfterDelay"].as_str()
+    );
+    store.set_tab_running_command("tab-1", None, 1100);
+    assert_eq!(
+        store.running_commands().get("tab-1").map(String::as_str),
+        expected["replacementAfterClear"].as_str()
     );
 }
 
@@ -162,14 +189,38 @@ fn oracle_ranks_attention_and_aggregates_tabs() {
 
 #[test]
 fn oracle_clears_a_tabs_mark_and_notifications_together() {
+    let oracle = super::oracle_json();
+    let expected = &oracle["tabAttention"];
     let mut store = TabAttentionStore::new();
     store.mark_tab_attention("tab-1", TabAttentionLevel::Notification);
     store.count_tab_notification("tab-1");
     assert_eq!(
-        store.get_tab_attention("tab-1"),
-        Some(TabAttentionLevel::Notification)
+        store.get_tab_attention("tab-1").map(|level| match level {
+            TabAttentionLevel::Activity => "activity",
+            TabAttentionLevel::Bell => "bell",
+            TabAttentionLevel::Notification => "notification",
+        }),
+        expected["clearBefore"]["mark"].as_str()
+    );
+    assert_eq!(
+        store.unseen_notification_total(),
+        expected["clearBefore"]["total"]
+            .as_u64()
+            .expect("the notification total")
     );
     store.clear_tab_attention("tab-1");
-    assert_eq!(store.get_tab_attention("tab-1"), None);
-    assert_eq!(store.unseen_notification_total(), 0);
+    assert_eq!(
+        store.get_tab_attention("tab-1").map(|level| match level {
+            TabAttentionLevel::Activity => "activity",
+            TabAttentionLevel::Bell => "bell",
+            TabAttentionLevel::Notification => "notification",
+        }),
+        expected["clearAfter"]["mark"].as_str()
+    );
+    assert_eq!(
+        store.unseen_notification_total(),
+        expected["clearAfter"]["total"]
+            .as_u64()
+            .expect("the notification total")
+    );
 }

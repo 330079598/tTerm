@@ -14530,6 +14530,7 @@
         }
       }
     ],
+    "emptyIdTemplate": [],
     "applied": [
       {
         "id": "g1",
@@ -14863,6 +14864,123 @@
         "icon": "x",
         "shortcut": "tabs.closeActive"
       }
+    ],
+    "paneTerminalRecording": [
+      {
+        "label": "contextMenu.duplicateTab",
+        "action": "duplicate",
+        "icon": "copy",
+        "shortcut": "tabs.duplicateActive"
+      },
+      {
+        "label": "contextMenu.splitRight",
+        "action": "split-right",
+        "icon": "split-right",
+        "shortcut": "workspace.splitRight"
+      },
+      {
+        "label": "contextMenu.splitLeft",
+        "action": "split-left",
+        "icon": "split-left"
+      },
+      {
+        "label": "contextMenu.splitDown",
+        "action": "split-down",
+        "icon": "split-down",
+        "shortcut": "workspace.splitBelow"
+      },
+      {
+        "label": "contextMenu.splitAbove",
+        "action": "split-above",
+        "icon": "split-above"
+      },
+      {
+        "label": "contextMenu.editTab",
+        "action": "rename",
+        "icon": "edit",
+        "shortcut": "tabs.renameActive"
+      },
+      {
+        "label": "contextMenu.saveLocalConnection",
+        "action": "edit-connection",
+        "icon": "edit",
+        "shortcut": "tabs.saveConnection"
+      },
+      {
+        "label": "contextMenu.stopLogging",
+        "action": "log-stop",
+        "icon": "record-stop"
+      },
+      {
+        "label": "contextMenu.viewLogs",
+        "action": "view-logs",
+        "icon": "scroll-text"
+      },
+      {
+        "separator": true,
+        "label": "",
+        "action": ""
+      },
+      {
+        "label": "workspace.zoomPane",
+        "action": "toggle-zoom",
+        "icon": "maximize",
+        "shortcut": "workspace.togglePaneZoom"
+      },
+      {
+        "label": "workspace.movePaneToNewTab",
+        "action": "move-to-new-tab",
+        "icon": "move-out",
+        "shortcut": "workspace.movePaneToNewTab"
+      },
+      {
+        "label": "workspace.unsplit",
+        "action": "ungroup",
+        "icon": "unsplit",
+        "shortcut": "workspace.restoreSingleGroup"
+      },
+      {
+        "label": "layoutTemplates.menu",
+        "action": "layout-templates",
+        "icon": "layout",
+        "shortcut": "workspace.chooseLayout"
+      },
+      {
+        "separator": true,
+        "label": "",
+        "action": ""
+      },
+      {
+        "label": "workspace.closePane",
+        "action": "close",
+        "icon": "x",
+        "shortcut": "tabs.closeActive"
+      }
+    ],
+    "logMenuRecording": [
+      {
+        "label": "contextMenu.stopLogging",
+        "action": "log-stop",
+        "icon": "record-stop"
+      },
+      {
+        "label": "contextMenu.viewLogs",
+        "action": "view-logs",
+        "icon": "scroll-text"
+      }
+    ],
+    "logMenuRecordingSettings": [],
+    "logMenuIdle": [
+      {
+        "label": "contextMenu.startLogging",
+        "action": "log-start",
+        "icon": "record"
+      },
+      {
+        "label": "contextMenu.viewLogs",
+        "action": "view-logs",
+        "icon": "scroll-text"
+      }
     ]
   },
   "tabAttention": {
@@ -14876,10 +14994,24 @@
     ],
     "markListeners": 1,
     "stoppedListeners": 1,
+    "commandScheduledDelay": 1000,
     "commandImmediately": null,
     "commandAfterDelay": "npm run dev",
     "commandAfterClear": null,
     "commandEndedImmediately": null,
+    "replacementPendingTimers": 1,
+    "replacementBeforeDelay": null,
+    "replacementAfterDelay": "cd /tmp",
+    "replacementAfterClear": null,
+    "immediateTimersAfterClear": 0,
+    "clearBefore": {
+      "mark": "notification",
+      "total": 1
+    },
+    "clearAfter": {
+      "mark": null,
+      "total": 0
+    },
     "passwordWaiting": true,
     "passwordCleared": false,
     "agentQuery": {
@@ -14949,7 +15081,15 @@
     "replacedRequest": {
       "tabId": "tab-2",
       "sessionType": "local"
-    }
+    },
+    "noHandlerRequest": {
+      "tabId": "tab-3",
+      "sessionType": "ssh",
+      "host": "example.test",
+      "port": 22,
+      "username": "stone"
+    },
+    "noHandlerOpened": 1
   },
   "tabNudge": {
     "named": {
@@ -14964,7 +15104,8 @@
     "replayAgain": true,
     "missing": true,
     "barRunning": true,
-    "barEnded": false
+    "barEnded": false,
+    "barAbsent": true
   },
   "persistence": {
     "sessionLayoutJson": "{\"version\":2,\"groups\":[{\"root\":{\"type\":\"split\",\"orientation\":\"horizontal\",\"children\":[{\"type\":\"pane\",\"tabId\":\"a\"},{\"type\":\"split\",\"orientation\":\"vertical\",\"children\":[{\"type\":\"pane\",\"tabId\":\"b\"},{\"type\":\"pane\",\"tabId\":\"c\"}],\"sizes\":[0.25,0.75]}],\"sizes\":[0.5,0.5]},\"activeTabId\":\"c\",\"zoomedTabId\":\"b\"},{\"root\":{\"type\":\"pane\",\"tabId\":\"d\"},\"activeTabId\":\"d\"}]}",

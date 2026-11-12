@@ -32,6 +32,25 @@ fn connection(profile_id: Option<&str>) -> TabConnection {
     }
 }
 
+fn assert_actions_match_oracle(actions: &[TabContextMenuAction], expected: &serde_json::Value) {
+    let expected = expected.as_array().expect("an action list");
+    assert_eq!(actions.len(), expected.len());
+    for (action, item) in actions.iter().zip(expected) {
+        assert_eq!(action.label, item["label"].as_str().expect("a label"));
+        assert_eq!(action.action, item["action"].as_str().expect("an action"));
+        assert_eq!(action.icon.as_deref(), item["icon"].as_str());
+        assert_eq!(
+            action.shortcut.map(|shortcut| shortcut.as_str()),
+            item["shortcut"].as_str()
+        );
+        assert_eq!(
+            action.separator,
+            item["separator"].as_bool().unwrap_or(false)
+        );
+        assert_eq!(action.disabled, item["disabled"].as_bool());
+    }
+}
+
 #[test]
 fn offers_the_four_splits_for_terminal_tabs_only() {
     let ssh = get_tab_split_menu_actions(&tab("a", "a", TabType::Ssh), &translate);
@@ -342,21 +361,28 @@ fn oracle_terminal_pane_menu_keeps_the_log_items_before_the_layout_items() {
 
 #[test]
 fn oracle_log_menu_switches_between_start_and_stop() {
+    let oracle = super::oracle_json();
+    let expected = &oracle["tabMenuActions"];
     let terminal = tab("a", "a", TabType::Terminal);
-    assert_eq!(
-        get_tab_log_menu_actions(&terminal, &translate, false)
-            .iter()
-            .map(|item| item.action.as_str())
-            .collect::<Vec<_>>(),
-        vec!["log-start", "view-logs"]
+    assert_actions_match_oracle(
+        &get_tab_log_menu_actions(&terminal, &translate, false),
+        &expected["logMenuIdle"],
     );
-    assert_eq!(
-        get_tab_log_menu_actions(&terminal, &translate, true)[0].action,
-        "log-stop"
+    assert_actions_match_oracle(
+        &get_tab_log_menu_actions(&terminal, &translate, true),
+        &expected["logMenuRecording"],
     );
-    assert_eq!(
-        get_tab_log_menu_actions(&tab("a", "a", TabType::Settings), &translate, true),
-        Vec::new()
+    assert_actions_match_oracle(
+        &get_tab_log_menu_actions(
+            &tab("settings", "Settings", TabType::Settings),
+            &translate,
+            true,
+        ),
+        &expected["logMenuRecordingSettings"],
+    );
+    assert_actions_match_oracle(
+        &get_pane_menu_actions(&terminal, false, &translate, true),
+        &expected["paneTerminalRecording"],
     );
 }
 

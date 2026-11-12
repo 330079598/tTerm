@@ -473,3 +473,49 @@ fn oracle_builtin_templates_ids_and_leaf_count_match_typescript() {
         .collect();
     assert_eq!(Value::Array(actual), expected);
 }
+
+#[test]
+fn oracle_applies_a_template_to_groups_exactly() {
+    let oracle = super::oracle_json();
+    let expected = &oracle["paneTemplates"]["applied"];
+    let groups = vec![TabGroup {
+        id: "g1".to_owned(),
+        root: PaneNode::Split {
+            orientation: SplitOrientation::Vertical,
+            children: vec![pane_leaf("a"), pane_leaf("b"), pane_leaf("c")],
+            sizes: vec![1.0 / 3.0, 1.0 / 3.0, 1.0 / 3.0],
+        },
+        active_tab_id: "c".to_owned(),
+        zoomed_tab_id: None,
+    }];
+    let shape = row(vec![pane(), pane()], None);
+    let mut create_group_id = || "new".to_owned();
+    let result = apply_template_to_groups(&groups, "c", &shape, &[], &mut create_group_id);
+    assert_eq!(&serde_json::to_value(&result).unwrap(), expected);
+}
+
+#[test]
+fn oracle_drops_a_template_with_an_empty_id() {
+    let oracle = super::oracle_json();
+    let template = json!([{
+        "id": "",
+        "name": "empty",
+        "root": {
+            "type": "split",
+            "orientation": "horizontal",
+            "sizes": [2, 2],
+            "children": [
+                {"type": "pane"},
+                {
+                    "type": "split",
+                    "orientation": "vertical",
+                    "children": [{"type": "pane"}, {"type": "pane"}],
+                },
+            ],
+        },
+    }]);
+    assert_eq!(
+        serde_json::to_value(normalize_pane_templates(&template)).unwrap(),
+        oracle["paneTemplates"]["emptyIdTemplate"]
+    );
+}

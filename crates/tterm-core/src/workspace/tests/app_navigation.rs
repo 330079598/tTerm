@@ -3,6 +3,23 @@ use std::rc::Rc;
 
 use crate::workspace::app_navigation::{AppNavigation, AppPage, LogsTabRequest, SessionType};
 
+fn logs_request_from_oracle(value: &serde_json::Value) -> LogsTabRequest {
+    LogsTabRequest {
+        tab_id: value["tabId"]
+            .as_str()
+            .expect("a requested tab id")
+            .to_owned(),
+        session_type: match value["sessionType"].as_str().expect("a session type") {
+            "ssh" => SessionType::Ssh,
+            "local" => SessionType::Local,
+            other => panic!("unexpected session type {other}"),
+        },
+        host: value["host"].as_str().map(str::to_owned),
+        port: value["port"].as_u64().map(|port| port as u16),
+        username: value["username"].as_str().map(str::to_owned),
+    }
+}
+
 #[test]
 fn opens_the_logs_page_and_hands_the_tab_over_once() {
     let mut navigation = AppNavigation::new();
@@ -71,23 +88,10 @@ fn stops_handling_once_replaced() {
 
 #[test]
 fn oracle_keeps_the_request_when_no_page_handler_is_registered() {
+    let oracle = super::oracle_json();
+    let expected = logs_request_from_oracle(&oracle["appNavigation"]["noHandlerRequest"]);
     let mut navigation = AppNavigation::new();
-    navigation.show_logs_for_tab(LogsTabRequest {
-        tab_id: "tab-3".to_owned(),
-        session_type: SessionType::Ssh,
-        host: Some("example.test".to_owned()),
-        port: Some(22),
-        username: Some("stone".to_owned()),
-    });
-    assert_eq!(
-        navigation.take_logs_tab_request(),
-        Some(LogsTabRequest {
-            tab_id: "tab-3".to_owned(),
-            session_type: SessionType::Ssh,
-            host: Some("example.test".to_owned()),
-            port: Some(22),
-            username: Some("stone".to_owned()),
-        })
-    );
+    navigation.show_logs_for_tab(expected.clone());
+    assert_eq!(navigation.take_logs_tab_request(), Some(expected));
     assert_eq!(navigation.take_logs_tab_request(), None);
 }

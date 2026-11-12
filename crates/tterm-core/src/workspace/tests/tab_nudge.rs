@@ -41,7 +41,12 @@ fn replays_a_nudge_that_is_still_running() {
 fn ignores_a_tab_that_is_not_in_the_bar() {
     let mut state = bar();
     state.nudge_tab("missing");
-    assert!(!state.is_flashing("t1"));
+    assert!(
+        state
+            .tab_ids
+            .iter()
+            .all(|tab_id| !state.is_flashing(tab_id))
+    );
     assert_eq!(state.scroll_requests(), 0);
 }
 
@@ -56,10 +61,16 @@ fn shakes_the_tab_bar() {
 
 #[test]
 fn oracle_does_nothing_when_the_bar_is_absent() {
+    let oracle = super::oracle_json();
     let mut state = bar();
     state.bar_present = false;
     state.nudge_tab_bar();
-    assert!(!state.is_shaking());
+    assert_eq!(
+        !state.is_shaking(),
+        oracle["tabNudge"]["barAbsent"]
+            .as_bool()
+            .expect("the absent-bar result")
+    );
     state.animation_end(NudgeAnimationTarget::Bar);
     assert!(!state.is_shaking());
 }

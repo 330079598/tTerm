@@ -74,6 +74,7 @@ const tabClosing = await import(tabClosingUrl)
 const tabMenuActions = await import(tabMenuActionsUrl)
 const tabAttention = await import(tabAttentionUrl)
 const terminalNotifications = await import(terminalNotificationsUrl)
+const terminalLogRecording = await import(terminalLogRecordingUrl)
 const tabAgentIndicator = await import(tabAgentIndicatorUrl)
 const appNavigation = await import(appNavigationUrl)
 const tabNudge = await import(tabNudgeUrl)
@@ -320,6 +321,9 @@ tabNudge.nudgeTabBar()
 const nudgeBarRunning = bar.classList.contains("tab-nudge-shake")
 animationEnd(bar)
 const nudgeBarEnded = bar.classList.contains("tab-nudge-shake")
+bar.remove()
+tabNudge.nudgeTabBar()
+const nudgeBarAbsent = document.querySelector(".tab-nudge-shake") === null
 
 const totals = []
 const stopTotals = tabAttention.watchUnseenNotificationTotal((total) => totals.push(total))
@@ -343,16 +347,65 @@ const stopStopped = tabAttention.watchUnseenNotificationTotal(() => {
 stopStopped()
 tabAttention.countTabNotification("oracle-4")
 tabAttention.clearTabAttention("oracle-4")
+
+const realSetTimeout = globalThis.setTimeout
+const realClearTimeout = globalThis.clearTimeout
+let nextTimerId = 0
+let scheduledTimers = []
+globalThis.setTimeout = (callback, delay) => {
+  nextTimerId += 1
+  scheduledTimers.push({ id: nextTimerId, callback, delay })
+  return nextTimerId
+}
+globalThis.clearTimeout = (id) => {
+  scheduledTimers = scheduledTimers.filter((timer) => timer.id !== id)
+}
+const runScheduledTimers = () => {
+  const timers = scheduledTimers
+  scheduledTimers = []
+  for (const timer of timers) timer.callback()
+}
+
 tabAttention.setTabRunningCommand("oracle-5", "npm run dev")
+const commandScheduledDelay = scheduledTimers[0]?.delay ?? null
 const commandImmediately = tabAttention.useRunningCommands().get("oracle-5") ?? null
-await new Promise((resolve) => setTimeout(resolve, 1100))
+runScheduledTimers()
 const commandAfterDelay = tabAttention.useRunningCommands().get("oracle-5") ?? null
 tabAttention.setTabRunningCommand("oracle-5", null)
 const commandAfterClear = tabAttention.useRunningCommands().get("oracle-5") ?? null
 tabAttention.setTabRunningCommand("oracle-6", "cd src")
+tabAttention.setTabRunningCommand("oracle-6", "cd /tmp")
+const replacementPendingTimers = scheduledTimers.length
+const replacementBeforeDelay = tabAttention.useRunningCommands().get("oracle-6") ?? null
+runScheduledTimers()
+const replacementAfterDelay = tabAttention.useRunningCommands().get("oracle-6") ?? null
 tabAttention.setTabRunningCommand("oracle-6", null)
-await new Promise((resolve) => setTimeout(resolve, 2100))
-const commandEndedImmediately = tabAttention.useRunningCommands().get("oracle-6") ?? null
+const replacementAfterClear = tabAttention.useRunningCommands().get("oracle-6") ?? null
+tabAttention.setTabRunningCommand("oracle-7", "cd src")
+tabAttention.setTabRunningCommand("oracle-7", null)
+const immediateTimersAfterClear = scheduledTimers.length
+runScheduledTimers()
+const commandEndedImmediately = tabAttention.useRunningCommands().get("oracle-7") ?? null
+
+let clearedTotal = -1
+const stopClearWatch = tabAttention.watchUnseenNotificationTotal((total) => {
+  clearedTotal = total
+})
+tabAttention.markTabAttention("oracle-clear", "notification")
+tabAttention.countTabNotification("oracle-clear")
+const clearBefore = {
+  mark: tabAttention.getTabAttention("oracle-clear") ?? null,
+  total: clearedTotal,
+}
+tabAttention.clearTabAttention("oracle-clear")
+const clearAfter = {
+  mark: tabAttention.getTabAttention("oracle-clear") ?? null,
+  total: clearedTotal,
+}
+stopClearWatch()
+globalThis.setTimeout = realSetTimeout
+globalThis.clearTimeout = realClearTimeout
+
 tabAttention.setTabPasswordPrompt("oracle-pane-2", true)
 const passwordWaiting = tabAttention.useTabPasswordPrompt(["oracle-pane-1", "oracle-pane-2"])
 tabAttention.setTabPasswordPrompt("oracle-pane-2", false)
@@ -377,6 +430,20 @@ const agentQuery = {
 tabAttention.setTabRunningAgent("oracle-pane-2", null)
 tabAttention.setTabAgentStatus("oracle-pane-1", null)
 
+const logMenuIdle = terminalLogRecording.getTabLogMenuActions(terminal, t)
+terminalLogRecording.setRecordingTabIds(["a"])
+const logMenuRecording = terminalLogRecording.getTabLogMenuActions(terminal, t)
+const logMenuRecordingSettings = terminalLogRecording.getTabLogMenuActions(
+  { id: "settings", title: "Settings", type: "settings", isActive: true },
+  t
+)
+const paneTerminalRecording = tabMenuActions.getPaneMenuActions(
+  terminal,
+  { isZoomed: false },
+  t
+)
+terminalLogRecording.setRecordingTabIds([])
+
 const opened = []
 const notified = []
 const stopHandling = appNavigation.handleAppPageRequests((page) => opened.push(page))
@@ -394,6 +461,15 @@ stopFirst()
 appNavigation.showLogsForTab({ tabId: "tab-2", sessionType: "local" })
 const replacedRequest = appNavigation.takeLogsTabRequest()
 stopSecond()
+appNavigation.showLogsForTab({
+  tabId: "tab-3",
+  sessionType: "ssh",
+  host: "example.test",
+  port: 22,
+  username: "stone",
+})
+const noHandlerRequest = appNavigation.takeLogsTabRequest()
+const noHandlerOpened = opened.length
 
 const result = {
   paneLayout: {
@@ -546,6 +622,9 @@ const result = {
       { id: "", name: "empty", root: nestedShape },
       "nonsense",
     ]),
+    emptyIdTemplate: paneTemplates.normalizePaneTemplates([
+      { id: "", name: "empty", root: nestedShape },
+    ]),
     applied: paneTemplates.applyTemplateToGroups(
       [
         {
@@ -654,15 +733,27 @@ const result = {
       t
     ),
     paneTerminal: tabMenuActions.getPaneMenuActions(terminal, { isZoomed: false }, t),
+    paneTerminalRecording,
+    logMenuRecording,
+    logMenuRecordingSettings,
+    logMenuIdle,
   },
   tabAttention: {
     totals,
     markListeners,
     stoppedListeners,
+    commandScheduledDelay,
     commandImmediately,
     commandAfterDelay,
     commandAfterClear,
     commandEndedImmediately,
+    replacementPendingTimers,
+    replacementBeforeDelay,
+    replacementAfterDelay,
+    replacementAfterClear,
+    immediateTimersAfterClear,
+    clearBefore,
+    clearAfter,
     passwordWaiting,
     passwordCleared,
     agentQuery,
@@ -694,6 +785,8 @@ const result = {
     firstHandler,
     secondHandler,
     replacedRequest,
+    noHandlerRequest,
+    noHandlerOpened,
   },
   tabNudge: {
     named: nudgeNamed,
@@ -705,6 +798,7 @@ const result = {
     missing: nudgeMissing,
     barRunning: nudgeBarRunning,
     barEnded: nudgeBarEnded,
+    barAbsent: nudgeBarAbsent,
   },
   persistence: {
     sessionLayoutJson: JSON.stringify(saved),
