@@ -1,4 +1,4 @@
-use super::commands::SaveCommandInput;
+use super::models::SaveCommandInput;
 use super::{models::CommandVariable, models::SavedCommand, repository::CommandRepository};
 use crate::core::blocking::run_blocking;
 use chrono::Utc;

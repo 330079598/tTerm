@@ -1,0 +1,18 @@
+COMMIT 26f73c3d :bug: run config save effects on the blocking worker
+
+ src-tauri/src/config/commands.rs | 217 +++++++++++++++++++++++++++++++++++----
+ 1 file changed, 197 insertions(+), 20 deletions(-)
+
+COMMIT ceeb5837 :bug: keep the tunnel manager weak during tray refresh
+
+ src-tauri/src/background/tray/mod.rs     | 81 ++++++++++++++++++++++++++++----
+ src-tauri/src/tunnel/manager.rs          |  4 +-
+ src-tauri/src/tunnel/runtime/reporter.rs |  4 +-
+ 3 files changed, 75 insertions(+), 14 deletions(-)
+
+COMMIT ecca276a :recycle: read the sync app version from AppServices
+
+ src-tauri/src/app_identity.rs  | 8 +++++++-
+ src-tauri/src/sync/commands.rs | 3 +--
+ 2 files changed, 8 insertions(+), 3 deletions(-)
+

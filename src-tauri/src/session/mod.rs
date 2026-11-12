@@ -6,9 +6,11 @@ use crate::db::meta;
 use rusqlite::Connection;
 use serde::{Deserialize, Serialize};
 
+pub(crate) mod commands;
 #[cfg(test)]
 mod resume_compatibility_tests;
 pub(crate) mod scrollback;
+pub(crate) mod scrollback_commands;
 
 pub(crate) const SESSION_KEY: &str = "session";
 /// Set once `session.json` was moved into the database, so the merge of the
@@ -131,19 +133,11 @@ fn clear(connection: &Connection) -> Result<(), String> {
     meta::remove(connection, SESSION_KEY)
 }
 
-#[tauri::command]
-pub async fn load_session() -> Result<SessionData, String> {
-    load_session_service().await
-}
-async fn load_session_service() -> Result<SessionData, String> {
+pub(super) async fn load_session_service() -> Result<SessionData, String> {
     run_blocking(|| crate::db::read(read_session).map(Option::unwrap_or_default)).await
 }
 
-#[tauri::command]
-pub async fn save_session(session: SessionData) -> Result<(), String> {
-    save_session_service(session).await
-}
-async fn save_session_service(session: SessionData) -> Result<(), String> {
+pub(super) async fn save_session_service(session: SessionData) -> Result<(), String> {
     run_blocking(move || {
         // Every change of the tabs is saved here, so this is where the
         // content of the tabs closed since is let go.
@@ -155,11 +149,7 @@ async fn save_session_service(session: SessionData) -> Result<(), String> {
     .await
 }
 
-#[tauri::command]
-pub async fn clear_session() -> Result<(), String> {
-    clear_session_service().await
-}
-async fn clear_session_service() -> Result<(), String> {
+pub(super) async fn clear_session_service() -> Result<(), String> {
     run_blocking(|| {
         crate::db::write(|transaction| clear(transaction))?;
         scrollback::clear_all()

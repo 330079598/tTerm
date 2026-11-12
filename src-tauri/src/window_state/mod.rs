@@ -6,12 +6,14 @@
 //! another machine's screens.
 
 mod placement;
+mod state;
 #[cfg(test)]
 mod tests;
 
 use crate::db::meta;
 use placement::{Area, centered, top_edge_on_screen};
 use serde::{Deserialize, Serialize};
+use state::Bounds;
 use std::sync::Mutex;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::Duration;
@@ -24,16 +26,6 @@ const KEY: &str = "window_state";
 /// bounds nor the new ones; once the window settles it reports whether it
 /// ended up maximized.
 const SETTLE: Duration = Duration::from_millis(500);
-
-/// Outer position and inner size in physical pixels, the way the window
-/// reports and takes them.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
-struct Bounds {
-    x: i32,
-    y: i32,
-    width: u32,
-    height: u32,
-}
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 struct SavedWindowState {

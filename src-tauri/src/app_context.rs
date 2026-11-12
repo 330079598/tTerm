@@ -2,7 +2,7 @@
 use crate::{
     background::{BackgroundContext, quit::QuitContext, tray::TrayContext},
     services::AppServices,
-    tunnel::commands::TunnelContext,
+    tunnel::manager::TunnelContext,
 };
 use std::sync::Arc;
 
@@ -44,6 +44,8 @@ pub(crate) fn tunnel(services: &AppServices) -> TunnelContext {
     TunnelContext {
         connection: crate::connection_context::connection(services),
         secrets: services.shared.secrets.clone(),
-        tray: tray(services),
+        tray: services.shared.platform.tray.clone(),
+        tray_state: services.app.tray.clone(),
+        manager: Arc::downgrade(&services.app.tunnels),
     }
 }

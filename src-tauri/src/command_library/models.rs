@@ -33,3 +33,30 @@ pub struct SavedCommand {
     pub tags: Vec<String>,
     pub variables: Vec<CommandVariable>,
 }
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SaveCommandInput {
+    pub id: Option<String>,
+    pub name: String,
+    pub command_text: String,
+    #[serde(default)]
+    pub description: String,
+    #[serde(default)]
+    pub tags: Vec<String>,
+    #[serde(default = "default_scope_type")]
+    pub scope_type: String,
+    pub scope_id: Option<String>,
+    #[serde(default)]
+    pub is_favorite: bool,
+    /// `None` keeps the stored value, so callers that predate the field do not reset it.
+    #[serde(default)]
+    pub confirm_before_run: Option<bool>,
+    /// Placeholders (`{{name}}`) to ask for on insert. `None` keeps the stored ones.
+    #[serde(default)]
+    pub variables: Option<Vec<CommandVariable>>,
+}
+
+fn default_scope_type() -> String {
+    "global".to_string()
+}

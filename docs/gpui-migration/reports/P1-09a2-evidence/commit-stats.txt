@@ -1,0 +1,208 @@
+# git log --oneline --reverse GPUI..HEAD
+a08fc14d :truck: split the config commands out of config/mod.rs
+d758e244 :recycle: run config save side effects in the command
+33f7bd4b :truck: split the backup commands out of the backup modules
+d0381f61 :recycle: read the backup app version from AppServices
+bc1e8ef3 :truck: split the sync commands out of sync/mod.rs
+22804553 :truck: split the session commands out of the session modules
+3b04187d :truck: split the app state and theme commands out of their modules
+1fa2176a :truck: split the font command out of fonts/mod.rs
+1baa3d8d :truck: split the agent integration commands out of their modules
+4ee22445 :truck: move the tunnel manager logic out of tunnel/commands.rs
+e091d794 :recycle: refresh the tunnel tray through the platform tray capability
+f97d27a3 :truck: move SaveCommandInput out of command_library/commands.rs
+6bccc6c0 :truck: move TestConnectionResult out of profiles/commands.rs
+be9afdcb :truck: split the notification commands out of their modules
+b03387fb :truck: split the background commands out of the background modules
+6e765c3a :truck: split the launch directory command out of launch_dir.rs
+c4008842 :truck: split the updater commands out of updater.rs
+9e827282 :truck: move window bounds out of the window state adapter
+f77996e0 :truck: split the system integration commands out of their module
+
+# git show -M --stat for each commit
+COMMIT a08fc14d :truck: split the config commands out of config/mod.rs
+
+ src-tauri/src/config/commands.rs                   | 23 ++++++++++++++++++++++
+ src-tauri/src/config/mod.rs                        | 22 ++-------------------
+ src-tauri/src/config/window_background.rs          |  8 +-------
+ src-tauri/src/config/window_background_commands.rs |  9 +++++++++
+ src-tauri/src/lib.rs                               |  6 +++---
+ 5 files changed, 38 insertions(+), 30 deletions(-)
+ create mode 100644 src-tauri/src/config/commands.rs
+ create mode 100644 src-tauri/src/config/window_background_commands.rs
+
+COMMIT d758e244 :recycle: run config save side effects in the command
+
+ src-tauri/src/config/commands.rs | 31 ++++++++++++++++++++++---------
+ src-tauri/src/config/save.rs     | 30 +++++++-----------------------
+ 2 files changed, 29 insertions(+), 32 deletions(-)
+
+COMMIT 33f7bd4b :truck: split the backup commands out of the backup modules
+
+ src-tauri/src/backup/commands.rs        |  76 +++++++++++++++++
+ src-tauri/src/backup/mod.rs             |  66 +-------------
+ src-tauri/src/backup/remote.rs          | 127 +--------------------------
+ src-tauri/src/backup/remote/service.rs  |  22 ++---
+ src-tauri/src/backup/remote_commands.rs | 147 ++++++++++++++++++++++++++++++++
+ src-tauri/src/lib.rs                    |  38 ++++-----
+ 6 files changed, 256 insertions(+), 220 deletions(-)
+ create mode 100644 src-tauri/src/backup/commands.rs
+ create mode 100644 src-tauri/src/backup/remote_commands.rs
+
+COMMIT d0381f61 :recycle: read the backup app version from AppServices
+
+ src-tauri/src/backup/commands.rs        |  9 +++------
+ src-tauri/src/backup/remote_commands.rs | 21 +++++++--------------
+ 2 files changed, 10 insertions(+), 20 deletions(-)
+
+COMMIT bc1e8ef3 :truck: split the sync commands out of sync/mod.rs
+
+ src-tauri/src/lib.rs           |  8 ++++----
+ src-tauri/src/sync/commands.rs | 42 ++++++++++++++++++++++++++++++++++++++++++
+ src-tauri/src/sync/mod.rs      | 39 +--------------------------------------
+ 3 files changed, 47 insertions(+), 42 deletions(-)
+ create mode 100644 src-tauri/src/sync/commands.rs
+
+COMMIT 22804553 :truck: split the session commands out of the session modules
+
+ src-tauri/src/lib.rs                         | 12 ++++++------
+ src-tauri/src/session/commands.rs            | 18 ++++++++++++++++++
+ src-tauri/src/session/mod.rs                 | 20 +++++---------------
+ src-tauri/src/session/scrollback.rs          | 20 +++-----------------
+ src-tauri/src/session/scrollback_commands.rs | 21 +++++++++++++++++++++
+ 5 files changed, 53 insertions(+), 38 deletions(-)
+ create mode 100644 src-tauri/src/session/commands.rs
+ create mode 100644 src-tauri/src/session/scrollback_commands.rs
+
+COMMIT 3b04187d :truck: split the app state and theme commands out of their modules
+
+ src-tauri/src/app_state/commands.rs              | 16 ++++++++++++++++
+ src-tauri/src/{app_state.rs => app_state/mod.rs} | 13 ++-----------
+ src-tauri/src/lib.rs                             |  8 ++++----
+ src-tauri/src/themes/commands.rs                 | 15 +++++++++++++++
+ src-tauri/src/{themes.rs => themes/mod.rs}       | 16 ++++------------
+ 5 files changed, 41 insertions(+), 27 deletions(-)
+ create mode 100644 src-tauri/src/app_state/commands.rs
+ rename src-tauri/src/{app_state.rs => app_state/mod.rs} (89%)
+ create mode 100644 src-tauri/src/themes/commands.rs
+ rename src-tauri/src/{themes.rs => themes/mod.rs} (95%)
+
+COMMIT 1fa2176a :truck: split the font command out of fonts/mod.rs
+
+ src-tauri/src/fonts/commands.rs | 8 ++++++++
+ src-tauri/src/fonts/mod.rs      | 9 ++-------
+ src-tauri/src/lib.rs            | 2 +-
+ 3 files changed, 11 insertions(+), 8 deletions(-)
+ create mode 100644 src-tauri/src/fonts/commands.rs
+
+COMMIT 1baa3d8d :truck: split the agent integration commands out of their modules
+
+ src-tauri/src/agent_integration/commands.rs        | 27 ++++++++++++
+ src-tauri/src/agent_integration/mod.rs             | 26 +----------
+ src-tauri/src/agent_integration/remote.rs          | 50 +--------------------
+ src-tauri/src/agent_integration/remote_commands.rs | 51 ++++++++++++++++++++++
+ src-tauri/src/lib.rs                               | 10 ++---
+ 5 files changed, 87 insertions(+), 77 deletions(-)
+ create mode 100644 src-tauri/src/agent_integration/commands.rs
+ create mode 100644 src-tauri/src/agent_integration/remote_commands.rs
+
+COMMIT 4ee22445 :truck: move the tunnel manager logic out of tunnel/commands.rs
+
+ src-tauri/src/app_context.rs           |   2 +-
+ src-tauri/src/background/exit_guard.rs |   2 +-
+ src-tauri/src/background/mod.rs        |   2 +-
+ src-tauri/src/background/tray/mod.rs   |   6 +-
+ src-tauri/src/lib.rs                   |   2 +-
+ src-tauri/src/profiles/service.rs      |   2 +-
+ src-tauri/src/services/app.rs          |   2 +-
+ src-tauri/src/services/tests.rs        |   2 +-
+ src-tauri/src/sync/mod.rs              |   2 +-
+ src-tauri/src/sync/service.rs          |   2 +-
+ src-tauri/src/tunnel/commands.rs       | 449 +--------------------------------
+ src-tauri/src/tunnel/manager.rs        | 438 ++++++++++++++++++++++++++++++++
+ src-tauri/src/tunnel/mod.rs            |   1 +
+ 13 files changed, 465 insertions(+), 447 deletions(-)
+ create mode 100644 src-tauri/src/tunnel/manager.rs
+
+COMMIT e091d794 :recycle: refresh the tunnel tray through the platform tray capability
+
+ src-tauri/src/app_context.rs             |  4 ++-
+ src-tauri/src/background/tray/mod.rs     | 62 +++++++++++++++++++-------------
+ src-tauri/src/tunnel/commands.rs         |  4 +--
+ src-tauri/src/tunnel/manager.rs          | 24 +++++++++----
+ src-tauri/src/tunnel/runtime/reporter.rs | 21 ++++++++---
+ 5 files changed, 78 insertions(+), 37 deletions(-)
+
+COMMIT f97d27a3 :truck: move SaveCommandInput out of command_library/commands.rs
+
+ src-tauri/src/command_library/commands.rs    | 33 ++++------------------------
+ src-tauri/src/command_library/models.rs      | 27 +++++++++++++++++++++++
+ src-tauri/src/command_library/service/mod.rs |  2 +-
+ 3 files changed, 32 insertions(+), 30 deletions(-)
+
+COMMIT 6bccc6c0 :truck: move TestConnectionResult out of profiles/commands.rs
+
+ src-tauri/src/profiles/commands.rs | 9 +--------
+ src-tauri/src/profiles/service.rs  | 2 +-
+ src-tauri/src/profiles/types.rs    | 7 +++++++
+ 3 files changed, 9 insertions(+), 9 deletions(-)
+
+COMMIT be9afdcb :truck: split the notification commands out of their modules
+
+ src-tauri/src/lib.rs                         | 10 +++----
+ src-tauri/src/notification/badge.rs          | 18 +----------
+ src-tauri/src/notification/badge_commands.rs | 21 +++++++++++++
+ src-tauri/src/notification/commands.rs       | 42 ++++++++++++++++++++++++++
+ src-tauri/src/notification/mod.rs            | 45 +++-------------------------
+ 5 files changed, 73 insertions(+), 63 deletions(-)
+ create mode 100644 src-tauri/src/notification/badge_commands.rs
+ create mode 100644 src-tauri/src/notification/commands.rs
+
+COMMIT b03387fb :truck: split the background commands out of the background modules
+
+ src-tauri/src/background/commands.rs            | 18 ++++++++++++++++++
+ src-tauri/src/background/exit_guard.rs          | 18 ++----------------
+ src-tauri/src/background/exit_guard_commands.rs | 16 ++++++++++++++++
+ src-tauri/src/background/mod.rs                 | 19 ++++---------------
+ src-tauri/src/background/quit.rs                | 21 ++-------------------
+ src-tauri/src/background/quit_commands.rs       | 20 ++++++++++++++++++++
+ src-tauri/src/background/tray/commands.rs       | 11 +++++++++++
+ src-tauri/src/background/tray/mod.rs            | 12 +++---------
+ src-tauri/src/lib.rs                            | 12 ++++++------
+ 9 files changed, 82 insertions(+), 65 deletions(-)
+ create mode 100644 src-tauri/src/background/commands.rs
+ create mode 100644 src-tauri/src/background/exit_guard_commands.rs
+ create mode 100644 src-tauri/src/background/quit_commands.rs
+ create mode 100644 src-tauri/src/background/tray/commands.rs
+
+COMMIT 6e765c3a :truck: split the launch directory command out of launch_dir.rs
+
+ src-tauri/src/launch_dir.rs          | 14 +++-----------
+ src-tauri/src/launch_dir/commands.rs | 14 ++++++++++++++
+ src-tauri/src/lib.rs                 |  2 +-
+ 3 files changed, 18 insertions(+), 12 deletions(-)
+ create mode 100644 src-tauri/src/launch_dir/commands.rs
+
+COMMIT c4008842 :truck: split the updater commands out of updater.rs
+
+ src-tauri/src/lib.rs              |  8 ++---
+ src-tauri/src/updater.rs          | 70 +++++---------------------------------
+ src-tauri/src/updater/commands.rs | 71 +++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 83 insertions(+), 66 deletions(-)
+ create mode 100644 src-tauri/src/updater/commands.rs
+
+COMMIT 9e827282 :truck: move window bounds out of the window state adapter
+
+ src-tauri/src/window_state/mod.rs       | 12 ++----------
+ src-tauri/src/window_state/placement.rs |  2 +-
+ src-tauri/src/window_state/state.rs     | 13 +++++++++++++
+ 3 files changed, 16 insertions(+), 11 deletions(-)
+ create mode 100644 src-tauri/src/window_state/state.rs
+
+COMMIT f77996e0 :truck: split the system integration commands out of their module
+
+ src-tauri/src/lib.rs                         |  8 ++---
+ src-tauri/src/system_integration/commands.rs | 49 ++++++++++++++++++++++++++++
+ src-tauri/src/system_integration/mod.rs      | 43 ++----------------------
+ 3 files changed, 55 insertions(+), 45 deletions(-)
+ create mode 100644 src-tauri/src/system_integration/commands.rs

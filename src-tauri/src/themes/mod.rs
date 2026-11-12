@@ -7,6 +7,8 @@ use rusqlite::{Connection, params};
 use serde_json::Value;
 use std::collections::HashSet;
 
+pub(crate) mod commands;
+
 /// Set once the themes the web view kept in localStorage were taken over.
 /// Until then the table may be missing themes, so sync leaves themes alone.
 const IMPORTED_KEY: &str = "custom_themes.imported";
@@ -108,12 +110,7 @@ fn theme_id(theme: &Value) -> Result<&str, String> {
 
 /// The saved themes. On the first call, `legacy` (the list the web view
 /// kept in localStorage) is taken over when given.
-#[tauri::command]
-pub async fn load_custom_themes(legacy: Option<Vec<Value>>) -> Result<Vec<Value>, String> {
-    load(legacy).await
-}
-
-async fn load(legacy: Option<Vec<Value>>) -> Result<Vec<Value>, String> {
+pub(super) async fn load(legacy: Option<Vec<Value>>) -> Result<Vec<Value>, String> {
     run_blocking(move || {
         crate::db::write(|transaction| {
             if !themes_imported(transaction)? {
@@ -133,12 +130,7 @@ async fn load(legacy: Option<Vec<Value>>) -> Result<Vec<Value>, String> {
     .await
 }
 
-#[tauri::command]
-pub async fn save_custom_themes(themes: Vec<Value>) -> Result<(), String> {
-    save(themes).await
-}
-
-async fn save(themes: Vec<Value>) -> Result<(), String> {
+pub(super) async fn save(themes: Vec<Value>) -> Result<(), String> {
     run_blocking(move || {
         crate::db::write(|transaction| {
             replace_themes(transaction, &themes)?;

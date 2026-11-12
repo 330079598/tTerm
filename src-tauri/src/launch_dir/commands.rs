@@ -1,0 +1,14 @@
+//! The Tauri command that hands startup directories to the UI.
+
+use std::sync::Arc;
+
+use super::LaunchDir;
+
+/// Takes the directories waiting to be opened. The frontend calls it once it
+/// has restored the session and again on every `launch-dirs`.
+#[tauri::command]
+pub fn take_launch_dirs(
+    services: tauri::State<'_, Arc<crate::services::AppServices>>,
+) -> Vec<LaunchDir> {
+    services.app.launch_dirs.take()
+}

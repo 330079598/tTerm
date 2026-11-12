@@ -3,7 +3,6 @@
 //! frontend rewrites that file from its own copy of the config; the database
 //! is open before the window is built.
 
-use crate::core::blocking::run_blocking;
 use crate::db::meta;
 use rusqlite::Connection;
 
@@ -25,7 +24,7 @@ pub(crate) fn read(connection: &Connection) -> Result<Option<(u8, u8, u8)>, Stri
 }
 
 /// Saves `color` (`#rrggbb`) unless it is already saved.
-fn write(connection: &Connection, color: &str) -> Result<(), String> {
+pub(super) fn write(connection: &Connection, color: &str) -> Result<(), String> {
     let (r, g, b) = parse_hex_color(color).ok_or_else(|| format!("Invalid color: {color}"))?;
     if read(connection)? != Some((r, g, b)) {
         meta::set(connection, KEY, &format!("#{r:02x}{g:02x}{b:02x}"))?;
@@ -36,11 +35,6 @@ fn write(connection: &Connection, color: &str) -> Result<(), String> {
 /// `None` when none is saved or the database is unavailable.
 pub fn load_window_background() -> Option<(u8, u8, u8)> {
     crate::db::read(read).ok().flatten()
-}
-
-#[tauri::command]
-pub async fn save_window_background(color: String) -> Result<(), String> {
-    run_blocking(move || crate::db::write(|transaction| write(transaction, &color))).await
 }
 
 /// Moves the file older versions kept into the database.

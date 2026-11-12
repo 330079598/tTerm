@@ -2,14 +2,9 @@ use std::collections::HashSet;
 use std::fs;
 use std::path::{Path, PathBuf};
 
-#[tauri::command]
-pub async fn list_fonts() -> Vec<String> {
-    tokio::task::spawn_blocking(list_fonts_sync)
-        .await
-        .unwrap_or_default()
-}
+pub(crate) mod commands;
 
-fn list_fonts_sync() -> Vec<String> {
+pub(super) fn list_fonts_sync() -> Vec<String> {
     let mut font_names: HashSet<String> = HashSet::new();
 
     // Try to get fonts from system API first (most reliable)

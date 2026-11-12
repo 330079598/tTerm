@@ -12,13 +12,14 @@ mod merge;
 pub(crate) mod snapshot;
 mod state;
 
+pub(crate) mod commands;
 mod service;
 
 use crate::backup::webdav::{Fetched, Stored, WebDavClient};
 use crate::core::blocking::run_blocking;
 use crate::db::meta;
 use crate::ssh::secret_store::types::SecretStoreState;
-use crate::tunnel::commands::TunnelManager;
+use crate::tunnel::manager::TunnelManager;
 use document::{Collections, MAX_DOCUMENT_SIZE, SYNC_FILE_NAME};
 use merge::{merge_collection, same_data};
 use serde::{Deserialize, Serialize};
@@ -111,44 +112,6 @@ impl SyncOutcome {
             ..Self::default()
         }
     }
-}
-
-#[tauri::command]
-pub async fn get_sync_status() -> Result<SyncStatus, String> {
-    service::get_sync_status().await
-}
-
-#[tauri::command]
-pub async fn save_sync_settings(settings: SyncSettings) -> Result<SyncStatus, String> {
-    service::save_sync_settings(settings).await
-}
-
-/// Forgets what was last synced, so the next sync merges like a first one:
-/// both sides' data is kept and nothing is deleted.
-#[tauri::command]
-pub async fn reset_sync() -> Result<SyncStatus, String> {
-    service::reset_sync().await
-}
-
-/// Syncs when this device has changes, or always when `check_remote` is
-/// set. `frontend_state` is what the web view keeps, for the recovery backup
-/// made before a sync deletes anything.
-#[tauri::command]
-pub async fn run_sync(
-    app: tauri::AppHandle,
-    frontend_state: Option<Value>,
-    check_remote: bool,
-    services: tauri::State<'_, std::sync::Arc<crate::services::AppServices>>,
-) -> Result<SyncOutcome, String> {
-    let app_version = crate::app_identity::get(&app)?.version.clone();
-    service::run_sync(
-        app_version,
-        frontend_state,
-        check_remote,
-        &services.shared.secrets,
-        &services.app.tunnels,
-    )
-    .await
 }
 
 async fn sync(

@@ -1,4 +1,4 @@
-use super::commands::TestConnectionResult;
+use super::types::TestConnectionResult;
 use tterm_core::events::ssh::SshConnectionProgressPayload;
 
 use super::groups::{group_paths, list_groups, resolve_path};
@@ -28,7 +28,7 @@ use crate::ssh::{
     secret_store::types::SecretLocation, types::ConnectionStatusOptions,
     types::HostKeyVerificationMode,
 };
-use crate::tunnel::commands::TunnelManager;
+use crate::tunnel::manager::TunnelManager;
 use std::collections::HashSet;
 
 pub(super) async fn list_profiles() -> Result<Vec<SavedProfile>, String> {

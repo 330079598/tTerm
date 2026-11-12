@@ -6,8 +6,11 @@ use std::sync::Arc;
 use tterm_core::events::background::BackgroundEvent;
 use tterm_core::events::{AppEvent, EventSink};
 
+pub(crate) mod commands;
 pub(crate) mod exit_guard;
+pub(crate) mod exit_guard_commands;
 pub(crate) mod quit;
+pub(crate) mod quit_commands;
 pub(crate) mod tray;
 
 use std::sync::atomic::{AtomicBool, AtomicU8, Ordering};
@@ -77,7 +80,7 @@ impl CloseBehaviorState {
 pub(crate) struct BackgroundContext {
     pub close: Arc<CloseBehaviorState>,
     pub guard: Arc<exit_guard::ExitGuardState>,
-    pub tunnels: Arc<crate::tunnel::commands::TunnelManager>,
+    pub tunnels: Arc<crate::tunnel::manager::TunnelManager>,
     pub unuploaded_files: Vec<String>,
     pub window: Arc<dyn tterm_platform::window::MainWindow>,
     pub badge: Arc<dyn tterm_platform::notifications::AppBadge>,
@@ -170,21 +173,7 @@ pub(crate) fn on_exit_requested(context: &BackgroundContext) -> bool {
 }
 
 /// Resolves the UI's close choice using the same close policy as native events.
-#[tauri::command]
-pub fn resolve_close_request(
-    action: String,
-    services: tauri::State<'_, Arc<crate::services::AppServices>>,
-) {
-    resolve_close(
-        &crate::app_context::background(
-            &services,
-            crate::sftp::internal::api::external::unuploaded_files(&services.sftp.external_edit),
-        ),
-        &action,
-    );
-}
-
-fn resolve_close(context: &BackgroundContext, action: &str) {
+pub(crate) fn resolve_close(context: &BackgroundContext, action: &str) {
     context.close.prompt_open.store(false, Ordering::SeqCst);
     match action {
         "tray" => send_to_background(context),

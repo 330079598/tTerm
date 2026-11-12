@@ -17,14 +17,14 @@ use serde_json::Value;
 use std::{fs, sync::atomic::Ordering};
 use zeroize::Zeroizing;
 
-pub(super) async fn get_webdav_backup_status(
+pub(in crate::backup) async fn get_webdav_backup_status(
     secret_state: &SecretStoreState,
 ) -> Result<WebDavBackupStatus, String> {
     let secret_state = secret_state.clone();
     run_blocking(move || status(&secret_state)).await
 }
 
-pub(super) async fn save_webdav_backup_settings(
+pub(in crate::backup) async fn save_webdav_backup_settings(
     settings: WebDavBackupSettings,
     password: Option<String>,
     backup_password: Option<String>,
@@ -76,7 +76,7 @@ pub(super) async fn save_webdav_backup_settings(
     .await
 }
 
-pub(super) async fn clear_webdav_backup_settings(
+pub(in crate::backup) async fn clear_webdav_backup_settings(
     secret_state: &SecretStoreState,
 ) -> Result<WebDavBackupStatus, String> {
     let secret_state = secret_state.clone();
@@ -87,7 +87,7 @@ pub(super) async fn clear_webdav_backup_settings(
     .await
 }
 
-pub(super) async fn test_webdav_connection(
+pub(in crate::backup) async fn test_webdav_connection(
     app_version: String,
     settings: WebDavBackupSettings,
     password: Option<String>,
@@ -121,7 +121,7 @@ pub(super) async fn test_webdav_connection(
         .await
 }
 
-pub(super) async fn run_webdav_backup(
+pub(in crate::backup) async fn run_webdav_backup(
     app_version: String,
     frontend_state: Option<Value>,
     force: bool,
@@ -145,7 +145,7 @@ pub(super) async fn run_webdav_backup(
     run_webdav_backup_locked(app_version, frontend_state, force, secret_state).await
 }
 
-pub(super) async fn list_webdav_backups(
+pub(in crate::backup) async fn list_webdav_backups(
     app_version: String,
     secret_state: &SecretStoreState,
 ) -> Result<Vec<RemoteBackupEntry>, String> {
@@ -154,7 +154,7 @@ pub(super) async fn list_webdav_backups(
     Ok(remote_backups(&entries, &device_name()))
 }
 
-pub(super) async fn download_webdav_backup(
+pub(in crate::backup) async fn download_webdav_backup(
     app_version: String,
     file_name: String,
     secret_state: &SecretStoreState,
@@ -175,11 +175,11 @@ pub(super) async fn download_webdav_backup(
     .await
 }
 
-pub(super) async fn discard_webdav_download() -> Result<(), String> {
+pub(in crate::backup) async fn discard_webdav_download() -> Result<(), String> {
     run_blocking(clear_downloads).await
 }
 
-pub(super) async fn delete_webdav_backup(
+pub(in crate::backup) async fn delete_webdav_backup(
     app_version: String,
     file_name: String,
     secret_state: &SecretStoreState,
@@ -189,7 +189,7 @@ pub(super) async fn delete_webdav_backup(
     client.delete(&directory, &file_name).await
 }
 
-pub(super) async fn delete_webdav_backups(
+pub(in crate::backup) async fn delete_webdav_backups(
     app_version: String,
     file_names: Vec<String>,
     secret_state: &SecretStoreState,
@@ -211,7 +211,7 @@ pub(super) async fn delete_webdav_backups(
     Ok(WebDavDeleteResult { deleted, error })
 }
 
-pub(super) async fn save_webdav_backup(
+pub(in crate::backup) async fn save_webdav_backup(
     app_version: String,
     file_name: String,
     output_path: String,

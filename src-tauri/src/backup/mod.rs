@@ -1,3 +1,4 @@
+pub(crate) mod commands;
 mod service;
 use crate::command_library::{models::SavedCommand, repository::CommandRepository};
 use crate::config;
@@ -16,6 +17,7 @@ pub(crate) mod automatic;
 mod diff;
 mod export;
 pub mod remote;
+pub(crate) mod remote_commands;
 mod snapshot;
 pub(crate) mod webdav;
 
@@ -333,48 +335,6 @@ struct DecodedBundle {
     payload: Option<BackupPayload>,
 }
 
-#[tauri::command]
-pub async fn export_backup(
-    app: tauri::AppHandle,
-    output_path: String,
-    options: BackupExportOptions,
-    services: tauri::State<'_, std::sync::Arc<crate::services::AppServices>>,
-) -> Result<BackupExportResult, String> {
-    let app_version = crate::app_identity::get(&app)?.version.clone();
-    service::export_backup(app_version, output_path, options, &services.shared.secrets).await
-}
-
-#[tauri::command]
-pub async fn inspect_backup(
-    input: BackupInspectInput,
-    services: tauri::State<'_, std::sync::Arc<crate::services::AppServices>>,
-) -> Result<BackupInspectResult, String> {
-    service::inspect_backup(input, &services.shared.secrets).await
-}
-
-#[tauri::command]
-pub async fn import_backup(
-    app: tauri::AppHandle,
-    input_path: String,
-    options: BackupImportOptions,
-    services: tauri::State<'_, std::sync::Arc<crate::services::AppServices>>,
-) -> Result<BackupImportResult, String> {
-    let app_version = crate::app_identity::get(&app)?.version.clone();
-    service::import_backup(app_version, input_path, options, &services.shared.secrets).await
-}
-
-#[tauri::command]
-pub async fn run_due_automatic_backup(
-    app: tauri::AppHandle,
-    frontend_state: Option<Value>,
-    force: bool,
-    services: tauri::State<'_, std::sync::Arc<crate::services::AppServices>>,
-) -> Result<Option<BackupExportResult>, String> {
-    let app_version = crate::app_identity::get(&app)?.version.clone();
-    service::run_due_automatic_backup(app_version, frontend_state, force, &services.shared.secrets)
-        .await
-}
-
 fn export_backup_blocking(
     app_version: String,
     output_path: String,
@@ -552,28 +512,6 @@ fn import_backup_blocking(
             || options.selection.themes
             || imported_secrets,
     })
-}
-
-#[tauri::command]
-pub async fn get_automatic_backup_settings() -> Result<AutomaticBackupSettings, String> {
-    service::get_automatic_backup_settings().await
-}
-
-#[tauri::command]
-pub async fn save_automatic_backup_settings(
-    settings: AutomaticBackupSettings,
-) -> Result<AutomaticBackupSettings, String> {
-    service::save_automatic_backup_settings(settings).await
-}
-
-#[tauri::command]
-pub async fn list_backup_history() -> Result<Vec<BackupHistoryEntry>, String> {
-    service::list_backup_history().await
-}
-
-#[tauri::command]
-pub async fn delete_backup_history_entry(path: String) -> Result<bool, String> {
-    service::delete_backup_history_entry(path).await
 }
 
 fn normalized_backup_path(path: &str) -> Result<PathBuf, String> {

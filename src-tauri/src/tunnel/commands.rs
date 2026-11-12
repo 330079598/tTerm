@@ -1,452 +1,26 @@
-use super::credentials::{StartOutcome, TunnelCredentials, apply_credentials, collect_requests};
-use super::hub::{SessionHub, SshConnection};
-use super::runtime::reporter::TunnelReporter;
-use super::runtime::{RunContext, run_tunnel};
-use super::storage::{
-    delete_tunnel as delete_tunnel_rule, list_tunnel_traffic, load_tunnels, reset_tunnel_traffic,
-    upsert_tunnel,
+//! The Tauri commands for port-forwarding rules.
+
+use super::credentials::{StartOutcome, TunnelCredentials};
+use super::manager::{
+    auto_start_tunnels_service, delete_tunnel_service, list_tunnel_statuses_service,
+    list_tunnels_service, reset_tunnel_traffic_totals_service, save_tunnel_service, start_rule,
 };
 use super::types::TunnelRule;
-use crate::background::tray::TrayContext;
-use crate::core::blocking::run_blocking;
-use crate::core::session::saved_hops::load_saved_hop_password;
-use crate::core::session::{
-    load_saved_ssh_password, normalize_connection, resolve_ssh_password, types::JumpHostOptions,
-    types::PtyConnectionOptions,
-};
-use crate::profiles::types::SavedProfile;
-use crate::ssh::context::ConnectionContext;
-use crate::ssh::secret_store::types::SecretStoreState;
-use std::collections::HashMap;
 use std::sync::Arc;
-use std::sync::atomic::{AtomicBool, Ordering};
-use std::time::Duration;
-
-use tokio::sync::{Mutex, watch};
-use tokio::task::JoinHandle;
-use tterm_core::events::tunnel::{TunnelState, TunnelStatus, TunnelTraffic};
-
-/// Concrete dependencies shared by tunnel starts and reconnection tasks.
-#[derive(Clone)]
-pub(crate) struct TunnelContext {
-    pub connection: ConnectionContext,
-    pub secrets: SecretStoreState,
-    pub tray: TrayContext,
-}
-
-const STOP_TIMEOUT: Duration = Duration::from_secs(5);
-
-struct RunningTunnel {
-    stop_tx: watch::Sender<bool>,
-    task: JoinHandle<()>,
-}
-
-#[derive(Default)]
-pub struct TunnelManager {
-    running: Mutex<HashMap<String, RunningTunnel>>,
-    reporters: std::sync::Mutex<HashMap<String, Arc<TunnelReporter>>>,
-    /// The SSH connections tunnels share, one per host.
-    hub: Arc<SessionHub<SshConnection>>,
-    auto_started: AtomicBool,
-}
-
-impl TunnelManager {
-    fn reporter_for(&self, context: &TunnelContext, id: &str) -> Arc<TunnelReporter> {
-        self.reporters
-            .lock()
-            .unwrap_or_else(|e| e.into_inner())
-            .entry(id.to_string())
-            .or_insert_with(|| {
-                TunnelReporter::new(
-                    context.tray.clone(),
-                    context.connection.events.clone(),
-                    id.to_string(),
-                )
-            })
-            .clone()
-    }
-
-    fn reporter(&self, id: &str) -> Option<Arc<TunnelReporter>> {
-        self.reporters
-            .lock()
-            .unwrap_or_else(|e| e.into_inner())
-            .get(id)
-            .cloned()
-    }
-
-    /// `saved` is the rule's traffic in the database, used when the rule has
-    /// not run since launch.
-    fn status_of(&self, id: &str, saved: TunnelTraffic) -> TunnelStatus {
-        self.reporter(id)
-            .map(|reporter| reporter.snapshot())
-            .unwrap_or_else(|| TunnelStatus::stopped(id, saved))
-    }
-
-    /// Saves the traffic every tunnel carried since its last save. Called
-    /// when the app exits, while tunnels may still be running.
-    pub fn save_traffic(&self) {
-        let reporters = self
-            .reporters
-            .lock()
-            .unwrap_or_else(|e| e.into_inner())
-            .values()
-            .cloned()
-            .collect::<Vec<_>>();
-        for reporter in reporters {
-            reporter.save_traffic();
-        }
-    }
-
-    /// Stops a rule that is being deleted and forgets its status.
-    pub async fn discard(&self, id: &str) {
-        self.stop(id).await;
-        self.reporters
-            .lock()
-            .unwrap_or_else(|e| e.into_inner())
-            .remove(id);
-    }
-
-    /// Stops every running tunnel that connects through `profile_id`.
-    pub async fn stop_for_profile(&self, profile_id: &str) {
-        let ids = load_tunnels()
-            .unwrap_or_default()
-            .into_iter()
-            .filter(|rule| rule.profile_id == profile_id)
-            .map(|rule| rule.id)
-            .collect::<Vec<_>>();
-        for id in ids {
-            self.stop(&id).await;
-        }
-    }
-
-    fn is_running(&self, id: &str) -> bool {
-        self.reporters
-            .lock()
-            .unwrap_or_else(|e| e.into_inner())
-            .get(id)
-            .is_some_and(|reporter| reporter.state().is_active())
-    }
-
-    /// The tunnel's state, `Stopped` when it has not run since launch.
-    pub(crate) fn state_of(&self, id: &str) -> TunnelState {
-        self.reporter(id)
-            .map_or(TunnelState::Stopped, |reporter| reporter.state())
-    }
-
-    pub(crate) fn active_count(&self) -> usize {
-        self.reporters
-            .lock()
-            .unwrap_or_else(|e| e.into_inner())
-            .values()
-            .filter(|reporter| reporter.state().is_active())
-            .count()
-    }
-
-    pub(crate) async fn stop(&self, id: &str) {
-        let running = self.running.lock().await.remove(id);
-        let Some(running) = running else {
-            return;
-        };
-        let _ = running.stop_tx.send(true);
-        let mut task = running.task;
-        if tokio::time::timeout(STOP_TIMEOUT, &mut task).await.is_err() {
-            task.abort();
-            if let Some(reporter) = self.reporter(id) {
-                reporter.set_state(TunnelState::Stopped, None);
-            }
-        }
-    }
-}
-
-/// Builds the connection a tunnel dials from the saved profile it points at.
-/// Secrets are left unset; `resolve_ssh_password` fills them from the store.
-fn connection_options_for_profile(profile: &SavedProfile) -> Result<PtyConnectionOptions, String> {
-    if profile.connection_type != "ssh" {
-        return Err(format!("'{}' is not an SSH connection", profile.name));
-    }
-    let uses_key = profile.auth_method.as_deref() == Some("key");
-    let jump_hosts = if profile.uses_jump_host() {
-        profile
-            .jump_hosts
-            .iter()
-            .map(|jump| JumpHostOptions {
-                host: Some(jump.host.clone()),
-                port: Some(jump.port),
-                username: Some(jump.username.clone()),
-                password: None,
-                auth_method: Some(jump.auth_method.clone()),
-                private_key_path: (jump.auth_method == "key")
-                    .then(|| jump.private_key_path.clone())
-                    .flatten(),
-                private_key_passphrase: None,
-                certificate_path: (jump.auth_method == "key")
-                    .then(|| jump.certificate_path.clone())
-                    .flatten(),
-                profile_id: jump.profile_id.clone(),
-            })
-            .collect()
-    } else {
-        Vec::new()
-    };
-
-    Ok(PtyConnectionOptions {
-        connection_type: Some("ssh".to_string()),
-        profile_id: Some(profile.id.clone()),
-        profile_name: Some(profile.name.clone()),
-        host: profile.host.clone(),
-        port: profile.port,
-        username: profile.username.clone(),
-        keepalive_interval_secs: Some(profile.keepalive_interval_secs.min(u16::MAX as u32) as u16),
-        keepalive_count_max: Some(profile.keepalive_count_max.min(u16::MAX as u32) as u16),
-        private_key_path: uses_key.then(|| profile.private_key_path.clone()).flatten(),
-        certificate_path: uses_key.then(|| profile.certificate_path.clone()).flatten(),
-        auth_method: profile.auth_method.clone(),
-        jump_hosts,
-        proxy: profile.proxy.clone(),
-        ..PtyConnectionOptions::default()
-    })
-}
-
-fn find_profile(profile_id: &str) -> Result<SavedProfile, String> {
-    let mut profile = crate::profiles::storage::find_profile(profile_id)?
-        .ok_or_else(|| "The host for this tunnel no longer exists".to_string())?;
-    crate::profiles::storage::normalize_profile(&mut profile);
-    Ok(profile)
-}
-
-async fn list_tunnels_service() -> Result<Vec<TunnelRule>, String> {
-    run_blocking(load_tunnels).await
-}
-
-async fn list_tunnel_statuses_service(
-    manager: &TunnelManager,
-) -> Result<Vec<TunnelStatus>, String> {
-    let (rules, saved) =
-        run_blocking(|| Ok((load_tunnels()?, crate::db::read(list_tunnel_traffic)?))).await?;
-    Ok(rules
-        .iter()
-        .map(|rule| manager.status_of(&rule.id, saved.get(&rule.id).copied().unwrap_or_default()))
-        .collect())
-}
-
-/// Zeroes a tunnel's lifetime traffic and starts counting again from now.
-async fn reset_tunnel_traffic_totals_service(
-    id: String,
-    manager: &TunnelManager,
-) -> Result<(), String> {
-    let reporter = manager.reporter(&id);
-    run_blocking(move || match reporter {
-        Some(reporter) => reporter.reset_traffic(),
-        None => {
-            let now = crate::ssh::store::now_unix_ms().max(0) as u64;
-            crate::db::write(|transaction| reset_tunnel_traffic(transaction, &id, now))
-        }
-    })
-    .await
-}
-
-async fn save_tunnel_service(
-    tray: &TrayContext,
-    tunnel: &mut TunnelRule,
-) -> Result<TunnelRule, String> {
-    tunnel.validate()?;
-    let tunnel = tunnel.clone();
-    let tunnel = run_blocking(move || {
-        let profile = find_profile(&tunnel.profile_id)?;
-        connection_options_for_profile(&profile)?;
-        crate::db::write(|transaction| upsert_tunnel(transaction, &tunnel))?;
-        Ok(tunnel)
-    })
-    .await?;
-    crate::background::tray::refresh_tunnels(tray);
-    Ok(tunnel)
-}
-
-async fn delete_tunnel_service(
-    tray: &TrayContext,
-    id: String,
-    manager: &TunnelManager,
-) -> Result<(), String> {
-    manager.discard(&id).await;
-    crate::db::write(|transaction| delete_tunnel_rule(transaction, &id))?;
-    crate::background::tray::refresh_tunnels(tray);
-    Ok(())
-}
-
-/// Resolves a rule's connection, asking for missing secrets instead of
-/// failing, and spawns its task. `auto` marks an unattended start: missing
-/// secrets are recorded on the tunnel's status rather than prompted for.
-async fn start_rule(
-    context: &TunnelContext,
-    manager: &TunnelManager,
-    id: &str,
-    credentials: &TunnelCredentials,
-    auto: bool,
-) -> Result<StartOutcome, String> {
-    let all_rules = load_tunnels()?;
-    let rule = all_rules
-        .iter()
-        .find(|rule| rule.id == id)
-        .cloned()
-        .ok_or_else(|| "Tunnel not found".to_string())?;
-    // Two rules may share a port so long as only one runs at a time; say so
-    // plainly instead of failing later with a bare "address in use".
-    if let Some(rival) = all_rules.iter().find(|other| {
-        other.id != id && other.competes_for_port_with(&rule) && manager.is_running(&other.id)
-    }) {
-        return Err(format!(
-            "Port {} is already used by the running tunnel \"{}\". Stop it first.",
-            rule.bind_port, rival.name
-        ));
-    }
-    let profile = find_profile(&rule.profile_id)?;
-    let mut options = connection_options_for_profile(&profile)?;
-    apply_credentials(&mut options, credentials);
-    let mut plan = normalize_connection(Some(options))?;
-
-    let requests = collect_requests(
-        &mut plan,
-        |plan| {
-            load_saved_ssh_password(
-                &context.secrets,
-                plan.profile_id.as_deref(),
-                Some(plan.profile_name.as_str()),
-            )
-        },
-        |plan, jump| load_saved_hop_password(&context.secrets, plan, jump),
-    )?;
-    if !requests.is_empty() {
-        if auto {
-            manager
-                .reporter_for(context, id)
-                .set_state(TunnelState::NeedsCredentials, None);
-        }
-        return Ok(StartOutcome::NeedsCredentials { requests });
-    }
-    // Persists entered passwords when the user asked to remember them.
-    resolve_ssh_password(&context.secrets, &mut plan)?;
-
-    // Check and register under one lock so a double click cannot start two
-    // tasks for the same rule.
-    let mut running = manager.running.lock().await;
-    if running
-        .get(id)
-        .is_some_and(|existing| !existing.task.is_finished())
-    {
-        return Ok(StartOutcome::Started);
-    }
-
-    let reporter = manager.reporter_for(context, id);
-    let (stop_tx, stop_rx) = watch::channel(false);
-    let task = tokio::spawn(run_tunnel(
-        RunContext {
-            connection: context.connection.clone(),
-            rule,
-            plan,
-            prompts: context.connection.prompts.clone(),
-            reporter,
-            hub: manager.hub.clone(),
-        },
-        stop_rx,
-    ));
-    running.insert(id.to_string(), RunningTunnel { stop_tx, task });
-    Ok(StartOutcome::Started)
-}
-
-/// Starts a rule with no one at the tunnels page to ask (on launch, or from
-/// the tray menu): a missing secret or an error is left on its status for the
-/// page to show. Returns whether the tunnel is starting.
-pub(crate) async fn start_unattended(
-    context: &TunnelContext,
-    manager: &TunnelManager,
-    id: &str,
-) -> bool {
-    let result = start_rule(context, manager, id, &TunnelCredentials::default(), true).await;
-    match result {
-        Ok(StartOutcome::Started) => true,
-        Ok(StartOutcome::NeedsCredentials { .. }) => false,
-        Err(message) => {
-            manager
-                .reporter_for(context, id)
-                .set_state(TunnelState::Error, Some(message));
-            false
-        }
-    }
-}
-
-/// Starts every rule flagged `auto_start`. Runs once per app launch so that
-/// reloading the window does not revive tunnels the user stopped.
-async fn auto_start_tunnels_service(
-    context: &TunnelContext,
-    manager: &TunnelManager,
-) -> Result<(), String> {
-    if manager.auto_started.swap(true, Ordering::SeqCst) {
-        return Ok(());
-    }
-    for rule in load_tunnels()?.into_iter().filter(|rule| rule.auto_start) {
-        start_unattended(context, manager, &rule.id).await;
-    }
-    Ok(())
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    fn profile(json: serde_json::Value) -> SavedProfile {
-        serde_json::from_value(json).expect("profile should deserialize")
-    }
-
-    #[test]
-    fn options_carry_key_auth_and_enabled_jump_hosts() {
-        let profile = profile(serde_json::json!({
-            "id": "p1", "name": "prod", "connection_type": "ssh",
-            "host": "10.0.0.5", "port": 2222, "username": "deploy",
-            "auth_method": "key", "private_key_path": "/keys/id",
-            "use_jump_host": true,
-            "jump_hosts": [{"host": "bastion", "port": 22, "username": "ops", "auth_method": "password"}]
-        }));
-        let options = connection_options_for_profile(&profile).unwrap();
-        assert_eq!(options.host.as_deref(), Some("10.0.0.5"));
-        assert_eq!(options.port, Some(2222));
-        assert_eq!(options.private_key_path.as_deref(), Some("/keys/id"));
-        assert_eq!(options.jump_hosts.len(), 1);
-        assert_eq!(options.jump_hosts[0].host.as_deref(), Some("bastion"));
-    }
-
-    #[test]
-    fn options_skip_a_disabled_jump_chain_and_password_profiles_carry_no_key() {
-        let profile = profile(serde_json::json!({
-            "id": "p1", "name": "prod", "connection_type": "ssh",
-            "host": "h", "username": "u", "auth_method": "password",
-            "private_key_path": "/stale/key",
-            "use_jump_host": false,
-            "jump_hosts": [{"host": "bastion", "port": 22, "username": "ops"}]
-        }));
-        let options = connection_options_for_profile(&profile).unwrap();
-        assert!(options.jump_hosts.is_empty());
-        assert!(options.private_key_path.is_none());
-    }
-
-    #[test]
-    fn non_ssh_profiles_are_rejected() {
-        let profile = profile(serde_json::json!({
-            "id": "p1", "name": "local", "connection_type": "terminal"
-        }));
-        assert!(connection_options_for_profile(&profile).is_err());
-    }
-}
+use tterm_core::events::tunnel::TunnelStatus;
 
 #[tauri::command]
 pub async fn list_tunnels() -> Result<Vec<TunnelRule>, String> {
     list_tunnels_service().await
 }
+
 #[tauri::command]
 pub async fn list_tunnel_statuses(
     services: tauri::State<'_, Arc<crate::services::AppServices>>,
 ) -> Result<Vec<TunnelStatus>, String> {
     list_tunnel_statuses_service(&services.app.tunnels).await
 }
+
 #[tauri::command]
 pub async fn reset_tunnel_traffic_totals(
     id: String,
@@ -454,25 +28,28 @@ pub async fn reset_tunnel_traffic_totals(
 ) -> Result<(), String> {
     reset_tunnel_traffic_totals_service(id, &services.app.tunnels).await
 }
+
 #[tauri::command]
 pub async fn save_tunnel(
     mut tunnel: TunnelRule,
     services: tauri::State<'_, Arc<crate::services::AppServices>>,
 ) -> Result<TunnelRule, String> {
-    save_tunnel_service(&crate::app_context::tray(&services), &mut tunnel).await
+    save_tunnel_service(&crate::app_context::tunnel(&services), &mut tunnel).await
 }
+
 #[tauri::command]
 pub async fn delete_tunnel(
     id: String,
     services: tauri::State<'_, Arc<crate::services::AppServices>>,
 ) -> Result<(), String> {
     delete_tunnel_service(
-        &crate::app_context::tray(&services),
+        &crate::app_context::tunnel(&services),
         id,
         &services.app.tunnels,
     )
     .await
 }
+
 #[tauri::command]
 pub async fn start_tunnel(
     id: String,
@@ -488,6 +65,7 @@ pub async fn start_tunnel(
     )
     .await
 }
+
 #[tauri::command]
 pub async fn auto_start_tunnels(
     services: tauri::State<'_, Arc<crate::services::AppServices>>,
@@ -498,6 +76,7 @@ pub async fn auto_start_tunnels(
     )
     .await
 }
+
 #[tauri::command]
 pub async fn stop_tunnel(
     id: String,

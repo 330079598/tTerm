@@ -1,4 +1,5 @@
 pub(crate) mod atomic;
+pub(crate) mod commands;
 mod defaults;
 mod deserialize;
 pub mod keymap;
@@ -12,6 +13,7 @@ pub mod tab_agent_indicator;
 pub mod tab_icons;
 mod update_channel;
 pub mod window_background;
+pub(crate) mod window_background_commands;
 
 use atomic::atomic_write;
 use keymap::KeymapConfig;
@@ -436,26 +438,6 @@ pub fn ssh_shell_integration_enabled() -> bool {
     load_config_file()
         .map(|config| config.ssh_shell_integration)
         .unwrap_or_else(|_| defaults::default_ssh_shell_integration())
-}
-
-#[tauri::command]
-pub async fn load_config() -> Result<AppConfig, String> {
-    crate::core::blocking::run_blocking(load_config_file).await
-}
-
-#[tauri::command]
-pub async fn save_config(
-    services: tauri::State<'_, std::sync::Arc<crate::services::AppServices>>,
-    config: AppConfig,
-) -> Result<(), String> {
-    let context = save::SaveConfigContext {
-        log: crate::connection_context::log(&services),
-        close: services.app.close_behavior.clone(),
-        tray: crate::app_context::tray(&services),
-        integration: services.shared.platform.integration.clone(),
-        runtime: services.shared.runtime.clone(),
-    };
-    crate::core::blocking::run_blocking(move || save::save_config(context, config)).await
 }
 
 #[cfg(test)]
