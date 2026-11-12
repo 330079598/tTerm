@@ -34,7 +34,7 @@ pub async fn save_tunnel(
     mut tunnel: TunnelRule,
     services: tauri::State<'_, Arc<crate::services::AppServices>>,
 ) -> Result<TunnelRule, String> {
-    save_tunnel_service(&crate::app_context::tray(&services), &mut tunnel).await
+    save_tunnel_service(&crate::app_context::tunnel(&services), &mut tunnel).await
 }
 
 #[tauri::command]
@@ -43,7 +43,7 @@ pub async fn delete_tunnel(
     services: tauri::State<'_, Arc<crate::services::AppServices>>,
 ) -> Result<(), String> {
     delete_tunnel_service(
-        &crate::app_context::tray(&services),
+        &crate::app_context::tunnel(&services),
         id,
         &services.app.tunnels,
     )

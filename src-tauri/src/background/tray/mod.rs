@@ -103,7 +103,11 @@ pub(crate) fn show(context: &TrayContext, language: &str) -> Result<(), String> 
         .language
         .lock()
         .unwrap_or_else(|e| e.into_inner()) = language.to_string();
-    let tunnels = menu_tunnels(context);
+    let tunnels = context
+        .tunnels
+        .upgrade()
+        .map(|manager| menu_tunnels(&manager))
+        .unwrap_or_default();
     *context
         .state
         .shown
@@ -116,47 +120,60 @@ pub(crate) fn show(context: &TrayContext, language: &str) -> Result<(), String> 
 
 /// Coalesces refreshes and rebuilds the menu on the native owning thread.
 pub(crate) fn refresh_tunnels(context: &TrayContext) {
-    if !context.native.is_present() || context.state.refresh_pending.swap(true, Ordering::SeqCst) {
+    let Some(tunnels) = context.tunnels.upgrade() else {
+        return;
+    };
+    refresh_tunnels_with(&context.native, &context.state, &tunnels);
+}
+
+/// Rebuilds the tunnel menu through the platform tray capability.
+pub(crate) fn refresh_tunnels_with(
+    native: &Arc<dyn tterm_platform::tray::Tray>,
+    state: &Arc<TrayState>,
+    tunnels: &Arc<TunnelManager>,
+) {
+    if !native.is_present() || state.refresh_pending.swap(true, Ordering::SeqCst) {
         return;
     }
-    let captured = context.clone();
-    if context
-        .native
+    let dispatch_native = native.clone();
+    let dispatch_state = state.clone();
+    let dispatch_tunnels = tunnels.clone();
+    if native
         .dispatch(Box::new(move || {
-            captured
-                .state
+            dispatch_state
                 .refresh_pending
                 .store(false, Ordering::SeqCst);
-            if let Err(error) = rebuild_if_changed(&captured) {
+            if let Err(error) =
+                rebuild_if_changed(&dispatch_native, &dispatch_state, &dispatch_tunnels)
+            {
                 eprintln!("Failed to update the tray menu: {error}");
             }
         }))
         .is_err()
     {
-        context.state.refresh_pending.store(false, Ordering::SeqCst);
+        state.refresh_pending.store(false, Ordering::SeqCst);
     }
 }
 
-fn rebuild_if_changed(context: &TrayContext) -> Result<(), String> {
-    if !context.native.is_present() {
+fn rebuild_if_changed(
+    native: &Arc<dyn tterm_platform::tray::Tray>,
+    state: &Arc<TrayState>,
+    tunnels: &TunnelManager,
+) -> Result<(), String> {
+    if !native.is_present() {
         return Ok(());
     }
-    let tunnels = menu_tunnels(context);
-    let mut shown = context
-        .state
-        .shown
-        .lock()
-        .unwrap_or_else(|e| e.into_inner());
+    let tunnels = menu_tunnels(tunnels);
+    let mut shown = state.shown.lock().unwrap_or_else(|e| e.into_inner());
     if shown.as_ref() == Some(&tunnels) {
         return Ok(());
     }
-    let language = context
-        .state
+    let language = state
         .language
         .lock()
         .unwrap_or_else(|e| e.into_inner())
         .clone();
-    context.native.present(tterm_platform::tray::TrayModel {
+    native.present(tterm_platform::tray::TrayModel {
         entries: menu_model(labels(&language), &tunnels),
     })?;
     *shown = Some(tunnels);
@@ -172,10 +189,7 @@ pub(crate) fn invalidate(context: &TrayContext) {
     refresh_tunnels(context);
 }
 
-fn menu_tunnels(context: &TrayContext) -> Vec<MenuTunnel> {
-    let Some(manager) = context.tunnels.upgrade() else {
-        return Vec::new();
-    };
+fn menu_tunnels(manager: &TunnelManager) -> Vec<MenuTunnel> {
     crate::tunnel::storage::load_tunnels()
         .unwrap_or_else(|error| {
             eprintln!("Failed to list tunnels for the tray menu: {error}");

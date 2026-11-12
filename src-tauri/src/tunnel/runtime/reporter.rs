@@ -1,7 +1,8 @@
 //! A tunnel's status and traffic, reported to the frontend and saved.
 
 use super::TRAFFIC_SAVE_INTERVAL;
-use crate::background::tray::TrayContext;
+use crate::background::tray::TrayState;
+use crate::tunnel::manager::TunnelManager;
 use crate::tunnel::storage::{add_tunnel_traffic, reset_tunnel_traffic, tunnel_traffic};
 use crate::tunnel::types::TunnelStats;
 use std::sync::atomic::Ordering;
@@ -34,7 +35,9 @@ struct TrafficLedger {
 
 /// Holds a tunnel's live state and pushes changes to the UI.
 pub struct TunnelReporter {
-    tray: TrayContext,
+    tray: Arc<dyn tterm_platform::tray::Tray>,
+    tray_state: Arc<TrayState>,
+    tunnels: std::sync::Weak<TunnelManager>,
     sink: Arc<dyn EventSink>,
     id: String,
     pub stats: Arc<TunnelStats>,
@@ -43,7 +46,13 @@ pub struct TunnelReporter {
 }
 
 impl TunnelReporter {
-    pub fn new(tray: TrayContext, sink: Arc<dyn EventSink>, id: String) -> Arc<Self> {
+    pub fn new(
+        tray: Arc<dyn tterm_platform::tray::Tray>,
+        tray_state: Arc<TrayState>,
+        tunnels: std::sync::Weak<TunnelManager>,
+        sink: Arc<dyn EventSink>,
+        id: String,
+    ) -> Arc<Self> {
         let saved =
             crate::db::read(|connection| tunnel_traffic(connection, &id)).unwrap_or_else(|error| {
                 eprintln!("Failed to load traffic of tunnel {id}: {error}");
@@ -51,6 +60,8 @@ impl TunnelReporter {
             });
         Arc::new(Self {
             tray,
+            tray_state,
+            tunnels,
             sink,
             id,
             stats: Arc::new(TunnelStats::default()),
@@ -209,7 +220,9 @@ impl TunnelReporter {
             self.save_traffic();
         }
         self.emit();
-        crate::background::tray::refresh_tunnels(&self.tray);
+        if let Some(tunnels) = self.tunnels.upgrade() {
+            crate::background::tray::refresh_tunnels_with(&self.tray, &self.tray_state, &tunnels);
+        }
     }
 
     pub(super) fn set_retry_attempt(&self, attempt: u32) {

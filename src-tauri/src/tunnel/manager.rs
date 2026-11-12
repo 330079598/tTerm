@@ -7,7 +7,6 @@ use super::storage::{
     upsert_tunnel,
 };
 use super::types::TunnelRule;
-use crate::background::tray::TrayContext;
 use crate::core::blocking::run_blocking;
 use crate::core::session::saved_hops::load_saved_hop_password;
 use crate::core::session::{
@@ -21,6 +20,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
+use tterm_platform::tray::Tray;
 
 use tokio::sync::{Mutex, watch};
 use tokio::task::JoinHandle;
@@ -31,7 +31,17 @@ use tterm_core::events::tunnel::{TunnelState, TunnelStatus, TunnelTraffic};
 pub(crate) struct TunnelContext {
     pub connection: ConnectionContext,
     pub secrets: SecretStoreState,
-    pub tray: TrayContext,
+    pub tray: Arc<dyn Tray>,
+    pub tray_state: Arc<crate::background::tray::TrayState>,
+    pub manager: std::sync::Weak<TunnelManager>,
+}
+
+impl TunnelContext {
+    fn refresh_tray(&self) {
+        if let Some(manager) = self.manager.upgrade() {
+            crate::background::tray::refresh_tunnels_with(&self.tray, &self.tray_state, &manager);
+        }
+    }
 }
 
 const STOP_TIMEOUT: Duration = Duration::from_secs(5);
@@ -59,6 +69,8 @@ impl TunnelManager {
             .or_insert_with(|| {
                 TunnelReporter::new(
                     context.tray.clone(),
+                    context.tray_state.clone(),
+                    context.manager.clone(),
                     context.connection.events.clone(),
                     id.to_string(),
                 )
@@ -246,7 +258,7 @@ pub(super) async fn reset_tunnel_traffic_totals_service(
 }
 
 pub(super) async fn save_tunnel_service(
-    tray: &TrayContext,
+    context: &TunnelContext,
     tunnel: &mut TunnelRule,
 ) -> Result<TunnelRule, String> {
     tunnel.validate()?;
@@ -258,18 +270,18 @@ pub(super) async fn save_tunnel_service(
         Ok(tunnel)
     })
     .await?;
-    crate::background::tray::refresh_tunnels(tray);
+    context.refresh_tray();
     Ok(tunnel)
 }
 
 pub(super) async fn delete_tunnel_service(
-    tray: &TrayContext,
+    context: &TunnelContext,
     id: String,
     manager: &TunnelManager,
 ) -> Result<(), String> {
     manager.discard(&id).await;
     crate::db::write(|transaction| delete_tunnel_rule(transaction, &id))?;
-    crate::background::tray::refresh_tunnels(tray);
+    context.refresh_tray();
     Ok(())
 }
 
