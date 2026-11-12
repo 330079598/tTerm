@@ -38,6 +38,8 @@ pub enum TabType {
     Logs,
     /// The editor for a remote file.
     RemoteFileEditor,
+    /// An unrecognized saved kind, whose original value remains in the saved fields.
+    Unknown,
 }
 
 /// The known shells a local tab starts; unknown saved values remain in its raw fields.
@@ -184,6 +186,10 @@ pub struct Tab {
     pub remote_file: Option<Value>,
     /// Original fields, in JavaScript object enumeration order.
     pub(crate) raw_fields: Map<String, Value>,
+    /// Whether absent required fields must remain absent when writing a saved tab.
+    pub(crate) from_session: bool,
+    /// Required fields explicitly replaced by a state transition.
+    pub(crate) replaced_required_fields: [bool; 4],
 }
 
 impl Tab {
@@ -212,12 +218,20 @@ impl Tab {
             connection: None,
             remote_file: None,
             raw_fields: Map::new(),
+            from_session: false,
+            replaced_required_fields: [false; 4],
         }
     }
 
     /// Removes a saved field before normalization replaces or drops its value.
     pub(crate) fn forget_saved_field(&mut self, key: &str) {
         self.raw_fields.shift_remove(key);
+        if let Some(index) = ["id", "title", "type", "isActive"]
+            .iter()
+            .position(|field| *field == key)
+        {
+            self.replaced_required_fields[index] = true;
+        }
     }
 }
 

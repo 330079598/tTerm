@@ -25,12 +25,23 @@ pub fn normalize_saved_local_tab(tab: &Tab, shell_name: &str) -> Tab {
     if tab.tab_type != TabType::Terminal {
         return tab.clone();
     }
-    let mut candidate = tab.clone();
-    candidate.tab_type = TabType::Ssh;
-    candidate = crate::workspace::tab_icons::normalize_saved_ssh_tab(&candidate);
-    candidate.tab_type = TabType::Terminal;
-    if candidate.shell_name.as_deref().is_none_or(str::is_empty) {
+    let mut candidate = crate::workspace::tab_icons::normalize_saved_icon_fields(tab);
+    let current = serde_json::to_value(tab).ok();
+    let has_shell_name = current
+        .as_ref()
+        .and_then(|value| value.get("shellName"))
+        .is_some_and(|value| match value {
+            serde_json::Value::Null => false,
+            serde_json::Value::Bool(value) => *value,
+            serde_json::Value::Number(value) => value.as_f64().is_some_and(|value| value != 0.0),
+            serde_json::Value::String(value) => !value.is_empty(),
+            _ => true,
+        });
+    if !has_shell_name {
         candidate.shell_name = Some(shell_name.to_string());
+        candidate
+            .raw_fields
+            .insert("shellName".into(), shell_name.into());
     }
     candidate
 }

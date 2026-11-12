@@ -15,10 +15,11 @@ export function reducerCases(tabsState) {
       action = { type: "update", id: action.id, updater: tab => ({ ...tab, ...patch }) }
     }
     const result = tabsState.tabsReducer(state, action)
-    cases.push({ name, state: input, action: wireAction, result, sameState: result === state, sameTabs: result.tabs === state.tabs })
+    cases.push({ name, state: input, action: wireAction, result })
   }
   add("restore saved split and orphan", { type: "restore", tabs: [tab("a"), tab("b"), tab("c")], activeTabId: "b", layout: { version: 2, groups: [{ root: row(["a", "b"]), activeTabId: "a" }] } }, empty())
   add("restore empty session", { type: "restore", tabs: [], activeTabId: null }, initial())
+  add("restore permissive session fields", { type: "restore", tabs: [{ id: "a", type: "ssh", isActive: "yes", sessionNonce: -1, connectionHeaderPinned: 0, connection: { port: "22", terminalShell: "nushell" }, future: true }], activeTabId: "a" }, empty())
   add("add new tab", { type: "add", tab: tab("d") })
   add("add to empty state", { type: "add", tab: tab("") }, empty())
   add("open new settings page", { type: "open-page", tab: tab("s", { type: "settings", title: "Settings" }) })

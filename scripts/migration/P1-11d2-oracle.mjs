@@ -1328,6 +1328,12 @@ output.shortSizeInsertions = [
 })
 
 output.sessionTabs = await Promise.all([
+  { id: "shell", title: "t", type: "terminal", isActive: false, shellName: 5 },
+  { id: "shell", title: "t", type: "terminal", isActive: false, shellName: 0 },
+  { id: "numbers", title: "t", type: "ssh", isActive: false, unknown: { 10: "ten", 2: "two", tiny: 1e-7, huge: 1e21, zero: -0, precise: 0.12345678901234567 }, connection: { port: 22.5 } },
+  { id: "1", title: "t", type: "terminal", isActive: false, iconStyle: { icon: 5 } },
+  { id: "1", title: "t", type: "future-tab", isActive: "yes", iconStyle: { icon: 5 } },
+  { id: "1", type: "ssh" },
   { id: "1", title: "t", type: "terminal", isActive: false, shellName: "zsh", iconStyle: { icon: 5 } },
   { id: "1", title: "t", type: "terminal", isActive: false, connection: { terminalShell: "nushell" } },
   { futureFirst: { nested: 1 }, id: "1", title: "t", type: "ssh", futureMiddle: true, isActive: false, connection: { future: 1, port: "22", terminalShell: "nushell", tail: null }, futureLast: [1, 2] },
@@ -1338,7 +1344,8 @@ output.sessionTabs = await Promise.all([
   const read = JSON.parse(JSON.stringify(input))
   const ssh = tabIcons.normalizeSavedSshTab(read)
   const refreshed = (await localTabTitle.refreshSavedLocalTabs([read]))[0]
-  return { input, readBytes: JSON.stringify(read), ssh, sshBytes: JSON.stringify(ssh), refreshed, refreshedBytes: JSON.stringify(refreshed) }
+  const defaults = tabsState.ensureTabDefaults(read)
+  return { input, readBytes: JSON.stringify(read), ssh, sshBytes: JSON.stringify(ssh), refreshed, refreshedBytes: JSON.stringify(refreshed), defaults }
 }))
 
 process.stdout.write(`${JSON.stringify(output, null, 2)}\n`)

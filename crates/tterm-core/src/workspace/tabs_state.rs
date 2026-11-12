@@ -107,8 +107,10 @@ pub fn remove_tabs_from_state(
         tabs: remaining_tabs
             .into_iter()
             .map(|mut tab| {
+                tab.forget_saved_field("isActive");
                 tab.is_active = tab.id == next_active_tab_id;
                 if tab.is_active {
+                    tab.forget_saved_field("hasConnected");
                     tab.has_connected = Some(true);
                 }
                 tab
@@ -120,19 +122,32 @@ pub fn remove_tabs_from_state(
 
 /// Fills in the defaults a newly restored or created tab needs.
 pub fn ensure_tab_defaults(tab: &Tab) -> Tab {
-    let mut next = tab.clone();
+    let Ok(serde_json::Value::Object(mut fields)) = serde_json::to_value(tab) else {
+        return tab.clone();
+    };
     if is_page_tab(tab) || tab.tab_type == TabType::RemoteFileEditor {
-        next.has_connected = Some(true);
-        next.session_nonce = Some(0);
+        fields.insert("hasConnected".into(), true.into());
+        fields.insert("sessionNonce".into(), 0.into());
         if tab.tab_type != TabType::RemoteFileEditor {
-            next.connection = None;
+            fields.shift_remove("connection");
         }
-        return next;
+    } else {
+        let active = fields.get("isActive").cloned();
+        for (key, fallback) in [
+            ("hasConnected", active),
+            ("sessionNonce", Some(0.into())),
+            ("connectionHeaderPinned", Some(true.into())),
+        ] {
+            if fields.get(key).is_none_or(serde_json::Value::is_null) {
+                if let Some(value) = fallback {
+                    fields.insert(key.into(), value);
+                } else {
+                    fields.shift_remove(key);
+                }
+            }
+        }
     }
-    next.has_connected = Some(tab.has_connected.unwrap_or(tab.is_active));
-    next.session_nonce = Some(tab.session_nonce.unwrap_or(0));
-    next.connection_header_pinned = Some(tab.connection_header_pinned.unwrap_or(true));
-    next
+    serde_json::from_value(serde_json::Value::Object(fields)).unwrap_or_else(|_| tab.clone())
 }
 
 /// Numbers a copy of a tab: `web` becomes `web-2`, then `web-3`.

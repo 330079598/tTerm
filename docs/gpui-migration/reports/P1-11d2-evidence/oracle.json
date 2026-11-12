@@ -6889,9 +6889,7 @@
             "connectionHeaderPinned": true
           }
         ]
-      },
-      "sameState": false,
-      "sameTabs": false
+      }
     },
     {
       "name": "restore empty session",
@@ -6961,9 +6959,63 @@
         "groups": [],
         "groupCount": 0,
         "tabs": []
+      }
+    },
+    {
+      "name": "restore permissive session fields",
+      "state": {
+        "tabs": [],
+        "activeTabId": null,
+        "groups": [],
+        "groupCount": 0
       },
-      "sameState": false,
-      "sameTabs": false
+      "action": {
+        "type": "restore",
+        "tabs": [
+          {
+            "id": "a",
+            "type": "ssh",
+            "isActive": "yes",
+            "sessionNonce": -1,
+            "connectionHeaderPinned": 0,
+            "connection": {
+              "port": "22",
+              "terminalShell": "nushell"
+            },
+            "future": true
+          }
+        ],
+        "activeTabId": "a"
+      },
+      "result": {
+        "activeTabId": "a",
+        "groups": [
+          {
+            "id": "group-1",
+            "root": {
+              "type": "pane",
+              "tabId": "a"
+            },
+            "activeTabId": "a"
+          }
+        ],
+        "groupCount": 1,
+        "tabs": [
+          {
+            "id": "a",
+            "type": "ssh",
+            "isActive": true,
+            "sessionNonce": -1,
+            "connectionHeaderPinned": 0,
+            "connection": {
+              "port": "22",
+              "terminalShell": "nushell"
+            },
+            "future": true,
+            "hasConnected": true
+          }
+        ]
+      }
     },
     {
       "name": "add new tab",
@@ -7102,9 +7154,7 @@
           }
         ],
         "groupCount": 3
-      },
-      "sameState": false,
-      "sameTabs": false
+      }
     },
     {
       "name": "add to empty state",
@@ -7145,9 +7195,7 @@
           }
         ],
         "groupCount": 1
-      },
-      "sameState": false,
-      "sameTabs": false
+      }
     },
     {
       "name": "open new settings page",
@@ -7285,9 +7333,7 @@
           }
         ],
         "groupCount": 3
-      },
-      "sameState": false,
-      "sameTabs": false
+      }
     },
     {
       "name": "open existing page and increment request without wrapping",
@@ -7444,9 +7490,7 @@
           }
         ],
         "groupCount": 3
-      },
-      "sameState": false,
-      "sameTabs": false
+      }
     },
     {
       "name": "open existing page with empty section",
@@ -7602,9 +7646,7 @@
           }
         ],
         "groupCount": 3
-      },
-      "sameState": false,
-      "sameTabs": false
+      }
     },
     {
       "name": "rename page",
@@ -7754,9 +7796,7 @@
           }
         ],
         "groupCount": 3
-      },
-      "sameState": false,
-      "sameTabs": false
+      }
     },
     {
       "name": "rename missing page",
@@ -7876,9 +7916,7 @@
           }
         ],
         "groupCount": 2
-      },
-      "sameState": true,
-      "sameTabs": true
+      }
     },
     {
       "name": "remove active pane chooses group fallback",
@@ -7980,9 +8018,7 @@
           }
         ],
         "groupCount": 2
-      },
-      "sameState": false,
-      "sameTabs": false
+      }
     },
     {
       "name": "remove unknown tab",
@@ -8103,9 +8139,7 @@
           }
         ],
         "groupCount": 2
-      },
-      "sameState": false,
-      "sameTabs": true
+      }
     },
     {
       "name": "remove last tab",
@@ -8142,9 +8176,7 @@
         "activeTabId": null,
         "groups": [],
         "groupCount": 1
-      },
-      "sameState": false,
-      "sameTabs": false
+      }
     },
     {
       "name": "remove with explicit preferred focus",
@@ -8250,9 +8282,7 @@
           }
         ],
         "groupCount": 2
-      },
-      "sameState": false,
-      "sameTabs": false
+      }
     },
     {
       "name": "set active",
@@ -8372,9 +8402,7 @@
           }
         ],
         "groupCount": 2
-      },
-      "sameState": false,
-      "sameTabs": false
+      }
     },
     {
       "name": "set missing active",
@@ -8493,9 +8521,7 @@
           }
         ],
         "groupCount": 2
-      },
-      "sameState": true,
-      "sameTabs": true
+      }
     },
     {
       "name": "move group reorders tabs",
@@ -8615,9 +8641,7 @@
           }
         ],
         "groupCount": 2
-      },
-      "sameState": false,
-      "sameTabs": false
+      }
     },
     {
       "name": "move out of range",
@@ -8737,9 +8761,7 @@
           }
         ],
         "groupCount": 2
-      },
-      "sameState": false,
-      "sameTabs": true
+      }
     },
     {
       "name": "duplicate with title conflict and nonce wrap",
@@ -8880,9 +8902,7 @@
           }
         ],
         "groupCount": 2
-      },
-      "sameState": false,
-      "sameTabs": false
+      }
     },
     {
       "name": "duplicate automatic title keeps base",
@@ -9035,9 +9055,7 @@
           }
         ],
         "groupCount": 3
-      },
-      "sameState": false,
-      "sameTabs": false
+      }
     },
     {
       "name": "duplicate missing tab",
@@ -9157,9 +9175,7 @@
           }
         ],
         "groupCount": 2
-      },
-      "sameState": true,
-      "sameTabs": true
+      }
     },
     {
       "name": "duplicate page is ignored",
@@ -9309,9 +9325,7 @@
           }
         ],
         "groupCount": 3
-      },
-      "sameState": true,
-      "sameTabs": true
+      }
     },
     {
       "name": "duplicate fractional nonce",
@@ -9454,9 +9468,7 @@
           }
         ],
         "groupCount": 3
-      },
-      "sameState": false,
-      "sameTabs": false
+      }
     },
     {
       "name": "rename clears generated metadata",
@@ -9578,9 +9590,7 @@
           }
         ],
         "groupCount": 2
-      },
-      "sameState": false,
-      "sameTabs": false
+      }
     },
     {
       "name": "rename missing tab",
@@ -9700,9 +9710,7 @@
           }
         ],
         "groupCount": 2
-      },
-      "sameState": false,
-      "sameTabs": false
+      }
     },
     {
       "name": "update tab and recompute active",
@@ -9823,9 +9831,7 @@
           }
         ],
         "groupCount": 3
-      },
-      "sameState": false,
-      "sameTabs": false
+      }
     },
     {
       "name": "update missing tab",
@@ -9947,9 +9953,7 @@
           }
         ],
         "groupCount": 2
-      },
-      "sameState": false,
-      "sameTabs": false
+      }
     },
     {
       "name": "place pane",
@@ -10077,9 +10081,7 @@
           }
         ],
         "groupCount": 2
-      },
-      "sameState": false,
-      "sameTabs": false
+      }
     },
     {
       "name": "place pane missing target still activates source",
@@ -10201,9 +10203,7 @@
           }
         ],
         "groupCount": 2
-      },
-      "sameState": false,
-      "sameTabs": false
+      }
     },
     {
       "name": "merge group",
@@ -10322,9 +10322,7 @@
           }
         ],
         "groupCount": 2
-      },
-      "sameState": false,
-      "sameTabs": false
+      }
     },
     {
       "name": "merge same group",
@@ -10445,9 +10443,7 @@
           }
         ],
         "groupCount": 2
-      },
-      "sameState": true,
-      "sameTabs": true
+      }
     },
     {
       "name": "break out pane",
@@ -10562,9 +10558,7 @@
           }
         ],
         "groupCount": 3
-      },
-      "sameState": false,
-      "sameTabs": false
+      }
     },
     {
       "name": "break out single pane",
@@ -10683,9 +10677,7 @@
           }
         ],
         "groupCount": 2
-      },
-      "sameState": true,
-      "sameTabs": true
+      }
     },
     {
       "name": "ungroup split",
@@ -10798,9 +10790,7 @@
           }
         ],
         "groupCount": 3
-      },
-      "sameState": false,
-      "sameTabs": true
+      }
     },
     {
       "name": "ungroup missing pane",
@@ -10919,9 +10909,7 @@
           }
         ],
         "groupCount": 2
-      },
-      "sameState": false,
-      "sameTabs": true
+      }
     },
     {
       "name": "zoom pane",
@@ -11042,9 +11030,7 @@
           }
         ],
         "groupCount": 2
-      },
-      "sameState": false,
-      "sameTabs": false
+      }
     },
     {
       "name": "zoom single pane",
@@ -11164,9 +11150,7 @@
           }
         ],
         "groupCount": 2
-      },
-      "sameState": false,
-      "sameTabs": false
+      }
     },
     {
       "name": "resize split",
@@ -11290,9 +11274,7 @@
           }
         ],
         "groupCount": 2
-      },
-      "sameState": false,
-      "sameTabs": true
+      }
     },
     {
       "name": "resize missing path",
@@ -11417,9 +11399,7 @@
           }
         ],
         "groupCount": 2
-      },
-      "sameState": false,
-      "sameTabs": true
+      }
     },
     {
       "name": "apply template creates copies",
@@ -11585,9 +11565,7 @@
           }
         ],
         "groupCount": 2
-      },
-      "sameState": false,
-      "sameTabs": false
+      }
     },
     {
       "name": "apply template to empty groups",
@@ -11688,9 +11666,7 @@
           }
         ],
         "groupCount": 5
-      },
-      "sameState": false,
-      "sameTabs": true
+      }
     },
     {
       "name": "apply template lacks enough copies",
@@ -11826,9 +11802,7 @@
           }
         ],
         "groupCount": 2
-      },
-      "sameState": true,
-      "sameTabs": true
+      }
     },
     {
       "name": "apply smaller template moves leftovers",
@@ -11946,9 +11920,7 @@
           }
         ],
         "groupCount": 3
-      },
-      "sameState": false,
-      "sameTabs": false
+      }
     },
     {
       "name": "reopen group",
@@ -12136,9 +12108,7 @@
           }
         ],
         "groupCount": 3
-      },
-      "sameState": false,
-      "sameTabs": false
+      }
     },
     {
       "name": "reopen empty tabs",
@@ -12278,9 +12248,7 @@
           }
         ],
         "groupCount": 2
-      },
-      "sameState": true,
-      "sameTabs": true
+      }
     },
     {
       "name": "reopen pane restores exact previous tree",
@@ -12449,9 +12417,7 @@
           }
         ],
         "groupCount": 2
-      },
-      "sameState": false,
-      "sameTabs": false
+      }
     },
     {
       "name": "reopen pane inserts beside changed target",
@@ -12624,9 +12590,7 @@
           }
         ],
         "groupCount": 2
-      },
-      "sameState": false,
-      "sameTabs": false
+      }
     },
     {
       "name": "reopen pane without anchor gets own group",
@@ -12776,9 +12740,7 @@
           }
         ],
         "groupCount": 3
-      },
-      "sameState": false,
-      "sameTabs": false
+      }
     },
     {
       "name": "add triggers distinct local titles",
@@ -12933,9 +12895,7 @@
           }
         ],
         "groupCount": 3
-      },
-      "sameState": false,
-      "sameTabs": false
+      }
     }
   ],
   "shortSizeInsertions": [
@@ -13131,6 +13091,263 @@
   "sessionTabs": [
     {
       "input": {
+        "id": "shell",
+        "title": "t",
+        "type": "terminal",
+        "isActive": false,
+        "shellName": 5
+      },
+      "readBytes": "{\"id\":\"shell\",\"title\":\"t\",\"type\":\"terminal\",\"isActive\":false,\"shellName\":5}",
+      "ssh": {
+        "id": "shell",
+        "title": "t",
+        "type": "terminal",
+        "isActive": false,
+        "shellName": 5
+      },
+      "sshBytes": "{\"id\":\"shell\",\"title\":\"t\",\"type\":\"terminal\",\"isActive\":false,\"shellName\":5}",
+      "refreshed": {
+        "id": "shell",
+        "title": "t",
+        "type": "terminal",
+        "isActive": false,
+        "shellName": 5
+      },
+      "refreshedBytes": "{\"id\":\"shell\",\"title\":\"t\",\"type\":\"terminal\",\"isActive\":false,\"shellName\":5}",
+      "defaults": {
+        "id": "shell",
+        "title": "t",
+        "type": "terminal",
+        "isActive": false,
+        "shellName": 5,
+        "hasConnected": false,
+        "sessionNonce": 0,
+        "connectionHeaderPinned": true
+      }
+    },
+    {
+      "input": {
+        "id": "shell",
+        "title": "t",
+        "type": "terminal",
+        "isActive": false,
+        "shellName": 0
+      },
+      "readBytes": "{\"id\":\"shell\",\"title\":\"t\",\"type\":\"terminal\",\"isActive\":false,\"shellName\":0}",
+      "ssh": {
+        "id": "shell",
+        "title": "t",
+        "type": "terminal",
+        "isActive": false,
+        "shellName": 0
+      },
+      "sshBytes": "{\"id\":\"shell\",\"title\":\"t\",\"type\":\"terminal\",\"isActive\":false,\"shellName\":0}",
+      "refreshed": {
+        "id": "shell",
+        "title": "t",
+        "type": "terminal",
+        "isActive": false,
+        "shellName": "Terminal"
+      },
+      "refreshedBytes": "{\"id\":\"shell\",\"title\":\"t\",\"type\":\"terminal\",\"isActive\":false,\"shellName\":\"Terminal\"}",
+      "defaults": {
+        "id": "shell",
+        "title": "t",
+        "type": "terminal",
+        "isActive": false,
+        "shellName": 0,
+        "hasConnected": false,
+        "sessionNonce": 0,
+        "connectionHeaderPinned": true
+      }
+    },
+    {
+      "input": {
+        "id": "numbers",
+        "title": "t",
+        "type": "ssh",
+        "isActive": false,
+        "unknown": {
+          "2": "two",
+          "10": "ten",
+          "tiny": 1e-7,
+          "huge": 1e+21,
+          "zero": 0,
+          "precise": 0.12345678901234566
+        },
+        "connection": {
+          "port": 22.5
+        }
+      },
+      "readBytes": "{\"id\":\"numbers\",\"title\":\"t\",\"type\":\"ssh\",\"isActive\":false,\"unknown\":{\"2\":\"two\",\"10\":\"ten\",\"tiny\":1e-7,\"huge\":1e+21,\"zero\":0,\"precise\":0.12345678901234566},\"connection\":{\"port\":22.5}}",
+      "ssh": {
+        "id": "numbers",
+        "title": "t",
+        "type": "ssh",
+        "isActive": false,
+        "unknown": {
+          "2": "two",
+          "10": "ten",
+          "tiny": 1e-7,
+          "huge": 1e+21,
+          "zero": 0,
+          "precise": 0.12345678901234566
+        },
+        "connection": {
+          "port": 22.5
+        }
+      },
+      "sshBytes": "{\"id\":\"numbers\",\"title\":\"t\",\"type\":\"ssh\",\"isActive\":false,\"unknown\":{\"2\":\"two\",\"10\":\"ten\",\"tiny\":1e-7,\"huge\":1e+21,\"zero\":0,\"precise\":0.12345678901234566},\"connection\":{\"port\":22.5}}",
+      "refreshed": {
+        "id": "numbers",
+        "title": "t",
+        "type": "ssh",
+        "isActive": false,
+        "unknown": {
+          "2": "two",
+          "10": "ten",
+          "tiny": 1e-7,
+          "huge": 1e+21,
+          "zero": 0,
+          "precise": 0.12345678901234566
+        },
+        "connection": {
+          "port": 22.5
+        }
+      },
+      "refreshedBytes": "{\"id\":\"numbers\",\"title\":\"t\",\"type\":\"ssh\",\"isActive\":false,\"unknown\":{\"2\":\"two\",\"10\":\"ten\",\"tiny\":1e-7,\"huge\":1e+21,\"zero\":0,\"precise\":0.12345678901234566},\"connection\":{\"port\":22.5}}",
+      "defaults": {
+        "id": "numbers",
+        "title": "t",
+        "type": "ssh",
+        "isActive": false,
+        "unknown": {
+          "2": "two",
+          "10": "ten",
+          "tiny": 1e-7,
+          "huge": 1e+21,
+          "zero": 0,
+          "precise": 0.12345678901234566
+        },
+        "connection": {
+          "port": 22.5
+        },
+        "hasConnected": false,
+        "sessionNonce": 0,
+        "connectionHeaderPinned": true
+      }
+    },
+    {
+      "input": {
+        "id": "1",
+        "title": "t",
+        "type": "terminal",
+        "isActive": false,
+        "iconStyle": {
+          "icon": 5
+        }
+      },
+      "readBytes": "{\"id\":\"1\",\"title\":\"t\",\"type\":\"terminal\",\"isActive\":false,\"iconStyle\":{\"icon\":5}}",
+      "ssh": {
+        "id": "1",
+        "title": "t",
+        "type": "terminal",
+        "isActive": false,
+        "iconStyle": {
+          "icon": 5
+        }
+      },
+      "sshBytes": "{\"id\":\"1\",\"title\":\"t\",\"type\":\"terminal\",\"isActive\":false,\"iconStyle\":{\"icon\":5}}",
+      "refreshed": {
+        "id": "1",
+        "title": "t",
+        "type": "terminal",
+        "isActive": false,
+        "shellName": "Terminal"
+      },
+      "refreshedBytes": "{\"id\":\"1\",\"title\":\"t\",\"type\":\"terminal\",\"isActive\":false,\"shellName\":\"Terminal\"}",
+      "defaults": {
+        "id": "1",
+        "title": "t",
+        "type": "terminal",
+        "isActive": false,
+        "iconStyle": {
+          "icon": 5
+        },
+        "hasConnected": false,
+        "sessionNonce": 0,
+        "connectionHeaderPinned": true
+      }
+    },
+    {
+      "input": {
+        "id": "1",
+        "title": "t",
+        "type": "future-tab",
+        "isActive": "yes",
+        "iconStyle": {
+          "icon": 5
+        }
+      },
+      "readBytes": "{\"id\":\"1\",\"title\":\"t\",\"type\":\"future-tab\",\"isActive\":\"yes\",\"iconStyle\":{\"icon\":5}}",
+      "ssh": {
+        "id": "1",
+        "title": "t",
+        "type": "future-tab",
+        "isActive": "yes",
+        "iconStyle": {
+          "icon": 5
+        }
+      },
+      "sshBytes": "{\"id\":\"1\",\"title\":\"t\",\"type\":\"future-tab\",\"isActive\":\"yes\",\"iconStyle\":{\"icon\":5}}",
+      "refreshed": {
+        "id": "1",
+        "title": "t",
+        "type": "future-tab",
+        "isActive": "yes",
+        "iconStyle": {
+          "icon": 5
+        }
+      },
+      "refreshedBytes": "{\"id\":\"1\",\"title\":\"t\",\"type\":\"future-tab\",\"isActive\":\"yes\",\"iconStyle\":{\"icon\":5}}",
+      "defaults": {
+        "id": "1",
+        "title": "t",
+        "type": "future-tab",
+        "isActive": "yes",
+        "iconStyle": {
+          "icon": 5
+        },
+        "hasConnected": "yes",
+        "sessionNonce": 0,
+        "connectionHeaderPinned": true
+      }
+    },
+    {
+      "input": {
+        "id": "1",
+        "type": "ssh"
+      },
+      "readBytes": "{\"id\":\"1\",\"type\":\"ssh\"}",
+      "ssh": {
+        "id": "1",
+        "type": "ssh"
+      },
+      "sshBytes": "{\"id\":\"1\",\"type\":\"ssh\"}",
+      "refreshed": {
+        "id": "1",
+        "type": "ssh"
+      },
+      "refreshedBytes": "{\"id\":\"1\",\"type\":\"ssh\"}",
+      "defaults": {
+        "id": "1",
+        "type": "ssh",
+        "sessionNonce": 0,
+        "connectionHeaderPinned": true
+      }
+    },
+    {
+      "input": {
         "id": "1",
         "title": "t",
         "type": "terminal",
@@ -13159,7 +13376,20 @@
         "isActive": false,
         "shellName": "zsh"
       },
-      "refreshedBytes": "{\"id\":\"1\",\"title\":\"t\",\"type\":\"terminal\",\"isActive\":false,\"shellName\":\"zsh\"}"
+      "refreshedBytes": "{\"id\":\"1\",\"title\":\"t\",\"type\":\"terminal\",\"isActive\":false,\"shellName\":\"zsh\"}",
+      "defaults": {
+        "id": "1",
+        "title": "t",
+        "type": "terminal",
+        "isActive": false,
+        "shellName": "zsh",
+        "iconStyle": {
+          "icon": 5
+        },
+        "hasConnected": false,
+        "sessionNonce": 0,
+        "connectionHeaderPinned": true
+      }
     },
     {
       "input": {
@@ -13192,7 +13422,19 @@
         },
         "shellName": "Terminal"
       },
-      "refreshedBytes": "{\"id\":\"1\",\"title\":\"t\",\"type\":\"terminal\",\"isActive\":false,\"connection\":{\"terminalShell\":\"nushell\"},\"shellName\":\"Terminal\"}"
+      "refreshedBytes": "{\"id\":\"1\",\"title\":\"t\",\"type\":\"terminal\",\"isActive\":false,\"connection\":{\"terminalShell\":\"nushell\"},\"shellName\":\"Terminal\"}",
+      "defaults": {
+        "id": "1",
+        "title": "t",
+        "type": "terminal",
+        "isActive": false,
+        "connection": {
+          "terminalShell": "nushell"
+        },
+        "hasConnected": false,
+        "sessionNonce": 0,
+        "connectionHeaderPinned": true
+      }
     },
     {
       "input": {
@@ -13257,7 +13499,30 @@
           2
         ]
       },
-      "refreshedBytes": "{\"futureFirst\":{\"nested\":1},\"id\":\"1\",\"title\":\"t\",\"type\":\"ssh\",\"futureMiddle\":true,\"isActive\":false,\"connection\":{\"future\":1,\"port\":\"22\",\"terminalShell\":\"nushell\",\"tail\":null},\"futureLast\":[1,2]}"
+      "refreshedBytes": "{\"futureFirst\":{\"nested\":1},\"id\":\"1\",\"title\":\"t\",\"type\":\"ssh\",\"futureMiddle\":true,\"isActive\":false,\"connection\":{\"future\":1,\"port\":\"22\",\"terminalShell\":\"nushell\",\"tail\":null},\"futureLast\":[1,2]}",
+      "defaults": {
+        "futureFirst": {
+          "nested": 1
+        },
+        "id": "1",
+        "title": "t",
+        "type": "ssh",
+        "futureMiddle": true,
+        "isActive": false,
+        "connection": {
+          "future": 1,
+          "port": "22",
+          "terminalShell": "nushell",
+          "tail": null
+        },
+        "futureLast": [
+          1,
+          2
+        ],
+        "hasConnected": false,
+        "sessionNonce": 0,
+        "connectionHeaderPinned": true
+      }
     },
     {
       "input": {
@@ -13292,7 +13557,20 @@
           "port": "22"
         }
       },
-      "refreshedBytes": "{\"id\":\"1\",\"title\":\"t\",\"type\":\"ssh\",\"isActive\":\"yes\",\"pid\":-1,\"connection\":{\"port\":\"22\"}}"
+      "refreshedBytes": "{\"id\":\"1\",\"title\":\"t\",\"type\":\"ssh\",\"isActive\":\"yes\",\"pid\":-1,\"connection\":{\"port\":\"22\"}}",
+      "defaults": {
+        "id": "1",
+        "title": "t",
+        "type": "ssh",
+        "isActive": "yes",
+        "pid": -1,
+        "connection": {
+          "port": "22"
+        },
+        "hasConnected": "yes",
+        "sessionNonce": 0,
+        "connectionHeaderPinned": true
+      }
     },
     {
       "input": {
@@ -13330,7 +13608,22 @@
         },
         "distroId": "plan9"
       },
-      "refreshedBytes": "{\"id\":\"1\",\"title\":\"t\",\"type\":\"ssh\",\"isActive\":false,\"iconStyle\":{\"icon\":5,\"color\":\"#AABBCC\",\"unknown\":1},\"distroId\":\"plan9\"}"
+      "refreshedBytes": "{\"id\":\"1\",\"title\":\"t\",\"type\":\"ssh\",\"isActive\":false,\"iconStyle\":{\"icon\":5,\"color\":\"#AABBCC\",\"unknown\":1},\"distroId\":\"plan9\"}",
+      "defaults": {
+        "id": "1",
+        "title": "t",
+        "type": "ssh",
+        "isActive": false,
+        "iconStyle": {
+          "icon": 5,
+          "color": "#AABBCC",
+          "unknown": 1
+        },
+        "distroId": "plan9",
+        "hasConnected": false,
+        "sessionNonce": 0,
+        "connectionHeaderPinned": true
+      }
     },
     {
       "input": {
@@ -13365,7 +13658,17 @@
         "connectionHeaderPinned": 0,
         "pid": 1.5
       },
-      "refreshedBytes": "{\"id\":\"1\",\"title\":\"t\",\"type\":\"ssh\",\"isActive\":null,\"hasConnected\":\"yes\",\"sessionNonce\":-1,\"connectionHeaderPinned\":0,\"pid\":1.5}"
+      "refreshedBytes": "{\"id\":\"1\",\"title\":\"t\",\"type\":\"ssh\",\"isActive\":null,\"hasConnected\":\"yes\",\"sessionNonce\":-1,\"connectionHeaderPinned\":0,\"pid\":1.5}",
+      "defaults": {
+        "id": "1",
+        "title": "t",
+        "type": "ssh",
+        "isActive": null,
+        "hasConnected": "yes",
+        "sessionNonce": -1,
+        "connectionHeaderPinned": 0,
+        "pid": 1.5
+      }
     }
   ]
 }

@@ -14,6 +14,10 @@ fn oracle_preserves_old_session_fields_and_normalizes_only_explicit_fields() {
     assert_eq!(tabs.len(), cases.len());
     for (tab, case) in tabs.iter().zip(cases) {
         assert_eq!(
+            serde_json::to_value(crate::workspace::tabs_state::ensure_tab_defaults(tab)).unwrap(),
+            case["defaults"]
+        );
+        assert_eq!(
             serde_json::to_string(tab).unwrap(),
             case["readBytes"].as_str().unwrap()
         );

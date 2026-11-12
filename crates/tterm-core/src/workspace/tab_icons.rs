@@ -553,6 +553,11 @@ pub fn normalize_saved_ssh_tab(tab: &Tab) -> Tab {
     if tab.tab_type != TabType::Ssh {
         return tab.clone();
     }
+    normalize_saved_icon_fields(tab)
+}
+
+/// Checks only the saved icon and distribution, without changing unrelated fields.
+pub(crate) fn normalize_saved_icon_fields(tab: &Tab) -> Tab {
     let mut saved = tab.clone();
     let raw_style = tab.saved_field("iconStyle").cloned().or_else(|| {
         tab.icon_style

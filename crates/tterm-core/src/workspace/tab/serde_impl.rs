@@ -5,6 +5,43 @@ use serde_json::{Map, Value};
 
 use super::{Tab, TabConnection, TabType};
 
+fn stringify(value: &Value) -> Result<String, serde_json::Error> {
+    match value {
+        Value::Number(number) => Ok(crate::workspace::js_number::format_f64(
+            number.as_f64().unwrap_or(f64::NAN),
+        )),
+        Value::Array(values) => Ok(format!(
+            "[{}]",
+            values
+                .iter()
+                .map(stringify)
+                .collect::<Result<Vec<_>, _>>()?
+                .join(",")
+        )),
+        Value::Object(fields) => {
+            let mut entries: Vec<_> = fields.iter().collect();
+            entries.sort_by_key(|(key, _)| {
+                key.parse::<u32>()
+                    .ok()
+                    .filter(|index| *index != u32::MAX && index.to_string() == **key)
+                    .map_or((1, 0), |index| (0, index))
+            });
+            let entries = entries
+                .into_iter()
+                .map(|(key, value)| {
+                    Ok(format!(
+                        "{}:{}",
+                        serde_json::to_string(key)?,
+                        stringify(value)?
+                    ))
+                })
+                .collect::<Result<Vec<_>, serde_json::Error>>()?;
+            Ok(format!("{{{}}}", entries.join(",")))
+        }
+        _ => serde_json::to_string(value),
+    }
+}
+
 fn read<T: serde::de::DeserializeOwned>(fields: &Map<String, Value>, key: &str) -> Option<T> {
     fields
         .get(key)
@@ -97,36 +134,61 @@ impl Tab {
         let mut tab = Self::new(
             read::<String>(&fields, "id").unwrap_or_default(),
             read::<String>(&fields, "title").unwrap_or_default(),
-            read::<TabType>(&fields, "type").unwrap_or(TabType::Terminal),
+            read::<TabType>(&fields, "type").unwrap_or(TabType::Unknown),
         );
         tab.is_active = read::<bool>(&fields, "isActive").unwrap_or(false);
         tab_fields!(assign_fields, tab, fields);
         tab.raw_fields = fields;
+        tab.from_session = true;
         tab
     }
 
     fn saved_value(&self) -> Result<Value, serde_json::Error> {
         let original = Self::from_fields(self.raw_fields.clone());
         let mut output = self.raw_fields.clone();
-        update(&mut output, "id", &Some(&self.id), &Some(&original.id))?;
-        update(
-            &mut output,
-            "title",
-            &Some(&self.title),
-            &Some(&original.title),
-        )?;
-        update(
-            &mut output,
-            "type",
-            &Some(self.tab_type),
-            &Some(original.tab_type),
-        )?;
-        update(
-            &mut output,
-            "isActive",
-            &Some(self.is_active),
-            &Some(original.is_active),
-        )?;
+        if !self.from_session
+            || self.replaced_required_fields[0]
+            || output.contains_key("id")
+            || self.id != original.id
+        {
+            update(&mut output, "id", &Some(&self.id), &Some(&original.id))?;
+        }
+        if !self.from_session
+            || self.replaced_required_fields[1]
+            || output.contains_key("title")
+            || self.title != original.title
+        {
+            update(
+                &mut output,
+                "title",
+                &Some(&self.title),
+                &Some(&original.title),
+            )?;
+        }
+        if !self.from_session
+            || self.replaced_required_fields[2]
+            || output.contains_key("type")
+            || self.tab_type != original.tab_type
+        {
+            update(
+                &mut output,
+                "type",
+                &Some(self.tab_type),
+                &Some(original.tab_type),
+            )?;
+        }
+        if !self.from_session
+            || self.replaced_required_fields[3]
+            || output.contains_key("isActive")
+            || self.is_active != original.is_active
+        {
+            update(
+                &mut output,
+                "isActive",
+                &Some(self.is_active),
+                &Some(original.is_active),
+            )?;
+        }
         tab_fields!(update_fields, self, original, output);
         Ok(Value::Object(output))
     }
@@ -144,7 +206,11 @@ macro_rules! lossless_serde {
 
         impl Serialize for $target {
             fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
-                self.saved_value()
+                let text = self
+                    .saved_value()
+                    .and_then(|value| stringify(&value))
+                    .map_err(serde::ser::Error::custom)?;
+                serde_json::value::RawValue::from_string(text)
                     .map_err(serde::ser::Error::custom)?
                     .serialize(serializer)
             }
