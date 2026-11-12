@@ -11025,6 +11025,7 @@ dependencies = [
  "tokio",
  "tterm-platform",
  "tterm-terminal",
+ "ttf-parser",
  "unicode-width",
  "uuid",
  "vte",

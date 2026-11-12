@@ -2,7 +2,7 @@
 
 #[tauri::command]
 pub async fn list_fonts() -> Vec<String> {
-    tokio::task::spawn_blocking(super::list_fonts_sync)
+    tokio::task::spawn_blocking(tterm_core::fonts::list_fonts_sync)
         .await
         .unwrap_or_default()
 }

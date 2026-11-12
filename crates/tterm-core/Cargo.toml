@@ -47,6 +47,7 @@ tterm-terminal = { path = "../tterm-terminal" }
 uuid = { version = "=1.26.1", features = ["v4"] }
 # Reuses the locked runtime used by the Tauri backend.
 tokio = { version = "=1.53.1", features = ["fs", "sync", "time"] }
+ttf-parser = "=0.25.1"
 
 [dev-dependencies]
 tokio = { version = "=1.53.1", features = ["rt", "macros", "test-util"] }

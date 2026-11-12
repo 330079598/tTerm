@@ -29,6 +29,8 @@ pub mod db;
 pub mod distro;
 /// Typed events and delivery interfaces shared by client adapters.
 pub mod events;
+/// The fonts installed on this computer, and their families.
+pub mod fonts;
 /// Application identity supplied by the client.
 pub mod identity;
 /// Keyboard shortcut parsing, display, conflicts and dispatch.
