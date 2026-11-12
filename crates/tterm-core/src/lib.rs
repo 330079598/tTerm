@@ -6,6 +6,8 @@
 
 /// Agent status reports and the tracker that follows them.
 pub mod agent_status;
+/// The state the app keeps for itself rather than as user settings.
+pub mod app_state;
 /// Notifications and agent reports carried by terminal OSC sequences.
 pub mod attention_reports;
 /// Backup: the WebDAV client a remote backup drives.

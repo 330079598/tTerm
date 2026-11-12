@@ -48,7 +48,7 @@ fn imported_meta_keys(selection: &BackupSelection) -> Vec<&'static str> {
             remote::SETTINGS_KEY,
             remote::LAST_ERROR_KEY,
             crate::sync::SETTINGS_KEY,
-            crate::app_state::COLLAPSED_PROFILE_GROUP_KEYS,
+            tterm_core::app_state::COLLAPSED_PROFILE_GROUP_KEYS,
         ]);
     }
     if selection.session {

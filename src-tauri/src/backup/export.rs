@@ -123,7 +123,7 @@ pub(super) fn collect_payload(
         },
         collapsed_profile_group_keys: if selection.settings {
             Some(tterm_core::db::read(
-                crate::app_state::collapsed_profile_group_keys,
+                tterm_core::app_state::collapsed_profile_group_keys,
             )?)
         } else {
             None

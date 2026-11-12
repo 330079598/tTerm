@@ -312,7 +312,7 @@ pub(super) fn apply_database_payload(
         }
         if let Some(incoming) = payload.collapsed_profile_group_keys.as_ref() {
             let mut keys = if merge {
-                crate::app_state::collapsed_profile_group_keys(transaction)?
+                tterm_core::app_state::collapsed_profile_group_keys(transaction)?
             } else {
                 Vec::new()
             };
@@ -321,7 +321,7 @@ pub(super) fn apply_database_payload(
                     keys.push(key.clone());
                 }
             }
-            crate::app_state::set_collapsed_profile_group_keys(transaction, &keys)?;
+            tterm_core::app_state::set_collapsed_profile_group_keys(transaction, &keys)?;
         }
     }
     if options.selection.session

@@ -165,7 +165,7 @@ fn seed_settings(connection: &rusqlite::Connection) -> Result<(), String> {
             ..crate::session::SessionData::default()
         },
     )?;
-    crate::app_state::set_collapsed_profile_group_keys(connection, &["mine".to_string()])?;
+    tterm_core::app_state::set_collapsed_profile_group_keys(connection, &["mine".to_string()])?;
     crate::themes::replace_themes(connection, &[serde_json::json!({"id": "mine"})])
 }
 
@@ -178,7 +178,7 @@ fn settings_summary(connection: &rusqlite::Connection) -> Value {
         "sync": crate::sync::read_settings(connection).unwrap().enabled,
         "session": crate::session::read_session(connection).unwrap().and_then(|s| s.active_tab_id),
         "themes": crate::themes::list_themes(connection).unwrap(),
-        "collapsed": crate::app_state::collapsed_profile_group_keys(connection).unwrap(),
+        "collapsed": tterm_core::app_state::collapsed_profile_group_keys(connection).unwrap(),
     })
 }
 
@@ -267,7 +267,7 @@ fn merged_collapsed_groups_add_to_this_devices() {
     let database = tterm_core::db::Database::open_in_memory().unwrap();
     database
         .write(|connection| {
-            crate::app_state::set_collapsed_profile_group_keys(
+            tterm_core::app_state::set_collapsed_profile_group_keys(
                 connection,
                 &["ops".to_string(), "dev".to_string()],
             )?;
@@ -282,14 +282,14 @@ fn merged_collapsed_groups_add_to_this_devices() {
             };
             apply_database_payload(connection, &payload, &options)?;
             assert_eq!(
-                crate::app_state::collapsed_profile_group_keys(connection)?,
+                tterm_core::app_state::collapsed_profile_group_keys(connection)?,
                 ["ops", "dev", "prod"]
             );
 
             // Backups made before the field existed leave the state alone.
             apply_database_payload(connection, &BackupPayload::default(), &options)?;
             assert_eq!(
-                crate::app_state::collapsed_profile_group_keys(connection)?,
+                tterm_core::app_state::collapsed_profile_group_keys(connection)?,
                 ["ops", "dev", "prod"]
             );
             Ok(())

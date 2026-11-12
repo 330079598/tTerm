@@ -224,7 +224,7 @@ fn settings_files_move_into_the_database_leaving_only_config_json() {
     );
     database
         .read(|connection| {
-            let state = crate::app_state::load(connection)?;
+            let state = tterm_core::app_state::load(connection)?;
             assert_eq!(state.last_update_check_at, Some(123));
             assert_eq!(state.collapsed_profile_group_keys, ["ops"]);
 
