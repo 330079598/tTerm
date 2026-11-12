@@ -100,15 +100,21 @@ fn get_windows_fonts() -> Result<HashSet<String>, Box<dyn std::error::Error>> {
             _font_type: u32,
             lparam: LPARAM,
         ) -> i32 {
-            let fonts = &*(lparam.0 as *const Mutex<HashSet<String>>);
-            if let Some(logfont) = lpelfe.as_ref() {
-                let name = String::from_utf16_lossy(&logfont.lfFaceName);
-                let name = name.trim_end_matches('\0').to_string();
-                if !name.is_empty() && !name.starts_with('@') {
-                    fonts
-                        .lock()
-                        .unwrap_or_else(std::sync::PoisonError::into_inner)
-                        .insert(name);
+            // SAFETY: `lparam` points to `fonts` for the whole
+            // `EnumFontFamiliesExW` call, which is the only time Windows can
+            // invoke this callback. `lpelfe` is either null or points to a
+            // valid font record for the duration of the callback.
+            unsafe {
+                let fonts = &*(lparam.0 as *const Mutex<HashSet<String>>);
+                if let Some(logfont) = lpelfe.as_ref() {
+                    let name = String::from_utf16_lossy(&logfont.lfFaceName);
+                    let name = name.trim_end_matches('\0').to_string();
+                    if !name.is_empty() && !name.starts_with('@') {
+                        fonts
+                            .lock()
+                            .unwrap_or_else(std::sync::PoisonError::into_inner)
+                            .insert(name);
+                    }
                 }
             }
             1 // Continue enumeration
