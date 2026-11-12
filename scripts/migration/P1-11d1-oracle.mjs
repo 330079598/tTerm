@@ -116,6 +116,32 @@ const dragCases = [
   },
   { sizes: [0.25, 0.75], index: 0, delta: 11, room: 999, minimums: [100, 300] },
 ]
+const jsNumberText = (value) => (Object.is(value, -0) ? "-0" : String(value))
+const roundInputs = [
+  0.49999999999999994,
+  -0.49999999999999994,
+  0.5,
+  -0.5,
+  1.5,
+  -1.5,
+  2.5,
+  -2.5,
+  -0.4,
+  -0.6,
+  0,
+  -0,
+  4503599627370495.5,
+  4503599627370496,
+  4503599627370497,
+  -4503599627370495.5,
+  -4503599627370496,
+  -4503599627370497,
+  1e300,
+  -1e300,
+  Number.NaN,
+  Number.POSITIVE_INFINITY,
+  Number.NEGATIVE_INFINITY,
+]
 const rect = (id, left, top, right, bottom) => ({ id, left, top, right, bottom })
 const capture = (call) => {
   try {
@@ -392,6 +418,10 @@ const result = {
         return { ...candidate, result, resultJson: JSON.stringify(result) }
       }),
     },
+    round: roundInputs.map((input) => ({
+      input: jsNumberText(input),
+      output: jsNumberText(Math.round(input)),
+    })),
     split: [
       paneLayout.getSplitAt(tree, [1])?.orientation ?? null,
       paneLayout.getSplitAt(tree, [0]) ?? null,

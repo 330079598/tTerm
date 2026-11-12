@@ -64,8 +64,28 @@ fn along(orientation: SplitOrientation, area: PaneBox) -> f64 {
 }
 
 /// Rounds half toward positive infinity, as `Math.round` does.
-fn js_round(value: f64) -> f64 {
-    (value + 0.5).floor()
+pub(crate) fn js_round(value: f64) -> f64 {
+    if !value.is_finite() || value == 0.0 {
+        return value;
+    }
+    if value.abs() >= 4_503_599_627_370_496.0 {
+        return value;
+    }
+    if value > 0.0 {
+        let floor = value.floor();
+        if value - floor >= 0.5 {
+            floor + 1.0
+        } else {
+            floor
+        }
+    } else {
+        let ceiling = value.ceil();
+        if value - ceiling < -0.5 {
+            ceiling - 1.0
+        } else {
+            ceiling
+        }
+    }
 }
 
 fn js_max_zero(value: f64) -> f64 {

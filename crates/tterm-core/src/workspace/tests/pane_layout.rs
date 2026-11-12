@@ -1,5 +1,6 @@
 use crate::workspace::pane_layout::{
-    PaneBox, PaneMinimum, SashBox, drag_sash, get_split_at, layout_pane_tree, minimum_extent,
+    PaneBox, PaneMinimum, SashBox, drag_sash, get_split_at, js_round, layout_pane_tree,
+    minimum_extent,
 };
 use crate::workspace::tab_groups::{PaneNode, SplitOrientation, pane_leaf};
 
@@ -321,4 +322,40 @@ fn oracle_parses_the_seventeen_digit_drag_result_exactly() {
         serde_json::to_string(&value).expect("a serialized float"),
         "0.46311066799601197"
     );
+}
+
+fn parse_javascript_number(text: &str) -> f64 {
+    match text {
+        "NaN" => f64::NAN,
+        "Infinity" => f64::INFINITY,
+        "-Infinity" => f64::NEG_INFINITY,
+        "-0" => -0.0,
+        other => other.parse().expect("a JavaScript number"),
+    }
+}
+
+#[test]
+fn oracle_js_round_matches_math_round() {
+    let oracle = super::oracle_json();
+    let cases = oracle["paneLayout"]["round"]
+        .as_array()
+        .expect("the oracle has round cases");
+    assert!(!cases.is_empty());
+
+    for case in cases {
+        let input_text = case["input"].as_str().expect("an input number");
+        let output_text = case["output"].as_str().expect("an output number");
+        let input = parse_javascript_number(input_text);
+        let expected = parse_javascript_number(output_text);
+        let actual = js_round(input);
+        if expected.is_nan() {
+            assert!(actual.is_nan(), "{input_text} did not round to NaN");
+        } else {
+            assert_eq!(
+                actual.to_bits(),
+                expected.to_bits(),
+                "{input_text} did not round to {output_text}"
+            );
+        }
+    }
 }
