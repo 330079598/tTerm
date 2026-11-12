@@ -177,7 +177,7 @@ fn report_exit(app: &ConnectionContext, channel: &ChannelContext, signal: &Sessi
     let exit_reason = match signal {
         SessionExitSignal::Recoverable { reason, .. }
         | SessionExitSignal::NonRecoverable(reason) => {
-            let text = crate::terminal::legacy_events::status_line("31", reason);
+            let text = tterm_core::terminal::legacy_events::status_line("31", reason);
             crate::session_log::record_output(&app.log, &channel.tab_id, text.as_bytes());
             let _ = channel.sink.emit(tterm_core::events::AppEvent::Terminal(
                 tterm_core::events::terminal::TerminalEvent::Output {

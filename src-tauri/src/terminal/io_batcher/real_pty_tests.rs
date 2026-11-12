@@ -1,7 +1,7 @@
-use super::pty_fixture::PtyFixture;
 use super::*;
 use tterm_core::session::recording::{RecordingSessionSink, SessionRecord};
 use tterm_core::session::sink::SessionSink;
+use tterm_core::terminal::io_batcher::pty_fixture::PtyFixture;
 struct ReaderGuard {
     flow: Arc<OutputFlow>,
     reader: Option<std::thread::JoinHandle<()>>,

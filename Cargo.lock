@@ -11004,6 +11004,7 @@ dependencies = [
  "hmac 0.13.0",
  "indexmap 2.14.2",
  "num-bigint 0.5.1",
+ "portable-pty",
  "regress",
  "ring",
  "rusqlite",

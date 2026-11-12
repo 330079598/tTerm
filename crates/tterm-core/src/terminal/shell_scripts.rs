@@ -8,13 +8,13 @@ use std::path::Path;
 
 /// The body of bash's prompt hook: exported as a function
 /// (`BASH_FUNC_<name>%%`) for Git Bash, defined by `bash/init.bash` elsewhere.
-pub(crate) const BASH_REPORT_CWD: &str = include_str!("shell_integration/bash/report-cwd.bash");
+pub const BASH_REPORT_CWD: &str = include_str!("shell_integration/bash/report-cwd.bash");
 /// The directory report plus command marks (OSC 133 D and A).
-pub(crate) const BASH_PROMPT: &str = include_str!("shell_integration/bash/prompt.bash");
+pub const BASH_PROMPT: &str = include_str!("shell_integration/bash/prompt.bash");
 
 /// `unix/start.sh`, which starts the login shell, and the scripts it loads,
 /// by path relative to the directory they are installed in.
-pub(crate) const UNIX_SCRIPTS: &[(&str, &str)] = &[
+pub const UNIX_SCRIPTS: &[(&str, &str)] = &[
     (
         "unix/start.sh",
         include_str!("shell_integration/unix/start.sh"),
@@ -39,13 +39,13 @@ pub(crate) const UNIX_SCRIPTS: &[(&str, &str)] = &[
 ];
 
 /// A CRLF checkout must not reach the shells as CRLF.
-pub(crate) fn lf(content: &str) -> String {
+pub fn lf(content: &str) -> String {
     content.replace("\r\n", "\n")
 }
 
 /// Writes `scripts` under `dir` by relative path, skipping those already up
 /// to date.
-pub(crate) fn write_scripts<'a>(
+pub fn write_scripts<'a>(
     dir: &Path,
     scripts: impl IntoIterator<Item = (&'a str, &'a str)>,
 ) -> std::io::Result<()> {

@@ -407,9 +407,9 @@ impl SshClientHandler {
             return;
         }
 
-        let payload = crate::terminal::legacy_events::status_line(color, message);
+        let payload = tterm_core::terminal::legacy_events::status_line(color, message);
         crate::session_log::record_output(&self.app.log, &self.tab_id, payload.as_bytes());
-        crate::terminal::legacy_events::emit_output(
+        tterm_core::terminal::legacy_events::emit_output(
             self.app.events.as_ref(),
             &self.tab_id,
             payload,

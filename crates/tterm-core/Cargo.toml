@@ -22,6 +22,7 @@ base64 = "=0.23.1"
 # rustls already link both.
 hmac = "=0.13.0"
 num-bigint = "=0.5.1"
+portable-pty = "=0.9.0"
 ring = "=0.17.14"
 russh = { version = "=0.63.3", default-features = false, features = ["ring", "rsa"] }
 sha1 = "=0.11.0"

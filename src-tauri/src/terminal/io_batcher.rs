@@ -368,8 +368,6 @@ mod contracts;
 #[cfg(all(test, unix))]
 mod benchmark;
 #[cfg(all(test, unix))]
-mod pty_fixture;
-#[cfg(all(test, unix))]
 mod real_pty_tests;
 
 /// The production output endpoint writing into `sink` instead of a WebView.

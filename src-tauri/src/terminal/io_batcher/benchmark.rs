@@ -1,8 +1,8 @@
 //! Run explicitly in release mode after checking that the machine is idle.
-use super::pty_fixture::PtyFixture;
 use super::*;
 use std::path::PathBuf;
 use tauri::ipc::{Channel, InvokeResponseBody};
+use tterm_core::terminal::io_batcher::pty_fixture::PtyFixture;
 
 const TOTAL_BYTES: usize = 50_000_000;
 const ACK_BATCH: usize = 64 * 1024;

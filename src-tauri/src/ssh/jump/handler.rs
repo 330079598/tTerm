@@ -196,9 +196,9 @@ impl JumpHostHandler {
         }
 
         let payload =
-            crate::terminal::legacy_events::jump_status_line(color, self.hop_index, message);
+            tterm_core::terminal::legacy_events::jump_status_line(color, self.hop_index, message);
         crate::session_log::record_output(&self.app.log, &self.tab_id, payload.as_bytes());
-        crate::terminal::legacy_events::emit_output(
+        tterm_core::terminal::legacy_events::emit_output(
             self.app.events.as_ref(),
             &self.tab_id,
             payload,

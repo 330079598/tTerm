@@ -274,7 +274,7 @@ impl Read for OutputCounter {
 fn discard_unread_input(pid: u32) {
     #[cfg(target_os = "windows")]
     if pid != 0 {
-        if let Err(err) = super::console_reset::flush_console_input(pid) {
+        if let Err(err) = tterm_core::terminal::console_reset::flush_console_input(pid) {
             eprintln!("Failed to discard pasted input: {err}");
         }
     }

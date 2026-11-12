@@ -99,7 +99,7 @@ fn write_soft_reset(pid: u32) -> windows::core::Result<()> {
 
 /// Writes an escape sequence to a console's output buffer for the console to
 /// interpret and forward.
-pub(crate) fn write_sequence(output: HANDLE, sequence: &str) -> windows::core::Result<()> {
+pub fn write_sequence(output: HANDLE, sequence: &str) -> windows::core::Result<()> {
     let text: Vec<u16> = sequence.encode_utf16().collect();
     unsafe {
         let mut mode = CONSOLE_MODE(0);
@@ -124,7 +124,7 @@ fn flush_input(pid: u32) -> windows::core::Result<()> {
 
 /// Attaches to the console of process `pid` and runs `f` on its input or
 /// output buffer, `name` being `CONIN$` or `CONOUT$`.
-pub(crate) fn with_console(
+pub fn with_console(
     pid: u32,
     name: PCWSTR,
     f: impl FnOnce(HANDLE) -> windows::core::Result<()>,

@@ -8,7 +8,7 @@ use std::path::{Path, PathBuf};
 
 use portable_pty::CommandBuilder;
 
-use super::shell_scripts::{UNIX_SCRIPTS, write_scripts};
+use tterm_core::terminal::shell_scripts::{UNIX_SCRIPTS, write_scripts};
 
 /// The shells `unix/start.sh` integrates.
 fn is_supported(shell: &str) -> bool {

@@ -146,9 +146,13 @@ pub(super) fn emit_terminal_status(ctx: ConnectContext<'_>, status: &str) {
     if !ctx.status_options.emit_terminal_output {
         return;
     }
-    let status_msg = crate::terminal::legacy_events::status_line("33", status);
+    let status_msg = tterm_core::terminal::legacy_events::status_line("33", status);
     crate::session_log::record_output(&ctx.app.log, ctx.tab_id, status_msg.as_bytes());
-    crate::terminal::legacy_events::emit_output(ctx.app.events.as_ref(), ctx.tab_id, status_msg);
+    tterm_core::terminal::legacy_events::emit_output(
+        ctx.app.events.as_ref(),
+        ctx.tab_id,
+        status_msg,
+    );
 }
 
 /// Open an ordered ProxyJump-style chain, then establish the target SSH session

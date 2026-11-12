@@ -1,12 +1,9 @@
-#[cfg(target_os = "windows")]
-pub mod console_reset;
 #[cfg(unix)]
 pub(crate) mod cwd_watch;
 pub(crate) mod encoding;
 pub(crate) mod foreground;
 pub(crate) mod foreground_commands;
 pub(crate) mod io_batcher;
-pub(crate) mod legacy_events;
 #[cfg(unix)]
 mod local_integration;
 pub(crate) mod output;
@@ -19,7 +16,6 @@ mod reader_tests;
 mod shell_args;
 #[cfg(target_os = "windows")]
 mod shell_integration;
-pub(crate) mod shell_scripts;
 pub(crate) mod ssh_query_handler;
 pub(crate) mod types;
 #[cfg(not(target_os = "windows"))]

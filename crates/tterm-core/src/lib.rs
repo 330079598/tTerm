@@ -56,6 +56,8 @@ pub mod session;
 pub mod sftp;
 /// SSH connections, their authentication and the stores behind them.
 pub mod ssh;
+/// Local and remote terminal sessions and their output.
+pub mod terminal;
 /// Notification requests and the rules for announcing them.
 pub mod terminal_notifications;
 /// Theme definitions, the bundled catalog, imports and custom themes.

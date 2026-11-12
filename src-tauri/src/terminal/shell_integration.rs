@@ -15,7 +15,9 @@
 
 use std::path::{Path, PathBuf};
 
-use super::shell_scripts::{BASH_PROMPT, BASH_REPORT_CWD, UNIX_SCRIPTS, lf, write_scripts};
+use tterm_core::terminal::shell_scripts::{
+    BASH_PROMPT, BASH_REPORT_CWD, UNIX_SCRIPTS, lf, write_scripts,
+};
 
 /// bash prints `PS0` after reading a command and before running it.
 const BASH_PS0: &str = r"\e]133;C\e\\";

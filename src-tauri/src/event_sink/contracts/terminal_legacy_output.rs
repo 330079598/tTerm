@@ -1,10 +1,10 @@
 //! The output report of a cold terminal tab as the WebView receives it.
 
 use crate::event_sink::TauriEventSink;
-use crate::terminal::legacy_events::emit_output;
 use std::sync::{Arc, Mutex};
 use tauri::Listener;
 use tauri::test::{mock_builder, mock_context, noop_assets};
+use tterm_core::terminal::legacy_events::emit_output;
 
 #[test]
 fn legacy_output_name_target_and_json_are_frozen_before_migration() {

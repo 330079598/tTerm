@@ -3,7 +3,7 @@ use portable_pty::{Child, CommandBuilder, PtySize, native_pty_system};
 use std::io::Read;
 use std::time::Duration;
 
-pub(super) struct PtyFixture {
+pub struct PtyFixture {
     pub reader: Box<dyn Read + Send>,
     pub child: Box<dyn Child + Send + Sync>,
     _master: Box<dyn portable_pty::MasterPty + Send>,
