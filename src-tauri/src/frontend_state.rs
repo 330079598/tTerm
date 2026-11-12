@@ -542,7 +542,7 @@ mod tests {
             })
             .unwrap();
         let mut local = legacy_state();
-        local.remove("recentCommands");
+        local.insert("recentCommands".to_string(), "{not json".to_string());
 
         let state = database
             .write(|connection| migrate(connection, &local))

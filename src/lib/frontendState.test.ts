@@ -25,6 +25,7 @@ import {
   saveRecentCommands,
 } from "@/lib/recentCommands"
 import { loadSerialSendEcho, SERIAL_SEND_ECHO_STORAGE_KEY } from "@/lib/serialSendStore"
+import { loadSftpColumnWeights } from "@/components/SftpDrawer/useSftpColumnWidths"
 import {
   loadSftpViewPreferences,
   SFTP_COLUMN_WIDTH_STORAGE_KEY,
@@ -157,6 +158,7 @@ describe("frontend state storage", () => {
     expect(loadRecentCommands(localStorage)).toEqual(commands)
     expect(loadRecentQuickConnections(localStorage)).toEqual(quickConnections)
     expect(loadRecentProfiles(localStorage)).toEqual(profiles)
+    expect(loadSftpColumnWeights(localStorage)).toEqual(widths)
     expect(loadSftpViewPreferences(localStorage)).toEqual(sftpView)
     expect(loadSerialSendEcho("port:COM1")).toBe(false)
     expect(loadReplayViewPreferences(localStorage)).toEqual(replayView)
