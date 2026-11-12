@@ -1,0 +1,33 @@
+//! Specification tests transcribed from `src/lib/*.test.ts`.
+
+mod app_navigation;
+mod pane_layout;
+mod pane_navigation;
+mod pane_templates;
+mod persistence;
+mod tab_agent_indicator;
+mod tab_attention;
+mod tab_closing;
+mod tab_menu_actions;
+mod tab_navigation;
+mod tab_nudge;
+
+use crate::workspace::tab::{Tab, TabType};
+
+/// The expectations generated from the real TypeScript modules by
+/// `scripts/migration/P1-11d1-oracle.mjs`.
+pub(crate) fn oracle_json() -> serde_json::Value {
+    serde_json::from_str(include_str!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../docs/gpui-migration/reports/P1-11d1-evidence/oracle.json"
+    )))
+    .expect("the P1-11d1 oracle is valid JSON")
+}
+
+pub(crate) fn ids(values: &[&str]) -> Vec<String> {
+    values.iter().map(|value| (*value).to_owned()).collect()
+}
+
+pub(crate) fn tab(id: &str, title: &str, tab_type: TabType) -> Tab {
+    Tab::new(id, title, tab_type)
+}

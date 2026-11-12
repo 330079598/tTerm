@@ -15,7 +15,8 @@ test-support = []
 [dependencies]
 dirs = "=7.0.0"
 serde = { version = "1", features = ["derive"] }
-serde_json = "1"
+serde_json = { version = "1", features = ["float_roundtrip", "raw_value"] }
+indexmap = "=2.14.2"
 gethostname = "=1.1.0"
 tterm-platform = { path = "../tterm-platform" }
 tterm-terminal = { path = "../tterm-terminal" }
