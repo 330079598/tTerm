@@ -515,7 +515,17 @@ fn js_math_round(value: f64) -> f64 {
     if !value.is_finite() {
         return value;
     }
-    (value + 0.5).floor()
+    let floor = value.floor();
+    let rounded = if value - floor < 0.5 {
+        floor
+    } else {
+        floor + 1.0
+    };
+    if rounded == 0.0 && value < 0.0 {
+        -0.0
+    } else {
+        rounded
+    }
 }
 
 #[cfg(test)]

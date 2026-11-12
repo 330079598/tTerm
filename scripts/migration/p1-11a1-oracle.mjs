@@ -544,7 +544,7 @@ const attentionCases = [
   [{ kind: "bell" }, { ...settings, bell_notify: true }, { windowFocused: true, tabVisible: false, tabFocused: false }],
   [{ kind: "request", body: "hi" }, { ...settings, notifications_enabled: false }, { windowFocused: false, tabVisible: false, tabFocused: false }],
 ].map(([event, current, focus]) => ({ event, settings: current, focus, result: notifications.decideAttention(event, current, focus) }))
-const durations = [0, 499, 500, 42400, 42500, 59999, 60500, 185000, 3599500, 3720000, -500, -1500, NaN, Infinity, -Infinity].map((value) => ({
+const durations = [0, 499, 499.99999999999994, 500, 42400, 42500, 59999, 60500, 185000, 3599500, 3720000, -500, -1500, NaN, Infinity, -Infinity].map((value) => ({
   value: Number.isNaN(value) ? "NaN" : value === Infinity ? "Infinity" : value === -Infinity ? "-Infinity" : value,
   result: notifications.formatCommandDuration(value),
 }))

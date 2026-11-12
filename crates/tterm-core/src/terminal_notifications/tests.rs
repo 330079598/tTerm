@@ -716,6 +716,11 @@ fn formats_seconds_minutes_and_hours() {
 }
 
 #[test]
+fn rounds_like_javascript_math_round() {
+    assert_eq!(format_command_duration(499.99999999999994), "0s");
+}
+
+#[test]
 fn needs_command_marks_everywhere_and_shell_integration_outside_windows() {
     let on = LocalShellMarkConfig {
         command_marks: true,
