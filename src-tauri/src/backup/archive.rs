@@ -10,7 +10,6 @@ use super::{
 use crate::config::AppConfig;
 use crate::profiles::types::SavedProfile;
 use crate::proxy::ProxyServer;
-use crate::session::SessionData;
 use crate::ssh::secret_store::types::SecretStoreState;
 use aes_gcm::aead::{Aead, KeyInit, Payload as AeadPayload};
 use aes_gcm::{Aes256Gcm, Nonce};
@@ -23,6 +22,7 @@ use std::collections::HashSet;
 use std::fs;
 use std::io::{Cursor, Read, Write};
 use std::path::{Component, Path};
+use tterm_core::session_restore::SessionData;
 use tterm_core::sftp::store::SftpDirectoryStore;
 use tterm_core::ssh::store::KnownHostStore;
 use tterm_core::tunnel::types::TunnelRule;

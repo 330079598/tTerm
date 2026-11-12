@@ -52,7 +52,7 @@ fn imported_meta_keys(selection: &BackupSelection) -> Vec<&'static str> {
         ]);
     }
     if selection.session {
-        keys.push(crate::session::SESSION_KEY);
+        keys.push(tterm_core::session_restore::SESSION_KEY);
     }
     keys
 }

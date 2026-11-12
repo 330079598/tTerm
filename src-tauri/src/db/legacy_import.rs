@@ -91,7 +91,7 @@ pub(crate) fn import_settings_files_into(
 ) -> Result<(), String> {
     let errors: Vec<String> = [
         tterm_core::app_state::import_from_config_file(database, config_dir),
-        crate::session::import_file(database, config_dir),
+        tterm_core::session_restore::import_file(database, config_dir),
         crate::config::window_background::import_file(database, config_dir),
         crate::backup::automatic::import_settings_files(database, config_dir),
         crate::sync::import_settings_file(database, config_dir),

@@ -158,11 +158,11 @@ fn seed_settings(connection: &rusqlite::Connection) -> Result<(), String> {
             ..crate::sync::SyncSettings::default()
         },
     )?;
-    crate::session::write_session(
+    tterm_core::session_restore::write_session(
         connection,
-        crate::session::SessionData {
+        tterm_core::session_restore::SessionData {
             active_tab_id: Some("mine".to_string()),
-            ..crate::session::SessionData::default()
+            ..tterm_core::session_restore::SessionData::default()
         },
     )?;
     tterm_core::app_state::set_collapsed_profile_group_keys(connection, &["mine".to_string()])?;
@@ -176,7 +176,7 @@ fn settings_summary(connection: &rusqlite::Connection) -> Value {
         "automatic": [automatic.frequency, automatic.last_backup_at],
         "webdav": [webdav.url, webdav.last_backup_at, webdav.last_error],
         "sync": crate::sync::read_settings(connection).unwrap().enabled,
-        "session": crate::session::read_session(connection).unwrap().and_then(|s| s.active_tab_id),
+        "session": tterm_core::session_restore::read_session(connection).unwrap().and_then(|s| s.active_tab_id),
         "themes": crate::themes::list_themes(connection).unwrap(),
         "collapsed": tterm_core::app_state::collapsed_profile_group_keys(connection).unwrap(),
     })

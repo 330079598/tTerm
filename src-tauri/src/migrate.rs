@@ -1,5 +1,4 @@
 use crate::profiles;
-use crate::session;
 use crate::ssh;
 use serde::Serialize;
 use serde::de::DeserializeOwned;
@@ -26,7 +25,7 @@ pub fn migrate_legacy_config_files(app: &tauri::AppHandle) -> Result<(), String>
     // Once the database holds this data, copying the old files over would only
     // leave files nothing reads.
     let database_holds_data = crate::db::legacy_import::legacy_json_imported();
-    let database_holds_session = session::file_imported();
+    let database_holds_session = tterm_core::session_restore::file_imported();
     for name in MIGRATED_CONFIG_FILES {
         if database_holds_data && crate::db::legacy_import::IMPORTED_FILES.contains(name) {
             continue;
@@ -191,8 +190,10 @@ fn merge_profiles_file(old_path: &Path, new_path: &Path) -> Result<(), String> {
 }
 
 fn merge_session_file(old_path: &Path, new_path: &Path) -> Result<(), String> {
-    let old_session = read_json_file::<session::SessionData>(old_path, "session")?;
-    let new_session = read_json_file::<session::SessionData>(new_path, "session")?;
+    let old_session =
+        read_json_file::<tterm_core::session_restore::SessionData>(old_path, "session")?;
+    let new_session =
+        read_json_file::<tterm_core::session_restore::SessionData>(new_path, "session")?;
 
     if old_session.last_saved > new_session.last_saved {
         write_json_file(new_path, &old_session, "session")?;

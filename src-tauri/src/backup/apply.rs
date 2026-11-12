@@ -272,7 +272,7 @@ pub(super) fn apply_payload(
     // The imported tabs reuse the ids of the tabs open now, whose saved
     // content must not show in them.
     if options.selection.session && payload.session.is_some() {
-        crate::session::scrollback::clear_all()?;
+        tterm_core::session_restore::scrollback::clear_all()?;
     }
 
     let commands_imported = if options.selection.command_library {
@@ -327,7 +327,7 @@ pub(super) fn apply_database_payload(
     if options.selection.session
         && let Some(session) = payload.session.clone()
     {
-        crate::session::write_session(transaction, from_backup_value(session)?)?;
+        tterm_core::session_restore::write_session(transaction, from_backup_value(session)?)?;
     }
     let mut profiles_imported = 0;
     if options.selection.profiles {

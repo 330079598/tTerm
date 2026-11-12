@@ -64,6 +64,8 @@ pub mod saved_password_prompts;
 pub mod session;
 /// Terminal session logs and the screen they replay.
 pub mod session_log;
+/// The tabs and layout to restore on the next launch.
+pub mod session_restore;
 /// Shared SFTP value and streaming types (P1-04).
 pub mod sftp;
 /// SSH connections, their authentication and the stores behind them.

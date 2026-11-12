@@ -85,7 +85,7 @@ pub(super) fn collect_payload(
         )?,
         proxies: read_selected_data(selection.profiles, crate::proxy::storage::list_proxies)?,
         session: if selection.session {
-            tterm_core::db::read(crate::session::read_session)?
+            tterm_core::db::read(tterm_core::session_restore::read_session)?
                 .map(|session| to_backup_value(&session))
                 .transpose()?
         } else {

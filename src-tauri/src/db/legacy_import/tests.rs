@@ -228,7 +228,7 @@ fn settings_files_move_into_the_database_leaving_only_config_json() {
             assert_eq!(state.last_update_check_at, Some(123));
             assert_eq!(state.collapsed_profile_group_keys, ["ops"]);
 
-            let session = crate::session::read_session(connection)?.unwrap();
+            let session = tterm_core::session_restore::read_session(connection)?.unwrap();
             assert_eq!(session.active_tab_id.as_deref(), Some("1"));
             assert_eq!(session.last_saved, 9);
             assert!(session.tabs[0]["connection"].get("password").is_none());
@@ -271,11 +271,11 @@ fn files_written_again_by_an_older_version_do_not_overwrite_the_database() {
     import_settings_files_into(&database, &dir).unwrap();
     database
         .write(|connection| {
-            crate::session::write_session(
+            tterm_core::session_restore::write_session(
                 connection,
-                crate::session::SessionData {
+                tterm_core::session_restore::SessionData {
                     active_tab_id: Some("newer".to_string()),
-                    ..crate::session::SessionData::default()
+                    ..tterm_core::session_restore::SessionData::default()
                 },
             )
         })
@@ -288,7 +288,7 @@ fn files_written_again_by_an_older_version_do_not_overwrite_the_database() {
     assert_eq!(file_names(&dir), ["config.json"]);
     database
         .read(|connection| {
-            let session = crate::session::read_session(connection)?.unwrap();
+            let session = tterm_core::session_restore::read_session(connection)?.unwrap();
             assert_eq!(session.active_tab_id.as_deref(), Some("newer"));
             assert_eq!(
                 crate::config::window_background::read(connection)?,
@@ -314,7 +314,7 @@ fn an_unreadable_settings_file_stays_while_the_others_move() {
     assert_eq!(file_names(&dir), ["config.json", "sync_settings.json"]);
     database
         .read(|connection| {
-            assert!(crate::session::read_session(connection)?.is_none());
+            assert!(tterm_core::session_restore::read_session(connection)?.is_none());
             assert!(!crate::sync::read_settings(connection)?.enabled);
             assert_eq!(
                 crate::backup::remote::read_settings(connection)?.last_backup_at,

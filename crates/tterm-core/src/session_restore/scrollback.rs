@@ -3,6 +3,7 @@
 //! `scrollback/` beside the database. The files stay out of the database so
 //! that backups and sync never carry what a terminal printed.
 
+use crate::core::blocking::run_blocking;
 use flate2::Compression;
 use flate2::read::GzDecoder;
 use flate2::write::GzEncoder;
@@ -12,7 +13,6 @@ use std::fs;
 use std::io::{ErrorKind, Read, Write};
 use std::path::{Path, PathBuf};
 use std::time::UNIX_EPOCH;
-use tterm_core::core::blocking::run_blocking;
 
 const DIR_NAME: &str = "scrollback";
 const EXTENSION: &str = "gz";
@@ -40,7 +40,7 @@ pub struct SavedScrollback {
 }
 
 fn snapshot_dir() -> Result<PathBuf, String> {
-    Ok(tterm_core::config::paths::get_config_path()?.join(DIR_NAME))
+    Ok(crate::config::paths::get_config_path()?.join(DIR_NAME))
 }
 
 /// Tab ids name the files, so only the characters tTerm's own ids use are
@@ -89,10 +89,10 @@ fn decompress(bytes: &[u8]) -> Option<String> {
     Some(content)
 }
 
-pub(crate) fn write_snapshots(dir: &Path, snapshots: &[ScrollbackSnapshot]) -> Result<(), String> {
+pub fn write_snapshots(dir: &Path, snapshots: &[ScrollbackSnapshot]) -> Result<(), String> {
     for snapshot in snapshots {
         let path = snapshot_path(dir, &snapshot.tab_id)?;
-        tterm_core::config::atomic::atomic_write_private(&path, compress(&snapshot.content)?)?;
+        crate::config::atomic::atomic_write_private(&path, compress(&snapshot.content)?)?;
     }
     Ok(())
 }
@@ -126,7 +126,7 @@ fn snapshot_files(dir: &Path) -> Result<Vec<(String, PathBuf)>, String> {
 }
 
 /// Deletes the snapshots of tabs that are not in `keep`.
-pub(crate) fn prune(dir: &Path, keep: &HashSet<String>) -> Result<(), String> {
+pub fn prune(dir: &Path, keep: &HashSet<String>) -> Result<(), String> {
     for (tab_id, path) in snapshot_files(dir)? {
         if !keep.contains(&tab_id) {
             remove_file(&path)?;
@@ -137,10 +137,7 @@ pub(crate) fn prune(dir: &Path, keep: &HashSet<String>) -> Result<(), String> {
 
 /// Reads the snapshots of the tabs in `keep`, and deletes the others, which
 /// belong to tabs closed while the last launch could not clean up after them.
-pub(crate) fn read_snapshots(
-    dir: &Path,
-    keep: &HashSet<String>,
-) -> Result<Vec<SavedScrollback>, String> {
+pub fn read_snapshots(dir: &Path, keep: &HashSet<String>) -> Result<Vec<SavedScrollback>, String> {
     prune(dir, keep)?;
     let mut snapshots = Vec::new();
     for (tab_id, path) in snapshot_files(dir)? {
@@ -161,7 +158,7 @@ pub(crate) fn read_snapshots(
     Ok(snapshots)
 }
 
-pub(crate) fn clear(dir: &Path) -> Result<(), String> {
+pub fn clear(dir: &Path) -> Result<(), String> {
     match fs::remove_dir_all(dir) {
         Ok(()) => Ok(()),
         Err(error) if error.kind() == ErrorKind::NotFound => Ok(()),
@@ -178,7 +175,7 @@ fn remove_file(path: &Path) -> Result<(), String> {
 }
 
 /// Deletes the snapshots of tabs that are no longer in the saved session.
-pub(crate) fn prune_to_session(tabs: &serde_json::Value) -> Result<(), String> {
+pub fn prune_to_session(tabs: &serde_json::Value) -> Result<(), String> {
     let keep = tabs
         .as_array()
         .into_iter()
@@ -190,24 +187,24 @@ pub(crate) fn prune_to_session(tabs: &serde_json::Value) -> Result<(), String> {
 }
 
 /// Deletes every saved snapshot.
-pub(crate) fn clear_all() -> Result<(), String> {
+pub fn clear_all() -> Result<(), String> {
     clear(&snapshot_dir()?)
 }
 
-pub(super) async fn save_scrollback_snapshots_service(
+pub async fn save_scrollback_snapshots_service(
     snapshots: Vec<ScrollbackSnapshot>,
 ) -> Result<(), String> {
     run_blocking(move || write_snapshots(&snapshot_dir()?, &snapshots)).await
 }
 
 /// The saved content of `tab_ids`; the snapshots of other tabs are deleted.
-pub(super) async fn load_scrollback_snapshots_service(
+pub async fn load_scrollback_snapshots_service(
     tab_ids: Vec<String>,
 ) -> Result<Vec<SavedScrollback>, String> {
     run_blocking(move || read_snapshots(&snapshot_dir()?, &tab_ids.into_iter().collect())).await
 }
 
-pub(super) async fn clear_scrollback_snapshots_service() -> Result<(), String> {
+pub async fn clear_scrollback_snapshots_service() -> Result<(), String> {
     run_blocking(clear_all).await
 }
 

@@ -3,8 +3,8 @@
 //! backend; typed projections model an old UI that ignores the added field.
 
 use super::*;
-use tterm_core::core::agent_resume::{ResumeAgent, ResumeRequest, build_resume_command};
-use tterm_core::db::Database;
+use crate::core::agent_resume::{ResumeAgent, ResumeRequest, build_resume_command};
+use crate::db::Database;
 
 #[derive(Deserialize)]
 struct CurrentTab {
