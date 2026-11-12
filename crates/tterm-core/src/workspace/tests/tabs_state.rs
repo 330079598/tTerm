@@ -119,4 +119,3 @@ fn oracle_matches_duplicate_tab_titles() {
         );
     }
 }
-
