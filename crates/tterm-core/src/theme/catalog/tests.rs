@@ -87,14 +87,40 @@ fn derives_readable_interface_colors_for_every_library_theme() {
 }
 
 fn is_hsl_token(value: &str) -> bool {
-    let parts = value.split_whitespace().collect::<Vec<_>>();
-    if parts.len() != 3 || !parts[1].ends_with('%') || !parts[2].ends_with('%') {
-        return false;
+    static PATTERN: std::sync::LazyLock<Option<regress::Regex>> =
+        std::sync::LazyLock::new(|| {
+            regress::Regex::with_flags(
+                r"^\d+(\.\d+)? \d+(\.\d+)?% \d+(\.\d+)?%$",
+                "",
+            )
+            .ok()
+        });
+    PATTERN
+        .as_ref()
+        .is_some_and(|pattern| pattern.find(value).is_some())
+}
+
+#[test]
+fn hsl_token_validation_is_as_strict_as_the_typescript_test() {
+    for value in [
+        "0 0% 0%",
+        "220.5 13.5% 12.25%",
+        "359 100% 100%",
+    ] {
+        assert!(is_hsl_token(value), "{value:?}");
     }
-    let number = |part: &str| part.parse::<f64>().is_ok();
-    number(parts[0])
-        && number(parts[1].trim_end_matches('%'))
-        && number(parts[2].trim_end_matches('%'))
+    for value in [
+        "-1 2% 3%",
+        "1e2 1% 1%",
+        "NaN 1% 2%",
+        "1  2% 3%",
+        "1 2 % 3%",
+        "1 2% 3",
+        " 1 2% 3%",
+        "1 2% 3% ",
+    ] {
+        assert!(!is_hsl_token(value), "{value:?}");
+    }
 }
 
 fn color<'a>(colors: &'a ThemeColors, key: &str) -> &'a str {
