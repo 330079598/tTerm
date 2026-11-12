@@ -323,6 +323,9 @@ pub(super) fn apply_database_payload(
             }
             crate::app_state::set_collapsed_profile_group_keys(transaction, &keys)?;
         }
+        if let Some(state) = payload.frontend_state.as_ref() {
+            crate::frontend_state::apply_backup_state(transaction, state)?;
+        }
     }
     if options.selection.session {
         if let Some(session) = payload.session.clone() {

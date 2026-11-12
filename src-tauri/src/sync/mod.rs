@@ -140,9 +140,9 @@ pub async fn reset_sync() -> Result<SyncStatus, String> {
     .await
 }
 
-/// Syncs when this device has changes, or always when `check_remote` is
-/// set. `frontend_state` is what the web view keeps, for the recovery backup
-/// made before a sync deletes anything.
+/// Syncs when this device has changes, or always when `check_remote` is set.
+/// `frontend_state` is kept for older callers; a recovery backup reads the
+/// frontend state from the database.
 #[tauri::command]
 pub async fn run_sync(
     app: AppHandle,
@@ -151,17 +151,11 @@ pub async fn run_sync(
     secret_state: State<'_, SecretStoreState>,
     tunnels: State<'_, TunnelManager>,
 ) -> Result<SyncOutcome, String> {
+    let _legacy_frontend_state = frontend_state;
     let Ok(_guard) = SYNC_LOCK.try_lock() else {
         return Ok(SyncOutcome::skipped("busy"));
     };
-    let result = sync(
-        &app,
-        frontend_state,
-        check_remote,
-        secret_state.inner(),
-        tunnels.inner(),
-    )
-    .await;
+    let result = sync(&app, check_remote, secret_state.inner(), tunnels.inner()).await;
     match &result {
         Ok(outcome) if matches!(outcome.state, "synced" | "unchanged") => set_last_error(None),
         Ok(_) => {}
@@ -172,7 +166,6 @@ pub async fn run_sync(
 
 async fn sync(
     app: &AppHandle,
-    frontend_state: Option<Value>,
     check_remote: bool,
     secret_state: &SecretStoreState,
     tunnels: &TunnelManager,
@@ -243,7 +236,6 @@ async fn sync(
             local,
             union: exchanged.union,
             agreed: exchanged.agreed,
-            frontend_state,
         },
     )
     .await?;
@@ -395,7 +387,6 @@ struct ApplyInput {
     /// Merged without a base (first sync or broken lineage).
     union: bool,
     agreed: state::SyncBase,
-    frontend_state: Option<Value>,
 }
 
 /// Writes the merge result locally and saves it as the new base.
@@ -412,7 +403,6 @@ async fn apply(
         local,
         union,
         agreed,
-        frontend_state,
     } = input;
     let mut normalized = Collections::new();
     for &category in &categories {
@@ -452,7 +442,6 @@ async fn apply(
             crate::backup::automatic::create_recovery_backup(
                 &app,
                 RECOVERY_PREFIX,
-                frontend_state,
                 &secret_state,
                 RECOVERY_KEEP,
             )

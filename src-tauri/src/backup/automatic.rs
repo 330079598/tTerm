@@ -13,7 +13,6 @@ use crate::config;
 use crate::db::meta;
 use crate::ssh::secret_store::types::SecretStoreState;
 use chrono::Utc;
-use serde_json::Value;
 use std::cmp::Reverse;
 use std::collections::HashSet;
 use std::fs;
@@ -22,7 +21,6 @@ use tauri::AppHandle;
 
 pub(super) fn run_due_automatic_backup_blocking(
     app: AppHandle,
-    frontend_state: Option<Value>,
     force: bool,
     secret_state: &SecretStoreState,
 ) -> Result<Option<BackupExportResult>, String> {
@@ -38,7 +36,7 @@ pub(super) fn run_due_automatic_backup_blocking(
         "automatic-{}.tterm-backup",
         Utc::now().format("%Y%m%d-%H%M%S-%3f")
     ));
-    let payload = collect_payload(&app, &settings.selection, frontend_state, secret_state)?;
+    let payload = collect_payload(&app, &settings.selection, secret_state)?;
     let profile_count = value_array_len(payload.profiles.as_ref());
     let command_count = payload.commands.as_ref().map_or(0, Vec::len);
     let archive = build_archive(&app, &settings.selection, &payload, None)?;
@@ -163,7 +161,7 @@ pub(super) fn create_pre_import_backup(
         Utc::now().format("%Y%m%d-%H%M%S-%3f")
     ));
     let safe_selection = selection.without_secrets();
-    let payload = collect_payload(app, &safe_selection, None, secret_state)?;
+    let payload = collect_payload(app, &safe_selection, secret_state)?;
     let archive = build_archive(app, &safe_selection, &payload, None)?;
     config::atomic::atomic_write_private(&path, archive)?;
     Ok(path)
@@ -175,7 +173,6 @@ pub(super) fn create_pre_import_backup(
 pub(crate) fn create_recovery_backup(
     app: &AppHandle,
     prefix: &str,
-    frontend_state: Option<Value>,
     secret_state: &SecretStoreState,
     keep: usize,
 ) -> Result<PathBuf, String> {
@@ -194,7 +191,7 @@ pub(crate) fn create_recovery_backup(
         themes: true,
         ..BackupSelection::default()
     };
-    let payload = collect_payload(app, &selection, frontend_state, secret_state)?;
+    let payload = collect_payload(app, &selection, secret_state)?;
     let archive = build_archive(app, &selection, &payload, None)?;
     config::atomic::atomic_write_private(&path, archive)?;
     enforce_retention(&backup_dir, &format!("{prefix}-"), keep)?;
