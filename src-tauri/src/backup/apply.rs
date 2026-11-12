@@ -323,6 +323,10 @@ pub(super) fn apply_database_payload(
             }
             crate::app_state::set_collapsed_profile_group_keys(transaction, &keys)?;
         }
+    }
+    // Older versions restored these fields for a themes-only import too,
+    // even though the rest of the settings were left alone.
+    if options.selection.settings || options.selection.themes {
         if let Some(state) = payload.frontend_state.as_ref() {
             crate::frontend_state::apply_backup_state(transaction, state)?;
         }

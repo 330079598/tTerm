@@ -51,6 +51,8 @@ fn imported_meta_keys(selection: &BackupSelection) -> Vec<&'static str> {
             crate::sync::SETTINGS_KEY,
             crate::app_state::COLLAPSED_PROFILE_GROUP_KEYS,
         ]);
+    }
+    if selection.settings || selection.themes {
         keys.extend(crate::frontend_state::backup_meta_keys());
     }
     if selection.session {

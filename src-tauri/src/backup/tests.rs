@@ -1182,6 +1182,61 @@ fn custom_themes_and_recent_records_in_one_backup_both_import() {
 }
 
 #[test]
+fn importing_only_themes_restores_frontend_state_and_keeps_rollback() {
+    let database = crate::db::Database::open_in_memory().unwrap();
+    database
+        .write(|connection| {
+            meta::set(
+                connection,
+                "frontend.recent_commands",
+                &serde_json::json!([{"id": "mine"}]),
+            )?;
+            crate::themes::replace_themes(connection, &[serde_json::json!({"id": "mine"})])
+        })
+        .unwrap();
+    let mut payload = BackupPayload::default();
+    payload.frontend_state = Some(serde_json::json!({
+        "customThemes": [{"id": "theirs"}],
+        "recentCommands": [{"id": "theirs"}],
+    }));
+    let options = BackupImportOptions {
+        selection: BackupSelection {
+            themes: true,
+            ..Default::default()
+        },
+        backup_password: None,
+        use_webdav_password: false,
+        conflict_strategy: "replace".to_string(),
+    };
+
+    database
+        .write(|connection| {
+            let snapshot = snapshot_database(connection, &options.selection)?;
+            apply_database_payload(connection, &payload, &options)?;
+            assert_eq!(
+                crate::frontend_state::read_all(connection)?["recentCommands"][0]["id"],
+                "theirs"
+            );
+            assert_eq!(
+                crate::themes::list_themes(connection)?,
+                vec![serde_json::json!({"id": "theirs"})]
+            );
+
+            restore_database(connection, &snapshot)?;
+            assert_eq!(
+                crate::frontend_state::read_all(connection)?["recentCommands"][0]["id"],
+                "mine"
+            );
+            assert_eq!(
+                crate::themes::list_themes(connection)?,
+                vec![serde_json::json!({"id": "mine"})]
+            );
+            Ok(())
+        })
+        .unwrap();
+}
+
+#[test]
 fn a_new_backup_frontend_state_matches_the_old_shape_field_by_field() {
     let database = crate::db::Database::open_in_memory().unwrap();
     database
