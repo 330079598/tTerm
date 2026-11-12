@@ -1,7 +1,7 @@
 use super::service;
 use super::types::{
     SavedProfile, SshConfigImportHost, SshConfigImportOptions, SshConfigImportPreview,
-    SshConfigImportResult,
+    SshConfigImportResult, TestConnectionResult,
 };
 use crate::config::tab_icons::TabIconStyle;
 use crate::services::AppServices;
@@ -10,13 +10,6 @@ use std::sync::Arc;
 pub(super) mod connection_check;
 pub(crate) mod groups;
 pub(super) mod import;
-
-#[derive(serde::Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct TestConnectionResult {
-    pub(super) message: String,
-    pub(super) network_latency_ms: Option<u64>,
-}
 
 #[tauri::command]
 pub async fn list_profiles() -> Result<Vec<SavedProfile>, String> {

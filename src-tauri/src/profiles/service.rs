@@ -1,4 +1,4 @@
-use super::commands::TestConnectionResult;
+use super::types::TestConnectionResult;
 use tterm_core::events::ssh::SshConnectionProgressPayload;
 
 use super::groups::{group_paths, list_groups, resolve_path};

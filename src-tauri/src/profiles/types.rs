@@ -1,6 +1,13 @@
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
+#[derive(serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TestConnectionResult {
+    pub(super) message: String,
+    pub(super) network_latency_ms: Option<u64>,
+}
+
 fn default_auth_method() -> String {
     "password".to_string()
 }
