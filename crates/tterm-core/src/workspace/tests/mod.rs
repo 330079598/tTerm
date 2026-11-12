@@ -17,6 +17,7 @@ mod tab_icons;
 mod tab_menu_actions;
 mod tab_navigation;
 mod tab_nudge;
+mod tabs_reducer;
 mod tabs_state;
 
 use crate::workspace::tab::{Tab, TabType};

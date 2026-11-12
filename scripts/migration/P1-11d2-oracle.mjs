@@ -3,6 +3,7 @@
 // observed, and the async shell discovery is not part of the port.
 import fs from "node:fs"
 import ts from "typescript"
+import { reducerCases } from "./P1-11d2-reducer-oracle.mjs"
 
 function dataUrl(source) {
   return `data:text/javascript;base64,${Buffer.from(source).toString("base64")}`
@@ -1308,6 +1309,8 @@ audit("-\\d+$", "", "OS terminal-3", "Terminal-０")
 audit("^-\\d+$", "", "-12", "-１２")
 audit("^#[0-9a-f]{6}$", "i", "#AABBCC", "#GGGGGG")
 output.regexAudit = regexAudit
+
+output.reducer = reducerCases(tabsState)
 
 output.sessionTabs = await Promise.all([
   { id: "1", title: "t", type: "terminal", isActive: false, shellName: "zsh", iconStyle: { icon: 5 } },

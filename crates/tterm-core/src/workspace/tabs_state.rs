@@ -1,12 +1,34 @@
 //! Pure tab-list transitions, from `src/lib/tabsState.ts`.
 //!
-//! The reducer, its action enum and the state it holds are React state
-//! management. The native workspace entity owns that state instead; the
-//! transitions here are the parts that do not depend on it.
+//! State transitions are independent of React; the native workspace owns the state.
 
 use std::collections::HashSet;
 
 use super::tab::{Tab, TabType, is_page_tab};
+
+pub mod action;
+mod reducer;
+pub mod reopen;
+mod transitions;
+
+/// The tabs, their pane groups, and the counter used to allocate group ids.
+#[derive(Debug, Clone, PartialEq, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TabsState {
+    /// The tabs in the order their groups show them.
+    pub tabs: Vec<Tab>,
+    /// The tab focused in the window.
+    pub active_tab_id: Option<String>,
+    /// The groups in tab-bar order.
+    pub groups: Vec<super::tab_groups::TabGroup>,
+    /// The number of group ids already allocated.
+    pub group_count: u64,
+}
+
+/// Applies one action, reconciles pane groups, and refreshes distinct local titles.
+pub fn tabs_reducer(state: TabsState, action: action::TabsAction) -> TabsState {
+    reducer::reduce(state, action)
+}
 
 /// How removing tabs chooses the tab to focus next.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
