@@ -104,7 +104,7 @@ pub fn match_password_prompt(
         });
     }
 
-    if let Some(known_user) = known_user
+    if let Some(known_user) = known_user.filter(|known_user| !known_user.is_empty())
         && LOCALIZED_SUDO_PROMPT
             .as_ref()
             .and_then(|pattern| pattern.find_from_ucs2(&units, 0).next())

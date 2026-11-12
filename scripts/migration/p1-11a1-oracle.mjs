@@ -312,6 +312,11 @@ const promptBoundaryCases = [
   line,
   result: sudoPrompt.matchPasswordPrompt(line, "stone", []),
 }))
+const sudoEmptyKnownUser = {
+  empty: sudoPrompt.matchPasswordPrompt("[sudo] mot de passe de root : ", "", []),
+  missing: sudoPrompt.matchPasswordPrompt("[sudo] mot de passe de root : ", undefined, []),
+  whitespace: sudoPrompt.matchPasswordPrompt("[sudo] mot de passe de   root : ", " ", []),
+}
 const sudoEmojiBoundary = [122, 123].map((count) => {
   const line = `[sudo] ${"😀".repeat(count)} 的密码：`
   return {
@@ -627,6 +632,7 @@ console.log(
       decodeCases,
       promptCases,
       promptBoundaryCases,
+      sudoEmptyKnownUser,
       sudoEmojiBoundary,
       customCases,
       validPatterns,

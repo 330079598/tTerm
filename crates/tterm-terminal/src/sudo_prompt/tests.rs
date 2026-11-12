@@ -104,6 +104,20 @@ fn does_not_guess_the_user_of_an_unknown_sudo_locale() {
 }
 
 #[test]
+fn treats_an_empty_known_user_as_no_user_like_javascript() {
+    assert_eq!(match_with("[sudo] mot de passe de root : ", Some("")), None);
+    assert_eq!(match_with("[sudo] mot de passe de root : ", None), None);
+    assert_eq!(
+        match_with("[sudo] mot de passe de   root : ", Some(" "))
+            .map(|found| (found.prompt, found.user)),
+        Some((
+            "[sudo] mot de passe de   root :".to_owned(),
+            Some(" ".to_owned())
+        ))
+    );
+}
+
+#[test]
 fn matches_doas_prompts() {
     assert_eq!(
         match_with("doas (ops@web-1) password: ", Some("ops")).and_then(|found| found.user),
