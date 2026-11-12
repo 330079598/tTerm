@@ -1,15 +1,15 @@
 use super::types::TunnelRule;
+use crate::db::sql_error;
+use crate::events::tunnel::TunnelTraffic;
 use rusqlite::{Connection, OptionalExtension, Row, params};
 use std::collections::HashMap;
-use tterm_core::db::sql_error;
-use tterm_core::events::tunnel::TunnelTraffic;
 
 /// Tunnels in display order.
-pub(crate) fn load_tunnels() -> Result<Vec<TunnelRule>, String> {
-    tterm_core::db::read(list_tunnel_rules)
+pub fn load_tunnels() -> Result<Vec<TunnelRule>, String> {
+    crate::db::read(list_tunnel_rules)
 }
 
-pub(crate) fn list_tunnel_rules(connection: &Connection) -> Result<Vec<TunnelRule>, String> {
+pub fn list_tunnel_rules(connection: &Connection) -> Result<Vec<TunnelRule>, String> {
     let mut statement = connection
         .prepare("SELECT data FROM tunnels ORDER BY position, rowid")
         .map_err(sql_error("Failed to read tunnels"))?;
@@ -24,7 +24,7 @@ pub(crate) fn list_tunnel_rules(connection: &Connection) -> Result<Vec<TunnelRul
 }
 
 /// Updates the rule in place, or appends it after the last rule.
-pub(crate) fn upsert_tunnel(connection: &Connection, tunnel: &TunnelRule) -> Result<(), String> {
+pub fn upsert_tunnel(connection: &Connection, tunnel: &TunnelRule) -> Result<(), String> {
     let data =
         serde_json::to_string(tunnel).map_err(|e| format!("Failed to serialize tunnel: {e}"))?;
     connection
@@ -38,7 +38,7 @@ pub(crate) fn upsert_tunnel(connection: &Connection, tunnel: &TunnelRule) -> Res
     Ok(())
 }
 
-pub(crate) fn delete_tunnel(connection: &Connection, id: &str) -> Result<(), String> {
+pub fn delete_tunnel(connection: &Connection, id: &str) -> Result<(), String> {
     connection
         .execute("DELETE FROM tunnels WHERE id = ?1", [id])
         .map_err(sql_error("Failed to delete tunnel"))?;
@@ -49,10 +49,7 @@ pub(crate) fn delete_tunnel(connection: &Connection, id: &str) -> Result<(), Str
 }
 
 /// Replaces every rule, keeping the order given.
-pub(crate) fn replace_tunnels(
-    connection: &Connection,
-    tunnels: &[TunnelRule],
-) -> Result<(), String> {
+pub fn replace_tunnels(connection: &Connection, tunnels: &[TunnelRule]) -> Result<(), String> {
     connection
         .execute("DELETE FROM tunnels", [])
         .map_err(sql_error("Failed to clear tunnels"))?;
@@ -84,7 +81,7 @@ fn traffic_from_row(row: &Row<'_>) -> rusqlite::Result<TunnelTraffic> {
 }
 
 /// Saved traffic of every rule that has any.
-pub(crate) fn list_tunnel_traffic(
+pub fn list_tunnel_traffic(
     connection: &Connection,
 ) -> Result<HashMap<String, TunnelTraffic>, String> {
     let mut statement = connection
@@ -99,7 +96,7 @@ pub(crate) fn list_tunnel_traffic(
         .map_err(sql_error("Failed to read tunnel traffic"))
 }
 
-pub(crate) fn tunnel_traffic(connection: &Connection, id: &str) -> Result<TunnelTraffic, String> {
+pub fn tunnel_traffic(connection: &Connection, id: &str) -> Result<TunnelTraffic, String> {
     connection
         .query_row(
             "SELECT bytes_up, bytes_down, connections, since FROM tunnel_traffic \
@@ -115,7 +112,7 @@ pub(crate) fn tunnel_traffic(connection: &Connection, id: &str) -> Result<Tunnel
 /// Adds `delta` (up, down, connections) to a rule's saved traffic, starting
 /// the count at `now` if it has none. Does nothing for a rule that no longer
 /// exists, so a run outliving its rule leaves no orphan behind.
-pub(crate) fn add_tunnel_traffic(
+pub fn add_tunnel_traffic(
     connection: &Connection,
     id: &str,
     (up, down, connections): (u64, u64, u64),
@@ -144,11 +141,7 @@ pub(crate) fn add_tunnel_traffic(
 }
 
 /// Zeroes a rule's saved traffic and restarts the count at `now`.
-pub(crate) fn reset_tunnel_traffic(
-    connection: &Connection,
-    id: &str,
-    now: u64,
-) -> Result<(), String> {
+pub fn reset_tunnel_traffic(connection: &Connection, id: &str, now: u64) -> Result<(), String> {
     connection
         .execute(
             "INSERT INTO tunnel_traffic \
@@ -166,7 +159,7 @@ pub(crate) fn reset_tunnel_traffic(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use tterm_core::db::Database;
+    use crate::db::Database;
 
     fn rule(id: &str) -> TunnelRule {
         serde_json::from_value(serde_json::json!({

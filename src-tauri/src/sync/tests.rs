@@ -406,7 +406,7 @@ fn commands_sync_but_usage_counts_stay_per_device() {
 fn groups_tunnels_and_known_hosts_sync() {
     let mut remote = None;
     let (mut a, mut b) = (Device::new(), Device::new());
-    let rule: crate::tunnel::types::TunnelRule = serde_json::from_value(json!({
+    let rule: tterm_core::tunnel::types::TunnelRule = serde_json::from_value(json!({
         "id": "t1", "name": "db", "profileId": "p1", "kind": "local",
         "bindHost": "127.0.0.1", "bindPort": 8080, "destHost": "db", "destPort": 5432
     }))
@@ -421,7 +421,7 @@ fn groups_tunnels_and_known_hosts_sync() {
                     parent_id: None,
                 }],
             )?;
-            crate::tunnel::storage::replace_tunnels(transaction, &[rule])?;
+            tterm_core::tunnel::storage::replace_tunnels(transaction, &[rule])?;
             tterm_core::ssh::store::merge_known_host(
                 transaction,
                 &KnownHostRecord {
@@ -448,7 +448,7 @@ fn groups_tunnels_and_known_hosts_sync() {
                 ["Empty group"]
             );
             assert_eq!(
-                crate::tunnel::storage::list_tunnel_rules(connection)?[0].dest_port,
+                tterm_core::tunnel::storage::list_tunnel_rules(connection)?[0].dest_port,
                 5432
             );
             assert_eq!(

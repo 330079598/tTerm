@@ -13,7 +13,6 @@ use crate::profiles::types::{ProfileGroup, SavedProfile};
 use crate::proxy::ProxyServer;
 use crate::serial::history::{SerialSend, store as serial_sends};
 use crate::ssh::secret_store::{crypto::SecretKey as DataKey, store::put_secret};
-use crate::tunnel::types::TunnelRule;
 use base64::{Engine, engine::general_purpose::STANDARD as BASE64};
 use serde::Serialize;
 use serde_json::Value;
@@ -23,6 +22,7 @@ use std::path::{Path, PathBuf};
 use tterm_core::command_library::{models::SavedCommand, repository::CommandRepository};
 use tterm_core::sftp::store::SftpDirectoryStore;
 use tterm_core::ssh::store::KnownHostStore;
+use tterm_core::tunnel::types::TunnelRule;
 
 /// Whether importing hands the WebDAV settings to another server or backup
 /// password, which scheduled uploads and sync would then send saved
@@ -374,13 +374,14 @@ pub(super) fn apply_database_payload(
         // Backups made before tunnels existed carry none; keep the current rules then.
         if let Some(incoming) = payload.tunnels.as_ref() {
             let tunnels = if merge {
-                let existing =
-                    to_backup_value(&crate::tunnel::storage::list_tunnel_rules(transaction)?)?;
+                let existing = to_backup_value(&tterm_core::tunnel::storage::list_tunnel_rules(
+                    transaction,
+                )?)?;
                 merge_arrays_by_keys(existing, incoming.clone(), &["id"])?
             } else {
                 incoming.clone()
             };
-            crate::tunnel::storage::replace_tunnels(
+            tterm_core::tunnel::storage::replace_tunnels(
                 transaction,
                 &from_backup_value::<Vec<TunnelRule>>(tunnels)?,
             )?;

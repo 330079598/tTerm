@@ -12,13 +12,13 @@ use crate::serial::history::{SerialSend, store as serial_sends};
 use crate::ssh::secret_store::{
     crypto::SecretKey as DataKey, store::delete_secret, store::get_secret, store::put_secret,
 };
-use crate::tunnel::types::TunnelRule;
 use rusqlite::{Connection, Transaction, params};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use tterm_core::command_library::models::SavedCommand;
 use tterm_core::db::sql_error;
 use tterm_core::ssh::store::{KnownHostRecord, KnownHostStore};
+use tterm_core::tunnel::types::TunnelRule;
 
 pub(crate) const PROFILES: &str = "profiles";
 pub(crate) const PROFILE_GROUPS: &str = "profileGroups";
@@ -537,7 +537,7 @@ pub(crate) fn apply_database(
         }
         TUNNELS => {
             for id in &removed {
-                crate::tunnel::storage::delete_tunnel(transaction, id)?;
+                tterm_core::tunnel::storage::delete_tunnel(transaction, id)?;
             }
             for (id, record) in changed(local, merged) {
                 let (data, position) = take_position(&record.data);

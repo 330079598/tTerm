@@ -7,13 +7,13 @@ use super::{AUTOMATIC_SETTINGS_KEY, BackupPayload, BackupSelection};
 use crate::profiles::types::{ProfileGroup, SavedProfile};
 use crate::proxy::ProxyServer;
 use crate::ssh::secret_store::{store::SecretRow, store::restore_secrets, store::snapshot_secrets};
-use crate::tunnel::types::TunnelRule;
 use serde_json::Value;
 use std::fs;
 use std::path::{Path, PathBuf};
 use tterm_core::db::meta;
 use tterm_core::sftp::store::SftpDirectoryStore;
 use tterm_core::ssh::store::KnownHostStore;
+use tterm_core::tunnel::types::TunnelRule;
 
 /// Profiles with what travels with them: groups, tunnels and proxy servers.
 pub(super) type ProfilesSnapshot = (
@@ -72,7 +72,7 @@ pub(super) fn snapshot_database(
             Some((
                 crate::profiles::storage::list_saved_profiles(connection)?,
                 crate::profiles::groups::list_groups(connection)?,
-                crate::tunnel::storage::list_tunnel_rules(connection)?,
+                tterm_core::tunnel::storage::list_tunnel_rules(connection)?,
                 crate::proxy::storage::list_proxies(connection)?,
             ))
         } else {
@@ -121,7 +121,7 @@ pub(super) fn restore_database(
     if let Some((profiles, groups, tunnels, proxies)) = snapshot.profiles.as_ref() {
         crate::profiles::storage::replace_profiles(transaction, profiles)?;
         crate::profiles::groups::replace_groups(transaction, groups)?;
-        crate::tunnel::storage::replace_tunnels(transaction, tunnels)?;
+        tterm_core::tunnel::storage::replace_tunnels(transaction, tunnels)?;
         crate::proxy::storage::replace_proxies(transaction, proxies)?;
     }
     if let Some(secrets) = snapshot.secrets.as_ref() {

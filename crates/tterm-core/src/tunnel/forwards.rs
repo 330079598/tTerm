@@ -139,11 +139,11 @@ fn merge_new_rules(existing: &mut Vec<TunnelRule>, candidates: Vec<TunnelRule>) 
 }
 
 /// Saves imported rules next to the existing ones. Returns `(added, skipped)`.
-pub(crate) fn add_rules(candidates: Vec<TunnelRule>) -> Result<(usize, usize), String> {
+pub fn add_rules(candidates: Vec<TunnelRule>) -> Result<(usize, usize), String> {
     if candidates.is_empty() {
         return Ok((0, 0));
     }
-    tterm_core::db::write(|transaction| {
+    crate::db::write(|transaction| {
         let mut rules = list_tunnel_rules(transaction)?;
         let existing = rules.len();
         let counts = merge_new_rules(&mut rules, candidates);

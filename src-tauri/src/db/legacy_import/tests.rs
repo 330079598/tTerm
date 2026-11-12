@@ -109,7 +109,7 @@ fn imports_every_file_once_and_renames_them() {
                 Some("ops")
             );
             assert_eq!(
-                crate::tunnel::storage::list_tunnel_rules(connection)?[0].profile_id,
+                tterm_core::tunnel::storage::list_tunnel_rules(connection)?[0].profile_id,
                 "b"
             );
             assert_eq!(
@@ -424,7 +424,7 @@ fn imports_a_real_config_directory_copy() {
             expected.dedup();
             assert_eq!(groups, expected);
             assert_eq!(
-                serde_json::to_value(crate::tunnel::storage::list_tunnel_rules(connection)?)
+                serde_json::to_value(tterm_core::tunnel::storage::list_tunnel_rules(connection)?)
                     .unwrap(),
                 expected_tunnels
             );

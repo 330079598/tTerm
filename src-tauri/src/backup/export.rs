@@ -81,7 +81,7 @@ pub(super) fn collect_payload(
         )?,
         tunnels: read_selected_data(
             selection.profiles,
-            crate::tunnel::storage::list_tunnel_rules,
+            tterm_core::tunnel::storage::list_tunnel_rules,
         )?,
         proxies: read_selected_data(selection.profiles, crate::proxy::storage::list_proxies)?,
         session: if selection.session {

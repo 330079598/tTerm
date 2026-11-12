@@ -317,7 +317,7 @@ fn merge_import_keeps_existing_data_and_updates_by_key() {
             assert_eq!(group_ids(connection)?, ["dev", "ops"]);
             // Tunnels and proxies missing from an old backup are left alone.
             assert_eq!(
-                crate::tunnel::storage::list_tunnel_rules(connection)?.len(),
+                tterm_core::tunnel::storage::list_tunnel_rules(connection)?.len(),
                 1
             );
             assert_eq!(crate::proxy::storage::list_proxies(connection)?.len(), 1);
@@ -471,7 +471,7 @@ fn replace_import_drops_data_missing_from_the_backup() {
             );
             assert_eq!(group_ids(connection)?, ["dev"]);
             assert_eq!(
-                crate::tunnel::storage::list_tunnel_rules(connection)?.len(),
+                tterm_core::tunnel::storage::list_tunnel_rules(connection)?.len(),
                 1
             );
             assert_eq!(
@@ -550,7 +550,7 @@ fn exported_data_imports_back_unchanged() {
                     &crate::profiles::groups::list_groups(connection)?,
                 )?);
                 payload.tunnels = Some(to_backup_value(
-                    &crate::tunnel::storage::list_tunnel_rules(connection)?,
+                    &tterm_core::tunnel::storage::list_tunnel_rules(connection)?,
                 )?);
                 payload.proxies = Some(to_backup_value(&crate::proxy::storage::list_proxies(
                     connection,

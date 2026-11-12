@@ -190,7 +190,7 @@ pub(crate) fn invalidate(context: &TrayContext) {
 }
 
 fn menu_tunnels(manager: &TunnelManager) -> Vec<MenuTunnel> {
-    crate::tunnel::storage::load_tunnels()
+    tterm_core::tunnel::storage::load_tunnels()
         .unwrap_or_else(|error| {
             eprintln!("Failed to list tunnels for the tray menu: {error}");
             Vec::new()

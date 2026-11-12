@@ -3,14 +3,14 @@
 use super::TRAFFIC_SAVE_INTERVAL;
 use crate::background::tray::TrayState;
 use crate::tunnel::manager::TunnelManager;
-use crate::tunnel::storage::{add_tunnel_traffic, reset_tunnel_traffic, tunnel_traffic};
-use crate::tunnel::types::TunnelStats;
 use std::sync::atomic::Ordering;
 use std::sync::{Arc, Mutex};
 use std::time::Instant;
 use tterm_core::events::tunnel::TunnelEvent;
 use tterm_core::events::tunnel::{TunnelState, TunnelStatus, TunnelTraffic};
 use tterm_core::events::{AppEvent, EventSink};
+use tterm_core::tunnel::storage::{add_tunnel_traffic, reset_tunnel_traffic, tunnel_traffic};
+use tterm_core::tunnel::types::TunnelStats;
 
 /// active, total, failed, bytes up, bytes down.
 type Counters = (u64, u64, u64, u64, u64);

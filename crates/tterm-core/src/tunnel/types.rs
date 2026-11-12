@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 use std::sync::Mutex;
 use std::sync::atomic::{AtomicU64, Ordering};
 
-use tterm_core::events::tunnel::TunnelFailure;
+use crate::events::tunnel::TunnelFailure;
 
 #[derive(Debug, Serialize, Deserialize, Clone, Copy, PartialEq, Eq)]
 #[serde(rename_all = "lowercase")]
@@ -134,7 +134,7 @@ impl TunnelStats {
         self.failed_connections.fetch_add(1, Ordering::Relaxed);
         *self.last_failure.lock().unwrap_or_else(|e| e.into_inner()) = Some(TunnelFailure {
             message,
-            at: tterm_core::ssh::store::now_unix_ms().max(0) as u64,
+            at: crate::ssh::store::now_unix_ms().max(0) as u64,
         });
     }
 
@@ -217,7 +217,7 @@ mod tests {
 
     #[test]
     fn only_live_states_count_as_active() {
-        use tterm_core::events::tunnel::TunnelState;
+        use crate::events::tunnel::TunnelState;
         assert!(TunnelState::Starting.is_active());
         assert!(TunnelState::Running.is_active());
         assert!(TunnelState::Reconnecting.is_active());

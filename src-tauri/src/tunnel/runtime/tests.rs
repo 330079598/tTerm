@@ -1,10 +1,10 @@
 use super::connections::{ChannelFailure, ConnectionGuard, Counted};
 use super::*;
-use crate::tunnel::socks5::ConnectOutcome;
-use crate::tunnel::types::TunnelStats;
 use std::sync::atomic::Ordering;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::{TcpListener, TcpStream};
+use tterm_core::tunnel::socks5::ConnectOutcome;
+use tterm_core::tunnel::types::TunnelStats;
 
 #[test]
 fn backoff_grows_and_is_capped() {

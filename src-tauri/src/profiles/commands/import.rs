@@ -29,8 +29,11 @@ pub(crate) fn import_ssh_config_profiles_blocking(
     let mut updated = 0;
     let mut skipped = 0;
     // (profile id, profile name, forwards) for hosts whose forwards to import.
-    let mut forward_sources: Vec<(String, String, Vec<crate::tunnel::forwards::ForwardSpec>)> =
-        Vec::new();
+    let mut forward_sources: Vec<(
+        String,
+        String,
+        Vec<tterm_core::tunnel::forwards::ForwardSpec>,
+    )> = Vec::new();
     let mut changed_profiles = Vec::new();
 
     for host in preview.hosts {
@@ -143,11 +146,11 @@ pub(crate) fn import_ssh_config_profiles_blocking(
             .iter()
             .flat_map(|(profile_id, profile_name, specs)| {
                 specs.iter().map(|spec| {
-                    crate::tunnel::forwards::rule_from_spec(profile_id, profile_name, spec)
+                    tterm_core::tunnel::forwards::rule_from_spec(profile_id, profile_name, spec)
                 })
             })
             .collect();
-        crate::tunnel::forwards::add_rules(rules)?
+        tterm_core::tunnel::forwards::add_rules(rules)?
     } else {
         (0, 0)
     };

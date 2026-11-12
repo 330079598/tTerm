@@ -8,9 +8,9 @@ use crate::profiles::types::{
     RawSshHost, SshConfigImportHost, SshConfigImportProxy, default_keepalive_count,
     default_keepalive_interval,
 };
-use crate::tunnel::forwards::ForwardSpec;
 use std::collections::HashMap;
 use tterm_core::profiles::parser::pattern::is_wildcard_host;
+use tterm_core::tunnel::forwards::ForwardSpec;
 
 /// The first value of an option, trimmed, unless it is empty.
 pub(super) fn first_option(options: &HashMap<String, Vec<String>>, key: &str) -> Option<String> {
@@ -54,7 +54,8 @@ fn parse_forwards(
     options: &HashMap<String, Vec<String>>,
     warnings: &mut Vec<String>,
 ) -> Vec<ForwardSpec> {
-    use crate::tunnel::{forwards::parse_forward, types::TunnelKind};
+    use tterm_core::tunnel::forwards::parse_forward;
+    use tterm_core::tunnel::types::TunnelKind;
 
     let mut forwards = Vec::new();
     for (key, label, kind) in [
