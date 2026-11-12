@@ -15,11 +15,9 @@ pub(super) fn activate(state: &mut TabsState, id: &str) -> bool {
     }
     state.active_tab_id = Some(id.to_string());
     for tab in &mut state.tabs {
-        tab.forget_saved_field("isActive");
-        tab.is_active = tab.id == id;
+        tab.set_is_active(tab.id == id);
         if tab.is_active {
-            tab.forget_saved_field("hasConnected");
-            tab.has_connected = Some(true);
+            tab.set_has_connected(Some(true));
         }
     }
     true
@@ -37,8 +35,23 @@ pub(super) fn duplicate(source: &Tab, new_id: &str, tabs: &[Tab]) -> Tab {
                 .unwrap_or_else(|| source.title.clone()),
         )
     };
-    next.id = new_id.to_string();
-    next.title = base.as_ref().map_or_else(
+    next.set_saved_field("id", None);
+    next.set_saved_field("isActive", None);
+    if next
+        .saved_field("connection")
+        .is_none_or(serde_json::Value::is_null)
+    {
+        let mut connection = TabConnection::default();
+        connection.set_connection_type(Some(if source.tab_type == TabType::Terminal {
+            ConnectionType::Terminal
+        } else {
+            ConnectionType::Ssh
+        }));
+        next.set_connection(Some(connection));
+    }
+    next.set_session_nonce(Some(next_nonce(source)));
+    next.set_id(new_id.to_string());
+    next.set_title(base.as_ref().map_or_else(
         || source.title.clone(),
         |base| {
             get_duplicate_tab_title(
@@ -46,26 +59,10 @@ pub(super) fn duplicate(source: &Tab, new_id: &str, tabs: &[Tab]) -> Tab {
                 &tabs.iter().map(|tab| tab.title.clone()).collect::<Vec<_>>(),
             )
         },
-    );
-    next.duplicate_base_title = base;
-    next.forget_saved_field("duplicateBaseTitle");
-    next.session_nonce = Some(next_nonce(source));
-    next.forget_saved_field("sessionNonce");
-    next.connection = next.connection.or_else(|| {
-        Some(TabConnection {
-            connection_type: Some(if source.tab_type == TabType::Terminal {
-                ConnectionType::Terminal
-            } else {
-                ConnectionType::Ssh
-            }),
-            ..Default::default()
-        })
-    });
-    next.is_active = true;
-    next.has_connected = Some(true);
-    for key in ["id", "title", "isActive", "hasConnected"] {
-        next.forget_saved_field(key);
-    }
+    ));
+    next.set_duplicate_base_title(base);
+    next.set_is_active(true);
+    next.set_has_connected(Some(true));
     ensure_tab_defaults(&next)
 }
 
@@ -102,7 +99,7 @@ pub(super) fn apply_template(
             let mut available = state.tabs.clone();
             available.extend(new_tabs.clone());
             let mut tab = duplicate(&source, new_id, &available);
-            tab.is_active = false;
+            tab.set_is_active(false);
             new_tabs.push(tab);
         }
     }

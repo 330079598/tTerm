@@ -35,14 +35,11 @@ fn apply(state: &mut TabsState, action: TabsAction) -> bool {
         } => restore(state, tabs, active_tab_id, layout),
         TabsAction::Add(mut tab) => {
             for previous in &mut state.tabs {
-                previous.is_active = false;
-                previous.forget_saved_field("isActive");
+                previous.set_is_active(false);
             }
             state.active_tab_id = Some(tab.id.clone());
-            tab.is_active = true;
-            tab.has_connected = Some(true);
-            tab.forget_saved_field("isActive");
-            tab.forget_saved_field("hasConnected");
+            tab.set_is_active(true);
+            tab.set_has_connected(Some(true));
             state.tabs.push(tab);
             true
         }
@@ -51,7 +48,7 @@ fn apply(state: &mut TabsState, action: TabsAction) -> bool {
             let mut changed = false;
             for tab in &mut state.tabs {
                 if tab.tab_type == tab_type && tab.title != title {
-                    tab.title = title.clone();
+                    tab.set_title(title.clone());
                     changed = true;
                 }
             }
@@ -73,19 +70,16 @@ fn apply(state: &mut TabsState, action: TabsAction) -> bool {
         } => duplicate_action(state, &source_id, &new_id, split),
         TabsAction::Rename { id, title } => {
             for tab in state.tabs.iter_mut().filter(|tab| tab.id == id) {
-                tab.title = title.clone();
-                tab.duplicate_base_title = None;
-                tab.auto_title = None;
-                tab.forget_saved_field("duplicateBaseTitle");
-                tab.forget_saved_field("autoTitle");
+                tab.set_title(title.clone());
+                tab.set_duplicate_base_title(None);
+                tab.set_auto_title(None);
             }
             true
         }
         TabsAction::Update { id, updater } => {
             for tab in state.tabs.iter_mut().filter(|tab| tab.id == id) {
                 *tab = ensure_tab_defaults(&updater(tab));
-                tab.is_active = state.active_tab_id.as_deref() == Some(tab.id.as_str());
-                tab.forget_saved_field("isActive");
+                tab.set_is_active(state.active_tab_id.as_deref() == Some(tab.id.as_str()));
             }
             true
         }
@@ -171,10 +165,8 @@ fn restore(
     state.tabs = tabs
         .into_iter()
         .map(|mut tab| {
-            tab.is_active = active_tab_id.as_deref() == Some(tab.id.as_str());
-            tab.has_connected = Some(tab.is_active);
-            tab.forget_saved_field("isActive");
-            tab.forget_saved_field("hasConnected");
+            tab.set_is_active(active_tab_id.as_deref() == Some(tab.id.as_str()));
+            tab.set_has_connected(Some(tab.is_active));
             ensure_tab_defaults(&tab)
         })
         .collect();
@@ -254,23 +246,18 @@ fn open_page(state: &mut TabsState, mut tab: crate::workspace::tab::Tab) -> bool
             .is_some_and(|section| !section.is_empty())
         {
             for existing in state.tabs.iter_mut().filter(|existing| existing.id == id) {
-                existing.settings_section = tab.settings_section.clone();
+                existing.set_settings_section(tab.settings_section.clone());
                 let next = u64::from(existing.settings_request.unwrap_or(0)) + 1;
-                existing
-                    .raw_fields
-                    .insert("settingsRequest".into(), next.into());
-                existing.settings_request = u32::try_from(next).ok();
+                existing.set_saved_field("settingsRequest", Some(next.into()));
             }
         }
         return activate(state, &id);
     }
     for previous in &mut state.tabs {
-        previous.is_active = false;
-        previous.forget_saved_field("isActive");
+        previous.set_is_active(false);
     }
     state.active_tab_id = Some(tab.id.clone());
-    tab.is_active = true;
-    tab.forget_saved_field("isActive");
+    tab.set_is_active(true);
     state.tabs.push(tab);
     true
 }
@@ -302,8 +289,7 @@ fn duplicate_action(
         state.groups[index].zoomed_tab_id = None;
     }
     for previous in &mut state.tabs {
-        previous.is_active = false;
-        previous.forget_saved_field("isActive");
+        previous.set_is_active(false);
     }
     state.tabs.push(next);
     state.active_tab_id = Some(new_id.to_string());

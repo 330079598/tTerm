@@ -16,19 +16,23 @@ fn tab(id: &str, title: &str, fields: impl FnOnce(&mut Tab)) -> Tab {
 }
 
 fn connection() -> TabConnection {
-    TabConnection {
-        connection_type: Some(ConnectionType::Terminal),
-        ..TabConnection::default()
-    }
+    let mut connection = TabConnection::default();
+    connection.set_connection_type(Some(ConnectionType::Terminal));
+    connection
+}
+
+fn shell_connection(shell: TerminalShellType) -> TabConnection {
+    let mut connection = connection();
+    connection.set_terminal_shell(Some(shell));
+    connection
 }
 
 fn local_tab(id: &str, cwd: &str, fields: impl FnOnce(&mut Tab)) -> Tab {
     tab(id, "", |tab| {
-        tab.auto_title = Some(true);
-        tab.connection = Some(TabConnection {
-            cwd: Some(cwd.to_string()),
-            ..connection()
-        });
+        tab.set_auto_title(Some(true));
+        let mut connection = connection();
+        connection.set_cwd(Some(cwd.to_string()));
+        tab.set_connection(Some(connection));
         fields(tab);
     })
 }
@@ -36,7 +40,7 @@ fn local_tab(id: &str, cwd: &str, fields: impl FnOnce(&mut Tab)) -> Tab {
 fn titles(tabs: &[Tab], home: Option<&str>) -> Vec<String> {
     distinct_local_titles(tabs, home)
         .into_iter()
-        .map(|tab| tab.title)
+        .map(|tab| tab.title.clone())
         .collect()
 }
 
@@ -55,7 +59,7 @@ fn recognizes_the_old_default_names_of_local_tabs_only() {
         );
     }
     let mut ssh = tab("1", "Terminal", |_| {});
-    ssh.tab_type = TabType::Ssh;
+    ssh.set_tab_type(TabType::Ssh);
     assert!(!has_legacy_local_title(&ssh));
 }
 
@@ -142,7 +146,7 @@ fn drops_the_programs_path_extension_and_what_runs_it() {
 #[test]
 fn names_a_tab_named_automatically_after_its_directory() {
     let next = with_local_cwd(
-        &tab("tab-1", "pwsh", |tab| tab.auto_title = Some(true)),
+        &tab("tab-1", "pwsh", |tab| tab.set_auto_title(Some(true))),
         "/work/tTerm",
         None,
     );
@@ -170,11 +174,10 @@ fn keeps_the_name_the_user_gave() {
 #[test]
 fn returns_the_same_tab_when_nothing_changes() {
     let current = tab("tab-1", "tTerm", |tab| {
-        tab.auto_title = Some(true);
-        tab.connection = Some(TabConnection {
-            cwd: Some("/work/tTerm".to_string()),
-            ..connection()
-        });
+        tab.set_auto_title(Some(true));
+        let mut connection = connection();
+        connection.set_cwd(Some("/work/tTerm".to_string()));
+        tab.set_connection(Some(connection));
     });
     assert_eq!(with_local_cwd(&current, "/work/tTerm", None), current);
 }
@@ -183,26 +186,24 @@ fn returns_the_same_tab_when_nothing_changes() {
 fn adds_a_local_tabs_directory_or_a_remote_tabs_host() {
     assert_eq!(
         tab_tooltip(&tab("1", "builds", |tab| {
-            tab.connection = Some(TabConnection {
-                cwd: Some("/work".to_string()),
-                ..connection()
-            });
+            let mut connection = connection();
+            connection.set_cwd(Some("/work".to_string()));
+            tab.set_connection(Some(connection));
         })),
         "builds (/work)"
     );
     assert_eq!(
         tab_tooltip(&tab("1", "pwsh", |tab| {
-            tab.connection = Some(TabConnection::default());
+            tab.set_connection(Some(TabConnection::default()));
         })),
         "pwsh"
     );
     let mut ssh = tab("1", "prod", |tab| {
-        tab.connection = Some(TabConnection {
-            host: Some("10.0.0.1".to_string()),
-            ..TabConnection::default()
-        });
+        let mut connection = TabConnection::default();
+        connection.set_host(Some("10.0.0.1".to_string()));
+        tab.set_connection(Some(connection));
     });
-    ssh.tab_type = TabType::Ssh;
+    ssh.set_tab_type(TabType::Ssh);
     assert_eq!(tab_tooltip(&ssh), "prod (10.0.0.1)");
 }
 
@@ -261,10 +262,10 @@ fn falls_back_to_the_whole_path_when_one_directory_ends_the_other() {
 #[test]
 fn leaves_tabs_the_user_named_and_returns_the_same_array_when_nothing_changes() {
     let tabs = [
-        local_tab("1", "/a/src", |tab| tab.title = "src".to_string()),
+        local_tab("1", "/a/src", |tab| tab.set_title("src".to_string())),
         local_tab("2", "/b/src", |tab| {
-            tab.auto_title = None;
-            tab.title = "mine".to_string();
+            tab.set_auto_title(None);
+            tab.set_title("mine".to_string());
         }),
     ];
     assert_eq!(titles(&tabs, None), vec!["src", "mine"]);
@@ -282,11 +283,10 @@ fn shows_the_home_directory_as_tilde_in_distinct_titles() {
 #[test]
 fn names_the_shell_after_the_directory() {
     let tab = tab("1", "tTerm", |tab| {
-        tab.shell_name = Some("pwsh".to_string());
-        tab.connection = Some(TabConnection {
-            cwd: Some("D:\\code\\tTerm".to_string()),
-            ..connection()
-        });
+        tab.set_shell_name(Some("pwsh".to_string()));
+        let mut connection = connection();
+        connection.set_cwd(Some("D:\\code\\tTerm".to_string()));
+        tab.set_connection(Some(connection));
     });
     assert_eq!(tab_tooltip(&tab), "tTerm (D:\\code\\tTerm · pwsh)");
 }
@@ -294,33 +294,22 @@ fn names_the_shell_after_the_directory() {
 #[test]
 fn names_a_wsl_shell_after_its_distribution() {
     let tab = tab("1", "~", |tab| {
-        tab.shell_name = Some("WSL".to_string());
-        tab.connection = Some(TabConnection {
-            cwd: Some("/home/me".to_string()),
-            terminal_shell: Some(TerminalShellType::Wsl),
-            terminal_shell_wsl_distro: Some("Debian".to_string()),
-            ..connection()
-        });
+        tab.set_shell_name(Some("WSL".to_string()));
+        let mut connection = connection();
+        connection.set_cwd(Some("/home/me".to_string()));
+        connection.set_terminal_shell(Some(TerminalShellType::Wsl));
+        connection.set_terminal_shell_wsl_distro(Some("Debian".to_string()));
+        tab.set_connection(Some(connection));
     });
     assert_eq!(tab_tooltip(&tab), "~ (/home/me · Debian)");
     assert_eq!(
-        local_shell_title(
-            Some("WSL"),
-            Some(&TabConnection {
-                terminal_shell: Some(TerminalShellType::Wsl),
-                ..connection()
-            })
-        )
-        .as_deref(),
+        local_shell_title(Some("WSL"), Some(&shell_connection(TerminalShellType::Wsl))).as_deref(),
         Some("WSL")
     );
     assert_eq!(
         local_shell_title(
             Some("pwsh"),
-            Some(&TabConnection {
-                terminal_shell: Some(TerminalShellType::Pwsh),
-                ..connection()
-            })
+            Some(&shell_connection(TerminalShellType::Pwsh))
         )
         .as_deref(),
         Some("pwsh")
@@ -329,9 +318,9 @@ fn names_a_wsl_shell_after_its_distribution() {
 
 #[test]
 fn shows_a_running_command_alone_while_no_other_tab_runs_the_same() {
-    let first = local_tab("1", "/work", |tab| tab.title = "tTerm".to_string());
-    let second = local_tab("2", "/work", |tab| tab.title = "web".to_string());
-    let third = local_tab("3", "/work", |tab| tab.title = "api".to_string());
+    let first = local_tab("1", "/work", |tab| tab.set_title("tTerm".to_string()));
+    let second = local_tab("2", "/work", |tab| tab.set_title("web".to_string()));
+    let third = local_tab("3", "/work", |tab| tab.set_title("api".to_string()));
     let mut commands = IndexMap::new();
     commands.insert("1".to_string(), "claude".to_string());
     commands.insert("2".to_string(), "codex --yolo".to_string());
@@ -348,9 +337,9 @@ fn shows_a_running_command_alone_while_no_other_tab_runs_the_same() {
 
 #[test]
 fn adds_the_tabs_title_while_another_tab_runs_a_command_of_the_same_title() {
-    let first = local_tab("1", "/work", |tab| tab.title = "tTerm".to_string());
-    let second = local_tab("2", "/work", |tab| tab.title = "web/src".to_string());
-    let third = local_tab("3", "/work", |tab| tab.title = "api".to_string());
+    let first = local_tab("1", "/work", |tab| tab.set_title("tTerm".to_string()));
+    let second = local_tab("2", "/work", |tab| tab.set_title("web/src".to_string()));
+    let third = local_tab("3", "/work", |tab| tab.set_title("api".to_string()));
     let mut commands = IndexMap::new();
     commands.insert("1".to_string(), "claude".to_string());
     commands.insert(
@@ -375,8 +364,8 @@ fn adds_the_tabs_title_while_another_tab_runs_a_command_of_the_same_title() {
 #[test]
 fn leaves_a_tab_the_user_named_to_its_name() {
     let named = local_tab("1", "/work", |tab| {
-        tab.title = "Agent".to_string();
-        tab.auto_title = None;
+        tab.set_title("Agent".to_string());
+        tab.set_auto_title(None);
     });
     let mut commands = IndexMap::new();
     commands.insert("1".to_string(), "claude".to_string());
@@ -529,13 +518,13 @@ fn oracle_matches_distinct_titles_and_identity() {
     }
     let with_distinct = oracle["localTabTitle"]["withDistinct"].clone();
     let tabs = vec![local_tab("1", "/a/src", |tab| {
-        tab.title = "src".to_string()
+        tab.set_title("src".to_string())
     })];
     assert_eq!(
         serde_json::to_value(
             with_distinct_local_titles(&tabs, None)
                 .into_iter()
-                .map(|tab| tab.title)
+                .map(|tab| tab.title.clone())
                 .collect::<Vec<_>>()
         )
         .unwrap(),
@@ -551,9 +540,9 @@ fn oracle_matches_legacy_titles() {
         .expect("legacy cases")
     {
         let mut terminal = tab("1", case["title"].as_str().expect("title"), |_| {});
-        terminal.tab_type = TabType::Terminal;
+        terminal.set_tab_type(TabType::Terminal);
         let mut ssh = terminal.clone();
-        ssh.tab_type = TabType::Ssh;
+        ssh.set_tab_type(TabType::Ssh);
         assert_eq!(
             has_legacy_local_title(&terminal),
             case["terminal"].as_bool().expect("terminal"),

@@ -111,11 +111,9 @@ pub fn remove_tabs_from_state(
         tabs: remaining_tabs
             .into_iter()
             .map(|mut tab| {
-                tab.forget_saved_field("isActive");
-                tab.is_active = tab.id == next_active_tab_id;
+                tab.set_is_active(tab.id == next_active_tab_id);
                 if tab.is_active {
-                    tab.forget_saved_field("hasConnected");
-                    tab.has_connected = Some(true);
+                    tab.set_has_connected(Some(true));
                 }
                 tab
             })

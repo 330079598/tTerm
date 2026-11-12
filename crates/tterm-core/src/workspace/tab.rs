@@ -6,6 +6,7 @@ use serde_json::{Map, Value};
 use crate::keymap::actions::KeymapActionId;
 use crate::workspace::tab_icons::TabIconStyle;
 
+mod fields;
 mod serde_impl;
 
 /// A tab that runs a terminal, an SSH connection or a serial connection.
@@ -62,9 +63,9 @@ pub enum TerminalShellType {
     Custom,
 }
 
-/// The connection fields a tab carries, including unrecognized saved fields.
+/// An immutable typed projection of a connection's recognized fields.
 #[derive(Debug, Clone, Default)]
-pub struct TabConnection {
+pub struct ConnectionFields {
     /// The kind of connection.
     pub connection_type: Option<ConnectionType>,
     /// The saved connection the tab was opened from.
@@ -135,13 +136,18 @@ pub struct TabConnection {
     pub proxy: Option<Value>,
     /// Serial port settings.
     pub serial: Option<Value>,
-    /// Original fields, in JavaScript object enumeration order.
-    pub(crate) raw_fields: Map<String, Value>,
 }
 
-/// A tab with typed accessors and lossless storage for old session fields.
+/// A connection with canonical ordered JSON and an immutable typed projection.
+#[derive(Debug, Clone, Default)]
+pub struct TabConnection {
+    raw_fields: Map<String, Value>,
+    view: ConnectionFields,
+}
+
+/// An immutable typed projection of a tab's recognized fields.
 #[derive(Debug, Clone)]
-pub struct Tab {
+pub struct TabFields {
     /// The tab's unique id, which pane trees refer to.
     pub id: String,
     /// The title shown in the tab bar.
@@ -184,18 +190,19 @@ pub struct Tab {
     pub connection: Option<TabConnection>,
     /// The remote file a file-editor tab shows.
     pub remote_file: Option<Value>,
-    /// Original fields, in JavaScript object enumeration order.
-    pub(crate) raw_fields: Map<String, Value>,
-    /// Whether absent required fields must remain absent when writing a saved tab.
-    pub(crate) from_session: bool,
-    /// Required fields explicitly replaced by a state transition.
-    pub(crate) replaced_required_fields: [bool; 4],
+}
+
+/// A tab with canonical ordered JSON and an immutable typed projection.
+#[derive(Debug, Clone)]
+pub struct Tab {
+    raw_fields: Map<String, Value>,
+    view: TabFields,
 }
 
 impl Tab {
     /// A tab with no optional fields set.
     pub fn new(id: impl Into<String>, title: impl Into<String>, tab_type: TabType) -> Self {
-        Self {
+        let view = TabFields {
             id: id.into(),
             title: title.into(),
             tab_type,
@@ -217,20 +224,17 @@ impl Tab {
             settings_request: None,
             connection: None,
             remote_file: None,
-            raw_fields: Map::new(),
-            from_session: false,
-            replaced_required_fields: [false; 4],
+        };
+        let mut fields = Map::new();
+        fields.insert("id".into(), view.id.clone().into());
+        fields.insert("title".into(), view.title.clone().into());
+        if let Ok(value) = serde_json::to_value(view.tab_type) {
+            fields.insert("type".into(), value);
         }
-    }
-
-    /// Removes a saved field before normalization replaces or drops its value.
-    pub(crate) fn forget_saved_field(&mut self, key: &str) {
-        self.raw_fields.shift_remove(key);
-        if let Some(index) = ["id", "title", "type", "isActive"]
-            .iter()
-            .position(|field| *field == key)
-        {
-            self.replaced_required_fields[index] = true;
+        fields.insert("isActive".into(), false.into());
+        Self {
+            raw_fields: fields,
+            view,
         }
     }
 }

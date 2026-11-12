@@ -445,7 +445,7 @@ pub fn with_local_distro(tab: &Tab, distro_id: DistroId) -> Tab {
         return tab.clone();
     }
     let mut next = tab.clone();
-    next.distro_id = Some(distro_id.as_str().to_string());
+    next.set_distro_id(Some(distro_id.as_str().to_string()));
     next
 }
 
@@ -559,27 +559,16 @@ pub fn normalize_saved_ssh_tab(tab: &Tab) -> Tab {
 /// Checks only the saved icon and distribution, without changing unrelated fields.
 pub(crate) fn normalize_saved_icon_fields(tab: &Tab) -> Tab {
     let mut saved = tab.clone();
-    let raw_style = tab.saved_field("iconStyle").cloned().or_else(|| {
-        tab.icon_style
-            .as_ref()
-            .and_then(|style| serde_json::to_value(style).ok())
-    });
-    saved.icon_style = raw_style.as_ref().and_then(normalize_tab_icon_style);
-    if let Some(style) = &saved.icon_style {
-        if let Ok(value) = serde_json::to_value(style) {
-            saved.raw_fields.insert("iconStyle".to_string(), value);
-        }
-    } else {
-        saved.forget_saved_field("iconStyle");
-    }
-    saved.distro_id = tab
-        .distro_id
-        .as_deref()
-        .filter(|value| is_distro_id(value))
-        .map(str::to_owned);
-    if saved.distro_id.is_none() {
-        saved.forget_saved_field("distroId");
-    }
+    saved.set_icon_style(
+        tab.saved_field("iconStyle")
+            .and_then(normalize_tab_icon_style),
+    );
+    saved.set_distro_id(
+        tab.distro_id
+            .as_deref()
+            .filter(|value| is_distro_id(value))
+            .map(str::to_owned),
+    );
     saved
 }
 

@@ -42,7 +42,7 @@ fn config(entries: &[(&str, TabIconStyle)]) -> TabIconConfig {
 
 fn tab(tab_type: TabType, shell_name: Option<&str>) -> Tab {
     let mut tab = Tab::new("a", "a", tab_type);
-    tab.shell_name = shell_name.map(str::to_string);
+    tab.set_shell_name(shell_name.map(str::to_string));
     tab
 }
 
@@ -74,7 +74,7 @@ fn lays_the_shells_choice_over_the_built_in_look_and_the_tabs_over_both() {
         Some(icon("square-chevron-right", "#e5534b"))
     );
     let mut chosen = tab(TabType::Terminal, Some("pwsh"));
-    chosen.icon_style = Some(style(Some("rocket"), Some("")));
+    chosen.set_icon_style(Some(style(Some("rocket"), Some(""))));
     assert_eq!(
         resolve_tab_icon(&chosen, &icons, None),
         Some(icon("rocket", ""))
@@ -88,7 +88,7 @@ fn draws_an_ssh_tab_as_a_server_until_its_hosts_distribution_is_known() {
         Some(icon("server", ""))
     );
     let mut with_distro = tab(TabType::Ssh, None);
-    with_distro.distro_id = Some("debian".to_string());
+    with_distro.set_distro_id(Some("debian".to_string()));
     assert_eq!(
         resolve_tab_icon(&with_distro, &DEFAULT_TAB_ICON_CONFIG, None),
         Some(icon("distro:debian", ""))
@@ -98,8 +98,8 @@ fn draws_an_ssh_tab_as_a_server_until_its_hosts_distribution_is_known() {
 #[test]
 fn lays_an_ssh_tabs_own_choice_over_its_hosts_distribution() {
     let mut tab = tab(TabType::Ssh, None);
-    tab.distro_id = Some("ubuntu".to_string());
-    tab.icon_style = Some(style(Some("database"), Some("#e5534b")));
+    tab.set_distro_id(Some("ubuntu".to_string()));
+    tab.set_icon_style(Some(style(Some("database"), Some("#e5534b"))));
     assert_eq!(
         resolve_tab_icon(&tab, &DEFAULT_TAB_ICON_CONFIG, None),
         Some(icon("database", "#e5534b"))
@@ -117,7 +117,7 @@ fn draws_a_wsl_tab_with_the_distribution_its_launcher_reported() {
         Some(icon("terminal", "#e9853a"))
     );
     let mut tab = tab(TabType::Terminal, Some("WSL"));
-    tab.distro_id = Some("arch".to_string());
+    tab.set_distro_id(Some("arch".to_string()));
     assert_eq!(
         resolve_tab_icon(&tab, &DEFAULT_TAB_ICON_CONFIG, None),
         Some(icon("distro:arch", ""))
@@ -127,7 +127,7 @@ fn draws_a_wsl_tab_with_the_distribution_its_launcher_reported() {
 #[test]
 fn lays_the_users_choice_for_wsl_over_the_reported_distribution() {
     let mut tab = tab(TabType::Terminal, Some("WSL"));
-    tab.distro_id = Some("arch".to_string());
+    tab.set_distro_id(Some("arch".to_string()));
     assert_eq!(
         resolve_tab_icon(&tab, &config(&[("wsl", style(Some("rocket"), None))]), None),
         Some(icon("rocket", ""))
@@ -137,7 +137,7 @@ fn lays_the_users_choice_for_wsl_over_the_reported_distribution() {
 #[test]
 fn keeps_a_distribution_off_a_local_tab_that_no_longer_runs_wsl() {
     let mut tab = tab(TabType::Terminal, Some("pwsh"));
-    tab.distro_id = Some("arch".to_string());
+    tab.set_distro_id(Some("arch".to_string()));
     assert_eq!(
         resolve_tab_icon(&tab, &DEFAULT_TAB_ICON_CONFIG, None)
             .map(|icon| icon.icon)
@@ -178,7 +178,7 @@ fn shows_the_logo_of_an_agent_running_in_the_tab_over_the_shells_or_hosts_icon()
         Some(icon("agent:claude", "#d97757"))
     );
     let mut ssh = tab(TabType::Ssh, None);
-    ssh.distro_id = Some("debian".to_string());
+    ssh.set_distro_id(Some("debian".to_string()));
     assert_eq!(
         resolve_tab_icon(&ssh, &DEFAULT_TAB_ICON_CONFIG, Some("pi")),
         Some(icon("agent:pi", ""))
@@ -213,13 +213,13 @@ fn keeps_the_usual_icon_for_an_agent_without_a_logo_or_with_agent_logos_off() {
 #[test]
 fn lays_the_tabs_own_choice_over_an_agents_logo() {
     let mut chosen = tab(TabType::Ssh, None);
-    chosen.icon_style = Some(style(Some("database"), Some("#e5534b")));
+    chosen.set_icon_style(Some(style(Some("database"), Some("#e5534b"))));
     assert_eq!(
         resolve_tab_icon(&chosen, &DEFAULT_TAB_ICON_CONFIG, Some("claude")),
         Some(icon("database", "#e5534b"))
     );
     let mut tinted = tab(TabType::Ssh, None);
-    tinted.icon_style = Some(style(None, Some("#e5534b")));
+    tinted.set_icon_style(Some(style(None, Some("#e5534b"))));
     assert_eq!(
         resolve_tab_icon(&tinted, &DEFAULT_TAB_ICON_CONFIG, Some("opencode")),
         Some(icon("agent:opencode", "#e5534b"))
@@ -229,7 +229,7 @@ fn lays_the_tabs_own_choice_over_an_agents_logo() {
 #[test]
 fn shows_an_agent_logo_picked_for_the_tab_whether_or_not_an_agent_runs() {
     let mut tab = tab(TabType::Terminal, None);
-    tab.icon_style = Some(style(Some("agent:claude"), None));
+    tab.set_icon_style(Some(style(Some("agent:claude"), None)));
     let no_agents = TabIconConfig {
         agents: false,
         ..TabIconConfig::default()
@@ -348,8 +348,8 @@ fn leaves_glyphs_ssh_hosts_and_other_shells_unbadged() {
 #[test]
 fn gives_a_local_tab_the_reported_distribution_once() {
     let mut local = tab(TabType::Terminal, Some("WSL"));
-    local.title = "WSL".to_string();
-    local.is_active = true;
+    local.set_title("WSL".to_string());
+    local.set_is_active(true);
     let next = with_local_distro(&local, DistroId::Debian);
     assert_eq!(next.distro_id.as_deref(), Some("debian"));
     assert_eq!(with_local_distro(&next, DistroId::Debian), next);
@@ -358,7 +358,7 @@ fn gives_a_local_tab_the_reported_distribution_once() {
 #[test]
 fn leaves_an_ssh_tabs_distribution_to_its_host() {
     let mut ssh = tab(TabType::Ssh, Some("WSL"));
-    ssh.title = "WSL".to_string();
+    ssh.set_title("WSL".to_string());
     let result = with_local_distro(&ssh, DistroId::Debian);
     assert_eq!(result, ssh);
 }
@@ -366,9 +366,9 @@ fn leaves_an_ssh_tabs_distribution_to_its_host() {
 #[test]
 fn drops_an_unknown_distribution_and_icon_from_a_saved_ssh_tab() {
     let mut saved = tab(TabType::Ssh, None);
-    saved.title = "host".to_string();
-    saved.distro_id = Some("beos".to_string());
-    saved.icon_style = Some(style(Some("unicorn"), None));
+    saved.set_title("host".to_string());
+    saved.set_distro_id(Some("beos".to_string()));
+    saved.set_icon_style(Some(style(Some("unicorn"), None)));
     let tab = normalize_saved_ssh_tab(&saved);
     assert_eq!(tab.distro_id, None);
     assert_eq!(tab.icon_style, None);
@@ -531,11 +531,13 @@ fn oracle_matches_resolved_icons_badges_and_picked_colors() {
     let icons = &oracle["tabIcons"];
     for case in icons["resolved"].as_array().expect("resolved") {
         let mut tab = Tab::new("a", "a", tab_type(&case["tab"]["type"]));
-        tab.shell_name = case["tab"]["shellName"].as_str().map(str::to_string);
-        tab.distro_id = case["tab"]["distroId"].as_str().map(str::to_string);
-        tab.icon_style = case["tab"]
-            .get("iconStyle")
-            .map(|value| serde_json::from_value(value.clone()).expect("a style"));
+        tab.set_shell_name(case["tab"]["shellName"].as_str().map(str::to_string));
+        tab.set_distro_id(case["tab"]["distroId"].as_str().map(str::to_string));
+        tab.set_icon_style(
+            case["tab"]
+                .get("iconStyle")
+                .map(|value| serde_json::from_value(value.clone()).expect("a style")),
+        );
         let config = icon_config_from_json(&case["config"]);
         assert_eq!(
             serde_json::to_value(resolve_tab_icon(&tab, &config, case["agent"].as_str())).unwrap(),
@@ -736,8 +738,8 @@ fn oracle_matches_renumbered_shell_maps_and_local_distro() {
 
     let local = &icons["localDistro"];
     let mut candidate = Tab::new("a", "WSL", TabType::Terminal);
-    candidate.title = "WSL".to_string();
-    candidate.is_active = true;
+    candidate.set_title("WSL".to_string());
+    candidate.set_is_active(true);
     assert_eq!(serde_json::to_value(&candidate).unwrap(), local["tab"]);
     let next = with_local_distro(&candidate, DistroId::Debian);
     assert_eq!(serde_json::to_value(&next).unwrap(), local["next"]);
@@ -750,7 +752,7 @@ fn oracle_matches_renumbered_shell_maps_and_local_distro() {
         local["sameAfter"].as_bool().expect("sameAfter")
     );
     let mut ssh = candidate.clone();
-    ssh.tab_type = TabType::Ssh;
+    ssh.set_tab_type(TabType::Ssh);
     assert_eq!(
         serde_json::to_value(with_local_distro(&ssh, DistroId::Debian)).unwrap(),
         local["ssh"]
@@ -887,7 +889,7 @@ fn icon_config_from_json(value: &serde_json::Value) -> TabIconConfig {
 
 fn tab_from_partial(value: &serde_json::Value) -> Tab {
     let mut tab = Tab::new("a", "a", tab_type(&value["type"]));
-    tab.shell_name = value["shellName"].as_str().map(str::to_string);
-    tab.distro_id = value["distroId"].as_str().map(str::to_string);
+    tab.set_shell_name(value["shellName"].as_str().map(str::to_string));
+    tab.set_distro_id(value["distroId"].as_str().map(str::to_string));
     tab
 }

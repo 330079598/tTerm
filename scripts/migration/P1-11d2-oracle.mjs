@@ -1330,6 +1330,21 @@ output.shortSizeInsertions = [
 await localTabTitle.refreshSavedLocalTabs([])
 output.reducerWithHome = reducerCases(tabsState, "/home/me")
 
+output.fieldMutations = [
+  { field: "sessionNonce", original: 3, replacement: 7 },
+  { field: "iconStyle", original: { icon: "server" }, replacement: { icon: "rocket" } },
+  { field: "iconStyle", original: { icon: 5 } },
+  { field: "connection", original: { port: "22", future: 1 }, removePort: true },
+].map(({ field, original, replacement, removePort }) => {
+  const input = { id: "a", title: "t", type: "ssh", isActive: false, [field]: original }
+  const tab = structuredClone(input)
+  if (removePort) tab.connection.port = undefined
+  else tab[field] = replacement
+  const state = { tabs: [tab], activeTabId: "a", groups: [], groupCount: 0 }
+  const duplicate = tabsState.tabsReducer(state, { type: "duplicate", sourceId: "a", newId: "b" })
+  return { input, field, replacement, removePort: !!removePort, bytes: JSON.stringify(tab), normalizedBytes: JSON.stringify(tabIcons.normalizeSavedSshTab(tab)), duplicateBytes: JSON.stringify(duplicate.tabs) }
+})
+
 output.sessionTabs = await Promise.all([
   { id: "shell", title: "t", type: "terminal", isActive: false, shellName: 5 },
   { id: "shell", title: "t", type: "terminal", isActive: false, shellName: 0 },

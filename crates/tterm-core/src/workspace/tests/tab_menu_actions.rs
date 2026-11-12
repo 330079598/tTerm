@@ -27,10 +27,9 @@ fn find_action<'a>(
 }
 
 fn connection(profile_id: Option<&str>) -> TabConnection {
-    TabConnection {
-        profile_id: profile_id.map(str::to_owned),
-        ..TabConnection::default()
-    }
+    let mut connection = TabConnection::default();
+    connection.set_profile_id(profile_id.map(str::to_owned));
+    connection
 }
 
 fn assert_actions_match_oracle(actions: &[TabContextMenuAction], expected: &serde_json::Value) {
@@ -74,7 +73,7 @@ fn offers_the_four_splits_for_terminal_tabs_only() {
 #[test]
 fn pins_or_unpins_an_ssh_tabs_connection_header() {
     let mut pinned = tab("a", "a", TabType::Ssh);
-    pinned.connection_header_pinned = Some(false);
+    pinned.set_connection_header_pinned(Some(false));
     assert_eq!(
         get_tab_pin_menu_action(&pinned, &translate)
             .iter()
@@ -179,7 +178,7 @@ fn shows_the_duplicate_shortcut_beside_the_copy_item() {
 fn edits_the_profile_a_session_tab_was_opened_from() {
     for tab_type in [TabType::Ssh, TabType::Serial, TabType::Terminal] {
         let mut candidate = tab("a", "tab", tab_type);
-        candidate.connection = Some(connection(Some("p")));
+        candidate.set_connection(Some(connection(Some("p"))));
         let actions = get_pane_menu_actions(&candidate, false, &translate, false)
             .into_iter()
             .map(|item| item.action)
@@ -205,7 +204,7 @@ fn saves_an_ssh_or_local_tab_that_has_no_profile_and_edits_one_that_has() {
         vec!["contextMenu.saveLocalConnection"]
     );
     let mut local = tab("a", "a", TabType::Terminal);
-    local.connection = Some(connection(Some("p")));
+    local.set_connection(Some(connection(Some("p"))));
     assert_eq!(labels(&local), vec!["contextMenu.editConnection"]);
 }
 
@@ -238,7 +237,7 @@ fn offers_nothing_for_a_serial_tab_without_a_profile_or_a_remote_file() {
         Vec::<String>::new()
     );
     let mut remote = tab("a", "a", TabType::RemoteFileEditor);
-    remote.connection = Some(connection(Some("p")));
+    remote.set_connection(Some(connection(Some("p"))));
     assert_eq!(labels(&remote), Vec::<String>::new());
 }
 
@@ -276,7 +275,7 @@ fn oracle_pins_an_ssh_tab_with_a_missing_or_true_flag() {
         "unpin-header"
     );
     let mut pinned = tab("a", "a", TabType::Ssh);
-    pinned.connection_header_pinned = Some(true);
+    pinned.set_connection_header_pinned(Some(true));
     assert_eq!(
         get_tab_pin_menu_action(&pinned, &translate)[0].action,
         "unpin-header"
@@ -286,10 +285,10 @@ fn oracle_pins_an_ssh_tab_with_a_missing_or_true_flag() {
 #[test]
 fn oracle_edits_a_serial_profile_but_saves_a_local_tab_with_an_empty_profile() {
     let mut serial = tab("a", "a", TabType::Serial);
-    serial.connection = Some(connection(Some("p")));
+    serial.set_connection(Some(connection(Some("p"))));
     assert_eq!(labels(&serial), vec!["contextMenu.editConnection"]);
     let mut local = tab("a", "a", TabType::Terminal);
-    local.connection = Some(connection(Some("")));
+    local.set_connection(Some(connection(Some(""))));
     assert_eq!(labels(&local), vec!["contextMenu.saveLocalConnection"]);
 }
 

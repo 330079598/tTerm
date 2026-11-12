@@ -38,10 +38,7 @@ pub fn normalize_saved_local_tab(tab: &Tab, shell_name: &str) -> Tab {
             _ => true,
         });
     if !has_shell_name {
-        candidate.shell_name = Some(shell_name.to_string());
-        candidate
-            .raw_fields
-            .insert("shellName".into(), shell_name.into());
+        candidate.set_shell_name(Some(shell_name.to_string()));
     }
     candidate
 }
@@ -221,13 +218,14 @@ pub fn with_local_cwd(tab: &Tab, cwd: &str, home_directory: Option<&str>) -> Tab
         return tab.clone();
     }
     let mut next = tab.clone();
-    next.title = title;
-    let mut connection = tab.connection.clone().unwrap_or(TabConnection {
-        connection_type: Some(crate::workspace::tab::ConnectionType::Terminal),
-        ..TabConnection::default()
+    next.set_title(title);
+    let mut connection = tab.connection.clone().unwrap_or_else(|| {
+        let mut connection = TabConnection::default();
+        connection.set_connection_type(Some(crate::workspace::tab::ConnectionType::Terminal));
+        connection
     });
-    connection.cwd = Some(cwd.to_string());
-    next.connection = Some(connection);
+    connection.set_cwd(Some(cwd.to_string()));
+    next.set_connection(Some(connection));
     next
 }
 
@@ -316,7 +314,7 @@ pub fn distinct_local_titles(tabs: &[Tab], home_directory: Option<&str>) -> Vec<
             }
             changed = true;
             let mut next = tab.clone();
-            next.title = title.clone();
+            next.set_title(title.clone());
             next
         })
         .collect();
