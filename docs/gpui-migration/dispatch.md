@@ -93,6 +93,25 @@ cd ../tTerm-<ID> && pnpm install --frozen-lockfile
 
 ### 3.3 运行
 
+**执行者（2026-11-12 起）**：新卡在 macOS 上用 pi 派发（`scripts/migration/run-pi.sh`），模型是 DeepSeek v4.1 flash；切换前已经开始的卡继续用 Codex 跑完。Windows 上没有 `sandbox-exec`，仍然用 `run-codex.ps1`。
+
+```sh
+# pi（macOS）
+scripts/migration/run-pi.sh <ID> ../tTerm-<ID> <提示词文件> [session]
+```
+
+- pi 本身没有沙箱，脚本用 macOS 的 Seatbelt（`sandbox-exec`）包住它：
+  - 只允许写 worktree、仓库的 `.git`、cargo/rustup/pnpm 的缓存、pi 自己的状态目录和临时目录；
+  - `com.stone.tTerm` 与 `com.stone.tTerm.dev` 的数据目录读写都禁止；
+  - 网络、进程、pty 都放行，所以 openpty 一类的测试不用再申请提权。
+  - 2026-11-12 实测：写主仓库和桌面被拒绝，读真实数据目录被拒绝，worktree 里的提交、pty、crates.io、cargo 都正常。
+- 新会话的 id 是 `<ID>-<时间>`，脚本最后一行会打印出来。返工时把它作为第四个参数续跑，执行者保留上下文。会话文件在派发目录的 `pi-sessions/<ID>/`。
+- pi 的 `-p` 模式会读 stdin，stdin 不关就会一直挂着。脚本已经接了 `</dev/null`，手动运行时也要加上。
+- 日志 `<ID>-<时间>.jsonl` 是 pi 的事件流，`.last.md` 是从里面取出的最后一条助手消息，`.jsonl.stderr` 是 pi 的告警。
+- 提示词里不再需要“沙箱外复跑、申请提权”这几条。
+
+Codex：
+
 ```sh
 # macOS、Linux
 scripts/migration/run-codex.sh <ID> ../tTerm-<ID> <提示词文件> [thread]
