@@ -77,6 +77,119 @@ const markPromptEventCases = {
   afterStop,
 }
 
+function markerTerminal() {
+  const markers = []
+  const buffer = { type: "normal", baseY: 12, cursorY: 0, cursorX: 0, viewportY: 12,
+    getLine: (row) => ({ isWrapped: false, translateToString: () => `row ${row}` }) }
+  return {
+    buffer: { active: buffer },
+    registerMarker() {
+      const listeners = []
+      const marker = {
+        line: buffer.baseY + buffer.cursorY,
+        isDisposed: false,
+        onDispose(listener) { listeners.push(listener) },
+        dispose() {
+          if (this.isDisposed) return
+          this.isDisposed = true
+          for (const listener of listeners) listener()
+        },
+      }
+      markers.push(marker)
+      return marker
+    },
+    registerDecoration: () => ({ dispose() {}, onRender() {} }),
+    scrollToLine(row) { buffer.viewportY = Math.min(row, buffer.baseY) },
+    scrollToBottom() { buffer.viewportY = buffer.baseY },
+    selectLines() {},
+    at(row, column = 0) { buffer.cursorY = row - buffer.baseY; buffer.cursorX = column },
+    clear() {
+      for (const marker of markers) marker.dispose()
+      buffer.baseY = 0
+      buffer.cursorY = 0
+      buffer.cursorX = 0
+      buffer.viewportY = 0
+    },
+    trim(count) {
+      for (const marker of markers) {
+        if (marker.isDisposed) continue
+        marker.line -= count
+        if (marker.line < 0) marker.dispose()
+      }
+      buffer.baseY = Math.max(0, buffer.baseY - count)
+      buffer.viewportY = Math.max(0, buffer.viewportY - count)
+    },
+  }
+}
+
+function markerLifecycleOracle() {
+  const term = markerTerminal()
+  const tracker = new marks.CommandMarks(term)
+  const events = []
+  tracker.onPrompt((event) => events.push(event))
+  const state = () => ({
+    atPrompt: tracker.isAtPrompt(), running: tracker.isRunningProgram(),
+    promptState: tracker.promptState(), range: tracker.lastOutputRange(),
+    text: tracker.lastOutputText(), selectable: tracker.selectLastOutput(),
+  })
+  const mark = (data, row, column = 0) => { term.at(row, column); tracker.handleMark(data) }
+  mark("D;0", 0)
+  mark("A", 0, 2)
+  term.clear()
+  const clearPrompt = { enter: tracker.handleEnter(), ...state(),
+    previous: tracker.scrollToPreviousPrompt(), next: tracker.scrollToNextPrompt() }
+  mark("A", 2)
+  mark("C", 3)
+  mark("D;0", 5)
+  mark("A", 6)
+  mark("C", 7)
+  mark("D;7", 9)
+  mark("A", 10)
+  term.buffer.active.baseY = 12
+  term.buffer.active.viewportY = 12
+  term.trim(4)
+  const afterTrim = { ...state(), previous: tracker.scrollToPreviousPrompt(),
+    viewport: term.buffer.active.viewportY }
+  term.trim(1)
+  const movedJump = { next: tracker.scrollToNextPrompt(), viewport: term.buffer.active.viewportY }
+  movedJump.previous = tracker.scrollToPreviousPrompt()
+  movedJump.previousViewport = term.buffer.active.viewportY
+  term.trim(6)
+  const allTrimmed = { enter: tracker.handleEnter(), ...state(),
+    previous: tracker.scrollToPreviousPrompt(), next: tracker.scrollToNextPrompt() }
+  mark("A", 1)
+  mark("C", 2)
+  term.clear()
+  const runningAfterClear = state()
+  mark("D;7", 0)
+  mark("A", 0)
+  const eventAfterClear = events.at(-1)
+  mark("C", 1)
+  mark("D;3", 2)
+  term.trim(1)
+  mark("A", 3)
+  const eventAfterTrim = events.at(-1)
+  return { clearPrompt, afterTrim, movedJump, allTrimmed, runningAfterClear,
+    eventAfterClear, eventAfterTrim }
+}
+
+function disposedOutputOracle(endDisposed) {
+  const term = markerTerminal()
+  const tracker = new marks.CommandMarks(term)
+  term.at(10)
+  tracker.handleMark("A")
+  term.at(endDisposed ? 11 : 2)
+  tracker.handleMark("C")
+  term.at(endDisposed ? 1 : 8)
+  tracker.handleMark("D;0")
+  term.trim(endDisposed ? 2 : 3)
+  return { range: tracker.lastOutputRange(), text: tracker.lastOutputText(),
+    selectable: tracker.selectLastOutput() }
+}
+
+const markerLifecycle = markerLifecycleOracle()
+const disposedOutputMarkers = [disposedOutputOracle(false), disposedOutputOracle(true)]
+
 const line = (text, isWrapped = false) => ({
   isWrapped,
   translateToString: () => text,
@@ -942,6 +1055,8 @@ console.log(
     {
       markCases,
       markPromptEventCases,
+      markerLifecycle,
+      disposedOutputMarkers,
       joinCases,
       redrawCases,
       endsLineCases,

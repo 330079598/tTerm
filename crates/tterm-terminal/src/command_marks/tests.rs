@@ -4,6 +4,8 @@ use super::{
 };
 use crate::command_mark::CommandMark;
 
+mod marker_lifecycle;
+
 const PROMPT: &str = "\x1b]133;A\x1b\\";
 const OUTPUT: &str = "\x1b]133;C\x1b\\";
 
@@ -530,6 +532,7 @@ fn keeps_knowing_the_prompt_after_the_terminal_is_cleared() {
         ),
     );
     view.clear();
+    marks.dispose_markers();
     assert_eq!(marks.prompt_state(&view), ShellPromptState::Prompt);
 }
 

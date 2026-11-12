@@ -136,8 +136,8 @@ struct JumpedPrompt {
 
 /// Tracks prompts and commands from shell integration marks.
 ///
-/// Marker disposal and decoration drawing belong to the view. The state keeps
-/// absolute lines, so those view operations can happen after the decisions.
+/// The view forwards marker disposal and scrollback trimming to this state;
+/// decoration drawing belongs to the view.
 pub struct CommandMarks {
     entries: Vec<CommandEntry>,
     sends_output_marks: bool,
@@ -204,6 +204,40 @@ impl CommandMarks {
     /// Takes the prompt events produced since the last call.
     pub fn take_prompt_events(&mut self) -> Vec<PromptEvent> {
         std::mem::take(&mut self.prompt_events)
+    }
+
+    /// Disposes every marker when the terminal buffer is cleared.
+    ///
+    /// Like xterm marker disposal, this preserves the independently tracked
+    /// running-command state and pending prompt-event status.
+    pub fn dispose_markers(&mut self) {
+        self.entries.clear();
+        self.jumped = None;
+    }
+
+    /// Moves markers when `lines` scrollback rows are removed from the top.
+    ///
+    /// Negative marker positions are disposed. Disposing a prompt removes its
+    /// entire entry, matching xterm's prompt `onDispose` callback; disposing
+    /// only an output or end marker invalidates that command's output range.
+    pub fn trim_scrollback(&mut self, lines: usize) {
+        let lines = i64::try_from(lines).unwrap_or(i64::MAX);
+        for entry in &mut self.entries {
+            entry.prompt_line = entry.prompt_line.saturating_sub(lines);
+            if let Some(output) = &mut entry.output {
+                output.line = output.line.saturating_sub(lines);
+            }
+            if let Some(end) = &mut entry.end {
+                end.line = end.line.saturating_sub(lines);
+            }
+        }
+        self.entries.retain(|entry| entry.prompt_line >= 0);
+        if let Some(jumped) = &mut self.jumped {
+            jumped.line = jumped.line.saturating_sub(lines);
+            if jumped.line < 0 {
+                self.jumped = None;
+            }
+        }
     }
 
     /// Applies one OSC 133 or OSC 633 payload.
@@ -353,6 +387,9 @@ impl CommandMarks {
             };
             if entry.exit_code.is_none() {
                 continue;
+            }
+            if output.line < 0 || end.line < 0 {
+                return None;
             }
             let start = output.line + i64::from(output.next_line);
             let finish = end.line - i64::from(!end.inclusive);
