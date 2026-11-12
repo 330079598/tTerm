@@ -8,6 +8,10 @@ use super::{CommandProfile, CommandTracking, CommandTrackingCallbacks, ExecutedC
 use crate::agent_status::{
     AgentTracker, AgentTrackerCallbacks, AgentTrackerRegistry, parse_agent_report,
 };
+use crate::saved_password_prompts::{
+    PromptConnection, PromptConnectionKind, SavedPasswordPromptAction, SavedPasswordPromptState,
+    SavedPasswordPrompts, SudoPasswordSource,
+};
 use crate::terminal_notifications::TerminalAttentionEvent;
 
 struct Viewport {
@@ -57,7 +61,7 @@ struct Harness {
     agent_events: Rc<RefCell<Vec<String>>>,
     agent_sessions: Rc<RefCell<Vec<Option<String>>>>,
     recorded: Rc<Cell<usize>>,
-    fill_pending: Rc<Cell<bool>>,
+    password_prompts: Rc<RefCell<SavedPasswordPrompts>>,
 }
 
 impl Harness {
@@ -68,7 +72,18 @@ impl Harness {
         let agent_events = Rc::new(RefCell::new(Vec::new()));
         let agent_sessions = Rc::new(RefCell::new(Vec::new()));
         let recorded = Rc::new(Cell::new(0));
-        let fill_pending = Rc::new(Cell::new(false));
+        let password_prompts = Rc::new(RefCell::new(SavedPasswordPrompts::new(
+            "tab".to_string(),
+            1,
+            Some(PromptConnection {
+                kind: PromptConnectionKind::Ssh,
+                username: Some("alice".to_string()),
+                profile_id: Some("p1".to_string()),
+                profile_name: Some("web".to_string()),
+                login_script: None,
+            }),
+            false,
+        )));
 
         let executed_sink = Rc::clone(&executed);
         let attention_sink = Rc::clone(&attention);
@@ -76,7 +91,7 @@ impl Harness {
         let agent_event_sink = Rc::clone(&agent_events);
         let agent_session_sink = Rc::clone(&agent_sessions);
         let recorded_sink = Rc::clone(&recorded);
-        let fill_sink = Rc::clone(&fill_pending);
+        let fill_sink = Rc::clone(&password_prompts);
         let registry = Arc::new(AgentTrackerRegistry::new());
         let agent_tracker = AgentTracker::with_registry(
             registry,
@@ -105,7 +120,7 @@ impl Harness {
                 }),
                 on_command_recorded: Box::new(move || {
                     recorded_sink.set(recorded_sink.get() + 1);
-                    fill_sink.set(false);
+                    fill_sink.borrow_mut().forget_last_fill();
                 }),
                 on_running_command: Box::new(move |command| {
                     running_sink.borrow_mut().push(command.map(str::to_string));
@@ -127,7 +142,7 @@ impl Harness {
             agent_events,
             agent_sessions,
             recorded,
-            fill_pending,
+            password_prompts,
         }
     }
 
@@ -175,9 +190,48 @@ fn oracle_typed_commands_trim_deduplicate_and_clear_the_last_fill() {
         Some(executed("ls -la", 2500))
     );
 
-    harness.fill_pending.set(true);
+    let prompt = "[sudo] password for alice:";
+    {
+        let mut prompts = harness.password_prompts.borrow_mut();
+        prompts.check_password_prompt(prompt, &[], 2500);
+        prompts.resolve_saved_password_source(2, Some(SudoPasswordSource::Login));
+        assert!(prompts.fill().filled);
+        assert_eq!(prompts.note_password_written(true, 2500, prompt), vec![]);
+        assert_eq!(prompts.last_password_fill(), Some((prompt, 2500)));
+    }
     assert_eq!(harness.typed("pwd", 2500), Some(executed("pwd", 2500)));
-    assert!(!harness.fill_pending.get());
+    {
+        let mut prompts = harness.password_prompts.borrow_mut();
+        assert_eq!(prompts.last_password_fill(), None);
+        prompts.note_line_feed();
+        assert_eq!(
+            prompts.check_password_prompt(prompt, &[], 2501),
+            vec![
+                SavedPasswordPromptAction::TabPrompt(true),
+                SavedPasswordPromptAction::Show(None),
+                SavedPasswordPromptAction::LookupSource {
+                    check_id: 5,
+                    prompt: prompt.to_string(),
+                    user: Some("alice".to_string()),
+                    profile_id: Some("p1".to_string()),
+                    profile_name: Some("web".to_string()),
+                },
+            ]
+        );
+        let available = SavedPasswordPromptState::Available {
+            prompt: prompt.to_string(),
+            user: Some("alice".to_string()),
+            source: SudoPasswordSource::Login,
+        };
+        assert_eq!(
+            prompts.resolve_saved_password_source(5, Some(SudoPasswordSource::Login)),
+            vec![
+                SavedPasswordPromptAction::OfferChanged(Some(prompt.to_string())),
+                SavedPasswordPromptAction::Show(Some(available.clone())),
+            ]
+        );
+        assert_eq!(prompts.shown(), Some(&available));
+    }
 
     assert_eq!(
         harness.mark("E;echo reported", 2501),

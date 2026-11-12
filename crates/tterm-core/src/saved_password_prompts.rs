@@ -264,6 +264,12 @@ impl SavedPasswordPrompts {
             .map(|fill| (fill.prompt.as_str(), fill.at))
     }
 
+    /// Clears the last fill when a command is recorded, matching
+    /// `session.lastPasswordFill = null` in `commandTracking.ts:67`.
+    pub fn forget_last_fill(&mut self) {
+        self.last_password_fill = None;
+    }
+
     /// Whether command-line capture is paused while a password prompt waits.
     pub fn command_capture_suspended(&self) -> bool {
         self.command_capture_suspended

@@ -710,6 +710,39 @@ async function failedLookupScenario() {
 }
 
 const failedLookup = await failedLookupScenario()
+
+async function newCommandPromptScenario() {
+  savedNow = 2500
+  invokeState.calls = []
+  invokeState.results = ["login", true, "login"]
+  const setup = savedSetup()
+  const trackingSetup = freshTracking()
+  const tracker = createCommandTracking({
+    ...trackingSetup.ctx,
+    session: setup.ctx.session,
+  })
+  await setup.check(SUDO_PROMPT)
+  setup.ctx.savedPasswordPromptActionsRef.current.fill()
+  await Promise.resolve()
+  await Promise.resolve()
+  const fillBeforeCommand = setup.ctx.session.lastPasswordFill
+  trackingNow = 2500
+  tracker.emitTypedCommand("pwd")
+  const fillAfterCommand = setup.ctx.session.lastPasswordFill
+  setup.ctx.session.lineFeedCount += 1
+  savedNow = 2501
+  await setup.check(SUDO_PROMPT)
+  return {
+    fillBeforeCommand,
+    fillAfterCommand,
+    shown: setup.shown,
+    offers: setup.offers,
+    calls: invokeState.calls,
+    passwordPromptCheckId: setup.ctx.session.passwordPromptCheckId,
+  }
+}
+
+const newCommandPrompt = await newCommandPromptScenario()
 Date.now = originalNow
 
 function loginScriptScenario(connection, script) {
@@ -827,6 +860,7 @@ const savedOracle = {
   rejectionScenarios,
   staleLookup,
   failedLookup,
+  newCommandPrompt,
   loginScriptCases: [
     loginScriptScenario("ssh", "cd /srv\r\n\r\necho ready\r\n"),
     loginScriptScenario("terminal", null),
