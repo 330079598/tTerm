@@ -519,7 +519,7 @@ fn read_iterm(text: &str) -> PartialScheme {
 
 fn component_pattern(name: &str) -> Option<Regex> {
     Regex::with_flags(
-        &format!("<key>{name} Component</key>\\s*<(?:real|integer)>([^<]+)<"),
+        &format!("<key>{name} Component</key>\\s*<(?:real|integer)>([^<]+)</"),
         "",
     )
     .ok()

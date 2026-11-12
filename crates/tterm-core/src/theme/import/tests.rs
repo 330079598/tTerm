@@ -81,6 +81,12 @@ fn reads_an_iterm2_color_preset() {
 }
 
 #[test]
+fn iterm_requires_each_component_to_close_immediately_after_its_number() {
+    check_case("iterm skips a cursor component followed by an XML comment");
+    check_case("iterm skips an ANSI component followed by an empty element");
+}
+
+#[test]
 fn reads_the_schemes_of_a_windows_terminal_settings_file() {
     check_case("windows terminal settings from the TypeScript test");
 }

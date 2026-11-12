@@ -169,8 +169,20 @@ function itermColor(key, hex) {
 \t</dict>`
 }
 
-function itermBody(entries) {
-  const body = entries.map(([key, hex]) => itermColor(key, hex)).join("\n\t")
+function itermBody(entries, redOverrides = {}) {
+  const body = entries
+    .map(([key, hex]) => {
+      let color = itermColor(key, hex)
+      if (redOverrides[key] !== undefined) {
+        const original = `<key>Red Component</key>\n\t\t<real>${itermComponent(hex, 1)}</real>`
+        color = color.replace(
+          original,
+          `<key>Red Component</key>\n\t\t<real>${redOverrides[key]}</real>`
+        )
+      }
+      return color
+    })
+    .join("\n\t")
   return `<?xml version="1.0" encoding="UTF-8"?>
 <plist version="1.0">
 <dict>
@@ -385,6 +397,31 @@ const importCases = [
       ""
     ),
     "broken.itermcolors"
+  ),
+  importCase(
+    "iterm skips a cursor component followed by an XML comment",
+    itermBody(
+      [
+        ...ANSI.map((color, index) => [`Ansi ${index} Color`, color]),
+        ["Background Color (Dark)", "#1e1e1e"],
+        ["Foreground Color", "#cccccc"],
+        ["Cursor Color", "#ff0000"],
+      ],
+      { "Cursor Color": "1.000000<!-- x -->" }
+    ),
+    "comment.itermcolors"
+  ),
+  importCase(
+    "iterm skips an ANSI component followed by an empty element",
+    itermBody(
+      [
+        ...ANSI.map((color, index) => [`Ansi ${index} Color`, color]),
+        ["Background Color (Dark)", "#1e1e1e"],
+        ["Foreground Color", "#cccccc"],
+      ],
+      { "Ansi 0 Color": "1<x/>" }
+    ),
+    "empty-element.itermcolors"
   ),
   importCase(
     "windows terminal settings from the TypeScript test",
