@@ -36,7 +36,7 @@ pub(super) struct SftpExternalEditOpenDependencies {
     pub(super) events: Arc<dyn EventSink>,
     pub(super) state: Arc<ExternalEditState>,
     pub(super) opener: Arc<dyn OpenTargets>,
-    pub(super) paths: Result<AppPaths, String>,
+    pub(super) paths: Arc<AppPaths>,
 }
 pub(super) async fn sftp_external_edit_open_service(
     dependencies: SftpExternalEditOpenDependencies,
@@ -99,7 +99,7 @@ pub(super) async fn sftp_external_edit_open_service(
             start_session(
                 &host,
                 &state,
-                paths.as_ref().map_err(Clone::clone)?,
+                paths.as_ref(),
                 &remote_path,
                 &file_name,
                 transfer_id,
