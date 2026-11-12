@@ -26,7 +26,7 @@ pub struct TabNudgeState {
     flashing: BTreeSet<String>,
     shaking: bool,
     bar_pending: bool,
-    scroll_requests: u64,
+    scroll_requests: Vec<String>,
     pending: BTreeSet<String>,
 }
 
@@ -55,9 +55,9 @@ impl TabNudgeState {
         self.shaking
     }
 
-    /// How many times the bar was asked to scroll the named tab into view.
-    pub fn scroll_requests(&self) -> u64 {
-        self.scroll_requests
+    /// The tabs the bar was asked to scroll into view, in request order.
+    pub fn scroll_requests(&self) -> &[String] {
+        &self.scroll_requests
     }
 
     /// Flashes the named tab and asks the bar to scroll it into view.
@@ -65,7 +65,7 @@ impl TabNudgeState {
         if !self.tab_ids.iter().any(|id| id == tab_id) {
             return;
         }
-        self.scroll_requests += 1;
+        self.scroll_requests.push(tab_id.to_owned());
         self.flashing.remove(tab_id);
         self.flashing.insert(tab_id.to_owned());
         self.pending.insert(tab_id.to_owned());

@@ -224,3 +224,70 @@ fn oracle_clears_a_tabs_mark_and_notifications_together() {
             .expect("the notification total")
     );
 }
+
+#[test]
+fn reports_the_next_pending_command_deadline() {
+    let mut store = TabAttentionStore::new();
+    assert_eq!(store.next_due_ms(), None);
+    assert!(store.set_tab_running_command("tab-1", Some("one"), 0));
+    assert_eq!(store.next_due_ms(), Some(RUNNING_COMMAND_DELAY_MS));
+    assert!(store.set_tab_running_command("tab-2", Some("two"), 500));
+    assert_eq!(store.next_due_ms(), Some(RUNNING_COMMAND_DELAY_MS));
+    assert!(store.set_tab_running_command("tab-1", None, 600));
+    assert_eq!(store.next_due_ms(), Some(500 + RUNNING_COMMAND_DELAY_MS));
+    assert!(!store.advance_to(500 + RUNNING_COMMAND_DELAY_MS - 1));
+    assert_eq!(store.running_commands().get("tab-2"), None);
+    assert!(store.advance_to(500 + RUNNING_COMMAND_DELAY_MS));
+    assert_eq!(
+        store.running_commands().get("tab-2").map(String::as_str),
+        Some("two")
+    );
+    assert_eq!(store.next_due_ms(), None);
+}
+
+#[test]
+fn reports_whether_each_attention_change_happened() {
+    let mut store = TabAttentionStore::new();
+    let status = AgentStatus {
+        agent: "codex".to_owned(),
+        activity: AgentActivity::Processing,
+    };
+
+    assert!(store.mark_tab_attention("tab-1", TabAttentionLevel::Bell));
+    assert!(!store.mark_tab_attention("tab-1", TabAttentionLevel::Activity));
+    assert!(store.mark_tab_attention("tab-1", TabAttentionLevel::Notification));
+    assert!(!store.clear_tab_attention("missing"));
+    assert!(store.clear_tab_attention("tab-1"));
+    assert!(!store.clear_tab_attention("tab-1"));
+
+    assert!(store.count_tab_notification("tab-2"));
+    assert!(store.clear_tab_attention("tab-2"));
+
+    assert!(!store.set_tab_agent_status("tab-1", None));
+    assert!(store.set_tab_agent_status("tab-1", Some(status.clone())));
+    assert!(store.set_tab_agent_status("tab-1", Some(status)));
+    assert!(store.set_tab_agent_status("tab-1", None));
+    assert!(!store.set_tab_agent_status("tab-1", None));
+
+    assert!(!store.set_tab_running_agent("tab-1", None));
+    assert!(store.set_tab_running_agent("tab-1", Some("codex")));
+    assert!(!store.set_tab_running_agent("tab-1", Some("codex")));
+    assert!(store.set_tab_running_agent("tab-1", Some("")));
+    assert_eq!(store.tab_running_agent(&ids(&["tab-1"])), None);
+    assert!(!store.set_tab_running_agent("tab-1", None));
+
+    assert!(!store.set_tab_password_prompt("tab-1", false));
+    assert!(store.set_tab_password_prompt("tab-1", true));
+    assert!(!store.set_tab_password_prompt("tab-1", true));
+    assert!(store.set_tab_password_prompt("tab-1", false));
+    assert!(!store.set_tab_password_prompt("tab-1", false));
+
+    assert!(!store.set_tab_running_command("tab-1", None, 0));
+    assert!(store.set_tab_running_command("tab-1", Some("cmd"), 0));
+    assert!(store.set_tab_running_command("tab-1", Some("cmd"), 0));
+    assert!(!store.advance_to(RUNNING_COMMAND_DELAY_MS - 1));
+    assert!(store.advance_to(RUNNING_COMMAND_DELAY_MS));
+    assert!(!store.advance_to(RUNNING_COMMAND_DELAY_MS));
+    assert!(store.set_tab_running_command("tab-1", None, RUNNING_COMMAND_DELAY_MS));
+    assert!(!store.set_tab_running_command("tab-1", None, RUNNING_COMMAND_DELAY_MS));
+}

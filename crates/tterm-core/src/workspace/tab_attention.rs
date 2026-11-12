@@ -92,35 +92,40 @@ impl TabAttentionStore {
         }
     }
 
-    /// Raises a tab's mark to at least `level`.
-    pub fn mark_tab_attention(&mut self, tab_id: &str, level: TabAttentionLevel) {
+    /// Raises a tab's mark to at least `level`. Returns whether the mark
+    /// changed.
+    pub fn mark_tab_attention(&mut self, tab_id: &str, level: TabAttentionLevel) -> bool {
         let current = self.marks.get(tab_id).copied();
         let next = stronger_attention(current, level);
         if current == Some(next) {
-            return;
+            return false;
         }
         self.marks.insert(tab_id.to_owned(), next);
         self.emit();
+        true
     }
 
     /// Answers a tab's mark and unseen notifications because the user looked
-    /// at it.
-    pub fn clear_tab_attention(&mut self, tab_id: &str) {
+    /// at it. Returns whether anything was cleared.
+    pub fn clear_tab_attention(&mut self, tab_id: &str) -> bool {
         if !self.marks.contains_key(tab_id) && !self.unseen_notifications.contains_key(tab_id) {
-            return;
+            return false;
         }
         self.marks.shift_remove(tab_id);
         self.unseen_notifications.shift_remove(tab_id);
         self.emit();
+        true
     }
 
     /// Counts a system notification a tab raised while the user looked away.
-    pub fn count_tab_notification(&mut self, tab_id: &str) {
+    /// Returns whether the count changed, which is always true.
+    pub fn count_tab_notification(&mut self, tab_id: &str) -> bool {
         *self
             .unseen_notifications
             .entry(tab_id.to_owned())
             .or_insert(0) += 1;
         self.emit();
+        true
     }
 
     /// The number of notifications no one has looked at yet.
@@ -158,26 +163,31 @@ impl TabAttentionStore {
         self.marks.get(tab_id).copied()
     }
 
-    /// Sets or clears what an agent in a tab is doing.
-    pub fn set_tab_agent_status(&mut self, tab_id: &str, status: Option<AgentStatus>) {
+    /// Sets or clears what an agent in a tab is doing. Returns whether the
+    /// store emitted a change; like the TypeScript setter, setting a status
+    /// emits even when it is equal to the current one.
+    pub fn set_tab_agent_status(&mut self, tab_id: &str, status: Option<AgentStatus>) -> bool {
         match status {
             Some(status) => {
                 self.agent_statuses.insert(tab_id.to_owned(), status);
             }
             None => {
                 if self.agent_statuses.shift_remove(tab_id).is_none() {
-                    return;
+                    return false;
                 }
             }
         }
         self.emit();
+        true
     }
 
-    /// Sets or clears the AI agent running in a tab.
-    pub fn set_tab_running_agent(&mut self, tab_id: &str, agent: Option<&str>) {
+    /// Sets or clears the AI agent running in a tab. Returns whether the
+    /// store emitted a change; the comparison uses the raw value, as the
+    /// TypeScript setter does.
+    pub fn set_tab_running_agent(&mut self, tab_id: &str, agent: Option<&str>) -> bool {
         let current = self.running_agents.get(tab_id).map(String::as_str);
         if current == agent {
-            return;
+            return false;
         }
         match agent.filter(|agent| !agent.is_empty()) {
             Some(agent) => {
@@ -189,14 +199,21 @@ impl TabAttentionStore {
             }
         }
         self.emit();
+        true
     }
 
     /// Starts or clears the command a tab's shell runs. The command appears
     /// once [`RUNNING_COMMAND_DELAY_MS`] has passed; call [`Self::advance_to`]
-    /// from the view's clock.
-    pub fn set_tab_running_command(&mut self, tab_id: &str, command: Option<&str>, now_ms: u64) {
-        self.pending_commands.shift_remove(tab_id);
-        if let Some(command) = command.filter(|command| !command.is_empty()) {
+    /// from the view's clock. Returns whether any stored state changed,
+    /// including scheduling or replacing a pending command.
+    pub fn set_tab_running_command(
+        &mut self,
+        tab_id: &str,
+        command: Option<&str>,
+        now_ms: u64,
+    ) -> bool {
+        let pending_changed = self.pending_commands.shift_remove(tab_id).is_some();
+        let scheduled = if let Some(command) = command.filter(|command| !command.is_empty()) {
             self.pending_commands.insert(
                 tab_id.to_owned(),
                 PendingCommand {
@@ -204,32 +221,50 @@ impl TabAttentionStore {
                     due_ms: now_ms.saturating_add(RUNNING_COMMAND_DELAY_MS),
                 },
             );
-        }
-        if self.running_commands.shift_remove(tab_id).is_some() {
+            true
+        } else {
+            false
+        };
+        let running_changed = self.running_commands.shift_remove(tab_id).is_some();
+        if running_changed {
             self.emit();
         }
+        pending_changed || scheduled || running_changed
     }
 
-    /// Applies pending command timers up to `now_ms`.
-    pub fn advance_to(&mut self, now_ms: u64) {
+    /// The earliest time a pending command becomes visible, if any. A view
+    /// can schedule one wake-up at this time instead of polling.
+    pub fn next_due_ms(&self) -> Option<u64> {
+        self.pending_commands
+            .values()
+            .map(|pending| pending.due_ms)
+            .min()
+    }
+
+    /// Applies pending command timers up to `now_ms`. Returns whether any
+    /// command became visible.
+    pub fn advance_to(&mut self, now_ms: u64) -> bool {
         let due: Vec<(String, String)> = self
             .pending_commands
             .iter()
             .filter(|(_, pending)| pending.due_ms <= now_ms)
             .map(|(tab_id, pending)| (tab_id.clone(), pending.command.clone()))
             .collect();
+        let changed = !due.is_empty();
         for (tab_id, command) in due {
             self.pending_commands.shift_remove(&tab_id);
             self.running_commands.insert(tab_id, command);
             self.emit();
         }
+        changed
     }
 
-    /// Whether the tab's session waits at a password prompt.
-    pub fn set_tab_password_prompt(&mut self, tab_id: &str, waiting: bool) {
+    /// Whether the tab's session waits at a password prompt. Returns whether
+    /// the state changed.
+    pub fn set_tab_password_prompt(&mut self, tab_id: &str, waiting: bool) -> bool {
         let current = self.password_prompts.contains_key(tab_id);
         if current == waiting {
-            return;
+            return false;
         }
         if waiting {
             self.password_prompts.insert(tab_id.to_owned(), ());
@@ -237,6 +272,7 @@ impl TabAttentionStore {
             self.password_prompts.shift_remove(tab_id);
         }
         self.emit();
+        true
     }
 
     /// The strongest mark on any of the tabs.
