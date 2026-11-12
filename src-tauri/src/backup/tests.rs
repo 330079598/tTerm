@@ -1141,6 +1141,47 @@ fn a_legacy_backup_moves_its_frontend_state_into_app_meta() {
 }
 
 #[test]
+fn custom_themes_and_recent_records_in_one_backup_both_import() {
+    let database = crate::db::Database::open_in_memory().unwrap();
+    let mut payload = BackupPayload::default();
+    payload.frontend_state = Some(serde_json::json!({
+        "customThemes": [{"id": "theme", "name": "Mine"}],
+        "recentCommands": [{"id": "command", "commandText": "ls", "lastUsedAt": 1, "useCount": 2}],
+        "recentQuickConnections": [],
+        "recentProfiles": [{"profileId": "profile", "lastUsedAt": 2}],
+        "sftpColumnWidths": [300, 170, 100, 100, 126, 148],
+        "sftpView": {"showHidden": false},
+    }));
+    let options = BackupImportOptions {
+        selection: BackupSelection {
+            settings: true,
+            themes: true,
+            ..Default::default()
+        },
+        backup_password: None,
+        use_webdav_password: false,
+        conflict_strategy: "replace".to_string(),
+    };
+
+    database
+        .write(|connection| apply_database_payload(connection, &payload, &options))
+        .unwrap();
+
+    database
+        .read(|connection| {
+            assert_eq!(
+                crate::themes::list_themes(connection)?,
+                vec![serde_json::json!({"id": "theme", "name": "Mine"})]
+            );
+            let state = crate::frontend_state::read_all(connection)?;
+            assert_eq!(state["recentCommands"][0]["id"], "command");
+            assert_eq!(state["recentProfiles"][0]["profileId"], "profile");
+            Ok(())
+        })
+        .unwrap();
+}
+
+#[test]
 fn a_new_backup_frontend_state_matches_the_old_shape_field_by_field() {
     let database = crate::db::Database::open_in_memory().unwrap();
     database
