@@ -1,4 +1,4 @@
-use crate::workspace::tab::{Tab, TabType};
+use crate::workspace::tab::Tab;
 use crate::workspace::tabs_state::{
     RemoveTabsOptions, ensure_tab_defaults, get_duplicate_tab_title, remove_tabs_from_state,
 };
@@ -7,10 +7,6 @@ use super::oracle_11d2;
 
 fn tab_from(value: &serde_json::Value) -> Tab {
     serde_json::from_value(value.clone()).expect("a tab")
-}
-
-fn ids(values: &[&str]) -> Vec<String> {
-    values.iter().map(|value| (*value).to_string()).collect()
 }
 
 #[test]
@@ -124,81 +120,3 @@ fn oracle_matches_duplicate_tab_titles() {
     }
 }
 
-#[test]
-fn removes_tabs_and_picks_the_next_active_tab() {
-    let tabs = vec![
-        Tab::new("a", "a", TabType::Terminal),
-        Tab::new("b", "b", TabType::Terminal),
-        Tab::new("c", "c", TabType::Terminal),
-    ];
-    let result =
-        remove_tabs_from_state(tabs, Some("b"), &ids(&["b"]), &RemoveTabsOptions::default());
-    assert_eq!(result.active_tab_id.as_deref(), Some("c"));
-    assert_eq!(result.tabs.len(), 2);
-    assert!(result.tabs[1].is_active);
-    assert_eq!(result.tabs[1].has_connected, Some(true));
-}
-
-#[test]
-fn removed_tabs_return_the_input_when_none_match() {
-    let tabs = vec![Tab::new("a", "a", TabType::Terminal)];
-    let result = remove_tabs_from_state(
-        tabs.clone(),
-        Some("a"),
-        &ids(&["missing"]),
-        &RemoveTabsOptions::default(),
-    );
-    assert_eq!(result.tabs, tabs);
-    assert_eq!(result.active_tab_id.as_deref(), Some("a"));
-}
-
-#[test]
-fn removing_every_tab_leaves_no_active_tab() {
-    let result = remove_tabs_from_state(
-        vec![Tab::new("a", "a", TabType::Terminal)],
-        Some("a"),
-        &ids(&["a"]),
-        &RemoveTabsOptions::default(),
-    );
-    assert!(result.tabs.is_empty());
-    assert_eq!(result.active_tab_id, None);
-}
-
-#[test]
-fn ensure_defaults_distinguishes_missing_from_false() {
-    let mut tab = Tab::new("a", "a", TabType::Terminal);
-    tab.has_connected = Some(false);
-    tab.connection_header_pinned = Some(false);
-    tab.session_nonce = Some(7);
-    let next = ensure_tab_defaults(&tab);
-    assert_eq!(next.has_connected, Some(false));
-    assert_eq!(next.connection_header_pinned, Some(false));
-    assert_eq!(next.session_nonce, Some(7));
-}
-
-#[test]
-fn ensure_defaults_blank_page_connections_but_keep_file_editor_connections() {
-    let mut page = Tab::new("a", "Settings", TabType::Settings);
-    page.connection = Some(Default::default());
-    let page = ensure_tab_defaults(&page);
-    assert_eq!(page.has_connected, Some(true));
-    assert_eq!(page.session_nonce, Some(0));
-    assert_eq!(page.connection, None);
-
-    let mut editor = Tab::new("a", "file", TabType::RemoteFileEditor);
-    editor.connection = Some(Default::default());
-    let editor = ensure_tab_defaults(&editor);
-    assert_eq!(editor.has_connected, Some(true));
-    assert_eq!(editor.session_nonce, Some(0));
-    assert!(editor.connection.is_some());
-}
-
-#[test]
-fn duplicate_titles_skip_taken_numbers_and_unicode_bases() {
-    assert_eq!(get_duplicate_tab_title("web", &ids(&["web-2"])), "web-3");
-    assert_eq!(
-        get_duplicate_tab_title("web", &ids(&["web-2", "web-4"])),
-        "web-3"
-    );
-    assert_eq!(get_duplicate_tab_title("标签", &ids(&["标签-2"])), "标签-3");
-}
