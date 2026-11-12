@@ -276,7 +276,7 @@ fn wired_send_uploads_a_file_to_real_rz_over_a_real_ssh_channel() {
                 emit: Box::new(move |event| {
                     let name = event.name("").as_string();
                     let kind = name.strip_prefix("zmodem-").unwrap().trim_end_matches('-');
-                    let payload = crate::event_sink::zmodem::transfer_wire(&event).unwrap();
+                    let payload = crate::zmodem::wire::transfer_wire(&event).unwrap();
                     recorded_for_emit
                         .lock()
                         .unwrap()

@@ -18,6 +18,7 @@ pub mod events;
 pub mod protocol;
 pub mod send;
 pub mod session;
+pub(crate) mod wire;
 
 #[cfg(test)]
 mod real_interop_tests;
