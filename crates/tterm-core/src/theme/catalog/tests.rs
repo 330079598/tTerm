@@ -1,8 +1,10 @@
 use super::*;
-use crate::theme::derivation::derive_theme_colors;
+use crate::theme::derivation::{TerminalScheme, derive_theme_colors};
 use crate::theme::types::Theme;
 use serde_json::Value;
-use tterm_terminal::theme::{ThemeColors, color_to_hex, contrast_ratio, relative_luminance};
+use tterm_terminal::theme::{
+    OptionalText, ThemeColors, color_to_hex, contrast_ratio, relative_luminance,
+};
 
 const ORACLE_JSON: &str =
     include_str!("../../../../../docs/gpui-migration/reports/P1-11f-evidence/node.json");
@@ -301,5 +303,20 @@ fn catalog_theme_serialization_matches_the_oracle() {
         serde_json::to_value(catalog_theme_from_scheme(&scheme))
             .expect("the catalog theme serializes"),
         oracle["catalog"]["createdFromScheme"]
+    );
+    let mut scheme: TerminalScheme =
+        serde_json::from_value(oracle["derivation"]["schemes"][0]["scheme"].clone())
+            .expect("the Dracula scheme");
+    scheme.name = OptionalText::Null;
+    assert_eq!(
+        serde_json::to_value(catalog_theme_from_scheme(&scheme))
+            .expect("the catalog theme serializes"),
+        oracle["catalog"]["createdFromSchemeNullName"]
+    );
+    scheme.name = OptionalText::Missing;
+    assert_eq!(
+        serde_json::to_value(catalog_theme_from_scheme(&scheme))
+            .expect("the catalog theme serializes"),
+        oracle["catalog"]["createdFromSchemeMissingName"]
     );
 }

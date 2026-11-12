@@ -63,9 +63,9 @@ fn imported_custom_theme_json_matches_the_oracle_byte_for_byte() {
     let oracle = oracle();
     let now = oracle["utils"]["now"].as_i64().expect("the fixed time");
     let scheme = TerminalScheme {
-        name: Some("Dracula".into()),
-        background: Some("#282a36".into()),
-        foreground: Some("#f8f8f2".into()),
+        name: OptionalText::Value("Dracula".into()),
+        background: OptionalText::Value("#282a36".into()),
+        foreground: OptionalText::Value("#f8f8f2".into()),
         palette: [
             "#21222c", "#ff5555", "#50fa7b", "#f1fa8c", "#bd93f9", "#ff79c6", "#8be9fd", "#f8f8f2",
             "#6272a4", "#ff6e6e", "#69ff94", "#ffffa5", "#d6acff", "#ff92df", "#a4ffff", "#ffffff",
@@ -73,10 +73,10 @@ fn imported_custom_theme_json_matches_the_oracle_byte_for_byte() {
         .into_iter()
         .map(|color| Some(color.to_string()))
         .collect(),
-        cursor: Some("#f8f8f2".into()),
-        cursor_text: Some("#282a36".into()),
-        selection_background: Some("#44475a".into()),
-        selection_foreground: Some("#ffffff".into()),
+        cursor: OptionalText::Value("#f8f8f2".into()),
+        cursor_text: OptionalText::Value("#282a36".into()),
+        selection_background: OptionalText::Value("#44475a".into()),
+        selection_foreground: OptionalText::Value("#ffffff".into()),
     };
     let terminal = terminal_palette_from_scheme(&scheme);
     let colors = derive_theme_colors(&terminal);

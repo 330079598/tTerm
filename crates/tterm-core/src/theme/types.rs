@@ -73,6 +73,7 @@ pub struct PresetTheme {
     /// The display name.
     pub name: String,
     /// The one-line description.
+    #[serde(skip_serializing_if = "OptionalText::is_missing")]
     pub description: OptionalText,
     /// The interface colors.
     pub colors: ThemeColors,
@@ -166,9 +167,13 @@ pub struct CustomTheme {
     /// Always true for a custom theme.
     pub is_custom: bool,
     /// Creation time in milliseconds.
-    pub created_at: i64,
-    /// Last edit time in milliseconds.
-    pub updated_at: i64,
+    ///
+    /// This is a JSON value because `normalizeCustomTheme` copies whatever a
+    /// stored theme carries, even when an older or hand-edited database entry
+    /// used an unexpected type.
+    pub created_at: Value,
+    /// Last edit time in milliseconds, kept like [`Self::created_at`].
+    pub updated_at: Value,
     raw_colors: Option<RawObject>,
     raw_terminal: Option<RawObject>,
     order: CustomThemeOrder,
@@ -186,8 +191,8 @@ impl CustomTheme {
             terminal: new_theme.terminal,
             base_theme: new_theme.base_theme,
             is_custom: true,
-            created_at: new_theme.created_at,
-            updated_at: new_theme.updated_at,
+            created_at: Value::from(new_theme.created_at),
+            updated_at: Value::from(new_theme.updated_at),
             raw_colors: None,
             raw_terminal: None,
             order: CustomThemeOrder::FromPreset,
@@ -213,8 +218,8 @@ impl CustomTheme {
             terminal,
             base_theme: OptionalText::Missing,
             is_custom: true,
-            created_at,
-            updated_at,
+            created_at: Value::from(created_at),
+            updated_at: Value::from(updated_at),
             raw_colors: None,
             raw_terminal: None,
             order: CustomThemeOrder::Imported,
@@ -259,8 +264,8 @@ pub(crate) struct NormalizedThemeParts {
     pub(crate) colors: ThemeColors,
     pub(crate) terminal: PaletteText,
     pub(crate) base_theme: OptionalText,
-    pub(crate) created_at: i64,
-    pub(crate) updated_at: i64,
+    pub(crate) created_at: Value,
+    pub(crate) updated_at: Value,
     pub(crate) raw_colors: RawObject,
     pub(crate) raw_terminal: RawObject,
 }

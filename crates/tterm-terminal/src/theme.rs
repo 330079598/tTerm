@@ -92,13 +92,13 @@ pub const TERMINAL_PALETTE_KEYS: [&str; 22] = [
     "selectionForeground",
 ];
 
-/// An optional text field that distinguishes "absent" from a JSON `null`.
+/// An optional field that distinguishes "absent" from a JSON `null`.
 ///
 /// `src/types/theme.ts` declares these fields optional, while
-/// `normalizeCustomTheme` copies whatever it finds, including `null`. The
-/// three states are therefore kept apart so a round trip through the backend
-/// does not turn `null` into an omitted field or the other way around.
-#[derive(Clone, Debug, Default, PartialEq, Eq)]
+/// `normalizeCustomTheme` copies whatever it finds, including `null` and a
+/// value of an unexpected type. The states are kept apart so a round trip
+/// through the backend does not change what the web view stored.
+#[derive(Clone, Debug, Default, PartialEq)]
 pub enum OptionalText {
     /// The property is absent from the JSON object.
     #[default]
@@ -107,6 +107,8 @@ pub enum OptionalText {
     Null,
     /// The property is a string.
     Value(String),
+    /// The property is present with a non-string value the web view kept.
+    Json(Value),
 }
 
 impl OptionalText {
@@ -114,7 +116,7 @@ impl OptionalText {
     pub fn as_str(&self) -> Option<&str> {
         match self {
             Self::Value(value) => Some(value),
-            Self::Missing | Self::Null => None,
+            Self::Missing | Self::Null | Self::Json(_) => None,
         }
     }
 
@@ -133,6 +135,7 @@ impl Serialize for OptionalText {
             Self::Missing => serializer.serialize_none(),
             Self::Null => serializer.serialize_none(),
             Self::Value(value) => serializer.serialize_str(value),
+            Self::Json(value) => value.serialize(serializer),
         }
     }
 }
@@ -142,9 +145,10 @@ impl<'de> Deserialize<'de> for OptionalText {
     where
         D: Deserializer<'de>,
     {
-        Ok(match Option::<String>::deserialize(deserializer)? {
-            Some(value) => Self::Value(value),
-            None => Self::Null,
+        Ok(match Value::deserialize(deserializer)? {
+            Value::Null => Self::Null,
+            Value::String(value) => Self::Value(value),
+            value => Self::Json(value),
         })
     }
 }

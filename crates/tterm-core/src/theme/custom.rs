@@ -115,14 +115,8 @@ fn normalize_custom_theme(value: &Value, now: i64) -> Option<CustomTheme> {
         colors,
         terminal,
         base_theme: optional_text(base_theme),
-        created_at: object
-            .get("createdAt")
-            .and_then(Value::as_i64)
-            .unwrap_or(now),
-        updated_at: object
-            .get("updatedAt")
-            .and_then(Value::as_i64)
-            .unwrap_or(now),
+        created_at: normalized_timestamp(object.get("createdAt"), now),
+        updated_at: normalized_timestamp(object.get("updatedAt"), now),
         raw_colors,
         raw_terminal,
     }))
@@ -133,8 +127,29 @@ fn optional_text(value: Option<&Value>) -> OptionalText {
         None => OptionalText::Missing,
         Some(Value::Null) => OptionalText::Null,
         Some(Value::String(text)) => OptionalText::Value(text.clone()),
-        Some(_) => OptionalText::Missing,
+        Some(value) => OptionalText::Json(value.clone()),
     }
+}
+
+/// `value ?? Date.now()`: only a missing value or `null` asks for the clock.
+fn normalized_timestamp(value: Option<&Value>, now: i64) -> Value {
+    match value {
+        None | Some(Value::Null) => Value::from(now),
+        Some(Value::Number(number)) => canonical_number(number),
+        Some(value) => value.clone(),
+    }
+}
+
+/// JSON parsed from `1.0` carries a float, while JavaScript stores only the
+/// number 1 and writes it back without a fraction.
+fn canonical_number(number: &serde_json::Number) -> Value {
+    let Some(value) = number.as_f64() else {
+        return Value::Number(number.clone());
+    };
+    if value.is_finite() && value.fract() == 0.0 && value.abs() <= 9_007_199_254_740_992.0 {
+        return Value::from(value as i64);
+    }
+    Value::Number(number.clone())
 }
 
 /// The entries a JavaScript object spread would copy.

@@ -34,24 +34,28 @@ fn merging_a_preset_override_matches_the_oracle() {
     let oracle = oracle();
     let preset = &PRESET_THEMES[2];
     let cases = oracle["custom"]["merge"].as_array().expect("an array");
-    assert_eq!(
-        serde_json::to_value(merge_preset_theme_with_override(preset, None))
-            .expect("the preset serializes"),
-        cases[0]["value"]
-    );
-    let override_value = cases[1]["value"].clone();
-    let override_theme = normalize_custom_themes(&[override_value], now())
-        .into_iter()
-        .next()
-        .expect("one custom theme");
-    assert_eq!(
-        serde_json::to_value(merge_preset_theme_with_override(
-            preset,
-            Some(&override_theme)
-        ))
-        .expect("the merged preset serializes"),
-        cases[1]["value"]
-    );
+    for case in cases {
+        let override_theme = if case["input"].is_null() {
+            None
+        } else {
+            Some(
+                normalize_custom_themes(&[case["input"].clone()], now())
+                    .into_iter()
+                    .next()
+                    .expect("one custom theme"),
+            )
+        };
+        assert_eq!(
+            serde_json::to_value(merge_preset_theme_with_override(
+                preset,
+                override_theme.as_ref()
+            ))
+            .expect("the merged preset serializes"),
+            case["value"],
+            "{}",
+            case["name"]
+        );
+    }
 }
 
 #[test]
@@ -73,6 +77,8 @@ fn normalized_custom_theme_json_matches_the_oracle_byte_for_byte() {
         "normalizedEdgeJson",
         "normalizedStringJson",
         "normalizedShuffledJson",
+        "normalizedUnexpectedJson",
+        "normalizedExtraOrderJson",
     ]
     .into_iter()
     .enumerate()
@@ -117,8 +123,8 @@ fn normalization_keeps_missing_null_and_unknown_members_apart() {
     let theme = &themes[0];
     assert_eq!(theme.description, OptionalText::Null);
     assert_eq!(theme.base_theme, OptionalText::Null);
-    assert_eq!(theme.created_at, 0);
-    assert_eq!(theme.updated_at, now());
+    assert_eq!(theme.created_at, json!(0));
+    assert_eq!(theme.updated_at, json!(now()));
     let serialized = serde_json::to_value(theme).expect("the theme serializes");
     assert_eq!(serialized["description"], Value::Null);
     assert_eq!(serialized["baseTheme"], Value::Null);
@@ -195,6 +201,6 @@ fn empty_string_ids_and_names_are_dropped_but_zero_timestamps_are_kept() {
         now(),
     );
     assert_eq!(themes.len(), 1);
-    assert_eq!(themes[0].created_at, 0);
-    assert_eq!(themes[0].updated_at, 0);
+    assert_eq!(themes[0].created_at, json!(0));
+    assert_eq!(themes[0].updated_at, json!(0));
 }

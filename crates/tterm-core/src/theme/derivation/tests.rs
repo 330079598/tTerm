@@ -10,9 +10,9 @@ fn oracle() -> Value {
 
 fn dracula() -> TerminalScheme {
     TerminalScheme {
-        name: Some("Dracula".into()),
-        background: Some("#282a36".into()),
-        foreground: Some("#f8f8f2".into()),
+        name: OptionalText::Value("Dracula".into()),
+        background: OptionalText::Value("#282a36".into()),
+        foreground: OptionalText::Value("#f8f8f2".into()),
         palette: [
             "#21222c", "#ff5555", "#50fa7b", "#f1fa8c", "#bd93f9", "#ff79c6", "#8be9fd", "#f8f8f2",
             "#6272a4", "#ff6e6e", "#69ff94", "#ffffa5", "#d6acff", "#ff92df", "#a4ffff", "#ffffff",
@@ -20,10 +20,10 @@ fn dracula() -> TerminalScheme {
         .into_iter()
         .map(|color| Some(color.to_string()))
         .collect(),
-        cursor: Some("#f8f8f2".into()),
-        cursor_text: Some("#282a36".into()),
-        selection_background: Some("#44475a".into()),
-        selection_foreground: Some("#ffffff".into()),
+        cursor: OptionalText::Value("#f8f8f2".into()),
+        cursor_text: OptionalText::Value("#282a36".into()),
+        selection_background: OptionalText::Value("#44475a".into()),
+        selection_foreground: OptionalText::Value("#ffffff".into()),
     }
 }
 
@@ -47,8 +47,8 @@ fn maps_a_scheme_onto_the_terminal_palette() {
 #[test]
 fn fills_in_the_colors_a_scheme_leaves_out() {
     let palette = terminal_palette_from_scheme(&TerminalScheme {
-        background: Some("#000".into()),
-        foreground: Some("#fff".into()),
+        background: OptionalText::Value("#000".into()),
+        foreground: OptionalText::Value("#fff".into()),
         palette: dracula().palette,
         ..TerminalScheme::default()
     });
@@ -78,7 +78,7 @@ fn falls_back_to_another_hue_when_the_blue_is_gray() {
     let mut scheme = dracula();
     scheme.palette[4] = Some("#808080".into());
     scheme.palette[12] = Some("#808080".into());
-    scheme.cursor = Some("#ff9900".into());
+    scheme.cursor = OptionalText::Value("#ff9900".into());
     let palette = terminal_palette_from_scheme(&scheme);
     assert_eq!(
         color_to_hex(&derive_theme_colors(&palette).primary).as_deref(),
@@ -116,6 +116,40 @@ fn scheme_projection_matches_the_oracle() {
             case["name"]
         );
     }
+}
+
+#[test]
+fn optional_scheme_fields_keep_missing_and_null_distinct() {
+    let oracle = oracle();
+    let missing: TerminalScheme =
+        serde_json::from_value(oracle["derivation"]["schemes"][1]["scheme"].clone())
+            .expect("a scheme without optional colors");
+    assert_eq!(
+        serde_json::to_string(&missing).expect("the scheme serializes"),
+        oracle["serialization"]["schemeMissingJson"]
+            .as_str()
+            .expect("missing scheme JSON")
+    );
+    let mut value = serde_json::to_value(&missing).expect("the scheme serializes");
+    for key in [
+        "name",
+        "background",
+        "foreground",
+        "cursor",
+        "cursorText",
+        "selectionBackground",
+        "selectionForeground",
+    ] {
+        value[key] = Value::Null;
+    }
+    let with_nulls: TerminalScheme =
+        serde_json::from_value(value).expect("a scheme with null optional colors");
+    assert_eq!(
+        serde_json::to_string(&with_nulls).expect("the scheme serializes"),
+        oracle["serialization"]["schemeNullJson"]
+            .as_str()
+            .expect("null scheme JSON")
+    );
 }
 
 #[test]

@@ -55,7 +55,12 @@ pub fn create_catalog_theme(theme_id: String, terminal: PaletteText) -> CatalogT
 
 /// Builds a library theme from a scheme.
 pub fn catalog_theme_from_scheme(scheme: &TerminalScheme) -> CatalogTheme {
-    let name = scheme.name.as_deref().unwrap_or("undefined");
+    let name = match &scheme.name {
+        tterm_terminal::theme::OptionalText::Missing => "undefined".to_string(),
+        tterm_terminal::theme::OptionalText::Null => "null".to_string(),
+        tterm_terminal::theme::OptionalText::Value(name) => name.clone(),
+        tterm_terminal::theme::OptionalText::Json(value) => value.to_string(),
+    };
     create_catalog_theme(
         format!("{CATALOG_ID_PREFIX}{name}"),
         terminal_palette_from_scheme(scheme),

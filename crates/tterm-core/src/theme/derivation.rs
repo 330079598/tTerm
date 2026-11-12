@@ -36,21 +36,28 @@ const BLACK: &str = "#000000";
 #[serde(rename_all = "camelCase", default)]
 pub struct TerminalScheme {
     /// The scheme name, when the file has one.
-    pub name: Option<String>,
+    #[serde(skip_serializing_if = "OptionalText::is_missing")]
+    pub name: OptionalText,
     /// The background color.
-    pub background: Option<String>,
+    #[serde(skip_serializing_if = "OptionalText::is_missing")]
+    pub background: OptionalText,
     /// The foreground color.
-    pub foreground: Option<String>,
+    #[serde(skip_serializing_if = "OptionalText::is_missing")]
+    pub foreground: OptionalText,
     /// ANSI colors 0-15; a missing entry keeps the background or foreground.
     pub palette: Vec<Option<String>>,
     /// The cursor color.
-    pub cursor: Option<String>,
+    #[serde(skip_serializing_if = "OptionalText::is_missing")]
+    pub cursor: OptionalText,
     /// Text drawn inside a block cursor.
-    pub cursor_text: Option<String>,
+    #[serde(skip_serializing_if = "OptionalText::is_missing")]
+    pub cursor_text: OptionalText,
     /// The selection background.
-    pub selection_background: Option<String>,
+    #[serde(skip_serializing_if = "OptionalText::is_missing")]
+    pub selection_background: OptionalText,
     /// Selected text.
-    pub selection_foreground: Option<String>,
+    #[serde(skip_serializing_if = "OptionalText::is_missing")]
+    pub selection_foreground: OptionalText,
 }
 
 /// Whether the background is darker than the foreground.
@@ -63,21 +70,21 @@ pub fn is_dark_palette(palette: &PaletteText) -> bool {
 /// Maps a scheme onto the terminal palette, filling the colors it leaves
 /// out the way `terminalPaletteFromScheme` does.
 pub fn terminal_palette_from_scheme(scheme: &TerminalScheme) -> PaletteText {
-    let background = hex(scheme.background.as_deref().unwrap_or_default(), BLACK);
-    let foreground = hex(scheme.foreground.as_deref().unwrap_or_default(), WHITE);
+    let background = hex(scheme.background.as_str().unwrap_or_default(), BLACK);
+    let foreground = hex(scheme.foreground.as_str().unwrap_or_default(), WHITE);
     let foreground_rgb = hex_to_rgb(&foreground).unwrap_or_default();
     let ansi = ANSI_KEYS.map(|_| String::new());
     let mut palette = PaletteText {
         background: background.clone(),
         foreground: foreground.clone(),
-        cursor: hex(scheme.cursor.as_deref().unwrap_or_default(), &foreground),
+        cursor: hex(scheme.cursor.as_str().unwrap_or_default(), &foreground),
         cursor_accent: OptionalText::Value(hex(
-            scheme.cursor_text.as_deref().unwrap_or_default(),
+            scheme.cursor_text.as_str().unwrap_or_default(),
             &background,
         )),
         selection_background: match scheme
             .selection_background
-            .as_deref()
+            .as_str()
             .filter(|value| !value.is_empty())
         {
             Some(value) => hex(value, &foreground),
@@ -104,7 +111,7 @@ pub fn terminal_palette_from_scheme(scheme: &TerminalScheme) -> PaletteText {
         bright_white: ansi[15].clone(),
         selection_foreground: match scheme
             .selection_foreground
-            .as_deref()
+            .as_str()
             .filter(|value| !value.is_empty())
         {
             Some(value) => OptionalText::Value(hex(value, &foreground)),

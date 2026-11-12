@@ -527,6 +527,9 @@ const paletteCases = [
     palette: dracula.palette,
   }),
 ]
+const draculaWithoutName = Object.fromEntries(
+  Object.entries(dracula).filter(([key]) => key !== "name")
+)
 
 const generatedCases = [
   generatedCase("default preset colors", definitions.PRESET_THEMES[0].colors),
@@ -711,6 +714,24 @@ const customOverride = {
   createdAt: 1,
   updatedAt: 2,
 }
+const customOverrideWithoutDescription = Object.fromEntries(
+  Object.entries(customOverride).filter(([key]) => key !== "description")
+)
+const customOverrideWithoutBaseTheme = Object.fromEntries(
+  Object.entries(customOverride).filter(([key]) => key !== "baseTheme")
+)
+const extraOrderOverride = {
+  id: "extra-order",
+  name: "Extra order",
+  description: "extra",
+  colors: { ...preset.colors, zeta: "z", alpha: "a" },
+  terminal: { ...preset.terminal, omega: "o", beta: "b" },
+  baseTheme: "ocean",
+  isCustom: true,
+  createdAt: 1,
+  updatedAt: 2,
+}
+const extraOrderNormalized = customThemes.normalizeCustomThemes([extraOrderOverride])[0]
 
 const newTheme = themeUtils.createCustomThemeFromPreset("ocean", "Mine", undefined)
 const newThemeWithDescription = themeUtils.createCustomThemeFromPreset(
@@ -797,6 +818,27 @@ const normalizeCases = [
         background: "#000",
         cursorAccent: "#111",
       },
+      createdAt: 1,
+      updatedAt: 2,
+    },
+  ]),
+  normalizeCase("unexpected member types", [
+    {
+      id: "unexpected-types",
+      name: "Unexpected types",
+      description: 42,
+      baseTheme: 7,
+      colors: {},
+      createdAt: 1.5,
+      updatedAt: "yesterday",
+    },
+  ]),
+  normalizeCase("extra key order", [
+    {
+      id: "extra-order",
+      name: "Extra order",
+      colors: { zeta: "z", alpha: "a" },
+      terminal: { omega: "o", beta: "b" },
       createdAt: 1,
       updatedAt: 2,
     },
@@ -968,11 +1010,39 @@ const output = {
     merge: [
       {
         name: "without override",
+        input: null,
         value: customThemes.mergePresetThemeWithOverride(preset, undefined),
       },
       {
         name: "with override",
+        input: customOverride,
         value: customThemes.mergePresetThemeWithOverride(preset, customOverride),
+      },
+      {
+        name: "with a missing description",
+        input: customOverrideWithoutDescription,
+        value: customThemes.mergePresetThemeWithOverride(
+          preset,
+          customOverrideWithoutDescription
+        ),
+      },
+      {
+        name: "with a null description",
+        input: { ...customOverride, description: null },
+        value: customThemes.mergePresetThemeWithOverride(preset, {
+          ...customOverride,
+          description: null,
+        }),
+      },
+      {
+        name: "with a missing base theme",
+        input: customOverrideWithoutBaseTheme,
+        value: customThemes.mergePresetThemeWithOverride(preset, customOverrideWithoutBaseTheme),
+      },
+      {
+        name: "with extra key order",
+        input: extraOrderOverride,
+        value: customThemes.mergePresetThemeWithOverride(preset, extraOrderNormalized),
       },
     ],
     normalize: normalizeCases,
@@ -1023,6 +1093,8 @@ const output = {
       ...definitions.PRESET_THEMES[0].terminal,
     }),
     createdFromScheme: catalog.catalogThemeFromScheme(dracula),
+    createdFromSchemeNullName: catalog.catalogThemeFromScheme({ ...dracula, name: null }),
+    createdFromSchemeMissingName: catalog.catalogThemeFromScheme(draculaWithoutName),
   },
   serialization: {
     presetThemeJson,
@@ -1033,7 +1105,36 @@ const output = {
     normalizedEdgeJson: JSON.stringify(normalizeCases[1].value),
     normalizedStringJson: JSON.stringify(normalizeCases[2].value),
     normalizedShuffledJson: JSON.stringify(normalizeCases[3].value),
+    normalizedUnexpectedJson: JSON.stringify(normalizeCases[4].value),
+    normalizedExtraOrderJson: JSON.stringify(normalizeCases[5].value),
+    mergedExtraOrderJson: JSON.stringify(
+      customThemes.mergePresetThemeWithOverride(preset, extraOrderNormalized)
+    ),
     defaultTerminalJson: JSON.stringify(definitions.PRESET_THEMES[0].terminal),
+    nullTerminalJson: JSON.stringify(
+      (() => {
+        const terminal = definitions.PRESET_THEMES[0].terminal
+        return {
+          background: terminal.background,
+          foreground: terminal.foreground,
+          cursor: terminal.cursor,
+          cursorAccent: null,
+          ...Object.fromEntries(Object.entries(terminal).slice(3)),
+          selectionForeground: null,
+        }
+      })()
+    ),
+    schemeMissingJson: JSON.stringify(paletteCases[1].scheme),
+    schemeNullJson: JSON.stringify({
+      name: null,
+      background: null,
+      foreground: null,
+      palette: paletteCases[1].scheme.palette,
+      cursor: null,
+      cursorText: null,
+      selectionBackground: null,
+      selectionForeground: null,
+    }),
     blurTerminalJson: JSON.stringify(
       terminalPalette.withWindowBlur(definitions.PRESET_THEMES[0].terminal, true)
     ),
