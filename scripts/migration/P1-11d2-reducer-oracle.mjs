@@ -1,4 +1,4 @@
-export function reducerCases(tabsState) {
+export function reducerCases(tabsState, home = null) {
   const pane = tabId => ({ type: "pane", tabId })
   const row = ids => ({ type: "split", orientation: "horizontal", children: ids.map(pane), sizes: ids.map(() => 1 / ids.length) })
   const shape = { type: "split", orientation: "horizontal", children: [{ type: "pane" }, { type: "pane" }], sizes: [0.5, 0.5] }
@@ -15,7 +15,7 @@ export function reducerCases(tabsState) {
       action = { type: "update", id: action.id, updater: tab => ({ ...tab, ...patch }) }
     }
     const result = tabsState.tabsReducer(state, action)
-    cases.push({ name, state: input, action: wireAction, result })
+    cases.push({ name, state: input, action: wireAction, result, home })
   }
   add("restore saved split and orphan", { type: "restore", tabs: [tab("a"), tab("b"), tab("c")], activeTabId: "b", layout: { version: 2, groups: [{ root: row(["a", "b"]), activeTabId: "a" }] } }, empty())
   add("restore empty session", { type: "restore", tabs: [], activeTabId: null }, initial())
@@ -33,6 +33,7 @@ export function reducerCases(tabsState) {
   add("remove last tab", { type: "remove", ids: ["a"] }, { tabs: [tab("a", { isActive: true })], activeTabId: "a", groups: [group("group-1", ["a"])], groupCount: 1 })
   add("remove with explicit preferred focus", { type: "remove", ids: ["b"], options: { preferredActiveTabId: "c", activatePreferred: true } })
   add("set active", { type: "set-active", id: "b" })
+  add("set active preserves home title when loaded", { type: "set-active", id: "a" }, { tabs: [tab("a", { title: "~", autoTitle: true, connection: { cwd: "/home/me" } })], activeTabId: "a", groups: [group("group-1", ["a"])], groupCount: 1 })
   add("set missing active", { type: "set-active", id: "missing" })
   add("move group reorders tabs", { type: "move", fromIndex: 1, toIndex: 0 })
   add("move out of range", { type: "move", fromIndex: -1, toIndex: 9 })

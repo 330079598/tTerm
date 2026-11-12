@@ -26,8 +26,12 @@ pub struct TabsState {
 }
 
 /// Applies one action, reconciles pane groups, and refreshes distinct local titles.
-pub fn tabs_reducer(state: TabsState, action: action::TabsAction) -> TabsState {
-    reducer::reduce(state, action)
+pub fn tabs_reducer(
+    state: TabsState,
+    action: action::TabsAction,
+    home_directory: Option<&str>,
+) -> TabsState {
+    reducer::reduce(state, action, home_directory)
 }
 
 /// How removing tabs chooses the tab to focus next.

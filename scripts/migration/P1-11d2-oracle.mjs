@@ -1327,6 +1327,9 @@ output.shortSizeInsertions = [
   return { root, target, direction, inserted, result: tabGroups.insertNextTo(root, target, inserted, direction) }
 })
 
+await localTabTitle.refreshSavedLocalTabs([])
+output.reducerWithHome = reducerCases(tabsState, "/home/me")
+
 output.sessionTabs = await Promise.all([
   { id: "shell", title: "t", type: "terminal", isActive: false, shellName: 5 },
   { id: "shell", title: "t", type: "terminal", isActive: false, shellName: 0 },

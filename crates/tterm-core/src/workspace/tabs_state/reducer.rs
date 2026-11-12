@@ -13,11 +13,15 @@ use crate::workspace::tabs_state::reopen::{place_reopened_tabs, reopened_active_
 use crate::workspace::tabs_state::transitions::{activate, apply_template, duplicate, settle};
 use crate::workspace::tabs_state::{TabsState, ensure_tab_defaults, remove_tabs_from_state};
 
-pub(super) fn reduce(mut state: TabsState, action: TabsAction) -> TabsState {
+pub(super) fn reduce(
+    mut state: TabsState,
+    action: TabsAction,
+    home_directory: Option<&str>,
+) -> TabsState {
     let changed = apply(&mut state, action);
     let reordered = settle(&mut state);
     if changed || reordered {
-        state.tabs = with_distinct_local_titles(&state.tabs, None);
+        state.tabs = with_distinct_local_titles(&state.tabs, home_directory);
     }
     state
 }

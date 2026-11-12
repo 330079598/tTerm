@@ -168,8 +168,21 @@ fn action(value: &Value) -> TabsAction {
 #[test]
 fn oracle_matches_every_reducer_action_and_boundary() {
     let oracle = oracle_11d2();
-    for case in oracle["reducer"].as_array().expect("reducer cases") {
-        let result = tabs_reducer(state(&case["state"]), action(&case["action"]));
+    for case in oracle["reducer"]
+        .as_array()
+        .expect("reducer cases")
+        .iter()
+        .chain(
+            oracle["reducerWithHome"]
+                .as_array()
+                .expect("loaded home cases"),
+        )
+    {
+        let result = tabs_reducer(
+            state(&case["state"]),
+            action(&case["action"]),
+            case["home"].as_str(),
+        );
         assert_eq!(
             serde_json::to_value(result).unwrap(),
             case["result"],
