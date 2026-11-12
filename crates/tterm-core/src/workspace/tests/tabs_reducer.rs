@@ -165,8 +165,7 @@ fn action(value: &Value) -> TabsAction {
     }
 }
 
-#[test]
-fn oracle_matches_every_reducer_action_and_boundary() {
+fn check_action(action_type: &str) {
     let oracle = oracle_11d2();
     for case in oracle["reducer"]
         .as_array()
@@ -178,6 +177,7 @@ fn oracle_matches_every_reducer_action_and_boundary() {
                 .expect("loaded home cases"),
         )
     {
+        if case["action"]["type"] != action_type { continue; }
         let result = tabs_reducer(
             state(&case["state"]),
             action(&case["action"]),
@@ -196,4 +196,32 @@ fn oracle_matches_every_reducer_action_and_boundary() {
             case["name"]
         );
     }
+}
+
+macro_rules! action_tests {
+    ($($name:ident => $kind:literal),* $(,)?) => {$(
+        #[test]
+        fn $name() { check_action($kind); }
+    )*};
+}
+
+action_tests! {
+    oracle_restore => "restore",
+    oracle_add => "add",
+    oracle_open_page => "open-page",
+    oracle_rename_page => "rename-page",
+    oracle_remove => "remove",
+    oracle_set_active => "set-active",
+    oracle_move => "move",
+    oracle_duplicate => "duplicate",
+    oracle_rename => "rename",
+    oracle_update => "update",
+    oracle_place_pane => "place-pane",
+    oracle_merge_group => "merge-group",
+    oracle_break_out => "break-out",
+    oracle_ungroup => "ungroup",
+    oracle_toggle_zoom => "toggle-zoom",
+    oracle_resize_split => "resize-split",
+    oracle_apply_template => "apply-template",
+    oracle_reopen => "reopen",
 }
