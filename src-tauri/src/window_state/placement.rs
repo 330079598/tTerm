@@ -1,6 +1,6 @@
 //! Whether saved window bounds still fit the monitors that are connected.
 
-use super::Bounds;
+use super::state::Bounds;
 
 /// A monitor's area in physical pixels.
 #[derive(Clone, Copy, Debug)]
