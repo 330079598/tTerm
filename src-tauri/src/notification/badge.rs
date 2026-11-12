@@ -6,7 +6,6 @@
 //! well, since a window closed to the tray has no taskbar button to carry it.
 
 use serde::Deserialize;
-use std::sync::Arc;
 
 /// An overlay drawn by the frontend, as RGBA rows from the top.
 #[derive(Debug, Clone, Deserialize)]
@@ -33,22 +32,7 @@ impl OverlayImage {
 
 /// Shows `count` on the app icon, or takes it off at zero. `overlay` is the
 /// count drawn for the Windows taskbar; other systems ignore it.
-#[tauri::command]
-pub async fn set_unseen_notifications(
-    count: u32,
-    overlay: Option<OverlayImage>,
-    services: tauri::State<'_, Arc<crate::services::AppServices>>,
-) -> Result<(), String> {
-    set_unseen(
-        services.shared.platform.main_window.as_ref(),
-        services.shared.platform.badge.as_ref(),
-        count,
-        overlay,
-    )
-    .await
-}
-
-async fn set_unseen(
+pub(super) async fn set_unseen(
     window: &dyn tterm_platform::window::MainWindow,
     badge: &dyn tterm_platform::notifications::AppBadge,
     count: u32,

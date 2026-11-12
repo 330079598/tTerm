@@ -7,12 +7,11 @@ use tterm_core::events::notification::NotificationEvent;
 use tterm_core::events::{AppEvent, EventSink};
 
 pub mod badge;
+pub(crate) mod badge_commands;
+pub(crate) mod commands;
 pub(crate) mod sound;
 
-use crate::services::AppServices;
 use serde::{Deserialize, Serialize};
-use std::sync::Arc;
-use tauri::ipc::Response;
 
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -83,17 +82,7 @@ pub fn init(notifications: &dyn tterm_platform::notifications::Notifications) {
     notifications.initialize();
 }
 
-/// Resolves once the notification is shown, or with why it was not (macOS
-/// reports a refusal; elsewhere it resolves once handed to the system).
-#[tauri::command]
-pub async fn show_notification(
-    request: NotificationRequest,
-    services: tauri::State<'_, Arc<AppServices>>,
-) -> Result<(), String> {
-    show(services.shared.platform.notifications.as_ref(), request).await
-}
-
-async fn show(
+pub(super) async fn show(
     notifications: &dyn tterm_platform::notifications::Notifications,
     request: NotificationRequest,
 ) -> Result<(), String> {
@@ -108,17 +97,7 @@ async fn show(
         .await
 }
 
-#[tauri::command]
-pub async fn notification_permission(app: tauri::AppHandle) -> NotificationPermission {
-    use tauri::Manager;
-    let Some(services) = app.try_state::<Arc<AppServices>>() else {
-        return NotificationPermission::NotDetermined;
-    };
-    let notifications = services.shared.platform.notifications.clone();
-    permission(notifications.as_ref()).await
-}
-
-async fn permission(
+pub(super) async fn permission(
     notifications: &dyn tterm_platform::notifications::Notifications,
 ) -> NotificationPermission {
     use tterm_platform::notifications::NotificationPermission as P;
@@ -131,22 +110,6 @@ async fn permission(
         P::TaskbarBadgesOff => NotificationPermission::TaskbarBadgesOff,
         P::Fallback => NotificationPermission::Fallback,
     }
-}
-
-/// Copies the audio file at `path` in as the notification sound and returns
-/// its name. tTerm plays the sound itself because a Windows toast plays only
-/// the system's sounds for an app that is not packaged.
-#[tauri::command]
-pub async fn import_notification_sound(path: String) -> Result<String, String> {
-    crate::core::blocking::run_blocking(move || sound::import(std::path::Path::new(&path))).await
-}
-
-/// The notification sound's bytes, which the frontend decodes and plays.
-#[tauri::command]
-pub async fn read_notification_sound() -> Result<Response, String> {
-    crate::core::blocking::run_blocking(sound::read)
-        .await
-        .map(Response::new)
 }
 
 #[cfg(test)]
