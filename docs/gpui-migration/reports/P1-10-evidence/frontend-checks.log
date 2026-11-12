@@ -1,0 +1,7 @@
+$ eslint src
+$ prettier --check src
+Checking formatting...
+All matched files use Prettier code style!
+$ tsc --noEmit
+$ node scripts/check-file-size.mjs
+file-size: 917 files within their limits
