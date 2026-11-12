@@ -13,6 +13,7 @@ use rusqlite::{Connection, OptionalExtension};
 use serde::de::DeserializeOwned;
 use std::fs;
 use std::path::Path;
+use tterm_core::config::paths::ensure_config_dir;
 
 const IMPORTED_MARKER: &str = "legacy_json_imported_at";
 
@@ -30,7 +31,8 @@ pub(crate) fn imported_at(connection: &Connection) -> Result<Option<i64>, String
     super::meta::get(connection, IMPORTED_MARKER)
 }
 
-pub(crate) fn legacy_json_imported(database: &Database) -> Result<bool, String> {
+/// Whether this database already records the JSON import.
+pub(crate) fn db_records_import(database: &Database) -> Result<bool, String> {
     database.read(is_imported)
 }
 
@@ -48,10 +50,7 @@ fn is_imported(connection: &Connection) -> Result<bool, String> {
 
 /// Imports the JSON files in `config_dir` unless that already happened.
 /// Returns whether an import ran.
-pub(crate) fn import_legacy_json_files(
-    database: &Database,
-    config_dir: &Path,
-) -> Result<bool, String> {
+pub(crate) fn import_json_files(database: &Database, config_dir: &Path) -> Result<bool, String> {
     let imported = database.write(|transaction| {
         if is_imported(transaction)? {
             return Ok(false);
@@ -86,7 +85,10 @@ pub(crate) fn import_legacy_json_files(
 /// Moves the settings files and state that older versions kept beside
 /// `config.json` into the database. Each file is done on its own; one that
 /// fails stays in place and is tried again on the next launch.
-pub(crate) fn import_settings_files(database: &Database, config_dir: &Path) -> Result<(), String> {
+pub(crate) fn import_settings_files_into(
+    database: &Database,
+    config_dir: &Path,
+) -> Result<(), String> {
     let errors: Vec<String> = [
         crate::app_state::import_from_config_file(database, config_dir),
         crate::session::import_file(database, config_dir),
@@ -143,6 +145,37 @@ fn read_json<T: DeserializeOwned>(path: &Path) -> Result<Option<T>, String> {
             path.display()
         )
     })
+}
+
+/// Whether the legacy JSON files have been imported. False when the database
+/// is unavailable.
+pub(crate) fn legacy_json_imported() -> bool {
+    super::init().and_then(db_records_import).unwrap_or(false)
+}
+
+/// Moves the settings files and state older versions kept beside
+/// `config.json` into the database.
+pub(crate) fn import_settings_files() -> Result<(), String> {
+    import_settings_files_into(super::get()?, &ensure_config_dir()?)
+}
+
+/// When the legacy JSON files were imported (unix ms); `None` before that
+/// or when the database is unavailable.
+pub(crate) fn legacy_json_imported_at() -> Option<i64> {
+    super::read(imported_at).ok().flatten()
+}
+
+/// Imports the JSON files that held app data before the database, once.
+pub(crate) fn import_legacy_json_files() -> Result<(), String> {
+    let database = super::init()?;
+    let result = ensure_config_dir().and_then(|directory| import_json_files(database, &directory));
+    match result {
+        Ok(_) => Ok(()),
+        Err(error) => {
+            let _ = super::IMPORT_ERROR.set(error.clone());
+            Err(error)
+        }
+    }
 }
 
 #[cfg(test)]

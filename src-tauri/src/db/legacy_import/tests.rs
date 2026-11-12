@@ -69,8 +69,8 @@ fn imports_every_file_once_and_renames_them() {
     );
 
     let database = Database::open_in_memory().expect("open database");
-    assert!(import_legacy_json_files(&database, &dir).expect("import"));
-    assert!(legacy_json_imported(&database).expect("marker"));
+    assert!(import_json_files(&database, &dir).expect("import"));
+    assert!(db_records_import(&database).expect("marker"));
 
     database
         .read(|connection| {
@@ -131,7 +131,7 @@ fn imports_every_file_once_and_renames_them() {
 
     // A file that reappears later is ignored.
     write(&dir, "profiles.json", serde_json::json!([]));
-    assert!(!import_legacy_json_files(&database, &dir).expect("second run"));
+    assert!(!import_json_files(&database, &dir).expect("second run"));
     assert_eq!(
         database
             .read(crate::profiles::storage::list_saved_profiles)
@@ -213,7 +213,7 @@ fn settings_files_move_into_the_database_leaving_only_config_json() {
     let database = Database::open_in_memory().unwrap();
     write_settings_files(&dir);
 
-    import_settings_files(&database, &dir).unwrap();
+    import_settings_files_into(&database, &dir).unwrap();
 
     assert_eq!(file_names(&dir), ["config.json"]);
     let config: serde_json::Value =
@@ -258,7 +258,7 @@ fn settings_files_move_into_the_database_leaving_only_config_json() {
         .unwrap();
 
     // Nothing left to do on the next launch.
-    import_settings_files(&database, &dir).unwrap();
+    import_settings_files_into(&database, &dir).unwrap();
     assert_eq!(file_names(&dir), ["config.json"]);
     fs::remove_dir_all(dir).unwrap();
 }
@@ -268,7 +268,7 @@ fn files_written_again_by_an_older_version_do_not_overwrite_the_database() {
     let dir = temp_dir("settings-files-again");
     let database = Database::open_in_memory().unwrap();
     write_settings_files(&dir);
-    import_settings_files(&database, &dir).unwrap();
+    import_settings_files_into(&database, &dir).unwrap();
     database
         .write(|connection| {
             crate::session::write_session(
@@ -283,7 +283,7 @@ fn files_written_again_by_an_older_version_do_not_overwrite_the_database() {
 
     write_settings_files(&dir);
     fs::write(dir.join("window-background"), "#ffffff").unwrap();
-    import_settings_files(&database, &dir).unwrap();
+    import_settings_files_into(&database, &dir).unwrap();
 
     assert_eq!(file_names(&dir), ["config.json"]);
     database
@@ -308,7 +308,7 @@ fn an_unreadable_settings_file_stays_while_the_others_move() {
     fs::write(dir.join("sync_settings.json"), "{ not json").unwrap();
     fs::write(dir.join("session.json"), "{ not json").unwrap();
 
-    let error = import_settings_files(&database, &dir).unwrap_err();
+    let error = import_settings_files_into(&database, &dir).unwrap_err();
     assert!(error.contains("sync_settings.json"), "{error}");
     // A broken session is dropped rather than kept.
     assert_eq!(file_names(&dir), ["config.json", "sync_settings.json"]);
@@ -333,9 +333,9 @@ fn corrupt_file_aborts_the_whole_import() {
     fs::write(dir.join("tunnels.json"), "{ not json").unwrap();
 
     let database = Database::open_in_memory().expect("open database");
-    let error = import_legacy_json_files(&database, &dir).expect_err("corrupt file");
+    let error = import_json_files(&database, &dir).expect_err("corrupt file");
     assert!(error.contains("tunnels.json"));
-    assert!(!legacy_json_imported(&database).unwrap());
+    assert!(!db_records_import(&database).unwrap());
     assert!(
         database
             .read(crate::profiles::groups::list_groups)
@@ -354,7 +354,7 @@ fn corrupt_file_aborts_the_whole_import() {
 fn missing_files_import_as_empty() {
     let dir = temp_dir("empty");
     let database = Database::open_in_memory().expect("open database");
-    assert!(import_legacy_json_files(&database, &dir).expect("import"));
+    assert!(import_json_files(&database, &dir).expect("import"));
     assert!(
         database
             .read(crate::profiles::storage::list_saved_profiles)
@@ -400,7 +400,7 @@ fn imports_a_real_config_directory_copy() {
         .list()
         .unwrap()
         .len();
-    assert!(import_legacy_json_files(&database, &dir).expect("import"));
+    assert!(import_json_files(&database, &dir).expect("import"));
 
     database
         .read(|connection| {

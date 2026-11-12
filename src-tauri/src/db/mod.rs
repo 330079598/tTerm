@@ -95,40 +95,6 @@ pub fn init() -> Result<&'static Database, String> {
         .map_err(Clone::clone)
 }
 
-/// Whether the legacy JSON files have been imported. False when the database
-/// is unavailable.
-pub(crate) fn legacy_json_imported() -> bool {
-    init()
-        .and_then(legacy_import::legacy_json_imported)
-        .unwrap_or(false)
-}
-
-/// Moves the settings files and state older versions kept beside
-/// `config.json` into the database.
-pub(crate) fn import_settings_files() -> Result<(), String> {
-    legacy_import::import_settings_files(get()?, &ensure_config_dir()?)
-}
-
-/// When the legacy JSON files were imported (unix ms); `None` before that
-/// or when the database is unavailable.
-pub(crate) fn legacy_json_imported_at() -> Option<i64> {
-    read(legacy_import::imported_at).ok().flatten()
-}
-
-/// Imports the JSON files that held app data before the database, once.
-pub(crate) fn import_legacy_json_files() -> Result<(), String> {
-    let database = init()?;
-    let result = ensure_config_dir()
-        .and_then(|directory| legacy_import::import_legacy_json_files(database, &directory));
-    match result {
-        Ok(_) => Ok(()),
-        Err(error) => {
-            let _ = IMPORT_ERROR.set(error.clone());
-            Err(error)
-        }
-    }
-}
-
 pub fn get() -> Result<&'static Database, String> {
     if let Some(error) = IMPORT_ERROR.get() {
         return Err(error.clone());
