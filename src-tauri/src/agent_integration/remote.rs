@@ -13,7 +13,6 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Duration;
 
-use crate::services::AppServices;
 use russh::client::{Handle, Handler};
 use russh_sftp::client::SftpSession;
 use russh_sftp::client::error::Error as SftpError;
@@ -25,8 +24,6 @@ use super::{
     AGENTS, Agent, AgentIntegrationStatus, AgentSpec, ConfigSource, Integration, IntegrationState,
     Location, status_of,
 };
-use crate::core::session::types::PtyConnectionOptions;
-use crate::sftp::internal::api::SftpHost;
 use crate::sftp::internal::exec::RemoteScript;
 
 /// Bounds reading the host's environment: a login shell that takes longer
@@ -281,27 +278,7 @@ async fn open(
 }
 
 /// Each agent's integration on the tab's SSH host.
-#[tauri::command]
-pub async fn remote_agent_integration_status(
-    tab_id: String,
-    connection: Option<PtyConnectionOptions>,
-    services: tauri::State<'_, Arc<AppServices>>,
-) -> Result<Vec<AgentIntegrationStatus>, String> {
-    let app = crate::connection_context::sftp(&services);
-    let handles = SftpHost {
-        app: &app,
-        tab_id: &tab_id,
-        connection,
-        prompts: services.shared.prompts.clone(),
-        secret_state: &services.shared.secrets,
-        pool: &services.sftp.pool,
-    }
-    .handles()
-    .await?;
-    remote_status(handles).await
-}
-
-async fn remote_status(
+pub(super) async fn remote_status(
     handles: crate::sftp::internal::types::SftpHandles,
 ) -> Result<Vec<AgentIntegrationStatus>, String> {
     let (sftp, env) = open(handles).await?;
@@ -312,30 +289,7 @@ async fn remote_status(
     Ok(statuses)
 }
 
-/// Installs or removes `agent`'s integration on the tab's SSH host.
-#[tauri::command]
-pub async fn change_remote_agent_integration(
-    tab_id: String,
-    connection: Option<PtyConnectionOptions>,
-    agent: Agent,
-    install: bool,
-    services: tauri::State<'_, Arc<AppServices>>,
-) -> Result<AgentIntegrationStatus, String> {
-    let app = crate::connection_context::sftp(&services);
-    let handles = SftpHost {
-        app: &app,
-        tab_id: &tab_id,
-        connection,
-        prompts: services.shared.prompts.clone(),
-        secret_state: &services.shared.secrets,
-        pool: &services.sftp.pool,
-    }
-    .handles()
-    .await?;
-    remote_change(handles, agent, install).await
-}
-
-async fn remote_change(
+pub(super) async fn remote_change(
     handles: crate::sftp::internal::types::SftpHandles,
     agent: Agent,
     install: bool,

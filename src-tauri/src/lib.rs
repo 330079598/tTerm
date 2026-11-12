@@ -375,12 +375,12 @@ pub fn run() {
             notification::import_notification_sound,
             notification::read_notification_sound,
             notification::badge::set_unseen_notifications,
-            agent_integration::agent_integration_status,
-            agent_integration::install_agent_integration,
-            agent_integration::uninstall_agent_integration,
+            agent_integration::commands::agent_integration_status,
+            agent_integration::commands::install_agent_integration,
+            agent_integration::commands::uninstall_agent_integration,
             core::agent_resume::build_agent_resume_command,
-            agent_integration::remote::remote_agent_integration_status,
-            agent_integration::remote::change_remote_agent_integration,
+            agent_integration::remote_commands::remote_agent_integration_status,
+            agent_integration::remote_commands::change_remote_agent_integration,
         ])
         .setup(move |app| {
             let app_handle = app.handle().clone();

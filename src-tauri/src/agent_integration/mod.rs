@@ -12,6 +12,7 @@
 
 mod claude_code;
 mod codex;
+pub(crate) mod commands;
 #[cfg(windows)]
 pub mod console_report;
 mod hook_input;
@@ -19,6 +20,7 @@ mod hooks;
 mod json;
 mod plugin_file;
 pub mod remote;
+pub(crate) mod remote_commands;
 
 use std::path::{Path, PathBuf};
 
@@ -291,30 +293,6 @@ fn change(agent: Agent, install: bool) -> Result<AgentIntegrationStatus, String>
         Integration::Plugin(plugin) => plugin.uninstall(&path)?,
     }
     Ok(status(agent))
-}
-
-/// Off the async runtime: the first lookup may start the user's shell.
-async fn blocking<T: Send + 'static>(
-    work: impl FnOnce() -> T + Send + 'static,
-) -> Result<T, String> {
-    tokio::task::spawn_blocking(work)
-        .await
-        .map_err(|error| error.to_string())
-}
-
-#[tauri::command]
-pub async fn agent_integration_status() -> Result<Vec<AgentIntegrationStatus>, String> {
-    blocking(|| AGENTS.into_iter().map(status).collect()).await
-}
-
-#[tauri::command]
-pub async fn install_agent_integration(agent: Agent) -> Result<AgentIntegrationStatus, String> {
-    blocking(move || change(agent, true)).await?
-}
-
-#[tauri::command]
-pub async fn uninstall_agent_integration(agent: Agent) -> Result<AgentIntegrationStatus, String> {
-    blocking(move || change(agent, false)).await?
 }
 
 #[cfg(test)]
