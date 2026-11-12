@@ -1,0 +1,5 @@
+    Checking tterm-platform v0.1.0 (/Users/stone/Code/rust/tTerm-P1-09s/crates/tterm-platform)
+    Checking tterm-terminal v0.1.0 (/Users/stone/Code/rust/tTerm-P1-09s/crates/tterm-terminal)
+   Compiling tTerm v0.8.1 (/Users/stone/Code/rust/tTerm-P1-09s/src-tauri)
+    Checking tterm-core v0.1.0 (/Users/stone/Code/rust/tTerm-P1-09s/crates/tterm-core)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 14.18s
