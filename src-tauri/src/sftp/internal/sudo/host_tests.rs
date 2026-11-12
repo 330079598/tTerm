@@ -71,7 +71,7 @@ fn never_ask(_retry: bool) -> Answer {
 fn answer_with(
     password: &str,
     asked: &Arc<std::sync::Mutex<Vec<bool>>>,
-) -> impl FnMut(bool) -> Answer {
+) -> impl FnMut(bool) -> Answer + use<> {
     let password = password.to_string();
     let asked = asked.clone();
     move |retry| {

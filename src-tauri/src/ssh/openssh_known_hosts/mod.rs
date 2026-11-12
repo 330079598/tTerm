@@ -111,7 +111,7 @@ impl OpenSshKnownHosts {
     }
 
     /// The entries whose host names match `host` at `port`.
-    fn lines_for(&self, host: &str, port: u16) -> impl Iterator<Item = &KnownHostLine> {
+    fn lines_for(&self, host: &str, port: u16) -> impl Iterator<Item = &KnownHostLine> + use<'_> {
         let name = host_key_name(host, port);
         self.lines
             .iter()

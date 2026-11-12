@@ -1,5 +1,5 @@
 macro_rules! with_sftp {
-    ($app:expr, $tab_id:expr, $plan:expr, $prompts:expr, $pool:expr, $sftp:ident => $body:block) => {{
+    ($app:expr_2021, $tab_id:expr_2021, $plan:expr_2021, $prompts:expr_2021, $pool:expr_2021, $sftp:ident => $body:block) => {{
         let key = $crate::sftp::internal::types::SftpConnectionKey::from_plan($tab_id, $plan)?;
 
         // Ensure connection exists
