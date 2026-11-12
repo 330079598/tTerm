@@ -323,12 +323,14 @@ fn oracle_page_menu_with_a_zoomed_pane_uses_the_unzoom_labels() {
 
 #[test]
 fn oracle_terminal_pane_menu_keeps_the_log_items_before_the_layout_items() {
+    let oracle = super::oracle_json();
     let actions = get_pane_menu_actions(
         &tab("a", "tTerm", TabType::Terminal),
         false,
         &translate,
         false,
     );
+    assert_actions_match_oracle(&actions, &oracle["tabMenuActions"]["paneTerminal"]);
     assert_eq!(
         actions
             .iter()
@@ -352,6 +354,32 @@ fn oracle_terminal_pane_menu_keeps_the_log_items_before_the_layout_items() {
             "",
             "close",
         ]
+    );
+    assert_eq!(
+        find_action(&actions, "split-right")
+            .expect("split right")
+            .shortcut
+            .map(|shortcut| shortcut.as_str()),
+        Some("workspace.splitRight")
+    );
+    assert_eq!(
+        find_action(&actions, "split-down")
+            .expect("split down")
+            .shortcut
+            .map(|shortcut| shortcut.as_str()),
+        Some("workspace.splitBelow")
+    );
+    assert_eq!(
+        find_action(&actions, "split-left")
+            .expect("split left")
+            .shortcut,
+        None
+    );
+    assert_eq!(
+        find_action(&actions, "split-above")
+            .expect("split above")
+            .shortcut,
+        None
     );
     assert_eq!(
         find_action(&actions, "log-start").unwrap().icon.as_deref(),

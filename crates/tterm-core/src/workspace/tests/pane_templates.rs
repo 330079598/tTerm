@@ -125,13 +125,13 @@ fn rejects_a_lone_pane_bad_nodes_and_too_many_panes() {
         None
     );
     assert_eq!(
-        normalize_layout_shape(&row_json(json!([{"type":"pane"}]), json!([]))),
+        normalize_layout_shape(&row_json(json!([{"type":"pane"}]), json!([1]))),
         None
     );
     assert_eq!(
         normalize_layout_shape(&row_json(
             json!([{"type":"pane"},{"type":"box"}]),
-            json!([])
+            json!([0.5, 0.5])
         )),
         None
     );
@@ -141,7 +141,7 @@ fn rejects_a_lone_pane_bad_nodes_and_too_many_panes() {
                 .map(|_| json!({"type":"pane"}))
                 .collect(),
         ),
-        json!([]),
+        json!([0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1]),
     );
     assert_eq!(normalize_layout_shape(&too_many), None);
 }
@@ -149,9 +149,9 @@ fn rejects_a_lone_pane_bad_nodes_and_too_many_panes() {
 #[test]
 fn keeps_valid_templates_and_drops_broken_ones_repeats_and_built_in_ids() {
     let templates = normalize_pane_templates(&json!([
-        {"id":"a","name":" Ops ","root":row_json(json!([{"type":"pane"},{"type":"pane"}]), json!([]))},
-        {"id":"a","name":"again","root":row_json(json!([{"type":"pane"},{"type":"pane"}]), json!([]))},
-        {"id":"builtin:columns-2","name":"fake","root":row_json(json!([{"type":"pane"},{"type":"pane"}]), json!([]))},
+        {"id":"a","name":" Ops ","root":row_json(json!([{"type":"pane"},{"type":"pane"}]), json!([0.5, 0.5]))},
+        {"id":"a","name":"again","root":row_json(json!([{"type":"pane"},{"type":"pane"}]), json!([0.5, 0.5]))},
+        {"id":"builtin:columns-2","name":"fake","root":row_json(json!([{"type":"pane"},{"type":"pane"}]), json!([0.5, 0.5]))},
         {"id":"b","name":"broken","root":{"type":"pane"}},
         "nonsense"
     ]));
@@ -375,7 +375,7 @@ fn oracle_trims_javascript_whitespace_from_template_names() {
     let templates = normalize_pane_templates(&json!([{
         "id": "t1",
         "name": "\u{3000}Ops\u{feff}",
-        "root": row_json(json!([{"type":"pane"},{"type":"pane"}]), json!([])),
+        "root": row_json(json!([{"type":"pane"},{"type":"pane"}]), json!([0.5, 0.5])),
     }]));
     assert_eq!(templates[0].name, "Ops");
 }

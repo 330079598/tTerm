@@ -45,6 +45,11 @@ impl TabNudgeState {
         self.flashing.contains(tab_id)
     }
 
+    /// Whether any tab currently shows the flash animation.
+    pub fn has_flashing(&self) -> bool {
+        !self.flashing.is_empty()
+    }
+
     /// Whether the tab bar currently shows the shake animation.
     pub fn is_shaking(&self) -> bool {
         self.shaking
