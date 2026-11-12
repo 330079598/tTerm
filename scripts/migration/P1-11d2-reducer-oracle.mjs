@@ -41,6 +41,7 @@ export function reducerCases(tabsState) {
   add("duplicate missing tab", { type: "duplicate", sourceId: "missing", newId: "d" })
   add("duplicate page is ignored", { type: "duplicate", sourceId: "s", newId: "d" }, structuredClone(page))
   add("duplicate fractional nonce", { type: "duplicate", sourceId: "a", newId: "d" }, { ...initial(), tabs: [tab("a", { sessionNonce: 4294967295.75 }), tab("b"), tab("c")] })
+  add("duplicate null connection fills its type", { type: "duplicate", sourceId: "a", newId: "d" }, { ...initial(), tabs: [tab("a", { connection: null, sessionNonce: null }), tab("b"), tab("c")] })
   add("rename clears generated metadata", { type: "rename", id: "a", title: "manual" }, { ...initial(), tabs: [tab("a", { autoTitle: true, duplicateBaseTitle: "base" }), tab("b"), tab("c")] })
   add("rename missing tab", { type: "rename", id: "missing", title: "manual" })
   add("update tab and recompute active", { type: "update", id: "a", patch: { id: "updated", title: "updated", isActive: true } })

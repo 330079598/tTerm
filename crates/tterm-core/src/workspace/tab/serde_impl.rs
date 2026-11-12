@@ -45,6 +45,7 @@ fn stringify(value: &Value) -> Result<String, serde_json::Error> {
 fn read<T: serde::de::DeserializeOwned>(fields: &Map<String, Value>, key: &str) -> Option<T> {
     fields
         .get(key)
+        .filter(|value| !value.is_null())
         .cloned()
         .and_then(|value| serde_json::from_value(value).ok())
 }

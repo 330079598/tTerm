@@ -9471,6 +9471,151 @@
       }
     },
     {
+      "name": "duplicate null connection fills its type",
+      "state": {
+        "tabs": [
+          {
+            "id": "a",
+            "title": "a",
+            "type": "terminal",
+            "isActive": false,
+            "connection": null,
+            "sessionNonce": null
+          },
+          {
+            "id": "b",
+            "title": "b",
+            "type": "terminal",
+            "isActive": false
+          },
+          {
+            "id": "c",
+            "title": "c",
+            "type": "terminal",
+            "isActive": false
+          }
+        ],
+        "activeTabId": "a",
+        "groups": [
+          {
+            "id": "group-1",
+            "root": {
+              "type": "split",
+              "orientation": "horizontal",
+              "children": [
+                {
+                  "type": "pane",
+                  "tabId": "a"
+                },
+                {
+                  "type": "pane",
+                  "tabId": "b"
+                }
+              ],
+              "sizes": [
+                0.5,
+                0.5
+              ]
+            },
+            "activeTabId": "a"
+          },
+          {
+            "id": "group-2",
+            "root": {
+              "type": "pane",
+              "tabId": "c"
+            },
+            "activeTabId": "c"
+          }
+        ],
+        "groupCount": 2
+      },
+      "action": {
+        "type": "duplicate",
+        "sourceId": "a",
+        "newId": "d"
+      },
+      "result": {
+        "tabs": [
+          {
+            "id": "a",
+            "title": "a",
+            "type": "terminal",
+            "isActive": false,
+            "connection": null,
+            "sessionNonce": null
+          },
+          {
+            "id": "b",
+            "title": "b",
+            "type": "terminal",
+            "isActive": false
+          },
+          {
+            "id": "c",
+            "title": "c",
+            "type": "terminal",
+            "isActive": false
+          },
+          {
+            "title": "a-2",
+            "type": "terminal",
+            "connection": {
+              "type": "terminal"
+            },
+            "sessionNonce": 1,
+            "id": "d",
+            "duplicateBaseTitle": "a",
+            "isActive": true,
+            "hasConnected": true,
+            "connectionHeaderPinned": true
+          }
+        ],
+        "activeTabId": "d",
+        "groups": [
+          {
+            "id": "group-1",
+            "root": {
+              "type": "split",
+              "orientation": "horizontal",
+              "children": [
+                {
+                  "type": "pane",
+                  "tabId": "a"
+                },
+                {
+                  "type": "pane",
+                  "tabId": "b"
+                }
+              ],
+              "sizes": [
+                0.5,
+                0.5
+              ]
+            },
+            "activeTabId": "a"
+          },
+          {
+            "id": "group-2",
+            "root": {
+              "type": "pane",
+              "tabId": "c"
+            },
+            "activeTabId": "c"
+          },
+          {
+            "id": "group-3",
+            "root": {
+              "type": "pane",
+              "tabId": "d"
+            },
+            "activeTabId": "d"
+          }
+        ],
+        "groupCount": 3
+      }
+    },
+    {
       "name": "rename clears generated metadata",
       "state": {
         "tabs": [
