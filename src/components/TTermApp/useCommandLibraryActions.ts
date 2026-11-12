@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react"
 import type { AppShell } from "@/components/TTermApp/appShell"
 import type { BroadcastState } from "@/components/TTermApp/useBroadcastState"
 import { useKeymap } from "@/contexts/KeymapContext"
+import { useFrontendStateRefresh } from "@/hooks/useFrontendStateRefresh"
 import { toast } from "@/hooks/use-toast"
 import {
   addRecentCommand,
@@ -30,6 +31,10 @@ export function useCommandLibraryActions(shell: AppShell, state: BroadcastState)
   const [recentCommands, setRecentCommands] = useState<RecentCommand[]>(() =>
     typeof window === "undefined" ? [] : loadRecentCommands(window.localStorage)
   )
+  const refreshRecentCommands = useCallback(() => {
+    setRecentCommands(loadRecentCommands(window.localStorage))
+  }, [])
+  useFrontendStateRefresh(refreshRecentCommands)
   const { registerHandler } = useKeymap()
 
   const activeTerminalTab = useMemo(() => {

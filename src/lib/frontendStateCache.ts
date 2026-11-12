@@ -25,6 +25,7 @@ let pendingWriteError: string | null = null
 let writeFailureReported = false
 let writeQueue: Promise<void> = Promise.resolve()
 const writeErrorListeners = new Set<(message: string) => void>()
+const reloadListeners = new Set<() => void>()
 let legacyMirror: ((key: FrontendStateKey, value: unknown) => void) | null = null
 
 /** Whether startup finished loading the values from the backend. */
@@ -126,12 +127,22 @@ export function writeFrontendStateValue(key: FrontendStateKey, value: unknown): 
 export async function reloadFrontendState(): Promise<void> {
   const state = await invoke<unknown>("load_frontend_state")
   hydrateFrontendState(state)
-  for (const key of mirrorFrontendStateToLegacy()) {
+  const mirrored = mirrorFrontendStateToLegacy()
+  for (const listener of reloadListeners) listener()
+  for (const key of mirrored) {
     try {
       await invoke("acknowledge_frontend_state_sync", { key, value: snapshot[key] })
     } catch (error) {
       console.error(`Failed to record the localStorage copy of '${key}':`, error)
     }
+  }
+}
+
+/** Runs after an import replaced the cached values. */
+export function onFrontendStateReloaded(listener: () => void): () => void {
+  reloadListeners.add(listener)
+  return () => {
+    reloadListeners.delete(listener)
   }
 }
 
@@ -170,4 +181,5 @@ export function resetFrontendStateCacheForTests(): void {
   writeFailureReported = false
   writeQueue = Promise.resolve()
   writeErrorListeners.clear()
+  reloadListeners.clear()
 }

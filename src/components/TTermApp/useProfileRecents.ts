@@ -3,6 +3,7 @@ import { useCallback, useState } from "react"
 import type { LauncherRecent } from "@/components/NewTabLauncher/launcherItems"
 import type { AppShell } from "@/components/TTermApp/appShell"
 import type { ConnectionState } from "@/components/TerminalTab/types"
+import { useFrontendStateRefresh } from "@/hooks/useFrontendStateRefresh"
 import {
   addRecentProfile,
   loadRecentProfiles,
@@ -43,6 +44,10 @@ export function useProfileRecents(
   const [profileRecents, setProfileRecents] = useState<RecentProfile[]>(() =>
     typeof window === "undefined" ? [] : loadRecentProfiles(window.localStorage)
   )
+  const refreshProfileRecents = useCallback(() => {
+    setProfileRecents(loadRecentProfiles(window.localStorage))
+  }, [])
+  useFrontendStateRefresh(refreshProfileRecents)
 
   const updateProfileRecents = useCallback(
     (update: (recents: RecentProfile[]) => RecentProfile[]) => {
