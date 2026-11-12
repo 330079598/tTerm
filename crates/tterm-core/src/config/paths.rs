@@ -1,7 +1,7 @@
+use crate::paths::AppPaths;
 use std::fs;
 use std::path::PathBuf;
 use std::sync::OnceLock;
-use tterm_core::paths::AppPaths;
 
 static CONFIG_DIR: OnceLock<PathBuf> = OnceLock::new();
 

@@ -40,7 +40,7 @@ pub struct SavedScrollback {
 }
 
 fn snapshot_dir() -> Result<PathBuf, String> {
-    Ok(crate::config::paths::get_config_path()?.join(DIR_NAME))
+    Ok(tterm_core::config::paths::get_config_path()?.join(DIR_NAME))
 }
 
 /// Tab ids name the files, so only the characters tTerm's own ids use are
@@ -92,7 +92,7 @@ fn decompress(bytes: &[u8]) -> Option<String> {
 pub(crate) fn write_snapshots(dir: &Path, snapshots: &[ScrollbackSnapshot]) -> Result<(), String> {
     for snapshot in snapshots {
         let path = snapshot_path(dir, &snapshot.tab_id)?;
-        crate::config::atomic::atomic_write_private(&path, compress(&snapshot.content)?)?;
+        tterm_core::config::atomic::atomic_write_private(&path, compress(&snapshot.content)?)?;
     }
     Ok(())
 }

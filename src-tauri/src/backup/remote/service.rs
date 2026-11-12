@@ -8,7 +8,6 @@ use super::{
 };
 use crate::backup::webdav::{WebDavClient, split_remote_directory};
 use crate::backup::{MAX_BACKUP_SIZE, normalized_backup_path};
-use crate::config;
 use crate::core::blocking::run_blocking;
 use crate::ssh::secret_store::{
     store::put_secret, types::SecretStoreState, verification::VerificationPurpose,
@@ -165,11 +164,11 @@ pub(in crate::backup) async fn download_webdav_backup(
     run_blocking(move || {
         // Only the backup being restored is kept.
         clear_downloads()?;
-        let downloads = config::paths::ensure_config_dir()?.join(DOWNLOAD_DIRECTORY);
+        let downloads = tterm_core::config::paths::ensure_config_dir()?.join(DOWNLOAD_DIRECTORY);
         fs::create_dir_all(&downloads)
             .map_err(|error| format!("Failed to create the WebDAV download folder: {error}"))?;
         let path = downloads.join(&file_name);
-        config::atomic::atomic_write_private(&path, data)?;
+        tterm_core::config::atomic::atomic_write_private(&path, data)?;
         Ok(path.to_string_lossy().into_owned())
     })
     .await
@@ -222,7 +221,7 @@ pub(in crate::backup) async fn save_webdav_backup(
     let (client, directory) = connect(&app_version, secret_state).await?;
     let data = client.get(&directory, &file_name, MAX_BACKUP_SIZE).await?;
     run_blocking(move || {
-        config::atomic::atomic_write_private(&output, data)?;
+        tterm_core::config::atomic::atomic_write_private(&output, data)?;
         Ok(output.to_string_lossy().into_owned())
     })
     .await

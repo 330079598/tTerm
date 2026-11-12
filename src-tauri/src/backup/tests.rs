@@ -932,7 +932,7 @@ fn imported_settings_bring_their_tab_icons_along() {
     imported.tab_icons.enabled = false;
     imported.tab_icons.shells.insert(
         "pwsh".to_string(),
-        crate::config::tab_icons::TabIconStyle {
+        tterm_core::config::tab_icons::TabIconStyle {
             icon: Some("rocket".to_string()),
             color: Some("#e5534b".to_string()),
         },

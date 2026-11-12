@@ -9,7 +9,6 @@ use super::{
     AUTOMATIC_LAST_BACKUP_AT_KEY, AUTOMATIC_SETTINGS_FILE, AUTOMATIC_SETTINGS_KEY,
     AutomaticBackupSettings, BackupExportResult, BackupHistoryEntry, BackupSelection,
 };
-use crate::config;
 use crate::db::meta;
 use crate::ssh::secret_store::types::SecretStoreState;
 use chrono::Utc;
@@ -41,7 +40,7 @@ pub(super) fn run_due_automatic_backup_blocking(
     let profile_count = value_array_len(payload.profiles.as_ref());
     let command_count = payload.commands.as_ref().map_or(0, Vec::len);
     let archive = build_archive_for_version(&app_version, &settings.selection, &payload, None)?;
-    config::atomic::atomic_write_private(&path, archive)?;
+    tterm_core::config::atomic::atomic_write_private(&path, archive)?;
     crate::db::write(|transaction| {
         meta::set(
             transaction,
@@ -61,7 +60,7 @@ pub(super) fn run_due_automatic_backup_blocking(
 
 pub(super) fn list_backup_history_blocking() -> Result<Vec<BackupHistoryEntry>, String> {
     let settings = load_automatic_backup_settings()?;
-    let mut directories = vec![config::paths::ensure_config_dir()?.join("backups")];
+    let mut directories = vec![tterm_core::config::paths::ensure_config_dir()?.join("backups")];
     let automatic = automatic_backup_directory(&settings)?;
     if !directories.contains(&automatic) {
         directories.push(automatic);
@@ -133,7 +132,7 @@ pub(super) fn delete_backup_history_entry_blocking(path: String) -> Result<bool,
         .map_err(|error| format!("Failed to resolve backup path: {error}"))?;
     let settings = load_automatic_backup_settings()?;
     let allowed = [
-        config::paths::ensure_config_dir()?.join("backups"),
+        tterm_core::config::paths::ensure_config_dir()?.join("backups"),
         automatic_backup_directory(&settings)?,
     ];
     let allowed = allowed
@@ -154,7 +153,7 @@ pub(super) fn create_pre_import_backup(
     selection: &BackupSelection,
     secret_state: &SecretStoreState,
 ) -> Result<PathBuf, String> {
-    let backup_dir = config::paths::ensure_config_dir()?.join("backups");
+    let backup_dir = tterm_core::config::paths::ensure_config_dir()?.join("backups");
     fs::create_dir_all(&backup_dir)
         .map_err(|error| format!("Failed to create backup directory: {error}"))?;
     let path = backup_dir.join(format!(
@@ -164,7 +163,7 @@ pub(super) fn create_pre_import_backup(
     let safe_selection = selection.without_secrets();
     let payload = collect_payload(&safe_selection, None, secret_state)?;
     let archive = build_archive_for_version(app_version, &safe_selection, &payload, None)?;
-    config::atomic::atomic_write_private(&path, archive)?;
+    tterm_core::config::atomic::atomic_write_private(&path, archive)?;
     Ok(path)
 }
 
@@ -178,7 +177,7 @@ pub(crate) fn create_recovery_backup(
     secret_state: &SecretStoreState,
     keep: usize,
 ) -> Result<PathBuf, String> {
-    let backup_dir = config::paths::ensure_config_dir()?.join("backups");
+    let backup_dir = tterm_core::config::paths::ensure_config_dir()?.join("backups");
     fs::create_dir_all(&backup_dir)
         .map_err(|error| format!("Failed to create backup directory: {error}"))?;
     let path = backup_dir.join(format!(
@@ -195,7 +194,7 @@ pub(crate) fn create_recovery_backup(
     };
     let payload = collect_payload(&selection, frontend_state, secret_state)?;
     let archive = build_archive_for_version(app_version, &selection, &payload, None)?;
-    config::atomic::atomic_write_private(&path, archive)?;
+    tterm_core::config::atomic::atomic_write_private(&path, archive)?;
     enforce_retention(&backup_dir, &format!("{prefix}-"), keep)?;
     Ok(path)
 }
@@ -309,7 +308,7 @@ pub(super) fn validate_automatic_backup_settings(
 
 fn automatic_backup_directory(settings: &AutomaticBackupSettings) -> Result<PathBuf, String> {
     if settings.directory.trim().is_empty() {
-        Ok(config::paths::ensure_config_dir()?.join("backups"))
+        Ok(tterm_core::config::paths::ensure_config_dir()?.join("backups"))
     } else {
         Ok(PathBuf::from(settings.directory.trim()))
     }

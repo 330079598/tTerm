@@ -11,12 +11,12 @@ use super::types::{
     SavedProfile, SshConfigImportHost, SshConfigImportOptions, SshConfigImportPreview,
     SshConfigImportResult,
 };
-use crate::config::tab_icons::TabIconStyle;
 use crate::core::blocking::run_blocking;
 use crate::proxy::command::CommandTarget;
 use crate::ssh::jump::connect::{
     ConnectContext, connect_first_hop, connect_via_jump_chain, open_proxy_stream,
 };
+use tterm_core::config::tab_icons::TabIconStyle;
 
 use super::commands::connection_check::{
     authenticate_test_connection, test_connection_handler, test_session_plan,

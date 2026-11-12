@@ -6,6 +6,9 @@
 
 /// Agent status reports and the tracker that follows them.
 pub mod agent_status;
+/// Configuration values both clients keep: the config directory, keymap
+/// overrides, keyword highlight sets, split pane layouts and tab icons.
+pub mod config;
 /// Distribution identity for the server monitor's icons.
 pub mod distro;
 /// Typed events and delivery interfaces shared by client adapters.

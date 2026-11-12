@@ -1,4 +1,3 @@
-use crate::config;
 use crate::profiles;
 use crate::session;
 use crate::sftp;
@@ -18,8 +17,8 @@ const MIGRATED_CONFIG_FILES: &[&str] = &[
 ];
 
 pub fn migrate_legacy_config_files(app: &tauri::AppHandle) -> Result<(), String> {
-    let new_dir = config::paths::ensure_config_dir()?;
-    let old_dir = config::paths::legacy_config_path()?;
+    let new_dir = tterm_core::config::paths::ensure_config_dir()?;
+    let old_dir = tterm_core::config::paths::legacy_config_path()?;
 
     if same_path(&new_dir, &old_dir) || !old_dir.exists() {
         return Ok(());
@@ -82,7 +81,7 @@ const RETIRED_FILE_KEEP_MS: i64 = 30 * 24 * 60 * 60 * 1_000;
 pub fn remove_retired_files(app: &tauri::AppHandle) -> Result<(), String> {
     let now = chrono::Utc::now().timestamp_millis();
     let mut errors = remove_retired(
-        &config::paths::get_config_path()?,
+        &tterm_core::config::paths::get_config_path()?,
         crate::db::legacy_import::IMPORTED_FILES,
         crate::db::legacy_json_imported_at(),
         now,
@@ -307,13 +306,13 @@ where
             e
         )
     })?;
-    crate::config::atomic::atomic_write(path, content)
+    tterm_core::config::atomic::atomic_write(path, content)
         .map_err(|e| format!("Failed to write {} file '{}': {}", label, path.display(), e))
 }
 
 fn migrate_legacy_secret_vault(app: &tauri::AppHandle) -> Result<(), String> {
     let new_secret_dir = secrets_dir(app)?;
-    let old_secret_dir = config::paths::legacy_config_path()?.join("secrets");
+    let old_secret_dir = tterm_core::config::paths::legacy_config_path()?.join("secrets");
     if same_path(&new_secret_dir, &old_secret_dir) || !old_secret_dir.exists() {
         return Ok(());
     }

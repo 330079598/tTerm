@@ -201,7 +201,7 @@ fn read_selected_json(selected: bool, name: &str) -> Result<Option<Value>, Strin
     if !selected {
         return Ok(None);
     }
-    let path = config::paths::get_config_path()?.join(name);
+    let path = tterm_core::config::paths::get_config_path()?.join(name);
     if !path.exists() {
         return Ok(None);
     }
@@ -293,7 +293,7 @@ pub(super) fn strip_sensitive_fields(value: Value) -> Value {
 fn configured_log_root() -> Result<PathBuf, String> {
     let config_value = config::load_config_file()?;
     if config_value.terminal_log_directory.trim().is_empty() {
-        Ok(config::paths::get_config_path()?.join("logs"))
+        Ok(tterm_core::config::paths::get_config_path()?.join("logs"))
     } else {
         Ok(PathBuf::from(config_value.terminal_log_directory.trim()))
     }

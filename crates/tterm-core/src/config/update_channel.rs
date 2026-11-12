@@ -5,8 +5,8 @@
 ///
 /// The client must install the running version before it loads configuration
 /// for the first time; otherwise a missing channel falls back to "stable".
-pub(super) fn default_update_channel() -> String {
-    let Some(version) = tterm_core::identity::app_version() else {
+pub fn default_update_channel() -> String {
+    let Some(version) = crate::identity::app_version() else {
         return "stable".to_string();
     };
     update_channel_for_version(version).to_string()

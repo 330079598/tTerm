@@ -4,7 +4,6 @@ use super::apply::imported_logs_root;
 use super::archive::validate_relative_path;
 use super::remote;
 use super::{AUTOMATIC_SETTINGS_KEY, BackupPayload, BackupSelection};
-use crate::config;
 use crate::db::meta;
 use crate::profiles::types::{ProfileGroup, SavedProfile};
 use crate::proxy::ProxyServer;
@@ -154,7 +153,7 @@ pub(super) fn capture_file_snapshot(
     selection: &BackupSelection,
     payload: &BackupPayload,
 ) -> Result<FileSnapshot, String> {
-    let directory = config::paths::ensure_config_dir()?;
+    let directory = tterm_core::config::paths::ensure_config_dir()?;
     let mut names = Vec::new();
     if selection.settings {
         names.push("config.json");
@@ -198,7 +197,7 @@ pub(super) fn restore_file_snapshot(snapshot: &[(PathBuf, Option<Vec<u8>>)]) -> 
     let mut errors = Vec::new();
     for (path, content) in snapshot {
         let result = match content {
-            Some(bytes) => config::atomic::atomic_write(path, bytes),
+            Some(bytes) => tterm_core::config::atomic::atomic_write(path, bytes),
             None if path.exists() => fs::remove_file(path)
                 .map_err(|error| format!("Failed to remove '{}': {error}", path.display())),
             None => Ok(()),

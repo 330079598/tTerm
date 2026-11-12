@@ -1,10 +1,10 @@
-use crate::config::paths::ensure_config_dir;
 use crate::db::sql_error;
 use rusqlite::{Connection, OptionalExtension, params};
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::PathBuf;
 use std::time::{SystemTime, UNIX_EPOCH};
+use tterm_core::config::paths::ensure_config_dir;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct LegacySshPasswordRecord {

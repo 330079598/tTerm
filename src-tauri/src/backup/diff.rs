@@ -4,7 +4,6 @@ use super::apply::{json_key, read_json_value, to_backup_value};
 use super::remote;
 use super::{BackupDiff, BackupPayload, CategoryDiff};
 use crate::command_library::repository::CommandRepository;
-use crate::config;
 use serde_json::Value;
 use std::collections::HashMap;
 
@@ -40,7 +39,8 @@ pub(super) fn calculate_diff(payload: &BackupPayload) -> Result<BackupDiff, Stri
 
     let settings_changed = match payload.config.as_ref() {
         Some(imported) => {
-            read_json_value(&config::paths::get_config_path()?.join("config.json"))? != *imported
+            read_json_value(&tterm_core::config::paths::get_config_path()?.join("config.json"))?
+                != *imported
         }
         None => false,
     };

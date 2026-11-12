@@ -98,7 +98,7 @@ fn parallelism_cache_hit(
 
 /// Resolve the configured number of parallel SFTP channels (clamped safely).
 pub fn resolve_transfer_parallelism() -> usize {
-    let mtime = crate::config::paths::get_config_path()
+    let mtime = tterm_core::config::paths::get_config_path()
         .ok()
         .map(|dir| dir.join("config.json"))
         .and_then(|path| std::fs::metadata(path).ok())

@@ -10,7 +10,6 @@ use super::archive::build_archive_for_version;
 use super::diff::value_array_len;
 use super::export::collect_payload;
 use super::webdav::{WebDavClient, split_remote_directory};
-use crate::config;
 use crate::core::blocking::run_blocking;
 use crate::db::meta;
 use crate::ssh::secret_store::store::get_secret;
@@ -259,7 +258,7 @@ async fn upload(
 
 /// Removes downloaded backups; also run at startup for any a quit left behind.
 pub(crate) fn clear_downloads() -> Result<(), String> {
-    let downloads = config::paths::ensure_config_dir()?.join(DOWNLOAD_DIRECTORY);
+    let downloads = tterm_core::config::paths::ensure_config_dir()?.join(DOWNLOAD_DIRECTORY);
     if downloads.exists() {
         fs::remove_dir_all(&downloads)
             .map_err(|error| format!("Failed to clear old WebDAV downloads: {error}"))?;

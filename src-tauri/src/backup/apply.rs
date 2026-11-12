@@ -566,7 +566,7 @@ fn merge_object_entries(existing: Value, incoming: Value, keys: &[&str]) -> Resu
 }
 
 pub(super) fn imported_logs_root() -> Result<PathBuf, String> {
-    Ok(config::paths::get_config_path()?
+    Ok(tterm_core::config::paths::get_config_path()?
         .join("logs")
         .join("imported"))
 }
@@ -578,7 +578,10 @@ fn restore_log_files(logs: &[BackupLogFile]) -> Result<(), String> {
         let bytes = BASE64
             .decode(&log.data_b64)
             .map_err(|_| "Backup contains invalid terminal log data.".to_string())?;
-        config::atomic::atomic_write_private(&root.join(Path::new(&log.relative_path)), bytes)?;
+        tterm_core::config::atomic::atomic_write_private(
+            &root.join(Path::new(&log.relative_path)),
+            bytes,
+        )?;
     }
     Ok(())
 }

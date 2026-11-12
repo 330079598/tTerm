@@ -8,11 +8,11 @@ pub(crate) mod legacy_import;
 pub(crate) mod meta;
 mod migrations;
 
-use crate::config::paths::ensure_config_dir;
 use rusqlite::{Connection, Transaction};
 use std::path::Path;
 use std::sync::{Mutex, MutexGuard, OnceLock};
 use std::time::Duration;
+use tterm_core::config::paths::ensure_config_dir;
 
 const DATABASE_FILE: &str = "tterm.db";
 

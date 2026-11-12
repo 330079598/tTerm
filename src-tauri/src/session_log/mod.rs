@@ -121,7 +121,7 @@ impl LogConfig {
             .terminal_log_max_file_size_mb
             .clamp(MIN_FILE_SIZE_MB, MAX_FILE_SIZE_MB);
         let directory = if config.terminal_log_directory.trim().is_empty() {
-            crate::config::paths::get_config_path()?.join("logs")
+            tterm_core::config::paths::get_config_path()?.join("logs")
         } else {
             PathBuf::from(config.terminal_log_directory.trim())
         };
@@ -419,7 +419,8 @@ async fn open_terminal_log_directory_service(
         .as_ref()
         .map(|config| config.files.directory.clone());
     let directory = run_blocking(move || {
-        let directory = configured.unwrap_or(crate::config::paths::get_config_path()?.join("logs"));
+        let directory =
+            configured.unwrap_or(tterm_core::config::paths::get_config_path()?.join("logs"));
         fs::create_dir_all(&directory)
             .map_err(|error| format!("Failed to create terminal log directory: {error}"))?;
         Ok(directory)

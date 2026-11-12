@@ -1,7 +1,6 @@
 pub(crate) mod commands;
 mod service;
 use crate::command_library::{models::SavedCommand, repository::CommandRepository};
-use crate::config;
 use crate::profiles::types::SavedProfile;
 use crate::ssh::{
     secret_store::types::SecretStoreState, secret_store::verification::VerificationPurpose,
@@ -365,7 +364,7 @@ fn export_backup_blocking(
         &payload,
         options.backup_password.as_deref(),
     )?;
-    config::atomic::atomic_write_private(&output, archive)?;
+    tterm_core::config::atomic::atomic_write_private(&output, archive)?;
     if let Some(password) = options.backup_password.as_mut() {
         password.zeroize();
     }

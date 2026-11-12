@@ -38,7 +38,7 @@ impl PluginFile {
 
     pub(super) fn install(&self, path: &Path) -> Result<(), String> {
         self.state(path)?;
-        crate::config::atomic::atomic_write(path, self.content)
+        tterm_core::config::atomic::atomic_write(path, self.content)
     }
 
     /// Also removes the folder it had to itself, when that is left empty.

@@ -30,7 +30,7 @@ pub(crate) fn from_tauri<R: Runtime>(
 /// Initializes the config directory and returns paths for the shared container.
 pub(crate) fn initialize(app: &AppHandle) -> Result<Arc<AppPaths>, String> {
     let paths = from_tauri(app, &app.config().identifier)?;
-    crate::config::paths::init_config_dir(&paths)?;
+    tterm_core::config::paths::init_config_dir(&paths)?;
     Ok(Arc::new(paths))
 }
 

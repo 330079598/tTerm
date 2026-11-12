@@ -18,7 +18,7 @@ fn config_roundtrip_matches_backend_shape() {
     };
     for backend in [backend, KeywordHighlightConfig::default()] {
         let backend_json = serde_json::to_string(&backend).unwrap();
-        let core: tterm_core::keyword_highlight::KeywordHighlightConfig =
+        let core: crate::config::keyword_highlight::KeywordHighlightConfig =
             serde_json::from_str(&backend_json).unwrap();
         let core_json = serde_json::to_string(&core).unwrap();
         assert_eq!(core_json.as_bytes(), backend_json.as_bytes());

@@ -1,8 +1,8 @@
 //! Writing a key from the vault back out as key files.
 
 use super::entry::VaultKey;
-use crate::config::atomic::{atomic_write, atomic_write_private};
 use std::path::{Path, PathBuf};
+use tterm_core::config::atomic::{atomic_write, atomic_write_private};
 
 /// Writes the private key to `path`, readable only by its owner as `ssh`
 /// insists, and its certificate, if it has one, beside it as
