@@ -1,0 +1,3 @@
+command: CARGO_BUILD_JOBS=3 cargo test --workspace -- --list 2>/dev/null | grep -c ': test$'
+round 2 start (f111b795; inherited from the round 1 end, this commit only adds the report): 1829
+round 2 end (0f886b03): 1829

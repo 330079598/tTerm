@@ -1,0 +1,38 @@
+ Documenting tTerm v0.8.1 (/Users/stone/Code/rust/tTerm-P1-09a1/src-tauri)
+error: unresolved link to `AuthMethod::Auto`
+ --> src-tauri/src/ssh/auth/auto.rs:1:7
+  |
+1 | //! [`AuthMethod::Auto`]: what a plain `ssh user@host` would try.
+  |       ^^^^^^^^^^^^^^^^ no item named `AuthMethod` in scope
+  |
+  = note: `-D rustdoc::broken-intra-doc-links` implied by `-D warnings`
+  = help: to override `-D warnings` add `#[allow(rustdoc::broken_intra_doc_links)]`
+
+error: unresolved link to `AuthMethod::Auto`
+  --> src-tauri/src/ssh/auth/auto.rs:20:7
+   |
+20 | /// [`AuthMethod::Auto`]: what `ssh user@host` tries, in its order. Returns
+   |       ^^^^^^^^^^^^^^^^ no item named `AuthMethod` in scope
+
+error: unresolved link to `AuthMethod::Auto`
+   --> src-tauri/src/ssh/auth/auto.rs:201:21
+    |
+201 | /// Key files for [`AuthMethod::Auto`]: the configured one, then the default
+    |                     ^^^^^^^^^^^^^^^^ no item named `AuthMethod` in scope
+
+error: unresolved link to `ShellIntegrationStatus::Active`
+   --> src-tauri/src/ssh/shell_integration.rs:190:32
+    |
+190 |     /// The host's name, for [`ShellIntegrationStatus::Active`].
+    |                                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ no item named `ShellIntegrationStatus` in scope
+
+error: unclosed HTML tag `reason`
+   --> src-tauri/src/ssh/secret_store/verification.rs:173:28
+    |
+173 | /// as "tTerm is trying to <reason>".
+    |                            ^^^^^^^^
+    |
+    = note: `-D rustdoc::invalid-html-tags` implied by `-D warnings`
+    = help: to override `-D warnings` add `#[allow(rustdoc::invalid_html_tags)]`
+
+error: could not document `tTerm`
