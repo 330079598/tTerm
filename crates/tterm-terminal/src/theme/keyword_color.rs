@@ -1,7 +1,7 @@
 //! The accepted color syntax mirrors ThemeEditor/colorUtils.ts::colorToHex.
 use regex::Regex;
 
-pub(super) fn parse_color(value: &str) -> Option<String> {
+pub(crate) fn parse_color(value: &str) -> Option<String> {
     let value = value.trim();
     if let Some(hex) = value.strip_prefix('#') {
         let expanded = match hex.len() {

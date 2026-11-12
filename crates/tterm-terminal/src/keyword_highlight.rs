@@ -8,8 +8,7 @@ use regress::{Flags, Regex};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
-mod color;
-use color::parse_color;
+use crate::theme::keyword_color::parse_color;
 
 /// Palette values keyed by the frontend's sixteen terminal color names.
 pub type HighlightPalette = HashMap<String, String>;
