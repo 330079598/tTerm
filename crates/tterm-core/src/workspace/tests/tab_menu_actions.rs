@@ -358,16 +358,24 @@ fn oracle_log_menu_switches_between_start_and_stop() {
 
 #[test]
 fn oracle_standalone_menu_items_keep_their_shortcuts() {
+    let reopen = get_reopen_closed_tab_menu_action(&translate);
+    assert_eq!(reopen.label, "contextMenu.reopenClosedTab");
+    assert_eq!(reopen.action, "reopen-closed");
+    assert_eq!(reopen.icon.as_deref(), Some("rotate-ccw"));
+    assert_eq!(reopen.shortcut, Some(KeymapActionId::TabsReopenClosed));
+
+    let ungroup = get_ungroup_menu_action(&translate);
+    assert_eq!(ungroup.label, "workspace.unsplit");
+    assert_eq!(ungroup.action, "ungroup");
+    assert_eq!(ungroup.icon.as_deref(), Some("unsplit"));
     assert_eq!(
-        get_reopen_closed_tab_menu_action(&translate).shortcut,
-        Some(KeymapActionId::TabsReopenClosed)
-    );
-    assert_eq!(
-        get_ungroup_menu_action(&translate).shortcut,
+        ungroup.shortcut,
         Some(KeymapActionId::WorkspaceRestoreSingleGroup)
     );
-    assert_eq!(
-        get_layout_templates_menu_action(&translate).shortcut,
-        Some(KeymapActionId::WorkspaceChooseLayout)
-    );
+
+    let layout = get_layout_templates_menu_action(&translate);
+    assert_eq!(layout.label, "layoutTemplates.menu");
+    assert_eq!(layout.action, "layout-templates");
+    assert_eq!(layout.icon.as_deref(), Some("layout"));
+    assert_eq!(layout.shortcut, Some(KeymapActionId::WorkspaceChooseLayout));
 }

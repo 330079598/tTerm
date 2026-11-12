@@ -393,8 +393,16 @@ const result = {
     builtins: paneTemplates.BUILTIN_PANE_TEMPLATES.map((template) => ({
       id: template.id,
       labelKey: template.labelKey,
+      name: template.name,
       root: template.root,
     })),
+    isBuiltin: [
+      paneTemplates.isBuiltinTemplateId("builtin:columns-2"),
+      paneTemplates.isBuiltinTemplateId("custom"),
+      paneTemplates.isBuiltinTemplateId("builtin:"),
+    ],
+    leafCount: paneTemplates.countTemplatePanes({ type: "pane" }),
+    emptyFill: JSON.stringify(paneTemplates.fillShape({ type: "pane" }, [])),
     counts: paneTemplates.BUILTIN_PANE_TEMPLATES.map((template) =>
       paneTemplates.countTemplatePanes(template.root)
     ),
@@ -527,6 +535,9 @@ const result = {
       t
     ),
     renameSerial: tabMenuActions.getTabRenameMenuAction({ type: "serial" }, t),
+    reopen: tabMenuActions.getReopenClosedTabMenuAction(t),
+    ungroup: tabMenuActions.getUngroupMenuAction(t),
+    layoutTemplates: tabMenuActions.getLayoutTemplatesMenuAction(t),
     panePage: tabMenuActions.getPaneMenuActions(
       { id: "a", title: "Logs", type: "logs", isActive: true },
       { isZoomed: true },

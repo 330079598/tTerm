@@ -171,6 +171,7 @@
       {
         "id": "builtin:columns-2",
         "labelKey": "columns2",
+        "name": "",
         "root": {
           "type": "split",
           "orientation": "horizontal",
@@ -191,6 +192,7 @@
       {
         "id": "builtin:rows-2",
         "labelKey": "rows2",
+        "name": "",
         "root": {
           "type": "split",
           "orientation": "vertical",
@@ -211,6 +213,7 @@
       {
         "id": "builtin:columns-3",
         "labelKey": "columns3",
+        "name": "",
         "root": {
           "type": "split",
           "orientation": "horizontal",
@@ -235,6 +238,7 @@
       {
         "id": "builtin:main-right-2",
         "labelKey": "mainRight2",
+        "name": "",
         "root": {
           "type": "split",
           "orientation": "horizontal",
@@ -268,6 +272,7 @@
       {
         "id": "builtin:main-bottom-2",
         "labelKey": "mainBottom2",
+        "name": "",
         "root": {
           "type": "split",
           "orientation": "vertical",
@@ -301,6 +306,7 @@
       {
         "id": "builtin:grid-4",
         "labelKey": "grid4",
+        "name": "",
         "root": {
           "type": "split",
           "orientation": "horizontal",
@@ -345,6 +351,13 @@
         }
       }
     ],
+    "isBuiltin": [
+      true,
+      false,
+      true
+    ],
+    "leafCount": 1,
+    "emptyFill": "{\"type\":\"pane\"}",
     "counts": [
       2,
       2,
@@ -755,6 +768,24 @@
       "action": "rename",
       "icon": "edit",
       "shortcut": "tabs.renameActive"
+    },
+    "reopen": {
+      "label": "contextMenu.reopenClosedTab",
+      "action": "reopen-closed",
+      "icon": "rotate-ccw",
+      "shortcut": "tabs.reopenClosed"
+    },
+    "ungroup": {
+      "label": "workspace.unsplit",
+      "action": "ungroup",
+      "icon": "unsplit",
+      "shortcut": "workspace.restoreSingleGroup"
+    },
+    "layoutTemplates": {
+      "label": "layoutTemplates.menu",
+      "action": "layout-templates",
+      "icon": "layout",
+      "shortcut": "workspace.chooseLayout"
     },
     "panePage": [
       {

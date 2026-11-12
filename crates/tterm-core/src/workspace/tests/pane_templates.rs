@@ -2,8 +2,8 @@ use serde_json::{Value, json};
 
 use crate::workspace::pane_templates::{
     BUILTIN_PANE_TEMPLATES, LayoutShape, MAX_TEMPLATE_PANES, apply_template_to_groups,
-    count_template_panes, fill_shape, normalize_layout_shape, normalize_pane_templates,
-    shape_of_tree,
+    count_template_panes, fill_shape, is_builtin_template_id, normalize_layout_shape,
+    normalize_pane_templates, shape_of_tree,
 };
 use crate::workspace::tab_groups::{PaneNode, SplitOrientation, TabGroup, get_pane_ids, pane_leaf};
 
@@ -440,4 +440,36 @@ fn oracle_template_json_matches_typescript() {
         serde_json::to_string(&templates).unwrap(),
         r#"[{"id":"t1","name":"Ops","root":{"type":"split","orientation":"horizontal","children":[{"type":"pane"},{"type":"split","orientation":"vertical","children":[{"type":"pane"},{"type":"pane"}],"sizes":[0.5,0.5]}],"sizes":[0.5,0.5]}}]"#
     );
+}
+
+#[test]
+fn oracle_builtin_templates_ids_and_leaf_count_match_typescript() {
+    assert!(is_builtin_template_id("builtin:columns-2"));
+    assert!(!is_builtin_template_id("custom"));
+    assert!(is_builtin_template_id("builtin:"));
+    assert_eq!(count_template_panes(&pane()), 1);
+
+    let expected: Value = serde_json::from_str(
+        r#"[
+            {"id":"builtin:columns-2","labelKey":"columns2","name":"","root":{"type":"split","orientation":"horizontal","children":[{"type":"pane"},{"type":"pane"}],"sizes":[0.5,0.5]}},
+            {"id":"builtin:rows-2","labelKey":"rows2","name":"","root":{"type":"split","orientation":"vertical","children":[{"type":"pane"},{"type":"pane"}],"sizes":[0.5,0.5]}},
+            {"id":"builtin:columns-3","labelKey":"columns3","name":"","root":{"type":"split","orientation":"horizontal","children":[{"type":"pane"},{"type":"pane"},{"type":"pane"}],"sizes":[0.3333333333333333,0.3333333333333333,0.3333333333333333]}},
+            {"id":"builtin:main-right-2","labelKey":"mainRight2","name":"","root":{"type":"split","orientation":"horizontal","children":[{"type":"pane"},{"type":"split","orientation":"vertical","children":[{"type":"pane"},{"type":"pane"}],"sizes":[0.5,0.5]}],"sizes":[0.6,0.4]}},
+            {"id":"builtin:main-bottom-2","labelKey":"mainBottom2","name":"","root":{"type":"split","orientation":"vertical","children":[{"type":"pane"},{"type":"split","orientation":"horizontal","children":[{"type":"pane"},{"type":"pane"}],"sizes":[0.5,0.5]}],"sizes":[0.6,0.4]}},
+            {"id":"builtin:grid-4","labelKey":"grid4","name":"","root":{"type":"split","orientation":"horizontal","children":[{"type":"split","orientation":"vertical","children":[{"type":"pane"},{"type":"pane"}],"sizes":[0.5,0.5]},{"type":"split","orientation":"vertical","children":[{"type":"pane"},{"type":"pane"}],"sizes":[0.5,0.5]}],"sizes":[0.5,0.5]}}
+        ]"#,
+    )
+    .unwrap();
+    let actual: Vec<Value> = BUILTIN_PANE_TEMPLATES
+        .iter()
+        .map(|template| {
+            json!({
+                "id": template.id,
+                "labelKey": template.label_key,
+                "name": template.name,
+                "root": serde_json::to_value(&template.root).unwrap(),
+            })
+        })
+        .collect();
+    assert_eq!(Value::Array(actual), expected);
 }
