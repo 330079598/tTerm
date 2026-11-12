@@ -94,7 +94,7 @@ pub(super) fn snapshot_database(
             None
         },
         themes: if selection.themes {
-            Some(crate::themes::list_themes(connection)?)
+            Some(tterm_core::themes::list_themes(connection)?)
         } else {
             None
         },
@@ -134,7 +134,7 @@ pub(super) fn restore_database(
         tterm_core::sftp::store::replace_sftp_directories(transaction, store)?;
     }
     if let Some(themes) = snapshot.themes.as_ref() {
-        crate::themes::replace_themes(transaction, themes)?;
+        tterm_core::themes::replace_themes(transaction, themes)?;
     }
     if let Some(sends) = snapshot.serial_sends.as_ref() {
         crate::serial::history::store::replace_all(transaction, sends)?;

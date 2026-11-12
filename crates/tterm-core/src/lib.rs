@@ -78,6 +78,8 @@ pub mod terminal;
 pub mod terminal_notifications;
 /// Theme definitions, the bundled catalog, imports and custom themes.
 pub mod theme;
+/// The custom themes the user saved as rows in the database.
+pub mod themes;
 /// SSH tunnel rules, forwarding specs and the SOCKS5 handshake.
 pub mod tunnel;
 /// Update routing and cache policy.

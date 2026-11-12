@@ -421,7 +421,7 @@ pub(super) fn apply_database_payload(
         if let Some(incoming) = incoming {
             // Merging into nothing still drops duplicate ids.
             let existing = if merge {
-                Value::Array(crate::themes::list_themes(transaction)?)
+                Value::Array(tterm_core::themes::list_themes(transaction)?)
             } else {
                 Value::Null
             };
@@ -430,8 +430,8 @@ pub(super) fn apply_database_payload(
                 Value::Array(incoming.clone()),
                 &["id"],
             )?)?;
-            crate::themes::replace_themes(transaction, &themes)?;
-            crate::themes::mark_themes_imported(transaction)?;
+            tterm_core::themes::replace_themes(transaction, &themes)?;
+            tterm_core::themes::mark_themes_imported(transaction)?;
         }
     }
     if options.selection.sftp_directories

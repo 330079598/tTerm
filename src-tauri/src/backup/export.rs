@@ -223,8 +223,8 @@ fn with_saved_themes(
         return Ok(state);
     }
     let themes = tterm_core::db::read(|connection| {
-        if crate::themes::themes_imported(connection)? {
-            crate::themes::list_themes(connection).map(Some)
+        if tterm_core::themes::themes_imported(connection)? {
+            tterm_core::themes::list_themes(connection).map(Some)
         } else {
             Ok(None)
         }

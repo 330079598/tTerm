@@ -166,7 +166,7 @@ fn seed_settings(connection: &rusqlite::Connection) -> Result<(), String> {
         },
     )?;
     tterm_core::app_state::set_collapsed_profile_group_keys(connection, &["mine".to_string()])?;
-    crate::themes::replace_themes(connection, &[serde_json::json!({"id": "mine"})])
+    tterm_core::themes::replace_themes(connection, &[serde_json::json!({"id": "mine"})])
 }
 
 fn settings_summary(connection: &rusqlite::Connection) -> Value {
@@ -177,7 +177,7 @@ fn settings_summary(connection: &rusqlite::Connection) -> Value {
         "webdav": [webdav.url, webdav.last_backup_at, webdav.last_error],
         "sync": crate::sync::read_settings(connection).unwrap().enabled,
         "session": tterm_core::session_restore::read_session(connection).unwrap().and_then(|s| s.active_tab_id),
-        "themes": crate::themes::list_themes(connection).unwrap(),
+        "themes": tterm_core::themes::list_themes(connection).unwrap(),
         "collapsed": tterm_core::app_state::collapsed_profile_group_keys(connection).unwrap(),
     })
 }

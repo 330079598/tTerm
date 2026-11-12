@@ -152,12 +152,12 @@ impl Device {
 
     fn save_themes(&self, themes: &[Value]) {
         self.database
-            .write(|transaction| crate::themes::replace_themes(transaction, themes))
+            .write(|transaction| tterm_core::themes::replace_themes(transaction, themes))
             .unwrap();
     }
 
     fn themes(&self) -> Vec<Value> {
-        self.database.read(crate::themes::list_themes).unwrap()
+        self.database.read(tterm_core::themes::list_themes).unwrap()
     }
 
     fn profile(&self, id: &str) -> Option<crate::profiles::types::SavedProfile> {

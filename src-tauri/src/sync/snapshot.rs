@@ -603,11 +603,11 @@ pub(crate) fn apply_database(
         }
         THEMES => {
             for id in &removed {
-                crate::themes::delete_theme(transaction, id)?;
+                tterm_core::themes::delete_theme(transaction, id)?;
             }
             for (_, record) in changed(local, merged) {
                 let (theme, position) = take_position(&record.data);
-                crate::themes::upsert_theme(transaction, &theme, position)?;
+                tterm_core::themes::upsert_theme(transaction, &theme, position)?;
             }
         }
         SECRETS => {

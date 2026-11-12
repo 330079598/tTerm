@@ -6,10 +6,10 @@ use serde_json::Value;
 /// kept in localStorage) is taken over when given.
 #[tauri::command]
 pub async fn load_custom_themes(legacy: Option<Vec<Value>>) -> Result<Vec<Value>, String> {
-    super::load(legacy).await
+    tterm_core::themes::load(legacy).await
 }
 
 #[tauri::command]
 pub async fn save_custom_themes(themes: Vec<Value>) -> Result<(), String> {
-    super::save(themes).await
+    tterm_core::themes::save(themes).await
 }

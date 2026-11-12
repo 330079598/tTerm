@@ -137,7 +137,7 @@ async fn sync(
             tterm_core::db::read(|connection| {
                 let categories = settings
                     .selection
-                    .categories(crate::themes::themes_imported(connection)?);
+                    .categories(tterm_core::themes::themes_imported(connection)?);
                 let local = snapshot::collect(connection, &data_key, &categories)?;
                 Ok((
                     categories,
