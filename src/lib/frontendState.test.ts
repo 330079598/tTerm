@@ -125,9 +125,12 @@ describe("frontend state storage", () => {
     expect(localStorage.getItem(SFTP_VIEW_STORAGE_KEY)).toBe(JSON.stringify(sftpView))
     expect(localStorage.getItem(SERIAL_SEND_ECHO_STORAGE_KEY)).toBe(JSON.stringify(echo))
     expect(localStorage.getItem(COMMAND_COMPOSER_OPEN_STORAGE_KEY)).toBe("1")
-    expect(loadRecentCommands(localStorage)).toEqual(commands)
     expect(localStorage.getItem(COMMAND_COMPOSER_LINE_BY_LINE_STORAGE_KEY)).toBe("0")
     expect(localStorage.getItem(REPLAY_VIEW_STORAGE_KEY)).toBe(JSON.stringify(replayView))
+
+    // Drop the memory cache so these are the 0.8.x localStorage readers.
+    resetFrontendStateCacheForTests()
+    expect(loadRecentCommands(localStorage)).toEqual(commands)
     expect(loadRecentQuickConnections(localStorage)).toEqual(quickConnections)
     expect(loadRecentProfiles(localStorage)).toEqual(profiles)
     expect(loadSftpViewPreferences(localStorage)).toEqual(sftpView)
