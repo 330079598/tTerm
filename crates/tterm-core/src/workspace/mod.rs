@@ -32,3 +32,6 @@ pub mod tab_navigation;
 pub mod tab_nudge;
 
 pub(crate) mod js_number;
+
+#[cfg(test)]
+mod tests;
