@@ -4,7 +4,7 @@ use std::sync::Arc;
 
 use tauri::ipc::Channel;
 
-use super::{
+use tterm_core::updater::{
     AppUpdateDownloadEvent, AppUpdateMetadata, Progress, check_app_update_service,
     download_app_update_service, download_install_app_update_service,
     install_downloaded_app_update_service,

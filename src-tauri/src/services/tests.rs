@@ -1,4 +1,6 @@
 use super::{app::AppLevelServices, session::SessionServices, sftp::SftpServices};
+use tterm_core::updater::PendingUpdateDownloads;
+
 use crate::{
     background::{
         CloseBehaviorState, exit_guard::ExitGuardState, quit::QuitState, tray::TrayState,
@@ -11,7 +13,6 @@ use crate::{
         types::{SftpConnectionPool, TransferCancelMap},
     },
     tunnel::manager::TunnelManager,
-    updater::PendingUpdateDownloads,
 };
 use std::sync::Arc;
 use tterm_core::launch_dir::LaunchDirs;

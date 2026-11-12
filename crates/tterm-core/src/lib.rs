@@ -82,6 +82,8 @@ pub mod theme;
 pub mod themes;
 /// SSH tunnel rules, forwarding specs and the SOCKS5 handshake.
 pub mod tunnel;
+/// The pending update downloads and the services that drive them.
+pub mod updater;
 /// Update routing and cache policy.
 pub mod updates;
 /// Workspace panes, tab navigation and tab menu models.

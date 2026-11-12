@@ -91,7 +91,7 @@ pub fn run() {
     let runtime_handle = runtime.handle().clone();
     let external_edit_state = Arc::new(sftp::internal::api::external::ExternalEditState::default());
     let monitor_prompts = Arc::new(monitor::prompts::PendingMonitorPrompts::default());
-    let pending_updates = Arc::new(updater::PendingUpdateDownloads::default());
+    let pending_updates = Arc::new(tterm_core::updater::PendingUpdateDownloads::default());
     let secret_store = ssh::secret_store::types::SecretStoreState::new();
     ssh::key_vault::install(secret_store.clone());
     let session_log_state = Arc::new(session_log::SessionLogState::default());
@@ -453,9 +453,9 @@ pub fn run() {
                 services.shared.paths.as_ref(),
             );
 
-            if let Err(err) =
-                updater::cleanup_stale_pending_update_files(services.shared.paths.as_ref())
-            {
+            if let Err(err) = tterm_core::updater::cleanup_stale_pending_update_files(
+                services.shared.paths.as_ref(),
+            ) {
                 eprintln!("Failed to clean stale update cache files: {}", err);
             }
 

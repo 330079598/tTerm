@@ -1,17 +1,15 @@
 //! Update IPC keeps its wire DTOs and pending-channel map while using owned platform releases.
+use crate::paths::AppPaths;
+use crate::updates::{
+    pending_update_download_path, remove_pending_update_file, update_endpoint,
+    write_pending_update_download,
+};
 use serde::Serialize;
 use std::{
     path::{Path, PathBuf},
     sync::Arc,
 };
-use tterm_core::paths::AppPaths;
-use tterm_core::updates::{
-    pending_update_download_path, remove_pending_update_file, update_endpoint,
-    write_pending_update_download,
-};
 use tterm_platform::updates::{DownloadEvent, DownloadedUpdate, UpdateProgress, Updates};
-
-pub(crate) mod commands;
 
 #[derive(Default)]
 pub struct PendingUpdateDownloads(
@@ -44,7 +42,7 @@ pub enum AppUpdateDownloadEvent {
     Finished,
 }
 
-struct Progress(Arc<dyn Fn(AppUpdateDownloadEvent) + Send + Sync>);
+pub struct Progress(pub Arc<dyn Fn(AppUpdateDownloadEvent) + Send + Sync>);
 
 impl UpdateProgress for Progress {
     fn report(&self, event: DownloadEvent) {
@@ -61,7 +59,7 @@ impl UpdateProgress for Progress {
     }
 }
 
-pub(crate) async fn check_app_update_service(
+pub async fn check_app_update_service(
     updates: &dyn Updates,
     channel: String,
 ) -> Result<Option<AppUpdateMetadata>, String> {
@@ -78,7 +76,7 @@ pub(crate) async fn check_app_update_service(
             }
         }))
 }
-pub(crate) async fn download_app_update_service(
+pub async fn download_app_update_service(
     updates: &dyn Updates,
     downloads: &PendingUpdateDownloads,
     paths: AppPaths,
@@ -90,7 +88,7 @@ pub(crate) async fn download_app_update_service(
     };
     let mut download = update.download(progress).await?;
     let cache_channel = channel.clone();
-    let path = tterm_core::core::blocking::run_blocking(move || {
+    let path = crate::core::blocking::run_blocking(move || {
         pending_update_download_path(&paths, &cache_channel)
     })
     .await?;
@@ -105,7 +103,7 @@ pub(crate) async fn download_app_update_service(
     remove_pending_update_download(previous).await;
     Ok(true)
 }
-pub(crate) async fn install_downloaded_app_update_service(
+pub async fn install_downloaded_app_update_service(
     window: &dyn tterm_platform::window::MainWindow,
     downloads: &PendingUpdateDownloads,
     channel: String,
@@ -131,7 +129,7 @@ pub(crate) async fn install_downloaded_app_update_service(
     remove_cached_update(downloads, &channel).await;
     Ok(true)
 }
-pub(crate) async fn download_install_app_update_service(
+pub async fn download_install_app_update_service(
     updates: &dyn Updates,
     window: &dyn tterm_platform::window::MainWindow,
     downloads: &PendingUpdateDownloads,
@@ -224,7 +222,7 @@ async fn remove_pending_update_download(download: Option<Arc<PendingUpdateDownlo
     }
 }
 pub fn cleanup_stale_pending_update_files(paths: &AppPaths) -> Result<(), String> {
-    tterm_core::updates::cleanup_stale_pending_update_files(paths)
+    crate::updates::cleanup_stale_pending_update_files(paths)
 }
 
 #[cfg(test)]
