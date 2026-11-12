@@ -1,0 +1,352 @@
+ 1. config: 8 files {'config': 8}
+      config/atomic.rs
+      config/keymap.rs
+      config/keyword_highlight.rs
+      config/panes.rs
+      config/paths.rs
+      config/tab_agent_indicator.rs
+      config/tab_icons.rs
+      config/update_channel.rs
+ 2. db: 3 files {'db': 3}
+      db/meta.rs
+      db/migrations.rs
+      db/mod.rs
+ 3. profiles: 8 files {'profiles': 8}
+      profiles/mod.rs
+      profiles/parser/include.rs
+      profiles/parser/matching.rs
+      profiles/parser/parse.rs
+      profiles/parser/paths.rs
+      profiles/parser/pattern.rs
+      profiles/parser/tokens.rs
+      profiles/parser/words.rs
+ 4. command_library: 3 files {'command_library': 3}
+      command_library/mod.rs
+      command_library/models.rs
+      command_library/repository.rs
+ 5. ssh: 11 files {'ssh': 11}
+      ssh/jump/mod.rs
+      ssh/mod.rs
+      ssh/openssh_known_hosts/hosts.rs
+      ssh/rsa_signer.rs
+      ssh/secret_store/crypto.rs
+      ssh/secret_store/keyring_backend.rs
+      ssh/secret_store/os_verifier.rs
+      ssh/secret_store/store.rs
+      ssh/secret_store/types.rs
+      ssh/store.rs
+      ssh/typed_passwords.rs
+ 6. terminal: 15 files {'terminal': 15}
+      terminal/console_reset.rs
+      terminal/cwd_watch.rs
+      terminal/encoding.rs
+      terminal/io_batcher.rs
+      terminal/io_batcher/pty_fixture.rs
+      terminal/legacy_events.rs
+      terminal/mod.rs
+      terminal/output.rs
+      terminal/output_tail.rs
+      terminal/shell_args.rs
+      terminal/shell_integration.rs
+      terminal/shell_scripts.rs
+      terminal/ssh_query_handler.rs
+      terminal/types.rs
+      terminal/wsl_distros.rs
+ 7. zmodem: 8 files {'zmodem': 8}
+      zmodem/detect.rs
+      zmodem/events.rs
+      zmodem/protocol/consts.rs
+      zmodem/protocol/crc.rs
+      zmodem/protocol/engine.rs
+      zmodem/protocol/frame.rs
+      zmodem/protocol/mod.rs
+      zmodem/wire.rs
+ 8. sftp: 17 files {'sftp': 17}
+      sftp/internal/api/conflict.rs
+      sftp/internal/api/external/local.rs
+      sftp/internal/api/search/matcher.rs
+      sftp/internal/paths.rs
+      sftp/internal/sudo/command.rs
+      sftp/internal/sudo/errors.rs
+      sftp/internal/sudo/mod.rs
+      sftp/internal/transfer/checkpoint.rs
+      sftp/internal/transfer/chunks.rs
+      sftp/internal/transfer/files.rs
+      sftp/internal/transfer/lanes.rs
+      sftp/internal/transfer/mod.rs
+      sftp/internal/transfer/rate_limit.rs
+      sftp/internal/transfer/run.rs
+      sftp/internal/transfer/test_server.rs
+      sftp/mod.rs
+      sftp/store.rs
+ 9. tunnel: 5 files {'tunnel': 5}
+      tunnel/forwards.rs
+      tunnel/mod.rs
+      tunnel/socks5.rs
+      tunnel/storage.rs
+      tunnel/types.rs
+10. session_log: 3 files {'session_log': 3}
+      session_log/library.rs
+      session_log/retention.rs
+      session_log/screen.rs
+11. backup: 1 files {'backup': 1}
+      backup/webdav.rs
+12. sync: 1 files {'sync': 1}
+      sync/merge.rs
+13. agent_integration: 2 files {'agent_integration': 2}
+      agent_integration/hook_input.rs
+      agent_integration/json.rs
+14. app_state: 1 files {'app_state': 1}
+      app_state/mod.rs
+15. background: 1 files {'background': 1}
+      background/quit.rs
+16. core: 5 files {'core': 5}
+      core/agent_resume.rs
+      core/blocking.rs
+      core/login_shell.rs
+      core/mod.rs
+      core/runtime.rs
+17. fonts: 1 files {'fonts': 1}
+      fonts/mod.rs
+18. launch_dir: 1 files {'launch_dir': 1}
+      launch_dir.rs
+19. notification: 2 files {'notification': 2}
+      notification/badge.rs
+      notification/sound.rs
+20. services: 2 files {'services': 2}
+      services/mod.rs
+      services/shared.rs
+21. session: 2 files {'session': 2}
+      session/mod.rs
+      session/scrollback.rs
+22. themes: 1 files {'themes': 1}
+      themes/mod.rs
+23. updater: 1 files {'updater': 1}
+      updater.rs
+24. window_state: 2 files {'window_state': 2}
+      window_state/placement.rs
+      window_state/state.rs
+25. config: 1 files {'config': 1}
+      config/window_background.rs
+26. command_library: 1 files {'command_library': 1}
+      command_library/service/mod.rs
+27. ssh: 1 files {'ssh': 1}
+      ssh/shell_integration.rs
+28. serial: 2 files {'serial': 2}
+      serial/history/mod.rs
+      serial/history/store.rs
+29. proxy: 2 files {'proxy': 2}
+      proxy/mod.rs
+      proxy/storage.rs
+30. profiles: 1 files {'profiles': 1}
+      profiles/parser/proxy_command.rs
+31. ssh: 1 files {'ssh': 1}
+      ssh/jump/pool.rs
+32. cross-domain: 54 files {'config': 3, 'core': 4, 'monitor': 2, 'profiles': 3, 'prompt_scope': 1, 'proxy': 6, 'serial': 7, 'session_log': 1, 'sftp': 5, 'ssh': 14, 'system_integration': 1, 'terminal': 5, 'zmodem': 2}
+      config/defaults.rs
+      config/mod.rs
+      config/reconnect.rs
+      core/session/mod.rs
+      core/session/types.rs
+      core/state.rs
+      core/supervisor.rs
+      monitor/metrics/mod.rs
+      monitor/types.rs
+      profiles/parser/mod.rs
+      profiles/storage.rs
+      profiles/types.rs
+      prompt_scope.rs
+      proxy/approval.rs
+      proxy/command.rs
+      proxy/connect.rs
+      proxy/http_connect.rs
+      proxy/resolve.rs
+      proxy/socks5.rs
+      serial/io.rs
+      serial/mod.rs
+      serial/open.rs
+      serial/output.rs
+      serial/ports.rs
+      serial/reconnect.rs
+      serial/session.rs
+      session_log/mod.rs
+      sftp/internal/connection.rs
+      sftp/internal/exec.rs
+      sftp/internal/launcher.rs
+      sftp/internal/sudo/handshake.rs
+      sftp/internal/types.rs
+      ssh/agent.rs
+      ssh/auth.rs
+      ssh/client.rs
+      ssh/context.rs
+      ssh/host_key_prompt.rs
+      ssh/jump/config.rs
+      ssh/jump/connect.rs
+      ssh/jump/handler.rs
+      ssh/jump/hop.rs
+      ssh/openssh_known_hosts/mod.rs
+      ssh/openssh_known_hosts/verify.rs
+      ssh/remote_os.rs
+      ssh/test_sshd.rs
+      ssh/types.rs
+      system_integration/mod.rs
+      terminal/local_integration.rs
+      terminal/pty.rs
+      terminal/reader.rs
+      terminal/unix_shell.rs
+      terminal/windows_shell.rs
+      zmodem/mod.rs
+      zmodem/session.rs
+33. config: 2 files {'config': 2}
+      config/deserialize.rs
+      config/local_shells.rs
+34. profiles: 9 files {'profiles': 9}
+      profiles/commands/connection_check.rs
+      profiles/commands/import.rs
+      profiles/commands/import/proxy.rs
+      profiles/group_service.rs
+      profiles/groups.rs
+      profiles/parser/host.rs
+      profiles/parser/jump.rs
+      profiles/parser/known_hosts.rs
+      profiles/parser/resolve.rs
+35. ssh: 16 files {'ssh': 16}
+      ssh/auth/auto.rs
+      ssh/auth/methods.rs
+      ssh/auth/prompter.rs
+      ssh/client/output.rs
+      ssh/client/reader.rs
+      ssh/client/setup.rs
+      ssh/key_file.rs
+      ssh/key_vault/entry.rs
+      ssh/key_vault/export.rs
+      ssh/key_vault/import.rs
+      ssh/key_vault/mod.rs
+      ssh/key_vault/store.rs
+      ssh/secret_store/legacy.rs
+      ssh/secret_store/migration.rs
+      ssh/secret_store/mod.rs
+      ssh/secret_store/verification.rs
+36. terminal: 1 files {'terminal': 1}
+      terminal/foreground.rs
+37. serial: 5 files {'serial': 5}
+      serial/xmodem/disk.rs
+      serial/xmodem/mod.rs
+      serial/xmodem/protocol.rs
+      serial/xmodem/receive.rs
+      serial/xmodem/transfer.rs
+38. zmodem: 1 files {'zmodem': 1}
+      zmodem/send.rs
+39. sftp: 33 files {'sftp': 33}
+      sftp/internal/api.rs
+      sftp/internal/api/archive.rs
+      sftp/internal/api/archive/operations.rs
+      sftp/internal/api/archive/script.rs
+      sftp/internal/api/base.rs
+      sftp/internal/api/base/operations.rs
+      sftp/internal/api/delete.rs
+      sftp/internal/api/delete/batch.rs
+      sftp/internal/api/delete/commands/operations.rs
+      sftp/internal/api/delete/recursive.rs
+      sftp/internal/api/download.rs
+      sftp/internal/api/download/directory.rs
+      sftp/internal/api/download/items.rs
+      sftp/internal/api/download/operations.rs
+      sftp/internal/api/edit.rs
+      sftp/internal/api/edit/operations.rs
+      sftp/internal/api/external/mod.rs
+      sftp/internal/api/external/operations.rs
+      sftp/internal/api/external/remote.rs
+      sftp/internal/api/external/sessions.rs
+      sftp/internal/api/external/watch.rs
+      sftp/internal/api/permissions.rs
+      sftp/internal/api/permissions/operations.rs
+      sftp/internal/api/search.rs
+      sftp/internal/api/search/find.rs
+      sftp/internal/api/search/operations.rs
+      sftp/internal/api/search/walk.rs
+      sftp/internal/api/upload.rs
+      sftp/internal/api/upload/batch.rs
+      sftp/internal/api/upload/commands/operations.rs
+      sftp/internal/api/upload/items.rs
+      sftp/internal/api/upload/targets.rs
+      sftp/internal/test_support/mod.rs
+40. tunnel: 4 files {'tunnel': 4}
+      tunnel/credentials.rs
+      tunnel/hub.rs
+      tunnel/runtime.rs
+      tunnel/runtime/connections.rs
+41. monitor: 7 files {'monitor': 7}
+      monitor/metrics/bsd.rs
+      monitor/metrics/darwin.rs
+      monitor/metrics/freebsd.rs
+      monitor/metrics/linux.rs
+      monitor/mod.rs
+      monitor/prompts.rs
+      monitor/session.rs
+42. session_log: 7 files {'session_log': 7}
+      session_log/maintenance.rs
+      session_log/manager.rs
+      session_log/naming.rs
+      session_log/plain.rs
+      session_log/rotating.rs
+      session_log/worker.rs
+      session_log/writer.rs
+43. agent_integration: 7 files {'agent_integration': 7}
+      agent_integration/claude_code.rs
+      agent_integration/codex.rs
+      agent_integration/console_report.rs
+      agent_integration/hooks.rs
+      agent_integration/mod.rs
+      agent_integration/plugin_file.rs
+      agent_integration/remote.rs
+44. connection_context: 1 files {'connection_context': 1}
+      connection_context.rs
+45. core: 6 files {'core': 6}
+      core/channel_test_support.rs
+      core/commands/arguments.rs
+      core/commands/batch_write.rs
+      core/commands/create.rs
+      core/session/saved_hops.rs
+      core/session/stop.rs
+46. services: 2 files {'services': 2}
+      services/session.rs
+      services/sftp.rs
+47. config: 1 files {'config': 1}
+      config/save.rs
+48. cross-domain: 4 files {'background': 2, 'tunnel': 2}
+      background/mod.rs
+      background/tray/mod.rs
+      tunnel/manager.rs
+      tunnel/runtime/reporter.rs
+49. profiles: 1 files {'profiles': 1}
+      profiles/service.rs
+50. app_context: 1 files {'app_context': 1}
+      app_context.rs
+51. background: 1 files {'background': 1}
+      background/exit_guard.rs
+52. notification: 1 files {'notification': 1}
+      notification/mod.rs
+53. services: 1 files {'services': 1}
+      services/app.rs
+54. cross-domain: 10 files {'backup': 7, 'sync': 3}
+      backup/apply.rs
+      backup/archive.rs
+      backup/automatic.rs
+      backup/diff.rs
+      backup/export.rs
+      backup/mod.rs
+      backup/remote.rs
+      sync/document.rs
+      sync/mod.rs
+      sync/snapshot.rs
+55. db: 1 files {'db': 1}
+      db/legacy_import.rs
+56. backup: 4 files {'backup': 4}
+      backup/remote/files.rs
+      backup/remote/service.rs
+      backup/service.rs
+      backup/snapshot.rs
+57. sync: 2 files {'sync': 2}
+      sync/service.rs
+      sync/state.rs
