@@ -2,9 +2,10 @@
 //! stays out of `config.json` and sync. Backups carry the collapsed profile
 //! groups with the settings; the last update check stays on the device.
 
-use crate::core::blocking::run_blocking;
 use crate::db::meta;
 use serde::{Deserialize, Serialize};
+
+pub(crate) mod commands;
 
 const LAST_UPDATE_CHECK_AT: &str = "state.last_update_check_at";
 pub(crate) const COLLAPSED_PROFILE_GROUP_KEYS: &str = "state.collapsed_profile_group_keys";
@@ -57,16 +58,6 @@ pub(crate) fn import_from_config_file(
             ("collapsed_profile_group_keys", COLLAPSED_PROFILE_GROUP_KEYS),
         ],
     )
-}
-
-#[tauri::command]
-pub async fn load_app_state() -> Result<AppState, String> {
-    run_blocking(|| crate::db::read(load)).await
-}
-
-#[tauri::command]
-pub async fn save_app_state(state: AppState) -> Result<(), String> {
-    run_blocking(move || crate::db::write(|transaction| save(transaction, &state))).await
 }
 
 #[cfg(test)]
