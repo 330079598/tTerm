@@ -69,6 +69,7 @@ pub fn run_console_helper() -> Option<i32> {
     reason = "one builder chain registers every plugin and Tauri command"
 )]
 pub fn run() {
+    tterm_core::identity::install_app_version(env!("CARGO_PKG_VERSION"));
     let pty_map: PtyMap = Arc::new(RwLock::new(std::collections::HashMap::new()));
     let sftp_pool: sftp::internal::types::SftpConnectionPool =
         Arc::new(RwLock::new(std::collections::HashMap::new()));
