@@ -1,0 +1,6713 @@
+{
+  "tabGroups": {
+    "paneIds": [
+      "a",
+      "b",
+      "a"
+    ],
+    "paneIdsEmptySplit": [],
+    "paneLeaf": {
+      "type": "pane",
+      "tabId": "a"
+    },
+    "paneLeafEmpty": {
+      "type": "pane",
+      "tabId": ""
+    },
+    "splitOrientations": [
+      {
+        "direction": "left",
+        "orientation": "horizontal"
+      },
+      {
+        "direction": "right",
+        "orientation": "horizontal"
+      },
+      {
+        "direction": "above",
+        "orientation": "vertical"
+      },
+      {
+        "direction": "below",
+        "orientation": "vertical"
+      }
+    ],
+    "foundGroup": "g1",
+    "missingGroup": null,
+    "emptyIdGroup": "g1",
+    "normalizeEmptySplit": {
+      "type": "split",
+      "orientation": "horizontal",
+      "children": [],
+      "sizes": []
+    },
+    "insertMissingTarget": {
+      "type": "split",
+      "orientation": "horizontal",
+      "children": [
+        {
+          "type": "pane",
+          "tabId": "a"
+        },
+        {
+          "type": "pane",
+          "tabId": "b"
+        }
+      ],
+      "sizes": [
+        0.5,
+        0.5
+      ]
+    },
+    "insertEmptyId": {
+      "type": "split",
+      "orientation": "vertical",
+      "children": [
+        {
+          "type": "pane",
+          "tabId": ""
+        },
+        {
+          "type": "pane",
+          "tabId": "x"
+        }
+      ],
+      "sizes": [
+        0.5,
+        0.5
+      ]
+    },
+    "removeNone": {
+      "type": "split",
+      "orientation": "horizontal",
+      "children": [
+        {
+          "type": "pane",
+          "tabId": "a"
+        },
+        {
+          "type": "split",
+          "orientation": "vertical",
+          "children": [
+            {
+              "type": "pane",
+              "tabId": "b"
+            },
+            {
+              "type": "pane",
+              "tabId": "c"
+            }
+          ],
+          "sizes": [
+            0.5,
+            0.5
+          ]
+        }
+      ],
+      "sizes": [
+        0.5,
+        0.5
+      ]
+    },
+    "removeAll": null,
+    "removeDuplicate": {
+      "type": "pane",
+      "tabId": "b"
+    },
+    "resizeMissingPath": {
+      "type": "split",
+      "orientation": "horizontal",
+      "children": [
+        {
+          "type": "pane",
+          "tabId": "a"
+        },
+        {
+          "type": "split",
+          "orientation": "vertical",
+          "children": [
+            {
+              "type": "pane",
+              "tabId": "b"
+            },
+            {
+              "type": "pane",
+              "tabId": "c"
+            }
+          ],
+          "sizes": [
+            0.5,
+            0.5
+          ]
+        }
+      ],
+      "sizes": [
+        0.5,
+        0.5
+      ]
+    },
+    "resizeNegativePath": {
+      "type": "split",
+      "orientation": "horizontal",
+      "children": [
+        {
+          "type": "pane",
+          "tabId": "a"
+        },
+        {
+          "type": "split",
+          "orientation": "vertical",
+          "children": [
+            {
+              "type": "pane",
+              "tabId": "b"
+            },
+            {
+              "type": "pane",
+              "tabId": "c"
+            }
+          ],
+          "sizes": [
+            0.5,
+            0.5
+          ]
+        }
+      ],
+      "sizes": [
+        0.5,
+        0.5
+      ]
+    },
+    "resizeWrongCount": {
+      "type": "split",
+      "orientation": "horizontal",
+      "children": [
+        {
+          "type": "pane",
+          "tabId": "a"
+        },
+        {
+          "type": "split",
+          "orientation": "vertical",
+          "children": [
+            {
+              "type": "pane",
+              "tabId": "b"
+            },
+            {
+              "type": "pane",
+              "tabId": "c"
+            }
+          ],
+          "sizes": [
+            0.5,
+            0.5
+          ]
+        }
+      ],
+      "sizes": [
+        0.5,
+        0.5
+      ]
+    },
+    "removeGroupsMissing": [
+      {
+        "id": "g1",
+        "root": {
+          "type": "split",
+          "orientation": "horizontal",
+          "children": [
+            {
+              "type": "pane",
+              "tabId": "a"
+            },
+            {
+              "type": "pane",
+              "tabId": "b"
+            }
+          ],
+          "sizes": [
+            0.5,
+            0.5
+          ]
+        },
+        "activeTabId": "b"
+      },
+      {
+        "id": "g2",
+        "root": {
+          "type": "pane",
+          "tabId": "c"
+        },
+        "activeTabId": "c"
+      }
+    ],
+    "removeGroupsEmptyZoom": [
+      {
+        "id": "g1",
+        "root": {
+          "type": "pane",
+          "tabId": "a"
+        },
+        "activeTabId": "a"
+      }
+    ],
+    "fallbackEmptyActive": null,
+    "fallbackNullActive": null,
+    "atomicNoMissing": [
+      {
+        "id": "g1",
+        "root": {
+          "type": "pane",
+          "tabId": "a"
+        },
+        "activeTabId": "a"
+      }
+    ],
+    "reconcileMissing": [
+      {
+        "id": "g1",
+        "root": {
+          "type": "pane",
+          "tabId": "a"
+        },
+        "activeTabId": "a"
+      },
+      {
+        "id": "new-1",
+        "root": {
+          "type": "pane",
+          "tabId": "b"
+        },
+        "activeTabId": "b"
+      }
+    ],
+    "reconcileDuplicate": [
+      {
+        "id": "new",
+        "root": {
+          "type": "pane",
+          "tabId": "a"
+        },
+        "activeTabId": "a"
+      }
+    ],
+    "focusUnknown": [
+      {
+        "id": "g1",
+        "root": {
+          "type": "split",
+          "orientation": "horizontal",
+          "children": [
+            {
+              "type": "pane",
+              "tabId": "a"
+            },
+            {
+              "type": "pane",
+              "tabId": "b"
+            }
+          ],
+          "sizes": [
+            0.5,
+            0.5
+          ]
+        },
+        "activeTabId": "b"
+      },
+      {
+        "id": "g2",
+        "root": {
+          "type": "pane",
+          "tabId": "c"
+        },
+        "activeTabId": "c"
+      }
+    ],
+    "placeSelf": [
+      {
+        "id": "g1",
+        "root": {
+          "type": "split",
+          "orientation": "horizontal",
+          "children": [
+            {
+              "type": "pane",
+              "tabId": "a"
+            },
+            {
+              "type": "pane",
+              "tabId": "b"
+            }
+          ],
+          "sizes": [
+            0.5,
+            0.5
+          ]
+        },
+        "activeTabId": "b"
+      },
+      {
+        "id": "g2",
+        "root": {
+          "type": "pane",
+          "tabId": "c"
+        },
+        "activeTabId": "c"
+      }
+    ],
+    "placeMissing": [
+      {
+        "id": "g1",
+        "root": {
+          "type": "split",
+          "orientation": "horizontal",
+          "children": [
+            {
+              "type": "pane",
+              "tabId": "a"
+            },
+            {
+              "type": "pane",
+              "tabId": "b"
+            }
+          ],
+          "sizes": [
+            0.5,
+            0.5
+          ]
+        },
+        "activeTabId": "b"
+      },
+      {
+        "id": "g2",
+        "root": {
+          "type": "pane",
+          "tabId": "c"
+        },
+        "activeTabId": "c"
+      }
+    ],
+    "mergeSame": [
+      {
+        "id": "g1",
+        "root": {
+          "type": "split",
+          "orientation": "horizontal",
+          "children": [
+            {
+              "type": "pane",
+              "tabId": "a"
+            },
+            {
+              "type": "pane",
+              "tabId": "b"
+            }
+          ],
+          "sizes": [
+            0.5,
+            0.5
+          ]
+        },
+        "activeTabId": "b"
+      },
+      {
+        "id": "g2",
+        "root": {
+          "type": "pane",
+          "tabId": "c"
+        },
+        "activeTabId": "c"
+      }
+    ],
+    "mergeMissing": [
+      {
+        "id": "g1",
+        "root": {
+          "type": "split",
+          "orientation": "horizontal",
+          "children": [
+            {
+              "type": "pane",
+              "tabId": "a"
+            },
+            {
+              "type": "pane",
+              "tabId": "b"
+            }
+          ],
+          "sizes": [
+            0.5,
+            0.5
+          ]
+        },
+        "activeTabId": "b"
+      },
+      {
+        "id": "g2",
+        "root": {
+          "type": "pane",
+          "tabId": "c"
+        },
+        "activeTabId": "c"
+      }
+    ],
+    "breakNegative": [
+      "g3",
+      "g1",
+      "g2"
+    ],
+    "breakBeyond": [
+      "g1",
+      "g2",
+      "g3"
+    ],
+    "breakLone": [
+      {
+        "id": "g1",
+        "root": {
+          "type": "pane",
+          "tabId": "a"
+        },
+        "activeTabId": "a"
+      }
+    ],
+    "ungroupActiveMissing": [
+      {
+        "id": "new",
+        "root": {
+          "type": "pane",
+          "tabId": "a"
+        },
+        "activeTabId": "a"
+      },
+      {
+        "id": "new",
+        "root": {
+          "type": "pane",
+          "tabId": "b"
+        },
+        "activeTabId": "b"
+      }
+    ],
+    "zoomEmptyId": [
+      {
+        "id": "g1",
+        "root": {
+          "type": "split",
+          "orientation": "horizontal",
+          "children": [
+            {
+              "type": "pane",
+              "tabId": ""
+            },
+            {
+              "type": "pane",
+              "tabId": "b"
+            }
+          ],
+          "sizes": [
+            0.5,
+            0.5
+          ]
+        },
+        "activeTabId": "",
+        "zoomedTabId": ""
+      }
+    ],
+    "visibleEmptyActive": [],
+    "visibleEmptyZoom": [],
+    "visibleEmptyZoomWithActive": [
+      "a",
+      "b"
+    ],
+    "moveNegative": [
+      {
+        "id": "g1",
+        "root": {
+          "type": "split",
+          "orientation": "horizontal",
+          "children": [
+            {
+              "type": "pane",
+              "tabId": "a"
+            },
+            {
+              "type": "pane",
+              "tabId": "b"
+            }
+          ],
+          "sizes": [
+            0.5,
+            0.5
+          ]
+        },
+        "activeTabId": "b"
+      },
+      {
+        "id": "g2",
+        "root": {
+          "type": "pane",
+          "tabId": "c"
+        },
+        "activeTabId": "c"
+      }
+    ],
+    "moveBeyond": [
+      {
+        "id": "g1",
+        "root": {
+          "type": "split",
+          "orientation": "horizontal",
+          "children": [
+            {
+              "type": "pane",
+              "tabId": "a"
+            },
+            {
+              "type": "pane",
+              "tabId": "b"
+            }
+          ],
+          "sizes": [
+            0.5,
+            0.5
+          ]
+        },
+        "activeTabId": "b"
+      },
+      {
+        "id": "g2",
+        "root": {
+          "type": "pane",
+          "tabId": "c"
+        },
+        "activeTabId": "c"
+      }
+    ]
+  },
+  "tabIcons": {
+    "constants": {
+      "ids": [
+        "terminal",
+        "square-terminal",
+        "square-chevron-right",
+        "chevron-right",
+        "code",
+        "braces",
+        "brackets",
+        "hash",
+        "binary",
+        "file-code",
+        "bot",
+        "sparkles",
+        "git-branch",
+        "git-merge",
+        "git-commit-horizontal",
+        "package",
+        "layers",
+        "puzzle",
+        "wrench",
+        "hammer",
+        "server",
+        "database",
+        "cloud",
+        "container",
+        "box",
+        "cpu",
+        "hard-drive",
+        "network",
+        "globe",
+        "wifi",
+        "monitor",
+        "laptop",
+        "usb",
+        "zap",
+        "flame",
+        "rocket",
+        "bug",
+        "shield",
+        "lock",
+        "key",
+        "star",
+        "heart",
+        "flag",
+        "bookmark",
+        "bell",
+        "eye",
+        "target",
+        "crown",
+        "gem",
+        "anchor",
+        "compass",
+        "fish",
+        "leaf",
+        "tree-pine",
+        "sun",
+        "moon",
+        "snowflake",
+        "coffee",
+        "cat",
+        "dog",
+        "bird",
+        "rabbit",
+        "turtle",
+        "ghost",
+        "skull",
+        "gamepad-2",
+        "music",
+        "palette"
+      ],
+      "agents": [
+        "claude",
+        "codex",
+        "opencode",
+        "pi"
+      ],
+      "agentColors": {
+        "claude": "#d97757",
+        "codex": "",
+        "opencode": "",
+        "pi": ""
+      },
+      "colors": [
+        "#3b9ae1",
+        "#2bb3a3",
+        "#4caf7a",
+        "#d4a72c",
+        "#e9853a",
+        "#f05133",
+        "#e5534b",
+        "#db61a2",
+        "#a371f7",
+        "#8b949e"
+      ],
+      "defaultConfig": {
+        "enabled": true,
+        "agents": true,
+        "shells": {}
+      }
+    },
+    "shellKeys": [
+      {
+        "input": " PWSH　",
+        "key": "pwsh"
+      },
+      {
+        "input": "﻿Zsh ",
+        "key": "zsh"
+      },
+      {
+        "input": " bash ",
+        "key": "bash"
+      },
+      {
+        "input": "Σ",
+        "key": "σ"
+      },
+      {
+        "input": "ΟΣ",
+        "key": "ος"
+      },
+      {
+        "input": "ΣΣ",
+        "key": "σς"
+      },
+      {
+        "input": "İ",
+        "key": "i̇"
+      },
+      {
+        "input": "ẞ",
+        "key": "ß"
+      },
+      {
+        "input": "Git Bash",
+        "key": "git bash"
+      },
+      {
+        "input": "",
+        "key": ""
+      },
+      {
+        "input": "   ",
+        "key": ""
+      },
+      {
+        "input": null,
+        "key": ""
+      },
+      {
+        "key": ""
+      }
+    ],
+    "normalizedStyles": [
+      {
+        "input": {
+          "icon": "fish",
+          "color": "#AABBCC"
+        },
+        "style": {
+          "icon": "fish",
+          "color": "#aabbcc"
+        }
+      },
+      {
+        "input": {
+          "icon": "unicorn",
+          "color": "red"
+        },
+        "style": null
+      },
+      {
+        "input": {
+          "color": ""
+        },
+        "style": {
+          "color": ""
+        }
+      },
+      {
+        "input": {
+          "color": "#abcdef"
+        },
+        "style": {
+          "color": "#abcdef"
+        }
+      },
+      {
+        "input": {
+          "color": "#ABCDEF0"
+        },
+        "style": null
+      },
+      {
+        "input": {
+          "color": "#GGGGGG"
+        },
+        "style": null
+      },
+      {
+        "input": {
+          "color": "＃AABBCC"
+        },
+        "style": null
+      },
+      {
+        "input": {
+          "icon": "rocket",
+          "color": "#ABCDEF"
+        },
+        "style": {
+          "icon": "rocket",
+          "color": "#abcdef"
+        }
+      },
+      {
+        "input": {
+          "icon": "distro:arch"
+        },
+        "style": {
+          "icon": "distro:arch"
+        }
+      },
+      {
+        "input": {
+          "icon": "distro:windows"
+        },
+        "style": null
+      },
+      {
+        "input": {
+          "icon": "logo:docker"
+        },
+        "style": {
+          "icon": "logo:docker"
+        }
+      },
+      {
+        "input": {
+          "icon": "logo:fish"
+        },
+        "style": null
+      },
+      {
+        "input": {
+          "icon": "agent:claude"
+        },
+        "style": {
+          "icon": "agent:claude"
+        }
+      },
+      {
+        "input": {
+          "icon": "agent:my-agent"
+        },
+        "style": null
+      },
+      {
+        "input": {
+          "icon": "agent:"
+        },
+        "style": null
+      },
+      {
+        "input": {
+          "icon": "distro:"
+        },
+        "style": null
+      },
+      {
+        "input": {
+          "icon": "logo:"
+        },
+        "style": null
+      },
+      {
+        "input": {
+          "icon": "ROCKET"
+        },
+        "style": null
+      },
+      {
+        "input": "pwsh",
+        "style": null
+      },
+      {
+        "input": null,
+        "style": null
+      },
+      {
+        "input": [],
+        "style": null
+      },
+      {
+        "input": {
+          "icon": "logo:bash"
+        },
+        "style": {
+          "icon": "logo:bash"
+        }
+      },
+      {
+        "input": {
+          "icon": "logo:zsh"
+        },
+        "style": {
+          "icon": "logo:zsh"
+        }
+      },
+      {
+        "input": {
+          "icon": "logo:nushell"
+        },
+        "style": {
+          "icon": "logo:nushell"
+        }
+      },
+      {
+        "input": {
+          "icon": "logo:git"
+        },
+        "style": {
+          "icon": "logo:git"
+        }
+      },
+      {
+        "input": {
+          "icon": "logo:github"
+        },
+        "style": {
+          "icon": "logo:github"
+        }
+      },
+      {
+        "input": {
+          "icon": "logo:gitlab"
+        },
+        "style": {
+          "icon": "logo:gitlab"
+        }
+      },
+      {
+        "input": {
+          "icon": "logo:linux"
+        },
+        "style": {
+          "icon": "logo:linux"
+        }
+      },
+      {
+        "input": {
+          "icon": "logo:apple"
+        },
+        "style": {
+          "icon": "logo:apple"
+        }
+      },
+      {
+        "input": {
+          "icon": "logo:raspberry-pi"
+        },
+        "style": {
+          "icon": "logo:raspberry-pi"
+        }
+      },
+      {
+        "input": {
+          "icon": "logo:docker"
+        },
+        "style": {
+          "icon": "logo:docker"
+        }
+      },
+      {
+        "input": {
+          "icon": "logo:kubernetes"
+        },
+        "style": {
+          "icon": "logo:kubernetes"
+        }
+      },
+      {
+        "input": {
+          "icon": "logo:python"
+        },
+        "style": {
+          "icon": "logo:python"
+        }
+      },
+      {
+        "input": {
+          "icon": "logo:nodejs"
+        },
+        "style": {
+          "icon": "logo:nodejs"
+        }
+      },
+      {
+        "input": {
+          "icon": "logo:go"
+        },
+        "style": {
+          "icon": "logo:go"
+        }
+      },
+      {
+        "input": {
+          "icon": "logo:vim"
+        },
+        "style": {
+          "icon": "logo:vim"
+        }
+      },
+      {
+        "input": {
+          "icon": "logo:tmux"
+        },
+        "style": {
+          "icon": "logo:tmux"
+        }
+      },
+      {
+        "input": {
+          "icon": "logo:redis"
+        },
+        "style": {
+          "icon": "logo:redis"
+        }
+      },
+      {
+        "input": {
+          "icon": "logo:postgresql"
+        },
+        "style": {
+          "icon": "logo:postgresql"
+        }
+      },
+      {
+        "input": {
+          "icon": "logo:mysql"
+        },
+        "style": {
+          "icon": "logo:mysql"
+        }
+      },
+      {
+        "input": {
+          "icon": "logo:mongodb"
+        },
+        "style": {
+          "icon": "logo:mongodb"
+        }
+      },
+      {
+        "input": {
+          "icon": "logo:nginx"
+        },
+        "style": {
+          "icon": "logo:nginx"
+        }
+      },
+      {
+        "input": {
+          "icon": "logo:ansible"
+        },
+        "style": {
+          "icon": "logo:ansible"
+        }
+      },
+      {
+        "input": {
+          "icon": "logo:terraform"
+        },
+        "style": {
+          "icon": "logo:terraform"
+        }
+      },
+      {
+        "input": {
+          "icon": "logo:google-cloud"
+        },
+        "style": {
+          "icon": "logo:google-cloud"
+        }
+      },
+      {
+        "input": {
+          "icon": "logo:cloudflare"
+        },
+        "style": {
+          "icon": "logo:cloudflare"
+        }
+      },
+      {
+        "input": {
+          "icon": "distro:linux"
+        },
+        "style": {
+          "icon": "distro:linux"
+        }
+      },
+      {
+        "input": {
+          "icon": "distro:ubuntu"
+        },
+        "style": {
+          "icon": "distro:ubuntu"
+        }
+      },
+      {
+        "input": {
+          "icon": "distro:debian"
+        },
+        "style": {
+          "icon": "distro:debian"
+        }
+      },
+      {
+        "input": {
+          "icon": "distro:centos"
+        },
+        "style": {
+          "icon": "distro:centos"
+        }
+      },
+      {
+        "input": {
+          "icon": "distro:rhel"
+        },
+        "style": {
+          "icon": "distro:rhel"
+        }
+      },
+      {
+        "input": {
+          "icon": "distro:fedora"
+        },
+        "style": {
+          "icon": "distro:fedora"
+        }
+      },
+      {
+        "input": {
+          "icon": "distro:rocky"
+        },
+        "style": {
+          "icon": "distro:rocky"
+        }
+      },
+      {
+        "input": {
+          "icon": "distro:alma"
+        },
+        "style": {
+          "icon": "distro:alma"
+        }
+      },
+      {
+        "input": {
+          "icon": "distro:oracle"
+        },
+        "style": {
+          "icon": "distro:oracle"
+        }
+      },
+      {
+        "input": {
+          "icon": "distro:amazon"
+        },
+        "style": {
+          "icon": "distro:amazon"
+        }
+      },
+      {
+        "input": {
+          "icon": "distro:suse"
+        },
+        "style": {
+          "icon": "distro:suse"
+        }
+      },
+      {
+        "input": {
+          "icon": "distro:alpine"
+        },
+        "style": {
+          "icon": "distro:alpine"
+        }
+      },
+      {
+        "input": {
+          "icon": "distro:arch"
+        },
+        "style": {
+          "icon": "distro:arch"
+        }
+      },
+      {
+        "input": {
+          "icon": "distro:manjaro"
+        },
+        "style": {
+          "icon": "distro:manjaro"
+        }
+      },
+      {
+        "input": {
+          "icon": "distro:endeavouros"
+        },
+        "style": {
+          "icon": "distro:endeavouros"
+        }
+      },
+      {
+        "input": {
+          "icon": "distro:cachyos"
+        },
+        "style": {
+          "icon": "distro:cachyos"
+        }
+      },
+      {
+        "input": {
+          "icon": "distro:garuda"
+        },
+        "style": {
+          "icon": "distro:garuda"
+        }
+      },
+      {
+        "input": {
+          "icon": "distro:gentoo"
+        },
+        "style": {
+          "icon": "distro:gentoo"
+        }
+      },
+      {
+        "input": {
+          "icon": "distro:nixos"
+        },
+        "style": {
+          "icon": "distro:nixos"
+        }
+      },
+      {
+        "input": {
+          "icon": "distro:void"
+        },
+        "style": {
+          "icon": "distro:void"
+        }
+      },
+      {
+        "input": {
+          "icon": "distro:slackware"
+        },
+        "style": {
+          "icon": "distro:slackware"
+        }
+      },
+      {
+        "input": {
+          "icon": "distro:kali"
+        },
+        "style": {
+          "icon": "distro:kali"
+        }
+      },
+      {
+        "input": {
+          "icon": "distro:parrot"
+        },
+        "style": {
+          "icon": "distro:parrot"
+        }
+      },
+      {
+        "input": {
+          "icon": "distro:linuxmint"
+        },
+        "style": {
+          "icon": "distro:linuxmint"
+        }
+      },
+      {
+        "input": {
+          "icon": "distro:popos"
+        },
+        "style": {
+          "icon": "distro:popos"
+        }
+      },
+      {
+        "input": {
+          "icon": "distro:elementary"
+        },
+        "style": {
+          "icon": "distro:elementary"
+        }
+      },
+      {
+        "input": {
+          "icon": "distro:zorin"
+        },
+        "style": {
+          "icon": "distro:zorin"
+        }
+      },
+      {
+        "input": {
+          "icon": "distro:deepin"
+        },
+        "style": {
+          "icon": "distro:deepin"
+        }
+      },
+      {
+        "input": {
+          "icon": "distro:mx"
+        },
+        "style": {
+          "icon": "distro:mx"
+        }
+      },
+      {
+        "input": {
+          "icon": "distro:antix"
+        },
+        "style": {
+          "icon": "distro:antix"
+        }
+      },
+      {
+        "input": {
+          "icon": "distro:biglinux"
+        },
+        "style": {
+          "icon": "distro:biglinux"
+        }
+      },
+      {
+        "input": {
+          "icon": "distro:nobara"
+        },
+        "style": {
+          "icon": "distro:nobara"
+        }
+      },
+      {
+        "input": {
+          "icon": "distro:bazzite"
+        },
+        "style": {
+          "icon": "distro:bazzite"
+        }
+      },
+      {
+        "input": {
+          "icon": "distro:freebsd"
+        },
+        "style": {
+          "icon": "distro:freebsd"
+        }
+      },
+      {
+        "input": {
+          "icon": "distro:macos"
+        },
+        "style": {
+          "icon": "distro:macos"
+        }
+      },
+      {
+        "input": {
+          "icon": "terminal"
+        },
+        "style": {
+          "icon": "terminal"
+        }
+      },
+      {
+        "input": {
+          "icon": "square-terminal"
+        },
+        "style": {
+          "icon": "square-terminal"
+        }
+      },
+      {
+        "input": {
+          "icon": "square-chevron-right"
+        },
+        "style": {
+          "icon": "square-chevron-right"
+        }
+      },
+      {
+        "input": {
+          "icon": "chevron-right"
+        },
+        "style": {
+          "icon": "chevron-right"
+        }
+      },
+      {
+        "input": {
+          "icon": "code"
+        },
+        "style": {
+          "icon": "code"
+        }
+      },
+      {
+        "input": {
+          "icon": "braces"
+        },
+        "style": {
+          "icon": "braces"
+        }
+      },
+      {
+        "input": {
+          "icon": "brackets"
+        },
+        "style": {
+          "icon": "brackets"
+        }
+      },
+      {
+        "input": {
+          "icon": "hash"
+        },
+        "style": {
+          "icon": "hash"
+        }
+      },
+      {
+        "input": {
+          "icon": "binary"
+        },
+        "style": {
+          "icon": "binary"
+        }
+      },
+      {
+        "input": {
+          "icon": "file-code"
+        },
+        "style": {
+          "icon": "file-code"
+        }
+      },
+      {
+        "input": {
+          "icon": "bot"
+        },
+        "style": {
+          "icon": "bot"
+        }
+      },
+      {
+        "input": {
+          "icon": "sparkles"
+        },
+        "style": {
+          "icon": "sparkles"
+        }
+      },
+      {
+        "input": {
+          "icon": "git-branch"
+        },
+        "style": {
+          "icon": "git-branch"
+        }
+      },
+      {
+        "input": {
+          "icon": "git-merge"
+        },
+        "style": {
+          "icon": "git-merge"
+        }
+      },
+      {
+        "input": {
+          "icon": "git-commit-horizontal"
+        },
+        "style": {
+          "icon": "git-commit-horizontal"
+        }
+      },
+      {
+        "input": {
+          "icon": "package"
+        },
+        "style": {
+          "icon": "package"
+        }
+      },
+      {
+        "input": {
+          "icon": "layers"
+        },
+        "style": {
+          "icon": "layers"
+        }
+      },
+      {
+        "input": {
+          "icon": "puzzle"
+        },
+        "style": {
+          "icon": "puzzle"
+        }
+      },
+      {
+        "input": {
+          "icon": "wrench"
+        },
+        "style": {
+          "icon": "wrench"
+        }
+      },
+      {
+        "input": {
+          "icon": "hammer"
+        },
+        "style": {
+          "icon": "hammer"
+        }
+      },
+      {
+        "input": {
+          "icon": "server"
+        },
+        "style": {
+          "icon": "server"
+        }
+      },
+      {
+        "input": {
+          "icon": "database"
+        },
+        "style": {
+          "icon": "database"
+        }
+      },
+      {
+        "input": {
+          "icon": "cloud"
+        },
+        "style": {
+          "icon": "cloud"
+        }
+      },
+      {
+        "input": {
+          "icon": "container"
+        },
+        "style": {
+          "icon": "container"
+        }
+      },
+      {
+        "input": {
+          "icon": "box"
+        },
+        "style": {
+          "icon": "box"
+        }
+      },
+      {
+        "input": {
+          "icon": "cpu"
+        },
+        "style": {
+          "icon": "cpu"
+        }
+      },
+      {
+        "input": {
+          "icon": "hard-drive"
+        },
+        "style": {
+          "icon": "hard-drive"
+        }
+      },
+      {
+        "input": {
+          "icon": "network"
+        },
+        "style": {
+          "icon": "network"
+        }
+      },
+      {
+        "input": {
+          "icon": "globe"
+        },
+        "style": {
+          "icon": "globe"
+        }
+      },
+      {
+        "input": {
+          "icon": "wifi"
+        },
+        "style": {
+          "icon": "wifi"
+        }
+      },
+      {
+        "input": {
+          "icon": "monitor"
+        },
+        "style": {
+          "icon": "monitor"
+        }
+      },
+      {
+        "input": {
+          "icon": "laptop"
+        },
+        "style": {
+          "icon": "laptop"
+        }
+      },
+      {
+        "input": {
+          "icon": "usb"
+        },
+        "style": {
+          "icon": "usb"
+        }
+      },
+      {
+        "input": {
+          "icon": "zap"
+        },
+        "style": {
+          "icon": "zap"
+        }
+      },
+      {
+        "input": {
+          "icon": "flame"
+        },
+        "style": {
+          "icon": "flame"
+        }
+      },
+      {
+        "input": {
+          "icon": "rocket"
+        },
+        "style": {
+          "icon": "rocket"
+        }
+      },
+      {
+        "input": {
+          "icon": "bug"
+        },
+        "style": {
+          "icon": "bug"
+        }
+      },
+      {
+        "input": {
+          "icon": "shield"
+        },
+        "style": {
+          "icon": "shield"
+        }
+      },
+      {
+        "input": {
+          "icon": "lock"
+        },
+        "style": {
+          "icon": "lock"
+        }
+      },
+      {
+        "input": {
+          "icon": "key"
+        },
+        "style": {
+          "icon": "key"
+        }
+      },
+      {
+        "input": {
+          "icon": "star"
+        },
+        "style": {
+          "icon": "star"
+        }
+      },
+      {
+        "input": {
+          "icon": "heart"
+        },
+        "style": {
+          "icon": "heart"
+        }
+      },
+      {
+        "input": {
+          "icon": "flag"
+        },
+        "style": {
+          "icon": "flag"
+        }
+      },
+      {
+        "input": {
+          "icon": "bookmark"
+        },
+        "style": {
+          "icon": "bookmark"
+        }
+      },
+      {
+        "input": {
+          "icon": "bell"
+        },
+        "style": {
+          "icon": "bell"
+        }
+      },
+      {
+        "input": {
+          "icon": "eye"
+        },
+        "style": {
+          "icon": "eye"
+        }
+      },
+      {
+        "input": {
+          "icon": "target"
+        },
+        "style": {
+          "icon": "target"
+        }
+      },
+      {
+        "input": {
+          "icon": "crown"
+        },
+        "style": {
+          "icon": "crown"
+        }
+      },
+      {
+        "input": {
+          "icon": "gem"
+        },
+        "style": {
+          "icon": "gem"
+        }
+      },
+      {
+        "input": {
+          "icon": "anchor"
+        },
+        "style": {
+          "icon": "anchor"
+        }
+      },
+      {
+        "input": {
+          "icon": "compass"
+        },
+        "style": {
+          "icon": "compass"
+        }
+      },
+      {
+        "input": {
+          "icon": "fish"
+        },
+        "style": {
+          "icon": "fish"
+        }
+      },
+      {
+        "input": {
+          "icon": "leaf"
+        },
+        "style": {
+          "icon": "leaf"
+        }
+      },
+      {
+        "input": {
+          "icon": "tree-pine"
+        },
+        "style": {
+          "icon": "tree-pine"
+        }
+      },
+      {
+        "input": {
+          "icon": "sun"
+        },
+        "style": {
+          "icon": "sun"
+        }
+      },
+      {
+        "input": {
+          "icon": "moon"
+        },
+        "style": {
+          "icon": "moon"
+        }
+      },
+      {
+        "input": {
+          "icon": "snowflake"
+        },
+        "style": {
+          "icon": "snowflake"
+        }
+      },
+      {
+        "input": {
+          "icon": "coffee"
+        },
+        "style": {
+          "icon": "coffee"
+        }
+      },
+      {
+        "input": {
+          "icon": "cat"
+        },
+        "style": {
+          "icon": "cat"
+        }
+      },
+      {
+        "input": {
+          "icon": "dog"
+        },
+        "style": {
+          "icon": "dog"
+        }
+      },
+      {
+        "input": {
+          "icon": "bird"
+        },
+        "style": {
+          "icon": "bird"
+        }
+      },
+      {
+        "input": {
+          "icon": "rabbit"
+        },
+        "style": {
+          "icon": "rabbit"
+        }
+      },
+      {
+        "input": {
+          "icon": "turtle"
+        },
+        "style": {
+          "icon": "turtle"
+        }
+      },
+      {
+        "input": {
+          "icon": "ghost"
+        },
+        "style": {
+          "icon": "ghost"
+        }
+      },
+      {
+        "input": {
+          "icon": "skull"
+        },
+        "style": {
+          "icon": "skull"
+        }
+      },
+      {
+        "input": {
+          "icon": "gamepad-2"
+        },
+        "style": {
+          "icon": "gamepad-2"
+        }
+      },
+      {
+        "input": {
+          "icon": "music"
+        },
+        "style": {
+          "icon": "music"
+        }
+      },
+      {
+        "input": {
+          "icon": "palette"
+        },
+        "style": {
+          "icon": "palette"
+        }
+      }
+    ],
+    "normalizedConfigs": [
+      {
+        "config": {
+          "enabled": true,
+          "agents": true,
+          "shells": {}
+        }
+      },
+      {
+        "input": null,
+        "config": {
+          "enabled": true,
+          "agents": true,
+          "shells": {}
+        }
+      },
+      {
+        "input": [],
+        "config": {
+          "enabled": true,
+          "agents": true,
+          "shells": {}
+        }
+      },
+      {
+        "input": {
+          "enabled": false,
+          "agents": false,
+          "shells": {
+            "Git Bash": {
+              "icon": "box"
+            },
+            "cmd": {
+              "icon": "nope"
+            }
+          }
+        },
+        "config": {
+          "enabled": false,
+          "agents": false,
+          "shells": {
+            "git bash": {
+              "icon": "box"
+            }
+          }
+        }
+      },
+      {
+        "input": {
+          "enabled": 0,
+          "agents": "false",
+          "shells": {
+            "  PWSH ": {
+              "icon": "box"
+            },
+            "": {
+              "icon": "rocket"
+            },
+            "   ": {
+              "icon": "rocket"
+            },
+            "zsh": {
+              "color": "#AABBCC"
+            },
+            "cmd": {
+              "color": "#GGGGGG"
+            },
+            "wsl": {
+              "icon": "distro:windows"
+            },
+            "nu": {
+              "icon": "logo:fish"
+            },
+            "fish": {
+              "icon": "agent:claude"
+            },
+            "elvish": {
+              "color": "#abcdef",
+              "icon": "rocket"
+            }
+          }
+        },
+        "config": {
+          "enabled": true,
+          "agents": true,
+          "shells": {
+            "pwsh": {
+              "icon": "box"
+            },
+            "zsh": {
+              "color": "#aabbcc"
+            },
+            "fish": {
+              "icon": "agent:claude"
+            },
+            "elvish": {
+              "icon": "rocket",
+              "color": "#abcdef"
+            }
+          }
+        }
+      },
+      {
+        "input": {
+          "shells": [
+            {
+              "icon": "star"
+            },
+            "nope"
+          ]
+        },
+        "config": {
+          "enabled": true,
+          "agents": true,
+          "shells": {
+            "0": {
+              "icon": "star"
+            }
+          }
+        }
+      }
+    ],
+    "shellsForSettings": [
+      {
+        "platform": "macos",
+        "config": {
+          "enabled": true,
+          "agents": true,
+          "shells": {
+            "nu": {
+              "icon": "box"
+            },
+            "zsh": {
+              "icon": "star"
+            }
+          }
+        },
+        "found": [],
+        "shells": [
+          "zsh",
+          "bash",
+          "fish",
+          "sh",
+          "nu"
+        ]
+      },
+      {
+        "platform": "windows",
+        "config": {
+          "enabled": true,
+          "agents": true,
+          "shells": {}
+        },
+        "found": [],
+        "shells": [
+          "pwsh",
+          "powershell",
+          "cmd",
+          "git bash",
+          "wsl"
+        ]
+      },
+      {
+        "platform": "linux",
+        "config": {
+          "enabled": true,
+          "agents": true,
+          "shells": {}
+        },
+        "found": [
+          "Nu",
+          null,
+          " zsh ",
+          "Σ",
+          "",
+          " zsh "
+        ],
+        "shells": [
+          "zsh",
+          "bash",
+          "fish",
+          "sh",
+          "nu",
+          "σ"
+        ]
+      },
+      {
+        "platform": "windows",
+        "config": {
+          "enabled": true,
+          "agents": true,
+          "shells": {
+            "nu": {
+              "icon": "box"
+            },
+            "elvish": {
+              "icon": "star"
+            }
+          }
+        },
+        "found": [
+          "nu"
+        ],
+        "shells": [
+          "pwsh",
+          "powershell",
+          "cmd",
+          "git bash",
+          "wsl",
+          "nu",
+          "elvish"
+        ]
+      },
+      {
+        "platform": "linux",
+        "config": {
+          "enabled": true,
+          "agents": true,
+          "shells": {
+            "b": {},
+            "A": {},
+            "ä": {},
+            "Σ": {},
+            "🔧": {},
+            "aa": {},
+            "Z": {}
+          }
+        },
+        "found": [],
+        "shells": [
+          "zsh",
+          "bash",
+          "fish",
+          "sh",
+          "A",
+          "Z",
+          "aa",
+          "b",
+          "ä",
+          "Σ",
+          "🔧"
+        ]
+      }
+    ],
+    "resolved": [
+      {
+        "tab": {
+          "type": "terminal",
+          "shellName": "pwsh"
+        },
+        "config": {
+          "enabled": true,
+          "agents": true,
+          "shells": {}
+        },
+        "icon": {
+          "icon": "square-chevron-right",
+          "color": "#3b9ae1"
+        }
+      },
+      {
+        "tab": {
+          "type": "terminal",
+          "shellName": " PWSH　"
+        },
+        "config": {
+          "enabled": true,
+          "agents": true,
+          "shells": {}
+        },
+        "icon": {
+          "icon": "square-chevron-right",
+          "color": "#3b9ae1"
+        }
+      },
+      {
+        "tab": {
+          "type": "terminal",
+          "shellName": "elvish"
+        },
+        "config": {
+          "enabled": true,
+          "agents": true,
+          "shells": {}
+        },
+        "icon": {
+          "icon": "terminal",
+          "color": ""
+        }
+      },
+      {
+        "tab": {
+          "type": "terminal",
+          "shellName": "Σ"
+        },
+        "config": {
+          "enabled": true,
+          "agents": true,
+          "shells": {}
+        },
+        "icon": {
+          "icon": "terminal",
+          "color": ""
+        }
+      },
+      {
+        "tab": {
+          "type": "terminal",
+          "shellName": "pwsh",
+          "iconStyle": {
+            "icon": "rocket",
+            "color": ""
+          }
+        },
+        "config": {
+          "enabled": true,
+          "agents": true,
+          "shells": {
+            "pwsh": {
+              "color": "#e5534b"
+            }
+          }
+        },
+        "icon": {
+          "icon": "rocket",
+          "color": ""
+        }
+      },
+      {
+        "tab": {
+          "type": "ssh"
+        },
+        "config": {
+          "enabled": true,
+          "agents": true,
+          "shells": {}
+        },
+        "icon": {
+          "icon": "server",
+          "color": ""
+        }
+      },
+      {
+        "tab": {
+          "type": "ssh",
+          "distroId": "debian"
+        },
+        "config": {
+          "enabled": true,
+          "agents": true,
+          "shells": {}
+        },
+        "icon": {
+          "icon": "distro:debian",
+          "color": ""
+        }
+      },
+      {
+        "tab": {
+          "type": "ssh",
+          "distroId": "ubuntu",
+          "iconStyle": {
+            "icon": "database",
+            "color": "#e5534b"
+          }
+        },
+        "config": {
+          "enabled": true,
+          "agents": true,
+          "shells": {}
+        },
+        "icon": {
+          "icon": "database",
+          "color": "#e5534b"
+        }
+      },
+      {
+        "tab": {
+          "type": "terminal",
+          "shellName": "WSL"
+        },
+        "config": {
+          "enabled": true,
+          "agents": true,
+          "shells": {}
+        },
+        "icon": {
+          "icon": "terminal",
+          "color": "#e9853a"
+        }
+      },
+      {
+        "tab": {
+          "type": "terminal",
+          "shellName": " WSL ",
+          "distroId": "arch"
+        },
+        "config": {
+          "enabled": true,
+          "agents": true,
+          "shells": {}
+        },
+        "icon": {
+          "icon": "distro:arch",
+          "color": ""
+        }
+      },
+      {
+        "tab": {
+          "type": "terminal",
+          "shellName": "WSL",
+          "distroId": "arch"
+        },
+        "config": {
+          "enabled": true,
+          "agents": true,
+          "shells": {
+            "wsl": {
+              "icon": "rocket"
+            }
+          }
+        },
+        "icon": {
+          "icon": "rocket",
+          "color": ""
+        }
+      },
+      {
+        "tab": {
+          "type": "terminal",
+          "shellName": "pwsh",
+          "distroId": "arch"
+        },
+        "config": {
+          "enabled": true,
+          "agents": true,
+          "shells": {}
+        },
+        "icon": {
+          "icon": "square-chevron-right",
+          "color": "#3b9ae1"
+        }
+      },
+      {
+        "tab": {
+          "type": "remote-file-editor"
+        },
+        "config": {
+          "enabled": true,
+          "agents": true,
+          "shells": {}
+        },
+        "icon": null
+      },
+      {
+        "tab": {
+          "type": "terminal",
+          "shellName": "pwsh"
+        },
+        "config": {
+          "enabled": true,
+          "agents": true,
+          "shells": {}
+        },
+        "agent": "claude",
+        "icon": {
+          "icon": "agent:claude",
+          "color": "#d97757"
+        }
+      },
+      {
+        "tab": {
+          "type": "ssh",
+          "distroId": "debian"
+        },
+        "config": {
+          "enabled": true,
+          "agents": true,
+          "shells": {}
+        },
+        "agent": "pi",
+        "icon": {
+          "icon": "agent:pi",
+          "color": ""
+        }
+      },
+      {
+        "tab": {
+          "type": "ssh"
+        },
+        "config": {
+          "enabled": true,
+          "agents": true,
+          "shells": {}
+        },
+        "agent": "codex",
+        "icon": {
+          "icon": "agent:codex",
+          "color": ""
+        }
+      },
+      {
+        "tab": {
+          "type": "terminal",
+          "shellName": "pwsh"
+        },
+        "config": {
+          "enabled": true,
+          "agents": true,
+          "shells": {}
+        },
+        "agent": "my-agent",
+        "icon": {
+          "icon": "square-chevron-right",
+          "color": "#3b9ae1"
+        }
+      },
+      {
+        "tab": {
+          "type": "terminal",
+          "shellName": "pwsh"
+        },
+        "config": {
+          "enabled": true,
+          "agents": false,
+          "shells": {}
+        },
+        "agent": "claude",
+        "icon": {
+          "icon": "square-chevron-right",
+          "color": "#3b9ae1"
+        }
+      },
+      {
+        "tab": {
+          "type": "terminal",
+          "shellName": "pwsh",
+          "iconStyle": {
+            "icon": "agent:claude"
+          }
+        },
+        "config": {
+          "enabled": true,
+          "agents": false,
+          "shells": {}
+        },
+        "icon": {
+          "icon": "agent:claude",
+          "color": "#3b9ae1"
+        }
+      },
+      {
+        "tab": {
+          "type": "terminal",
+          "shellName": "pwsh",
+          "iconStyle": {
+            "icon": "agent:claude"
+          }
+        },
+        "config": {
+          "enabled": true,
+          "agents": true,
+          "shells": {}
+        },
+        "agent": "codex",
+        "icon": {
+          "icon": "agent:claude",
+          "color": ""
+        }
+      }
+    ],
+    "pickedColors": [
+      {
+        "icon": "logo:docker",
+        "color": "#2496ed"
+      },
+      {
+        "icon": "logo:github",
+        "color": ""
+      },
+      {
+        "icon": "agent:claude",
+        "color": "#d97757"
+      },
+      {
+        "icon": "agent:codex",
+        "color": ""
+      },
+      {
+        "icon": "rocket",
+        "color": null
+      },
+      {
+        "icon": "distro:arch",
+        "color": null
+      }
+    ],
+    "badges": [
+      {
+        "tab": {
+          "type": "terminal",
+          "shellName": "WSL"
+        },
+        "icon": {
+          "icon": "distro:ubuntu",
+          "color": ""
+        },
+        "badge": true
+      },
+      {
+        "tab": {
+          "type": "terminal",
+          "shellName": " WSL "
+        },
+        "icon": {
+          "icon": "distro:arch",
+          "color": ""
+        },
+        "badge": true
+      },
+      {
+        "tab": {
+          "type": "terminal",
+          "shellName": "WSL"
+        },
+        "icon": {
+          "icon": "rocket",
+          "color": ""
+        },
+        "badge": false
+      },
+      {
+        "tab": {
+          "type": "ssh"
+        },
+        "icon": {
+          "icon": "distro:ubuntu",
+          "color": ""
+        },
+        "badge": false
+      },
+      {
+        "tab": {
+          "type": "terminal",
+          "shellName": "zsh"
+        },
+        "icon": {
+          "icon": "distro:ubuntu",
+          "color": ""
+        },
+        "badge": false
+      }
+    ],
+    "localDistro": {
+      "tab": {
+        "id": "a",
+        "title": "WSL",
+        "type": "terminal",
+        "isActive": true
+      },
+      "next": {
+        "id": "a",
+        "title": "WSL",
+        "type": "terminal",
+        "isActive": true,
+        "distroId": "debian"
+      },
+      "again": {
+        "id": "a",
+        "title": "WSL",
+        "type": "terminal",
+        "isActive": true,
+        "distroId": "debian"
+      },
+      "sameAfter": true,
+      "ssh": {
+        "id": "a",
+        "title": "WSL",
+        "type": "ssh",
+        "isActive": true
+      }
+    },
+    "normalizedSsh": {
+      "id": "a",
+      "title": "host",
+      "type": "ssh",
+      "isActive": false
+    },
+    "withShellStyles": {
+      "set": {
+        "enabled": true,
+        "agents": true,
+        "shells": {
+          "zsh": {
+            "icon": "star"
+          }
+        }
+      },
+      "cleared": {
+        "enabled": true,
+        "agents": true,
+        "shells": {}
+      },
+      "invalid": {
+        "enabled": true,
+        "agents": true,
+        "shells": {}
+      },
+      "spaced": {
+        "enabled": true,
+        "agents": true,
+        "shells": {
+          "  ZSH ": {
+            "icon": "star"
+          }
+        }
+      },
+      "emptyKey": {
+        "enabled": true,
+        "agents": true,
+        "shells": {
+          "": {
+            "icon": "star"
+          }
+        }
+      },
+      "renumbered": {
+        "enabled": true,
+        "agents": true,
+        "shells": {
+          "1": {
+            "icon": "star"
+          },
+          "a": {
+            "icon": "box"
+          }
+        }
+      },
+      "renumberedBytes": "{\"enabled\":true,\"agents\":true,\"shells\":{\"1\":{\"icon\":\"star\"},\"a\":{\"icon\":\"box\"}}}"
+    },
+    "shellTabIcons": [
+      {
+        "shellName": "Git Bash",
+        "icon": {
+          "icon": "logo:git",
+          "color": "#f03c2e"
+        }
+      },
+      {
+        "shellName": "nu",
+        "icon": {
+          "icon": "logo:nushell",
+          "color": "#4e9a06"
+        }
+      },
+      {
+        "shellName": "bash",
+        "icon": {
+          "icon": "logo:bash",
+          "color": "#a371f7"
+        }
+      },
+      {
+        "shellName": " zsh　",
+        "icon": {
+          "icon": "logo:zsh",
+          "color": "#f15a24"
+        }
+      },
+      {
+        "shellName": null,
+        "icon": {
+          "icon": "terminal",
+          "color": ""
+        }
+      }
+    ],
+    "serializedConfig": "{\"enabled\":true,\"agents\":true,\"shells\":{\"git bash\":{\"icon\":\"box\"},\"zsh\":{\"color\":\"#aabbcc\"},\"elvish\":{\"icon\":\"logo:docker\",\"color\":\"\"}}}",
+    "serializedNormalizedConfig": {
+      "config": {
+        "enabled": true,
+        "agents": true,
+        "shells": {
+          "1": {
+            "color": "#aabbcc"
+          },
+          "2": {
+            "icon": "star"
+          },
+          "10": {
+            "icon": "rocket"
+          },
+          "pwsh": {
+            "icon": "box"
+          },
+          "zsh": {
+            "icon": "logo:docker",
+            "color": ""
+          }
+        }
+      },
+      "bytes": "{\"enabled\":true,\"agents\":true,\"shells\":{\"1\":{\"color\":\"#aabbcc\"},\"2\":{\"icon\":\"star\"},\"10\":{\"icon\":\"rocket\"},\"pwsh\":{\"icon\":\"box\"},\"zsh\":{\"icon\":\"logo:docker\",\"color\":\"\"}}}"
+    },
+    "serializedRenumberedShells": {
+      "input": {
+        "enabled": true,
+        "agents": true,
+        "shells": {
+          "a": {
+            "icon": "box"
+          },
+          " 1 ": {
+            "icon": "rocket"
+          },
+          " 2 ": {
+            "icon": "star"
+          },
+          "b": {
+            "icon": "fish"
+          }
+        }
+      },
+      "config": {
+        "enabled": true,
+        "agents": true,
+        "shells": {
+          "1": {
+            "icon": "rocket"
+          },
+          "2": {
+            "icon": "star"
+          },
+          "a": {
+            "icon": "box"
+          },
+          "b": {
+            "icon": "fish"
+          }
+        }
+      },
+      "bytes": "{\"enabled\":true,\"agents\":true,\"shells\":{\"1\":{\"icon\":\"rocket\"},\"2\":{\"icon\":\"star\"},\"a\":{\"icon\":\"box\"},\"b\":{\"icon\":\"fish\"}}}"
+    },
+    "serializedStyle": "{\"icon\":\"rocket\",\"color\":\"#abcdef\"}",
+    "serializedDefaultConfig": "{\"enabled\":true,\"agents\":true,\"shells\":{}}",
+    "serializedStyles": [
+      {
+        "input": {
+          "icon": "rocket",
+          "color": "#ABCDEF"
+        },
+        "style": {
+          "icon": "rocket",
+          "color": "#abcdef"
+        },
+        "bytes": "{\"icon\":\"rocket\",\"color\":\"#abcdef\"}"
+      },
+      {
+        "input": {
+          "color": ""
+        },
+        "style": {
+          "color": ""
+        },
+        "bytes": "{\"color\":\"\"}"
+      },
+      {
+        "input": {
+          "icon": "distro:arch"
+        },
+        "style": {
+          "icon": "distro:arch"
+        },
+        "bytes": "{\"icon\":\"distro:arch\"}"
+      }
+    ],
+    "displayNames": [
+      {
+        "key": "pwsh",
+        "name": "PowerShell 7 (pwsh)"
+      },
+      {
+        "key": "powershell",
+        "name": "Windows PowerShell"
+      },
+      {
+        "key": "cmd",
+        "name": "cmd"
+      },
+      {
+        "key": "git bash",
+        "name": "Git Bash"
+      },
+      {
+        "key": "wsl",
+        "name": "WSL"
+      },
+      {
+        "key": "nu",
+        "name": "Nushell"
+      },
+      {
+        "key": "elvish",
+        "name": "elvish"
+      },
+      {
+        "key": "",
+        "name": ""
+      }
+    ],
+    "builtInIcons": [
+      {
+        "key": "pwsh",
+        "icon": {
+          "icon": "square-chevron-right",
+          "color": "#3b9ae1"
+        }
+      },
+      {
+        "key": "powershell",
+        "icon": {
+          "icon": "square-chevron-right",
+          "color": "#3b9ae1"
+        }
+      },
+      {
+        "key": "cmd",
+        "icon": {
+          "icon": "square-terminal",
+          "color": ""
+        }
+      },
+      {
+        "key": "git bash",
+        "icon": {
+          "icon": "logo:git",
+          "color": "#f03c2e"
+        }
+      },
+      {
+        "key": "wsl",
+        "icon": {
+          "icon": "terminal",
+          "color": "#e9853a"
+        }
+      },
+      {
+        "key": "bash",
+        "icon": {
+          "icon": "logo:bash",
+          "color": "#4eaa25"
+        }
+      },
+      {
+        "key": "zsh",
+        "icon": {
+          "icon": "logo:zsh",
+          "color": "#f15a24"
+        }
+      },
+      {
+        "key": "sh",
+        "icon": {
+          "icon": "terminal",
+          "color": "#4caf7a"
+        }
+      },
+      {
+        "key": "fish",
+        "icon": {
+          "icon": "fish",
+          "color": "#4caf7a"
+        }
+      },
+      {
+        "key": "nu",
+        "icon": {
+          "icon": "logo:nushell",
+          "color": "#4e9a06"
+        }
+      },
+      {
+        "key": "elvish",
+        "icon": {
+          "icon": "terminal",
+          "color": ""
+        }
+      },
+      {
+        "key": "",
+        "icon": {
+          "icon": "terminal",
+          "color": ""
+        }
+      }
+    ],
+    "prefixes": [
+      {
+        "icon": "logo:docker",
+        "brand": "docker",
+        "agent": null,
+        "distro": null,
+        "isBrand": true,
+        "isAgent": false,
+        "isDistro": false
+      },
+      {
+        "icon": "logo:fish",
+        "brand": "fish",
+        "agent": null,
+        "distro": null,
+        "isBrand": true,
+        "isAgent": false,
+        "isDistro": false
+      },
+      {
+        "icon": "agent:claude",
+        "brand": null,
+        "agent": "claude",
+        "distro": null,
+        "isBrand": false,
+        "isAgent": true,
+        "isDistro": false
+      },
+      {
+        "icon": "agent:nope",
+        "brand": null,
+        "agent": "nope",
+        "distro": null,
+        "isBrand": false,
+        "isAgent": true,
+        "isDistro": false
+      },
+      {
+        "icon": "distro:arch",
+        "brand": null,
+        "agent": null,
+        "distro": "arch",
+        "isBrand": false,
+        "isAgent": false,
+        "isDistro": true
+      },
+      {
+        "icon": "rocket",
+        "brand": null,
+        "agent": null,
+        "distro": null,
+        "isBrand": false,
+        "isAgent": false,
+        "isDistro": false
+      }
+    ],
+    "agentIcons": [
+      {
+        "agent": "claude",
+        "icon": {
+          "icon": "agent:claude",
+          "color": "#d97757"
+        }
+      },
+      {
+        "agent": "codex",
+        "icon": {
+          "icon": "agent:codex",
+          "color": ""
+        }
+      },
+      {
+        "agent": "opencode",
+        "icon": {
+          "icon": "agent:opencode",
+          "color": ""
+        }
+      },
+      {
+        "agent": "pi",
+        "icon": {
+          "icon": "agent:pi",
+          "color": ""
+        }
+      },
+      {
+        "agent": "my-agent",
+        "icon": null
+      },
+      {
+        "agent": "",
+        "icon": null
+      }
+    ],
+    "sshIcons": [
+      {
+        "distro": null,
+        "icon": {
+          "icon": "server",
+          "color": ""
+        }
+      },
+      {
+        "distro": "debian",
+        "icon": {
+          "icon": "distro:debian",
+          "color": ""
+        }
+      },
+      {
+        "distro": "arch",
+        "icon": {
+          "icon": "distro:arch",
+          "color": ""
+        }
+      }
+    ],
+    "inherited": [
+      {
+        "tab": {
+          "type": "ssh",
+          "distroId": "debian"
+        },
+        "icon": {
+          "icon": "distro:debian",
+          "color": ""
+        }
+      },
+      {
+        "tab": {
+          "type": "ssh"
+        },
+        "icon": {
+          "icon": "server",
+          "color": ""
+        }
+      },
+      {
+        "tab": {
+          "type": "serial",
+          "distroId": "arch"
+        },
+        "icon": {
+          "icon": "usb",
+          "color": ""
+        }
+      },
+      {
+        "tab": {
+          "type": "terminal",
+          "shellName": "pwsh",
+          "distroId": "arch"
+        },
+        "icon": {
+          "icon": "square-chevron-right",
+          "color": "#3b9ae1"
+        }
+      },
+      {
+        "tab": {
+          "type": "terminal",
+          "shellName": "WSL",
+          "distroId": "arch"
+        },
+        "icon": {
+          "icon": "distro:arch",
+          "color": ""
+        }
+      },
+      {
+        "tab": {
+          "type": "terminal",
+          "shellName": "WSL"
+        },
+        "icon": {
+          "icon": "terminal",
+          "color": "#e9853a"
+        }
+      },
+      {
+        "tab": {
+          "type": "terminal",
+          "shellName": "zsh"
+        },
+        "icon": {
+          "icon": "logo:zsh",
+          "color": "#f15a24"
+        }
+      }
+    ],
+    "hasIcons": [
+      {
+        "tab": {
+          "type": "terminal"
+        },
+        "has": true
+      },
+      {
+        "tab": {
+          "type": "ssh"
+        },
+        "has": true
+      },
+      {
+        "tab": {
+          "type": "serial"
+        },
+        "has": true
+      },
+      {
+        "tab": {
+          "type": "settings"
+        },
+        "has": false
+      },
+      {
+        "tab": {
+          "type": "remote-file-editor"
+        },
+        "has": false
+      }
+    ],
+    "appliedStyles": [
+      {
+        "base": {
+          "icon": "terminal",
+          "color": ""
+        },
+        "icon": {
+          "icon": "terminal",
+          "color": ""
+        }
+      },
+      {
+        "base": {
+          "icon": "terminal",
+          "color": ""
+        },
+        "style": {},
+        "icon": {
+          "icon": "terminal",
+          "color": ""
+        }
+      },
+      {
+        "base": {
+          "icon": "terminal",
+          "color": ""
+        },
+        "style": {
+          "icon": "star"
+        },
+        "icon": {
+          "icon": "star",
+          "color": ""
+        }
+      },
+      {
+        "base": {
+          "icon": "terminal",
+          "color": ""
+        },
+        "style": {
+          "color": ""
+        },
+        "icon": {
+          "icon": "terminal",
+          "color": ""
+        }
+      },
+      {
+        "base": {
+          "icon": "terminal",
+          "color": "#123456"
+        },
+        "style": {
+          "color": "#abcdef"
+        },
+        "icon": {
+          "icon": "terminal",
+          "color": "#abcdef"
+        }
+      }
+    ]
+  },
+  "localTabTitle": {
+    "directories": [
+      {
+        "cwd": "",
+        "home": null,
+        "title": null
+      },
+      {
+        "cwd": "D:\\code\\rust\\tTerm",
+        "home": null,
+        "title": "tTerm"
+      },
+      {
+        "cwd": "/home/me/src/",
+        "home": null,
+        "title": "src"
+      },
+      {
+        "cwd": "\\\\server\\share",
+        "home": null,
+        "title": "share"
+      },
+      {
+        "cwd": "C:\\Users\\Me",
+        "home": "C:\\Users\\Me",
+        "title": "~"
+      },
+      {
+        "cwd": "c:/users/me/",
+        "home": "C:\\Users\\Me",
+        "title": "~"
+      },
+      {
+        "cwd": "/c/Users/Me",
+        "home": "C:\\Users\\Me",
+        "title": "~"
+      },
+      {
+        "cwd": "/home/me/src",
+        "home": "/home/me",
+        "title": "src"
+      },
+      {
+        "cwd": "/",
+        "home": "/home/me",
+        "title": "/"
+      },
+      {
+        "cwd": "C:\\",
+        "home": null,
+        "title": "C:\\"
+      },
+      {
+        "cwd": "C:",
+        "home": null,
+        "title": "C:\\"
+      },
+      {
+        "cwd": "  ",
+        "home": null,
+        "title": null
+      },
+      {
+        "cwd": "　/src/﻿",
+        "home": null,
+        "title": "src"
+      },
+      {
+        "cwd": "/工作/项目/",
+        "home": null,
+        "title": "项目"
+      },
+      {
+        "cwd": "/a/😀",
+        "home": null,
+        "title": "😀"
+      },
+      {
+        "cwd": "/a/é",
+        "home": null,
+        "title": "é"
+      },
+      {
+        "cwd": "C:\\用户\\项目\\",
+        "home": null,
+        "title": "项目"
+      },
+      {
+        "cwd": "/c",
+        "home": null,
+        "title": "c"
+      },
+      {
+        "cwd": "1:/x",
+        "home": null,
+        "title": "x"
+      },
+      {
+        "cwd": " /home/me/ ",
+        "home": "/home/me",
+        "title": "~"
+      },
+      {
+        "cwd": "/home/me",
+        "home": "",
+        "title": "me"
+      },
+      {
+        "cwd": "C:\\ΟΣ",
+        "home": "c:\\ος",
+        "title": "~"
+      },
+      {
+        "cwd": "C:\\İ",
+        "home": "c:\\i̇",
+        "title": "~"
+      }
+    ],
+    "commands": [
+      {
+        "command": "",
+        "title": null
+      },
+      {
+        "command": "npm run dev",
+        "title": "npm run dev"
+      },
+      {
+        "command": "  ssh prod  ",
+        "title": "ssh prod"
+      },
+      {
+        "command": "cargo test --all-targets -- -D warnings",
+        "title": "cargo"
+      },
+      {
+        "command": "C:\\tools\\vim.exe notes.txt",
+        "title": "vim notes.txt"
+      },
+      {
+        "command": "& \"C:\\Program Files\\node.exe\" app.js",
+        "title": "node app.js"
+      },
+      {
+        "command": "& .\\build.ps1",
+        "title": "build"
+      },
+      {
+        "command": "RUST_LOG=debug sudo /usr/bin/htop",
+        "title": "htop"
+      },
+      {
+        "command": "sudo RUST_LOG=debug /usr/bin/htop",
+        "title": "htop"
+      },
+      {
+        "command": "变量=值 cmd",
+        "title": "变量=值 cmd"
+      },
+      {
+        "command": "echo 😀😀😀😀😀😀😀",
+        "title": "echo 😀😀😀😀😀😀😀"
+      },
+      {
+        "command": "echo 😀😀😀😀😀😀😀😀",
+        "title": "echo"
+      },
+      {
+        "command": "echo 汉字汉字汉字汉字汉字汉字",
+        "title": "echo 汉字汉字汉字汉字汉字汉字"
+      },
+      {
+        "command": "echo ééééééé",
+        "title": "echo ééééééé"
+      },
+      {
+        "command": "echo\nrm -rf /",
+        "title": "echo rm -rf /"
+      },
+      {
+        "command": "a\n/b",
+        "title": "a /b"
+      },
+      {
+        "command": "\"a b\"",
+        "title": "a b"
+      },
+      {
+        "command": "   ",
+        "title": null
+      },
+      {
+        "command": "sudo",
+        "title": "sudo"
+      },
+      {
+        "command": "& ",
+        "title": "&"
+      },
+      {
+        "command": "& echo hi",
+        "title": "echo hi"
+      },
+      {
+        "command": "FOO=1 bar",
+        "title": "bar"
+      },
+      {
+        "command": "FOO='two words' echo",
+        "title": "words' echo"
+      },
+      {
+        "command": "FOO= echo",
+        "title": "echo"
+      },
+      {
+        "command": "PATH=C:\\a\\b.exe run",
+        "title": "run"
+      },
+      {
+        "command": "12345678901234567890",
+        "title": "12345678901234567890"
+      },
+      {
+        "command": "echo 123456789012345",
+        "title": "echo 123456789012345"
+      },
+      {
+        "command": "echo 1234567890123456",
+        "title": "echo"
+      },
+      {
+        "command": "say \"hello world\"",
+        "title": "say \"hello world\""
+      },
+      {
+        "command": "say 'hello world'",
+        "title": "say 'hello world'"
+      },
+      {
+        "command": "/usr/bin/",
+        "title": null
+      },
+      {
+        "command": "ÉCHO ok",
+        "title": "ÉCHO ok"
+      }
+    ],
+    "running": [
+      {
+        "tab": {
+          "id": "1",
+          "title": "tTerm",
+          "type": "terminal",
+          "isActive": false,
+          "autoTitle": true
+        },
+        "title": "claude · tTerm"
+      },
+      {
+        "tab": {
+          "id": "2",
+          "title": "web/src",
+          "type": "terminal",
+          "isActive": false,
+          "autoTitle": true
+        },
+        "title": "claude · web/src"
+      },
+      {
+        "tab": {
+          "id": "3",
+          "title": "api",
+          "type": "terminal",
+          "isActive": false,
+          "autoTitle": true
+        },
+        "title": "codex"
+      },
+      {
+        "tab": {
+          "id": "4",
+          "title": "named",
+          "type": "terminal",
+          "isActive": false
+        },
+        "title": null
+      },
+      {
+        "tab": {
+          "id": "5",
+          "title": "empty",
+          "type": "terminal",
+          "isActive": false,
+          "autoTitle": true
+        },
+        "title": null
+      },
+      {
+        "tab": {
+          "id": "6",
+          "title": "标签",
+          "type": "terminal",
+          "isActive": false,
+          "autoTitle": true
+        },
+        "title": "echo · 标签"
+      },
+      {
+        "tab": {
+          "id": "7",
+          "title": "另一",
+          "type": "terminal",
+          "isActive": false,
+          "autoTitle": true
+        },
+        "title": "echo · 另一"
+      }
+    ],
+    "localShellTitles": [
+      {
+        "shellName": "WSL",
+        "connection": {
+          "type": "terminal",
+          "terminalShell": "wsl",
+          "terminalShellWslDistro": "Debian"
+        },
+        "title": "Debian"
+      },
+      {
+        "shellName": "WSL",
+        "connection": {
+          "type": "terminal",
+          "terminalShell": "wsl",
+          "terminalShellWslDistro": " 　Debian  "
+        },
+        "title": "Debian"
+      },
+      {
+        "shellName": "WSL",
+        "connection": {
+          "type": "terminal",
+          "terminalShell": "wsl",
+          "terminalShellWslDistro": "   "
+        },
+        "title": "WSL"
+      },
+      {
+        "shellName": "WSL",
+        "connection": {
+          "type": "terminal",
+          "terminalShell": "wsl"
+        },
+        "title": "WSL"
+      },
+      {
+        "shellName": "pwsh",
+        "connection": {
+          "type": "terminal",
+          "terminalShell": "pwsh",
+          "terminalShellWslDistro": "Debian"
+        },
+        "title": "pwsh"
+      },
+      {
+        "shellName": "WSL",
+        "connection": {
+          "type": "terminal",
+          "terminalShell": "custom",
+          "terminalShellWslDistro": "Debian"
+        },
+        "title": "WSL"
+      },
+      {
+        "title": null
+      },
+      {
+        "shellName": "",
+        "connection": {
+          "type": "terminal"
+        },
+        "title": ""
+      },
+      {
+        "shellName": "zsh",
+        "connection": null,
+        "title": "zsh"
+      }
+    ],
+    "cwds": [
+      {
+        "tab": {
+          "id": "1",
+          "title": "1",
+          "type": "terminal",
+          "isActive": false,
+          "autoTitle": true
+        },
+        "cwd": "/work/tTerm",
+        "next": {
+          "id": "1",
+          "title": "tTerm",
+          "type": "terminal",
+          "isActive": false,
+          "autoTitle": true,
+          "connection": {
+            "type": "terminal",
+            "cwd": "/work/tTerm"
+          }
+        },
+        "same": false
+      },
+      {
+        "tab": {
+          "id": "1",
+          "title": "builds",
+          "type": "terminal",
+          "isActive": false
+        },
+        "cwd": "/work/tTerm",
+        "next": {
+          "id": "1",
+          "title": "builds",
+          "type": "terminal",
+          "isActive": false,
+          "connection": {
+            "type": "terminal",
+            "cwd": "/work/tTerm"
+          }
+        },
+        "same": false
+      },
+      {
+        "tab": {
+          "id": "1",
+          "title": "tTerm",
+          "type": "terminal",
+          "isActive": false,
+          "autoTitle": true,
+          "connection": {
+            "type": "terminal",
+            "cwd": "/work/tTerm"
+          }
+        },
+        "cwd": "/work/tTerm",
+        "next": {
+          "id": "1",
+          "title": "tTerm",
+          "type": "terminal",
+          "isActive": false,
+          "autoTitle": true,
+          "connection": {
+            "type": "terminal",
+            "cwd": "/work/tTerm"
+          }
+        },
+        "same": true
+      },
+      {
+        "tab": {
+          "id": "1",
+          "title": "",
+          "type": "terminal",
+          "isActive": false,
+          "autoTitle": true
+        },
+        "cwd": "",
+        "next": {
+          "id": "1",
+          "title": "",
+          "type": "terminal",
+          "isActive": false,
+          "autoTitle": true,
+          "connection": {
+            "type": "terminal",
+            "cwd": ""
+          }
+        },
+        "same": false
+      },
+      {
+        "tab": {
+          "id": "1",
+          "title": "terminal",
+          "type": "terminal",
+          "isActive": false,
+          "autoTitle": true
+        },
+        "cwd": "/x",
+        "next": {
+          "id": "1",
+          "title": "x",
+          "type": "terminal",
+          "isActive": false,
+          "autoTitle": true,
+          "connection": {
+            "type": "terminal",
+            "cwd": "/x"
+          }
+        },
+        "same": false
+      },
+      {
+        "tab": {
+          "id": "1",
+          "title": "ssh",
+          "type": "terminal",
+          "isActive": false,
+          "autoTitle": true,
+          "connection": {
+            "type": "ssh"
+          }
+        },
+        "cwd": "/x",
+        "next": {
+          "id": "1",
+          "title": "x",
+          "type": "terminal",
+          "isActive": false,
+          "autoTitle": true,
+          "connection": {
+            "type": "ssh",
+            "cwd": "/x"
+          }
+        },
+        "same": false
+      }
+    ],
+    "tooltips": [
+      {
+        "tab": {
+          "id": "1",
+          "title": "builds",
+          "type": "terminal",
+          "isActive": false,
+          "connection": {
+            "type": "terminal",
+            "cwd": "/work"
+          }
+        },
+        "tooltip": "builds (/work)"
+      },
+      {
+        "tab": {
+          "id": "1",
+          "title": "pwsh",
+          "type": "terminal",
+          "isActive": false,
+          "connection": {
+            "type": "terminal"
+          }
+        },
+        "tooltip": "pwsh"
+      },
+      {
+        "tab": {
+          "id": "1",
+          "title": "prod",
+          "type": "ssh",
+          "isActive": false,
+          "connection": {
+            "host": "10.0.0.1"
+          }
+        },
+        "tooltip": "prod (10.0.0.1)"
+      },
+      {
+        "tab": {
+          "id": "1",
+          "title": "tTerm",
+          "type": "terminal",
+          "isActive": false,
+          "shellName": "pwsh",
+          "connection": {
+            "type": "terminal",
+            "cwd": "D:\\code\\tTerm"
+          }
+        },
+        "tooltip": "tTerm (D:\\code\\tTerm · pwsh)"
+      },
+      {
+        "tab": {
+          "id": "1",
+          "title": "~",
+          "type": "terminal",
+          "isActive": false,
+          "shellName": "WSL",
+          "connection": {
+            "type": "terminal",
+            "cwd": "/home/me",
+            "terminalShell": "wsl",
+            "terminalShellWslDistro": "Debian"
+          }
+        },
+        "tooltip": "~ (/home/me · Debian)"
+      },
+      {
+        "tab": {
+          "id": "1",
+          "title": "same",
+          "type": "terminal",
+          "isActive": false,
+          "connection": {
+            "type": "terminal",
+            "cwd": "same"
+          }
+        },
+        "tooltip": "same"
+      },
+      {
+        "tab": {
+          "id": "1",
+          "title": "host",
+          "type": "serial",
+          "isActive": false,
+          "connection": {
+            "host": "COM3"
+          }
+        },
+        "tooltip": "host (COM3)"
+      },
+      {
+        "tab": {
+          "id": "1",
+          "title": "no connection",
+          "type": "terminal",
+          "isActive": false
+        },
+        "tooltip": "no connection"
+      }
+    ],
+    "distinct": [
+      {
+        "tabs": [
+          {
+            "id": "1",
+            "title": "",
+            "type": "terminal",
+            "isActive": false,
+            "autoTitle": true,
+            "connection": {
+              "type": "terminal",
+              "cwd": "/work/web/src"
+            }
+          },
+          {
+            "id": "2",
+            "title": "",
+            "type": "terminal",
+            "isActive": false,
+            "autoTitle": true,
+            "connection": {
+              "type": "terminal",
+              "cwd": "/work/api/src"
+            }
+          },
+          {
+            "id": "3",
+            "title": "",
+            "type": "terminal",
+            "isActive": false,
+            "autoTitle": true,
+            "connection": {
+              "type": "terminal",
+              "cwd": "/home/me/api/src"
+            }
+          }
+        ],
+        "home": null,
+        "titles": [
+          "web/src",
+          "work/api/src",
+          "me/api/src"
+        ],
+        "changed": true
+      },
+      {
+        "tabs": [
+          {
+            "id": "1",
+            "title": "",
+            "type": "terminal",
+            "isActive": false,
+            "autoTitle": true,
+            "connection": {
+              "type": "terminal",
+              "cwd": "D:\\code\\tTerm"
+            }
+          },
+          {
+            "id": "2",
+            "title": "",
+            "type": "terminal",
+            "isActive": false,
+            "autoTitle": true,
+            "connection": {
+              "type": "terminal",
+              "cwd": "d:/code/tTerm/"
+            }
+          }
+        ],
+        "home": null,
+        "titles": [
+          "tTerm",
+          "tTerm"
+        ],
+        "changed": true
+      },
+      {
+        "tabs": [
+          {
+            "id": "1",
+            "title": "",
+            "type": "terminal",
+            "isActive": false,
+            "autoTitle": true,
+            "connection": {
+              "type": "terminal",
+              "cwd": "C:\\a\\src"
+            }
+          },
+          {
+            "id": "2",
+            "title": "",
+            "type": "terminal",
+            "isActive": false,
+            "autoTitle": true,
+            "connection": {
+              "type": "terminal",
+              "cwd": "C:\\b\\src"
+            }
+          }
+        ],
+        "home": null,
+        "titles": [
+          "a\\src",
+          "b\\src"
+        ],
+        "changed": true
+      },
+      {
+        "tabs": [
+          {
+            "id": "1",
+            "title": "",
+            "type": "terminal",
+            "isActive": false,
+            "autoTitle": true,
+            "connection": {
+              "type": "terminal",
+              "cwd": "/src"
+            }
+          },
+          {
+            "id": "2",
+            "title": "",
+            "type": "terminal",
+            "isActive": false,
+            "autoTitle": true,
+            "connection": {
+              "type": "terminal",
+              "cwd": "/a/src"
+            }
+          }
+        ],
+        "home": null,
+        "titles": [
+          "/src",
+          "a/src"
+        ],
+        "changed": true
+      },
+      {
+        "tabs": [
+          {
+            "id": "1",
+            "title": "src",
+            "type": "terminal",
+            "isActive": false,
+            "autoTitle": true,
+            "connection": {
+              "type": "terminal",
+              "cwd": "/a/src"
+            }
+          },
+          {
+            "id": "2",
+            "title": "mine",
+            "type": "terminal",
+            "isActive": false,
+            "connection": {
+              "type": "terminal",
+              "cwd": "/b/src"
+            }
+          }
+        ],
+        "home": null,
+        "titles": [
+          "src",
+          "mine"
+        ],
+        "changed": false
+      },
+      {
+        "tabs": [
+          {
+            "id": "1",
+            "title": "",
+            "type": "terminal",
+            "isActive": false,
+            "autoTitle": true,
+            "connection": {
+              "type": "terminal",
+              "cwd": "/home/me"
+            }
+          }
+        ],
+        "home": "/home/me",
+        "titles": [
+          "~"
+        ],
+        "changed": true
+      },
+      {
+        "tabs": [
+          {
+            "id": "1",
+            "title": "",
+            "type": "terminal",
+            "isActive": false,
+            "autoTitle": true,
+            "connection": {
+              "type": "terminal",
+              "cwd": "/工作/项目/src"
+            }
+          },
+          {
+            "id": "2",
+            "title": "",
+            "type": "terminal",
+            "isActive": false,
+            "autoTitle": true,
+            "connection": {
+              "type": "terminal",
+              "cwd": "/其它/项目/src"
+            }
+          }
+        ],
+        "home": null,
+        "titles": [
+          "工作/项目/src",
+          "其它/项目/src"
+        ],
+        "changed": true
+      },
+      {
+        "tabs": [
+          {
+            "id": "1",
+            "title": "",
+            "type": "terminal",
+            "isActive": false,
+            "autoTitle": true,
+            "connection": {
+              "type": "terminal",
+              "cwd": "/a/😀/src"
+            }
+          },
+          {
+            "id": "2",
+            "title": "",
+            "type": "terminal",
+            "isActive": false,
+            "autoTitle": true,
+            "connection": {
+              "type": "terminal",
+              "cwd": "/b/😀/src"
+            }
+          }
+        ],
+        "home": null,
+        "titles": [
+          "a/😀/src",
+          "b/😀/src"
+        ],
+        "changed": true
+      },
+      {
+        "tabs": [
+          {
+            "id": "same",
+            "title": "",
+            "type": "terminal",
+            "isActive": false,
+            "autoTitle": true,
+            "connection": {
+              "type": "terminal",
+              "cwd": "/a/src"
+            }
+          },
+          {
+            "id": "same",
+            "title": "",
+            "type": "terminal",
+            "isActive": false,
+            "autoTitle": true,
+            "connection": {
+              "type": "terminal",
+              "cwd": "/b/src"
+            }
+          }
+        ],
+        "home": null,
+        "titles": [
+          "b/src",
+          "b/src"
+        ],
+        "changed": true
+      },
+      {
+        "tabs": [
+          {
+            "id": "1",
+            "title": "",
+            "type": "terminal",
+            "isActive": false,
+            "connection": {
+              "type": "terminal",
+              "cwd": "/a/src"
+            }
+          },
+          {
+            "id": "2",
+            "title": "",
+            "type": "terminal",
+            "isActive": false,
+            "autoTitle": true,
+            "connection": {
+              "type": "terminal",
+              "cwd": "/b/src"
+            }
+          }
+        ],
+        "home": null,
+        "titles": [
+          "",
+          "src"
+        ],
+        "changed": true
+      },
+      {
+        "tabs": [
+          {
+            "id": "1",
+            "title": "",
+            "type": "terminal",
+            "isActive": false,
+            "autoTitle": true,
+            "connection": {
+              "type": "terminal",
+              "cwd": "/a/é/src"
+            }
+          },
+          {
+            "id": "2",
+            "title": "",
+            "type": "terminal",
+            "isActive": false,
+            "autoTitle": true,
+            "connection": {
+              "type": "terminal",
+              "cwd": "/b/é/src"
+            }
+          }
+        ],
+        "home": null,
+        "titles": [
+          "a/é/src",
+          "b/é/src"
+        ],
+        "changed": true
+      },
+      {
+        "tabs": [
+          {
+            "id": "1",
+            "title": "",
+            "type": "terminal",
+            "isActive": false,
+            "autoTitle": true,
+            "connection": {
+              "type": "terminal",
+              "cwd": "/a/src/"
+            }
+          },
+          {
+            "id": "2",
+            "title": "",
+            "type": "terminal",
+            "isActive": false,
+            "autoTitle": true,
+            "connection": {
+              "type": "terminal",
+              "cwd": "/b/src"
+            }
+          }
+        ],
+        "home": null,
+        "titles": [
+          "a/src",
+          "b/src"
+        ],
+        "changed": true
+      }
+    ],
+    "withDistinct": [
+      "src"
+    ],
+    "legacyTitles": [
+      {
+        "title": "OS terminal",
+        "terminal": true,
+        "ssh": false
+      },
+      {
+        "title": "OS terminal-3",
+        "terminal": true,
+        "ssh": false
+      },
+      {
+        "title": "默认终端",
+        "terminal": false,
+        "ssh": false
+      },
+      {
+        "title": "本地终端",
+        "terminal": true,
+        "ssh": false
+      },
+      {
+        "title": "终端-12",
+        "terminal": true,
+        "ssh": false
+      },
+      {
+        "title": "Terminal",
+        "terminal": true,
+        "ssh": false
+      },
+      {
+        "title": "Local terminal",
+        "terminal": true,
+        "ssh": false
+      },
+      {
+        "title": "Terminal-０",
+        "terminal": false,
+        "ssh": false
+      },
+      {
+        "title": "Terminal-3x",
+        "terminal": false,
+        "ssh": false
+      },
+      {
+        "title": "builds",
+        "terminal": false,
+        "ssh": false
+      }
+    ]
+  },
+  "tabsState": {
+    "remove": [
+      {
+        "name": "active removed first",
+        "tabs": [
+          {
+            "id": "a",
+            "title": "a",
+            "type": "terminal",
+            "isActive": true
+          },
+          {
+            "id": "b",
+            "title": "b",
+            "type": "terminal",
+            "isActive": false
+          },
+          {
+            "id": "c",
+            "title": "c",
+            "type": "terminal",
+            "isActive": false
+          }
+        ],
+        "activeTabId": "a",
+        "ids": [
+          "a"
+        ],
+        "options": {},
+        "result": {
+          "activeTabId": "b",
+          "tabs": [
+            {
+              "id": "b",
+              "title": "b",
+              "type": "terminal",
+              "isActive": true,
+              "hasConnected": true
+            },
+            {
+              "id": "c",
+              "title": "c",
+              "type": "terminal",
+              "isActive": false
+            }
+          ]
+        },
+        "sameReference": false
+      },
+      {
+        "name": "active removed in the middle",
+        "tabs": [
+          {
+            "id": "a",
+            "title": "a",
+            "type": "terminal",
+            "isActive": false
+          },
+          {
+            "id": "b",
+            "title": "b",
+            "type": "terminal",
+            "isActive": true
+          },
+          {
+            "id": "c",
+            "title": "c",
+            "type": "terminal",
+            "isActive": false
+          }
+        ],
+        "activeTabId": "b",
+        "ids": [
+          "b"
+        ],
+        "options": {},
+        "result": {
+          "activeTabId": "c",
+          "tabs": [
+            {
+              "id": "a",
+              "title": "a",
+              "type": "terminal",
+              "isActive": false
+            },
+            {
+              "id": "c",
+              "title": "c",
+              "type": "terminal",
+              "isActive": true,
+              "hasConnected": true
+            }
+          ]
+        },
+        "sameReference": false
+      },
+      {
+        "name": "active removed last",
+        "tabs": [
+          {
+            "id": "a",
+            "title": "a",
+            "type": "terminal",
+            "isActive": false
+          },
+          {
+            "id": "b",
+            "title": "b",
+            "type": "terminal",
+            "isActive": false
+          },
+          {
+            "id": "c",
+            "title": "c",
+            "type": "terminal",
+            "isActive": true
+          }
+        ],
+        "activeTabId": "c",
+        "ids": [
+          "c"
+        ],
+        "options": {},
+        "result": {
+          "activeTabId": "b",
+          "tabs": [
+            {
+              "id": "a",
+              "title": "a",
+              "type": "terminal",
+              "isActive": false
+            },
+            {
+              "id": "b",
+              "title": "b",
+              "type": "terminal",
+              "isActive": true,
+              "hasConnected": true
+            }
+          ]
+        },
+        "sameReference": false
+      },
+      {
+        "name": "unknown active",
+        "tabs": [
+          {
+            "id": "a",
+            "title": "a",
+            "type": "terminal",
+            "isActive": false
+          },
+          {
+            "id": "b",
+            "title": "b",
+            "type": "terminal",
+            "isActive": false
+          }
+        ],
+        "activeTabId": "missing",
+        "ids": [
+          "a"
+        ],
+        "options": {},
+        "result": {
+          "activeTabId": "b",
+          "tabs": [
+            {
+              "id": "b",
+              "title": "b",
+              "type": "terminal",
+              "isActive": true,
+              "hasConnected": true
+            }
+          ]
+        },
+        "sameReference": false
+      },
+      {
+        "name": "null active",
+        "tabs": [
+          {
+            "id": "a",
+            "title": "a",
+            "type": "terminal",
+            "isActive": false
+          },
+          {
+            "id": "b",
+            "title": "b",
+            "type": "terminal",
+            "isActive": false
+          }
+        ],
+        "activeTabId": null,
+        "ids": [
+          "a"
+        ],
+        "options": {},
+        "result": {
+          "activeTabId": "b",
+          "tabs": [
+            {
+              "id": "b",
+              "title": "b",
+              "type": "terminal",
+              "isActive": true,
+              "hasConnected": true
+            }
+          ]
+        },
+        "sameReference": false
+      },
+      {
+        "name": "nothing removed",
+        "tabs": [
+          {
+            "id": "a",
+            "title": "a",
+            "type": "terminal",
+            "isActive": true
+          },
+          {
+            "id": "b",
+            "title": "b",
+            "type": "terminal",
+            "isActive": false
+          }
+        ],
+        "activeTabId": "a",
+        "ids": [
+          "x"
+        ],
+        "options": {},
+        "result": {
+          "tabs": [
+            {
+              "id": "a",
+              "title": "a",
+              "type": "terminal",
+              "isActive": true
+            },
+            {
+              "id": "b",
+              "title": "b",
+              "type": "terminal",
+              "isActive": false
+            }
+          ],
+          "activeTabId": "a"
+        },
+        "sameReference": true
+      },
+      {
+        "name": "empty ids",
+        "tabs": [
+          {
+            "id": "a",
+            "title": "a",
+            "type": "terminal",
+            "isActive": true
+          }
+        ],
+        "activeTabId": "a",
+        "ids": [],
+        "options": {},
+        "result": {
+          "tabs": [
+            {
+              "id": "a",
+              "title": "a",
+              "type": "terminal",
+              "isActive": true
+            }
+          ],
+          "activeTabId": "a"
+        },
+        "sameReference": true
+      },
+      {
+        "name": "all removed",
+        "tabs": [
+          {
+            "id": "a",
+            "title": "a",
+            "type": "terminal",
+            "isActive": true
+          }
+        ],
+        "activeTabId": "a",
+        "ids": [
+          "a"
+        ],
+        "options": {},
+        "result": {
+          "tabs": [],
+          "activeTabId": null
+        },
+        "sameReference": false
+      },
+      {
+        "name": "preferred survives, current survives",
+        "tabs": [
+          {
+            "id": "a",
+            "title": "a",
+            "type": "terminal",
+            "isActive": true,
+            "hasConnected": false
+          },
+          {
+            "id": "b",
+            "title": "b",
+            "type": "terminal",
+            "isActive": false,
+            "hasConnected": true
+          },
+          {
+            "id": "c",
+            "title": "c",
+            "type": "terminal",
+            "isActive": false
+          }
+        ],
+        "activeTabId": "a",
+        "ids": [
+          "c"
+        ],
+        "options": {
+          "preferredActiveTabId": "b"
+        },
+        "result": {
+          "activeTabId": "a",
+          "tabs": [
+            {
+              "id": "a",
+              "title": "a",
+              "type": "terminal",
+              "isActive": true,
+              "hasConnected": true
+            },
+            {
+              "id": "b",
+              "title": "b",
+              "type": "terminal",
+              "isActive": false,
+              "hasConnected": true
+            }
+          ]
+        },
+        "sameReference": false
+      },
+      {
+        "name": "activate preferred",
+        "tabs": [
+          {
+            "id": "a",
+            "title": "a",
+            "type": "terminal",
+            "isActive": true
+          },
+          {
+            "id": "b",
+            "title": "b",
+            "type": "terminal",
+            "isActive": false
+          }
+        ],
+        "activeTabId": "a",
+        "ids": [
+          "c"
+        ],
+        "options": {
+          "preferredActiveTabId": "b",
+          "activatePreferred": true
+        },
+        "result": {
+          "tabs": [
+            {
+              "id": "a",
+              "title": "a",
+              "type": "terminal",
+              "isActive": true
+            },
+            {
+              "id": "b",
+              "title": "b",
+              "type": "terminal",
+              "isActive": false
+            }
+          ],
+          "activeTabId": "a"
+        },
+        "sameReference": true
+      },
+      {
+        "name": "preferred after current removed",
+        "tabs": [
+          {
+            "id": "a",
+            "title": "a",
+            "type": "terminal",
+            "isActive": true
+          },
+          {
+            "id": "b",
+            "title": "b",
+            "type": "terminal",
+            "isActive": false
+          }
+        ],
+        "activeTabId": "a",
+        "ids": [
+          "a"
+        ],
+        "options": {
+          "preferredActiveTabId": "b"
+        },
+        "result": {
+          "activeTabId": "b",
+          "tabs": [
+            {
+              "id": "b",
+              "title": "b",
+              "type": "terminal",
+              "isActive": true,
+              "hasConnected": true
+            }
+          ]
+        },
+        "sameReference": false
+      },
+      {
+        "name": "preferred also removed",
+        "tabs": [
+          {
+            "id": "a",
+            "title": "a",
+            "type": "terminal",
+            "isActive": true
+          },
+          {
+            "id": "b",
+            "title": "b",
+            "type": "terminal",
+            "isActive": false
+          },
+          {
+            "id": "c",
+            "title": "c",
+            "type": "terminal",
+            "isActive": false
+          }
+        ],
+        "activeTabId": "a",
+        "ids": [
+          "a",
+          "b"
+        ],
+        "options": {
+          "preferredActiveTabId": "b"
+        },
+        "result": {
+          "activeTabId": "c",
+          "tabs": [
+            {
+              "id": "c",
+              "title": "c",
+              "type": "terminal",
+              "isActive": true,
+              "hasConnected": true
+            }
+          ]
+        },
+        "sameReference": false
+      },
+      {
+        "name": "empty preferred id",
+        "tabs": [
+          {
+            "id": "",
+            "title": "",
+            "type": "terminal",
+            "isActive": false
+          },
+          {
+            "id": "b",
+            "title": "b",
+            "type": "terminal",
+            "isActive": true
+          }
+        ],
+        "activeTabId": "b",
+        "ids": [
+          "b"
+        ],
+        "options": {
+          "preferredActiveTabId": ""
+        },
+        "result": {
+          "activeTabId": "",
+          "tabs": [
+            {
+              "id": "",
+              "title": "",
+              "type": "terminal",
+              "isActive": true,
+              "hasConnected": true
+            }
+          ]
+        },
+        "sameReference": false
+      },
+      {
+        "name": "empty active id matches a tab",
+        "tabs": [
+          {
+            "id": "",
+            "title": "",
+            "type": "terminal",
+            "isActive": true
+          },
+          {
+            "id": "b",
+            "title": "b",
+            "type": "terminal",
+            "isActive": false
+          }
+        ],
+        "activeTabId": "",
+        "ids": [
+          "x"
+        ],
+        "options": {},
+        "result": {
+          "tabs": [
+            {
+              "id": "",
+              "title": "",
+              "type": "terminal",
+              "isActive": true
+            },
+            {
+              "id": "b",
+              "title": "b",
+              "type": "terminal",
+              "isActive": false
+            }
+          ],
+          "activeTabId": ""
+        },
+        "sameReference": true
+      },
+      {
+        "name": "removing the empty active id",
+        "tabs": [
+          {
+            "id": "",
+            "title": "",
+            "type": "terminal",
+            "isActive": false
+          },
+          {
+            "id": "b",
+            "title": "b",
+            "type": "terminal",
+            "isActive": true
+          }
+        ],
+        "activeTabId": "",
+        "ids": [
+          ""
+        ],
+        "options": {},
+        "result": {
+          "activeTabId": "b",
+          "tabs": [
+            {
+              "id": "b",
+              "title": "b",
+              "type": "terminal",
+              "isActive": true,
+              "hasConnected": true
+            }
+          ]
+        },
+        "sameReference": false
+      },
+      {
+        "name": "duplicate removal ids",
+        "tabs": [
+          {
+            "id": "a",
+            "title": "a",
+            "type": "terminal",
+            "isActive": false
+          },
+          {
+            "id": "b",
+            "title": "b",
+            "type": "terminal",
+            "isActive": true
+          }
+        ],
+        "activeTabId": "b",
+        "ids": [
+          "a",
+          "a"
+        ],
+        "options": {},
+        "result": {
+          "activeTabId": "b",
+          "tabs": [
+            {
+              "id": "b",
+              "title": "b",
+              "type": "terminal",
+              "isActive": true,
+              "hasConnected": true
+            }
+          ]
+        },
+        "sameReference": false
+      },
+      {
+        "name": "inactive hasConnected stays undefined",
+        "tabs": [
+          {
+            "id": "a",
+            "title": "a",
+            "type": "terminal",
+            "isActive": true
+          },
+          {
+            "id": "b",
+            "title": "b",
+            "type": "terminal",
+            "isActive": false
+          }
+        ],
+        "activeTabId": "a",
+        "ids": [
+          "a"
+        ],
+        "options": {},
+        "result": {
+          "activeTabId": "b",
+          "tabs": [
+            {
+              "id": "b",
+              "title": "b",
+              "type": "terminal",
+              "isActive": true,
+              "hasConnected": true
+            }
+          ]
+        },
+        "sameReference": false
+      },
+      {
+        "name": "inactive hasConnected false stays false",
+        "tabs": [
+          {
+            "id": "a",
+            "title": "a",
+            "type": "terminal",
+            "isActive": true
+          },
+          {
+            "id": "b",
+            "title": "b",
+            "type": "terminal",
+            "isActive": false,
+            "hasConnected": false
+          }
+        ],
+        "activeTabId": "a",
+        "ids": [
+          "a"
+        ],
+        "options": {},
+        "result": {
+          "activeTabId": "b",
+          "tabs": [
+            {
+              "id": "b",
+              "title": "b",
+              "type": "terminal",
+              "isActive": true,
+              "hasConnected": true
+            }
+          ]
+        },
+        "sameReference": false
+      }
+    ],
+    "defaults": [
+      {
+        "tab": {
+          "id": "a",
+          "title": "a",
+          "type": "terminal",
+          "isActive": true
+        },
+        "next": {
+          "id": "a",
+          "title": "a",
+          "type": "terminal",
+          "isActive": true,
+          "hasConnected": true,
+          "sessionNonce": 0,
+          "connectionHeaderPinned": true
+        },
+        "fields": {
+          "hasConnected": true,
+          "sessionNonce": 0,
+          "connectionHeaderPinned": true,
+          "connection": "__undefined__"
+        }
+      },
+      {
+        "tab": {
+          "id": "a",
+          "title": "a",
+          "type": "terminal",
+          "isActive": false
+        },
+        "next": {
+          "id": "a",
+          "title": "a",
+          "type": "terminal",
+          "isActive": false,
+          "hasConnected": false,
+          "sessionNonce": 0,
+          "connectionHeaderPinned": true
+        },
+        "fields": {
+          "hasConnected": false,
+          "sessionNonce": 0,
+          "connectionHeaderPinned": true,
+          "connection": "__undefined__"
+        }
+      },
+      {
+        "tab": {
+          "id": "a",
+          "title": "a",
+          "type": "terminal",
+          "isActive": false,
+          "hasConnected": false
+        },
+        "next": {
+          "id": "a",
+          "title": "a",
+          "type": "terminal",
+          "isActive": false,
+          "hasConnected": false,
+          "sessionNonce": 0,
+          "connectionHeaderPinned": true
+        },
+        "fields": {
+          "hasConnected": false,
+          "sessionNonce": 0,
+          "connectionHeaderPinned": true,
+          "connection": "__undefined__"
+        }
+      },
+      {
+        "tab": {
+          "id": "a",
+          "title": "a",
+          "type": "terminal",
+          "isActive": false,
+          "hasConnected": true
+        },
+        "next": {
+          "id": "a",
+          "title": "a",
+          "type": "terminal",
+          "isActive": false,
+          "hasConnected": true,
+          "sessionNonce": 0,
+          "connectionHeaderPinned": true
+        },
+        "fields": {
+          "hasConnected": true,
+          "sessionNonce": 0,
+          "connectionHeaderPinned": true,
+          "connection": "__undefined__"
+        }
+      },
+      {
+        "tab": {
+          "id": "a",
+          "title": "a",
+          "type": "terminal",
+          "isActive": false,
+          "sessionNonce": 7
+        },
+        "next": {
+          "id": "a",
+          "title": "a",
+          "type": "terminal",
+          "isActive": false,
+          "sessionNonce": 7,
+          "hasConnected": false,
+          "connectionHeaderPinned": true
+        },
+        "fields": {
+          "hasConnected": false,
+          "sessionNonce": 7,
+          "connectionHeaderPinned": true,
+          "connection": "__undefined__"
+        }
+      },
+      {
+        "tab": {
+          "id": "a",
+          "title": "a",
+          "type": "terminal",
+          "isActive": false,
+          "connectionHeaderPinned": false
+        },
+        "next": {
+          "id": "a",
+          "title": "a",
+          "type": "terminal",
+          "isActive": false,
+          "connectionHeaderPinned": false,
+          "hasConnected": false,
+          "sessionNonce": 0
+        },
+        "fields": {
+          "hasConnected": false,
+          "sessionNonce": 0,
+          "connectionHeaderPinned": false,
+          "connection": "__undefined__"
+        }
+      },
+      {
+        "tab": {
+          "id": "a",
+          "title": "Settings",
+          "type": "settings",
+          "isActive": true,
+          "connection": {
+            "type": "terminal"
+          },
+          "sessionNonce": 9
+        },
+        "next": {
+          "id": "a",
+          "title": "Settings",
+          "type": "settings",
+          "isActive": true,
+          "sessionNonce": 0,
+          "hasConnected": true
+        },
+        "fields": {
+          "hasConnected": true,
+          "sessionNonce": 0,
+          "connectionHeaderPinned": "__undefined__",
+          "connection": "__undefined__"
+        }
+      },
+      {
+        "tab": {
+          "id": "a",
+          "title": "Tunnels",
+          "type": "tunnels",
+          "isActive": false,
+          "connection": {
+            "host": "x"
+          }
+        },
+        "next": {
+          "id": "a",
+          "title": "Tunnels",
+          "type": "tunnels",
+          "isActive": false,
+          "hasConnected": true,
+          "sessionNonce": 0
+        },
+        "fields": {
+          "hasConnected": true,
+          "sessionNonce": 0,
+          "connectionHeaderPinned": "__undefined__",
+          "connection": "__undefined__"
+        }
+      },
+      {
+        "tab": {
+          "id": "a",
+          "title": "Logs",
+          "type": "logs",
+          "isActive": false
+        },
+        "next": {
+          "id": "a",
+          "title": "Logs",
+          "type": "logs",
+          "isActive": false,
+          "hasConnected": true,
+          "sessionNonce": 0
+        },
+        "fields": {
+          "hasConnected": true,
+          "sessionNonce": 0,
+          "connectionHeaderPinned": "__undefined__",
+          "connection": "__undefined__"
+        }
+      },
+      {
+        "tab": {
+          "id": "a",
+          "title": "file",
+          "type": "remote-file-editor",
+          "isActive": false,
+          "connection": {
+            "host": "x",
+            "username": "me"
+          },
+          "sessionNonce": 3
+        },
+        "next": {
+          "id": "a",
+          "title": "file",
+          "type": "remote-file-editor",
+          "isActive": false,
+          "connection": {
+            "host": "x",
+            "username": "me"
+          },
+          "sessionNonce": 0,
+          "hasConnected": true
+        },
+        "fields": {
+          "hasConnected": true,
+          "sessionNonce": 0,
+          "connectionHeaderPinned": "__undefined__",
+          "connection": {
+            "host": "x",
+            "username": "me"
+          }
+        }
+      },
+      {
+        "tab": {
+          "id": "a",
+          "title": "ssh",
+          "type": "ssh",
+          "isActive": false,
+          "hasConnected": false,
+          "connectionHeaderPinned": false,
+          "sessionNonce": 0,
+          "connection": {
+            "host": "x"
+          }
+        },
+        "next": {
+          "id": "a",
+          "title": "ssh",
+          "type": "ssh",
+          "isActive": false,
+          "hasConnected": false,
+          "connectionHeaderPinned": false,
+          "sessionNonce": 0,
+          "connection": {
+            "host": "x"
+          }
+        },
+        "fields": {
+          "hasConnected": false,
+          "sessionNonce": 0,
+          "connectionHeaderPinned": false,
+          "connection": {
+            "host": "x"
+          }
+        }
+      }
+    ],
+    "duplicateTitles": [
+      {
+        "base": "web",
+        "existing": [],
+        "title": "web-2"
+      },
+      {
+        "base": "web",
+        "existing": [
+          "web-2"
+        ],
+        "title": "web-3"
+      },
+      {
+        "base": "web",
+        "existing": [
+          "web-2",
+          "web-3",
+          "web-4"
+        ],
+        "title": "web-5"
+      },
+      {
+        "base": "web",
+        "existing": [
+          "web-2",
+          "web-4"
+        ],
+        "title": "web-3"
+      },
+      {
+        "base": "",
+        "existing": [
+          "-2"
+        ],
+        "title": "-3"
+      },
+      {
+        "base": "标签",
+        "existing": [
+          "标签-2"
+        ],
+        "title": "标签-3"
+      },
+      {
+        "base": "web",
+        "existing": [
+          "web-2",
+          "web-2"
+        ],
+        "title": "web-3"
+      }
+    ]
+  },
+  "persistence": [
+    {
+      "name": "current simple with unsaved pane and zoom",
+      "layout": {
+        "version": 2,
+        "groups": [
+          {
+            "root": {
+              "type": "split",
+              "orientation": "horizontal",
+              "children": [
+                {
+                  "type": "pane",
+                  "tabId": "a"
+                },
+                {
+                  "type": "pane",
+                  "tabId": "settings"
+                }
+              ],
+              "sizes": [
+                0.5,
+                0.5
+              ]
+            },
+            "activeTabId": "settings",
+            "zoomedTabId": "settings",
+            "unknown": "ignored"
+          },
+          {
+            "root": {
+              "type": "pane",
+              "tabId": "editor"
+            },
+            "activeTabId": "editor"
+          }
+        ]
+      },
+      "tabIds": [
+        "a",
+        "editor"
+      ],
+      "restored": [
+        {
+          "root": {
+            "type": "pane",
+            "tabId": "a"
+          },
+          "activeTabId": "a"
+        },
+        {
+          "root": {
+            "type": "pane",
+            "tabId": "editor"
+          },
+          "activeTabId": "editor"
+        }
+      ],
+      "bytes": "{\"version\":2,\"groups\":[{\"root\":{\"type\":\"pane\",\"tabId\":\"a\"},\"activeTabId\":\"a\"},{\"root\":{\"type\":\"pane\",\"tabId\":\"editor\"},\"activeTabId\":\"editor\"}]}"
+    },
+    {
+      "name": "current with empty and duplicate ids",
+      "layout": {
+        "version": 2,
+        "groups": [
+          {
+            "root": {
+              "type": "split",
+              "orientation": "horizontal",
+              "children": [
+                {
+                  "type": "pane",
+                  "tabId": ""
+                },
+                {
+                  "type": "pane",
+                  "tabId": ""
+                },
+                {
+                  "type": "pane",
+                  "tabId": "a"
+                }
+              ],
+              "sizes": [
+                0.3333333333333333,
+                0.3333333333333333,
+                0.3333333333333333
+              ]
+            },
+            "activeTabId": "",
+            "zoomedTabId": ""
+          },
+          {
+            "root": {
+              "type": "pane",
+              "tabId": "a"
+            },
+            "activeTabId": "missing",
+            "zoomedTabId": "missing"
+          }
+        ]
+      },
+      "tabIds": [
+        "",
+        "a"
+      ],
+      "restored": [
+        {
+          "root": {
+            "type": "split",
+            "orientation": "horizontal",
+            "children": [
+              {
+                "type": "pane",
+                "tabId": ""
+              },
+              {
+                "type": "pane",
+                "tabId": ""
+              },
+              {
+                "type": "pane",
+                "tabId": "a"
+              }
+            ],
+            "sizes": [
+              0.3333333333333333,
+              0.3333333333333333,
+              0.3333333333333333
+            ]
+          },
+          "activeTabId": ""
+        }
+      ],
+      "bytes": "{\"version\":2,\"groups\":[{\"root\":{\"type\":\"split\",\"orientation\":\"horizontal\",\"children\":[{\"type\":\"pane\",\"tabId\":\"\"},{\"type\":\"pane\",\"tabId\":\"\"},{\"type\":\"pane\",\"tabId\":\"a\"}],\"sizes\":[0.3333333333333333,0.3333333333333333,0.3333333333333333]},\"activeTabId\":\"\"}]}"
+    },
+    {
+      "name": "current with malformed groups and sizes",
+      "layout": {
+        "version": 2,
+        "groups": [
+          "nonsense",
+          {
+            "root": {
+              "type": "split",
+              "orientation": "diagonal",
+              "children": [],
+              "sizes": []
+            }
+          },
+          {
+            "root": {
+              "type": "pane",
+              "tabId": 7
+            }
+          },
+          {
+            "root": {
+              "type": "pane",
+              "tabId": "a"
+            },
+            "activeTabId": "a"
+          },
+          {
+            "root": {
+              "type": "split",
+              "orientation": "horizontal",
+              "children": [
+                {
+                  "type": "pane",
+                  "tabId": "a"
+                },
+                {
+                  "type": "pane",
+                  "tabId": "b"
+                },
+                {
+                  "type": "pane",
+                  "tabId": "c"
+                }
+              ],
+              "sizes": [
+                0.5
+              ]
+            },
+            "activeTabId": "b"
+          },
+          {
+            "root": {
+              "type": "split",
+              "orientation": "vertical",
+              "children": [
+                {
+                  "type": "pane",
+                  "tabId": "c"
+                },
+                {
+                  "type": "pane",
+                  "tabId": "a"
+                }
+              ],
+              "sizes": [
+                0,
+                -1,
+                2,
+                3
+              ]
+            },
+            "activeTabId": "c"
+          },
+          {
+            "root": {
+              "type": "split",
+              "orientation": "horizontal",
+              "children": [
+                {
+                  "type": "pane",
+                  "tabId": "b"
+                }
+              ],
+              "sizes": [
+                3
+              ]
+            },
+            "activeTabId": "b"
+          },
+          {
+            "root": {
+              "type": "split",
+              "orientation": "horizontal",
+              "children": [],
+              "sizes": []
+            }
+          }
+        ]
+      },
+      "tabIds": [
+        "a",
+        "b",
+        "c"
+      ],
+      "restored": [
+        {
+          "root": {
+            "type": "pane",
+            "tabId": "a"
+          },
+          "activeTabId": "a"
+        },
+        {
+          "root": {
+            "type": "split",
+            "orientation": "horizontal",
+            "children": [
+              {
+                "type": "pane",
+                "tabId": "b"
+              },
+              {
+                "type": "pane",
+                "tabId": "c"
+              }
+            ],
+            "sizes": [
+              0.5,
+              0.5
+            ]
+          },
+          "activeTabId": "b"
+        }
+      ],
+      "bytes": "{\"version\":2,\"groups\":[{\"root\":{\"type\":\"pane\",\"tabId\":\"a\"},\"activeTabId\":\"a\"},{\"root\":{\"type\":\"split\",\"orientation\":\"horizontal\",\"children\":[{\"type\":\"pane\",\"tabId\":\"b\"},{\"type\":\"pane\",\"tabId\":\"c\"}],\"sizes\":[0.5,0.5]},\"activeTabId\":\"b\"}]}"
+    },
+    {
+      "name": "current with full precision and exponent sizes",
+      "layout": {
+        "version": 2,
+        "groups": [
+          {
+            "root": {
+              "type": "split",
+              "orientation": "horizontal",
+              "children": [
+                {
+                  "type": "pane",
+                  "tabId": "a"
+                },
+                {
+                  "type": "pane",
+                  "tabId": "b"
+                },
+                {
+                  "type": "pane",
+                  "tabId": "c"
+                },
+                {
+                  "type": "pane",
+                  "tabId": "d"
+                },
+                {
+                  "type": "pane",
+                  "tabId": "e"
+                }
+              ],
+              "sizes": [
+                1e-7,
+                0.3333333333333333,
+                1e+21,
+                0.1,
+                17
+              ]
+            },
+            "activeTabId": "c",
+            "zoomedTabId": "a"
+          }
+        ]
+      },
+      "tabIds": [
+        "a",
+        "b",
+        "c",
+        "d",
+        "e"
+      ],
+      "restored": [
+        {
+          "root": {
+            "type": "split",
+            "orientation": "horizontal",
+            "children": [
+              {
+                "type": "pane",
+                "tabId": "a"
+              },
+              {
+                "type": "pane",
+                "tabId": "b"
+              },
+              {
+                "type": "pane",
+                "tabId": "c"
+              },
+              {
+                "type": "pane",
+                "tabId": "d"
+              },
+              {
+                "type": "pane",
+                "tabId": "e"
+              }
+            ],
+            "sizes": [
+              1e-28,
+              3.333333333333333e-22,
+              1,
+              1e-22,
+              1.7e-20
+            ]
+          },
+          "activeTabId": "c",
+          "zoomedTabId": "a"
+        }
+      ],
+      "bytes": "{\"version\":2,\"groups\":[{\"root\":{\"type\":\"split\",\"orientation\":\"horizontal\",\"children\":[{\"type\":\"pane\",\"tabId\":\"a\"},{\"type\":\"pane\",\"tabId\":\"b\"},{\"type\":\"pane\",\"tabId\":\"c\"},{\"type\":\"pane\",\"tabId\":\"d\"},{\"type\":\"pane\",\"tabId\":\"e\"}],\"sizes\":[1e-28,3.333333333333333e-22,1,1e-22,1.7e-20]},\"activeTabId\":\"c\",\"zoomedTabId\":\"a\"}]}"
+    },
+    {
+      "name": "version 2.0",
+      "layout": {
+        "version": 2,
+        "groups": [
+          {
+            "root": {
+              "type": "pane",
+              "tabId": "a"
+            },
+            "activeTabId": "a"
+          }
+        ]
+      },
+      "tabIds": [
+        "a"
+      ],
+      "restored": [
+        {
+          "root": {
+            "type": "pane",
+            "tabId": "a"
+          },
+          "activeTabId": "a"
+        }
+      ],
+      "bytes": "{\"version\":2,\"groups\":[{\"root\":{\"type\":\"pane\",\"tabId\":\"a\"},\"activeTabId\":\"a\"}]}"
+    },
+    {
+      "name": "version string 2 is Dockview",
+      "layout": {
+        "version": "2",
+        "groups": [
+          {
+            "root": {
+              "type": "pane",
+              "tabId": "a"
+            }
+          }
+        ]
+      },
+      "tabIds": [
+        "a"
+      ],
+      "restored": [],
+      "bytes": "{\"version\":2,\"groups\":[]}"
+    },
+    {
+      "name": "old version is Dockview",
+      "layout": {
+        "version": 1,
+        "groups": [
+          {
+            "root": {
+              "type": "pane",
+              "tabId": "a"
+            }
+          }
+        ]
+      },
+      "tabIds": [
+        "a"
+      ],
+      "restored": [],
+      "bytes": "{\"version\":2,\"groups\":[]}"
+    },
+    {
+      "name": "missing version",
+      "layout": {
+        "groups": [
+          {
+            "root": {
+              "type": "pane",
+              "tabId": "a"
+            }
+          }
+        ]
+      },
+      "tabIds": [
+        "a"
+      ],
+      "restored": [],
+      "bytes": "{\"version\":2,\"groups\":[]}"
+    },
+    {
+      "name": "real old resume sample",
+      "layout": {
+        "root": "tab-1"
+      },
+      "tabIds": [
+        "tab-1"
+      ],
+      "restored": [],
+      "bytes": "{\"version\":2,\"groups\":[]}"
+    },
+    {
+      "name": "not a record",
+      "layout": null,
+      "tabIds": [
+        "a"
+      ],
+      "restored": [],
+      "bytes": "{\"version\":2,\"groups\":[]}"
+    },
+    {
+      "name": "array layout",
+      "layout": [
+        1,
+        2
+      ],
+      "tabIds": [
+        "a"
+      ],
+      "restored": [],
+      "bytes": "{\"version\":2,\"groups\":[]}"
+    },
+    {
+      "name": "groups not array",
+      "layout": {
+        "version": 2,
+        "groups": {}
+      },
+      "tabIds": [
+        "a"
+      ],
+      "restored": [],
+      "bytes": "{\"version\":2,\"groups\":[]}"
+    },
+    {
+      "name": "grid not record",
+      "layout": {
+        "grid": []
+      },
+      "tabIds": [
+        "a"
+      ],
+      "restored": [],
+      "bytes": "{\"version\":2,\"groups\":[]}"
+    },
+    {
+      "name": "grid empty",
+      "layout": {
+        "grid": {}
+      },
+      "tabIds": [
+        "a"
+      ],
+      "restored": [],
+      "bytes": "{\"version\":2,\"groups\":[]}"
+    },
+    {
+      "name": "dockview from tests",
+      "layout": {
+        "grid": {
+          "orientation": "HORIZONTAL",
+          "root": {
+            "type": "branch",
+            "data": [
+              {
+                "type": "leaf",
+                "data": {
+                  "id": "1",
+                  "views": [
+                    "a",
+                    "b"
+                  ],
+                  "activeView": "b"
+                },
+                "size": 300
+              },
+              {
+                "type": "branch",
+                "size": 700,
+                "data": [
+                  {
+                    "type": "leaf",
+                    "data": {
+                      "id": "2",
+                      "views": [
+                        "c"
+                      ],
+                      "activeView": "c"
+                    },
+                    "size": 100
+                  },
+                  {
+                    "type": "leaf",
+                    "data": {
+                      "id": "3",
+                      "views": [
+                        "d"
+                      ],
+                      "activeView": "d"
+                    },
+                    "size": 300
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        "panels": {},
+        "activeGroup": "3"
+      },
+      "tabIds": [
+        "a",
+        "b",
+        "c",
+        "d"
+      ],
+      "restored": [
+        {
+          "root": {
+            "type": "pane",
+            "tabId": "a"
+          },
+          "activeTabId": "a"
+        },
+        {
+          "root": {
+            "type": "split",
+            "orientation": "horizontal",
+            "children": [
+              {
+                "type": "pane",
+                "tabId": "b"
+              },
+              {
+                "type": "split",
+                "orientation": "vertical",
+                "children": [
+                  {
+                    "type": "pane",
+                    "tabId": "c"
+                  },
+                  {
+                    "type": "pane",
+                    "tabId": "d"
+                  }
+                ],
+                "sizes": [
+                  0.25,
+                  0.75
+                ]
+              }
+            ],
+            "sizes": [
+              0.3,
+              0.7
+            ]
+          },
+          "activeTabId": "d"
+        }
+      ],
+      "bytes": "{\"version\":2,\"groups\":[{\"root\":{\"type\":\"pane\",\"tabId\":\"a\"},\"activeTabId\":\"a\"},{\"root\":{\"type\":\"split\",\"orientation\":\"horizontal\",\"children\":[{\"type\":\"pane\",\"tabId\":\"b\"},{\"type\":\"split\",\"orientation\":\"vertical\",\"children\":[{\"type\":\"pane\",\"tabId\":\"c\"},{\"type\":\"pane\",\"tabId\":\"d\"}],\"sizes\":[0.25,0.75]}],\"sizes\":[0.3,0.7]},\"activeTabId\":\"d\"}]}"
+    },
+    {
+      "name": "dockview vertical, duplicates and odd views",
+      "layout": {
+        "grid": {
+          "orientation": "VERTICAL",
+          "root": {
+            "type": "branch",
+            "data": [
+              {
+                "type": "leaf",
+                "data": {
+                  "id": "1",
+                  "views": [
+                    "a",
+                    "a",
+                    "",
+                    "b"
+                  ],
+                  "activeView": "missing"
+                },
+                "size": 0
+              },
+              {
+                "type": "leaf",
+                "data": {
+                  "id": "2",
+                  "views": [
+                    "",
+                    "c"
+                  ],
+                  "activeView": "c"
+                }
+              },
+              {
+                "type": "leaf",
+                "data": {
+                  "id": "3",
+                  "views": [],
+                  "activeView": "a"
+                }
+              },
+              {
+                "type": "leaf",
+                "data": {
+                  "id": "4",
+                  "views": [
+                    1,
+                    null,
+                    "d"
+                  ]
+                }
+              },
+              "nonsense",
+              {
+                "type": "branch",
+                "data": "nonsense"
+              },
+              {
+                "type": "unknown",
+                "data": {}
+              },
+              {
+                "type": "leaf",
+                "data": {
+                  "id": "5",
+                  "views": [
+                    "e"
+                  ],
+                  "activeView": 3
+                },
+                "size": -2
+              }
+            ]
+          }
+        },
+        "activeGroup": "5"
+      },
+      "tabIds": [
+        "a",
+        "b",
+        "c",
+        "d",
+        "e"
+      ],
+      "restored": [
+        {
+          "root": {
+            "type": "split",
+            "orientation": "vertical",
+            "children": [
+              {
+                "type": "pane",
+                "tabId": "a"
+              },
+              {
+                "type": "pane",
+                "tabId": "c"
+              },
+              {
+                "type": "pane",
+                "tabId": "d"
+              },
+              {
+                "type": "pane",
+                "tabId": "e"
+              }
+            ],
+            "sizes": [
+              0,
+              0.5,
+              0.5,
+              0
+            ]
+          },
+          "activeTabId": "e"
+        },
+        {
+          "root": {
+            "type": "pane",
+            "tabId": "b"
+          },
+          "activeTabId": "b"
+        }
+      ],
+      "bytes": "{\"version\":2,\"groups\":[{\"root\":{\"type\":\"split\",\"orientation\":\"vertical\",\"children\":[{\"type\":\"pane\",\"tabId\":\"a\"},{\"type\":\"pane\",\"tabId\":\"c\"},{\"type\":\"pane\",\"tabId\":\"d\"},{\"type\":\"pane\",\"tabId\":\"e\"}],\"sizes\":[0,0.5,0.5,0]},\"activeTabId\":\"e\"},{\"root\":{\"type\":\"pane\",\"tabId\":\"b\"},\"activeTabId\":\"b\"}]}"
+    },
+    {
+      "name": "dockview active group maps to behind view",
+      "layout": {
+        "grid": {
+          "root": {
+            "type": "branch",
+            "data": [
+              {
+                "type": "leaf",
+                "data": {
+                  "id": "x",
+                  "views": [
+                    "a",
+                    "b"
+                  ],
+                  "activeView": "a"
+                }
+              }
+            ]
+          }
+        },
+        "activeGroup": "x"
+      },
+      "tabIds": [
+        "a",
+        "b"
+      ],
+      "restored": [
+        {
+          "root": {
+            "type": "pane",
+            "tabId": "a"
+          },
+          "activeTabId": "a"
+        },
+        {
+          "root": {
+            "type": "pane",
+            "tabId": "b"
+          },
+          "activeTabId": "b"
+        }
+      ],
+      "bytes": "{\"version\":2,\"groups\":[{\"root\":{\"type\":\"pane\",\"tabId\":\"a\"},\"activeTabId\":\"a\"},{\"root\":{\"type\":\"pane\",\"tabId\":\"b\"},\"activeTabId\":\"b\"}]}"
+    },
+    {
+      "name": "dockview empty active group id",
+      "layout": {
+        "grid": {
+          "root": {
+            "type": "branch",
+            "data": [
+              {
+                "type": "leaf",
+                "data": {
+                  "id": "",
+                  "views": [
+                    "a"
+                  ]
+                }
+              }
+            ]
+          }
+        },
+        "activeGroup": ""
+      },
+      "tabIds": [
+        "a"
+      ],
+      "restored": [
+        {
+          "root": {
+            "type": "pane",
+            "tabId": "a"
+          },
+          "activeTabId": "a"
+        }
+      ],
+      "bytes": "{\"version\":2,\"groups\":[{\"root\":{\"type\":\"pane\",\"tabId\":\"a\"},\"activeTabId\":\"a\"}]}"
+    },
+    {
+      "name": "dockview unknown panes and duplicate groups",
+      "layout": {
+        "grid": {
+          "root": {
+            "type": "branch",
+            "data": [
+              {
+                "type": "leaf",
+                "data": {
+                  "id": "1",
+                  "views": [
+                    "gone",
+                    "a"
+                  ]
+                }
+              },
+              {
+                "type": "leaf",
+                "data": {
+                  "id": "1",
+                  "views": [
+                    "b"
+                  ]
+                }
+              }
+            ]
+          }
+        },
+        "activeGroup": "1"
+      },
+      "tabIds": [
+        "a",
+        "b"
+      ],
+      "restored": [
+        {
+          "root": {
+            "type": "pane",
+            "tabId": "a"
+          },
+          "activeTabId": "a"
+        },
+        {
+          "root": {
+            "type": "pane",
+            "tabId": "b"
+          },
+          "activeTabId": "b"
+        }
+      ],
+      "bytes": "{\"version\":2,\"groups\":[{\"root\":{\"type\":\"pane\",\"tabId\":\"a\"},\"activeTabId\":\"a\"},{\"root\":{\"type\":\"pane\",\"tabId\":\"b\"},\"activeTabId\":\"b\"}]}"
+    },
+    {
+      "name": "dockview root leaf",
+      "layout": {
+        "grid": {
+          "orientation": "VERTICAL",
+          "root": {
+            "type": "leaf",
+            "data": {
+              "views": [
+                "b",
+                "a"
+              ]
+            }
+          }
+        }
+      },
+      "tabIds": [
+        "a",
+        "b"
+      ],
+      "restored": [
+        {
+          "root": {
+            "type": "pane",
+            "tabId": "a"
+          },
+          "activeTabId": "a"
+        },
+        {
+          "root": {
+            "type": "pane",
+            "tabId": "b"
+          },
+          "activeTabId": "b"
+        }
+      ],
+      "bytes": "{\"version\":2,\"groups\":[{\"root\":{\"type\":\"pane\",\"tabId\":\"a\"},\"activeTabId\":\"a\"},{\"root\":{\"type\":\"pane\",\"tabId\":\"b\"},\"activeTabId\":\"b\"}]}"
+    },
+    {
+      "name": "dockview branch with no valid children",
+      "layout": {
+        "grid": {
+          "root": {
+            "type": "branch",
+            "data": [
+              {
+                "type": "leaf",
+                "data": {
+                  "views": []
+                }
+              }
+            ]
+          }
+        }
+      },
+      "tabIds": [
+        "a"
+      ],
+      "restored": [],
+      "bytes": "{\"version\":2,\"groups\":[]}"
+    },
+    {
+      "name": "dockview unknown fields",
+      "layout": {
+        "version": 7,
+        "unknown": {
+          "deep": [
+            1,
+            2
+          ]
+        },
+        "grid": {
+          "unknown": true,
+          "root": {
+            "type": "branch",
+            "data": [
+              {
+                "type": "leaf",
+                "data": {
+                  "views": [
+                    "a"
+                  ],
+                  "activeView": "a",
+                  "unknown": 1
+                },
+                "size": 4,
+                "unknown": 2
+              }
+            ]
+          }
+        },
+        "panels": {
+          "a": {
+            "id": "a"
+          }
+        }
+      },
+      "tabIds": [
+        "a"
+      ],
+      "restored": [
+        {
+          "root": {
+            "type": "pane",
+            "tabId": "a"
+          },
+          "activeTabId": "a"
+        }
+      ],
+      "bytes": "{\"version\":2,\"groups\":[{\"root\":{\"type\":\"pane\",\"tabId\":\"a\"},\"activeTabId\":\"a\"}]}"
+    }
+  ],
+  "serializeTabGroups": [
+    {
+      "name": "drops unsaved panes and fixes the active and zoom panes",
+      "groups": [
+        {
+          "id": "g1",
+          "root": {
+            "type": "split",
+            "orientation": "horizontal",
+            "children": [
+              {
+                "type": "pane",
+                "tabId": "a"
+              },
+              {
+                "type": "pane",
+                "tabId": "settings"
+              },
+              {
+                "type": "pane",
+                "tabId": "b"
+              }
+            ],
+            "sizes": [
+              0.5,
+              0.25,
+              0.25
+            ]
+          },
+          "activeTabId": "settings",
+          "zoomedTabId": "settings"
+        },
+        {
+          "id": "g2",
+          "root": {
+            "type": "pane",
+            "tabId": "editor"
+          },
+          "activeTabId": "editor"
+        }
+      ],
+      "savedTabIds": [
+        "a",
+        "b"
+      ],
+      "value": {
+        "version": 2,
+        "groups": [
+          {
+            "root": {
+              "type": "split",
+              "orientation": "horizontal",
+              "children": [
+                {
+                  "type": "pane",
+                  "tabId": "a"
+                },
+                {
+                  "type": "pane",
+                  "tabId": "b"
+                }
+              ],
+              "sizes": [
+                0.6666666666666666,
+                0.3333333333333333
+              ]
+            },
+            "activeTabId": "a"
+          }
+        ]
+      },
+      "bytes": "{\"version\":2,\"groups\":[{\"root\":{\"type\":\"split\",\"orientation\":\"horizontal\",\"children\":[{\"type\":\"pane\",\"tabId\":\"a\"},{\"type\":\"pane\",\"tabId\":\"b\"}],\"sizes\":[0.6666666666666666,0.3333333333333333]},\"activeTabId\":\"a\"}]}"
+    },
+    {
+      "name": "keeps empty strings out of optional fields",
+      "groups": [
+        {
+          "id": "g1",
+          "root": {
+            "type": "split",
+            "orientation": "horizontal",
+            "children": [
+              {
+                "type": "pane",
+                "tabId": "a"
+              },
+              {
+                "type": "pane",
+                "tabId": "b"
+              }
+            ],
+            "sizes": [
+              0.5,
+              0.5
+            ]
+          },
+          "activeTabId": "a",
+          "zoomedTabId": ""
+        }
+      ],
+      "savedTabIds": [
+        "a",
+        "b"
+      ],
+      "value": {
+        "version": 2,
+        "groups": [
+          {
+            "root": {
+              "type": "split",
+              "orientation": "horizontal",
+              "children": [
+                {
+                  "type": "pane",
+                  "tabId": "a"
+                },
+                {
+                  "type": "pane",
+                  "tabId": "b"
+                }
+              ],
+              "sizes": [
+                0.5,
+                0.5
+              ]
+            },
+            "activeTabId": "a"
+          }
+        ]
+      },
+      "bytes": "{\"version\":2,\"groups\":[{\"root\":{\"type\":\"split\",\"orientation\":\"horizontal\",\"children\":[{\"type\":\"pane\",\"tabId\":\"a\"},{\"type\":\"pane\",\"tabId\":\"b\"}],\"sizes\":[0.5,0.5]},\"activeTabId\":\"a\"}]}"
+    },
+    {
+      "name": "leaves an active pane undefined in an empty split",
+      "groups": [
+        {
+          "id": "g1",
+          "root": {
+            "type": "split",
+            "orientation": "horizontal",
+            "children": [],
+            "sizes": []
+          },
+          "activeTabId": "missing"
+        }
+      ],
+      "savedTabIds": [],
+      "value": {
+        "version": 2,
+        "groups": [
+          {
+            "root": {
+              "type": "split",
+              "orientation": "horizontal",
+              "children": [],
+              "sizes": []
+            }
+          }
+        ]
+      },
+      "bytes": "{\"version\":2,\"groups\":[{\"root\":{\"type\":\"split\",\"orientation\":\"horizontal\",\"children\":[],\"sizes\":[]}}]}"
+    },
+    {
+      "name": "prints non-finite sizes as null and keeps the shortest form",
+      "groups": [
+        {
+          "id": "g1",
+          "root": {
+            "type": "split",
+            "orientation": "horizontal",
+            "children": [
+              {
+                "type": "pane",
+                "tabId": "a"
+              },
+              {
+                "type": "pane",
+                "tabId": "b"
+              },
+              {
+                "type": "pane",
+                "tabId": "c"
+              }
+            ],
+            "sizes": [
+              null,
+              null,
+              0.3333333333333333
+            ]
+          },
+          "activeTabId": "b"
+        }
+      ],
+      "savedTabIds": [
+        "a",
+        "b",
+        "c"
+      ],
+      "value": {
+        "version": 2,
+        "groups": [
+          {
+            "root": {
+              "type": "split",
+              "orientation": "horizontal",
+              "children": [
+                {
+                  "type": "pane",
+                  "tabId": "a"
+                },
+                {
+                  "type": "pane",
+                  "tabId": "b"
+                },
+                {
+                  "type": "pane",
+                  "tabId": "c"
+                }
+              ],
+              "sizes": [
+                null,
+                null,
+                0.3333333333333333
+              ]
+            },
+            "activeTabId": "b"
+          }
+        ]
+      },
+      "bytes": "{\"version\":2,\"groups\":[{\"root\":{\"type\":\"split\",\"orientation\":\"horizontal\",\"children\":[{\"type\":\"pane\",\"tabId\":\"a\"},{\"type\":\"pane\",\"tabId\":\"b\"},{\"type\":\"pane\",\"tabId\":\"c\"}],\"sizes\":[null,null,0.3333333333333333]},\"activeTabId\":\"b\"}]}"
+    }
+  ],
+  "regexAudit": [
+    {
+      "pattern": "\\\\",
+      "flags": "g",
+      "positive": {
+        "input": "a\\b",
+        "matches": true
+      },
+      "negative": {
+        "input": "ab",
+        "matches": false
+      }
+    },
+    {
+      "pattern": "^/([A-Za-z])(/|$)",
+      "flags": "",
+      "positive": {
+        "input": "/c/Users",
+        "matches": true
+      },
+      "negative": {
+        "input": "/1/Users",
+        "matches": false
+      }
+    },
+    {
+      "pattern": "/+$",
+      "flags": "",
+      "positive": {
+        "input": "C:/Users///",
+        "matches": true
+      },
+      "negative": {
+        "input": "C:/Users",
+        "matches": false
+      }
+    },
+    {
+      "pattern": "^[A-Za-z]:",
+      "flags": "",
+      "positive": {
+        "input": "C:/Users",
+        "matches": true
+      },
+      "negative": {
+        "input": "1:/Users",
+        "matches": false
+      }
+    },
+    {
+      "pattern": "[\\\\/]+$",
+      "flags": "",
+      "positive": {
+        "input": "C:\\Users\\\\",
+        "matches": true
+      },
+      "negative": {
+        "input": "C:\\Users",
+        "matches": false
+      }
+    },
+    {
+      "pattern": "^[A-Za-z]:$",
+      "flags": "",
+      "positive": {
+        "input": "C:",
+        "matches": true
+      },
+      "negative": {
+        "input": "C:\\",
+        "matches": false
+      }
+    },
+    {
+      "pattern": "^(?:sudo|&|\\w+=\\S*)\\s+",
+      "flags": "",
+      "positive": {
+        "input": "sudo /usr/bin/htop",
+        "matches": true
+      },
+      "negative": {
+        "input": "变量=值 cmd",
+        "matches": false
+      }
+    },
+    {
+      "pattern": "^([\"'])(.*?)\\1",
+      "flags": "",
+      "positive": {
+        "input": "\"C:\\Program Files\"",
+        "matches": true
+      },
+      "negative": {
+        "input": "\"unterminated'",
+        "matches": false
+      }
+    },
+    {
+      "pattern": "\\s",
+      "flags": "",
+      "positive": {
+        "input": "a b",
+        "matches": true
+      },
+      "negative": {
+        "input": "ab",
+        "matches": false
+      }
+    },
+    {
+      "pattern": "\\s+",
+      "flags": "g",
+      "positive": {
+        "input": "a  b",
+        "matches": true
+      },
+      "negative": {
+        "input": "ab",
+        "matches": false
+      }
+    },
+    {
+      "pattern": "^.*[\\\\/]",
+      "flags": "",
+      "positive": {
+        "input": "C:\\tools\\vim.exe",
+        "matches": true
+      },
+      "negative": {
+        "input": "vim.exe",
+        "matches": false
+      }
+    },
+    {
+      "pattern": "\\.(exe|cmd|bat|com|ps1)$",
+      "flags": "i",
+      "positive": {
+        "input": "BUILD.PS1",
+        "matches": true
+      },
+      "negative": {
+        "input": "build.ps1 ",
+        "matches": false
+      }
+    },
+    {
+      "pattern": "[\\\\/]+",
+      "flags": "",
+      "positive": {
+        "input": "a\\\\b/c",
+        "matches": true
+      },
+      "negative": {
+        "input": "abc",
+        "matches": false
+      }
+    },
+    {
+      "pattern": "-\\d+$",
+      "flags": "",
+      "positive": {
+        "input": "OS terminal-3",
+        "matches": true
+      },
+      "negative": {
+        "input": "Terminal-０",
+        "matches": false
+      }
+    },
+    {
+      "pattern": "^-\\d+$",
+      "flags": "",
+      "positive": {
+        "input": "-12",
+        "matches": true
+      },
+      "negative": {
+        "input": "-１２",
+        "matches": false
+      }
+    },
+    {
+      "pattern": "^#[0-9a-f]{6}$",
+      "flags": "i",
+      "positive": {
+        "input": "#AABBCC",
+        "matches": true
+      },
+      "negative": {
+        "input": "#GGGGGG",
+        "matches": false
+      }
+    }
+  ]
+}
