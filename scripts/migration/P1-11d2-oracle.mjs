@@ -26,10 +26,6 @@ export async function invoke() { return null }
 const tauriPathUrl = dataUrl(`
 export async function homeDir() { return "/home/me" }
 `)
-const closedTabsUrl = dataUrl(`
-export function placeReopenedTabs(groups) { return groups }
-export function reopenedActiveTabId(layout, ids) { return ids[0] }
-`)
 
 const tabTypesUrl = moduleUrl("src/types/tab.ts")
 const brandLogosUrl = moduleUrl("src/lib/brandLogos.ts")
@@ -49,6 +45,11 @@ const localTabTitleUrl = moduleUrl("src/lib/localTabTitle.ts", {
 const tabGroupsUrl = moduleUrl("src/lib/tabGroups.ts")
 const paneTemplatesUrl = moduleUrl("src/lib/paneTemplates.ts", {
   "@/lib/tabGroups": tabGroupsUrl,
+})
+const closedTabsUrl = moduleUrl("src/lib/closedTabs.ts", {
+  "@/lib/paneTemplates": paneTemplatesUrl,
+  "@/lib/tabGroups": tabGroupsUrl,
+  "@/types/tab": tabTypesUrl,
 })
 const persistenceUrl = moduleUrl("src/lib/tabGroupsPersistence.ts", {
   "@/lib/tabGroups": tabGroupsUrl,
@@ -1307,5 +1308,19 @@ audit("-\\d+$", "", "OS terminal-3", "Terminal-０")
 audit("^-\\d+$", "", "-12", "-１２")
 audit("^#[0-9a-f]{6}$", "i", "#AABBCC", "#GGGGGG")
 output.regexAudit = regexAudit
+
+output.sessionTabs = await Promise.all([
+  { id: "1", title: "t", type: "terminal", isActive: false, shellName: "zsh", iconStyle: { icon: 5 } },
+  { id: "1", title: "t", type: "terminal", isActive: false, connection: { terminalShell: "nushell" } },
+  { futureFirst: { nested: 1 }, id: "1", title: "t", type: "ssh", futureMiddle: true, isActive: false, connection: { future: 1, port: "22", terminalShell: "nushell", tail: null }, futureLast: [1, 2] },
+  { id: "1", title: "t", type: "ssh", isActive: "yes", pid: -1, connection: { port: "22" } },
+  { id: "1", title: "t", type: "ssh", isActive: false, iconStyle: { icon: 5, color: "#AABBCC", unknown: 1 }, distroId: "plan9" },
+  { id: "1", title: "t", type: "ssh", isActive: null, hasConnected: "yes", sessionNonce: -1, connectionHeaderPinned: 0, pid: 1.5 },
+].map(async input => {
+  const read = JSON.parse(JSON.stringify(input))
+  const ssh = tabIcons.normalizeSavedSshTab(read)
+  const refreshed = (await localTabTitle.refreshSavedLocalTabs([read]))[0]
+  return { input, readBytes: JSON.stringify(read), ssh, sshBytes: JSON.stringify(ssh), refreshed, refreshedBytes: JSON.stringify(refreshed) }
+}))
 
 process.stdout.write(`${JSON.stringify(output, null, 2)}\n`)

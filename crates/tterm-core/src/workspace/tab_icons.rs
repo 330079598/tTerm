@@ -548,15 +548,27 @@ pub fn normalize_saved_ssh_tab(tab: &Tab) -> Tab {
         return tab.clone();
     }
     let mut saved = tab.clone();
-    saved.icon_style = tab
-        .icon_style
-        .as_ref()
-        .and_then(|style| normalize_style_fields(style.icon.as_deref(), style.color.as_deref()));
+    let raw_style = tab.saved_field("iconStyle").cloned().or_else(|| {
+        tab.icon_style
+            .as_ref()
+            .and_then(|style| serde_json::to_value(style).ok())
+    });
+    saved.icon_style = raw_style.as_ref().and_then(normalize_tab_icon_style);
+    if let Some(style) = &saved.icon_style {
+        if let Ok(value) = serde_json::to_value(style) {
+            saved.raw_fields.insert("iconStyle".to_string(), value);
+        }
+    } else {
+        saved.forget_saved_field("iconStyle");
+    }
     saved.distro_id = tab
         .distro_id
         .as_deref()
         .filter(|value| is_distro_id(value))
         .map(str::to_owned);
+    if saved.distro_id.is_none() {
+        saved.forget_saved_field("distroId");
+    }
     saved
 }
 

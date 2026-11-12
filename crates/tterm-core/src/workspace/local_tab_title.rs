@@ -20,6 +20,21 @@ const LEGACY_LOCAL_TITLES: &[&str] = &[
 /// A running command title longer than this shows as its program alone.
 pub const MAX_COMMAND_TITLE_LENGTH: usize = 20;
 
+/// Normalizes a restored local tab after the platform resolves its shell name.
+pub fn normalize_saved_local_tab(tab: &Tab, shell_name: &str) -> Tab {
+    if tab.tab_type != TabType::Terminal {
+        return tab.clone();
+    }
+    let mut candidate = tab.clone();
+    candidate.tab_type = TabType::Ssh;
+    candidate = crate::workspace::tab_icons::normalize_saved_ssh_tab(&candidate);
+    candidate.tab_type = TabType::Terminal;
+    if candidate.shell_name.as_deref().is_none_or(str::is_empty) {
+        candidate.shell_name = Some(shell_name.to_string());
+    }
+    candidate
+}
+
 static GIT_BASH_DRIVE: LazyLock<Option<Regex>> =
     LazyLock::new(|| Regex::new(r"^/([A-Za-z])(/|$)").ok());
 static DRIVE_PREFIX: LazyLock<Option<Regex>> = LazyLock::new(|| Regex::new(r"^[A-Za-z]:").ok());

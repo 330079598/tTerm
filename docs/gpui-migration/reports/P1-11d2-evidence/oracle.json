@@ -6709,5 +6709,245 @@
         "matches": false
       }
     }
+  ],
+  "sessionTabs": [
+    {
+      "input": {
+        "id": "1",
+        "title": "t",
+        "type": "terminal",
+        "isActive": false,
+        "shellName": "zsh",
+        "iconStyle": {
+          "icon": 5
+        }
+      },
+      "readBytes": "{\"id\":\"1\",\"title\":\"t\",\"type\":\"terminal\",\"isActive\":false,\"shellName\":\"zsh\",\"iconStyle\":{\"icon\":5}}",
+      "ssh": {
+        "id": "1",
+        "title": "t",
+        "type": "terminal",
+        "isActive": false,
+        "shellName": "zsh",
+        "iconStyle": {
+          "icon": 5
+        }
+      },
+      "sshBytes": "{\"id\":\"1\",\"title\":\"t\",\"type\":\"terminal\",\"isActive\":false,\"shellName\":\"zsh\",\"iconStyle\":{\"icon\":5}}",
+      "refreshed": {
+        "id": "1",
+        "title": "t",
+        "type": "terminal",
+        "isActive": false,
+        "shellName": "zsh"
+      },
+      "refreshedBytes": "{\"id\":\"1\",\"title\":\"t\",\"type\":\"terminal\",\"isActive\":false,\"shellName\":\"zsh\"}"
+    },
+    {
+      "input": {
+        "id": "1",
+        "title": "t",
+        "type": "terminal",
+        "isActive": false,
+        "connection": {
+          "terminalShell": "nushell"
+        }
+      },
+      "readBytes": "{\"id\":\"1\",\"title\":\"t\",\"type\":\"terminal\",\"isActive\":false,\"connection\":{\"terminalShell\":\"nushell\"}}",
+      "ssh": {
+        "id": "1",
+        "title": "t",
+        "type": "terminal",
+        "isActive": false,
+        "connection": {
+          "terminalShell": "nushell"
+        }
+      },
+      "sshBytes": "{\"id\":\"1\",\"title\":\"t\",\"type\":\"terminal\",\"isActive\":false,\"connection\":{\"terminalShell\":\"nushell\"}}",
+      "refreshed": {
+        "id": "1",
+        "title": "t",
+        "type": "terminal",
+        "isActive": false,
+        "connection": {
+          "terminalShell": "nushell"
+        },
+        "shellName": "Terminal"
+      },
+      "refreshedBytes": "{\"id\":\"1\",\"title\":\"t\",\"type\":\"terminal\",\"isActive\":false,\"connection\":{\"terminalShell\":\"nushell\"},\"shellName\":\"Terminal\"}"
+    },
+    {
+      "input": {
+        "futureFirst": {
+          "nested": 1
+        },
+        "id": "1",
+        "title": "t",
+        "type": "ssh",
+        "futureMiddle": true,
+        "isActive": false,
+        "connection": {
+          "future": 1,
+          "port": "22",
+          "terminalShell": "nushell",
+          "tail": null
+        },
+        "futureLast": [
+          1,
+          2
+        ]
+      },
+      "readBytes": "{\"futureFirst\":{\"nested\":1},\"id\":\"1\",\"title\":\"t\",\"type\":\"ssh\",\"futureMiddle\":true,\"isActive\":false,\"connection\":{\"future\":1,\"port\":\"22\",\"terminalShell\":\"nushell\",\"tail\":null},\"futureLast\":[1,2]}",
+      "ssh": {
+        "futureFirst": {
+          "nested": 1
+        },
+        "id": "1",
+        "title": "t",
+        "type": "ssh",
+        "futureMiddle": true,
+        "isActive": false,
+        "connection": {
+          "future": 1,
+          "port": "22",
+          "terminalShell": "nushell",
+          "tail": null
+        },
+        "futureLast": [
+          1,
+          2
+        ]
+      },
+      "sshBytes": "{\"futureFirst\":{\"nested\":1},\"id\":\"1\",\"title\":\"t\",\"type\":\"ssh\",\"futureMiddle\":true,\"isActive\":false,\"connection\":{\"future\":1,\"port\":\"22\",\"terminalShell\":\"nushell\",\"tail\":null},\"futureLast\":[1,2]}",
+      "refreshed": {
+        "futureFirst": {
+          "nested": 1
+        },
+        "id": "1",
+        "title": "t",
+        "type": "ssh",
+        "futureMiddle": true,
+        "isActive": false,
+        "connection": {
+          "future": 1,
+          "port": "22",
+          "terminalShell": "nushell",
+          "tail": null
+        },
+        "futureLast": [
+          1,
+          2
+        ]
+      },
+      "refreshedBytes": "{\"futureFirst\":{\"nested\":1},\"id\":\"1\",\"title\":\"t\",\"type\":\"ssh\",\"futureMiddle\":true,\"isActive\":false,\"connection\":{\"future\":1,\"port\":\"22\",\"terminalShell\":\"nushell\",\"tail\":null},\"futureLast\":[1,2]}"
+    },
+    {
+      "input": {
+        "id": "1",
+        "title": "t",
+        "type": "ssh",
+        "isActive": "yes",
+        "pid": -1,
+        "connection": {
+          "port": "22"
+        }
+      },
+      "readBytes": "{\"id\":\"1\",\"title\":\"t\",\"type\":\"ssh\",\"isActive\":\"yes\",\"pid\":-1,\"connection\":{\"port\":\"22\"}}",
+      "ssh": {
+        "id": "1",
+        "title": "t",
+        "type": "ssh",
+        "isActive": "yes",
+        "pid": -1,
+        "connection": {
+          "port": "22"
+        }
+      },
+      "sshBytes": "{\"id\":\"1\",\"title\":\"t\",\"type\":\"ssh\",\"isActive\":\"yes\",\"pid\":-1,\"connection\":{\"port\":\"22\"}}",
+      "refreshed": {
+        "id": "1",
+        "title": "t",
+        "type": "ssh",
+        "isActive": "yes",
+        "pid": -1,
+        "connection": {
+          "port": "22"
+        }
+      },
+      "refreshedBytes": "{\"id\":\"1\",\"title\":\"t\",\"type\":\"ssh\",\"isActive\":\"yes\",\"pid\":-1,\"connection\":{\"port\":\"22\"}}"
+    },
+    {
+      "input": {
+        "id": "1",
+        "title": "t",
+        "type": "ssh",
+        "isActive": false,
+        "iconStyle": {
+          "icon": 5,
+          "color": "#AABBCC",
+          "unknown": 1
+        },
+        "distroId": "plan9"
+      },
+      "readBytes": "{\"id\":\"1\",\"title\":\"t\",\"type\":\"ssh\",\"isActive\":false,\"iconStyle\":{\"icon\":5,\"color\":\"#AABBCC\",\"unknown\":1},\"distroId\":\"plan9\"}",
+      "ssh": {
+        "id": "1",
+        "title": "t",
+        "type": "ssh",
+        "isActive": false,
+        "iconStyle": {
+          "color": "#aabbcc"
+        }
+      },
+      "sshBytes": "{\"id\":\"1\",\"title\":\"t\",\"type\":\"ssh\",\"isActive\":false,\"iconStyle\":{\"color\":\"#aabbcc\"}}",
+      "refreshed": {
+        "id": "1",
+        "title": "t",
+        "type": "ssh",
+        "isActive": false,
+        "iconStyle": {
+          "icon": 5,
+          "color": "#AABBCC",
+          "unknown": 1
+        },
+        "distroId": "plan9"
+      },
+      "refreshedBytes": "{\"id\":\"1\",\"title\":\"t\",\"type\":\"ssh\",\"isActive\":false,\"iconStyle\":{\"icon\":5,\"color\":\"#AABBCC\",\"unknown\":1},\"distroId\":\"plan9\"}"
+    },
+    {
+      "input": {
+        "id": "1",
+        "title": "t",
+        "type": "ssh",
+        "isActive": null,
+        "hasConnected": "yes",
+        "sessionNonce": -1,
+        "connectionHeaderPinned": 0,
+        "pid": 1.5
+      },
+      "readBytes": "{\"id\":\"1\",\"title\":\"t\",\"type\":\"ssh\",\"isActive\":null,\"hasConnected\":\"yes\",\"sessionNonce\":-1,\"connectionHeaderPinned\":0,\"pid\":1.5}",
+      "ssh": {
+        "id": "1",
+        "title": "t",
+        "type": "ssh",
+        "isActive": null,
+        "hasConnected": "yes",
+        "sessionNonce": -1,
+        "connectionHeaderPinned": 0,
+        "pid": 1.5
+      },
+      "sshBytes": "{\"id\":\"1\",\"title\":\"t\",\"type\":\"ssh\",\"isActive\":null,\"hasConnected\":\"yes\",\"sessionNonce\":-1,\"connectionHeaderPinned\":0,\"pid\":1.5}",
+      "refreshed": {
+        "id": "1",
+        "title": "t",
+        "type": "ssh",
+        "isActive": null,
+        "hasConnected": "yes",
+        "sessionNonce": -1,
+        "connectionHeaderPinned": 0,
+        "pid": 1.5
+      },
+      "refreshedBytes": "{\"id\":\"1\",\"title\":\"t\",\"type\":\"ssh\",\"isActive\":null,\"hasConnected\":\"yes\",\"sessionNonce\":-1,\"connectionHeaderPinned\":0,\"pid\":1.5}"
+    }
   ]
 }

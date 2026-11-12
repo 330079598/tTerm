@@ -1,11 +1,13 @@
 //! Tab and context-menu value types, from `src/types/tab.ts`.
 
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
+use serde_json::{Map, Value};
 
 use crate::distro::DistroId;
 use crate::keymap::actions::KeymapActionId;
 use crate::workspace::tab_icons::TabIconStyle;
+
+mod serde_impl;
 
 /// A tab that runs a terminal, an SSH connection or a serial connection.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -39,7 +41,7 @@ pub enum TabType {
     RemoteFileEditor,
 }
 
-/// The shell a local tab starts.
+/// The known shells a local tab starts; unknown saved values remain in its raw fields.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum TerminalShellType {
@@ -59,182 +61,130 @@ pub enum TerminalShellType {
     Custom,
 }
 
-/// The connection fields a tab carries, from `Tab["connection"]`.
-#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
-#[serde(default, rename_all = "camelCase")]
+/// The connection fields a tab carries, including unrecognized saved fields.
+#[derive(Debug, Clone, Default)]
 pub struct TabConnection {
     /// The kind of connection.
-    #[serde(rename = "type", skip_serializing_if = "Option::is_none")]
     pub connection_type: Option<ConnectionType>,
     /// The saved connection the tab was opened from.
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub profile_id: Option<String>,
     /// The saved connection's display name.
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub profile_name: Option<String>,
     /// The remote host.
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub host: Option<String>,
-    /// The remote SSH port.
-    #[serde(skip_serializing_if = "Option::is_none")]
+    /// The remote SSH port, when it is a valid unsigned integer.
     pub port: Option<u32>,
     /// The remote user name.
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub username: Option<String>,
     /// A password typed for this tab.
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub password: Option<String>,
     /// Whether a saved password is ignored.
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub ignore_saved_password: Option<bool>,
     /// Whether the password should be remembered.
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub remember_password: Option<bool>,
     /// The SSH keepalive interval in seconds.
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub keepalive_interval_secs: Option<u32>,
     /// The SSH keepalive retry count.
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub keepalive_count_max: Option<u32>,
     /// Whether the server monitor is visible.
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub server_monitor_visible: Option<bool>,
     /// The authentication method.
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub auth_method: Option<String>,
     /// Whether agent forwarding is enabled.
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub agent_forward: Option<bool>,
     /// The private key path.
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub private_key_path: Option<String>,
     /// The private key passphrase.
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub private_key_passphrase: Option<String>,
     /// The OpenSSH certificate path.
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub certificate_path: Option<String>,
-    /// The shell a local tab starts.
-    #[serde(skip_serializing_if = "Option::is_none")]
+    /// The known shell kind, when recognized.
     pub terminal_shell: Option<TerminalShellType>,
     /// A custom shell path.
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub terminal_shell_custom_path: Option<String>,
     /// Arguments for a custom shell.
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub terminal_shell_custom_args: Option<String>,
     /// The user's saved shell id.
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub terminal_shell_id: Option<String>,
     /// The WSL distribution a WSL shell starts.
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub terminal_shell_wsl_distro: Option<String>,
     /// The last directory a local shell reported.
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub cwd: Option<String>,
     /// An AI session to resume after a restart.
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub agent_resume: Option<Value>,
     /// The ordered SSH jump host chain.
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub jump_hosts: Option<Value>,
     /// The remote shell's character encoding.
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub encoding: Option<String>,
     /// The terminal color theme.
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub terminal_theme: Option<String>,
     /// Commands typed once the shell is ready.
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub login_script: Option<String>,
     /// Whether shell integration is requested.
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub ssh_shell_integration: Option<bool>,
     /// The tab's session logging policy.
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub session_log: Option<String>,
     /// Where the SFTP drawer opens.
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub sftp_start_directory: Option<Value>,
     /// Whether SFTP works as root through sudo.
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub sftp_sudo: Option<bool>,
     /// The keyword highlight set.
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub highlight_set: Option<String>,
     /// The proxy used to reach the first host.
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub proxy: Option<Value>,
     /// Serial port settings.
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub serial: Option<Value>,
+    /// Original fields, in JavaScript object enumeration order.
+    pub(crate) raw_fields: Map<String, Value>,
 }
 
-/// A tab of the tab bar.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
+/// A tab with typed accessors and lossless storage for old session fields.
+#[derive(Debug, Clone)]
 pub struct Tab {
     /// The tab's unique id, which pane trees refer to.
     pub id: String,
     /// The title shown in the tab bar.
     pub title: String,
-    /// What the tab shows.
-    #[serde(rename = "type")]
+    /// What the tab shows, when recognized.
     pub tab_type: TabType,
     /// Whether the tab is in front in its group.
-    #[serde(default)]
     pub is_active: bool,
     /// Whether the tab's session has connected at least once.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub has_connected: Option<bool>,
     /// Whether the tab's content has unsaved changes.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub is_modified: Option<bool>,
     /// The tab's icon name in the web client.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub icon: Option<String>,
-    /// The process id of a local shell.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    /// The process id of a local shell, when it is a valid unsigned integer.
     pub pid: Option<u32>,
     /// The generation of the session this tab opens.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub session_nonce: Option<u32>,
     /// Whether the connection header stays visible; missing means pinned.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub connection_header_pinned: Option<bool>,
     /// The base name a duplicated tab numbers its copies from.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub duplicate_base_title: Option<String>,
     /// Whether the title follows the shell's directory and command.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub auto_title: Option<bool>,
     /// The shell a local tab runs.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub shell_name: Option<String>,
-    /// The icon and color chosen for this tab.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    /// The icon and color chosen for this tab, when structurally valid.
     pub icon_style: Option<TabIconStyle>,
-    /// The reported Linux distribution, kept as a string to accept old data.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    /// The reported Linux distribution, including unknown saved strings.
     pub distro_id: Option<String>,
     /// Whether this is an unsaved quick connection.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub quick_connect: Option<bool>,
     /// The authentication method a quick connection used.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub quick_connect_auth: Option<Value>,
     /// The settings section a page tab should show.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub settings_section: Option<String>,
     /// A counter that makes repeated settings requests observable.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub settings_request: Option<u32>,
     /// The saved connection the tab was opened from.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub connection: Option<TabConnection>,
     /// The remote file a file-editor tab shows.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub remote_file: Option<Value>,
+    /// Original fields, in JavaScript object enumeration order.
+    pub(crate) raw_fields: Map<String, Value>,
 }
 
 impl Tab {
@@ -262,7 +212,13 @@ impl Tab {
             settings_request: None,
             connection: None,
             remote_file: None,
+            raw_fields: Map::new(),
         }
+    }
+
+    /// Removes a saved field before normalization replaces or drops its value.
+    pub(crate) fn forget_saved_field(&mut self, key: &str) {
+        self.raw_fields.shift_remove(key);
     }
 }
 

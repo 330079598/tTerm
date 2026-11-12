@@ -7,6 +7,7 @@ mod pane_navigation;
 mod pane_templates;
 mod persistence;
 mod regex_audit;
+mod session_tabs;
 mod tab_agent_indicator;
 mod tab_attention;
 mod tab_closing;
