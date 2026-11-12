@@ -1,18 +1,16 @@
 use super::*;
-use tauri::ipc::{Channel, InvokeResponseBody};
 #[test]
 fn adapter_close_releases_a_blocked_sender_and_drains_queued_bytes() {
     let captured = Arc::new(Mutex::new(0usize));
     let received = captured.clone();
     let (tx, rx) = std::sync::mpsc::channel();
-    let output = crate::session_sink::output::new(Channel::new(move |body| {
-        let InvokeResponseBody::Raw(bytes) = body else {
-            panic!("expected raw bytes")
-        };
-        *received.lock().unwrap() += bytes.len();
-        tx.send(bytes.len()).unwrap();
-        Ok(())
-    }));
+    let output = recording_output(
+        move |bytes| {
+            *received.lock().unwrap() += bytes.len();
+            tx.send(bytes.len()).unwrap();
+        },
+        Arc::new(OutputFlow::default()),
+    );
     let sink = test_sink(output);
     let sender_sink = sink.clone();
     let (done_tx, done_rx) = std::sync::mpsc::channel();

@@ -1,6 +1,5 @@
 use super::pty_fixture::PtyFixture;
 use super::*;
-use tauri::ipc::{Channel, InvokeResponseBody};
 use tterm_core::session::recording::{RecordingSessionSink, SessionRecord};
 use tterm_core::session::sink::SessionSink;
 struct ReaderGuard {
@@ -24,15 +23,13 @@ fn real_pty_output_pauses_until_ack_then_drains_before_exit() {
     let captured = Arc::new(RecordingSessionSink::default());
     let recorded = captured.clone();
     let (delivered_tx, delivered_rx) = std::sync::mpsc::channel();
-    let channel = Channel::new(move |body| {
-        let InvokeResponseBody::Raw(bytes) = body else {
-            panic!("expected raw bytes")
-        };
-        recorded.send_bytes(bytes.clone()).unwrap();
-        delivered_tx.send(bytes.len()).unwrap();
-        Ok(())
-    });
-    let output = crate::session_sink::output::with_flow(channel, flow.clone());
+    let output = recording_output(
+        move |bytes| {
+            recorded.send_bytes(bytes.clone()).unwrap();
+            delivered_tx.send(bytes.len()).unwrap();
+        },
+        flow.clone(),
+    );
     let fixture = PtyFixture::spawn(&format!(
         "stty -echo -opost; python3 -c 'import sys; sys.stdout.buffer.write(bytes(range(256))*{})'",
         total / 256

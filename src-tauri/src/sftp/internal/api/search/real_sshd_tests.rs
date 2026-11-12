@@ -6,43 +6,48 @@ use super::find::{FindOutcome, FindSearch};
 use super::matcher::NameMatcher;
 use super::walk::walk;
 use super::{MAX_RESULTS, ResultSink};
-use crate::event_sink::search::TauriSearchResultSink;
 use crate::sftp::internal::launcher::ChannelLauncher;
 use crate::ssh::test_sshd::{TempDir, TestSshd};
 use std::path::Path;
 use std::sync::{Arc, Mutex};
-use tauri::ipc::{Channel, InvokeResponseBody};
 use tokio::sync::watch;
+use tterm_core::sftp::search::SearchResultSink;
 
 const SFTP: &str = "Subsystem sftp internal-sftp\n";
 
 /// A sink whose matches land in a list of paths relative to `root`.
 fn sink(root: &Path) -> (ResultSink, Arc<Mutex<Vec<String>>>) {
-    let found = Arc::new(Mutex::new(Vec::new()));
-    let collected = found.clone();
-    let prefix = format!("{}/", root.display());
-    let channel = Channel::new(move |body| {
-        let InvokeResponseBody::Json(json) = body else {
-            return Ok(());
-        };
-        let event: serde_json::Value = serde_json::from_str(&json).expect("event json");
-        if event["kind"] == "matches" {
-            for entry in event["entries"].as_array().expect("entries") {
-                let path = entry["path"].as_str().expect("path");
-                let relative = path.strip_prefix(&prefix).unwrap_or(path);
-                collected.lock().unwrap().push(relative.to_string());
-            }
-        }
-        Ok(())
-    });
+    let found: Arc<Mutex<Vec<String>>> = Arc::new(Mutex::new(Vec::new()));
     (
         ResultSink {
-            channel: Arc::new(TauriSearchResultSink::new(channel)),
+            channel: Arc::new(RecordingSearchResultSink {
+                found: found.clone(),
+                prefix: format!("{}/", root.display()),
+            }),
             found: 0,
             truncated: false,
         },
         found,
     )
+}
+
+/// Collects a search's matches as paths relative to the search root.
+struct RecordingSearchResultSink {
+    found: Arc<Mutex<Vec<String>>>,
+    prefix: String,
+}
+
+impl SearchResultSink for RecordingSearchResultSink {
+    fn send(&self, event: tterm_core::sftp::search::SearchEvent) -> Result<(), String> {
+        if let tterm_core::sftp::search::SearchEvent::Matches { entries } = event {
+            for entry in entries {
+                let path = entry.path;
+                let relative = path.strip_prefix(&self.prefix).unwrap_or(&path);
+                self.found.lock().unwrap().push(relative.to_string());
+            }
+        }
+        Ok(())
+    }
 }
 
 fn write(root: &Path, relative: &str) {

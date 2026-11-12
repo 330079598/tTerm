@@ -4,7 +4,10 @@ use crate::terminal::output::TerminalOutput;
 use tokio::sync::{mpsc, watch};
 
 fn output() -> TerminalOutput {
-    crate::session_sink::output::new(tauri::ipc::Channel::new(|_| Ok(())))
+    TerminalOutput::new(
+        Arc::new(|_bytes: Vec<u8>| Ok(())),
+        Arc::new(crate::terminal::io_batcher::OutputFlow::default()),
+    )
 }
 
 fn session(session_nonce: u32, runtime: &tokio::runtime::Runtime) -> PtySession {
