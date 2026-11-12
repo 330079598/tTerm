@@ -787,6 +787,20 @@ const normalizeCases = [
       updatedAt: 2,
     },
   ]),
+  normalizeCase("shuffled terminal order", [
+    {
+      id: "shuffled-terminal",
+      name: "Shuffled terminal",
+      colors: {},
+      terminal: {
+        selectionForeground: "#fff",
+        background: "#000",
+        cursorAccent: "#111",
+      },
+      createdAt: 1,
+      updatedAt: 2,
+    },
+  ]),
 ]
 
 const importedTheme = {
@@ -1018,6 +1032,7 @@ const output = {
     normalizedMixedJson: JSON.stringify(normalizeCases[0].value),
     normalizedEdgeJson: JSON.stringify(normalizeCases[1].value),
     normalizedStringJson: JSON.stringify(normalizeCases[2].value),
+    normalizedShuffledJson: JSON.stringify(normalizeCases[3].value),
     defaultTerminalJson: JSON.stringify(definitions.PRESET_THEMES[0].terminal),
     blurTerminalJson: JSON.stringify(
       terminalPalette.withWindowBlur(definitions.PRESET_THEMES[0].terminal, true)

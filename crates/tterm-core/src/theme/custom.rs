@@ -91,11 +91,8 @@ fn normalize_custom_theme(value: &Value, now: i64) -> Option<CustomTheme> {
     let terminal_entries = object.get("terminal").and_then(spread_entries);
     let (terminal, raw_terminal) = match terminal_entries {
         Some(entries) => {
-            let map: serde_json::Map<String, Value> = entries.iter().cloned().collect();
-            (
-                palette_text_from_entries(&entries),
-                RawObject::canonical_terminal(&map),
-            )
+            let terminal = palette_text_from_entries(&entries);
+            (terminal, RawObject::from_entries(entries))
         }
         None => {
             let terminal = fallback.terminal().clone();
@@ -103,7 +100,10 @@ fn normalize_custom_theme(value: &Value, now: i64) -> Option<CustomTheme> {
                 .ok()
                 .and_then(|value| value.as_object().cloned())
                 .unwrap_or_default();
-            (terminal, RawObject::canonical_terminal(&map))
+            (
+                terminal,
+                RawObject::from_entries(map.into_iter().collect()),
+            )
         }
     };
     let raw_colors = RawObject::from_entries(color_entries);

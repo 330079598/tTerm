@@ -2,10 +2,10 @@
 
 use serde::ser::{SerializeMap, SerializeStruct};
 use serde::{Serialize, Serializer};
-use serde_json::{Map, Value};
+use serde_json::Value;
 use std::sync::OnceLock;
 
-use tterm_terminal::theme::{OptionalText, PaletteText, TERMINAL_PALETTE_KEYS, ThemeColors};
+use tterm_terminal::theme::{OptionalText, PaletteText, ThemeColors};
 
 /// The ids of the six built-in themes, in display order.
 pub const PRESET_THEME_IDS: [&str; 6] = ["default", "light", "ocean", "forest", "sunset", "ubuntu"];
@@ -119,32 +119,6 @@ impl RawObject {
         Self { entries: indices }
     }
 
-    /// Reorders the keys a map has in the frontend's canonical order.
-    ///
-    /// Keys the canonical order does not name follow, as an object spread
-    /// appends unknown properties; integer-index keys still move first. The
-    /// map itself comes from `serde_json`, so the order of the remaining
-    /// extra keys is the backend's sorted order rather than the original text
-    /// order.
-    pub(crate) fn canonical(map: &Map<String, Value>, keys: &[&str]) -> Self {
-        let mut entries = Vec::with_capacity(map.len());
-        for key in keys {
-            if let Some(value) = map.get(*key) {
-                entries.push(((*key).to_string(), value.clone()));
-            }
-        }
-        for (key, value) in map {
-            if !keys.contains(&key.as_str()) {
-                entries.push((key.clone(), value.clone()));
-            }
-        }
-        Self::from_entries(entries)
-    }
-
-    /// Reorders terminal colors with the known keys first.
-    pub(crate) fn canonical_terminal(map: &Map<String, Value>) -> Self {
-        Self::canonical(map, &TERMINAL_PALETTE_KEYS)
-    }
 }
 
 fn array_index(key: &str) -> Option<u32> {

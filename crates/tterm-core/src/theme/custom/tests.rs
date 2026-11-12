@@ -72,6 +72,7 @@ fn normalized_custom_theme_json_matches_the_oracle_byte_for_byte() {
         "normalizedMixedJson",
         "normalizedEdgeJson",
         "normalizedStringJson",
+        "normalizedShuffledJson",
     ]
     .into_iter()
     .enumerate()
