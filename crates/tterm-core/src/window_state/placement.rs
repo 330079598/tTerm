@@ -4,11 +4,11 @@ use super::state::Bounds;
 
 /// A monitor's area in physical pixels.
 #[derive(Clone, Copy, Debug)]
-pub(super) struct Area {
-    pub(super) x: i32,
-    pub(super) y: i32,
-    pub(super) width: u32,
-    pub(super) height: u32,
+pub struct Area {
+    pub x: i32,
+    pub y: i32,
+    pub width: u32,
+    pub height: u32,
 }
 
 /// How much of the window's top edge, in physical pixels, must lie on a
@@ -18,7 +18,7 @@ const GRAB_WIDTH: i64 = 100;
 /// Whether a window at `bounds` has its top edge on some monitor, with
 /// enough of it there to drag the window. Bounds saved on a monitor that has
 /// since been unplugged, or with the title bar above every screen, fail.
-pub(super) fn top_edge_on_screen(bounds: Bounds, monitors: &[Area]) -> bool {
+pub fn top_edge_on_screen(bounds: Bounds, monitors: &[Area]) -> bool {
     let left = i64::from(bounds.x);
     let right = left + i64::from(bounds.width);
     let top = i64::from(bounds.y);
@@ -34,7 +34,7 @@ pub(super) fn top_edge_on_screen(bounds: Bounds, monitors: &[Area]) -> bool {
 }
 
 /// `bounds` moved to the middle of `area` and shrunk to fit inside it.
-pub(super) fn centered(bounds: Bounds, area: Area) -> Bounds {
+pub fn centered(bounds: Bounds, area: Area) -> Bounds {
     let width = bounds.width.min(area.width);
     let height = bounds.height.min(area.height);
     let offset = |free: u32| i32::try_from(free / 2).unwrap_or(i32::MAX);

@@ -5,9 +5,9 @@ use serde::{Deserialize, Serialize};
 /// Outer position and inner size in physical pixels, the way the window
 /// reports and takes them.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
-pub(super) struct Bounds {
-    pub(super) x: i32,
-    pub(super) y: i32,
-    pub(super) width: u32,
-    pub(super) height: u32,
+pub struct Bounds {
+    pub x: i32,
+    pub y: i32,
+    pub width: u32,
+    pub height: u32,
 }

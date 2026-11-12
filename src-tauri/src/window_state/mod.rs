@@ -5,19 +5,17 @@
 //! out of backups and sync, so one machine's window layout never lands on
 //! another machine's screens.
 
-mod placement;
-mod state;
 #[cfg(test)]
 mod tests;
 
-use placement::{Area, centered, top_edge_on_screen};
 use serde::{Deserialize, Serialize};
-use state::Bounds;
 use std::sync::Mutex;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::Duration;
 use tauri::{AppHandle, Manager, PhysicalPosition, PhysicalSize, WebviewWindow, WindowEvent};
 use tterm_core::db::meta;
+use tterm_core::window_state::placement::{Area, centered, top_edge_on_screen};
+use tterm_core::window_state::state::Bounds;
 
 const KEY: &str = "window_state";
 

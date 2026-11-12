@@ -86,6 +86,8 @@ pub mod tunnel;
 pub mod updater;
 /// Update routing and cache policy.
 pub mod updates;
+/// Saved window geometry and the monitors it fits.
+pub mod window_state;
 /// Workspace panes, tab navigation and tab menu models.
 pub mod workspace;
 /// The I/O-free half of the ZMODEM file transfer.
