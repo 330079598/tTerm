@@ -181,7 +181,10 @@ pub(crate) fn apply_backup_state(connection: &Connection, state: &Value) -> Resu
     Ok(())
 }
 
-/// Imports the values localStorage has on the first start, once.
+/// Imports the values localStorage has on the first start, once. Existing
+/// backend rows win on that first start: without a marker they can only have
+/// come from GPUI or from an import in a degraded session, so they are newer
+/// than the 0.8.x copy. Only missing keys are filled from localStorage.
 fn migrate(
     connection: &Connection,
     legacy: &HashMap<String, String>,
@@ -217,28 +220,35 @@ fn migrate(
             }
             continue;
         };
-        let Some(fingerprint_key) = fingerprint_key(key) else {
+        if !migrated {
+            if let Some(stored) = stored.as_ref() {
+                store_fingerprint(connection, key, stored)?;
+            } else {
+                meta::set(connection, storage_key, &value)?;
+                store_fingerprint(connection, key, &value)?;
+            }
             continue;
-        };
+        }
+
+        let fingerprint_key =
+            fingerprint_key(key).ok_or_else(|| format!("Unknown frontend state key '{key}'."))?;
         let canonical_value = canonical(&value)?;
         let fingerprint = meta::get::<String>(connection, fingerprint_key)?;
-        if migrated {
-            if stored.is_some() && fingerprint.as_deref() == Some(&canonical_value) {
-                continue;
-            }
-            if stored.as_ref() == Some(&value) {
-                store_fingerprint(connection, key, &value)?;
-                continue;
-            }
-            if stored.is_none() {
-                eprintln!(
-                    "Re-importing frontend state '{key}' because the stored value is missing or invalid."
-                );
-            } else if fingerprint.as_deref() != Some(&canonical_value) {
-                eprintln!(
-                    "Re-importing frontend state '{key}' from localStorage after an older version changed it."
-                );
-            }
+        if stored.is_some() && fingerprint.as_deref() == Some(&canonical_value) {
+            continue;
+        }
+        if stored.as_ref() == Some(&value) {
+            store_fingerprint(connection, key, &value)?;
+            continue;
+        }
+        if stored.is_none() {
+            eprintln!(
+                "Re-importing frontend state '{key}' because the stored value is missing or invalid."
+            );
+        } else if fingerprint.as_deref() != Some(&canonical_value) {
+            eprintln!(
+                "Re-importing frontend state '{key}' from localStorage after an older version changed it."
+            );
         }
         if stored.as_ref() != Some(&value) {
             meta::set(connection, storage_key, &value)?;
@@ -400,6 +410,31 @@ mod tests {
             .write(|connection| migrate(connection, &legacy_state()))
             .unwrap();
         assert_eq!(state["recentCommands"][0]["id"], "c1");
+    }
+
+    #[test]
+    fn existing_backend_values_win_on_the_first_migration() {
+        let database = Database::open_in_memory().unwrap();
+        let backend = json!([{"id": "from-gpui"}]);
+        database
+            .write(|connection| meta::set(connection, "frontend.recent_commands", &backend))
+            .unwrap();
+
+        let state = database
+            .write(|connection| migrate(connection, &legacy_state()))
+            .unwrap();
+
+        assert_eq!(state["recentCommands"], backend);
+        assert_eq!(state["recentProfiles"][0]["profileId"], "p1");
+        database
+            .read(|connection| {
+                assert_eq!(
+                    stored_fingerprint(connection, "recentCommands"),
+                    Some(canonical(&backend).unwrap())
+                );
+                Ok(())
+            })
+            .unwrap();
     }
 
     #[test]
