@@ -83,6 +83,24 @@ fn splits_a_lone_pane_in_two() {
 }
 
 #[test]
+fn oracle_inserts_into_splits_with_short_size_arrays() {
+    let oracle = oracle_11d2();
+    for case in oracle["shortSizeInsertions"].as_array().unwrap() {
+        let result = insert_next_to(
+            &super::tabs_reducer::pane_node(&case["root"]),
+            case["target"].as_str().unwrap(),
+            &super::tabs_reducer::pane_node(&case["inserted"]),
+            super::tabs_reducer::direction(&case["direction"]),
+        );
+        assert_eq!(
+            serde_json::to_value(result).unwrap(),
+            case["result"],
+            "{case:?}"
+        );
+    }
+}
+
+#[test]
 fn joins_a_split_of_the_same_orientation_taking_half_of_the_targets_room() {
     let tree = insert_next_to(
         &row(vec![pane("a"), pane("b")]),

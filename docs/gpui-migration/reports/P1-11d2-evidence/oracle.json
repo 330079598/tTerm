@@ -12882,6 +12882,196 @@
       "sameTabs": false
     }
   ],
+  "shortSizeInsertions": [
+    {
+      "root": {
+        "type": "split",
+        "orientation": "horizontal",
+        "children": [
+          {
+            "type": "pane",
+            "tabId": "a"
+          },
+          {
+            "type": "pane",
+            "tabId": "b"
+          }
+        ],
+        "sizes": [
+          0.5
+        ]
+      },
+      "target": "b",
+      "direction": "right",
+      "inserted": {
+        "type": "pane",
+        "tabId": "c"
+      },
+      "result": {
+        "type": "split",
+        "orientation": "horizontal",
+        "children": [
+          {
+            "type": "pane",
+            "tabId": "a"
+          },
+          {
+            "type": "pane",
+            "tabId": "b"
+          },
+          {
+            "type": "pane",
+            "tabId": "c"
+          }
+        ],
+        "sizes": [
+          1,
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "root": {
+        "type": "split",
+        "orientation": "horizontal",
+        "children": [
+          {
+            "type": "pane",
+            "tabId": "a"
+          },
+          {
+            "type": "pane",
+            "tabId": "b"
+          }
+        ],
+        "sizes": []
+      },
+      "target": "a",
+      "direction": "left",
+      "inserted": {
+        "type": "pane",
+        "tabId": "c"
+      },
+      "result": {
+        "type": "split",
+        "orientation": "horizontal",
+        "children": [
+          {
+            "type": "pane",
+            "tabId": "c"
+          },
+          {
+            "type": "pane",
+            "tabId": "a"
+          },
+          {
+            "type": "pane",
+            "tabId": "b"
+          }
+        ],
+        "sizes": [
+          0,
+          0,
+          1
+        ]
+      }
+    },
+    {
+      "root": {
+        "type": "split",
+        "orientation": "horizontal",
+        "children": [
+          {
+            "type": "pane",
+            "tabId": "a"
+          },
+          {
+            "type": "pane",
+            "tabId": "b"
+          }
+        ],
+        "sizes": []
+      },
+      "target": "b",
+      "direction": "right",
+      "inserted": {
+        "type": "pane",
+        "tabId": "c"
+      },
+      "result": {
+        "type": "split",
+        "orientation": "horizontal",
+        "children": [
+          {
+            "type": "pane",
+            "tabId": "a"
+          },
+          {
+            "type": "pane",
+            "tabId": "b"
+          },
+          {
+            "type": "pane",
+            "tabId": "c"
+          }
+        ],
+        "sizes": [
+          1,
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "root": {
+        "type": "split",
+        "orientation": "horizontal",
+        "children": [
+          {
+            "type": "pane",
+            "tabId": "a"
+          },
+          {
+            "type": "pane",
+            "tabId": "b"
+          }
+        ],
+        "sizes": [
+          0.5
+        ]
+      },
+      "target": "a",
+      "direction": "left",
+      "inserted": {
+        "type": "pane",
+        "tabId": "c"
+      },
+      "result": {
+        "type": "split",
+        "orientation": "horizontal",
+        "children": [
+          {
+            "type": "pane",
+            "tabId": "c"
+          },
+          {
+            "type": "pane",
+            "tabId": "a"
+          },
+          {
+            "type": "pane",
+            "tabId": "b"
+          }
+        ],
+        "sizes": [
+          0.30000000000000004,
+          0.30000000000000004,
+          0.4
+        ]
+      }
+    }
+  ],
   "sessionTabs": [
     {
       "input": {

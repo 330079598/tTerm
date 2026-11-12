@@ -1312,6 +1312,17 @@ output.regexAudit = regexAudit
 
 output.reducer = reducerCases(tabsState)
 
+output.shortSizeInsertions = [
+  { sizes: [0.5], target: "b", direction: "right" },
+  { sizes: [], target: "a", direction: "left" },
+  { sizes: [], target: "b", direction: "right" },
+  { sizes: [0.5], target: "a", direction: "left" },
+].map(({ sizes, target, direction }) => {
+  const root = row([pane("a"), pane("b")], sizes)
+  const inserted = pane("c")
+  return { root, target, direction, inserted, result: tabGroups.insertNextTo(root, target, inserted, direction) }
+})
+
 output.sessionTabs = await Promise.all([
   { id: "1", title: "t", type: "terminal", isActive: false, shellName: "zsh", iconStyle: { icon: 5 } },
   { id: "1", title: "t", type: "terminal", isActive: false, connection: { terminalShell: "nushell" } },

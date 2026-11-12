@@ -206,10 +206,12 @@ fn insert_into(
                 let mut next_children = children.clone();
                 next_children.insert(at, inserted.clone());
                 let mut next_sizes = sizes.clone();
-                if let Some(size) = next_sizes.get_mut(index) {
-                    *size = half;
-                }
-                next_sizes.insert(at, half);
+                next_sizes.resize(
+                    next_sizes.len().max(index + 1),
+                    1.0 / next_children.len() as f64,
+                );
+                next_sizes[index] = half;
+                next_sizes.insert(at.min(next_sizes.len()), half);
                 return PaneNode::Split {
                     orientation: *node_orientation,
                     children: next_children,
