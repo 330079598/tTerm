@@ -25,3 +25,5 @@ pub mod session;
 pub mod sftp;
 /// Update routing and cache policy.
 pub mod updates;
+/// Workspace panes, tab navigation and tab menu models.
+pub mod workspace;
