@@ -33,6 +33,30 @@ mod css;
 use self::css::parse_palette_color;
 use self::js::{js_number_to_string, js_round, js_trim};
 
+const XTERM_BACKGROUND: Rgba = Rgba::rgb(0, 0, 0);
+const XTERM_FOREGROUND: Rgba = Rgba::rgb(255, 255, 255);
+const XTERM_CURSOR: Rgba = Rgba::rgb(255, 255, 255);
+const XTERM_CURSOR_ACCENT: Rgba = Rgba::rgb(0, 0, 0);
+const XTERM_SELECTION: Rgba = Rgba::new(255, 255, 255, 77);
+const XTERM_ANSI: [Rgba; 16] = [
+    Rgba::rgb(0x2e, 0x34, 0x36),
+    Rgba::rgb(0xcc, 0x00, 0x00),
+    Rgba::rgb(0x4e, 0x9a, 0x06),
+    Rgba::rgb(0xc4, 0xa0, 0x00),
+    Rgba::rgb(0x34, 0x65, 0xa4),
+    Rgba::rgb(0x75, 0x50, 0x7b),
+    Rgba::rgb(0x06, 0x98, 0x9a),
+    Rgba::rgb(0xd3, 0xd7, 0xcf),
+    Rgba::rgb(0x55, 0x57, 0x53),
+    Rgba::rgb(0xef, 0x29, 0x29),
+    Rgba::rgb(0x8a, 0xe2, 0x34),
+    Rgba::rgb(0xfc, 0xe9, 0x4f),
+    Rgba::rgb(0x72, 0x9f, 0xcf),
+    Rgba::rgb(0xad, 0x7f, 0xa8),
+    Rgba::rgb(0x34, 0xe2, 0xe2),
+    Rgba::rgb(0xee, 0xee, 0xec),
+];
+
 /// The interface color keys, in the order the frontend serializes them.
 pub const THEME_COLOR_KEYS: [&str; 28] = [
     "background",
@@ -434,35 +458,67 @@ impl PaletteText {
 
     /// Resolves the palette into the colors the terminal draws with.
     ///
-    /// Invalid colors fall back to black; imported palettes are validated
-    /// before they get here, and this is the only place a malformed saved
-    /// theme can reach the drawing path.
+    /// This follows xterm's `ThemeService`: an invalid CSS color falls back to
+    /// that field's xterm default, an opaque selection background becomes 30%
+    /// opaque, and the cursor colors are composited over the background.
+    /// Missing optional cursor text stays `None`; the native view supplies
+    /// its own fallback, matching [`TerminalPalette::default`].
     pub fn to_terminal_palette(&self) -> TerminalPalette {
-        let color = |value: &str| parse_palette_color(value).unwrap_or_default();
-        let optional = |value: &OptionalText| value.as_str().and_then(parse_palette_color);
+        let background = parse_palette_color(&self.background).unwrap_or(XTERM_BACKGROUND);
+        let foreground = parse_palette_color(&self.foreground).unwrap_or(XTERM_FOREGROUND);
+        let cursor = xterm_blend(
+            background,
+            parse_palette_color(&self.cursor).unwrap_or(XTERM_CURSOR),
+        );
+        let cursor_accent = match &self.cursor_accent {
+            OptionalText::Missing => None,
+            value => Some(xterm_blend(
+                background,
+                value
+                    .as_str()
+                    .and_then(parse_palette_color)
+                    .unwrap_or(XTERM_CURSOR_ACCENT),
+            )),
+        };
+        let selection_background = {
+            let color =
+                parse_palette_color(&self.selection_background).unwrap_or(XTERM_SELECTION);
+            if color.a == 255 {
+                color.with_alpha(77)
+            } else {
+                color
+            }
+        };
+        let ansi = |index: usize, value: &str| {
+            parse_palette_color(value).unwrap_or(XTERM_ANSI[index])
+        };
         TerminalPalette {
-            background: color(&self.background),
-            foreground: color(&self.foreground),
-            cursor: color(&self.cursor),
-            cursor_accent: optional(&self.cursor_accent),
-            selection_background: color(&self.selection_background),
-            selection_foreground: optional(&self.selection_foreground),
-            black: color(&self.black),
-            red: color(&self.red),
-            green: color(&self.green),
-            yellow: color(&self.yellow),
-            blue: color(&self.blue),
-            magenta: color(&self.magenta),
-            cyan: color(&self.cyan),
-            white: color(&self.white),
-            bright_black: color(&self.bright_black),
-            bright_red: color(&self.bright_red),
-            bright_green: color(&self.bright_green),
-            bright_yellow: color(&self.bright_yellow),
-            bright_blue: color(&self.bright_blue),
-            bright_magenta: color(&self.bright_magenta),
-            bright_cyan: color(&self.bright_cyan),
-            bright_white: color(&self.bright_white),
+            background,
+            foreground,
+            cursor,
+            cursor_accent,
+            selection_background,
+            selection_foreground: self
+                .selection_foreground
+                .as_str()
+                .filter(|value| !value.is_empty())
+                .and_then(parse_palette_color),
+            black: ansi(0, &self.black),
+            red: ansi(1, &self.red),
+            green: ansi(2, &self.green),
+            yellow: ansi(3, &self.yellow),
+            blue: ansi(4, &self.blue),
+            magenta: ansi(5, &self.magenta),
+            cyan: ansi(6, &self.cyan),
+            white: ansi(7, &self.white),
+            bright_black: ansi(8, &self.bright_black),
+            bright_red: ansi(9, &self.bright_red),
+            bright_green: ansi(10, &self.bright_green),
+            bright_yellow: ansi(11, &self.bright_yellow),
+            bright_blue: ansi(12, &self.bright_blue),
+            bright_magenta: ansi(13, &self.bright_magenta),
+            bright_cyan: ansi(14, &self.bright_cyan),
+            bright_white: ansi(15, &self.bright_white),
         }
     }
 
@@ -699,6 +755,25 @@ fn shift(base: Hsl, h: f64, s: f64, l: f64) -> Hsl {
         s: (base.s + s).clamp(0.0, 100.0),
         l: (base.l + l).clamp(0.0, 100.0),
     }
+}
+
+/// xterm's `color.blend`: an opaque foreground wins; otherwise every channel
+/// is rounded after interpolation and the result is opaque.
+fn xterm_blend(background: Rgba, foreground: Rgba) -> Rgba {
+    if foreground.a == 255 {
+        return foreground;
+    }
+    let alpha = f64::from(foreground.a) / 255.0;
+    let channel = |background: u8, foreground: u8| {
+        let background = f64::from(background);
+        let foreground = f64::from(foreground);
+        (background + ((foreground - background) * alpha).round()) as u8
+    };
+    Rgba::rgb(
+        channel(background.r, foreground.r),
+        channel(background.g, foreground.g),
+        channel(background.b, foreground.b),
+    )
 }
 
 fn hsl_to_css(color: Hsl) -> String {

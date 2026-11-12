@@ -15,6 +15,16 @@ fn float(value: &Value) -> f64 {
     value.as_f64().expect("a JSON number")
 }
 
+fn rgba(value: &Value) -> Option<Rgba> {
+    let channels = value.as_array()?;
+    Some(Rgba::new(
+        channels[0].as_u64()? as u8,
+        channels[1].as_u64()? as u8,
+        channels[2].as_u64()? as u8,
+        channels[3].as_u64()? as u8,
+    ))
+}
+
 fn set_theme_color(colors: &mut ThemeColors, key: &str, value: &str) {
     let field = THEME_COLOR_KEYS
         .iter()
@@ -261,21 +271,28 @@ fn palette_text_round_trips_unknown_terminal_keys_and_nulls() {
 }
 
 #[test]
+fn null_optional_palette_fields_serialize_like_the_frontend() {
+    let oracle = oracle();
+    let mut palette: PaletteText =
+        serde_json::from_value(oracle["terminalPalette"]["defaultPalette"].clone())
+            .expect("the default palette");
+    palette.cursor_accent = OptionalText::Null;
+    palette.selection_foreground = OptionalText::Null;
+    assert_eq!(
+        serde_json::to_string(&palette).expect("the palette serializes"),
+        oracle["serialization"]["nullTerminalJson"]
+            .as_str()
+            .expect("null palette JSON")
+    );
+}
+
+#[test]
 fn palette_colors_match_xterm() {
     let oracle: Value =
         serde_json::from_str(CSS_ORACLE_JSON).expect("the CSS oracle JSON is valid");
     for case in oracle["xterm"].as_array().expect("an array") {
         let value = case["value"].as_str().expect("a color string");
-        if value.to_ascii_lowercase().starts_with("hsl") {
-            continue;
-        }
-        let rgba = case["rgba"].as_array().expect("four channels");
-        let expected = Rgba::new(
-            rgba[0].as_u64().expect("red") as u8,
-            rgba[1].as_u64().expect("green") as u8,
-            rgba[2].as_u64().expect("blue") as u8,
-            rgba[3].as_u64().expect("alpha") as u8,
-        );
+        let expected = rgba(&case["rgba"]).expect("four channels");
         let mut palette = PaletteText::default();
         palette.background = value.to_string();
         assert_eq!(palette.to_terminal_palette().background, expected, "{value}");
@@ -283,21 +300,76 @@ fn palette_colors_match_xterm() {
 }
 
 #[test]
-fn translucent_hsl_keeps_the_typescript_rgb_and_css_alpha() {
+fn hsl_alpha_is_rejected_the_way_xterm_rejects_canvas_transparency() {
     let oracle: Value =
         serde_json::from_str(CSS_ORACLE_JSON).expect("the CSS oracle JSON is valid");
     for case in oracle["themePalette"].as_array().expect("an array") {
         let value = case["value"].as_str().expect("a color string");
-        let rgba = case["rgba"].as_array().expect("four channels");
-        let expected = Rgba::new(
-            rgba[0].as_u64().expect("red") as u8,
-            rgba[1].as_u64().expect("green") as u8,
-            rgba[2].as_u64().expect("blue") as u8,
-            rgba[3].as_u64().expect("alpha") as u8,
-        );
+        let expected = rgba(&case["rgba"]).expect("four channels");
         let mut palette = PaletteText::default();
         palette.background = value.to_string();
         assert_eq!(palette.to_terminal_palette().background, expected, "{value}");
+    }
+}
+
+fn xterm_baseline_palette() -> PaletteText {
+    PaletteText {
+        background: "#101010".into(),
+        foreground: "#eeeeee".into(),
+        cursor: "#eeeeee".into(),
+        cursor_accent: OptionalText::Value("#101010".into()),
+        selection_background: "rgba(1, 2, 3, 0.5)".into(),
+        selection_foreground: OptionalText::Value("#eeeeee".into()),
+        black: "#111111".into(),
+        bright_white: "#ffffff".into(),
+        ..PaletteText::default()
+    }
+}
+
+fn set_palette_field(palette: &mut PaletteText, role: &str, value: &str) {
+    let value = value.to_string();
+    match role {
+        "background" => palette.background = value,
+        "foreground" => palette.foreground = value,
+        "cursor" => palette.cursor = value,
+        "cursorAccent" => palette.cursor_accent = OptionalText::Value(value),
+        "selectionBackground" => palette.selection_background = value,
+        "selectionForeground" => palette.selection_foreground = OptionalText::Value(value),
+        "black" => palette.black = value,
+        "brightWhite" => palette.bright_white = value,
+        _ => panic!("the oracle names a known field: {role}"),
+    }
+}
+
+fn palette_field(palette: &TerminalPalette, role: &str) -> Option<Rgba> {
+    match role {
+        "background" => Some(palette.background),
+        "foreground" => Some(palette.foreground),
+        "cursor" => Some(palette.cursor),
+        "cursorAccent" => palette.cursor_accent,
+        "selectionBackground" => Some(palette.selection_background),
+        "selectionForeground" => palette.selection_foreground,
+        "black" => Some(palette.black),
+        "brightWhite" => Some(palette.bright_white),
+        _ => panic!("the oracle names a known field: {role}"),
+    }
+}
+
+#[test]
+fn each_xterm_field_resolves_every_css_color_form() {
+    let oracle: Value =
+        serde_json::from_str(CSS_ORACLE_JSON).expect("the CSS oracle JSON is valid");
+    for case in oracle["fields"].as_array().expect("an array") {
+        let role = case["role"].as_str().expect("a role");
+        let value = case["value"].as_str().expect("a color string");
+        let expected = rgba(&case["rgba"]);
+        let mut palette = xterm_baseline_palette();
+        set_palette_field(&mut palette, role, value);
+        assert_eq!(
+            palette_field(&palette.to_terminal_palette(), role),
+            expected,
+            "{role} {value}"
+        );
     }
 }
 

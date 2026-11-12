@@ -171,6 +171,8 @@ const namedColors = [
 
 const values = [
   ...namedColors,
+  "#abc",
+  "#AABBCC",
   "#1b1d2300",
   "#abcd",
   "#AABBCCDD",
@@ -185,6 +187,34 @@ const values = [
   "notacolor",
 ]
 
+const roles = [
+  "background",
+  "foreground",
+  "cursor",
+  "cursorAccent",
+  "selectionBackground",
+  "selectionForeground",
+  "black",
+  "brightWhite",
+]
+
+const roleValues = [
+  "#abc",
+  "#AABBCC",
+  "#1b1d2300",
+  "#abcd",
+  "#AABBCCDD",
+  "rgb(1, 2, 3)",
+  "rgba(1, 2, 3, 0.5)",
+  "hsl(207 100% 40%)",
+  "hsl(207 100% 40% / 0.24)",
+  "hsl(207 100% 40% / 24%)",
+  "hsla(207, 100%, 40%, 0.24)",
+  "tomato",
+  "transparent",
+  "notacolor",
+]
+
 const browser = await chromium.launch({ headless: true })
 const page = await browser.newPage()
 await page.setContent('<div id="host" style="width:400px;height:200px"></div>')
@@ -192,7 +222,7 @@ await page.addScriptTag({
   path: new URL("../../node_modules/@xterm/xterm/lib/xterm.js", import.meta.url).pathname,
 })
 
-const result = await page.evaluate((values) => {
+const result = await page.evaluate(({ values, roles, roleValues }) => {
   const canvas = document.createElement("canvas")
   canvas.width = 1
   canvas.height = 1
@@ -228,8 +258,50 @@ const result = await page.evaluate((values) => {
     return { value, css: color.css, rgba }
   })
 
-  return { css, xterm }
-}, values)
+  const baseline = {
+    background: "#101010",
+    foreground: "#eeeeee",
+    cursor: "#eeeeee",
+    cursorAccent: "#101010",
+    selectionBackground: "rgba(1, 2, 3, 0.5)",
+    selectionForeground: "#eeeeee",
+    black: "#111111",
+    brightWhite: "#ffffff",
+  }
+  const read = (color) => {
+    if (!color) return null
+    return [
+      (color.rgba >>> 24) & 0xff,
+      (color.rgba >>> 16) & 0xff,
+      (color.rgba >>> 8) & 0xff,
+      color.rgba & 0xff,
+    ]
+  }
+  const fields = roles.flatMap((role) =>
+    roleValues.map((value) => {
+      const host = document.createElement("div")
+      host.style.width = "200px"
+      host.style.height = "100px"
+      document.body.appendChild(host)
+      const terminal = new Terminal({ theme: { ...baseline, [role]: value } })
+      terminal.open(host)
+      const colors = terminal._core._themeService._colors
+      const color =
+        role === "selectionBackground"
+          ? colors.selectionBackgroundTransparent
+          : role === "black"
+            ? colors.ansi[0]
+            : role === "brightWhite"
+              ? colors.ansi[15]
+              : colors[role]
+      terminal.dispose()
+      host.remove()
+      return { role, value, rgba: read(color) }
+    })
+  )
+
+  return { css, xterm, fields }
+}, { values, roles, roleValues })
 
 await browser.close()
 
@@ -239,12 +311,8 @@ const themePalette = [
   "hsl(207 100% 40% / 24%)",
   "hsla(207, 100%, 40%, 0.24)",
 ].map((value) => {
-  const css = result.css.find((candidate) => candidate.value === value)
-  const hex = colors.colorToHex(value)
-  const red = Number.parseInt(hex.slice(1, 3), 16)
-  const green = Number.parseInt(hex.slice(3, 5), 16)
-  const blue = Number.parseInt(hex.slice(5, 7), 16)
-  return { value, hex, rgba: [red, green, blue, css.rgba[3]] }
+  const xterm = result.xterm.find((candidate) => candidate.value === value)
+  return { value, hex: colors.colorToHex(value), rgba: xterm.rgba }
 })
 
 process.stdout.write(`${JSON.stringify({ ...result, themePalette }, null, 2)}\n`)

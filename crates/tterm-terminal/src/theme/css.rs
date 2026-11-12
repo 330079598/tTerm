@@ -1,9 +1,10 @@
 //! CSS color parsing for the strings the frontend hands to xterm.
 //!
 //! xterm accepts `#rgba`, `#rrggbbaa`, `rgb()`/`rgba()` directly and asks the
-//! browser canvas for HSL and named colors. The drawing palette keeps alpha,
-//! so this parser resolves the same forms into [`Rgba`] and leaves the
-//! color math in [`super::color_to_hex`].
+//! browser canvas for HSL and named colors. A canvas color with alpha other
+//! than 255 is rejected by xterm, which then uses the field's default. This
+//! parser returns `None` in the same cases so the caller can apply that
+//! default.
 
 use crate::palette::Rgba;
 use crate::theme::color_to_hex;
@@ -16,12 +17,17 @@ pub(super) fn parse_palette_color(value: &str) -> Option<Rgba> {
         return Some(color);
     }
 
-    if let Some(hex) = color_to_hex(normalized) {
-        let mut color = Rgba::parse(&hex)?;
-        if let Some(alpha) = parse_alpha(normalized)? {
-            color.a = alpha;
-        }
+    if let Some(color) = parse_rgb_function(normalized) {
         return Some(color);
+    }
+
+    if is_hsl_function(normalized) {
+        let color = color_to_hex(normalized)?;
+        match parse_alpha(normalized)? {
+            Some(alpha) if alpha != 255 => return None,
+            _ => {}
+        }
+        return Rgba::parse(&color);
     }
 
     named_color(normalized).map(|[red, green, blue]| Rgba::rgb(red, green, blue))
@@ -49,11 +55,48 @@ fn parse_hex(value: &str) -> Option<Rgba> {
     ))
 }
 
-/// Returns the alpha for a CSS function, or `None` when the color has no
-/// alpha token. The outer `Option` rejects a token that cannot be parsed.
+fn is_hsl_function(value: &str) -> bool {
+    let value = value.to_ascii_lowercase();
+    value.starts_with("hsl(") || value.starts_with("hsla(")
+}
+
+/// Parses xterm's comma-separated `rgb()`/`rgba()` form. The modern
+/// space-separated form goes through the canvas in xterm and is rejected
+/// there when it carries alpha, so it is not accepted here.
+fn parse_rgb_function(value: &str) -> Option<Rgba> {
+    let value = value.to_ascii_lowercase();
+    let inner = value
+        .strip_prefix("rgba(")
+        .or_else(|| value.strip_prefix("rgb("))?
+        .strip_suffix(')')?;
+    let parts = inner.split(',').map(str::trim).collect::<Vec<_>>();
+    if parts.len() != 3 && parts.len() != 4 {
+        return None;
+    }
+    let channel = |index: usize| {
+        let text = parts[index];
+        if text.is_empty() || text.len() > 3 {
+            return None;
+        }
+        text.parse::<u16>().ok().filter(|value| *value <= 255).map(|value| value as u8)
+    };
+    let alpha = match parts.get(3) {
+        Some(text) => alpha_channel(text)?,
+        None => 255,
+    };
+    Some(Rgba::new(
+        channel(0)?,
+        channel(1)?,
+        channel(2)?,
+        alpha,
+    ))
+}
+
+/// The alpha for an HSL function. The outer option rejects a malformed token;
+/// the inner one is `None` when there is no alpha token.
 fn parse_alpha(value: &str) -> Option<Option<u8>> {
     if let Some((_, alpha)) = value.rsplit_once('/') {
-        return parse_alpha_token(alpha.trim_end_matches(')')).map(Some);
+        return alpha_channel(alpha.trim_end_matches(')')).map(Some);
     }
     let Some(open) = value.find('(') else {
         return Some(None);
@@ -69,16 +112,19 @@ fn parse_alpha(value: &str) -> Option<Option<u8>> {
     if parts.len() < 4 {
         return Some(None);
     }
-    parse_alpha_token(parts[3]).map(Some)
+    alpha_channel(parts[3]).map(Some)
 }
 
-fn parse_alpha_token(value: &str) -> Option<u8> {
+fn alpha_channel(value: &str) -> Option<u8> {
     let value = js_trim(value);
     let alpha = if let Some(percent) = value.strip_suffix('%') {
         percent.parse::<f64>().ok()? / 100.0
     } else {
         value.parse::<f64>().ok()?
     };
+    if !alpha.is_finite() {
+        return None;
+    }
     Some(js_round(alpha.clamp(0.0, 1.0) * 255.0) as u8)
 }
 

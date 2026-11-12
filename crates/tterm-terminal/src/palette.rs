@@ -407,7 +407,7 @@ mod tests {
         );
         assert_eq!(
             palette.selection_background,
-            Rgba::new(0x00, 0x70, 0xcc, 61)
+            Rgba::new(0xff, 0xff, 0xff, 77)
         );
     }
 

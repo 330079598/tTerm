@@ -1333,6 +1333,24 @@
       ]
     },
     {
+      "value": "#abc",
+      "rgba": [
+        170,
+        187,
+        204,
+        255
+      ]
+    },
+    {
+      "value": "#AABBCC",
+      "rgba": [
+        170,
+        187,
+        204,
+        255
+      ]
+    },
+    {
       "value": "#1b1d2300",
       "rgba": [
         0,
@@ -2918,6 +2936,26 @@
       ]
     },
     {
+      "value": "#abc",
+      "css": "#aabbcc",
+      "rgba": [
+        170,
+        187,
+        204,
+        255
+      ]
+    },
+    {
+      "value": "#AABBCC",
+      "css": "#AABBCC",
+      "rgba": [
+        170,
+        187,
+        204,
+        255
+      ]
+    },
+    {
       "value": "#1b1d2300",
       "css": "#1b1d2300",
       "rgba": [
@@ -3038,6 +3076,1103 @@
       ]
     }
   ],
+  "fields": [
+    {
+      "role": "background",
+      "value": "#abc",
+      "rgba": [
+        170,
+        187,
+        204,
+        255
+      ]
+    },
+    {
+      "role": "background",
+      "value": "#AABBCC",
+      "rgba": [
+        170,
+        187,
+        204,
+        255
+      ]
+    },
+    {
+      "role": "background",
+      "value": "#1b1d2300",
+      "rgba": [
+        27,
+        29,
+        35,
+        0
+      ]
+    },
+    {
+      "role": "background",
+      "value": "#abcd",
+      "rgba": [
+        170,
+        187,
+        204,
+        221
+      ]
+    },
+    {
+      "role": "background",
+      "value": "#AABBCCDD",
+      "rgba": [
+        170,
+        187,
+        204,
+        221
+      ]
+    },
+    {
+      "role": "background",
+      "value": "rgb(1, 2, 3)",
+      "rgba": [
+        1,
+        2,
+        3,
+        255
+      ]
+    },
+    {
+      "role": "background",
+      "value": "rgba(1, 2, 3, 0.5)",
+      "rgba": [
+        1,
+        2,
+        3,
+        128
+      ]
+    },
+    {
+      "role": "background",
+      "value": "hsl(207 100% 40%)",
+      "rgba": [
+        0,
+        112,
+        204,
+        255
+      ]
+    },
+    {
+      "role": "background",
+      "value": "hsl(207 100% 40% / 0.24)",
+      "rgba": [
+        0,
+        0,
+        0,
+        255
+      ]
+    },
+    {
+      "role": "background",
+      "value": "hsl(207 100% 40% / 24%)",
+      "rgba": [
+        0,
+        0,
+        0,
+        255
+      ]
+    },
+    {
+      "role": "background",
+      "value": "hsla(207, 100%, 40%, 0.24)",
+      "rgba": [
+        0,
+        0,
+        0,
+        255
+      ]
+    },
+    {
+      "role": "background",
+      "value": "tomato",
+      "rgba": [
+        255,
+        99,
+        71,
+        255
+      ]
+    },
+    {
+      "role": "background",
+      "value": "transparent",
+      "rgba": [
+        0,
+        0,
+        0,
+        255
+      ]
+    },
+    {
+      "role": "background",
+      "value": "notacolor",
+      "rgba": [
+        0,
+        0,
+        0,
+        255
+      ]
+    },
+    {
+      "role": "foreground",
+      "value": "#abc",
+      "rgba": [
+        170,
+        187,
+        204,
+        255
+      ]
+    },
+    {
+      "role": "foreground",
+      "value": "#AABBCC",
+      "rgba": [
+        170,
+        187,
+        204,
+        255
+      ]
+    },
+    {
+      "role": "foreground",
+      "value": "#1b1d2300",
+      "rgba": [
+        27,
+        29,
+        35,
+        0
+      ]
+    },
+    {
+      "role": "foreground",
+      "value": "#abcd",
+      "rgba": [
+        170,
+        187,
+        204,
+        221
+      ]
+    },
+    {
+      "role": "foreground",
+      "value": "#AABBCCDD",
+      "rgba": [
+        170,
+        187,
+        204,
+        221
+      ]
+    },
+    {
+      "role": "foreground",
+      "value": "rgb(1, 2, 3)",
+      "rgba": [
+        1,
+        2,
+        3,
+        255
+      ]
+    },
+    {
+      "role": "foreground",
+      "value": "rgba(1, 2, 3, 0.5)",
+      "rgba": [
+        1,
+        2,
+        3,
+        128
+      ]
+    },
+    {
+      "role": "foreground",
+      "value": "hsl(207 100% 40%)",
+      "rgba": [
+        0,
+        112,
+        204,
+        255
+      ]
+    },
+    {
+      "role": "foreground",
+      "value": "hsl(207 100% 40% / 0.24)",
+      "rgba": [
+        255,
+        255,
+        255,
+        255
+      ]
+    },
+    {
+      "role": "foreground",
+      "value": "hsl(207 100% 40% / 24%)",
+      "rgba": [
+        255,
+        255,
+        255,
+        255
+      ]
+    },
+    {
+      "role": "foreground",
+      "value": "hsla(207, 100%, 40%, 0.24)",
+      "rgba": [
+        255,
+        255,
+        255,
+        255
+      ]
+    },
+    {
+      "role": "foreground",
+      "value": "tomato",
+      "rgba": [
+        255,
+        99,
+        71,
+        255
+      ]
+    },
+    {
+      "role": "foreground",
+      "value": "transparent",
+      "rgba": [
+        255,
+        255,
+        255,
+        255
+      ]
+    },
+    {
+      "role": "foreground",
+      "value": "notacolor",
+      "rgba": [
+        255,
+        255,
+        255,
+        255
+      ]
+    },
+    {
+      "role": "cursor",
+      "value": "#abc",
+      "rgba": [
+        170,
+        187,
+        204,
+        255
+      ]
+    },
+    {
+      "role": "cursor",
+      "value": "#AABBCC",
+      "rgba": [
+        170,
+        187,
+        204,
+        255
+      ]
+    },
+    {
+      "role": "cursor",
+      "value": "#1b1d2300",
+      "rgba": [
+        16,
+        16,
+        16,
+        255
+      ]
+    },
+    {
+      "role": "cursor",
+      "value": "#abcd",
+      "rgba": [
+        149,
+        164,
+        179,
+        255
+      ]
+    },
+    {
+      "role": "cursor",
+      "value": "#AABBCCDD",
+      "rgba": [
+        149,
+        164,
+        179,
+        255
+      ]
+    },
+    {
+      "role": "cursor",
+      "value": "rgb(1, 2, 3)",
+      "rgba": [
+        1,
+        2,
+        3,
+        255
+      ]
+    },
+    {
+      "role": "cursor",
+      "value": "rgba(1, 2, 3, 0.5)",
+      "rgba": [
+        8,
+        9,
+        9,
+        255
+      ]
+    },
+    {
+      "role": "cursor",
+      "value": "hsl(207 100% 40%)",
+      "rgba": [
+        0,
+        112,
+        204,
+        255
+      ]
+    },
+    {
+      "role": "cursor",
+      "value": "hsl(207 100% 40% / 0.24)",
+      "rgba": [
+        255,
+        255,
+        255,
+        255
+      ]
+    },
+    {
+      "role": "cursor",
+      "value": "hsl(207 100% 40% / 24%)",
+      "rgba": [
+        255,
+        255,
+        255,
+        255
+      ]
+    },
+    {
+      "role": "cursor",
+      "value": "hsla(207, 100%, 40%, 0.24)",
+      "rgba": [
+        255,
+        255,
+        255,
+        255
+      ]
+    },
+    {
+      "role": "cursor",
+      "value": "tomato",
+      "rgba": [
+        255,
+        99,
+        71,
+        255
+      ]
+    },
+    {
+      "role": "cursor",
+      "value": "transparent",
+      "rgba": [
+        255,
+        255,
+        255,
+        255
+      ]
+    },
+    {
+      "role": "cursor",
+      "value": "notacolor",
+      "rgba": [
+        255,
+        255,
+        255,
+        255
+      ]
+    },
+    {
+      "role": "cursorAccent",
+      "value": "#abc",
+      "rgba": [
+        170,
+        187,
+        204,
+        255
+      ]
+    },
+    {
+      "role": "cursorAccent",
+      "value": "#AABBCC",
+      "rgba": [
+        170,
+        187,
+        204,
+        255
+      ]
+    },
+    {
+      "role": "cursorAccent",
+      "value": "#1b1d2300",
+      "rgba": [
+        16,
+        16,
+        16,
+        255
+      ]
+    },
+    {
+      "role": "cursorAccent",
+      "value": "#abcd",
+      "rgba": [
+        149,
+        164,
+        179,
+        255
+      ]
+    },
+    {
+      "role": "cursorAccent",
+      "value": "#AABBCCDD",
+      "rgba": [
+        149,
+        164,
+        179,
+        255
+      ]
+    },
+    {
+      "role": "cursorAccent",
+      "value": "rgb(1, 2, 3)",
+      "rgba": [
+        1,
+        2,
+        3,
+        255
+      ]
+    },
+    {
+      "role": "cursorAccent",
+      "value": "rgba(1, 2, 3, 0.5)",
+      "rgba": [
+        8,
+        9,
+        9,
+        255
+      ]
+    },
+    {
+      "role": "cursorAccent",
+      "value": "hsl(207 100% 40%)",
+      "rgba": [
+        0,
+        112,
+        204,
+        255
+      ]
+    },
+    {
+      "role": "cursorAccent",
+      "value": "hsl(207 100% 40% / 0.24)",
+      "rgba": [
+        0,
+        0,
+        0,
+        255
+      ]
+    },
+    {
+      "role": "cursorAccent",
+      "value": "hsl(207 100% 40% / 24%)",
+      "rgba": [
+        0,
+        0,
+        0,
+        255
+      ]
+    },
+    {
+      "role": "cursorAccent",
+      "value": "hsla(207, 100%, 40%, 0.24)",
+      "rgba": [
+        0,
+        0,
+        0,
+        255
+      ]
+    },
+    {
+      "role": "cursorAccent",
+      "value": "tomato",
+      "rgba": [
+        255,
+        99,
+        71,
+        255
+      ]
+    },
+    {
+      "role": "cursorAccent",
+      "value": "transparent",
+      "rgba": [
+        0,
+        0,
+        0,
+        255
+      ]
+    },
+    {
+      "role": "cursorAccent",
+      "value": "notacolor",
+      "rgba": [
+        0,
+        0,
+        0,
+        255
+      ]
+    },
+    {
+      "role": "selectionBackground",
+      "value": "#abc",
+      "rgba": [
+        170,
+        187,
+        204,
+        77
+      ]
+    },
+    {
+      "role": "selectionBackground",
+      "value": "#AABBCC",
+      "rgba": [
+        170,
+        187,
+        204,
+        77
+      ]
+    },
+    {
+      "role": "selectionBackground",
+      "value": "#1b1d2300",
+      "rgba": [
+        27,
+        29,
+        35,
+        0
+      ]
+    },
+    {
+      "role": "selectionBackground",
+      "value": "#abcd",
+      "rgba": [
+        170,
+        187,
+        204,
+        221
+      ]
+    },
+    {
+      "role": "selectionBackground",
+      "value": "#AABBCCDD",
+      "rgba": [
+        170,
+        187,
+        204,
+        221
+      ]
+    },
+    {
+      "role": "selectionBackground",
+      "value": "rgb(1, 2, 3)",
+      "rgba": [
+        1,
+        2,
+        3,
+        77
+      ]
+    },
+    {
+      "role": "selectionBackground",
+      "value": "rgba(1, 2, 3, 0.5)",
+      "rgba": [
+        1,
+        2,
+        3,
+        128
+      ]
+    },
+    {
+      "role": "selectionBackground",
+      "value": "hsl(207 100% 40%)",
+      "rgba": [
+        0,
+        112,
+        204,
+        77
+      ]
+    },
+    {
+      "role": "selectionBackground",
+      "value": "hsl(207 100% 40% / 0.24)",
+      "rgba": [
+        255,
+        255,
+        255,
+        77
+      ]
+    },
+    {
+      "role": "selectionBackground",
+      "value": "hsl(207 100% 40% / 24%)",
+      "rgba": [
+        255,
+        255,
+        255,
+        77
+      ]
+    },
+    {
+      "role": "selectionBackground",
+      "value": "hsla(207, 100%, 40%, 0.24)",
+      "rgba": [
+        255,
+        255,
+        255,
+        77
+      ]
+    },
+    {
+      "role": "selectionBackground",
+      "value": "tomato",
+      "rgba": [
+        255,
+        99,
+        71,
+        77
+      ]
+    },
+    {
+      "role": "selectionBackground",
+      "value": "transparent",
+      "rgba": [
+        255,
+        255,
+        255,
+        77
+      ]
+    },
+    {
+      "role": "selectionBackground",
+      "value": "notacolor",
+      "rgba": [
+        255,
+        255,
+        255,
+        77
+      ]
+    },
+    {
+      "role": "selectionForeground",
+      "value": "#abc",
+      "rgba": [
+        170,
+        187,
+        204,
+        255
+      ]
+    },
+    {
+      "role": "selectionForeground",
+      "value": "#AABBCC",
+      "rgba": [
+        170,
+        187,
+        204,
+        255
+      ]
+    },
+    {
+      "role": "selectionForeground",
+      "value": "#1b1d2300",
+      "rgba": [
+        27,
+        29,
+        35,
+        0
+      ]
+    },
+    {
+      "role": "selectionForeground",
+      "value": "#abcd",
+      "rgba": [
+        170,
+        187,
+        204,
+        221
+      ]
+    },
+    {
+      "role": "selectionForeground",
+      "value": "#AABBCCDD",
+      "rgba": [
+        170,
+        187,
+        204,
+        221
+      ]
+    },
+    {
+      "role": "selectionForeground",
+      "value": "rgb(1, 2, 3)",
+      "rgba": [
+        1,
+        2,
+        3,
+        255
+      ]
+    },
+    {
+      "role": "selectionForeground",
+      "value": "rgba(1, 2, 3, 0.5)",
+      "rgba": [
+        1,
+        2,
+        3,
+        128
+      ]
+    },
+    {
+      "role": "selectionForeground",
+      "value": "hsl(207 100% 40%)",
+      "rgba": [
+        0,
+        112,
+        204,
+        255
+      ]
+    },
+    {
+      "role": "selectionForeground",
+      "value": "hsl(207 100% 40% / 0.24)",
+      "rgba": null
+    },
+    {
+      "role": "selectionForeground",
+      "value": "hsl(207 100% 40% / 24%)",
+      "rgba": null
+    },
+    {
+      "role": "selectionForeground",
+      "value": "hsla(207, 100%, 40%, 0.24)",
+      "rgba": null
+    },
+    {
+      "role": "selectionForeground",
+      "value": "tomato",
+      "rgba": [
+        255,
+        99,
+        71,
+        255
+      ]
+    },
+    {
+      "role": "selectionForeground",
+      "value": "transparent",
+      "rgba": null
+    },
+    {
+      "role": "selectionForeground",
+      "value": "notacolor",
+      "rgba": null
+    },
+    {
+      "role": "black",
+      "value": "#abc",
+      "rgba": [
+        170,
+        187,
+        204,
+        255
+      ]
+    },
+    {
+      "role": "black",
+      "value": "#AABBCC",
+      "rgba": [
+        170,
+        187,
+        204,
+        255
+      ]
+    },
+    {
+      "role": "black",
+      "value": "#1b1d2300",
+      "rgba": [
+        27,
+        29,
+        35,
+        0
+      ]
+    },
+    {
+      "role": "black",
+      "value": "#abcd",
+      "rgba": [
+        170,
+        187,
+        204,
+        221
+      ]
+    },
+    {
+      "role": "black",
+      "value": "#AABBCCDD",
+      "rgba": [
+        170,
+        187,
+        204,
+        221
+      ]
+    },
+    {
+      "role": "black",
+      "value": "rgb(1, 2, 3)",
+      "rgba": [
+        1,
+        2,
+        3,
+        255
+      ]
+    },
+    {
+      "role": "black",
+      "value": "rgba(1, 2, 3, 0.5)",
+      "rgba": [
+        1,
+        2,
+        3,
+        128
+      ]
+    },
+    {
+      "role": "black",
+      "value": "hsl(207 100% 40%)",
+      "rgba": [
+        0,
+        112,
+        204,
+        255
+      ]
+    },
+    {
+      "role": "black",
+      "value": "hsl(207 100% 40% / 0.24)",
+      "rgba": [
+        46,
+        52,
+        54,
+        255
+      ]
+    },
+    {
+      "role": "black",
+      "value": "hsl(207 100% 40% / 24%)",
+      "rgba": [
+        46,
+        52,
+        54,
+        255
+      ]
+    },
+    {
+      "role": "black",
+      "value": "hsla(207, 100%, 40%, 0.24)",
+      "rgba": [
+        46,
+        52,
+        54,
+        255
+      ]
+    },
+    {
+      "role": "black",
+      "value": "tomato",
+      "rgba": [
+        255,
+        99,
+        71,
+        255
+      ]
+    },
+    {
+      "role": "black",
+      "value": "transparent",
+      "rgba": [
+        46,
+        52,
+        54,
+        255
+      ]
+    },
+    {
+      "role": "black",
+      "value": "notacolor",
+      "rgba": [
+        46,
+        52,
+        54,
+        255
+      ]
+    },
+    {
+      "role": "brightWhite",
+      "value": "#abc",
+      "rgba": [
+        170,
+        187,
+        204,
+        255
+      ]
+    },
+    {
+      "role": "brightWhite",
+      "value": "#AABBCC",
+      "rgba": [
+        170,
+        187,
+        204,
+        255
+      ]
+    },
+    {
+      "role": "brightWhite",
+      "value": "#1b1d2300",
+      "rgba": [
+        27,
+        29,
+        35,
+        0
+      ]
+    },
+    {
+      "role": "brightWhite",
+      "value": "#abcd",
+      "rgba": [
+        170,
+        187,
+        204,
+        221
+      ]
+    },
+    {
+      "role": "brightWhite",
+      "value": "#AABBCCDD",
+      "rgba": [
+        170,
+        187,
+        204,
+        221
+      ]
+    },
+    {
+      "role": "brightWhite",
+      "value": "rgb(1, 2, 3)",
+      "rgba": [
+        1,
+        2,
+        3,
+        255
+      ]
+    },
+    {
+      "role": "brightWhite",
+      "value": "rgba(1, 2, 3, 0.5)",
+      "rgba": [
+        1,
+        2,
+        3,
+        128
+      ]
+    },
+    {
+      "role": "brightWhite",
+      "value": "hsl(207 100% 40%)",
+      "rgba": [
+        0,
+        112,
+        204,
+        255
+      ]
+    },
+    {
+      "role": "brightWhite",
+      "value": "hsl(207 100% 40% / 0.24)",
+      "rgba": [
+        238,
+        238,
+        236,
+        255
+      ]
+    },
+    {
+      "role": "brightWhite",
+      "value": "hsl(207 100% 40% / 24%)",
+      "rgba": [
+        238,
+        238,
+        236,
+        255
+      ]
+    },
+    {
+      "role": "brightWhite",
+      "value": "hsla(207, 100%, 40%, 0.24)",
+      "rgba": [
+        238,
+        238,
+        236,
+        255
+      ]
+    },
+    {
+      "role": "brightWhite",
+      "value": "tomato",
+      "rgba": [
+        255,
+        99,
+        71,
+        255
+      ]
+    },
+    {
+      "role": "brightWhite",
+      "value": "transparent",
+      "rgba": [
+        238,
+        238,
+        236,
+        255
+      ]
+    },
+    {
+      "role": "brightWhite",
+      "value": "notacolor",
+      "rgba": [
+        238,
+        238,
+        236,
+        255
+      ]
+    }
+  ],
   "themePalette": [
     {
       "value": "hsl(207 100% 40%)",
@@ -3054,9 +4189,9 @@
       "hex": "#0070cc",
       "rgba": [
         0,
-        112,
-        204,
-        61
+        0,
+        0,
+        255
       ]
     },
     {
@@ -3064,9 +4199,9 @@
       "hex": "#0070cc",
       "rgba": [
         0,
-        112,
-        204,
-        61
+        0,
+        0,
+        255
       ]
     },
     {
@@ -3074,9 +4209,9 @@
       "hex": "#0070cc",
       "rgba": [
         0,
-        112,
-        204,
-        61
+        0,
+        0,
+        255
       ]
     }
   ]
