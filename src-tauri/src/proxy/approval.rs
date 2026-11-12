@@ -144,15 +144,9 @@ fn approval_outcome(
     }
 }
 
-/// The questions still waiting, for a window that opens after they were asked.
-#[tauri::command]
-pub fn pending_proxy_command_prompts(
-    services: tauri::State<'_, std::sync::Arc<crate::services::AppServices>>,
+pub(super) fn pending_proxy_command_prompts_service(
+    prompts: Arc<PromptBroker>,
 ) -> Vec<ProxyCommandPrompt> {
-    let prompts = services.shared.prompts.clone();
-    pending_proxy_command_prompts_service(prompts)
-}
-fn pending_proxy_command_prompts_service(prompts: Arc<PromptBroker>) -> Vec<ProxyCommandPrompt> {
     prompts
         .pending_proxy()
         .into_iter()
@@ -163,26 +157,12 @@ fn pending_proxy_command_prompts_service(prompts: Arc<PromptBroker>) -> Vec<Prox
         .collect()
 }
 
-/// Answers a question; `allow` also remembers the command on this device.
-#[tauri::command]
-pub async fn respond_proxy_command_prompt(
-    request_id: String,
-    allow: bool,
-    services: tauri::State<'_, std::sync::Arc<crate::services::AppServices>>,
-) -> Result<(), String> {
-    let prompts = services.shared.prompts.clone();
-    respond_proxy_command_prompt_service(
-        prompts,
-        RespondProxyCommandPromptInput { request_id, allow },
-    )
-    .await
-}
-struct RespondProxyCommandPromptInput {
-    request_id: String,
-    allow: bool,
+pub(super) struct RespondProxyCommandPromptInput {
+    pub(super) request_id: String,
+    pub(super) allow: bool,
 }
 
-async fn respond_proxy_command_prompt_service(
+pub(super) async fn respond_proxy_command_prompt_service(
     prompts: Arc<PromptBroker>,
     arguments: RespondProxyCommandPromptInput,
 ) -> Result<(), String> {
