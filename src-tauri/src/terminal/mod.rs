@@ -4,6 +4,7 @@ pub mod console_reset;
 pub(crate) mod cwd_watch;
 pub(crate) mod encoding;
 pub(crate) mod foreground;
+pub(crate) mod foreground_commands;
 pub(crate) mod io_batcher;
 pub(crate) mod legacy_events;
 #[cfg(unix)]
@@ -11,6 +12,7 @@ mod local_integration;
 pub(crate) mod output;
 pub(crate) mod output_tail;
 pub(crate) mod pty;
+pub(crate) mod pty_commands;
 pub(crate) mod reader;
 #[cfg(test)]
 mod reader_tests;
