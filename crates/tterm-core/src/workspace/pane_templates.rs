@@ -48,7 +48,7 @@ pub struct BuiltinPaneTemplate {
     pub id: &'static str,
     /// The translation key of the template's label.
     pub label_key: &'static str,
-    /// The English label, used when no translation is available.
+    /// The built-in's empty name; the picker translates `label_key` instead.
     pub name: &'static str,
     /// The shape the template applies.
     pub root: LayoutShape,

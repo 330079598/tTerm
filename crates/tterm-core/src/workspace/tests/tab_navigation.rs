@@ -155,8 +155,7 @@ fn oracle_treats_an_empty_active_tab_id_as_absent() {
 #[test]
 fn oracle_returns_none_for_an_offset_beyond_the_negative_end_instead_of_throwing() {
     // The TypeScript function indexes the array with a negative number here
-    // and throws a TypeError; the Rust port returns None because production
-    // code must not panic. The deviation is recorded in the card report.
+    // and returns undefined; the Rust port likewise returns None.
     assert_eq!(
         get_sibling_tab_id(&ids(&["t1", "t2", "t3"]), Some("t1"), -4),
         None
