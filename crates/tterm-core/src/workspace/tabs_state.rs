@@ -27,6 +27,9 @@ pub struct TabsState {
 }
 
 /// Applies one action, reconciles pane groups, and refreshes distinct local titles.
+///
+/// Pass the platform's loaded home directory, or `None` until it is available.
+/// The directory is context rather than persisted workspace state.
 pub fn tabs_reducer(
     state: TabsState,
     action: action::TabsAction,

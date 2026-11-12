@@ -6,6 +6,7 @@ use serde_json::{Map, Value};
 
 macro_rules! optional_fields {
     ($target:ty, $view:ty, $reader:ident; $($field:ident, $setter:ident: $kind:ty => $key:literal),* $(,)?) => {
+        #[doc = "Refreshes the immutable projection from canonical JSON fields."]
         pub(super) fn $reader(view: &mut $view, fields: &Map<String, Value>) {
             $(view.$field = read(fields, $key);)*
         }
