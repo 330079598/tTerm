@@ -3,8 +3,9 @@
 //! Each value is one `app_meta` row under a `frontend.` key. Only the keys in
 //! this module are accepted, so the commands are not a general key-value
 //! store. The first start after the upgrade copies the localStorage values
-//! into the database once, and leaves the originals in place so an older
-//! version can still be used.
+//! into the database. Later starts compare a per-key fingerprint with the
+//! old copy, importing it again if an older version changed it, and every
+//! new value is written back to localStorage so a rollback sees it too.
 //!
 //! Removing the localStorage originals is planned for 0.10.0, one release
 //! after the 0.9.0 transition build, once users have had time to upgrade.
@@ -187,7 +188,10 @@ fn migrate(
 ) -> Result<BTreeMap<String, Value>, String> {
     let mut requested = HashMap::with_capacity(legacy.len());
     for (key, raw) in legacy {
-        state_key(key).ok_or_else(|| format!("Unknown frontend state key '{key}'."))?;
+        if state_key(key).is_none() {
+            eprintln!("Ignoring unknown frontend state key '{key}' from localStorage.");
+            continue;
+        }
         requested.insert(key.as_str(), raw.as_str());
     }
 
@@ -279,17 +283,6 @@ fn acknowledge_synced_value(
 
 pub(crate) fn backup_state_for_app() -> Result<Value, String> {
     crate::db::read(backup_state)
-}
-
-/// Reads the stored value under `key`; `None` when it was never written.
-#[tauri::command]
-pub async fn read_frontend_state(key: String) -> Result<Option<Value>, String> {
-    run_blocking(move || {
-        let storage_key =
-            state_key(&key).ok_or_else(|| format!("Unknown frontend state key '{key}'."))?;
-        crate::db::read(|connection| meta::get::<Value>(connection, storage_key))
-    })
-    .await
 }
 
 /// Writes one value. A key outside the whitelist is rejected.
@@ -514,22 +507,19 @@ mod tests {
     }
 
     #[test]
-    fn a_key_outside_the_whitelist_is_rejected_and_nothing_is_written() {
+    fn an_unknown_legacy_key_is_skipped_without_stopping_the_migration() {
         let database = Database::open_in_memory().unwrap();
         let mut state = legacy_state();
         state.insert("anything".to_string(), "1".to_string());
-        let error = database
+        let migrated = database
             .write(|connection| migrate(connection, &state))
-            .unwrap_err();
-        assert!(error.contains("anything"), "{error}");
-        let stored = database
-            .read(|connection| meta::get::<Value>(connection, "frontend.recent_commands"))
             .unwrap();
-        assert!(stored.is_none());
+        assert_eq!(migrated["recentCommands"][0]["id"], "c1");
+        assert!(!migrated.contains_key("anything"));
         let marker = database
             .read(|connection| meta::get::<Value>(connection, MIGRATED_KEY))
             .unwrap();
-        assert!(marker.is_none());
+        assert!(marker.is_some());
     }
 
     #[test]
@@ -577,6 +567,10 @@ mod tests {
         assert!(has_valid_shape("sftpView", &json!(null)));
         assert!(state_key("anything").is_none());
         assert!(state_key("recentCommands").is_some());
+        let error = database
+            .write(|connection| write_synced_value(connection, "anything", &json!(1)))
+            .unwrap_err();
+        assert!(error.contains("anything"), "{error}");
     }
 
     #[test]

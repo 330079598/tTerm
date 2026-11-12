@@ -170,7 +170,6 @@ pub fn run() {
             app_state::load_app_state,
             app_state::save_app_state,
             frontend_state::load_frontend_state,
-            frontend_state::read_frontend_state,
             frontend_state::write_frontend_state,
             frontend_state::acknowledge_frontend_state_sync,
             frontend_state::migrate_frontend_state,
