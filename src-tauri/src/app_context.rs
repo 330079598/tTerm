@@ -2,7 +2,7 @@
 use crate::{
     background::{BackgroundContext, quit::QuitContext, tray::TrayContext},
     services::AppServices,
-    tunnel::commands::TunnelContext,
+    tunnel::manager::TunnelContext,
 };
 use std::sync::Arc;
 

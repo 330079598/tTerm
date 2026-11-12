@@ -6,7 +6,7 @@ use crate::{
     },
     launch_dir::LaunchDirs,
     session_log::SessionLogState,
-    tunnel::commands::TunnelManager,
+    tunnel::manager::TunnelManager,
     updater::PendingUpdateDownloads,
 };
 

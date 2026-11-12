@@ -11,7 +11,7 @@ use std::sync::Mutex;
 use std::sync::atomic::{AtomicBool, Ordering};
 
 use crate::core::state::PtyMap;
-use crate::tunnel::commands::TunnelManager;
+use crate::tunnel::manager::TunnelManager;
 
 pub(crate) const TRAY_ID: &str = "main";
 const MENU_SHOW: &str = "tray-show";
@@ -251,7 +251,7 @@ fn tunnel_label(labels: Labels, tunnel: &MenuTunnel) -> String {
 /// Applies a native menu action after the entry adapter resolves dependencies.
 pub(crate) fn handle_action(
     context: super::BackgroundContext,
-    tunnel: crate::tunnel::commands::TunnelContext,
+    tunnel: crate::tunnel::manager::TunnelContext,
     id: &str,
 ) {
     match id {
@@ -274,7 +274,7 @@ pub(crate) fn handle_action(
                 context.quit.runtime.clone().spawn(async move {
                     if context.tunnels.state_of(&id).is_active() {
                         context.tunnels.stop(&id).await;
-                    } else if !crate::tunnel::commands::start_unattended(
+                    } else if !crate::tunnel::manager::start_unattended(
                         &tunnel,
                         &context.tunnels,
                         &id,

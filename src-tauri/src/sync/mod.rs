@@ -19,7 +19,7 @@ use crate::backup::webdav::{Fetched, Stored, WebDavClient};
 use crate::core::blocking::run_blocking;
 use crate::db::meta;
 use crate::ssh::secret_store::types::SecretStoreState;
-use crate::tunnel::commands::TunnelManager;
+use crate::tunnel::manager::TunnelManager;
 use document::{Collections, MAX_DOCUMENT_SIZE, SYNC_FILE_NAME};
 use merge::{merge_collection, same_data};
 use serde::{Deserialize, Serialize};

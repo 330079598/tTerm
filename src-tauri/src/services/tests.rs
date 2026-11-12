@@ -11,7 +11,7 @@ use crate::{
         api::external::ExternalEditState,
         types::{SftpConnectionPool, TransferCancelMap},
     },
-    tunnel::commands::TunnelManager,
+    tunnel::manager::TunnelManager,
     updater::PendingUpdateDownloads,
 };
 use std::sync::Arc;

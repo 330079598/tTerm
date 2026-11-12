@@ -77,7 +77,7 @@ impl CloseBehaviorState {
 pub(crate) struct BackgroundContext {
     pub close: Arc<CloseBehaviorState>,
     pub guard: Arc<exit_guard::ExitGuardState>,
-    pub tunnels: Arc<crate::tunnel::commands::TunnelManager>,
+    pub tunnels: Arc<crate::tunnel::manager::TunnelManager>,
     pub unuploaded_files: Vec<String>,
     pub window: Arc<dyn tterm_platform::window::MainWindow>,
     pub badge: Arc<dyn tterm_platform::notifications::AppBadge>,

@@ -28,7 +28,7 @@ use crate::ssh::{
     secret_store::types::SecretLocation, types::ConnectionStatusOptions,
     types::HostKeyVerificationMode,
 };
-use crate::tunnel::commands::TunnelManager;
+use crate::tunnel::manager::TunnelManager;
 use std::collections::HashSet;
 
 pub(super) async fn list_profiles() -> Result<Vec<SavedProfile>, String> {

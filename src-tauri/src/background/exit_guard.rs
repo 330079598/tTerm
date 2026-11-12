@@ -10,7 +10,7 @@ use tterm_core::events::{AppEvent, EventSink};
 
 use std::sync::atomic::{AtomicBool, Ordering};
 
-use crate::tunnel::commands::TunnelManager;
+use crate::tunnel::manager::TunnelManager;
 
 /// Tracks confirmation without holding the window or application lifetime.
 #[derive(Default)]

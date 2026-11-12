@@ -95,7 +95,7 @@ pub fn run() {
     let secret_store = ssh::secret_store::types::SecretStoreState::new();
     ssh::key_vault::install(secret_store.clone());
     let session_log_state = Arc::new(session_log::SessionLogState::default());
-    let tunnel_manager = Arc::new(tunnel::commands::TunnelManager::default());
+    let tunnel_manager = Arc::new(tunnel::manager::TunnelManager::default());
     let close_behavior = Arc::new(background::CloseBehaviorState::default());
     let quit_state = Arc::new(background::quit::QuitState::default());
     let exit_guard = Arc::new(background::exit_guard::ExitGuardState::default());

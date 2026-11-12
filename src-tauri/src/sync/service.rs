@@ -5,7 +5,7 @@ use super::{
 };
 use crate::core::blocking::run_blocking;
 use crate::ssh::secret_store::types::SecretStoreState;
-use crate::tunnel::commands::TunnelManager;
+use crate::tunnel::manager::TunnelManager;
 use serde_json::Value;
 
 pub(super) async fn get_sync_status() -> Result<SyncStatus, String> {
