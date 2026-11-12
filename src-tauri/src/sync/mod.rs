@@ -15,7 +15,6 @@ mod state;
 pub(crate) mod commands;
 mod service;
 
-use crate::backup::webdav::{Fetched, Stored, WebDavClient};
 use crate::core::blocking::run_blocking;
 use crate::ssh::secret_store::types::SecretStoreState;
 use crate::tunnel::manager::TunnelManager;
@@ -25,6 +24,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use snapshot::{PROFILE_GROUPS, PROFILES, SERIAL_SENDS, SETTINGS, TUNNELS, removed_ids};
 use std::sync::Mutex;
+use tterm_core::backup::webdav::{Fetched, Stored, WebDavClient};
 use tterm_core::db::meta;
 
 use snapshot::SyncSelection;

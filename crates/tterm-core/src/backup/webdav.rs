@@ -19,7 +19,7 @@ const MAX_LISTING_SIZE: u64 = 8 * 1024 * 1024;
 const MAX_DIRECTORY_DEPTH: usize = 8;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) struct DavEntry {
+pub struct DavEntry {
     pub name: String,
     pub is_collection: bool,
     pub size: u64,
@@ -27,7 +27,7 @@ pub(crate) struct DavEntry {
     pub modified_at: Option<i64>,
 }
 
-pub(crate) struct WebDavClient {
+pub struct WebDavClient {
     http: Client,
     base: Url,
     username: String,
@@ -208,7 +208,7 @@ impl WebDavClient {
     }
 
     /// Deletes a directory and everything in it; used to clean up live tests.
-    #[cfg(test)]
+    #[cfg(any(test, feature = "test-support"))]
     pub async fn delete_directory(&self, directory: &[String]) -> Result<(), String> {
         let status = self
             .send(self.request(Method::DELETE, self.directory_url(directory)?))
@@ -277,13 +277,13 @@ impl WebDavClient {
     }
 }
 
-pub(crate) enum Fetched {
+pub enum Fetched {
     NotModified,
     NotFound,
     Found { data: Vec<u8>, etag: Option<String> },
 }
 
-pub(crate) enum Stored {
+pub enum Stored {
     Stored {
         etag: Option<String>,
     },
@@ -303,7 +303,7 @@ fn method(name: &'static [u8]) -> Method {
     Method::from_bytes(name).unwrap_or(Method::GET)
 }
 
-pub(crate) fn parse_server_url(value: &str) -> Result<Url, String> {
+pub fn parse_server_url(value: &str) -> Result<Url, String> {
     let url = Url::parse(value.trim()).map_err(|_| "WebDAV server URL is invalid.".to_string())?;
     if !matches!(url.scheme(), "http" | "https") {
         return Err("WebDAV server URL must start with https:// or http://.".to_string());
@@ -323,7 +323,7 @@ pub(crate) fn parse_server_url(value: &str) -> Result<Url, String> {
 }
 
 /// Splits a remote directory such as `tTerm/backups` into path segments.
-pub(crate) fn split_remote_directory(value: &str) -> Result<Vec<String>, String> {
+pub fn split_remote_directory(value: &str) -> Result<Vec<String>, String> {
     let mut segments = Vec::new();
     for segment in value.split('/').map(str::trim).filter(|s| !s.is_empty()) {
         if segment == "."

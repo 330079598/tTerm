@@ -18,7 +18,6 @@ mod export;
 pub mod remote;
 pub(crate) mod remote_commands;
 mod snapshot;
-pub(crate) mod webdav;
 
 use apply::{
     apply_payload, ensure_selection_available, from_backup_value, import_redirects_webdav,

@@ -6,7 +6,6 @@ use super::{
     clear_downloads, clear_settings, connect, load_settings, non_empty, normalized_settings,
     run_webdav_backup_locked, same_account, save_keeping_history, saved_secret, status,
 };
-use crate::backup::webdav::{WebDavClient, split_remote_directory};
 use crate::backup::{MAX_BACKUP_SIZE, normalized_backup_path};
 use crate::core::blocking::run_blocking;
 use crate::ssh::secret_store::{
@@ -14,6 +13,7 @@ use crate::ssh::secret_store::{
 };
 use serde_json::Value;
 use std::{fs, sync::atomic::Ordering};
+use tterm_core::backup::webdav::{WebDavClient, split_remote_directory};
 use zeroize::Zeroizing;
 
 pub(in crate::backup) async fn get_webdav_backup_status(

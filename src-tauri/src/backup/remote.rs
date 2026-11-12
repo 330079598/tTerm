@@ -9,7 +9,6 @@ use super::BackupSelection;
 use super::archive::build_archive_for_version;
 use super::diff::value_array_len;
 use super::export::collect_payload;
-use super::webdav::{WebDavClient, split_remote_directory};
 use crate::core::blocking::run_blocking;
 use crate::ssh::secret_store::store::get_secret;
 use crate::ssh::secret_store::types::SecretStoreState;
@@ -20,6 +19,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::fs;
 use std::sync::atomic::AtomicBool;
+use tterm_core::backup::webdav::{WebDavClient, split_remote_directory};
 use tterm_core::db::meta;
 use zeroize::Zeroizing;
 
@@ -419,7 +419,7 @@ fn is_configured(settings: &WebDavBackupSettings) -> bool {
 }
 
 fn normalized_settings(mut settings: WebDavBackupSettings) -> Result<WebDavBackupSettings, String> {
-    settings.url = super::webdav::parse_server_url(&settings.url)?.to_string();
+    settings.url = tterm_core::backup::webdav::parse_server_url(&settings.url)?.to_string();
     settings.username = settings.username.trim().to_string();
     if settings.username.is_empty() {
         return Err("Enter the WebDAV user name.".to_string());

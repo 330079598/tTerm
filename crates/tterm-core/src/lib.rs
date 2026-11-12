@@ -8,6 +8,8 @@
 pub mod agent_status;
 /// Notifications and agent reports carried by terminal OSC sequences.
 pub mod attention_reports;
+/// Backup: the WebDAV client a remote backup drives.
+pub mod backup;
 /// The saved command library every client shares.
 pub mod command_library;
 /// Command lines, timing and shell-integration marks for one terminal.
