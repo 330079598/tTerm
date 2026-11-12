@@ -1,4 +1,3 @@
-use crate::keymap::actions::KeymapActionId;
 use crate::workspace::tab::{Tab, TabConnection, TabContextMenuAction, TabType};
 use crate::workspace::tab_menu_actions::{
     get_layout_templates_menu_action, get_pane_menu_actions, get_reopen_closed_tab_menu_action,
@@ -148,8 +147,11 @@ fn shows_the_duplicate_shortcut_beside_the_copy_item() {
         false,
     );
     assert_eq!(
-        find_action(&actions, "duplicate").unwrap().shortcut,
-        Some(KeymapActionId::TabsDuplicateActive)
+        find_action(&actions, "duplicate")
+            .unwrap()
+            .shortcut
+            .map(|id| id.as_str()),
+        Some("tabs.duplicateActive")
     );
 }
 
@@ -190,8 +192,10 @@ fn saves_an_ssh_or_local_tab_that_has_no_profile_and_edits_one_that_has() {
 #[test]
 fn shows_the_shortcut_which_acts_only_where_the_item_is_offered() {
     assert_eq!(
-        get_tab_connection_menu_action(&tab("a", "a", TabType::Terminal), &translate)[0].shortcut,
-        Some(KeymapActionId::TabsSaveConnection)
+        get_tab_connection_menu_action(&tab("a", "a", TabType::Terminal), &translate)[0]
+            .shortcut
+            .map(|id| id.as_str()),
+        Some("tabs.saveConnection")
     );
     assert_eq!(
         tab_connection_action_label(&tab("a", "a", TabType::Terminal)),
@@ -362,20 +366,26 @@ fn oracle_standalone_menu_items_keep_their_shortcuts() {
     assert_eq!(reopen.label, "contextMenu.reopenClosedTab");
     assert_eq!(reopen.action, "reopen-closed");
     assert_eq!(reopen.icon.as_deref(), Some("rotate-ccw"));
-    assert_eq!(reopen.shortcut, Some(KeymapActionId::TabsReopenClosed));
+    assert_eq!(
+        reopen.shortcut.map(|id| id.as_str()),
+        Some("tabs.reopenClosed")
+    );
 
     let ungroup = get_ungroup_menu_action(&translate);
     assert_eq!(ungroup.label, "workspace.unsplit");
     assert_eq!(ungroup.action, "ungroup");
     assert_eq!(ungroup.icon.as_deref(), Some("unsplit"));
     assert_eq!(
-        ungroup.shortcut,
-        Some(KeymapActionId::WorkspaceRestoreSingleGroup)
+        ungroup.shortcut.map(|id| id.as_str()),
+        Some("workspace.restoreSingleGroup")
     );
 
     let layout = get_layout_templates_menu_action(&translate);
     assert_eq!(layout.label, "layoutTemplates.menu");
     assert_eq!(layout.action, "layout-templates");
     assert_eq!(layout.icon.as_deref(), Some("layout"));
-    assert_eq!(layout.shortcut, Some(KeymapActionId::WorkspaceChooseLayout));
+    assert_eq!(
+        layout.shortcut.map(|id| id.as_str()),
+        Some("workspace.chooseLayout")
+    );
 }

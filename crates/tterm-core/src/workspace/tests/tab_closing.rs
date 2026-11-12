@@ -92,8 +92,8 @@ fn shows_the_close_shortcut_only_for_a_tab_with_one_pane_which_it_closes() {
             .shortcut
     };
     assert_eq!(
-        shortcut(false),
-        Some(crate::keymap::actions::KeymapActionId::TabsCloseActive)
+        shortcut(false).map(|id| id.as_str()),
+        Some("tabs.closeActive")
     );
     assert_eq!(shortcut(true), None);
 }
@@ -110,7 +110,7 @@ fn oracle_returns_empty_and_disabled_when_the_tab_is_unknown() {
         assert_eq!(action.disabled, Some(true));
     }
     assert_eq!(
-        actions[0].shortcut,
-        Some(crate::keymap::actions::KeymapActionId::TabsCloseActive)
+        actions[0].shortcut.map(|id| id.as_str()),
+        Some("tabs.closeActive")
     );
 }
