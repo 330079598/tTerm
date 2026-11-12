@@ -12,15 +12,27 @@ import {
   writeFrontendStateValue,
 } from "@/lib/frontendStateCache"
 import { initializeFrontendState, readLegacyFrontendState } from "@/lib/frontendStateMigration"
-import { COMMAND_COMPOSER_OPEN_STORAGE_KEY } from "@/lib/commandComposer"
-import { PROFILE_RECENTS_STORAGE_KEY } from "@/lib/profileRecents"
-import { QUICK_CONNECT_RECENTS_STORAGE_KEY } from "@/lib/quickConnect"
+import {
+  COMMAND_COMPOSER_LINE_BY_LINE_STORAGE_KEY,
+  COMMAND_COMPOSER_OPEN_STORAGE_KEY,
+} from "@/lib/commandComposer"
+import { loadRecentProfiles, PROFILE_RECENTS_STORAGE_KEY } from "@/lib/profileRecents"
+import { loadRecentQuickConnections, QUICK_CONNECT_RECENTS_STORAGE_KEY } from "@/lib/quickConnect"
 import {
   loadRecentCommands,
   RECENT_COMMANDS_STORAGE_KEY,
   saveRecentCommands,
 } from "@/lib/recentCommands"
-import { SERIAL_SEND_ECHO_STORAGE_KEY } from "@/lib/serialSendStore"
+import { loadSerialSendEcho, SERIAL_SEND_ECHO_STORAGE_KEY } from "@/lib/serialSendStore"
+import {
+  loadSftpViewPreferences,
+  SFTP_COLUMN_WIDTH_STORAGE_KEY,
+  SFTP_VIEW_STORAGE_KEY,
+} from "@/components/SftpDrawer/sftpView"
+import {
+  loadReplayViewPreferences,
+  REPLAY_VIEW_STORAGE_KEY,
+} from "@/components/LogsPanel/replayView"
 
 vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn() }))
 
@@ -31,6 +43,7 @@ describe("frontend state storage", () => {
     localStorage.clear()
     resetFrontendStateCacheForTests()
     mockedInvoke.mockReset()
+    vi.restoreAllMocks()
   })
 
   it("hands the localStorage values over on the first start", async () => {
@@ -52,6 +65,7 @@ describe("frontend state storage", () => {
     })
     expect(cachedFrontendState("recentCommands")).toEqual(commands)
     expect(cachedFrontendState("commandComposerOpen")).toBe(true)
+    expect(localStorage.getItem(COMMAND_COMPOSER_OPEN_STORAGE_KEY)).toBe("1")
   })
 
   it("uses the backend values when the migration already ran", async () => {
@@ -65,6 +79,96 @@ describe("frontend state storage", () => {
     await initializeFrontendState()
 
     expect(loadRecentCommands(localStorage)).toEqual(fromBackend)
+    expect(localStorage.getItem(RECENT_COMMANDS_STORAGE_KEY)).toBe(JSON.stringify(fromBackend))
+  })
+
+  it("mirrors every successful backend write in the format 0.8.x reads", async () => {
+    mockedInvoke.mockResolvedValue({})
+    await initializeFrontendState()
+    mockedInvoke.mockClear()
+    const commands = [{ id: "c2", commandText: "pwd", lastUsedAt: 2, useCount: 1 }]
+    const quickConnections = [
+      {
+        title: "host",
+        username: "root",
+        host: "example.com",
+        port: 22,
+        lastUsedAt: 3,
+      },
+    ]
+    const profiles = [{ profileId: "p1", lastUsedAt: 4 }]
+    const widths = [300, 170, 100, 100, 126, 148]
+    const sftpView = {
+      sort: { column: "size" as const, direction: "desc" as const },
+      showHidden: false,
+    }
+    const echo = ["port:COM1"]
+    const replayView = { fontSize: 16, fitPanel: true }
+
+    writeFrontendStateValue("recentCommands", commands)
+    writeFrontendStateValue("recentQuickConnections", quickConnections)
+    writeFrontendStateValue("recentProfiles", profiles)
+    writeFrontendStateValue("sftpColumnWidths", widths)
+    writeFrontendStateValue("sftpView", sftpView)
+    writeFrontendStateValue("serialSendEcho", echo)
+    writeFrontendStateValue("commandComposerOpen", true)
+    writeFrontendStateValue("commandComposerLineByLine", false)
+    writeFrontendStateValue("replayView", replayView)
+
+    await vi.waitFor(() => expect(mockedInvoke).toHaveBeenCalledTimes(18))
+    expect(localStorage.getItem(RECENT_COMMANDS_STORAGE_KEY)).toBe(JSON.stringify(commands))
+    expect(localStorage.getItem(QUICK_CONNECT_RECENTS_STORAGE_KEY)).toBe(
+      JSON.stringify(quickConnections)
+    )
+    expect(localStorage.getItem(PROFILE_RECENTS_STORAGE_KEY)).toBe(JSON.stringify(profiles))
+    expect(localStorage.getItem(SFTP_COLUMN_WIDTH_STORAGE_KEY)).toBe(JSON.stringify(widths))
+    expect(localStorage.getItem(SFTP_VIEW_STORAGE_KEY)).toBe(JSON.stringify(sftpView))
+    expect(localStorage.getItem(SERIAL_SEND_ECHO_STORAGE_KEY)).toBe(JSON.stringify(echo))
+    expect(localStorage.getItem(COMMAND_COMPOSER_OPEN_STORAGE_KEY)).toBe("1")
+    expect(loadRecentCommands(localStorage)).toEqual(commands)
+    expect(localStorage.getItem(COMMAND_COMPOSER_LINE_BY_LINE_STORAGE_KEY)).toBe("0")
+    expect(localStorage.getItem(REPLAY_VIEW_STORAGE_KEY)).toBe(JSON.stringify(replayView))
+    expect(loadRecentQuickConnections(localStorage)).toEqual(quickConnections)
+    expect(loadRecentProfiles(localStorage)).toEqual(profiles)
+    expect(loadSftpViewPreferences(localStorage)).toEqual(sftpView)
+    expect(loadSerialSendEcho("port:COM1")).toBe(false)
+    expect(loadReplayViewPreferences(localStorage)).toEqual(replayView)
+    expect(mockedInvoke).toHaveBeenNthCalledWith(1, "write_frontend_state", {
+      key: "recentCommands",
+      value: commands,
+    })
+    expect(mockedInvoke).toHaveBeenNthCalledWith(2, "acknowledge_frontend_state_sync", {
+      key: "recentCommands",
+      value: commands,
+    })
+  })
+
+  it("does not record the localStorage copy when the old key cannot be written", async () => {
+    mockedInvoke.mockResolvedValue({})
+    await initializeFrontendState()
+    mockedInvoke.mockClear()
+    const setItem = Storage.prototype.setItem
+    vi.spyOn(Storage.prototype, "setItem").mockImplementation(function (
+      this: Storage,
+      key: string,
+      value: string
+    ) {
+      if (key === RECENT_COMMANDS_STORAGE_KEY) throw new Error("quota exceeded")
+      setItem.call(this, key, value)
+    })
+
+    writeFrontendStateValue("recentCommands", [])
+
+    await vi.waitFor(() =>
+      expect(mockedInvoke).toHaveBeenCalledWith("write_frontend_state", {
+        key: "recentCommands",
+        value: [],
+      })
+    )
+    expect(mockedInvoke).not.toHaveBeenCalledWith(
+      "acknowledge_frontend_state_sync",
+      expect.anything()
+    )
   })
 
   it("skips damaged localStorage values without losing the others", () => {

@@ -24,6 +24,7 @@ let pendingStartupError: string | null = null
 let pendingWriteError: string | null = null
 let writeQueue: Promise<void> = Promise.resolve()
 const writeErrorListeners = new Set<(message: string) => void>()
+let legacyMirror: ((key: FrontendStateKey, value: unknown) => void) | null = null
 
 /** Whether startup finished loading the values from the backend. */
 export function isFrontendStateHydrated(): boolean {
@@ -51,6 +52,36 @@ export function hydrateFrontendState(value: unknown): void {
 }
 
 /**
+ * Installs the writer that keeps the 0.8.x localStorage copy current. The
+ * migration module owns the old key names and string formats.
+ */
+export function registerFrontendStateLegacyMirror(
+  mirror: (key: FrontendStateKey, value: unknown) => void
+): void {
+  legacyMirror = mirror
+}
+
+function mirrorValueToLegacy(key: FrontendStateKey, value: unknown): boolean {
+  if (!legacyMirror) return false
+  try {
+    legacyMirror(key, value)
+    return true
+  } catch (error) {
+    console.error(`Failed to write the legacy localStorage copy of '${key}':`, error)
+    return false
+  }
+}
+
+/** Refreshes every loaded value's old-format copy, for a rollback to 0.8.x. */
+export function mirrorFrontendStateToLegacy(): FrontendStateKey[] {
+  const mirrored: FrontendStateKey[] = []
+  for (const key of FRONTEND_STATE_KEYS) {
+    if (key in snapshot && mirrorValueToLegacy(key, snapshot[key])) mirrored.push(key)
+  }
+  return mirrored
+}
+
+/**
  * Leaves this session on localStorage after startup could not reach the
  * backend. The values are not emptied into the backend on the next write.
  */
@@ -75,6 +106,13 @@ export function writeFrontendStateValue(key: FrontendStateKey, value: unknown): 
       const message = toErrorMessage(error)
       pendingWriteError = message
       for (const listener of writeErrorListeners) listener(message)
+      return
+    }
+    if (!mirrorValueToLegacy(key, value)) return
+    try {
+      await invoke("acknowledge_frontend_state_sync", { key, value })
+    } catch (error) {
+      console.error(`Failed to record the localStorage copy of '${key}':`, error)
     }
   })
 }
@@ -83,6 +121,13 @@ export function writeFrontendStateValue(key: FrontendStateKey, value: unknown): 
 export async function reloadFrontendState(): Promise<void> {
   const state = await invoke<unknown>("load_frontend_state")
   hydrateFrontendState(state)
+  for (const key of mirrorFrontendStateToLegacy()) {
+    try {
+      await invoke("acknowledge_frontend_state_sync", { key, value: snapshot[key] })
+    } catch (error) {
+      console.error(`Failed to record the localStorage copy of '${key}':`, error)
+    }
+  }
 }
 
 /** A write failed after startup; the caller shows it to the user. */

@@ -20,23 +20,53 @@ use std::collections::{BTreeMap, HashMap};
 const MIGRATED_KEY: &str = "frontend.migrated";
 const MIGRATION_VERSION: u32 = 1;
 
-/// The command key, its `app_meta` key and whether a stored value may be null.
-const STATE_KEYS: [(&str, &str); 9] = [
-    ("recentCommands", "frontend.recent_commands"),
+/// The command key, its `app_meta` key and the row last synced to localStorage.
+const STATE_KEYS: [(&str, &str, &str); 9] = [
+    (
+        "recentCommands",
+        "frontend.recent_commands",
+        "frontend.synced.recent_commands",
+    ),
     (
         "recentQuickConnections",
         "frontend.recent_quick_connections",
+        "frontend.synced.recent_quick_connections",
     ),
-    ("recentProfiles", "frontend.recent_profiles"),
-    ("sftpColumnWidths", "frontend.sftp_column_widths"),
-    ("sftpView", "frontend.sftp_view"),
-    ("serialSendEcho", "frontend.serial_send_echo"),
-    ("commandComposerOpen", "frontend.command_composer_open"),
+    (
+        "recentProfiles",
+        "frontend.recent_profiles",
+        "frontend.synced.recent_profiles",
+    ),
+    (
+        "sftpColumnWidths",
+        "frontend.sftp_column_widths",
+        "frontend.synced.sftp_column_widths",
+    ),
+    (
+        "sftpView",
+        "frontend.sftp_view",
+        "frontend.synced.sftp_view",
+    ),
+    (
+        "serialSendEcho",
+        "frontend.serial_send_echo",
+        "frontend.synced.serial_send_echo",
+    ),
+    (
+        "commandComposerOpen",
+        "frontend.command_composer_open",
+        "frontend.synced.command_composer_open",
+    ),
     (
         "commandComposerLineByLine",
         "frontend.command_composer_line_by_line",
+        "frontend.synced.command_composer_line_by_line",
     ),
-    ("replayView", "frontend.replay_view"),
+    (
+        "replayView",
+        "frontend.replay_view",
+        "frontend.synced.replay_view",
+    ),
 ];
 
 /// The keys an old or new backup's `frontendState` carries. The backup format
@@ -62,8 +92,20 @@ struct MigrationMarker {
 fn state_key(key: &str) -> Option<&'static str> {
     STATE_KEYS
         .iter()
-        .find(|(name, _)| *name == key)
-        .map(|(_, storage_key)| *storage_key)
+        .find(|(name, _, _)| *name == key)
+        .map(|(_, storage_key, _)| *storage_key)
+}
+
+fn fingerprint_key(key: &str) -> Option<&'static str> {
+    STATE_KEYS
+        .iter()
+        .find(|(name, _, _)| *name == key)
+        .map(|(_, _, fingerprint_key)| *fingerprint_key)
+}
+
+fn canonical(value: &Value) -> Result<String, String> {
+    serde_json::to_string(value)
+        .map_err(|error| format!("Failed to encode frontend state for comparison: {error}"))
 }
 
 fn has_valid_shape(key: &str, value: &Value) -> bool {
@@ -82,7 +124,7 @@ fn has_valid_shape(key: &str, value: &Value) -> bool {
 /// Every stored value that still has the expected shape, by command key.
 pub(crate) fn read_all(connection: &Connection) -> Result<BTreeMap<String, Value>, String> {
     let mut state = BTreeMap::new();
-    for (key, storage_key) in STATE_KEYS {
+    for (key, storage_key, _) in STATE_KEYS {
         if let Some(value) = stored_value(connection, key, storage_key)? {
             state.insert(key.to_string(), value);
         }
@@ -99,6 +141,12 @@ fn stored_value(
         return Ok(None);
     };
     Ok(has_valid_shape(key, &value).then_some(value))
+}
+
+fn store_fingerprint(connection: &Connection, key: &str, value: &Value) -> Result<(), String> {
+    let fingerprint_key =
+        fingerprint_key(key).ok_or_else(|| format!("Unknown frontend state key '{key}'."))?;
+    meta::set(connection, fingerprint_key, &canonical(value)?)
 }
 
 /// The five fields a backup carries, with the defaults older backups had.
@@ -137,25 +185,60 @@ fn migrate(
     connection: &Connection,
     legacy: &HashMap<String, String>,
 ) -> Result<BTreeMap<String, Value>, String> {
-    let mut requested = Vec::with_capacity(legacy.len());
+    let mut requested = HashMap::with_capacity(legacy.len());
     for (key, raw) in legacy {
-        let storage_key =
-            state_key(key).ok_or_else(|| format!("Unknown frontend state key '{key}'."))?;
-        requested.push((key.as_str(), storage_key, raw.as_str()));
+        state_key(key).ok_or_else(|| format!("Unknown frontend state key '{key}'."))?;
+        requested.insert(key.as_str(), raw.as_str());
     }
 
-    if !meta::contains(connection, MIGRATED_KEY)? {
-        for (key, storage_key, raw) in requested {
-            if stored_value(connection, key, storage_key)?.is_some() {
+    let migrated = meta::contains(connection, MIGRATED_KEY)?;
+    for (key, storage_key, _) in STATE_KEYS {
+        let Some(raw) = requested.get(key) else {
+            if !migrated {
+                if let Some(stored) = stored_value(connection, key, storage_key)? {
+                    store_fingerprint(connection, key, &stored)?;
+                }
+            }
+            continue;
+        };
+        let parsed = serde_json::from_str::<Value>(raw)
+            .ok()
+            .filter(|value| has_valid_shape(key, value));
+        let stored = stored_value(connection, key, storage_key)?;
+        let Some(value) = parsed else {
+            if !migrated {
+                if let Some(stored) = stored {
+                    store_fingerprint(connection, key, &stored)?;
+                }
+            }
+            continue;
+        };
+        let Some(fingerprint_key) = fingerprint_key(key) else {
+            continue;
+        };
+        let canonical_value = canonical(&value)?;
+        let fingerprint = meta::get::<String>(connection, fingerprint_key)?;
+        if migrated {
+            if fingerprint.as_deref() == Some(&canonical_value) {
                 continue;
             }
-            let Ok(value) = serde_json::from_str::<Value>(raw) else {
+            if stored.as_ref() == Some(&value) {
+                store_fingerprint(connection, key, &value)?;
                 continue;
-            };
-            if has_valid_shape(key, &value) {
-                meta::set(connection, storage_key, &value)?;
+            }
+            if fingerprint.as_deref() != Some(&canonical_value) {
+                eprintln!(
+                    "Re-importing frontend state '{key}' from localStorage after an older version changed it."
+                );
             }
         }
+        if stored.as_ref() != Some(&value) {
+            meta::set(connection, storage_key, &value)?;
+        }
+        store_fingerprint(connection, key, &value)?;
+    }
+
+    if !migrated {
         meta::set(
             connection,
             MIGRATED_KEY,
@@ -166,6 +249,32 @@ fn migrate(
         )?;
     }
     read_all(connection)
+}
+
+fn write_synced_value(connection: &Connection, key: &str, value: &Value) -> Result<(), String> {
+    let storage_key =
+        state_key(key).ok_or_else(|| format!("Unknown frontend state key '{key}'."))?;
+    if !has_valid_shape(key, value) {
+        return Err(format!(
+            "Frontend state '{key}' has a value with the wrong type."
+        ));
+    }
+    meta::set(connection, storage_key, value)
+}
+
+fn acknowledge_synced_value(
+    connection: &Connection,
+    key: &str,
+    value: &Value,
+) -> Result<(), String> {
+    let storage_key =
+        state_key(key).ok_or_else(|| format!("Unknown frontend state key '{key}'."))?;
+    if stored_value(connection, key, storage_key)?.as_ref() != Some(value) {
+        return Err(format!(
+            "Frontend state '{key}' changed before its localStorage copy was written."
+        ));
+    }
+    store_fingerprint(connection, key, value)
 }
 
 pub(crate) fn backup_state_for_app() -> Result<Value, String> {
@@ -187,14 +296,18 @@ pub async fn read_frontend_state(key: String) -> Result<Option<Value>, String> {
 #[tauri::command]
 pub async fn write_frontend_state(key: String, value: Value) -> Result<(), String> {
     run_blocking(move || {
-        let storage_key =
-            state_key(&key).ok_or_else(|| format!("Unknown frontend state key '{key}'."))?;
-        if !has_valid_shape(&key, &value) {
-            return Err(format!(
-                "Frontend state '{key}' has a value with the wrong type."
-            ));
-        }
-        crate::db::write(|transaction| meta::set(transaction, storage_key, &value))
+        crate::db::write(|transaction| write_synced_value(transaction, &key, &value))
+    })
+    .await
+}
+
+/// Records that the value is now also in localStorage. The frontend calls
+/// this only after the old-format copy was written, so a failed copy leaves
+/// the previous fingerprint in place and the backend stays authoritative.
+#[tauri::command]
+pub async fn acknowledge_frontend_state_sync(key: String, value: Value) -> Result<(), String> {
+    run_blocking(move || {
+        crate::db::write(|transaction| acknowledge_synced_value(transaction, &key, &value))
     })
     .await
 }
@@ -243,6 +356,14 @@ mod tests {
         ])
     }
 
+    fn stored_fingerprint(connection: &Connection, key: &str) -> Option<String> {
+        meta::get(
+            connection,
+            fingerprint_key(key).expect("the test key is in the whitelist"),
+        )
+        .unwrap()
+    }
+
     #[test]
     fn first_start_moves_valid_values_and_marks_the_migration() {
         let database = Database::open_in_memory().unwrap();
@@ -259,6 +380,15 @@ mod tests {
             .unwrap();
         assert_eq!(marker["version"], MIGRATION_VERSION);
         assert!(marker["migratedAt"].as_i64().unwrap_or_default() > 0);
+        database
+            .read(|connection| {
+                assert_eq!(
+                    stored_fingerprint(connection, "recentCommands"),
+                    Some(canonical(&state["recentCommands"]).unwrap())
+                );
+                Ok(())
+            })
+            .unwrap();
     }
 
     #[test]
@@ -276,7 +406,7 @@ mod tests {
     }
 
     #[test]
-    fn later_starts_keep_the_database_and_ignore_legacy_values() {
+    fn an_older_versions_change_is_imported_again() {
         let database = Database::open_in_memory().unwrap();
         database
             .write(|connection| migrate(connection, &legacy_state()))
@@ -289,7 +419,98 @@ mod tests {
         let state = database
             .write(|connection| migrate(connection, &changed))
             .unwrap();
-        assert_eq!(state["recentCommands"][0]["id"], "c1");
+        assert_eq!(state["recentCommands"][0]["id"], "newer");
+        database
+            .read(|connection| {
+                assert_eq!(
+                    stored_fingerprint(connection, "recentCommands"),
+                    Some(canonical(&json!([{"id": "newer"}])).unwrap())
+                );
+                Ok(())
+            })
+            .unwrap();
+    }
+
+    #[test]
+    fn a_local_copy_left_by_a_failed_mirror_does_not_override_the_backend() {
+        let database = Database::open_in_memory().unwrap();
+        database
+            .write(|connection| migrate(connection, &legacy_state()))
+            .unwrap();
+        let newer = json!([{"id": "newer"}]);
+        database
+            .write(|connection| write_synced_value(connection, "recentCommands", &newer))
+            .unwrap();
+
+        let state = database
+            .write(|connection| migrate(connection, &legacy_state()))
+            .unwrap();
+        assert_eq!(state["recentCommands"][0]["id"], "newer");
+    }
+
+    #[test]
+    fn a_matching_fingerprint_does_not_reimport_the_legacy_value() {
+        let database = Database::open_in_memory().unwrap();
+        database
+            .write(|connection| migrate(connection, &legacy_state()))
+            .unwrap();
+        let newer = json!([{"id": "newer"}]);
+        database
+            .write(|connection| {
+                write_synced_value(connection, "recentCommands", &newer)?;
+                acknowledge_synced_value(connection, "recentCommands", &newer)
+            })
+            .unwrap();
+        let mut local = legacy_state();
+        local.insert("recentCommands".to_string(), newer.to_string());
+
+        let state = database
+            .write(|connection| migrate(connection, &local))
+            .unwrap();
+        assert_eq!(state["recentCommands"][0]["id"], "newer");
+    }
+
+    #[test]
+    fn a_corrupt_legacy_value_does_not_override_the_backend() {
+        let database = Database::open_in_memory().unwrap();
+        database
+            .write(|connection| migrate(connection, &legacy_state()))
+            .unwrap();
+        let newer = json!([{"id": "newer"}]);
+        database
+            .write(|connection| {
+                write_synced_value(connection, "recentCommands", &newer)?;
+                acknowledge_synced_value(connection, "recentCommands", &newer)
+            })
+            .unwrap();
+        let mut local = legacy_state();
+        local.remove("recentCommands");
+
+        let state = database
+            .write(|connection| migrate(connection, &local))
+            .unwrap();
+        assert_eq!(state["recentCommands"][0]["id"], "newer");
+    }
+
+    #[test]
+    fn acknowledging_a_stale_value_does_not_replace_the_fingerprint() {
+        let database = Database::open_in_memory().unwrap();
+        database
+            .write(|connection| migrate(connection, &legacy_state()))
+            .unwrap();
+        let before = database
+            .read(|connection| Ok(stored_fingerprint(connection, "recentCommands")))
+            .unwrap();
+        let error = database
+            .write(|connection| acknowledge_synced_value(connection, "recentCommands", &json!([])))
+            .unwrap_err();
+        assert!(error.contains("changed"), "{error}");
+        assert_eq!(
+            database
+                .read(|connection| Ok(stored_fingerprint(connection, "recentCommands")))
+                .unwrap(),
+            before
+        );
     }
 
     #[test]

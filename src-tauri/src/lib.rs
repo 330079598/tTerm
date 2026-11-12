@@ -172,6 +172,7 @@ pub fn run() {
             frontend_state::load_frontend_state,
             frontend_state::read_frontend_state,
             frontend_state::write_frontend_state,
+            frontend_state::acknowledge_frontend_state_sync,
             frontend_state::migrate_frontend_state,
             themes::load_custom_themes,
             themes::save_custom_themes,

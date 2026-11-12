@@ -12,6 +12,8 @@ import {
 import {
   FRONTEND_STATE_KEYS,
   hydrateFrontendState,
+  mirrorFrontendStateToLegacy,
+  registerFrontendStateLegacyMirror,
   reportFrontendStateStartupError,
   resetFrontendStateToLegacyForThisSession,
   type FrontendStateKey,
@@ -48,6 +50,17 @@ const VALID_SHAPES: Record<FrontendStateKey, (value: unknown) => boolean> = {
   commandComposerLineByLine: (value) => typeof value === "boolean",
   replayView: isObject,
 }
+
+function legacyValueText(key: FrontendStateKey, value: unknown): string {
+  if (key === "commandComposerOpen" || key === "commandComposerLineByLine") {
+    return value === true ? "1" : "0"
+  }
+  return JSON.stringify(value)
+}
+
+registerFrontendStateLegacyMirror((key, value) => {
+  window.localStorage.setItem(LEGACY_STORAGE_KEYS[key], legacyValueText(key, value))
+})
 
 /**
  * The values worth handing to the backend, as JSON text. They stay in
@@ -108,6 +121,7 @@ export async function initializeFrontendState(): Promise<void> {
   try {
     const state = await invoke<unknown>("migrate_frontend_state", { legacy })
     hydrateFrontendState(state)
+    mirrorFrontendStateToLegacy()
   } catch (error) {
     console.error("Failed to load frontend state from the backend:", error)
     resetFrontendStateToLegacyForThisSession()
