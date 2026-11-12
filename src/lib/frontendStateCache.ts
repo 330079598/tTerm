@@ -99,9 +99,7 @@ export function mirrorFrontendStateToLegacy(): FrontendStateKey[] {
  * Records the old-format copies that were written successfully, so the next
  * start does not mistake them for changes made by an older version.
  */
-export async function acknowledgeFrontendStateMirror(
-  keys: FrontendStateKey[]
-): Promise<void> {
+export async function acknowledgeFrontendStateMirror(keys: FrontendStateKey[]): Promise<void> {
   for (const key of keys) {
     try {
       await invoke("acknowledge_frontend_state_sync", { key, value: snapshot[key] })

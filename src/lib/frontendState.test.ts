@@ -262,9 +262,7 @@ describe("frontend state storage", () => {
 
   it("keeps imported recents and untouched local keys in a degraded session", async () => {
     const localCommands = [{ id: "local", commandText: "ls", lastUsedAt: 1, useCount: 1 }]
-    const importedCommands = [
-      { id: "imported", commandText: "pwd", lastUsedAt: 2, useCount: 3 },
-    ]
+    const importedCommands = [{ id: "imported", commandText: "pwd", lastUsedAt: 2, useCount: 3 }]
     const connections = [
       {
         title: "local-host",
