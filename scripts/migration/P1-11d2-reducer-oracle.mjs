@@ -15,7 +15,8 @@ export function reducerCases(tabsState, home = null) {
       action = { type: "update", id: action.id, updater: tab => ({ ...tab, ...patch }) }
     }
     const result = tabsState.tabsReducer(state, action)
-    cases.push({ name, state: input, action: wireAction, result, home })
+    const wireState = { tabs: result.tabs, activeTabId: result.activeTabId, groups: result.groups.map(group => ({ id: group.id, root: group.root, activeTabId: group.activeTabId, ...(group.zoomedTabId === undefined ? {} : { zoomedTabId: group.zoomedTabId }) })), groupCount: result.groupCount }
+    cases.push({ name, state: input, action: wireAction, result, home, resultBytes: JSON.stringify(wireState), tabBytes: JSON.stringify(result.tabs) })
   }
   add("restore saved split and orphan", { type: "restore", tabs: [tab("a"), tab("b"), tab("c")], activeTabId: "b", layout: { version: 2, groups: [{ root: row(["a", "b"]), activeTabId: "a" }] } }, empty())
   add("restore empty session", { type: "restore", tabs: [], activeTabId: null }, initial())
@@ -33,6 +34,8 @@ export function reducerCases(tabsState, home = null) {
   add("remove last tab", { type: "remove", ids: ["a"] }, { tabs: [tab("a", { isActive: true })], activeTabId: "a", groups: [group("group-1", ["a"])], groupCount: 1 })
   add("remove with explicit preferred focus", { type: "remove", ids: ["b"], options: { preferredActiveTabId: "c", activatePreferred: true } })
   add("set active", { type: "set-active", id: "b" })
+  add("set active preserves unknown field key position", { type: "set-active", id: "a" }, { tabs: [{ id: "a", title: "t", type: "ssh", isActive: false, future: 1, hasConnected: false }], activeTabId: null, groups: [], groupCount: 0 })
+  add("duplicate preserves existing key positions", { type: "duplicate", sourceId: "a", newId: "d" }, { ...initial(), tabs: [tab("a", { title: "t", future: 1, sessionNonce: 3, hasConnected: false, duplicateBaseTitle: "t" }), tab("b"), tab("c")] })
   add("set active preserves home title when loaded", { type: "set-active", id: "a" }, { tabs: [tab("a", { title: "~", autoTitle: true, connection: { cwd: "/home/me" } })], activeTabId: "a", groups: [group("group-1", ["a"])], groupCount: 1 })
   add("set missing active", { type: "set-active", id: "missing" })
   add("move group reorders tabs", { type: "move", fromIndex: 1, toIndex: 0 })

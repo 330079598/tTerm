@@ -184,8 +184,14 @@ fn oracle_matches_every_reducer_action_and_boundary() {
             case["home"].as_str(),
         );
         assert_eq!(
-            serde_json::to_value(result).unwrap(),
-            case["result"],
+            serde_json::to_string(&result).unwrap(),
+            case["resultBytes"].as_str().unwrap(),
+            "{}",
+            case["name"]
+        );
+        assert_eq!(
+            serde_json::to_string(&result.tabs).unwrap(),
+            case["tabBytes"].as_str().unwrap(),
             "{}",
             case["name"]
         );
