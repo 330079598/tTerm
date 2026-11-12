@@ -40,6 +40,8 @@ pub mod paste_guard;
 /// Application directories resolved by the client at startup.
 pub mod paths;
 
+/// Saved connection profiles and the OpenSSH config import.
+pub mod profiles;
 /// One-shot interactive requests with scoped cancellation.
 pub mod prompts;
 /// Per-tab directories and hosts reported by remote shells.

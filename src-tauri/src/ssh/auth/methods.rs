@@ -153,7 +153,7 @@ where
 /// key, a configured one that cannot be used is an error, so the user learns
 /// why instead of seeing the server turn the key down.
 pub(super) fn load_certificate(path: &str, public_key: &PublicKey) -> Result<Certificate, String> {
-    let text = std::fs::read_to_string(crate::profiles::parser::paths::expand_home_path(path))
+    let text = std::fs::read_to_string(tterm_core::profiles::parser::paths::expand_home_path(path))
         .map_err(|error| {
             if error.kind() == std::io::ErrorKind::NotFound {
                 format!("certificate file not found: {path}")

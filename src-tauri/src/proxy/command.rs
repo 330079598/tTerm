@@ -86,7 +86,7 @@ pub(crate) async fn spawn(command_line: &str) -> Result<CommandStream, SshConnec
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .kill_on_drop(true);
-    if let Some(home) = crate::profiles::parser::paths::home_dir() {
+    if let Some(home) = tterm_core::profiles::parser::paths::home_dir() {
         command.current_dir(home);
     }
     let mut child = command.spawn().map_err(|error| {

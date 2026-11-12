@@ -2,7 +2,7 @@
 
 /// The keyword of a line and the rest after it, which OpenSSH separates with
 /// spaces, an `=`, or both: `Port 22`, `Port=22` and `Port = 22`.
-pub(super) fn split_keyword(line: &str) -> (&str, &str) {
+pub fn split_keyword(line: &str) -> (&str, &str) {
     let line = line.trim_start();
     let end = line
         .find(|ch: char| ch.is_whitespace() || ch == '=')
@@ -12,7 +12,7 @@ pub(super) fn split_keyword(line: &str) -> (&str, &str) {
     (&line[..end], rest)
 }
 
-pub(super) fn strip_inline_comment(line: &str) -> String {
+pub fn strip_inline_comment(line: &str) -> String {
     let mut in_single = false;
     let mut in_double = false;
     let mut escaped = false;
@@ -53,7 +53,7 @@ pub(super) fn strip_inline_comment(line: &str) -> String {
     output.trim().to_string()
 }
 
-pub(super) fn split_ssh_words(value: &str) -> Vec<String> {
+pub fn split_ssh_words(value: &str) -> Vec<String> {
     let mut words = Vec::new();
     let mut current = String::new();
     let mut in_single = false;

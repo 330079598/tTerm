@@ -3,7 +3,7 @@
 use std::env;
 use std::path::PathBuf;
 
-pub(crate) fn home_dir() -> Option<PathBuf> {
+pub fn home_dir() -> Option<PathBuf> {
     env::var_os("HOME")
         .map(PathBuf::from)
         .or_else(|| env::var_os("USERPROFILE").map(PathBuf::from))
@@ -18,7 +18,7 @@ pub(crate) fn home_dir() -> Option<PathBuf> {
         })
 }
 
-pub(crate) fn expand_home_path(path: &str) -> PathBuf {
+pub fn expand_home_path(path: &str) -> PathBuf {
     let trimmed = path.trim().trim_matches('"');
     if trimmed == "~" {
         return home_dir().unwrap_or_else(|| PathBuf::from(trimmed));
@@ -35,7 +35,7 @@ pub(crate) fn expand_home_path(path: &str) -> PathBuf {
     PathBuf::from(trimmed)
 }
 
-pub(crate) fn normalize_import_source(source_path: Option<String>) -> Result<PathBuf, String> {
+pub fn normalize_import_source(source_path: Option<String>) -> Result<PathBuf, String> {
     let source = source_path
         .as_deref()
         .filter(|value| !value.trim().is_empty())

@@ -2,7 +2,6 @@
 
 use super::jump::{JumpTarget, last_jump_host, parse_proxy_jump};
 use super::parse::SshConfig;
-use super::pattern::is_wildcard_host;
 use super::proxy_command::{ProxyCommandUse, classify};
 use super::tokens::{PathTokens, key_file_path};
 use crate::profiles::types::{
@@ -11,6 +10,7 @@ use crate::profiles::types::{
 };
 use crate::tunnel::forwards::ForwardSpec;
 use std::collections::HashMap;
+use tterm_core::profiles::parser::pattern::is_wildcard_host;
 
 /// The first value of an option, trimmed, unless it is empty.
 pub(super) fn first_option(options: &HashMap<String, Vec<String>>, key: &str) -> Option<String> {

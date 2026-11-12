@@ -202,10 +202,10 @@ where
 /// ones that exist.
 pub(super) fn identity_files(key_path: Option<&str>, local_identities: bool) -> Vec<PathBuf> {
     let mut files = key_path
-        .map(crate::profiles::parser::paths::expand_home_path)
+        .map(tterm_core::profiles::parser::paths::expand_home_path)
         .into_iter()
         .collect::<Vec<_>>();
-    let ssh_dir = crate::profiles::parser::paths::home_dir()
+    let ssh_dir = tterm_core::profiles::parser::paths::home_dir()
         .filter(|_| local_identities)
         .map(|home| home.join(".ssh"));
     for path in ssh_dir

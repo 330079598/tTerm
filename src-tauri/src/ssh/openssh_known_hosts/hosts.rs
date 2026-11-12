@@ -1,10 +1,10 @@
 //! Matches the host names of a `known_hosts` entry the way `ssh` does in
 //! `hostfile.c`.
 
-use crate::profiles::parser::pattern::wildcard_matches;
 use hmac::{Hmac, KeyInit, Mac};
 use russh::keys::ssh_key::known_hosts::HostPatterns;
 use sha1::Sha1;
+use tterm_core::profiles::parser::pattern::wildcard_matches;
 
 /// How `ssh` names a host in `known_hosts`: on its own on port 22 and as
 /// `[host]:port` on any other, in lower case.

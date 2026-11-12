@@ -18,20 +18,20 @@ enum Criterion {
 
 /// One criterion of a `Match` line, which `!` negates.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(super) struct MatchCriterion {
+pub struct MatchCriterion {
     negated: bool,
     criterion: Criterion,
 }
 
 impl MatchCriterion {
     /// Whether this is a plain `final`, which asks `ssh` for a second pass.
-    pub(super) fn requests_final_pass(&self) -> bool {
+    pub fn requests_final_pass(&self) -> bool {
         !self.negated && self.criterion == Criterion::FinalPass
     }
 }
 
 /// What a host looks like when a `Match` line is checked against it.
-pub(super) struct MatchContext<'a> {
+pub struct MatchContext<'a> {
     /// The `HostName` set so far, or the name being looked up.
     pub host: &'a str,
     /// The name as it was typed.
@@ -69,7 +69,7 @@ fn pattern_list_matches(list: &str, value: &str, ignore_case: bool) -> bool {
 /// Reads the words after `Match`. A criterion tTerm cannot check during an
 /// import, such as `exec`, which would run a command, gives the reason why
 /// the block is not applied.
-pub(super) fn parse_match_criteria(words: &[String]) -> Result<Vec<MatchCriterion>, String> {
+pub fn parse_match_criteria(words: &[String]) -> Result<Vec<MatchCriterion>, String> {
     let mut criteria = Vec::new();
     let mut words = words.iter();
     while let Some(word) = words.next() {
@@ -108,7 +108,7 @@ pub(super) fn parse_match_criteria(words: &[String]) -> Result<Vec<MatchCriterio
 }
 
 /// Whether every criterion of a `Match` line holds for the host.
-pub(super) fn criteria_match(criteria: &[MatchCriterion], context: &MatchContext) -> bool {
+pub fn criteria_match(criteria: &[MatchCriterion], context: &MatchContext) -> bool {
     criteria.iter().all(|item| {
         let holds = match &item.criterion {
             Criterion::All => true,
@@ -127,7 +127,7 @@ pub(super) fn criteria_match(criteria: &[MatchCriterion], context: &MatchContext
 }
 
 /// The name of the user running tTerm, which `Match localuser` compares.
-pub(super) fn local_user_name() -> String {
+pub fn local_user_name() -> String {
     std::env::var("USER")
         .or_else(|_| std::env::var("USERNAME"))
         .unwrap_or_default()

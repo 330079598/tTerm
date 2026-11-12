@@ -3,7 +3,7 @@
 use super::tests::{import, import_as};
 
 fn key_path(name: &str) -> String {
-    super::paths::home_dir()
+    tterm_core::profiles::parser::paths::home_dir()
         .expect("home directory")
         .join(format!(".ssh/{name}"))
         .to_string_lossy()

@@ -14,7 +14,6 @@ mod handshake_tests;
 mod tests;
 
 use crate::profiles::parser::config_known_hosts_files;
-use crate::profiles::parser::paths::home_dir;
 use crate::ssh::store::KnownHostRecord;
 use hosts::{host_key_name, patterns_match};
 use russh::keys::PublicKeyOrCertificate;
@@ -24,6 +23,7 @@ use russh::keys::ssh_key::public::KeyData;
 use std::borrow::Cow;
 use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
+use tterm_core::profiles::parser::paths::home_dir;
 use verify::KnownHostVerdict;
 
 /// One entry of a `known_hosts` file that could be read.

@@ -2,11 +2,11 @@
 //! `?` for exactly one, as `Include` paths, `Host` lines and `known_hosts`
 //! entries use them.
 
-pub(super) fn has_glob_pattern(value: &str) -> bool {
+pub fn has_glob_pattern(value: &str) -> bool {
     value.contains('*') || value.contains('?')
 }
 
-pub(crate) fn wildcard_matches(pattern: &str, value: &str) -> bool {
+pub fn wildcard_matches(pattern: &str, value: &str) -> bool {
     fn matches(pattern: &[char], value: &[char]) -> bool {
         if pattern.is_empty() {
             return value.is_empty();
@@ -29,6 +29,6 @@ pub(crate) fn wildcard_matches(pattern: &str, value: &str) -> bool {
 }
 
 /// Whether a `Host` pattern stands for more than one host, or negates one.
-pub(super) fn is_wildcard_host(pattern: &str) -> bool {
+pub fn is_wildcard_host(pattern: &str) -> bool {
     pattern.contains('*') || pattern.contains('?') || pattern.contains('!')
 }
