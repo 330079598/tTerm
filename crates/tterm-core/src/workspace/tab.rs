@@ -3,7 +3,6 @@
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 
-use crate::distro::DistroId;
 use crate::keymap::actions::KeymapActionId;
 use crate::workspace::tab_icons::TabIconStyle;
 
@@ -253,12 +252,4 @@ pub fn is_session_tab(tab: &Tab) -> bool {
         tab.tab_type,
         TabType::Terminal | TabType::Ssh | TabType::Serial
     )
-}
-
-/// The distribution a tab reported, when the value is one this build knows.
-pub(crate) fn tab_distro_id(tab: &Tab) -> Option<DistroId> {
-    let value = tab.distro_id.as_deref()?;
-    crate::distro::DISTRO_IDS
-        .into_iter()
-        .find(|distro| distro.as_str() == value)
 }

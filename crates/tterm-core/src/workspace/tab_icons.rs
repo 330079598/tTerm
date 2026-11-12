@@ -10,7 +10,7 @@ use serde_json::Value;
 
 use crate::distro::{DistroId, is_distro_id};
 use crate::workspace::pane_templates::js_trim;
-use crate::workspace::tab::{Tab, TabType, is_session_tab, tab_distro_id};
+use crate::workspace::tab::{Tab, TabType, is_session_tab};
 
 /// The icons a local tab can show, in picker order.
 pub const TAB_ICON_IDS: &[&str] = &[
@@ -416,23 +416,25 @@ pub fn tab_icon_distro(icon: &str) -> String {
 }
 
 /// What an SSH tab shows without a choice of its own.
-pub fn ssh_tab_icon(distro_id: Option<DistroId>) -> ResolvedTabIcon {
-    distro_id.map_or_else(server_icon, |distro| {
-        resolved(&format!("distro:{}", distro.as_str()), "")
-    })
+pub fn ssh_tab_icon(distro_id: Option<&str>) -> ResolvedTabIcon {
+    distro_id
+        .filter(|distro| !distro.is_empty())
+        .map_or_else(server_icon, |distro| {
+            resolved(&format!("distro:{distro}"), "")
+        })
 }
 
 fn local_tab_icon(
     config: &TabIconConfig,
     shell_name: Option<&str>,
-    distro_id: Option<DistroId>,
+    distro_id: Option<&str>,
 ) -> ResolvedTabIcon {
     let key = shell_key(shell_name);
-    let Some(distro) = distro_id.filter(|_| key == "wsl") else {
+    let Some(distro) = distro_id.filter(|distro| !distro.is_empty() && key == "wsl") else {
         return shell_tab_icon(config, shell_name);
     };
     apply_tab_icon_style(
-        &resolved(&format!("distro:{}", distro.as_str()), ""),
+        &resolved(&format!("distro:{distro}"), ""),
         config.shells.get(&key),
     )
 }
@@ -466,9 +468,9 @@ pub fn has_tab_icon(tab: &Tab) -> bool {
 /// What a terminal tab shows without a choice of its own.
 pub fn inherited_tab_icon(tab: &Tab, config: &TabIconConfig) -> ResolvedTabIcon {
     match tab.tab_type {
-        TabType::Ssh => ssh_tab_icon(tab_distro_id(tab)),
+        TabType::Ssh => ssh_tab_icon(tab.distro_id.as_deref()),
         TabType::Serial => serial_icon(),
-        _ => local_tab_icon(config, tab.shell_name.as_deref(), tab_distro_id(tab)),
+        _ => local_tab_icon(config, tab.shell_name.as_deref(), tab.distro_id.as_deref()),
     }
 }
 

@@ -3016,9 +3016,65 @@
           "icon": "distro:arch",
           "color": ""
         }
+      },
+      {
+        "distro": "plan9",
+        "icon": {
+          "icon": "distro:plan9",
+          "color": ""
+        }
+      },
+      {
+        "distro": "",
+        "icon": {
+          "icon": "server",
+          "color": ""
+        }
       }
     ],
     "inherited": [
+      {
+        "tab": {
+          "type": "ssh",
+          "distroId": "plan9"
+        },
+        "icon": {
+          "icon": "distro:plan9",
+          "color": ""
+        }
+      },
+      {
+        "tab": {
+          "type": "ssh",
+          "distroId": ""
+        },
+        "icon": {
+          "icon": "server",
+          "color": ""
+        }
+      },
+      {
+        "tab": {
+          "type": "terminal",
+          "shellName": "WSL",
+          "distroId": "plan9"
+        },
+        "icon": {
+          "icon": "distro:plan9",
+          "color": ""
+        }
+      },
+      {
+        "tab": {
+          "type": "terminal",
+          "shellName": "WSL",
+          "distroId": ""
+        },
+        "icon": {
+          "icon": "terminal",
+          "color": "#e9853a"
+        }
+      },
       {
         "tab": {
           "type": "ssh",

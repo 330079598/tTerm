@@ -1,6 +1,5 @@
 use indexmap::IndexMap;
 
-use crate::distro::DISTRO_IDS;
 use crate::distro::DistroId;
 use crate::workspace::tab::{Tab, TabType};
 use crate::workspace::tab_icons::{
@@ -834,7 +833,7 @@ fn oracle_matches_icon_constants_and_prefix_helpers() {
     }
     for case in icons["sshIcons"].as_array().expect("ssh icons") {
         assert_eq!(
-            serde_json::to_value(ssh_tab_icon(case["distro"].as_str().map(distro_id))).unwrap(),
+            serde_json::to_value(ssh_tab_icon(case["distro"].as_str())).unwrap(),
             case["icon"],
             "{case:?}"
         );
@@ -884,13 +883,6 @@ fn icon_config_from_json(value: &serde_json::Value) -> TabIconConfig {
         }
     }
     config
-}
-
-fn distro_id(value: &str) -> DistroId {
-    DISTRO_IDS
-        .into_iter()
-        .find(|distro| distro.as_str() == value)
-        .expect("a known distribution")
 }
 
 fn tab_from_partial(value: &serde_json::Value) -> Tab {

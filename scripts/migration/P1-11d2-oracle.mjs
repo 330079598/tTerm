@@ -474,11 +474,15 @@ output.tabIcons = {
     agent,
     icon: tabIcons.agentTabIcon(agent),
   })),
-  sshIcons: [null, "debian", "arch"].map((distro) => ({
+  sshIcons: [null, "debian", "arch", "plan9", ""].map((distro) => ({
     distro,
     icon: tabIcons.sshTabIcon(distro ?? undefined),
   })),
   inherited: [
+    { type: "ssh", distroId: "plan9" },
+    { type: "ssh", distroId: "" },
+    { type: "terminal", shellName: "WSL", distroId: "plan9" },
+    { type: "terminal", shellName: "WSL", distroId: "" },
     { type: "ssh", distroId: "debian" },
     { type: "ssh" },
     { type: "serial", distroId: "arch" },
