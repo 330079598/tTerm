@@ -7,6 +7,7 @@ import {
   cachedFrontendState,
   isFrontendStateHydrated,
   onFrontendStateWriteError,
+  reloadFrontendState,
   resetFrontendStateCacheForTests,
   takePendingFrontendStateStartupError,
   writeFrontendStateValue,
@@ -212,6 +213,79 @@ describe("frontend state storage", () => {
     await initializeFrontendState()
     expect(mockedInvoke).toHaveBeenCalledTimes(2)
     expect(cachedFrontendState("recentCommands")).toEqual(updated)
+  })
+
+  it("keeps local recents when a themes-only backup is imported in a degraded session", async () => {
+    const commands = [{ id: "local", commandText: "ls", lastUsedAt: 1, useCount: 1 }]
+    localStorage.setItem(RECENT_COMMANDS_STORAGE_KEY, JSON.stringify(commands))
+    mockedInvoke.mockRejectedValueOnce(new Error("database is locked"))
+    await initializeFrontendState()
+    expect(isFrontendStateHydrated()).toBe(false)
+    mockedInvoke.mockClear()
+    mockedInvoke.mockResolvedValue({ recentCommands: commands })
+
+    await reloadFrontendState({ customThemes: [{ id: "imported-theme" }] })
+
+    expect(mockedInvoke).toHaveBeenCalledWith("migrate_frontend_state", {
+      legacy: { recentCommands: JSON.stringify(commands) },
+    })
+    expect(mockedInvoke).not.toHaveBeenCalledWith("load_frontend_state")
+    expect(isFrontendStateHydrated()).toBe(true)
+    expect(loadRecentCommands(localStorage)).toEqual(commands)
+    expect(localStorage.getItem(RECENT_COMMANDS_STORAGE_KEY)).toBe(JSON.stringify(commands))
+  })
+
+  it("keeps imported recents and untouched local keys in a degraded session", async () => {
+    const localCommands = [{ id: "local", commandText: "ls", lastUsedAt: 1, useCount: 1 }]
+    const importedCommands = [
+      { id: "imported", commandText: "pwd", lastUsedAt: 2, useCount: 3 },
+    ]
+    const connections = [
+      {
+        title: "local-host",
+        username: "root",
+        host: "example.com",
+        port: 22,
+        lastUsedAt: 4,
+      },
+    ]
+    localStorage.setItem(RECENT_COMMANDS_STORAGE_KEY, JSON.stringify(localCommands))
+    localStorage.setItem(QUICK_CONNECT_RECENTS_STORAGE_KEY, JSON.stringify(connections))
+    mockedInvoke.mockRejectedValueOnce(new Error("database is locked"))
+    await initializeFrontendState()
+    mockedInvoke.mockClear()
+    mockedInvoke.mockResolvedValue({
+      recentCommands: importedCommands,
+      recentQuickConnections: connections,
+    })
+
+    await reloadFrontendState({ recentCommands: importedCommands })
+
+    expect(mockedInvoke).toHaveBeenCalledWith("migrate_frontend_state", {
+      legacy: {
+        recentCommands: JSON.stringify(importedCommands),
+        recentQuickConnections: JSON.stringify(connections),
+      },
+    })
+    expect(loadRecentCommands(localStorage)).toEqual(importedCommands)
+    expect(loadRecentQuickConnections(localStorage)).toEqual(connections)
+    expect(localStorage.getItem(QUICK_CONNECT_RECENTS_STORAGE_KEY)).toBe(
+      JSON.stringify(connections)
+    )
+  })
+
+  it("stays degraded when the import recovery migration still fails", async () => {
+    const imported = [{ id: "imported", commandText: "pwd", lastUsedAt: 2, useCount: 3 }]
+    mockedInvoke.mockRejectedValueOnce(new Error("database is locked"))
+    await initializeFrontendState()
+    mockedInvoke.mockRejectedValueOnce(new Error("still locked"))
+
+    await expect(reloadFrontendState({ recentCommands: imported })).rejects.toThrow("still locked")
+
+    expect(isFrontendStateHydrated()).toBe(false)
+    expect(JSON.parse(localStorage.getItem(RECENT_COMMANDS_STORAGE_KEY) ?? "null")).toEqual(
+      imported
+    )
   })
 
   it("reports a failed write to the user", async () => {

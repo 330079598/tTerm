@@ -27,6 +27,7 @@ let writeQueue: Promise<void> = Promise.resolve()
 const writeErrorListeners = new Set<(message: string) => void>()
 const reloadListeners = new Set<() => void>()
 let legacyMirror: ((key: FrontendStateKey, value: unknown) => void) | null = null
+let degradedReload: ((importedState: unknown) => Promise<unknown>) | null = null
 
 /** Whether startup finished loading the values from the backend. */
 export function isFrontendStateHydrated(): boolean {
@@ -61,6 +62,17 @@ export function registerFrontendStateLegacyMirror(
   mirror: (key: FrontendStateKey, value: unknown) => void
 ): void {
   legacyMirror = mirror
+}
+
+/**
+ * Installs the retry used when an import finishes during a session whose
+ * startup could not reach the backend. The migration module owns the legacy
+ * key names and the retry command.
+ */
+export function registerFrontendStateDegradedReload(
+  reload: (importedState: unknown) => Promise<unknown>
+): void {
+  degradedReload = reload
 }
 
 function mirrorValueToLegacy(key: FrontendStateKey, value: unknown): boolean {
@@ -123,9 +135,16 @@ export function writeFrontendStateValue(key: FrontendStateKey, value: unknown): 
   })
 }
 
-/** Loads every stored value again, after an import changed them. */
-export async function reloadFrontendState(): Promise<void> {
-  const state = await invoke<unknown>("load_frontend_state")
+/**
+ * Loads every stored value again, after an import changed them. A session
+ * that failed to load at startup retries the migration instead, so imported
+ * data and this session's localStorage writes are reconciled together. If
+ * that retry fails, the session stays on localStorage until the next start.
+ */
+export async function reloadFrontendState(importedState?: unknown): Promise<void> {
+  const state = hydrated
+    ? await invoke<unknown>("load_frontend_state")
+    : await retryDegradedReload(importedState)
   hydrateFrontendState(state)
   const mirrored = mirrorFrontendStateToLegacy()
   for (const listener of reloadListeners) listener()
@@ -136,6 +155,13 @@ export async function reloadFrontendState(): Promise<void> {
       console.error(`Failed to record the localStorage copy of '${key}':`, error)
     }
   }
+}
+
+async function retryDegradedReload(importedState: unknown): Promise<unknown> {
+  if (!degradedReload) {
+    throw new Error("Frontend state migration is not available.")
+  }
+  return degradedReload(importedState)
 }
 
 /** Runs after an import replaced the cached values. */

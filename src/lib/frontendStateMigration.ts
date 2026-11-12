@@ -13,6 +13,7 @@ import {
   FRONTEND_STATE_KEYS,
   hydrateFrontendState,
   mirrorFrontendStateToLegacy,
+  registerFrontendStateDegradedReload,
   registerFrontendStateLegacyMirror,
   reportFrontendStateStartupError,
   resetFrontendStateToLegacyForThisSession,
@@ -109,6 +110,34 @@ function readStorage(storage: Storage): Record<string, string> {
     return {}
   }
 }
+
+/**
+ * Puts the fields an import wrote into the backend back into the old-format
+ * localStorage values first. The retry then compares this session's local
+ * writes with the imported rows instead of overwriting either side blindly.
+ */
+function mirrorImportedFrontendStateToLegacy(state: unknown): void {
+  if (!isObject(state)) return
+  for (const key of FRONTEND_STATE_KEYS) {
+    if (!Object.prototype.hasOwnProperty.call(state, key)) continue
+    const value = state[key]
+    if (value === undefined || value === null || !VALID_SHAPES[key](value)) continue
+    try {
+      window.localStorage.setItem(LEGACY_STORAGE_KEYS[key], legacyValueText(key, value))
+    } catch (error) {
+      console.error(`Failed to write the imported legacy value of '${key}':`, error)
+    }
+  }
+}
+
+async function retryMigrationForImport(importedState: unknown): Promise<unknown> {
+  mirrorImportedFrontendStateToLegacy(importedState)
+  return invoke<unknown>("migrate_frontend_state", {
+    legacy: readStorage(window.localStorage),
+  })
+}
+
+registerFrontendStateDegradedReload(retryMigrationForImport)
 
 /**
  * Loads every value before React mounts. The first start hands the

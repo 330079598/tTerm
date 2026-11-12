@@ -262,7 +262,7 @@ export const DataMigrationSettingsTab: React.FC = () => {
         })
       )
       try {
-        await reloadFrontendState()
+        await reloadFrontendState(result.frontendState)
       } catch (error) {
         // The import itself succeeded; a restart reads the new values again.
         console.error("Failed to refresh the imported frontend state:", error)
