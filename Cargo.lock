@@ -11001,6 +11001,7 @@ dependencies = [
  "dirs 7.0.0",
  "gethostname",
  "indexmap 2.14.2",
+ "regress",
  "serde",
  "serde_json",
  "tokio",

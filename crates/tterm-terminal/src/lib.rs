@@ -53,17 +53,33 @@
 
 pub mod cell;
 pub mod color;
+/// Shell integration command marks shared with the notification rules.
+pub mod command_mark;
 pub mod damage;
 pub mod event;
 pub mod grid;
 pub mod hint;
+/// The frontend's base64 and URI-component decoders.
+pub mod js_encoding;
+/// JavaScript string semantics over Rust's UTF-8 strings.
+pub mod js_text;
 pub mod keyword_highlight;
 pub mod mode;
+/// The OSC 52 clipboard request.
+pub mod osc52;
 pub mod palette;
 pub mod search;
 pub mod selection;
 pub mod snapshot;
+/// Recognizes password prompts on the cursor line.
+pub mod sudo_prompt;
 pub mod terminal;
+/// Captures command lines from the terminal's input stream.
+pub mod terminal_command_capture;
+/// Working-directory reports from shell integration.
+pub mod terminal_cwd;
+/// Rolling scan of decoded output for the connecting status line.
+pub mod terminal_output_scanner;
 
 #[cfg(test)]
 mod tests;
