@@ -3,6 +3,8 @@ import ReactDOM from "react-dom/client"
 import App from "@/App"
 import { DEFAULT_TERMINAL_FONT_FAMILY } from "@/lib/appConfig"
 import { initCanvasFontHost, updateCanvasFontHostFont } from "@/lib/canvasFontHost"
+import { refreshComposerPreferences } from "@/lib/commandComposer"
+import { initializeFrontendState } from "@/lib/frontendStateMigration"
 import { onAppReady } from "@/lib/startup"
 import { preloadTheme } from "@/lib/themePreloader"
 import { preloadUiStyle } from "@/lib/uiStyle"
@@ -19,14 +21,21 @@ updateCanvasFontHostFont(DEFAULT_TERMINAL_FONT_FAMILY)
 preloadTheme()
 preloadUiStyle()
 
-// Mount React application
-ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(<App />)
-
 let disposeReadyListener = () => {}
 disposeReadyListener = onAppReady(() => {
   hideSplashScreen()
   disposeReadyListener()
 })
+
+// The initial values come from the backend so the first render already has
+// what the last session kept.
+async function mountApp() {
+  await initializeFrontendState()
+  refreshComposerPreferences()
+  ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(<App />)
+}
+
+void mountApp()
 
 function hideSplashScreen() {
   const splash = document.getElementById("splash-screen")

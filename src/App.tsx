@@ -4,7 +4,7 @@ import { invoke } from "@tauri-apps/api/core"
 import { useEffect } from "react"
 import { ErrorBoundary } from "@/components/ErrorBoundary"
 import { Toaster } from "@/components/ui/toaster"
-import { readBackupFrontendState } from "@/lib/backupFrontendState"
+import { useFrontendStateWriteError } from "@/hooks/useFrontendStateWriteError"
 
 // Import the generated route tree
 import { routeTree } from "@/routeTree.gen"
@@ -22,15 +22,15 @@ declare module "@tanstack/react-router" {
 }
 
 function App() {
+  useFrontendStateWriteError()
+
   useEffect(() => {
     const runWebDavBackup = () =>
       invoke("run_webdav_backup", {
-        frontendState: readBackupFrontendState(),
         force: false,
       }).catch((error) => console.error("WebDAV backup failed:", error))
     const timer = window.setTimeout(() => {
       invoke("run_due_automatic_backup", {
-        frontendState: readBackupFrontendState(),
         force: false,
       }).catch((error) => console.error("Automatic backup failed:", error))
       void runWebDavBackup()

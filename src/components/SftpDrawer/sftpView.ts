@@ -1,4 +1,9 @@
 import type { SftpDirectoryEntry } from "@/components/SftpDrawer/types"
+import {
+  cachedFrontendState,
+  isFrontendStateHydrated,
+  writeFrontendStateValue,
+} from "@/lib/frontendStateCache"
 
 /** Columns of the file table, in display order. */
 export const SFTP_SORT_COLUMNS = [
@@ -29,6 +34,7 @@ export const DEFAULT_SFTP_VIEW_PREFERENCES: SftpViewPreferences = {
 }
 
 export const SFTP_VIEW_STORAGE_KEY = "tterm.sftp.view"
+export const SFTP_COLUMN_WIDTH_STORAGE_KEY = "tterm.sftp.columnWidths"
 
 const nameCollator = new Intl.Collator(undefined, { numeric: true, sensitivity: "base" })
 
@@ -109,7 +115,10 @@ export function loadSftpViewPreferences(
   storage: Pick<Storage, "getItem"> = window.localStorage
 ): SftpViewPreferences {
   try {
-    const stored: unknown = JSON.parse(storage.getItem(SFTP_VIEW_STORAGE_KEY) ?? "null")
+    const hydrated = isFrontendStateHydrated()
+    const stored: unknown = hydrated
+      ? cachedFrontendState("sftpView")
+      : JSON.parse(storage.getItem(SFTP_VIEW_STORAGE_KEY) ?? "null")
     if (!stored || typeof stored !== "object") return DEFAULT_SFTP_VIEW_PREFERENCES
     const { sort, showHidden } = stored as Partial<SftpViewPreferences>
     return {
@@ -131,6 +140,10 @@ export function saveSftpViewPreferences(
   preferences: SftpViewPreferences,
   storage: Pick<Storage, "setItem"> = window.localStorage
 ) {
+  if (isFrontendStateHydrated()) {
+    writeFrontendStateValue("sftpView", preferences)
+    return
+  }
   try {
     storage.setItem(SFTP_VIEW_STORAGE_KEY, JSON.stringify(preferences))
   } catch (error) {

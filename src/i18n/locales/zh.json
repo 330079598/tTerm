@@ -3233,5 +3233,8 @@
     "namesAndMore_one": "{{names}} 等另外 {{count}} 个",
     "namesAndMore_other": "{{names}} 等另外 {{count}} 个",
     "quit": "退出"
+  },
+  "frontendState": {
+    "writeFailed": "无法保存最近使用记录和界面偏好"
   }
 }

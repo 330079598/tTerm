@@ -1,3 +1,9 @@
+import {
+  cachedFrontendState,
+  isFrontendStateHydrated,
+  writeFrontendStateValue,
+} from "@/lib/frontendStateCache"
+
 /** How the send bar sends: text the way typing does, or hex bytes as they are. */
 export type SerialSendMode = "text" | "hex"
 
@@ -25,6 +31,12 @@ export const SERIAL_SEND_ECHO_STORAGE_KEY = "tterm.serial.sendEcho"
 const CONNECTION_LIMIT = 50
 
 function readHidden(): string[] {
+  if (isFrontendStateHydrated()) {
+    const stored = cachedFrontendState("serialSendEcho")
+    return Array.isArray(stored)
+      ? stored.filter((key): key is string => typeof key === "string")
+      : []
+  }
   try {
     const stored = JSON.parse(localStorage.getItem(SERIAL_SEND_ECHO_STORAGE_KEY) ?? "[]") as unknown
     return Array.isArray(stored)
@@ -48,6 +60,10 @@ export function loadSerialSendEcho(key: string): boolean {
 export function saveSerialSendEcho(key: string, echo: boolean) {
   const others = readHidden().filter((item) => item !== key)
   const hidden = echo ? others : [...others, key].slice(-CONNECTION_LIMIT)
+  if (isFrontendStateHydrated()) {
+    writeFrontendStateValue("serialSendEcho", hidden)
+    return
+  }
   try {
     localStorage.setItem(SERIAL_SEND_ECHO_STORAGE_KEY, JSON.stringify(hidden))
   } catch {

@@ -1,7 +1,3 @@
-import { PROFILE_RECENTS_STORAGE_KEY } from "@/lib/profileRecents"
-import { QUICK_CONNECT_RECENTS_STORAGE_KEY } from "@/lib/quickConnect"
-import { RECENT_COMMANDS_STORAGE_KEY } from "@/lib/recentCommands"
-import { SFTP_VIEW_STORAGE_KEY } from "@/components/SftpDrawer/sftpView"
 import type { BackupSelection } from "@/components/SettingsDialog/backupShared"
 
 interface CategoryDiff {
@@ -95,28 +91,6 @@ export const defaultSelection: BackupSelection = {
 
 export function cloneAvailableSelection(selection: BackupSelection): BackupSelection {
   return { ...selection }
-}
-
-/** Restores what the web view keeps; the backend restored the themes. */
-export function restoreFrontendState(state: BackupImportResult["frontendState"]) {
-  if (state && Array.isArray(state.recentCommands)) {
-    localStorage.setItem(RECENT_COMMANDS_STORAGE_KEY, JSON.stringify(state.recentCommands))
-  }
-  if (state && Array.isArray(state.recentQuickConnections)) {
-    localStorage.setItem(
-      QUICK_CONNECT_RECENTS_STORAGE_KEY,
-      JSON.stringify(state.recentQuickConnections)
-    )
-  }
-  if (state && Array.isArray(state.recentProfiles)) {
-    localStorage.setItem(PROFILE_RECENTS_STORAGE_KEY, JSON.stringify(state.recentProfiles))
-  }
-  if (state && state.sftpColumnWidths !== undefined && state.sftpColumnWidths !== null) {
-    localStorage.setItem("tterm.sftp.columnWidths", JSON.stringify(state.sftpColumnWidths))
-  }
-  if (state && state.sftpView !== undefined && state.sftpView !== null) {
-    localStorage.setItem(SFTP_VIEW_STORAGE_KEY, JSON.stringify(state.sftpView))
-  }
 }
 
 export type BusyAction =

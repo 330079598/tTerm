@@ -1,4 +1,9 @@
 import { clampReplayFontSize } from "@/lib/terminalLogReplay"
+import {
+  cachedFrontendState,
+  isFrontendStateHydrated,
+  writeFrontendStateValue,
+} from "@/lib/frontendStateCache"
 
 /** How the replay is drawn; remembered across sessions. */
 export interface ReplayViewPreferences {
@@ -25,7 +30,10 @@ export function loadReplayViewPreferences(
   storage: Pick<Storage, "getItem"> = window.localStorage
 ): ReplayViewPreferences {
   try {
-    const stored: unknown = JSON.parse(storage.getItem(REPLAY_VIEW_STORAGE_KEY) ?? "null")
+    const hydrated = isFrontendStateHydrated()
+    const stored: unknown = hydrated
+      ? cachedFrontendState("replayView")
+      : JSON.parse(storage.getItem(REPLAY_VIEW_STORAGE_KEY) ?? "null")
     if (!stored || typeof stored !== "object") return DEFAULT_REPLAY_VIEW_PREFERENCES
     const { fontSize, fitPanel } = stored as Partial<ReplayViewPreferences>
     return {
@@ -44,6 +52,10 @@ export function saveReplayViewPreferences(
   preferences: ReplayViewPreferences,
   storage: Pick<Storage, "setItem"> = window.localStorage
 ) {
+  if (isFrontendStateHydrated()) {
+    writeFrontendStateValue("replayView", preferences)
+    return
+  }
   try {
     storage.setItem(REPLAY_VIEW_STORAGE_KEY, JSON.stringify(preferences))
   } catch (error) {

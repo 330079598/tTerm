@@ -3264,5 +3264,8 @@
     "namesAndMore_one": "{{names}} and {{count}} more",
     "namesAndMore_other": "{{names}} and {{count}} more",
     "quit": "Quit"
+  },
+  "frontendState": {
+    "writeFailed": "Couldn't save your recent activity and preferences"
   }
 }

@@ -1,7 +1,5 @@
 import { invoke } from "@tauri-apps/api/core"
 
-import { readBackupFrontendState } from "@/lib/backupFrontendState"
-
 /** Collections the backend syncs; `changed` lists the ones written locally. */
 export type SyncCategory =
   | "profiles"
@@ -57,7 +55,6 @@ export const SYNC_STATUS_EVENT = "tterm:sync-status"
 export async function runSync(checkRemote: boolean): Promise<SyncOutcome> {
   try {
     const outcome = await invoke<SyncOutcome>("run_sync", {
-      frontendState: readBackupFrontendState(),
       checkRemote,
     })
     if (outcome.changed.length > 0) {
