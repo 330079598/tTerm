@@ -247,3 +247,27 @@ fn oracle_pane_sizes_use_javascript_number_formatting() {
         r#"{"type":"split","orientation":"horizontal","children":[{"type":"pane","tabId":"a"},{"type":"pane","tabId":"b"},{"type":"pane","tabId":"c"},{"type":"pane","tabId":"d"},{"type":"pane","tabId":"e"}],"sizes":[1,0.5,0.000001,1e-7,0.3333333333333333]}"#
     );
 }
+
+#[test]
+fn oracle_pane_sizes_handle_zero_exponents_and_non_finite_values() {
+    let tree = PaneNode::Split {
+        orientation: SplitOrientation::Horizontal,
+        sizes: vec![
+            -0.0,
+            1e21,
+            0.0000001,
+            -0.0000001,
+            f64::NAN,
+            f64::INFINITY,
+            1.0 / 3.0,
+        ],
+        children: ["a", "b", "c", "d", "e", "f", "g"]
+            .iter()
+            .map(|id| pane_leaf(*id))
+            .collect(),
+    };
+    assert_eq!(
+        serde_json::to_string(&tree).unwrap(),
+        r#"{"type":"split","orientation":"horizontal","children":[{"type":"pane","tabId":"a"},{"type":"pane","tabId":"b"},{"type":"pane","tabId":"c"},{"type":"pane","tabId":"d"},{"type":"pane","tabId":"e"},{"type":"pane","tabId":"f"},{"type":"pane","tabId":"g"}],"sizes":[0,1e+21,1e-7,-1e-7,null,null,0.3333333333333333]}"#
+    );
+}

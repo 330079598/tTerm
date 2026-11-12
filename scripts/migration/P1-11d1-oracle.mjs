@@ -353,6 +353,12 @@ const result = {
       ],
       sizes: [1, 0.5, 0.000001, 0.0000001, 1 / 3],
     }),
+    numberBoundsJson: JSON.stringify({
+      type: "split",
+      orientation: "horizontal",
+      children: ["a", "b", "c", "d", "e", "f", "g"].map(tabGroups.paneLeaf),
+      sizes: [-0, 1e21, 0.0000001, -0.0000001, NaN, Infinity, 1 / 3],
+    }),
   },
   paneNavigation: {
     sorted: paneNavigation.sortPanesByReadingOrder([
