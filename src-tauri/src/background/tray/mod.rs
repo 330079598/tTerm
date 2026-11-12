@@ -122,17 +122,14 @@ pub(crate) fn show(context: &TrayContext, language: &str) -> Result<(), String> 
 
 /// Coalesces refreshes and rebuilds the menu on the native owning thread.
 pub(crate) fn refresh_tunnels(context: &TrayContext) {
-    let Some(tunnels) = context.tunnels.upgrade() else {
-        return;
-    };
-    refresh_tunnels_with(&context.native, &context.state, &tunnels);
+    refresh_tunnels_with(&context.native, &context.state, &context.tunnels);
 }
 
 /// Rebuilds the tunnel menu through the platform tray capability.
 pub(crate) fn refresh_tunnels_with(
     native: &Arc<dyn tterm_platform::tray::Tray>,
     state: &Arc<TrayState>,
-    tunnels: &Arc<TunnelManager>,
+    tunnels: &std::sync::Weak<TunnelManager>,
 ) {
     if !native.is_present() || state.refresh_pending.swap(true, Ordering::SeqCst) {
         return;
@@ -145,8 +142,9 @@ pub(crate) fn refresh_tunnels_with(
             dispatch_state
                 .refresh_pending
                 .store(false, Ordering::SeqCst);
+            let tunnels = dispatch_tunnels.upgrade();
             if let Err(error) =
-                rebuild_if_changed(&dispatch_native, &dispatch_state, &dispatch_tunnels)
+                rebuild_if_changed(&dispatch_native, &dispatch_state, tunnels.as_deref())
             {
                 eprintln!("Failed to update the tray menu: {error}");
             }
@@ -160,12 +158,12 @@ pub(crate) fn refresh_tunnels_with(
 fn rebuild_if_changed(
     native: &Arc<dyn tterm_platform::tray::Tray>,
     state: &Arc<TrayState>,
-    tunnels: &TunnelManager,
+    tunnels: Option<&TunnelManager>,
 ) -> Result<(), String> {
     if !native.is_present() {
         return Ok(());
     }
-    let tunnels = menu_tunnels(tunnels);
+    let tunnels = tunnels.map(menu_tunnels).unwrap_or_default();
     let mut shown = state.shown.lock().unwrap_or_else(|e| e.into_inner());
     if shown.as_ref() == Some(&tunnels) {
         return Ok(());
@@ -431,5 +429,72 @@ mod tests {
             tooltip_text("zh", Some(3), 0),
             "tTerm · 3 个会话 · 0 个隧道运行中"
         );
+    }
+
+    #[derive(Default)]
+    struct QueuedTray {
+        tasks: Mutex<Vec<Box<dyn FnOnce() + Send>>>,
+        models: Mutex<Vec<tterm_platform::tray::TrayModel>>,
+    }
+
+    impl tterm_platform::tray::Tray for QueuedTray {
+        fn dispatch(&self, task: Box<dyn FnOnce() + Send>) -> Result<(), String> {
+            self.tasks
+                .lock()
+                .unwrap_or_else(|e| e.into_inner())
+                .push(task);
+            Ok(())
+        }
+
+        fn present(&self, model: tterm_platform::tray::TrayModel) -> Result<(), String> {
+            self.models
+                .lock()
+                .unwrap_or_else(|e| e.into_inner())
+                .push(model);
+            Ok(())
+        }
+
+        fn remove(&self) -> Result<(), String> {
+            Ok(())
+        }
+
+        fn is_present(&self) -> bool {
+            true
+        }
+
+        fn set_tooltip(&self, _: String) -> Result<(), String> {
+            Ok(())
+        }
+    }
+
+    #[test]
+    fn refresh_keeps_the_manager_weak_and_rebuilds_after_it_is_dropped() {
+        let native = Arc::new(QueuedTray::default());
+        let tray: Arc<dyn tterm_platform::tray::Tray> = native.clone();
+        let state = Arc::new(TrayState::default());
+        let manager = Arc::new(TunnelManager::default());
+        let tunnels = Arc::downgrade(&manager);
+
+        refresh_tunnels_with(&tray, &state, &tunnels);
+        drop(manager);
+
+        assert!(tunnels.upgrade().is_none());
+        let task = native
+            .tasks
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .pop()
+            .unwrap();
+        task();
+
+        let models = native.models.lock().unwrap_or_else(|e| e.into_inner());
+        assert_eq!(models.len(), 1);
+        let tterm_platform::tray::MenuEntry::Submenu { entries, .. } = &models[0].entries[2] else {
+            panic!("missing tunnel submenu");
+        };
+        assert!(matches!(
+            &entries[0],
+            tterm_platform::tray::MenuEntry::Item { enabled: false, .. }
+        ));
     }
 }

@@ -220,9 +220,7 @@ impl TunnelReporter {
             self.save_traffic();
         }
         self.emit();
-        if let Some(tunnels) = self.tunnels.upgrade() {
-            crate::background::tray::refresh_tunnels_with(&self.tray, &self.tray_state, &tunnels);
-        }
+        crate::background::tray::refresh_tunnels_with(&self.tray, &self.tray_state, &self.tunnels);
     }
 
     pub(super) fn set_retry_attempt(&self, attempt: u32) {

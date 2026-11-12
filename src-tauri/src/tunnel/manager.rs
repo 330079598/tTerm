@@ -38,9 +38,7 @@ pub(crate) struct TunnelContext {
 
 impl TunnelContext {
     fn refresh_tray(&self) {
-        if let Some(manager) = self.manager.upgrade() {
-            crate::background::tray::refresh_tunnels_with(&self.tray, &self.tray_state, &manager);
-        }
+        crate::background::tray::refresh_tunnels_with(&self.tray, &self.tray_state, &self.manager);
     }
 }
 
