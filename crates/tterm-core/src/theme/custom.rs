@@ -100,10 +100,7 @@ fn normalize_custom_theme(value: &Value, now: i64) -> Option<CustomTheme> {
                 .ok()
                 .and_then(|value| value.as_object().cloned())
                 .unwrap_or_default();
-            (
-                terminal,
-                RawObject::from_entries(map.into_iter().collect()),
-            )
+            (terminal, RawObject::from_entries(map.into_iter().collect()))
         }
     };
     let raw_colors = RawObject::from_entries(color_entries);

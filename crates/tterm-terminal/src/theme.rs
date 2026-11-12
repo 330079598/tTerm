@@ -481,17 +481,15 @@ impl PaletteText {
             )),
         };
         let selection_background = {
-            let color =
-                parse_palette_color(&self.selection_background).unwrap_or(XTERM_SELECTION);
+            let color = parse_palette_color(&self.selection_background).unwrap_or(XTERM_SELECTION);
             if color.a == 255 {
                 color.with_alpha(77)
             } else {
                 color
             }
         };
-        let ansi = |index: usize, value: &str| {
-            parse_palette_color(value).unwrap_or(XTERM_ANSI[index])
-        };
+        let ansi =
+            |index: usize, value: &str| parse_palette_color(value).unwrap_or(XTERM_ANSI[index]);
         TerminalPalette {
             background,
             foreground,

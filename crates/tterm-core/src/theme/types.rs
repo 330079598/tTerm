@@ -119,7 +119,6 @@ impl RawObject {
         indices.append(&mut named);
         Self { entries: indices }
     }
-
 }
 
 fn array_index(key: &str) -> Option<u32> {

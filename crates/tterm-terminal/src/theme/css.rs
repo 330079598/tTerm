@@ -78,18 +78,16 @@ fn parse_rgb_function(value: &str) -> Option<Rgba> {
         if text.is_empty() || text.len() > 3 {
             return None;
         }
-        text.parse::<u16>().ok().filter(|value| *value <= 255).map(|value| value as u8)
+        text.parse::<u16>()
+            .ok()
+            .filter(|value| *value <= 255)
+            .map(|value| value as u8)
     };
     let alpha = match parts.get(3) {
         Some(text) => alpha_channel(text)?,
         None => 255,
     };
-    Some(Rgba::new(
-        channel(0)?,
-        channel(1)?,
-        channel(2)?,
-        alpha,
-    ))
+    Some(Rgba::new(channel(0)?, channel(1)?, channel(2)?, alpha))
 }
 
 /// The alpha for an HSL function. The outer option rejects a malformed token;

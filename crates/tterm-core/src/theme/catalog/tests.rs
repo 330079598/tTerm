@@ -87,14 +87,9 @@ fn derives_readable_interface_colors_for_every_library_theme() {
 }
 
 fn is_hsl_token(value: &str) -> bool {
-    static PATTERN: std::sync::LazyLock<Option<regress::Regex>> =
-        std::sync::LazyLock::new(|| {
-            regress::Regex::with_flags(
-                r"^\d+(\.\d+)? \d+(\.\d+)?% \d+(\.\d+)?%$",
-                "",
-            )
-            .ok()
-        });
+    static PATTERN: std::sync::LazyLock<Option<regress::Regex>> = std::sync::LazyLock::new(|| {
+        regress::Regex::with_flags(r"^\d+(\.\d+)? \d+(\.\d+)?% \d+(\.\d+)?%$", "").ok()
+    });
     PATTERN
         .as_ref()
         .is_some_and(|pattern| pattern.find(value).is_some())
@@ -102,11 +97,7 @@ fn is_hsl_token(value: &str) -> bool {
 
 #[test]
 fn hsl_token_validation_is_as_strict_as_the_typescript_test() {
-    for value in [
-        "0 0% 0%",
-        "220.5 13.5% 12.25%",
-        "359 100% 100%",
-    ] {
+    for value in ["0 0% 0%", "220.5 13.5% 12.25%", "359 100% 100%"] {
         assert!(is_hsl_token(value), "{value:?}");
     }
     for value in [

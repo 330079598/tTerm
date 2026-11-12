@@ -295,7 +295,11 @@ fn palette_colors_match_xterm() {
         let expected = rgba(&case["rgba"]).expect("four channels");
         let mut palette = PaletteText::default();
         palette.background = value.to_string();
-        assert_eq!(palette.to_terminal_palette().background, expected, "{value}");
+        assert_eq!(
+            palette.to_terminal_palette().background,
+            expected,
+            "{value}"
+        );
     }
 }
 
@@ -308,7 +312,11 @@ fn hsl_alpha_is_rejected_the_way_xterm_rejects_canvas_transparency() {
         let expected = rgba(&case["rgba"]).expect("four channels");
         let mut palette = PaletteText::default();
         palette.background = value.to_string();
-        assert_eq!(palette.to_terminal_palette().background, expected, "{value}");
+        assert_eq!(
+            palette.to_terminal_palette().background,
+            expected,
+            "{value}"
+        );
     }
 }
 
