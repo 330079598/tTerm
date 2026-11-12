@@ -1,7 +1,7 @@
 use crate::core::session::types::PtyConnectionOptions;
 use crate::sftp::internal::api::conflict::ConflictReport;
 use crate::sftp::internal::api::prepare_transfer;
-use crate::sftp::internal::api::upload::commands::collect_upload_conflicts;
+use crate::sftp::internal::api::upload::targets::collect_upload_conflicts;
 use crate::sftp::internal::api::upload::{
     UploadBatchResult, UploadFilePlanItem, collect_upload_plan, file_name_from_path,
     inspect_upload_roots, next_transfer_id, upload_single_file_with_progress,
@@ -228,8 +228,8 @@ pub(super) async fn sftp_upload_paths_service(
                 let batch_enabled = root_summary.has_directories;
                 let policy = conflict_policy.unwrap_or_default();
 
-                super::batch::run(
-                    super::batch::UploadBatch {
+                crate::sftp::internal::api::upload::batch::run(
+                    crate::sftp::internal::api::upload::batch::UploadBatch {
                         cancel_map: cancel,
                         events: events.clone(),
                         tab_id,

@@ -1,12 +1,9 @@
+#[path = "permissions_commands.rs"]
+pub(crate) mod commands;
 mod operations;
-use crate::core::session::types::PtyConnectionOptions;
 use crate::sftp::internal::connection::map_sftp_error;
-use operations::{
-    SftpSetPermissionsDependencies, SftpSetPermissionsInput, sftp_set_permissions_service,
-};
 use russh_sftp::client::SftpSession;
 use russh_sftp::protocol::FileAttributes;
-use tauri::State;
 
 /// The bits a chmod may set: rwx for owner, group and others, plus setuid,
 /// setgid and sticky. The file type bits are not the client's to change.
@@ -32,31 +29,6 @@ pub(crate) async fn set_permissions(
             .map_err(|err| format!("{path}: {}", map_sftp_error(err)))?;
     }
     Ok(())
-}
-
-#[tauri::command]
-pub async fn sftp_set_permissions(
-    tab_id: String,
-    connection: Option<PtyConnectionOptions>,
-    paths: Vec<String>,
-    mode: u32,
-    services: State<'_, std::sync::Arc<crate::services::AppServices>>,
-) -> Result<(), String> {
-    sftp_set_permissions_service(
-        SftpSetPermissionsDependencies {
-            context: crate::connection_context::sftp(&services),
-            prompts: services.shared.prompts.clone(),
-            secrets: services.shared.secrets.clone(),
-            pool: services.sftp.pool.clone(),
-        },
-        SftpSetPermissionsInput {
-            tab_id,
-            connection,
-            paths,
-            mode,
-        },
-    )
-    .await
 }
 
 #[cfg(all(test, unix))]

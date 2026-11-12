@@ -1,4 +1,8 @@
 use super::local::{self, FileStamp, Fingerprint};
+use super::operations::{
+    SftpExternalEditReleaseTabDependencies, SftpExternalEditReleaseTabInput,
+    sftp_external_edit_release_tab_service,
+};
 use super::remote::RemoteStamp;
 use super::watch::{self, Look, Step, Watched};
 use super::*;

@@ -1,4 +1,4 @@
-use super::commands::resolve_upload_target;
+use super::targets::resolve_upload_target;
 use super::{UploadFilePlanItem, next_transfer_id, upload_single_file_with_progress};
 use crate::sftp::internal::{transfer::RemoteChannels, types::TransferCancelMap};
 use russh_sftp::client::SftpSession;

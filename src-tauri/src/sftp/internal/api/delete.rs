@@ -185,6 +185,7 @@ fn collect_delete_stats<'a>(
 
 mod batch;
 pub mod commands;
+mod recursive;
 
 #[cfg(test)]
 mod contract_tests;
