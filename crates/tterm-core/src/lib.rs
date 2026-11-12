@@ -37,6 +37,8 @@ pub mod session;
 pub mod sftp;
 /// Notification requests and the rules for announcing them.
 pub mod terminal_notifications;
+/// Theme definitions, the bundled catalog, imports and custom themes.
+pub mod theme;
 /// Update routing and cache policy.
 pub mod updates;
 /// Workspace panes, tab navigation and tab menu models.

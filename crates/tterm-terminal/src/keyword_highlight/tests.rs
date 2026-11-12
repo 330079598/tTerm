@@ -632,6 +632,27 @@ fn colors_match_typescript_permissive_css_syntax() {
 }
 
 #[test]
+fn colors_trim_like_the_typescript_theme_parser() {
+    let oracle: serde_json::Value = serde_json::from_str(include_str!(
+        "../../../../docs/gpui-migration/reports/P1-11f-evidence/node.json"
+    ))
+    .unwrap();
+    for value in ["#abc\u{FEFF}", "#abc\u{0085}"] {
+        let case = oracle["colors"]["colorToHex"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|case| case["value"] == value)
+            .unwrap();
+        assert_eq!(
+            resolve_highlight_color(Some(value), &palette()).as_deref(),
+            case["hex"].as_str(),
+            "{value:?}"
+        );
+    }
+}
+
+#[test]
 fn annex_b_pattern_validation_matches_node() {
     for (pattern, text, error, expected) in [
         ("a{", "a{", None, vec![(0, 2)]),

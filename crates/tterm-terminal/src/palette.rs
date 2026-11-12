@@ -1,9 +1,10 @@
 //! The terminal's colors, and how a theme turns into them.
 //!
 //! The model keeps colors in their semantic form ([`crate::color::Color`]);
-//! the palette is the bridge to pixels. It mirrors `TerminalPalette` in
-//! `src/types/theme.ts` field for field, including the optional cursor text
-//! and selection text colors.
+//! the palette is the bridge to pixels. It mirrors the resolved form of
+//! `TerminalPalette` in `src/types/theme.ts`, including the optional cursor
+//! text and selection text colors. The string form the frontend persists is
+//! [`crate::theme::PaletteText`]; this type is what drawing reads.
 //!
 //! Two constructors matter:
 //!
@@ -20,6 +21,7 @@
 //! values.
 
 use crate::color::{Color, NamedColor, Rgb};
+use crate::theme::{PaletteText, ThemeColors};
 
 /// An 8-bit sRGB color with straight alpha.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
@@ -119,74 +121,6 @@ impl Default for Rgba {
     }
 }
 
-/// A color in the hue, saturation, lightness form the stylesheet uses.
-#[derive(Clone, Copy, Debug, PartialEq)]
-pub struct Hsl {
-    /// Angle around the color wheel, in degrees.
-    pub h: f32,
-    /// Saturation in percent.
-    pub s: f32,
-    /// Lightness in percent.
-    pub l: f32,
-}
-
-impl Hsl {
-    /// Builds a color from the values a stylesheet writes.
-    pub const fn new(h: f32, s: f32, l: f32) -> Self {
-        Self { h, s, l }
-    }
-}
-
-/// The interface colors a terminal palette is derived from.
-///
-/// It is the subset of `ThemeColors` that
-/// `generateTerminalPaletteFromColors` reads, so the derivation can be tested
-/// without depending on `tterm-ui` or on CSS parsing.
-#[derive(Clone, Copy, Debug, PartialEq)]
-pub struct ThemeColors {
-    /// The interface background.
-    pub background: Hsl,
-    /// The interface foreground.
-    pub foreground: Hsl,
-    /// The primary accent.
-    pub primary: Hsl,
-    /// The secondary accent.
-    pub accent: Hsl,
-    /// The success color.
-    pub success: Hsl,
-    /// The warning color.
-    pub warning: Hsl,
-    /// The destructive color.
-    pub destructive: Hsl,
-    /// The muted surface.
-    pub muted: Hsl,
-    /// Text on the muted surface.
-    pub muted_foreground: Hsl,
-}
-
-impl ThemeColors {
-    /// The colors of the built-in `default` theme.
-    pub const fn dark_default() -> Self {
-        Self {
-            background: Hsl::new(220.0, 13.0, 12.0),
-            foreground: Hsl::new(0.0, 0.0, 80.0),
-            primary: Hsl::new(207.0, 100.0, 40.0),
-            accent: Hsl::new(207.0, 100.0, 40.0),
-            success: Hsl::new(142.0, 72.0, 42.0),
-            warning: Hsl::new(38.0, 92.0, 52.0),
-            destructive: Hsl::new(0.0, 84.0, 60.0),
-            muted: Hsl::new(220.0, 13.0, 23.0),
-            muted_foreground: Hsl::new(0.0, 0.0, 59.0),
-        }
-    }
-}
-
-impl Default for ThemeColors {
-    fn default() -> Self {
-        Self::dark_default()
-    }
-}
-
 /// The colors a terminal draws with.
 ///
 /// The fields are the ones `TerminalPalette` declares in
@@ -279,71 +213,7 @@ impl TerminalPalette {
     /// `src/lib/terminalPalette.ts`, with the CSS `hsl()` values converted to
     /// sRGB. The tests compare every field with the TypeScript result.
     pub fn from_theme(colors: &ThemeColors) -> Self {
-        let surface = colors.background;
-        let foreground = colors.foreground;
-        let accent = colors.primary;
-        let destructive = colors.destructive;
-        let neutral = colors.muted;
-        let neutral_text = colors.muted_foreground;
-        let cyan_base = colors.accent;
-        let magenta_base = shift(accent, 55.0, -6.0, 8.0);
-        let light = foreground.l > 50.0;
-        let white_base = shift(foreground, 0.0, -10.0, if light { -6.0 } else { 8.0 });
-
-        Self {
-            background: hsl_rgba(surface, 255),
-            foreground: hsl_rgba(foreground, 255),
-            cursor: hsl_rgba(
-                shift(accent, 0.0, 0.0, if light { -8.0 } else { 14.0 }),
-                255,
-            ),
-            cursor_accent: None,
-            selection_background: hsl_rgba(accent, (0.24_f32 * 255.0).round() as u8),
-            selection_foreground: None,
-            black: hsl_rgba(
-                shift(surface, 0.0, 0.0, if light { -2.0 } else { 8.0 }),
-                255,
-            ),
-            red: hsl_rgba(destructive, 255),
-            green: hsl_rgba(colors.success, 255),
-            yellow: hsl_rgba(colors.warning, 255),
-            blue: hsl_rgba(accent, 255),
-            magenta: hsl_rgba(magenta_base, 255),
-            cyan: hsl_rgba(cyan_base, 255),
-            white: hsl_rgba(white_base, 255),
-            bright_black: hsl_rgba(
-                shift(neutral, 0.0, 0.0, if light { -10.0 } else { 12.0 }),
-                255,
-            ),
-            bright_red: hsl_rgba(
-                shift(destructive, 0.0, 0.0, if light { -8.0 } else { 10.0 }),
-                255,
-            ),
-            bright_green: hsl_rgba(
-                shift(colors.success, 0.0, 0.0, if light { -6.0 } else { 10.0 }),
-                255,
-            ),
-            bright_yellow: hsl_rgba(
-                shift(colors.warning, 0.0, 0.0, if light { -8.0 } else { 8.0 }),
-                255,
-            ),
-            bright_blue: hsl_rgba(
-                shift(accent, 0.0, 0.0, if light { -8.0 } else { 12.0 }),
-                255,
-            ),
-            bright_magenta: hsl_rgba(
-                shift(magenta_base, 0.0, 0.0, if light { -8.0 } else { 10.0 }),
-                255,
-            ),
-            bright_cyan: hsl_rgba(
-                shift(cyan_base, 0.0, 0.0, if light { -8.0 } else { 10.0 }),
-                255,
-            ),
-            bright_white: hsl_rgba(
-                shift(neutral_text, 0.0, -10.0, if light { -28.0 } else { 22.0 }),
-                255,
-            ),
-        }
+        PaletteText::from_theme_colors(colors).to_terminal_palette()
     }
 
     /// The color a search match is highlighted with, for P2-07.
@@ -452,57 +322,10 @@ impl TerminalPalette {
     }
 }
 
-fn shift(base: Hsl, h: f32, s: f32, l: f32) -> Hsl {
-    Hsl {
-        h: (base.h + h).rem_euclid(360.0),
-        s: (base.s + s).clamp(0.0, 100.0),
-        l: (base.l + l).clamp(0.0, 100.0),
-    }
-}
-
-fn hsl_rgba(color: Hsl, alpha: u8) -> Rgba {
-    let hue = color.h.rem_euclid(360.0) / 360.0;
-    let saturation = color.s.clamp(0.0, 100.0) / 100.0;
-    let lightness = color.l.clamp(0.0, 100.0) / 100.0;
-    if saturation == 0.0 {
-        let gray = (lightness * 255.0).round() as u8;
-        return Rgba::new(gray, gray, gray, alpha);
-    }
-    let q = if lightness < 0.5 {
-        lightness * (1.0 + saturation)
-    } else {
-        lightness + saturation - lightness * saturation
-    };
-    let p = 2.0 * lightness - q;
-    let channel = |t: f32| {
-        let mut t = t;
-        if t < 0.0 {
-            t += 1.0;
-        }
-        if t > 1.0 {
-            t -= 1.0;
-        }
-        let value = if t < 1.0 / 6.0 {
-            p + (q - p) * 6.0 * t
-        } else if t < 1.0 / 2.0 {
-            q
-        } else if t < 2.0 / 3.0 {
-            p + (q - p) * (2.0 / 3.0 - t) * 6.0
-        } else {
-            p
-        };
-        (value * 255.0).clamp(0.0, 255.0).round() as u8
-    };
-    Rgba::new(
-        channel(hue + 1.0 / 3.0),
-        channel(hue),
-        channel(hue - 1.0 / 3.0),
-        alpha,
-    )
-}
-
 #[cfg(test)]
 mod tests {
+    use crate::theme::OptionalText;
+
     use super::*;
 
     fn hex(value: &str) -> Rgba {
@@ -548,6 +371,10 @@ mod tests {
 
     #[test]
     fn derived_palette_matches_the_typescript_derivation() {
+        let text = PaletteText::from_theme_colors(&ThemeColors::dark_default());
+        assert_eq!(text.selection_background, "hsl(207 100% 40% / 0.24)");
+        assert_eq!(text.cursor_accent, OptionalText::Missing);
+        assert_eq!(text.selection_foreground, OptionalText::Missing);
         let palette = TerminalPalette::from_theme(&ThemeColors::dark_default());
         assert_eq!(
             [
@@ -580,7 +407,7 @@ mod tests {
         );
         assert_eq!(
             palette.selection_background,
-            Rgba::new(0x00, 0x70, 0xcc, 61)
+            Rgba::new(0xff, 0xff, 0xff, 77)
         );
     }
 

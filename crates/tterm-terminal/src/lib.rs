@@ -80,6 +80,8 @@ pub mod terminal_command_capture;
 pub mod terminal_cwd;
 /// Rolling scan of decoded output for the connecting status line.
 pub mod terminal_output_scanner;
+/// Theme colors, their persisted text form, and shared color math.
+pub mod theme;
 
 #[cfg(test)]
 mod tests;
