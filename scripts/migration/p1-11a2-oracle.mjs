@@ -907,6 +907,31 @@ for (const terminator of ["\r", "\n", "\x03"]) {
   manualInput.push(await manualInputScenario(terminator))
 }
 const manualInputBusy = await manualInputScenario("\r", true)
+
+async function ignoredPromptScenario(kind) {
+  invokeState.calls = []
+  invokeState.results = ["login"]
+  const setup = savedSetup()
+  if (kind === "missingConnection") setup.ctx.connectionRef.current = undefined
+  if (kind === "nonSsh") setup.ctx.connectionRef.current.type = "terminal"
+  if (kind === "unchanged" || kind === "disposed") await setup.check(SUDO_PROMPT)
+  if (kind === "disposed") setup.ctx.session.disposed = true
+  const shownBefore = setup.shown.length
+  const offersBefore = setup.offers.length
+  const callsBefore = invokeState.calls.length
+  await setup.check(kind === "disposed" ? "[sudo] password for root:" : SUDO_PROMPT)
+  return {
+    shown: setup.shown.slice(shownBefore),
+    offers: setup.offers.slice(offersBefore),
+    calls: invokeState.calls.slice(callsBefore),
+    currentPromptKey: setup.ctx.session.currentPromptKey,
+  }
+}
+
+const ignoredPrompts = {}
+for (const kind of ["missingConnection", "nonSsh", "unchanged", "disposed"]) {
+  ignoredPrompts[kind] = await ignoredPromptScenario(kind)
+}
 Date.now = originalNow
 
 function loginScriptScenario(connection, script) {
@@ -1027,6 +1052,7 @@ const savedOracle = {
   newCommandPrompt,
   manualInput,
   manualInputBusy,
+  ignoredPrompts,
   loginScriptCases: [
     loginScriptScenario("ssh", "cd /srv\r\n\r\necho ready\r\n"),
     loginScriptScenario("terminal", null),

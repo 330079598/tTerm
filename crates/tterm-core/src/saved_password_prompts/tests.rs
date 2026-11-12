@@ -688,7 +688,7 @@ fn oracle_a_refused_input_callback_write_does_not_notify() {
 }
 
 #[test]
-fn oracle_typing_counts_characters_until_enter_clears_the_prompt() {
+fn typing_counts_characters_until_enter_clears_the_prompt() {
     let mut harness = Harness::new();
     harness.check(SUDO_PROMPT, 100_000);
     harness.resolve(None);
@@ -716,7 +716,7 @@ fn oracle_typing_counts_characters_until_enter_clears_the_prompt() {
 }
 
 #[test]
-fn oracle_typing_over_an_offer_turns_it_into_the_manual_count() {
+fn typing_over_an_offer_turns_it_into_the_manual_count() {
     let mut harness = Harness::new();
     harness.check(SUDO_PROMPT, 100_000);
     harness.resolve(Some(SudoPasswordSource::Login));
@@ -750,7 +750,7 @@ fn oracle_typed_password_count_iterates_unicode_and_ignores_empty_input() {
 }
 
 #[test]
-fn oracle_dismissing_an_offer_types_manually_from_zero() {
+fn dismissing_an_offer_types_manually_from_zero() {
     let mut harness = Harness::new();
     harness.check(SUDO_PROMPT, 100_000);
     harness.resolve(Some(SudoPasswordSource::Login));
@@ -767,7 +767,7 @@ fn oracle_dismissing_an_offer_types_manually_from_zero() {
 }
 
 #[test]
-fn oracle_the_tab_mark_stays_until_the_password_is_submitted() {
+fn the_tab_mark_stays_until_the_password_is_submitted() {
     let mut harness = Harness::new();
     harness.check(SUDO_PROMPT, 100_000);
     assert_eq!(harness.tab_prompt, vec![true]);
@@ -779,7 +779,7 @@ fn oracle_the_tab_mark_stays_until_the_password_is_submitted() {
 }
 
 #[test]
-fn oracle_typing_at_the_shell_only_clears_the_prompt_display() {
+fn typing_at_the_shell_only_clears_the_prompt_display() {
     let mut harness = Harness::new();
     assert!(harness.check("alice@web:~$ ", 100_000).is_empty());
     assert!(harness.shown.is_empty());
@@ -805,16 +805,31 @@ fn oracle_a_failed_lookup_types_manually() {
 #[test]
 fn oracle_non_ssh_disposed_and_unchanged_lines_do_nothing() {
     let mut harness = Harness::with_connection(None, false);
-    assert!(harness.check(SUDO_PROMPT, 100_000).is_empty());
+    assert_eq!(harness.check(SUDO_PROMPT, 100_000), vec![]);
+    assert_eq!(harness.prompts.current_prompt_key(), None);
+
+    let mut harness = Harness::with_connection(
+        Some(PromptConnection {
+            kind: PromptConnectionKind::Terminal,
+            ..ssh_connection("alice", Some("p1"), Some("web"))
+        }),
+        false,
+    );
+    assert_eq!(harness.check(SUDO_PROMPT, 100_000), vec![]);
+    assert_eq!(harness.prompts.current_prompt_key(), None);
 
     let mut harness = Harness::new();
     harness.check(SUDO_PROMPT, 100_000);
-    assert!(harness.check(SUDO_PROMPT, 100_000).is_empty());
+    assert_eq!(harness.check(SUDO_PROMPT, 100_000), vec![]);
+    assert_eq!(
+        harness.prompts.current_prompt_key(),
+        Some("0:[sudo] password for alice:")
+    );
     harness.prompts.dispose();
-    assert!(
-        harness
-            .check("[sudo] password for root:", 100_001)
-            .is_empty()
+    assert_eq!(harness.check("[sudo] password for root:", 100_001), vec![]);
+    assert_eq!(
+        harness.prompts.current_prompt_key(),
+        Some("0:[sudo] password for alice:")
     );
 }
 
