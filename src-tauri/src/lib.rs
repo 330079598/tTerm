@@ -10,6 +10,7 @@ mod db;
 #[cfg(any(target_os = "windows", target_os = "macos"))]
 mod drag_out;
 mod fonts;
+mod frontend_state;
 mod ime_focus;
 mod launch_dir;
 mod main_window;
@@ -168,6 +169,10 @@ pub fn run() {
             config::save_config,
             app_state::load_app_state,
             app_state::save_app_state,
+            frontend_state::load_frontend_state,
+            frontend_state::read_frontend_state,
+            frontend_state::write_frontend_state,
+            frontend_state::migrate_frontend_state,
             themes::load_custom_themes,
             themes::save_custom_themes,
             proxy::list_proxies,
