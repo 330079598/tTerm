@@ -265,7 +265,7 @@ pub fn run() {
             terminal::pty::local_terminal_shell_name,
             terminal::pty::check_local_shell,
             terminal::foreground::pty_shell_in_foreground,
-            fonts::list_fonts,
+            fonts::commands::list_fonts,
             monitor::get_server_metrics_snapshot,
             monitor::release_server_monitor_session,
             profiles::commands::list_profiles,
