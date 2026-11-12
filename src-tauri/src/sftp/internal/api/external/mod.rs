@@ -319,8 +319,6 @@ impl From<ApplicationChoice> for AppChoice {
         }
     }
 }
-#[cfg(test)]
-mod contract_tests;
 
 #[cfg(test)]
 mod container_tests;

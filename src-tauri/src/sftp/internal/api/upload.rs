@@ -388,7 +388,4 @@ async fn upload_single_file_with_progress(
 pub mod commands;
 
 #[cfg(test)]
-mod contract_tests;
-
-#[cfg(test)]
 mod event_tests;

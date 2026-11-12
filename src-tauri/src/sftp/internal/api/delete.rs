@@ -188,7 +188,4 @@ pub mod commands;
 mod recursive;
 
 #[cfg(test)]
-mod contract_tests;
-
-#[cfg(test)]
 mod container_tests;

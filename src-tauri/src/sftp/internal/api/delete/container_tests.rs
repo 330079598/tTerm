@@ -51,3 +51,14 @@ async fn container_recursive_delete_preserves_sampled_events() {
     );
     assert!(samples.last().unwrap().1.is_empty());
 }
+
+#[test]
+fn delete_sampling_stays_at_twenty_five_items() {
+    for (count, expected) in [(0, true), (24, false), (25, true), (26, false), (50, true)] {
+        let progress = DeleteProgress {
+            deleted_files: count,
+            ..Default::default()
+        };
+        assert_eq!(should_emit_delete_progress(&progress), expected);
+    }
+}

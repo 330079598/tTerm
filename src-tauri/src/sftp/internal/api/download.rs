@@ -107,6 +107,3 @@ pub(crate) async fn download_file_with_progress(
     cancel_map.write().await.remove(transfer_id);
     transfer_result_message(result)
 }
-
-#[cfg(test)]
-mod contract_tests;

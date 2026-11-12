@@ -343,3 +343,22 @@ async fn release_service_removes_clean_copies_and_keeps_modified_copies_without_
         assert_eq!(kept.len(), usize::from(status == EditStatus::Modified));
     }
 }
+
+#[test]
+fn external_edit_emitter_preserves_state_snapshot() {
+    let sink = tterm_core::events::recording::RecordingEventSink::default();
+    let edit = ExternalEdit {
+        id: "edit".into(),
+        tab_id: "tab".into(),
+        remote_path: "/remote".into(),
+        file_name: "file".into(),
+        local_path: "/local".into(),
+        status: EditStatus::Failed,
+        error: Some("offline".into()),
+    };
+    emit(&sink, &edit);
+    assert_eq!(
+        sink.events(),
+        vec![AppEvent::Sftp(SftpEvent::ExternalEditChanged(edit))]
+    );
+}

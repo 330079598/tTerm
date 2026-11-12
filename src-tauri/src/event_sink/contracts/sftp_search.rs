@@ -1,6 +1,6 @@
 //! Channel contracts captured before introducing the core search sink.
-use super::ResultSink;
 use crate::event_sink::search::TauriSearchResultSink;
+use crate::sftp::internal::api::search::ResultSink;
 use std::sync::{Arc, Mutex};
 use tauri::ipc::Channel;
 use tauri::ipc::InvokeResponseBody;

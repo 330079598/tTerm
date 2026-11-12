@@ -57,22 +57,3 @@ fn legacy_e02_wire_contract() {
         serde_json::json!({"id": "edit-1", "tabId": "tab-中文-7", "remotePath": "/home/alice/中文 file.txt", "fileName": "file_name-value", "localPath": "/tmp/中文 file.txt", "status": "modified", "error": null})
     );
 }
-
-#[test]
-fn external_edit_emitter_preserves_state_snapshot() {
-    let sink = tterm_core::events::recording::RecordingEventSink::default();
-    let edit = ExternalEdit {
-        id: "edit".into(),
-        tab_id: "tab".into(),
-        remote_path: "/remote".into(),
-        file_name: "file".into(),
-        local_path: "/local".into(),
-        status: EditStatus::Failed,
-        error: Some("offline".into()),
-    };
-    super::emit(&sink, &edit);
-    assert_eq!(
-        sink.events(),
-        vec![AppEvent::Sftp(SftpEvent::ExternalEditChanged(edit))]
-    );
-}
