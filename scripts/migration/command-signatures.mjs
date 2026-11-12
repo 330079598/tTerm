@@ -7,13 +7,6 @@ const root = path.resolve(path.dirname(new URL(import.meta.url).pathname), '../.
 const sourceRoot = path.join(root, 'src-tauri', 'src');
 const baselinePath = path.join(root, 'scripts', 'migration', 'command-signatures.json');
 
-function modulePath(file) {
-  const relative = path.relative(sourceRoot, file).replaceAll(path.sep, '/').replace(/\.rs$/, '');
-  const parts = relative.split('/');
-  if (parts.at(-1) === 'mod') parts.pop();
-  return parts.join('::') || 'lib';
-}
-
 function splitTopLevel(input, separator = ',') {
   const parts = [];
   let start = 0;
@@ -75,6 +68,28 @@ function findMatchingBrace(source, openIndex) {
   return source.length;
 }
 
+function findMatchingBracket(source, openIndex) {
+  let depth = 0;
+  let string = null;
+  let escaped = false;
+  for (let index = openIndex; index < source.length; index += 1) {
+    const char = source[index];
+    if (string) {
+      if (escaped) escaped = false;
+      else if (char === '\\') escaped = true;
+      else if (char === string) string = null;
+      continue;
+    }
+    if (char === '"' || char === "'") {
+      string = char;
+      continue;
+    }
+    if (char === '[') depth += 1;
+    else if (char === ']' && --depth === 0) return index;
+  }
+  return source.length;
+}
+
 function parseParameter(parameter) {
   const withoutAttributes = parameter.replace(/^\s*#\[[\s\S]*?\]\s*/, '').trim();
   const colon = withoutAttributes.indexOf(':');
@@ -87,7 +102,7 @@ function parseParameter(parameter) {
   return injected ? null : { name, type };
 }
 
-export function parseCommands(file, source) {
+export function parseCommands(source) {
   const commands = [];
   const commandAttribute = /#\[tauri::command(?:\s*\(([^\]]*)\))?\]/g;
   let attributeMatch;
@@ -102,7 +117,6 @@ export function parseCommands(file, source) {
     const parameters = splitTopLevel(rawParameters).map(parseParameter).filter(Boolean);
     commands.push({
       name,
-      module: modulePath(file),
       attributes,
       params: parameters,
       returns: rawReturn?.trim() ?? '()',
@@ -122,9 +136,19 @@ function collectRustFiles(directory) {
 }
 
 function parseHandlers(source) {
-  const match = source.match(/tauri::generate_handler!\s*\[([\s\S]*?)\]/);
+  const match = source.match(/tauri::generate_handler!\s*\[/);
   if (!match) return [];
-  return splitTopLevel(match[1]).map((entry) => entry.replace(/\/\/.*$/gm, '').trim()).filter(Boolean);
+  const open = match.index + match[0].length - 1;
+  const close = findMatchingBracket(source, open);
+  return splitTopLevel(source.slice(open + 1, close))
+    .map((entry) => {
+      let path = entry.trim();
+      while (path.startsWith('#[')) {
+        path = path.slice(findMatchingBracket(path, 1) + 1).trim();
+      }
+      return path.replace(/\/\/.*$/gm, '').trim().split('::').at(-1);
+    })
+    .filter(Boolean);
 }
 
 export function collectSignatures() {
@@ -132,10 +156,10 @@ export function collectSignatures() {
   let handlers = [];
   for (const file of collectRustFiles(sourceRoot)) {
     const source = fs.readFileSync(file, 'utf8');
-    commands.push(...parseCommands(file, source));
+    commands.push(...parseCommands(source));
     if (file === path.join(sourceRoot, 'lib.rs')) handlers = parseHandlers(source);
   }
-  commands.sort((left, right) => `${left.name}\0${left.module}`.localeCompare(`${right.name}\0${right.module}`));
+  commands.sort((left, right) => left.name.localeCompare(right.name));
   handlers.sort();
   return { version: 1, commands, handlers };
 }
