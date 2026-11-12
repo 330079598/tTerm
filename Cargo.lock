@@ -11000,6 +11000,7 @@ version = "0.1.0"
 dependencies = [
  "dirs 7.0.0",
  "gethostname",
+ "regress",
  "serde",
  "serde_json",
  "tokio",

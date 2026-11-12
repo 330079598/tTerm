@@ -23,5 +23,7 @@ pub mod prompts;
 pub mod session;
 /// Shared SFTP value and streaming types (P1-04).
 pub mod sftp;
+/// Theme definitions, the bundled catalog, imports and custom themes.
+pub mod theme;
 /// Update routing and cache policy.
 pub mod updates;
