@@ -6,9 +6,15 @@
 
 /// Agent status reports and the tracker that follows them.
 pub mod agent_status;
+/// Notifications and agent reports carried by terminal OSC sequences.
+pub mod attention_reports;
+/// Command lines, timing and shell-integration marks for one terminal.
+pub mod command_tracking;
 /// Configuration values both clients keep: the config directory, keymap
 /// overrides, keyword highlight sets, split pane layouts and tab icons.
 pub mod config;
+/// Follows local and remote shell directory reports.
+pub mod cwd_reports;
 /// Distribution identity for the server monitor's icons.
 pub mod distro;
 /// Typed events and delivery interfaces shared by client adapters.
@@ -23,6 +29,8 @@ pub mod keyword_highlight;
 pub mod launch;
 /// Types a login script into a shell one command at a time.
 pub mod login_script;
+/// Distribution reports from a local WSL launcher.
+pub mod os_reports;
 /// The number of characters a password prompt holds.
 pub mod password_feedback;
 /// Rules for confirming a multi-line paste.
@@ -34,6 +42,8 @@ pub mod paths;
 pub mod prompts;
 /// Per-tab directories and hosts reported by remote shells.
 pub mod remote_cwd;
+/// Saved-password offers at SSH sudo prompts.
+pub mod saved_password_prompts;
 /// Session output endpoints shared by client adapters (P1-06).
 pub mod session;
 /// Shared SFTP value and streaming types (P1-04).

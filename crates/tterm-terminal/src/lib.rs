@@ -55,6 +55,10 @@ pub mod cell;
 pub mod color;
 /// Shell integration command marks shared with the notification rules.
 pub mod command_mark;
+/// Prompt and command positions reported by shell integration.
+pub mod command_marks;
+/// Buffering rules for spinner cursor moves.
+pub mod cursor_move_hold;
 pub mod damage;
 pub mod event;
 pub mod grid;
@@ -68,6 +72,8 @@ pub mod mode;
 /// The OSC 52 clipboard request.
 pub mod osc52;
 pub mod palette;
+/// Predicts the echo of typing at a slow remote shell.
+pub mod predictive_echo;
 pub mod search;
 pub mod selection;
 pub mod snapshot;

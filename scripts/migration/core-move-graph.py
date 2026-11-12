@@ -11,9 +11,14 @@ compiler have the last word.
     python3 -I scripts/migration/core-move-graph.py cycles     # strongly connected groups among movable files
     python3 -I scripts/migration/core-move-graph.py batches    # move batches, leaves first, per domain
     python3 -I scripts/migration/core-move-graph.py json OUT   # the whole graph
+    add --no-tests to any command to leave test code out of the graph
 
 A file is an *adapter* when its non-test code touches Tauri (see TAURI); it
-stays in src-tauri. A file in STAY stays as well. Every other non-test file is
+stays in src-tauri. Test files and inline test modules move with the module
+that owns them, so their dependencies count as the owner's, and a movable
+module whose tests touch Tauri is reported as blocked too. Bare paths through
+child modules (`legacy_import::x`) and through `use`-imported module names
+count as dependencies. A file in STAY stays as well. Every other non-test file is
 *movable*. `adapters` exits with status 1 while a movable file depends on an
 adapter or a STAY file, which is the condition P1-09a must clear.
 """
@@ -101,6 +106,8 @@ def strip_comments(source):
 
 
 def expand_use_tree(prefix, tree):
+    """Expands a `use` tree into (path, alias) pairs; alias is the name the
+    item is known by in the importing file, or None for globs and `self`."""
     tree = tree.strip()
     if not tree:
         return []
@@ -119,14 +126,39 @@ def expand_use_tree(prefix, tree):
             else:
                 current += char
         return found + expand_use_tree(prefix, current)
-    if "::" in tree:
+    if "::" in tree.split(" as ")[0]:
         head, rest = tree.split("::", 1)
         return expand_use_tree(prefix + [head.strip()], rest)
-    name = tree.split(" as ")[0].strip()
-    return [prefix] if name in ("self", "*") else [prefix + [name]]
+    parts = tree.split(" as ")
+    name = parts[0].strip()
+    alias = parts[1].strip() if len(parts) > 1 else name
+    if name == "*":
+        return [(prefix, None)]
+    if name == "self":
+        return [(prefix, alias if len(parts) > 1 else (prefix[-1] if prefix else None))]
+    return [(prefix + [name], alias)]
 
 
-def load():
+def test_blocks(source):
+    """The bodies of `#[cfg(test)] mod … { … }` blocks."""
+    blocks = []
+    for match in re.finditer(r"#\[cfg\(test\)\]\s*mod\s+\w+\s*\{", source):
+        depth = 1
+        cursor = match.end()
+        while cursor < len(source) and depth:
+            if source[cursor] == "{":
+                depth += 1
+            elif source[cursor] == "}":
+                depth -= 1
+            cursor += 1
+        blocks.append(source[match.end() : cursor])
+    return blocks
+
+
+def load(include_tests=True):
+    """Builds the graph. Edges of a test file, and of inline test modules, are
+    added to the module that owns them, since tests move with their module;
+    tests that touch Tauri are reported in `test_adapters` by owner."""
     files = {}
     for directory, _, names in os.walk(ROOT):
         for name in names:
@@ -144,43 +176,89 @@ def load():
                 return target
         return None
 
-    edges = defaultdict(set)
-    items = defaultdict(set)
-    adapters = set()
-    for rel, source in files.items():
-        body = strip_comments(strip_tests(source))
-        if TAURI.search(body):
-            adapters.add(rel)
-        paths = []
+    def owner(rel):
+        path = list(module_path(rel))
+        while path:
+            candidate = modules.get(tuple(path))
+            if candidate and not is_test(candidate):
+                return candidate
+            path = path[:-1]
+        return rel
+
+    def absolute_of(root, path, here):
+        if root == "crate":
+            return list(path)
+        if root == "super":
+            base = here[:-1]
+            rest = list(path)
+            while rest and rest[0] == "super":
+                base = base[:-1]
+                rest = rest[1:]
+            return base + rest
+        return here + list(path)
+
+    def paths_in(body, here):
+        found = []
+        aliases = {}
         for use in re.finditer(r"\buse\s+(crate|super|self)::(.*?);", body, flags=re.S):
-            for path in expand_use_tree([], re.sub(r"\s+", " ", use.group(2))):
-                paths.append((use.group(1), path))
+            for path, alias in expand_use_tree([], re.sub(r"\s+", " ", use.group(2))):
+                absolute = absolute_of(use.group(1), path, here)
+                found.append(absolute)
+                if alias and tuple(absolute) in modules:
+                    aliases[alias] = absolute
         for inline in re.finditer(
             r"\b(crate|super)::((?:[a-z_][a-z0-9_]*::)*[A-Za-z_][A-Za-z0-9_]*)", body
         ):
-            paths.append((inline.group(1), inline.group(2).split("::")))
+            found.append(absolute_of(inline.group(1), inline.group(2).split("::"), here))
+        # Child modules (`mod x;`) and module aliases used as bare paths, such
+        # as `legacy_import::import_settings_files(..)`.
+        children = {
+            name: here + [name]
+            for name in re.findall(r"\bmod\s+([a-z_][a-z0-9_]*)\s*;", body)
+        }
+        bare = {**children, **aliases}
+        for inline in re.finditer(
+            r"(?<![\w:])([a-z_][a-z0-9_]*)::((?:[A-Za-z_][A-Za-z0-9_]*::)*[A-Za-z_][A-Za-z0-9_]*)",
+            body,
+        ):
+            head = inline.group(1)
+            if head in bare and head not in ("crate", "super", "self"):
+                found.append(bare[head] + inline.group(2).split("::"))
+        return found
+
+    edges = defaultdict(set)
+    items = defaultdict(set)
+    adapters = set()
+    test_adapters = defaultdict(set)
+    for rel, source in files.items():
+        plain = strip_comments(source)
         here = list(module_path(rel))
-        for root, path in paths:
-            if root == "crate":
-                absolute = list(path)
-            elif root == "super":
-                base = here[:-1]
-                rest = list(path)
-                while rest and rest[0] == "super":
-                    base = base[:-1]
-                    rest = rest[1:]
-                absolute = base + rest
-            else:
-                absolute = here + list(path)
-            target = resolve(absolute)
-            if target and target != rel:
-                edges[rel].add(target)
-                if absolute:
-                    items[(rel, target)].add(absolute[-1])
+        if is_test(rel):
+            if not include_tests:
+                continue
+            bodies = [plain]
+        else:
+            body = strip_tests(plain)
+            if TAURI.search(body):
+                adapters.add(rel)
+            bodies = [body] + (test_blocks(plain) if include_tests else [])
+        home = owner(rel) if is_test(rel) else rel
+        for index, body in enumerate(bodies):
+            in_test = is_test(rel) or index > 0
+            if in_test and TAURI.search(body):
+                test_adapters[home].add(rel)
+            for absolute in paths_in(body, here):
+                target = resolve(absolute)
+                if target and is_test(target):
+                    target = owner(target)
+                if target and target != home:
+                    edges[home].add(target)
+                    if absolute:
+                        items[(home, target)].add(absolute[-1])
     movable = {
         rel for rel in files if rel not in adapters and not is_test(rel) and not is_stay(rel)
     }
-    return files, edges, items, adapters, movable
+    return files, edges, items, adapters, movable, test_adapters
 
 
 def domain(rel):
@@ -264,8 +342,9 @@ def batches(movable, edges):
 
 
 def main():
-    command = sys.argv[1] if len(sys.argv) > 1 else "adapters"
-    files, edges, items, adapters, movable = load()
+    arguments = [argument for argument in sys.argv[1:] if argument != "--no-tests"]
+    command = arguments[0] if arguments else "adapters"
+    files, edges, items, adapters, movable, test_adapters = load("--no-tests" not in sys.argv)
     blocked = {rel for rel in files if (rel in adapters or is_stay(rel)) and not is_test(rel)}
     if command == "adapters":
         needed = defaultdict(lambda: defaultdict(set))
@@ -276,8 +355,14 @@ def main():
             print(f"{target}  ({len(needed[target])} movable dependents)")
             for source in sorted(needed[target]):
                 print(f"    {source}: {' '.join(sorted(needed[target][source]))}")
-        print(f"{len(movable)} movable files, {len(needed)} adapter or stay files still needed")
-        sys.exit(1 if needed else 0)
+        blocked_tests = {home: tests for home, tests in test_adapters.items() if home in movable}
+        for home in sorted(blocked_tests):
+            print(f"{home}  (its tests use Tauri: {' '.join(sorted(blocked_tests[home]))})")
+        print(
+            f"{len(movable)} movable files, {len(needed)} adapter or stay files still needed, "
+            f"{len(blocked_tests)} movable files with Tauri tests"
+        )
+        sys.exit(1 if needed or blocked_tests else 0)
     if command == "cycles":
         for group in strongly_connected(movable, edges):
             if len(group) > 1:
@@ -291,7 +376,7 @@ def main():
                 print(f"      {rel}")
         return
     if command == "json":
-        with open(sys.argv[2], "w", encoding="utf-8") as handle:
+        with open(arguments[1], "w", encoding="utf-8") as handle:
             json.dump(
                 {
                     "adapters": sorted(adapters),
