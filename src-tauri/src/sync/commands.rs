@@ -25,12 +25,11 @@ pub async fn reset_sync() -> Result<SyncStatus, String> {
 /// made before a sync deletes anything.
 #[tauri::command]
 pub async fn run_sync(
-    app: tauri::AppHandle,
     frontend_state: Option<Value>,
     check_remote: bool,
     services: tauri::State<'_, std::sync::Arc<crate::services::AppServices>>,
 ) -> Result<SyncOutcome, String> {
-    let app_version = crate::app_identity::get(&app)?.version.clone();
+    let app_version = services.shared.identity.version.clone();
     super::service::run_sync(
         app_version,
         frontend_state,
