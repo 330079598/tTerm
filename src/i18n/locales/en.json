@@ -70,6 +70,19 @@
     "clearSearch": "Clear search",
     "noMatchingTabs": "No matching tabs"
   },
+  "collapsedTabs": {
+    "title": "Collapsed Tabs",
+    "collapseAll": "Collapse All",
+    "restoreAll": "Restore All",
+    "restoreTab": "Reopen this tab",
+    "deleteTab": "Remove from list",
+    "deleteSet": "Delete this group",
+    "setTitle_one": "{{count}} tab · {{time}}",
+    "setTitle_other": "{{count}} tabs · {{time}}",
+    "empty": "No collapsed tabs. Collapsing closes their sessions; reopen them here later.",
+    "loadFailed": "Couldn't load collapsed tabs",
+    "saveFailed": "Couldn't save collapsed tabs"
+  },
   "contextMenu": {
     "newTab": "New Tab",
     "duplicateTab": "Duplicate Tab",
@@ -91,7 +104,8 @@
     "closeOtherTabs": "Close Other Tabs",
     "closeTabsToLeft": "Close Tabs to the Left",
     "closeTabsToRight": "Close Tabs to the Right",
-    "editTab": "Edit Tab…"
+    "editTab": "Edit Tab…",
+    "collapseTab": "Collapse Tab"
   },
   "workspace": {
     "splitRight": "Split Right",

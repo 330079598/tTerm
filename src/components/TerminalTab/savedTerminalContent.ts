@@ -165,6 +165,26 @@ export async function loadSavedTerminalContent(tabIds: string[]): Promise<void> 
   }
 }
 
+/**
+ * What the terminal of `tabId` shows now, as {@link serializeTerminal} keeps
+ * it, whether or not the setting is on; null when it shows nothing.
+ */
+export function captureTerminalContent(tabId: string): string | null {
+  const entry = tracked.get(tabId)
+  if (!entry) return null
+  const content = serializeTerminal(entry.term, entry.serializer)
+  return content.trim() ? content : null
+}
+
+/**
+ * Has the terminal of `tabId`, not yet made, show `saved` when it opens, as
+ * a restored launch does. A collapsed tab opened again is given its content
+ * this way.
+ */
+export function showContentWhenOpened(tabId: string, saved: Omit<SavedTerminalContent, "tabId">) {
+  restored.set(tabId, { ...saved, tabId })
+}
+
 /** A terminal tracked for the next save, which can show the tab's saved content. */
 export interface TrackedTerminalContent extends IDisposable {
   /**

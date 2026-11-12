@@ -161,6 +161,28 @@ pub(crate) fn read_snapshots(
     Ok(snapshots)
 }
 
+/// Reads the snapshots `ids` and deletes them, leaving every other one; an
+/// id with no snapshot, or a damaged one, is left out.
+pub(crate) fn take_snapshots(dir: &Path, ids: &[String]) -> Result<Vec<SavedScrollback>, String> {
+    let mut snapshots = Vec::new();
+    for tab_id in ids {
+        let path = snapshot_path(dir, tab_id)?;
+        let Ok(bytes) = fs::read(&path) else {
+            continue;
+        };
+        let saved_at = saved_at(&path);
+        remove_file(&path)?;
+        if let Some(content) = decompress(&bytes) {
+            snapshots.push(SavedScrollback {
+                tab_id: tab_id.clone(),
+                content,
+                saved_at,
+            });
+        }
+    }
+    Ok(snapshots)
+}
+
 pub(crate) fn clear(dir: &Path) -> Result<(), String> {
     match fs::remove_dir_all(dir) {
         Ok(()) => Ok(()),
@@ -302,6 +324,18 @@ mod tests {
         fs::write(dir.0.join("tab-1.gz"), b"not gzip").unwrap();
         assert!(read(&dir.0, &["tab-1"]).is_empty());
         assert!(!dir.0.join("tab-1.gz").exists());
+    }
+
+    #[test]
+    fn taking_snapshots_reads_and_deletes_only_those() {
+        let dir = TempDir::new();
+        write_snapshots(&dir.0, &[snapshot("tab-1", "a"), snapshot("tab-2", "b")]).unwrap();
+        let taken = take_snapshots(&dir.0, &["tab-1".to_string(), "tab-3".to_string()]).unwrap();
+        assert_eq!(taken.len(), 1);
+        assert_eq!(taken[0].content, "a");
+        assert!(!dir.0.join("tab-1.gz").exists());
+        assert!(dir.0.join("tab-2.gz").exists());
+        assert!(take_snapshots(&dir.0, &["../x".to_string()]).is_err());
     }
 
     #[test]

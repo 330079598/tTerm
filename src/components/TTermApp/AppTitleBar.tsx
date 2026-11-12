@@ -14,6 +14,8 @@ import type { useTransferManager } from "@/contexts/TransferContext"
 import type { Tab } from "@/types/tab"
 import { getPaneIds, type TabGroup } from "@/lib/tabGroups"
 import { BroadcastManager } from "@/components/BroadcastManager"
+import { CollapsedTabs } from "@/components/CollapsedTabs"
+import type { CollapsedTabs as CollapsedTabsState } from "@/components/TTermApp/useCollapsedTabs"
 import { TabBar } from "@/components/TabBar"
 import { TransferManager } from "@/components/TransferManager"
 import { useShortcutLabel } from "@/contexts/KeymapContext"
@@ -53,6 +55,7 @@ interface AppTitleBarProps {
   runtime: BroadcastRuntime
   titleBar: ReturnType<typeof useTitleBarPages>
   commandLibrary: ReturnType<typeof useCommandLibraryActions>
+  collapsed: CollapsedTabsState
 }
 
 /** The title bar: the tabs, the tools beside them, and the page and window buttons. */
@@ -87,6 +90,7 @@ export function AppTitleBar({
   runtime,
   titleBar,
   commandLibrary,
+  collapsed,
 }: AppTitleBarProps) {
   const { t } = useTranslation()
   const shortcutLabel = useShortcutLabel()
@@ -153,6 +157,7 @@ export function AppTitleBar({
             >
               <Library size={16} />
             </button>
+            <CollapsedTabs collapsed={collapsed} />
             <TransferManager
               transfers={transfers}
               onCancel={cancelTransfer}

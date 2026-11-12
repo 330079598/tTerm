@@ -6,6 +6,7 @@ use crate::db::meta;
 use rusqlite::Connection;
 use serde::{Deserialize, Serialize};
 
+pub(crate) mod collapsed;
 #[cfg(test)]
 mod resume_compatibility_tests;
 pub(crate) mod scrollback;

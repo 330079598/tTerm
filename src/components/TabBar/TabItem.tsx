@@ -10,6 +10,7 @@ import { TabTooltip } from "@/components/TabTooltip"
 import { useTabPasswordPrompt } from "@/lib/tabAttention"
 import { getTabCloseMenuActions } from "@/lib/tabClosing"
 import {
+  getCollapseTabMenuAction,
   getReopenClosedTabMenuAction,
   getTabConnectionMenuAction,
   getTabPinMenuAction,
@@ -129,6 +130,7 @@ export const TabItem = React.memo(function TabItem({
         ...getTabPinMenuAction(tab, t),
         ...logActions,
         { separator: true, label: "", action: "" },
+        getCollapseTabMenuAction(t),
         ...closeActions,
       ]
       onContextMenu(e, tab, actions)

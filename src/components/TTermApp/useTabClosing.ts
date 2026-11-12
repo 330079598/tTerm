@@ -127,17 +127,21 @@ export function useTabClosing(shell: AppShell, deps: TabClosingDeps) {
     [closeTabById, confirmCloseTabsWithTransfers, confirmCloseTabsWithUnsavedRemoteFiles]
   )
 
+  /**
+   * Closes `targetTabs` with `closeAction` once confirmed; resolves to
+   * whether they closed. `remember` keeps them for reopening the closed tab.
+   */
   const closeTabsWithConfirmation = useCallback(
-    async (targetTabs: Tab[], closeAction: () => void) => {
+    async (targetTabs: Tab[], closeAction: () => void, remember = true): Promise<boolean> => {
       const targetTabIds = targetTabs.map((tab) => tab.id)
       const unsavedConfirmed = await confirmCloseTabsWithUnsavedRemoteFiles(targetTabIds)
       if (!unsavedConfirmed) {
-        return
+        return false
       }
 
       const confirmed = await confirmCloseTabsWithTransfers(targetTabIds)
       if (!confirmed) {
-        return
+        return false
       }
 
       for (const targetTab of targetTabs) {
@@ -146,8 +150,9 @@ export function useTabClosing(shell: AppShell, deps: TabClosingDeps) {
           cleanupConnection(targetTab.id)
         }
       }
-      rememberClosedTabs(targetTabIds, groups)
+      if (remember) rememberClosedTabs(targetTabIds, groups)
       closeAction()
+      return true
     },
     [
       cleanupConnection,
@@ -224,6 +229,14 @@ export function useTabClosing(shell: AppShell, deps: TabClosingDeps) {
     [closeTabsWithConfirmation, groups, removeTabs, tabs]
   )
 
+  // Collapsed tabs are kept in their own list, so undoing a closing must not
+  // bring them back a second time.
+  const closeTabsForCollapse = useCallback(
+    (targetTabs: Tab[], closeAction: () => void) =>
+      closeTabsWithConfirmation(targetTabs, closeAction, false),
+    [closeTabsWithConfirmation]
+  )
+
   const handleCloseOtherTabs = useCallback(
     (id: string) => closeTabsOfBar(id, "close-others"),
     [closeTabsOfBar]
@@ -245,5 +258,6 @@ export function useTabClosing(shell: AppShell, deps: TabClosingDeps) {
     handleCloseTabsToRight,
     reopenClosedTab,
     hasClosedTabs,
+    closeTabsForCollapse,
   }
 }

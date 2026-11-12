@@ -36,6 +36,12 @@ export interface RemoveTabsResult {
   activeTabId: string | null
 }
 
+/** Tabs opened again together, and where they go back. */
+export interface ReopenedEntry {
+  tabs: Tab[]
+  layout: ClosedLayout
+}
+
 export interface TabsState extends RemoveTabsResult {
   groups: TabGroup[]
   /** How many group ids have been handed out, so none is handed out twice. */
@@ -60,7 +66,7 @@ export type TabsAction =
   | { type: "toggle-zoom"; id: string }
   | { type: "resize-split"; groupId: string; path: number[]; sizes: number[] }
   | { type: "apply-template"; id: string; root: LayoutShape; newIds: string[] }
-  | { type: "reopen"; tabs: Tab[]; layout: ClosedLayout }
+  | { type: "reopen"; entries: ReopenedEntry[] }
 
 export function removeTabsFromState(
   tabs: Tab[],
@@ -378,18 +384,27 @@ function applyTabsAction(state: TabsState, action: TabsAction): TabsState {
     case "apply-template":
       return applyTemplate(state, action)
     case "reopen": {
-      if (action.tabs.length === 0) return state
-      const ids = action.tabs.map((tab) => tab.id)
+      // The first entry takes the focus; the others wait in the bar.
+      const entries = action.entries.filter((entry) => entry.tabs.length > 0)
+      if (entries.length === 0) return state
       let groupCount = state.groupCount
-      const groups = placeReopenedTabs(
-        state.groups,
-        action.layout,
-        ids,
-        () => `group-${++groupCount}`
-      )
+      let groups = state.groups
+      for (const entry of entries) {
+        const ids = entry.tabs.map((tab) => tab.id)
+        groups = placeReopenedTabs(groups, entry.layout, ids, () => `group-${++groupCount}`)
+      }
+      const [first] = entries
       return activateTabInState(
-        { ...state, tabs: [...state.tabs, ...action.tabs], groups, groupCount },
-        reopenedActiveTabId(action.layout, ids)
+        {
+          ...state,
+          tabs: [...state.tabs, ...entries.flatMap((entry) => entry.tabs)],
+          groups,
+          groupCount,
+        },
+        reopenedActiveTabId(
+          first.layout,
+          first.tabs.map((tab) => tab.id)
+        )
       )
     }
   }

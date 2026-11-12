@@ -29,6 +29,8 @@ interface UseTabContextMenuDeps {
   setTabIconStyle: (tabId: string, iconStyle: TabIconStyle | undefined) => void
   reopenClosedTab: () => boolean
   hasClosedTabs: () => boolean
+  /** Puts away the tab of the bar holding this pane, to open it again later. */
+  collapseTab: (id: string) => void
 }
 
 export function useTabContextMenu({
@@ -51,6 +53,7 @@ export function useTabContextMenu({
   setTabIconStyle,
   reopenClosedTab,
   hasClosedTabs,
+  collapseTab,
 }: UseTabContextMenuDeps) {
   const [renameDialogState, setRenameDialogState] = useState<RenameDialogState>({
     isOpen: false,
@@ -184,6 +187,9 @@ export function useTabContextMenu({
         case "close-left":
           handleCloseTabsToLeft(tab.id)
           break
+        case "collapse-tab":
+          collapseTab(tab.id)
+          break
         default:
           break
       }
@@ -209,6 +215,7 @@ export function useTabContextMenu({
       editTabProfile,
       setTabLogRecording,
       reopenClosedTab,
+      collapseTab,
     ]
   )
 

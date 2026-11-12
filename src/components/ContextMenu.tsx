@@ -26,6 +26,7 @@ import {
   ArrowUpFromLine,
   ArrowDownToLine,
   RotateCcw,
+  SendToBack,
   CircleDot,
   Square,
   FileDown,
@@ -106,6 +107,8 @@ const getActionIcon = (icon?: string) => {
       return <ArrowUpFromLine size={14} aria-hidden="true" />
     case "rotate-ccw":
       return <RotateCcw size={14} aria-hidden="true" />
+    case "collapse-tab":
+      return <SendToBack size={14} aria-hidden="true" />
     case "download":
       return <ArrowDownToLine size={14} aria-hidden="true" />
     case "record":

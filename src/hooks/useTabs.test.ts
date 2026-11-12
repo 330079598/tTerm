@@ -268,6 +268,28 @@ describe("useTabs split tabs", () => {
     expect(result.current.activeTabId).toBe(reopened.activeTabId)
   })
 
+  it("reopens several tabs of the bar at the end, connecting only the focused one", () => {
+    const { result } = setup(["a", "b", "c"])
+    const entries = closedEntries(result.current.tabs, result.current.groups, ["a", "b"]).map(
+      (entry) => ({
+        tabs: entry.tabs,
+        layout: { ...entry.layout, index: Number.MAX_SAFE_INTEGER } as typeof entry.layout,
+      })
+    )
+    act(() => {
+      result.current.removeTabs(["a", "b"])
+    })
+    act(() => {
+      result.current.reopenTabGroups(entries)
+    })
+    expect(result.current.tabs.map((tab) => tab.title)).toEqual(["c", "a", "b"])
+    const [, first, second] = result.current.groups
+    expect(result.current.activeTabId).toBe(first.activeTabId)
+    const connected = (id: string) => result.current.tabs.find((tab) => tab.id === id)?.hasConnected
+    expect(connected(first.activeTabId)).toBe(true)
+    expect(connected(second.activeTabId)).toBe(false)
+  })
+
   it("moves tabs of the bar with their panes", () => {
     const { result } = setup(["a", "b", "c"])
     act(() => {

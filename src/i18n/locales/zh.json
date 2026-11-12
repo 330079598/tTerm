@@ -70,6 +70,19 @@
     "clearSearch": "清除搜索",
     "noMatchingTabs": "没有匹配的标签页"
   },
+  "collapsedTabs": {
+    "title": "已收起的标签页",
+    "collapseAll": "全部收起",
+    "restoreAll": "全部恢复",
+    "restoreTab": "重新打开此标签页",
+    "deleteTab": "从列表中移除",
+    "deleteSet": "删除这一组",
+    "setTitle_one": "{{count}} 个标签页 · {{time}}",
+    "setTitle_other": "{{count}} 个标签页 · {{time}}",
+    "empty": "没有收起的标签页。收起会断开它们的会话，之后可以在这里重新打开。",
+    "loadFailed": "无法读取已收起的标签页",
+    "saveFailed": "无法保存已收起的标签页"
+  },
   "contextMenu": {
     "newTab": "新建标签页",
     "duplicateTab": "复制标签页",
@@ -91,7 +104,8 @@
     "closeOtherTabs": "关闭其他标签页",
     "closeTabsToLeft": "关闭左侧标签页",
     "closeTabsToRight": "关闭右侧标签页",
-    "editTab": "编辑标签页…"
+    "editTab": "编辑标签页…",
+    "collapseTab": "收起标签页"
   },
   "workspace": {
     "splitRight": "向右分屏",

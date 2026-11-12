@@ -31,6 +31,7 @@ import { useProfileRecents } from "@/components/TTermApp/useProfileRecents"
 import { useQuickConnect } from "@/components/TTermApp/useQuickConnect"
 import { useProfileActions } from "@/components/TTermApp/useProfileActions"
 import { useTabClosing } from "@/components/TTermApp/useTabClosing"
+import { useCollapsedTabs } from "@/components/TTermApp/useCollapsedTabs"
 import { useWorkspaceSplits } from "@/components/TTermApp/useWorkspaceSplits"
 import { useTitleBarPages } from "@/components/TTermApp/useTitleBarPages"
 import { useCommandLibraryActions } from "@/components/TTermApp/useCommandLibraryActions"
@@ -171,10 +172,16 @@ export const TTermApp: React.FC = () => {
     handleCloseTabsToRight,
     reopenClosedTab,
     hasClosedTabs,
+    closeTabsForCollapse,
   } = useTabClosing(shell, {
     transfers,
     stopLiveSource: runtime.stopLiveSource,
     prepareClosedTab: prepareTab,
+  })
+  const collapsed = useCollapsedTabs(shell, {
+    closeTabsForCollapse,
+    prepareTab,
+    resumeAgentSessions: config.resume_agent_sessions,
   })
   const { handleSplitTab, handleTabDragMove, handleTabDrop, handleTabDragCancel } =
     useWorkspaceSplits(shell)
@@ -216,6 +223,7 @@ export const TTermApp: React.FC = () => {
     setTabIconStyle,
     reopenClosedTab,
     hasClosedTabs,
+    collapseTab: collapsed.collapseTab,
   })
 
   const titleBar = useTitleBarPages(shell, {
@@ -378,6 +386,7 @@ export const TTermApp: React.FC = () => {
         runtime={runtime}
         titleBar={titleBar}
         commandLibrary={commandLibrary}
+        collapsed={collapsed}
       />
 
       <div className="content-area">{renderTabContent()}</div>

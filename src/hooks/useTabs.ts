@@ -11,8 +11,15 @@ export interface UseTabsReturn {
   /** The tabs of the tab bar, in its order, each holding one or more of `tabs` as panes. */
   groups: TabGroup[]
   addTab: (tab: Omit<Tab, "id" | "isActive">) => string
-  /** Opens closed tabs again under new ids, put back where `layout` says. */
-  reopenTabs: (tabs: Omit<Tab, "id" | "isActive">[], layout: ClosedLayout) => void
+  /** Opens closed tabs again under new ids, put back where `layout` says; returns the ids. */
+  reopenTabs: (tabs: Omit<Tab, "id" | "isActive">[], layout: ClosedLayout) => string[]
+  /**
+   * Opens several tabs of the bar again at once. The first takes the focus;
+   * the others connect once they are shown. Returns each entry's new ids.
+   */
+  reopenTabGroups: (
+    entries: { tabs: Omit<Tab, "id" | "isActive">[]; layout: ClosedLayout }[]
+  ) => string[][]
   openSettingsTab: (title: string, section?: string) => void
   renameSettingsTab: (title: string) => void
   openTunnelsTab: (title: string) => void
@@ -100,7 +107,22 @@ export function useTabs(): UseTabsReturn {
       const reopened = tabData.map((data) =>
         ensureTabDefaults({ ...data, id: generateTabId(), isActive: false, hasConnected: true })
       )
-      dispatch({ type: "reopen", tabs: reopened, layout })
+      dispatch({ type: "reopen", entries: [{ tabs: reopened, layout }] })
+      return reopened.map((tab) => tab.id)
+    },
+    [generateTabId]
+  )
+
+  const reopenTabGroups = useCallback(
+    (entries: { tabs: Omit<Tab, "id" | "isActive">[]; layout: ClosedLayout }[]) => {
+      const reopened = entries.map((entry) => ({
+        layout: entry.layout,
+        tabs: entry.tabs.map((data) =>
+          ensureTabDefaults({ ...data, id: generateTabId(), isActive: false, hasConnected: false })
+        ),
+      }))
+      dispatch({ type: "reopen", entries: reopened })
+      return reopened.map((entry) => entry.tabs.map((tab) => tab.id))
     },
     [generateTabId]
   )
@@ -221,6 +243,7 @@ export function useTabs(): UseTabsReturn {
     groups,
     addTab,
     reopenTabs,
+    reopenTabGroups,
     openSettingsTab,
     renameSettingsTab,
     openTunnelsTab,

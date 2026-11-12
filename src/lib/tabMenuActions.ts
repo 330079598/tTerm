@@ -96,6 +96,13 @@ export function getReopenClosedTabMenuAction(
   }
 }
 
+/** The item that puts a tab of the bar away, to open it again from the collapsed tabs. */
+export function getCollapseTabMenuAction(
+  t: ReturnType<typeof useTranslation>["t"]
+): TabContextMenuAction {
+  return { label: t("contextMenu.collapseTab"), action: "collapse-tab", icon: "collapse-tab" }
+}
+
 /** The item that undoes a tab's split, giving each of its panes a tab of its own. */
 export function getUngroupMenuAction(
   t: ReturnType<typeof useTranslation>["t"]
