@@ -266,7 +266,8 @@ pub fn normalize_layout_shape(value: &Value) -> Option<LayoutShape> {
     Some(shape)
 }
 
-fn js_trim(value: &str) -> String {
+/// Trims the whitespace ECMAScript's `trim` removes.
+pub(crate) fn js_trim(value: &str) -> String {
     value
         .trim_matches(|character: char| {
             matches!(character,
