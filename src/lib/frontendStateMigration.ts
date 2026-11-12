@@ -12,6 +12,8 @@ import {
 import {
   FRONTEND_STATE_KEYS,
   hydrateFrontendState,
+  reportFrontendStateStartupError,
+  resetFrontendStateToLegacyForThisSession,
   type FrontendStateKey,
 } from "@/lib/frontendStateCache"
 import { PROFILE_RECENTS_STORAGE_KEY } from "@/lib/profileRecents"
@@ -97,8 +99,9 @@ function readStorage(storage: Storage): Record<string, string> {
 
 /**
  * Loads every value before React mounts. The first start hands the
- * localStorage values over; later starts only read the backend. A failed
- * read leaves the defaults in place.
+ * localStorage values over; later starts compare them with the backend. If
+ * the backend cannot be reached, this session keeps reading and writing
+ * localStorage and the next start tries the migration again.
  */
 export async function initializeFrontendState(): Promise<void> {
   const legacy = readStorage(window.localStorage)
@@ -107,6 +110,7 @@ export async function initializeFrontendState(): Promise<void> {
     hydrateFrontendState(state)
   } catch (error) {
     console.error("Failed to load frontend state from the backend:", error)
-    hydrateFrontendState({})
+    resetFrontendStateToLegacyForThisSession()
+    reportFrontendStateStartupError(error instanceof Error ? error.message : String(error))
   }
 }

@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next"
 import { toast } from "@/hooks/use-toast"
 import {
   onFrontendStateWriteError,
+  takePendingFrontendStateStartupError,
   takePendingFrontendStateWriteError,
 } from "@/lib/frontendStateCache"
 
@@ -16,6 +17,14 @@ export function useFrontendStateWriteError(): void {
       toast({
         title: t("frontendState.writeFailed"),
         description: message,
+        variant: "destructive",
+      })
+    }
+    const startupError = takePendingFrontendStateStartupError()
+    if (startupError) {
+      toast({
+        title: t("frontendState.loadFailed"),
+        description: startupError,
         variant: "destructive",
       })
     }

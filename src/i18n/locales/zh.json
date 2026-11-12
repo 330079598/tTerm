@@ -3235,6 +3235,7 @@
     "quit": "退出"
   },
   "frontendState": {
+    "loadFailed": "无法读取已保存的最近使用记录和界面偏好",
     "writeFailed": "无法保存最近使用记录和界面偏好"
   }
 }

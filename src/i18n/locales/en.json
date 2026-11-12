@@ -3266,6 +3266,7 @@
     "quit": "Quit"
   },
   "frontendState": {
+    "loadFailed": "Couldn't load your saved activity and preferences",
     "writeFailed": "Couldn't save your recent activity and preferences"
   }
 }

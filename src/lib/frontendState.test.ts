@@ -5,15 +5,21 @@ import { beforeEach, describe, expect, it, vi } from "vitest"
 
 import {
   cachedFrontendState,
+  isFrontendStateHydrated,
   onFrontendStateWriteError,
   resetFrontendStateCacheForTests,
+  takePendingFrontendStateStartupError,
   writeFrontendStateValue,
 } from "@/lib/frontendStateCache"
 import { initializeFrontendState, readLegacyFrontendState } from "@/lib/frontendStateMigration"
 import { COMMAND_COMPOSER_OPEN_STORAGE_KEY } from "@/lib/commandComposer"
 import { PROFILE_RECENTS_STORAGE_KEY } from "@/lib/profileRecents"
 import { QUICK_CONNECT_RECENTS_STORAGE_KEY } from "@/lib/quickConnect"
-import { loadRecentCommands, RECENT_COMMANDS_STORAGE_KEY } from "@/lib/recentCommands"
+import {
+  loadRecentCommands,
+  RECENT_COMMANDS_STORAGE_KEY,
+  saveRecentCommands,
+} from "@/lib/recentCommands"
 import { SERIAL_SEND_ECHO_STORAGE_KEY } from "@/lib/serialSendStore"
 
 vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn() }))
@@ -80,15 +86,25 @@ describe("frontend state storage", () => {
     })
   })
 
-  it("starts in defaults when the backend cannot be read", async () => {
-    localStorage.setItem(
-      RECENT_COMMANDS_STORAGE_KEY,
-      JSON.stringify([{ id: "legacy", commandText: "ls", lastUsedAt: 1, useCount: 1 }])
-    )
-    mockedInvoke.mockRejectedValue(new Error("database is locked"))
+  it("keeps the whole session on localStorage when the backend cannot be read", async () => {
+    const legacy = [{ id: "legacy", commandText: "ls", lastUsedAt: 1, useCount: 1 }]
+    localStorage.setItem(RECENT_COMMANDS_STORAGE_KEY, JSON.stringify(legacy))
+    mockedInvoke.mockRejectedValueOnce(new Error("database is locked"))
 
     await expect(initializeFrontendState()).resolves.toBeUndefined()
-    expect(loadRecentCommands(localStorage)).toEqual([])
+    expect(isFrontendStateHydrated()).toBe(false)
+    expect(takePendingFrontendStateStartupError()).toBe("database is locked")
+    expect(loadRecentCommands(localStorage)).toEqual(legacy)
+
+    const updated = [{ id: "written", commandText: "pwd", lastUsedAt: 2, useCount: 1 }]
+    saveRecentCommands(localStorage, updated)
+    expect(JSON.parse(localStorage.getItem(RECENT_COMMANDS_STORAGE_KEY) ?? "null")).toEqual(updated)
+    expect(mockedInvoke).toHaveBeenCalledTimes(1)
+
+    mockedInvoke.mockResolvedValueOnce({ recentCommands: updated })
+    await initializeFrontendState()
+    expect(mockedInvoke).toHaveBeenCalledTimes(2)
+    expect(cachedFrontendState("recentCommands")).toEqual(updated)
   })
 
   it("reports a failed write to the user", async () => {

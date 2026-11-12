@@ -20,6 +20,7 @@ export type FrontendStateSnapshot = Partial<Record<FrontendStateKey, unknown>>
 
 let snapshot: FrontendStateSnapshot = {}
 let hydrated = false
+let pendingStartupError: string | null = null
 let pendingWriteError: string | null = null
 let writeQueue: Promise<void> = Promise.resolve()
 const writeErrorListeners = new Set<(message: string) => void>()
@@ -47,6 +48,15 @@ function normalizeSnapshot(value: unknown): FrontendStateSnapshot {
 export function hydrateFrontendState(value: unknown): void {
   snapshot = normalizeSnapshot(value)
   hydrated = true
+}
+
+/**
+ * Leaves this session on localStorage after startup could not reach the
+ * backend. The values are not emptied into the backend on the next write.
+ */
+export function resetFrontendStateToLegacyForThisSession(): void {
+  snapshot = {}
+  hydrated = false
 }
 
 /**
@@ -90,10 +100,22 @@ export function takePendingFrontendStateWriteError(): string | null {
   return error
 }
 
+/** The startup failure, shown once after React mounts. */
+export function reportFrontendStateStartupError(message: string): void {
+  pendingStartupError ??= message
+}
+
+export function takePendingFrontendStateStartupError(): string | null {
+  const error = pendingStartupError
+  pendingStartupError = null
+  return error
+}
+
 /** Clears module state between tests. */
 export function resetFrontendStateCacheForTests(): void {
   snapshot = {}
   hydrated = false
+  pendingStartupError = null
   pendingWriteError = null
   writeQueue = Promise.resolve()
   writeErrorListeners.clear()

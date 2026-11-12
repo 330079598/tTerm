@@ -83,13 +83,22 @@ fn has_valid_shape(key: &str, value: &Value) -> bool {
 pub(crate) fn read_all(connection: &Connection) -> Result<BTreeMap<String, Value>, String> {
     let mut state = BTreeMap::new();
     for (key, storage_key) in STATE_KEYS {
-        if let Some(value) = meta::get::<Value>(connection, storage_key)? {
-            if has_valid_shape(key, &value) {
-                state.insert(key.to_string(), value);
-            }
+        if let Some(value) = stored_value(connection, key, storage_key)? {
+            state.insert(key.to_string(), value);
         }
     }
     Ok(state)
+}
+
+fn stored_value(
+    connection: &Connection,
+    key: &str,
+    storage_key: &str,
+) -> Result<Option<Value>, String> {
+    let Some(value) = meta::get::<Value>(connection, storage_key)? else {
+        return Ok(None);
+    };
+    Ok(has_valid_shape(key, &value).then_some(value))
 }
 
 /// The five fields a backup carries, with the defaults older backups had.
@@ -137,7 +146,7 @@ fn migrate(
 
     if !meta::contains(connection, MIGRATED_KEY)? {
         for (key, storage_key, raw) in requested {
-            if meta::contains(connection, storage_key)? {
+            if stored_value(connection, key, storage_key)?.is_some() {
                 continue;
             }
             let Ok(value) = serde_json::from_str::<Value>(raw) else {
@@ -250,6 +259,20 @@ mod tests {
             .unwrap();
         assert_eq!(marker["version"], MIGRATION_VERSION);
         assert!(marker["migratedAt"].as_i64().unwrap_or_default() > 0);
+    }
+
+    #[test]
+    fn a_stored_value_that_no_longer_parses_is_replaced_by_the_legacy_value() {
+        let database = Database::open_in_memory().unwrap();
+        database
+            .write(|connection| {
+                meta::put_raw(connection, "frontend.recent_commands", Some("{broken"))
+            })
+            .unwrap();
+        let state = database
+            .write(|connection| migrate(connection, &legacy_state()))
+            .unwrap();
+        assert_eq!(state["recentCommands"][0]["id"], "c1");
     }
 
     #[test]
