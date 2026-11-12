@@ -68,9 +68,10 @@ impl Tab {
         let mut view = TabFields {
             id: read::<String>(&fields, "id").unwrap_or_default(),
             title: read::<String>(&fields, "title").unwrap_or_default(),
-            tab_type: read::<TabType>(&fields, "type").unwrap_or(TabType::Unknown),
+            tab_type: read::<TabType>(&fields, "type")
+                .unwrap_or_else(|| TabType::Unknown(String::new())),
             is_active: read::<bool>(&fields, "isActive").unwrap_or(false),
-            ..Self::new("", "", TabType::Unknown).view
+            ..Self::new("", "", TabType::Unknown(String::new())).view
         };
         super::fields::read_tab(&mut view, &fields);
         Self {

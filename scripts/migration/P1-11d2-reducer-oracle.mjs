@@ -24,6 +24,8 @@ export function reducerCases(tabsState, home = null) {
   add("add new tab", { type: "add", tab: tab("d") })
   add("add to empty state", { type: "add", tab: tab("") }, empty())
   add("open new settings page", { type: "open-page", tab: tab("s", { type: "settings", title: "Settings" }) })
+  add("open distinct unknown tab type", { type: "open-page", tab: tab("s", { type: "future-b" }) }, { ...initial(), tabs: [tab("a", { type: "future-a" }), tab("b"), tab("c")] })
+  add("open same unknown tab type", { type: "open-page", tab: tab("s", { type: "future-a" }) }, { ...initial(), tabs: [tab("a", { type: "future-a" }), tab("b"), tab("c")] })
   const page = initial(); page.tabs.push(tab("s", { type: "settings", settingsRequest: 4294967295 })); page.groups.push(group("group-3", ["s"])); page.groupCount = 3
   add("open existing page and increment request without wrapping", { type: "open-page", tab: tab("unused", { type: "settings", settingsSection: "theme" }) }, page)
   add("open existing page with empty section", { type: "open-page", tab: tab("unused", { type: "settings", settingsSection: "" }) }, structuredClone(page))

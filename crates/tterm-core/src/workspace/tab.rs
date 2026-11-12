@@ -22,8 +22,8 @@ pub enum ConnectionType {
 }
 
 /// Every kind of tab the bar can hold.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "kebab-case")]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(from = "String", into = "String")]
 pub enum TabType {
     /// A shell running on this machine.
     Terminal,
@@ -40,7 +40,37 @@ pub enum TabType {
     /// The editor for a remote file.
     RemoteFileEditor,
     /// An unrecognized saved kind, whose original value remains in the saved fields.
-    Unknown,
+    Unknown(String),
+}
+
+impl From<String> for TabType {
+    fn from(value: String) -> Self {
+        match value.as_str() {
+            "terminal" => Self::Terminal,
+            "ssh" => Self::Ssh,
+            "serial" => Self::Serial,
+            "settings" => Self::Settings,
+            "tunnels" => Self::Tunnels,
+            "logs" => Self::Logs,
+            "remote-file-editor" => Self::RemoteFileEditor,
+            _ => Self::Unknown(value),
+        }
+    }
+}
+
+impl From<TabType> for String {
+    fn from(value: TabType) -> Self {
+        match value {
+            TabType::Terminal => "terminal".into(),
+            TabType::Ssh => "ssh".into(),
+            TabType::Serial => "serial".into(),
+            TabType::Settings => "settings".into(),
+            TabType::Tunnels => "tunnels".into(),
+            TabType::Logs => "logs".into(),
+            TabType::RemoteFileEditor => "remote-file-editor".into(),
+            TabType::Unknown(value) => value,
+        }
+    }
 }
 
 /// The known shells a local tab starts; unknown saved values remain in its raw fields.
@@ -228,7 +258,7 @@ impl Tab {
         let mut fields = Map::new();
         fields.insert("id".into(), view.id.clone().into());
         fields.insert("title".into(), view.title.clone().into());
-        if let Ok(value) = serde_json::to_value(view.tab_type) {
+        if let Ok(value) = serde_json::to_value(&view.tab_type) {
             fields.insert("type".into(), value);
         }
         fields.insert("isActive".into(), false.into());
