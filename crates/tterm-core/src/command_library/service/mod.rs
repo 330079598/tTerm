@@ -1,41 +1,36 @@
+use crate::command_library::models::CommandVariable;
+use crate::command_library::models::SaveCommandInput;
+use crate::command_library::models::SavedCommand;
+use crate::command_library::repository::CommandRepository;
+use crate::core::blocking::run_blocking;
 use chrono::Utc;
 use std::collections::HashSet;
-use tterm_core::command_library::models::CommandVariable;
-use tterm_core::command_library::models::SaveCommandInput;
-use tterm_core::command_library::models::SavedCommand;
-use tterm_core::command_library::repository::CommandRepository;
-use tterm_core::core::blocking::run_blocking;
 
-pub(super) async fn list_saved_commands() -> Result<Vec<SavedCommand>, String> {
-    run_blocking(|| CommandRepository::new(tterm_core::db::get()?).list()).await
+pub async fn list_saved_commands() -> Result<Vec<SavedCommand>, String> {
+    run_blocking(|| CommandRepository::new(crate::db::get()?).list()).await
 }
 
-pub(super) async fn list_command_tags() -> Result<Vec<String>, String> {
-    run_blocking(|| CommandRepository::new(tterm_core::db::get()?).list_tags()).await
+pub async fn list_command_tags() -> Result<Vec<String>, String> {
+    run_blocking(|| CommandRepository::new(crate::db::get()?).list_tags()).await
 }
 
-pub(super) async fn create_command_tag(tag: String) -> Result<String, String> {
-    run_blocking(move || CommandRepository::new(tterm_core::db::get()?).create_tag(&tag)).await
+pub async fn create_command_tag(tag: String) -> Result<String, String> {
+    run_blocking(move || CommandRepository::new(crate::db::get()?).create_tag(&tag)).await
 }
 
-pub(super) async fn rename_command_tag(
-    old_tag: String,
-    new_tag: String,
-) -> Result<Vec<String>, String> {
-    run_blocking(move || {
-        CommandRepository::new(tterm_core::db::get()?).rename_tag(&old_tag, &new_tag)
-    })
-    .await
+pub async fn rename_command_tag(old_tag: String, new_tag: String) -> Result<Vec<String>, String> {
+    run_blocking(move || CommandRepository::new(crate::db::get()?).rename_tag(&old_tag, &new_tag))
+        .await
 }
 
-pub(super) async fn delete_command_tag(tag: String) -> Result<Vec<String>, String> {
-    run_blocking(move || CommandRepository::new(tterm_core::db::get()?).delete_tag(&tag)).await
+pub async fn delete_command_tag(tag: String) -> Result<Vec<String>, String> {
+    run_blocking(move || CommandRepository::new(crate::db::get()?).delete_tag(&tag)).await
 }
 
-pub(super) async fn save_saved_command(input: SaveCommandInput) -> Result<SavedCommand, String> {
+pub async fn save_saved_command(input: SaveCommandInput) -> Result<SavedCommand, String> {
     run_blocking(move || {
         save(
-            &CommandRepository::new(tterm_core::db::get()?),
+            &CommandRepository::new(crate::db::get()?),
             input,
             Utc::now().timestamp_millis(),
         )
@@ -43,16 +38,16 @@ pub(super) async fn save_saved_command(input: SaveCommandInput) -> Result<SavedC
     .await
 }
 
-pub(super) async fn delete_saved_command(id: String) -> Result<bool, String> {
-    run_blocking(move || CommandRepository::new(tterm_core::db::get()?).delete(id.trim())).await
+pub async fn delete_saved_command(id: String) -> Result<bool, String> {
+    run_blocking(move || CommandRepository::new(crate::db::get()?).delete(id.trim())).await
 }
 
-pub(super) async fn set_saved_command_favorite(
+pub async fn set_saved_command_favorite(
     id: String,
     favorite: bool,
 ) -> Result<SavedCommand, String> {
     run_blocking(move || {
-        let repository = CommandRepository::new(tterm_core::db::get()?);
+        let repository = CommandRepository::new(crate::db::get()?);
         let mut command = repository
             .get(id.trim())?
             .ok_or_else(|| "Saved command not found".to_string())?;
@@ -64,9 +59,9 @@ pub(super) async fn set_saved_command_favorite(
     .await
 }
 
-pub(super) async fn record_saved_command_use(id: String) -> Result<(), String> {
+pub async fn record_saved_command_use(id: String) -> Result<(), String> {
     run_blocking(move || {
-        let updated = CommandRepository::new(tterm_core::db::get()?)
+        let updated = CommandRepository::new(crate::db::get()?)
             .record_use(id.trim(), Utc::now().timestamp_millis())?;
         if updated {
             Ok(())

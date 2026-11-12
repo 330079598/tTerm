@@ -1,6 +1,6 @@
 use super::*;
-use tterm_core::command_library::models::CommandVariable;
-use tterm_core::db::Database;
+use crate::command_library::models::CommandVariable;
+use crate::db::Database;
 
 fn create_input() -> SaveCommandInput {
     SaveCommandInput {
