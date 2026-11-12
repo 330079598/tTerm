@@ -22,6 +22,7 @@ let snapshot: FrontendStateSnapshot = {}
 let hydrated = false
 let pendingStartupError: string | null = null
 let pendingWriteError: string | null = null
+let writeFailureReported = false
 let writeQueue: Promise<void> = Promise.resolve()
 const writeErrorListeners = new Set<(message: string) => void>()
 let legacyMirror: ((key: FrontendStateKey, value: unknown) => void) | null = null
@@ -102,10 +103,14 @@ export function writeFrontendStateValue(key: FrontendStateKey, value: unknown): 
   writeQueue = writeQueue.then(async () => {
     try {
       await invoke("write_frontend_state", { key, value })
+      writeFailureReported = false
     } catch (error) {
       const message = toErrorMessage(error)
-      pendingWriteError = message
-      for (const listener of writeErrorListeners) listener(message)
+      if (!writeFailureReported) {
+        writeFailureReported = true
+        pendingWriteError = message
+        for (const listener of writeErrorListeners) listener(message)
+      }
       return
     }
     if (!mirrorValueToLegacy(key, value)) return
@@ -162,6 +167,7 @@ export function resetFrontendStateCacheForTests(): void {
   hydrated = false
   pendingStartupError = null
   pendingWriteError = null
+  writeFailureReported = false
   writeQueue = Promise.resolve()
   writeErrorListeners.clear()
 }

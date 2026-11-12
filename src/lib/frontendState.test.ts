@@ -223,4 +223,33 @@ describe("frontend state storage", () => {
     await vi.waitFor(() => expect(listener).toHaveBeenCalledWith("disk is full"))
     unsubscribe()
   })
+
+  it("reports repeated write failures once until a write succeeds again", async () => {
+    let writes = 0
+    mockedInvoke.mockImplementation(async (command) => {
+      if (command === "write_frontend_state") {
+        writes += 1
+        if (writes !== 3) throw new Error(`disk is full ${writes}`)
+      }
+      return {}
+    })
+    await initializeFrontendState()
+    const listener = vi.fn()
+    const unsubscribe = onFrontendStateWriteError(listener)
+
+    writeFrontendStateValue("recentCommands", [])
+    writeFrontendStateValue("recentProfiles", [])
+
+    await vi.waitFor(() => expect(writes).toBe(2))
+    expect(listener).toHaveBeenCalledTimes(1)
+    expect(listener).toHaveBeenCalledWith("disk is full 1")
+
+    writeFrontendStateValue("recentCommands", [])
+    writeFrontendStateValue("recentProfiles", [])
+
+    await vi.waitFor(() => expect(writes).toBe(4))
+    expect(listener).toHaveBeenCalledTimes(2)
+    expect(listener).toHaveBeenLastCalledWith("disk is full 4")
+    unsubscribe()
+  })
 })
