@@ -1,12 +1,12 @@
 //! The local copies of remote files opened in programs on this computer:
 //! where they live, what they are named, and how a change to one is told.
 
+use crate::paths::AppPaths;
 use sha2::{Digest, Sha256};
 use std::fs;
 use std::io::{BufReader, Read};
 use std::path::{Path, PathBuf};
 use std::time::{Duration, SystemTime};
-use tterm_core::paths::AppPaths;
 
 /// Copies left behind are removed at startup once they are this old. A
 /// copy is left behind when its tab closed with changes not uploaded, so it
@@ -77,26 +77,26 @@ const RUN_WHEN_OPENED: &[&str] = &[
 
 /// What a local file looks like from outside, compared once a second.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(super) struct FileStamp {
+pub struct FileStamp {
     pub size: u64,
     pub modified: Option<SystemTime>,
 }
 
 /// A local file's content, as far as telling a change goes.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(super) struct Fingerprint {
+pub struct Fingerprint {
     pub stamp: FileStamp,
     pub hash: [u8; 32],
 }
 
 /// The folder holding every local copy.
-pub(super) fn edit_root(paths: &AppPaths) -> PathBuf {
+pub fn edit_root(paths: &AppPaths) -> PathBuf {
     paths.cache_dir.join("sftp-edit")
 }
 
 /// Creates the folder of one opened file, readable only by this user: the
 /// copy holds the server's data.
-pub(super) fn create_session_dir(root: &Path, id: &str) -> Result<PathBuf, String> {
+pub fn create_session_dir(root: &Path, id: &str) -> Result<PathBuf, String> {
     let dir = root.join(id);
     let mut builder = fs::DirBuilder::new();
     builder.recursive(true);
@@ -109,7 +109,7 @@ pub(super) fn create_session_dir(root: &Path, id: &str) -> Result<PathBuf, Strin
 }
 
 /// Removes one opened file's folder and the copy in it.
-pub(super) fn remove_session_dir(dir: &Path) {
+pub fn remove_session_dir(dir: &Path) {
     if let Err(error) = fs::remove_dir_all(dir)
         && error.kind() != std::io::ErrorKind::NotFound
     {
@@ -118,7 +118,7 @@ pub(super) fn remove_session_dir(dir: &Path) {
 }
 
 /// Removes the copies left behind longer than [`STALE_AFTER`] ago.
-pub(super) fn remove_stale(root: &Path) {
+pub fn remove_stale(root: &Path) {
     let Ok(entries) = fs::read_dir(root) else {
         return;
     };
@@ -138,7 +138,7 @@ pub(super) fn remove_stale(root: &Path) {
 /// The name a remote file's copy gets here. It keeps the remote name, so
 /// programs know the file by its extension; on Windows, characters and names
 /// it does not allow in a file name are replaced.
-pub(super) fn local_file_name(remote_name: &str, windows: bool) -> String {
+pub fn local_file_name(remote_name: &str, windows: bool) -> String {
     if !windows {
         return remote_name.to_string();
     }
@@ -175,7 +175,7 @@ pub(super) fn local_file_name(remote_name: &str, windows: bool) -> String {
 }
 
 /// Whether the file's default program would run it rather than show it.
-pub(super) fn runs_when_opened(file_name: &str) -> bool {
+pub fn runs_when_opened(file_name: &str) -> bool {
     file_name.rsplit_once('.').is_some_and(|(_, extension)| {
         RUN_WHEN_OPENED
             .iter()
@@ -185,7 +185,7 @@ pub(super) fn runs_when_opened(file_name: &str) -> bool {
 
 /// The file's size and modification time; None when it is not there, as for
 /// a moment while a program saves by replacing the file.
-pub(super) fn stamp(path: &Path) -> Option<FileStamp> {
+pub fn stamp(path: &Path) -> Option<FileStamp> {
     let metadata = fs::metadata(path).ok()?;
     metadata.is_file().then(|| FileStamp {
         size: metadata.len(),
@@ -194,7 +194,7 @@ pub(super) fn stamp(path: &Path) -> Option<FileStamp> {
 }
 
 /// The file's stamp and a hash of its content.
-pub(super) fn fingerprint(path: &Path) -> Result<Fingerprint, String> {
+pub fn fingerprint(path: &Path) -> Result<Fingerprint, String> {
     let read_error = |error| format!("Failed to read '{}': {error}", path.display());
     let file = fs::File::open(path).map_err(read_error)?;
     let metadata = file.metadata().map_err(read_error)?;

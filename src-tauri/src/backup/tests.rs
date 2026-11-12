@@ -327,7 +327,7 @@ fn merge_import_keeps_existing_data_and_updates_by_key() {
                 2,
                 "the duplicate known host is not added twice"
             );
-            let dirs = crate::sftp::store::list_sftp_directories(connection)?.entries;
+            let dirs = tterm_core::sftp::store::list_sftp_directories(connection)?.entries;
             assert_eq!(dirs.len(), 1);
             assert_eq!(dirs[0].last_path, "/b");
             Ok(())
@@ -499,7 +499,7 @@ fn unselected_categories_are_not_touched() {
             apply_database_payload(connection, &incoming_payload(), &options)?;
             assert_eq!(profile_summary(connection).len(), 2);
             assert_eq!(
-                crate::sftp::store::list_sftp_directories(connection)?.entries[0].last_path,
+                tterm_core::sftp::store::list_sftp_directories(connection)?.entries[0].last_path,
                 "/a"
             );
             Ok(())
@@ -559,7 +559,7 @@ fn exported_data_imports_back_unchanged() {
                     &tterm_core::ssh::store::list_known_hosts(connection)?,
                 )?);
                 payload.sftp_directories = Some(to_backup_value(
-                    &crate::sftp::store::list_sftp_directories(connection)?,
+                    &tterm_core::sftp::store::list_sftp_directories(connection)?,
                 )?);
                 payload
             })
@@ -621,7 +621,7 @@ fn real_pre_database_backups_import() {
                     apply_database_payload(connection, payload, &options)?;
                     let profiles = crate::profiles::storage::list_saved_profiles(connection)?.len();
                     let known = tterm_core::ssh::store::list_known_hosts(connection)?.entries.len();
-                    let sftp = crate::sftp::store::list_sftp_directories(connection)?
+                    let sftp = tterm_core::sftp::store::list_sftp_directories(connection)?
                         .entries
                         .len();
                     eprintln!(

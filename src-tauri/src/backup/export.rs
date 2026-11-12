@@ -97,7 +97,7 @@ pub(super) fn collect_payload(
         )?,
         sftp_directories: read_selected_data(
             selection.sftp_directories,
-            crate::sftp::store::list_sftp_directories,
+            tterm_core::sftp::store::list_sftp_directories,
         )?,
         commands: if selection.command_library {
             Some(CommandRepository::new(tterm_core::db::get()?).list()?)

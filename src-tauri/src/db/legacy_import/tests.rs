@@ -117,7 +117,7 @@ fn imports_every_file_once_and_renames_them() {
                 "SHA256:x"
             );
             assert_eq!(
-                crate::sftp::store::list_sftp_directories(connection)?.entries[0].last_path,
+                tterm_core::sftp::store::list_sftp_directories(connection)?.entries[0].last_path,
                 "/srv"
             );
             Ok(())
@@ -434,7 +434,7 @@ fn imports_a_real_config_directory_copy() {
                 expected_known_hosts
             );
             assert_eq!(
-                serde_json::to_value(crate::sftp::store::list_sftp_directories(connection)?)
+                serde_json::to_value(tterm_core::sftp::store::list_sftp_directories(connection)?)
                     .unwrap(),
                 expected_sftp
             );

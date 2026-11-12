@@ -1,6 +1,6 @@
+use crate::db::sql_error;
 use rusqlite::{Connection, OptionalExtension, params};
 use serde::{Deserialize, Serialize};
-use tterm_core::db::sql_error;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct SftpLastDirectory {
@@ -16,7 +16,7 @@ pub struct SftpDirectoryStore {
     pub entries: Vec<SftpLastDirectory>,
 }
 
-pub(crate) fn list_sftp_directories(connection: &Connection) -> Result<SftpDirectoryStore, String> {
+pub fn list_sftp_directories(connection: &Connection) -> Result<SftpDirectoryStore, String> {
     let mut statement = connection
         .prepare("SELECT host, port, username, last_path FROM sftp_last_directories ORDER BY rowid")
         .map_err(sql_error("Failed to read SFTP directories"))?;
@@ -46,7 +46,7 @@ fn upsert_sftp_directory(connection: &Connection, entry: &SftpLastDirectory) -> 
     Ok(())
 }
 
-pub(crate) fn replace_sftp_directories(
+pub fn replace_sftp_directories(
     connection: &Connection,
     store: &SftpDirectoryStore,
 ) -> Result<(), String> {
@@ -60,7 +60,7 @@ pub(crate) fn replace_sftp_directories(
 }
 
 pub fn get_last_directory(host: &str, port: u16, username: &str) -> Result<Option<String>, String> {
-    tterm_core::db::read(|connection| {
+    crate::db::read(|connection| {
         connection
             .query_row(
                 "SELECT last_path FROM sftp_last_directories \
@@ -85,5 +85,5 @@ pub fn save_last_directory(
         username: username.to_string(),
         last_path: last_path.to_string(),
     };
-    tterm_core::db::write(|transaction| upsert_sftp_directory(transaction, &entry))
+    crate::db::write(|transaction| upsert_sftp_directory(transaction, &entry))
 }

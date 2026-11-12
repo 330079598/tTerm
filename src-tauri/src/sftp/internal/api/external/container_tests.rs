@@ -13,7 +13,7 @@ async fn container_external_edit_upload_and_remote_change() {
         .unwrap()
         .finish()
         .await;
-    let dir = crate::sftp::internal::transfer::test_server::TempDir::new("p104-edit");
+    let dir = tterm_core::sftp::internal::transfer::test_server::TempDir::new("p104-edit");
     let local = dir.path().join("edit.txt");
     let baseline = remote::download(&sftp, &path, &local).await.unwrap();
     tokio::fs::write(&local, "local changed").await.unwrap();

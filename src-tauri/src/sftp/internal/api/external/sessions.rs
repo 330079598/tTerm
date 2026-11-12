@@ -1,7 +1,6 @@
 //! The open files' bookkeeping, kept under one lock that is never held
 //! across I/O.
 
-use super::local::Fingerprint;
 use super::remote::RemoteStamp;
 use super::watch::{Look, Watched};
 use super::{EditSession, ExternalEditState};
@@ -11,6 +10,7 @@ use std::sync::atomic::Ordering;
 use std::sync::{MutexGuard, PoisonError};
 use tterm_core::events::sftp::external::EditStatus;
 use tterm_core::events::sftp::external::ExternalEdit;
+use tterm_core::sftp::internal::api::external::local::Fingerprint;
 
 /// What an upload needs from its session.
 pub(super) struct UploadSource {

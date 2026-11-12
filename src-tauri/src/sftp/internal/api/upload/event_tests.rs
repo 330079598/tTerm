@@ -9,7 +9,7 @@ async fn container_upload_download_and_cancel_record_events() {
     let (ssh, sftp) = test_support::connect().await;
     let root = format!("/home/alice/p104-{}", uuid::Uuid::new_v4());
     sftp.create_dir(&root).await.unwrap();
-    let local = crate::sftp::internal::transfer::test_server::TempDir::new("p104-upload");
+    let local = tterm_core::sftp::internal::transfer::test_server::TempDir::new("p104-upload");
     let input = local.path().join("中文 file.txt");
     let bytes = vec![42u8; 1024 * 1024];
     tokio::fs::write(&input, &bytes).await.unwrap();

@@ -2,14 +2,14 @@ pub(super) mod operations;
 use tterm_core::events::sftp::SftpEvent;
 use tterm_core::events::{AppEvent, EventSink};
 mod items;
-use crate::sftp::internal::transfer::{
-    self, ProgressSink, RemoteChannels, TransferError, TransferOptions, TransferProgress,
-};
 use crate::sftp::internal::types::TransferCancelMap;
 use std::path::PathBuf;
 use std::sync::Arc;
 use tokio::sync::watch;
 use tterm_core::events::sftp::download::DownloadProgressEvent;
+use tterm_core::sftp::internal::transfer::{
+    self, ProgressSink, RemoteChannels, TransferError, TransferOptions, TransferProgress,
+};
 
 mod directory;
 

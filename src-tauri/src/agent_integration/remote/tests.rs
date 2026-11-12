@@ -1,7 +1,7 @@
 use std::fs;
 
 use super::*;
-use crate::sftp::internal::transfer::test_server::{ServerOptions, TestServer};
+use tterm_core::sftp::internal::transfer::test_server::{ServerOptions, TestServer};
 
 fn env(pairs: &[(&str, &str)]) -> HashMap<String, String> {
     pairs

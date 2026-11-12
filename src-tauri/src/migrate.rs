@@ -1,6 +1,5 @@
 use crate::profiles;
 use crate::session;
-use crate::sftp;
 use crate::ssh;
 use serde::Serialize;
 use serde::de::DeserializeOwned;
@@ -261,10 +260,14 @@ fn merge_legacy_password_store_file(old_path: &Path, new_path: &Path) -> Result<
 }
 
 fn merge_sftp_directory_store_file(old_path: &Path, new_path: &Path) -> Result<(), String> {
-    let old_store =
-        read_json_file::<sftp::store::SftpDirectoryStore>(old_path, "SFTP directory store")?;
-    let mut new_store =
-        read_json_file::<sftp::store::SftpDirectoryStore>(new_path, "SFTP directory store")?;
+    let old_store = read_json_file::<tterm_core::sftp::store::SftpDirectoryStore>(
+        old_path,
+        "SFTP directory store",
+    )?;
+    let mut new_store = read_json_file::<tterm_core::sftp::store::SftpDirectoryStore>(
+        new_path,
+        "SFTP directory store",
+    )?;
     let mut changed = false;
 
     for entry in old_store.entries {

@@ -5,7 +5,6 @@
 //! Imported files are renamed to `<name>.migrated` rather than deleted.
 
 use crate::profiles::types::{ProfileGroup, SavedProfile};
-use crate::sftp::store::SftpDirectoryStore;
 use crate::tunnel::types::TunnelRule;
 use rusqlite::{Connection, OptionalExtension};
 use serde::de::DeserializeOwned;
@@ -13,6 +12,7 @@ use std::fs;
 use std::path::Path;
 use tterm_core::config::paths::ensure_config_dir;
 use tterm_core::db::{Database, IMPORT_ERROR, get, init, read, sql_error};
+use tterm_core::sftp::store::SftpDirectoryStore;
 use tterm_core::ssh::store::KnownHostStore;
 
 const IMPORTED_MARKER: &str = "legacy_json_imported_at";
@@ -128,7 +128,7 @@ fn import_files(connection: &Connection, config_dir: &Path) -> Result<(), String
     }
     if let Some(store) = read_json::<SftpDirectoryStore>(&config_dir.join("sftp_directories.json"))?
     {
-        crate::sftp::store::replace_sftp_directories(connection, &store)?;
+        tterm_core::sftp::store::replace_sftp_directories(connection, &store)?;
     }
     Ok(())
 }

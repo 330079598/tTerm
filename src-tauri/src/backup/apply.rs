@@ -12,7 +12,6 @@ use crate::profiles::storage::normalize_profile;
 use crate::profiles::types::{ProfileGroup, SavedProfile};
 use crate::proxy::ProxyServer;
 use crate::serial::history::{SerialSend, store as serial_sends};
-use crate::sftp::store::SftpDirectoryStore;
 use crate::ssh::secret_store::{crypto::SecretKey as DataKey, store::put_secret};
 use crate::tunnel::types::TunnelRule;
 use base64::{Engine, engine::general_purpose::STANDARD as BASE64};
@@ -22,6 +21,7 @@ use std::collections::{BTreeMap, HashMap};
 use std::fs;
 use std::path::{Path, PathBuf};
 use tterm_core::command_library::{models::SavedCommand, repository::CommandRepository};
+use tterm_core::sftp::store::SftpDirectoryStore;
 use tterm_core::ssh::store::KnownHostStore;
 
 /// Whether importing hands the WebDAV settings to another server or backup
@@ -437,13 +437,14 @@ pub(super) fn apply_database_payload(
         && let Some(incoming) = payload.sftp_directories.as_ref()
     {
         let store = if merge {
-            let existing =
-                to_backup_value(&crate::sftp::store::list_sftp_directories(transaction)?)?;
+            let existing = to_backup_value(&tterm_core::sftp::store::list_sftp_directories(
+                transaction,
+            )?)?;
             merge_object_entries(existing, incoming.clone(), &["host", "port", "username"])?
         } else {
             incoming.clone()
         };
-        crate::sftp::store::replace_sftp_directories(
+        tterm_core::sftp::store::replace_sftp_directories(
             transaction,
             &from_backup_value::<SftpDirectoryStore>(store)?,
         )?;

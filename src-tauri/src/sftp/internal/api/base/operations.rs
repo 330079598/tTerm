@@ -4,10 +4,10 @@ use crate::sftp::internal::connection::{SftpContext, ensure_ssh_plan};
 use crate::sftp::internal::connection::{map_sftp_error, release_tab_connections};
 use crate::sftp::internal::types::SftpConnectionPool;
 use crate::sftp::internal::types::SftpDirectoryListing;
-use crate::sftp::store;
 use crate::ssh::secret_store::types::SecretStoreState;
 use std::sync::Arc;
 use tterm_core::prompts::PromptBroker;
+use tterm_core::sftp::store;
 
 pub(crate) struct SftpReleaseTabConnectionsInput {
     pub(crate) tab_id: String,
@@ -55,7 +55,7 @@ pub(crate) async fn sftp_list_directory_service(
 
     let plan = ensure_ssh_plan(&secrets, connection)?;
 
-    let requested_path = crate::sftp::internal::paths::sanitize_target_path(path);
+    let requested_path = tterm_core::sftp::internal::paths::sanitize_target_path(path);
 
     with_sftp!(&context, &tab_id, &plan, prompts, &pool, sftp => {
         let current_path = match requested_path {
@@ -67,7 +67,7 @@ pub(crate) async fn sftp_list_directory_service(
 
         // Save the current path as the last directory. A folder seen as root,
         // such as /root, would only fail the next drawer opened as the user.
-        let normalized_path = crate::sftp::internal::paths::normalize_remote_path(&current_path);
+        let normalized_path = tterm_core::sftp::internal::paths::normalize_remote_path(&current_path);
         if !plan.sftp_sudo {
             let host = plan.host.as_ref().ok_or("Host is required")?;
             let username = plan.username.as_ref().ok_or("Username is required")?;
@@ -76,7 +76,7 @@ pub(crate) async fn sftp_list_directory_service(
 
         Ok(SftpDirectoryListing {
             current_path: normalized_path,
-            parent_path: crate::sftp::internal::paths::parent_remote_path(&current_path),
+            parent_path: tterm_core::sftp::internal::paths::parent_remote_path(&current_path),
             entries,
         })
     })

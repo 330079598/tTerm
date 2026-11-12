@@ -42,8 +42,8 @@ mod files;
 mod lanes;
 pub mod rate_limit;
 mod run;
-#[cfg(test)]
-pub(crate) mod test_server;
+#[cfg(any(test, feature = "test-support"))]
+pub mod test_server;
 #[cfg(test)]
 mod tests;
 
@@ -169,10 +169,6 @@ pub type ProgressSink = Arc<dyn Fn(TransferProgress) + Send + Sync>;
 #[derive(Debug, Clone)]
 pub struct TransferOutcome {
     pub resumed_from: u64,
-    #[cfg_attr(
-        not(test),
-        expect(dead_code, reason = "only the transfer tests check how much moved")
-    )]
     pub transferred: u64,
 }
 

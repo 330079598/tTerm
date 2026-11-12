@@ -275,7 +275,7 @@ fn delete_directory_recursive_with_progress<'a>(
         let entries = sftp.read_dir(&path).await.map_err(map_sftp_error)?;
         for entry in entries {
             let name = entry.file_name();
-            let entry_path = crate::sftp::internal::paths::join_remote_path(&path, &name);
+            let entry_path = tterm_core::sftp::internal::paths::join_remote_path(&path, &name);
 
             if entry.metadata().is_dir() {
                 delete_directory_recursive_with_progress(

@@ -310,7 +310,7 @@ mod tests {
 
     #[tokio::test]
     async fn a_session_that_refused_a_request_still_answers() {
-        use crate::sftp::internal::transfer::test_server::{ServerOptions, TestServer};
+        use tterm_core::sftp::internal::transfer::test_server::{ServerOptions, TestServer};
 
         let server = TestServer::start(ServerOptions::default()).await;
         let sftp = server.sftp_session().await;

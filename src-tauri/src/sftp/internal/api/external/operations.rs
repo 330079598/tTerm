@@ -2,12 +2,11 @@
 use super::{AppChoice, png_data_url};
 use super::{
     ExternalEditState, Host, OpenIn, OpenWithChoices, UploadOutcome, emit, end_sessions,
-    file_name_of, fingerprint, launch, local, start_session,
+    file_name_of, fingerprint, launch, start_session,
 };
 use crate::core::blocking::run_blocking;
 use crate::core::session::types::PtyConnectionOptions;
 use crate::sftp::internal::connection::{SftpContext, ensure_ssh_plan};
-use crate::sftp::internal::paths::normalize_remote_path;
 use crate::sftp::internal::types::SftpConnectionPool;
 use crate::sftp::internal::types::TransferCancelMap;
 use crate::ssh::secret_store::types::SecretStoreState;
@@ -18,6 +17,7 @@ use tterm_core::events::EventSink;
 use tterm_core::events::sftp::external::{EditStatus, ExternalEdit};
 use tterm_core::paths::AppPaths;
 use tterm_core::prompts::PromptBroker;
+use tterm_core::sftp::internal::paths::normalize_remote_path;
 use tterm_platform::open::OpenTargets;
 
 pub(super) struct SftpExternalEditOpenInput {
@@ -62,7 +62,10 @@ pub(super) async fn sftp_external_edit_open_service(
     } = input;
 
     let remote_path = normalize_remote_path(&path);
-    let file_name = local::local_file_name(&file_name_of(&remote_path)?, cfg!(windows));
+    let file_name = tterm_core::sftp::internal::api::external::local::local_file_name(
+        &file_name_of(&remote_path)?,
+        cfg!(windows),
+    );
     let open_in = match open_in {
         OpenIn::Program { program } if program.trim().is_empty() => OpenIn::Default,
         OpenIn::Program { program } => OpenIn::Program {
@@ -70,7 +73,9 @@ pub(super) async fn sftp_external_edit_open_service(
         },
         other => other,
     };
-    if matches!(open_in, OpenIn::Default) && local::runs_when_opened(&file_name) {
+    if matches!(open_in, OpenIn::Default)
+        && tterm_core::sftp::internal::api::external::local::runs_when_opened(&file_name)
+    {
         return Err(format!(
             "'{file_name}' could run on this computer if opened in its default program. Open it in the external editor instead."
         ));
@@ -254,7 +259,7 @@ pub(super) async fn sftp_external_edit_stop_service(
 
     if let Some(session) = state.remove(&id) {
         run_blocking(move || {
-            local::remove_session_dir(&session.dir);
+            tterm_core::sftp::internal::api::external::local::remove_session_dir(&session.dir);
             Ok(())
         })
         .await?;

@@ -3,13 +3,13 @@
 use super::{is_cancelled, transfer_options, transfer_outcome};
 use crate::sftp::internal::api::conflict::{self, CandidateDecision, SourceStat};
 use crate::sftp::internal::connection::map_sftp_error;
-use crate::sftp::internal::transfer::{self, ProgressSink, RemoteChannels, TransferProgress};
 use crate::sftp::internal::types::TransferCancelMap;
 use russh_sftp::client::SftpSession;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use tterm_core::events::sftp::SftpEvent;
 use tterm_core::events::{AppEvent, EventSink};
+use tterm_core::sftp::internal::transfer::{self, ProgressSink, RemoteChannels, TransferProgress};
 
 use tokio::sync::watch;
 use tterm_core::events::sftp::download::{DownloadBatchCompleteEvent, DownloadProgressEvent};
@@ -149,7 +149,8 @@ async fn collect_directory_download_plan(
         for entry in entries {
             let name = entry.file_name();
             let metadata = entry.metadata();
-            let remote_path = crate::sftp::internal::paths::join_remote_path(&remote_dir, &name);
+            let remote_path =
+                tterm_core::sftp::internal::paths::join_remote_path(&remote_dir, &name);
             let mut relative_path = relative_dir.clone();
             push_local_path_component(&mut relative_path, &name)?;
 

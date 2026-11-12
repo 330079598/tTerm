@@ -103,7 +103,7 @@ pub(super) async fn sftp_upload_file_service(
         file_name,
         file_size: metadata.len(),
         local_path,
-        remote_dir: crate::sftp::internal::paths::parent_remote_path(&remote_path)
+        remote_dir: tterm_core::sftp::internal::paths::parent_remote_path(&remote_path)
             .unwrap_or_default(),
         remote_path,
     };

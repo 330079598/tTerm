@@ -94,7 +94,7 @@ fn assert_mixed_selection_plan(plan: &DirectoryDownloadPlan) {
 
 #[tokio::test]
 async fn plans_files_and_folders_of_a_selection_side_by_side() {
-    use crate::sftp::internal::transfer::test_server::{ServerOptions, TestServer};
+    use tterm_core::sftp::internal::transfer::test_server::{ServerOptions, TestServer};
 
     let server = TestServer::start(ServerOptions::default()).await;
     write_mixed_selection(server.root());

@@ -64,10 +64,6 @@ use crate::sftp::internal::connection::SftpContext;
 use crate::sftp::internal::connection::{
     ensure_ssh_plan, evict_connection, get_or_create_sftp_connection, pooled_handles,
 };
-use crate::sftp::internal::transfer::rate_limit::RateLimiter;
-use crate::sftp::internal::transfer::{
-    DEFAULT_PARALLELISM, MAX_PARALLELISM, RemoteChannels, TransferDirection,
-};
 use crate::sftp::internal::types::{
     SftpConnectionKey, SftpConnectionPool, SftpHandles, TransferCancelMap,
 };
@@ -77,6 +73,10 @@ use std::future::Future;
 use std::sync::PoisonError;
 use std::sync::{Arc, LazyLock, RwLock};
 use std::time::SystemTime;
+use tterm_core::sftp::internal::transfer::rate_limit::RateLimiter;
+use tterm_core::sftp::internal::transfer::{
+    DEFAULT_PARALLELISM, MAX_PARALLELISM, RemoteChannels, TransferDirection,
+};
 
 /// Resolved parallelism cached against the config file's mtime: transfers
 /// resolve this per file (directory batches), and re-reading + re-parsing the

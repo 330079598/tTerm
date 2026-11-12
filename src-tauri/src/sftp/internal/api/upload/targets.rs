@@ -36,7 +36,7 @@ pub(super) async fn resolve_upload_target(
         let candidate = if attempt == 0 {
             plan_item.remote_path.clone()
         } else {
-            crate::sftp::internal::paths::join_remote_path(
+            tterm_core::sftp::internal::paths::join_remote_path(
                 &plan_item.remote_dir,
                 &conflict::candidate_file_name(&plan_item.file_name, attempt),
             )
@@ -117,9 +117,9 @@ pub(super) async fn collect_upload_conflicts(
 mod tests {
     use super::super::collect_upload_plan;
     use super::*;
-    use crate::sftp::internal::transfer::test_server::{ServerOptions, TestServer};
     use std::path::Path;
     use std::time::{Duration, SystemTime};
+    use tterm_core::sftp::internal::transfer::test_server::{ServerOptions, TestServer};
 
     fn write_with_mtime(path: &Path, contents: &[u8], mtime: SystemTime) {
         std::fs::create_dir_all(path.parent().unwrap()).unwrap();

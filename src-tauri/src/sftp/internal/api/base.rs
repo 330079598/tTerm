@@ -1,10 +1,10 @@
 pub(super) mod operations;
 use crate::core::session::types::SessionPlan;
 use crate::sftp::internal::connection::map_sftp_error;
-use crate::sftp::store;
 use russh_sftp::client::SftpSession;
 use russh_sftp::client::fs::Metadata;
 use tterm_core::sftp::entry::SftpDirectoryEntry;
+use tterm_core::sftp::store;
 
 fn push_unique_candidate(candidates: &mut Vec<String>, path: impl Into<String>) {
     let path = path.into();
@@ -58,7 +58,7 @@ pub(crate) fn directory_entry(
     metadata: &Metadata,
 ) -> SftpDirectoryEntry {
     SftpDirectoryEntry {
-        path: crate::sftp::internal::paths::join_remote_path(parent, &name),
+        path: tterm_core::sftp::internal::paths::join_remote_path(parent, &name),
         name,
         is_dir: metadata.is_dir(),
         is_symlink: metadata.is_symlink(),
@@ -92,6 +92,6 @@ async fn read_directory_entries(
         .map(|entry| directory_entry(current_path, entry.file_name(), &entry.metadata()))
         .collect::<Vec<_>>();
 
-    crate::sftp::internal::paths::sort_entries(&mut entries);
+    tterm_core::sftp::internal::paths::sort_entries(&mut entries);
     Ok(entries)
 }

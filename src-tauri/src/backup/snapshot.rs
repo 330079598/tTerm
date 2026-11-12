@@ -6,13 +6,13 @@ use super::remote;
 use super::{AUTOMATIC_SETTINGS_KEY, BackupPayload, BackupSelection};
 use crate::profiles::types::{ProfileGroup, SavedProfile};
 use crate::proxy::ProxyServer;
-use crate::sftp::store::SftpDirectoryStore;
 use crate::ssh::secret_store::{store::SecretRow, store::restore_secrets, store::snapshot_secrets};
 use crate::tunnel::types::TunnelRule;
 use serde_json::Value;
 use std::fs;
 use std::path::{Path, PathBuf};
 use tterm_core::db::meta;
+use tterm_core::sftp::store::SftpDirectoryStore;
 use tterm_core::ssh::store::KnownHostStore;
 
 /// Profiles with what travels with them: groups, tunnels and proxy servers.
@@ -89,7 +89,7 @@ pub(super) fn snapshot_database(
             None
         },
         sftp_directories: if selection.sftp_directories {
-            Some(crate::sftp::store::list_sftp_directories(connection)?)
+            Some(tterm_core::sftp::store::list_sftp_directories(connection)?)
         } else {
             None
         },
@@ -131,7 +131,7 @@ pub(super) fn restore_database(
         tterm_core::ssh::store::replace_known_hosts(transaction, store)?;
     }
     if let Some(store) = snapshot.sftp_directories.as_ref() {
-        crate::sftp::store::replace_sftp_directories(transaction, store)?;
+        tterm_core::sftp::store::replace_sftp_directories(transaction, store)?;
     }
     if let Some(themes) = snapshot.themes.as_ref() {
         crate::themes::replace_themes(transaction, themes)?;

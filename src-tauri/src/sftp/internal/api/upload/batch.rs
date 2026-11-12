@@ -1,10 +1,11 @@
 use super::{UploadBatchResult, UploadFilePlanItem, ensure_remote_dir_all, is_cancelled};
-use crate::sftp::internal::{transfer::RemoteChannels, types::TransferCancelMap};
+use crate::sftp::internal::types::TransferCancelMap;
 use russh_sftp::client::SftpSession;
 use std::sync::Arc;
 use tokio::sync::watch;
 use tterm_core::events::EventSink;
 use tterm_core::sftp::conflict::ConflictPolicy;
+use tterm_core::sftp::internal::transfer::RemoteChannels;
 
 pub(super) struct UploadBatch {
     pub cancel_map: TransferCancelMap,
