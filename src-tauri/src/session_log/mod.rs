@@ -2,6 +2,7 @@ use tterm_core::events::session_log::TerminalLogStatus;
 use tterm_core::events::session_log::{LogErrorPayload, LogErrorPhase, SessionLogEvent};
 use tterm_core::events::{AppEvent, EventSink};
 
+pub(crate) mod commands;
 mod library;
 mod maintenance;
 mod manager;
@@ -29,7 +30,6 @@ use std::sync::Arc;
 use std::sync::Mutex;
 use std::sync::atomic::{AtomicBool, AtomicU64};
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
-use tauri::ipc::Response;
 use tterm_platform::open::OpenTargets;
 
 const LOG_FORMAT_RAW: &str = "raw";
@@ -274,16 +274,6 @@ pub(crate) fn shutdown(state: &SessionLogState) {
     state.shutdown();
 }
 
-/// The logging status; the disk usage in it is remeasured in the background
-/// and sent again with `terminal-log-status` if it changed.
-#[tauri::command]
-pub fn get_terminal_log_status(
-    services: tauri::State<'_, std::sync::Arc<crate::services::AppServices>>,
-) -> Result<TerminalLogStatus, String> {
-    let app = crate::connection_context::log(&services);
-    let state = services.app.session_log.clone();
-    get_terminal_log_status_service(app, state)
-}
 fn get_terminal_log_status_service(
     app: crate::session_log::LogContext,
     state: Arc<SessionLogState>,
@@ -292,15 +282,6 @@ fn get_terminal_log_status_service(
     state.status()
 }
 
-/// The logs a tab has written since tTerm started, oldest first.
-#[tauri::command]
-pub fn terminal_log_ids_for_tab(
-    services: tauri::State<'_, std::sync::Arc<crate::services::AppServices>>,
-    tab_id: String,
-) -> Result<Vec<String>, String> {
-    let state = services.app.session_log.clone();
-    terminal_log_ids_for_tab_service(state, tab_id)
-}
 fn terminal_log_ids_for_tab_service(
     state: Arc<SessionLogState>,
     tab_id: String,
@@ -313,18 +294,6 @@ fn terminal_log_ids_for_tab_service(
         .unwrap_or_default())
 }
 
-/// Starts or stops logging one tab, whatever the settings say, until the
-/// tab closes.
-#[tauri::command]
-pub async fn set_terminal_log_recording(
-    tab_id: String,
-    recording: bool,
-    services: tauri::State<'_, std::sync::Arc<crate::services::AppServices>>,
-) -> Result<TerminalLogStatus, String> {
-    let app = crate::connection_context::log(&services);
-    set_terminal_log_recording_service(app, SetTerminalLogRecordingInput { tab_id, recording })
-        .await
-}
 struct SetTerminalLogRecordingInput {
     tab_id: String,
     recording: bool,
@@ -339,14 +308,6 @@ async fn set_terminal_log_recording_service(
     run_blocking(move || app.state.set_recording(&app, &tab_id, recording)).await
 }
 
-/// The saved sessions in the log directory, newest first.
-#[tauri::command]
-pub async fn list_terminal_logs(
-    services: tauri::State<'_, std::sync::Arc<crate::services::AppServices>>,
-) -> Result<Vec<library::LogSession>, String> {
-    let app = crate::connection_context::log(&services);
-    list_terminal_logs_service(app).await
-}
 async fn list_terminal_logs_service(
     app: crate::session_log::LogContext,
 ) -> Result<Vec<library::LogSession>, String> {
@@ -354,17 +315,6 @@ async fn list_terminal_logs_service(
     run_blocking(move || library::list(&directory, &in_use)).await
 }
 
-/// A session's raw log as replay frames (see `library::load_recording`).
-#[tauri::command]
-pub async fn load_terminal_log_recording(
-    id: String,
-    services: tauri::State<'_, std::sync::Arc<crate::services::AppServices>>,
-) -> Result<Response, String> {
-    let app = crate::connection_context::log(&services);
-    load_terminal_log_recording_service(app, id)
-        .await
-        .map(Response::new)
-}
 async fn load_terminal_log_recording_service(
     app: crate::session_log::LogContext,
     id: String,
@@ -377,17 +327,6 @@ async fn load_terminal_log_recording_service(
     .await
 }
 
-/// A session's plain-text log as UTF-8 bytes.
-#[tauri::command]
-pub async fn load_terminal_log_text(
-    id: String,
-    services: tauri::State<'_, std::sync::Arc<crate::services::AppServices>>,
-) -> Result<Response, String> {
-    let app = crate::connection_context::log(&services);
-    load_terminal_log_text_service(app, id)
-        .await
-        .map(Response::new)
-}
 async fn load_terminal_log_text_service(
     app: crate::session_log::LogContext,
     id: String,
@@ -400,15 +339,6 @@ async fn load_terminal_log_text_service(
     .await
 }
 
-#[tauri::command]
-pub async fn export_terminal_log_asciicast(
-    id: String,
-    path: String,
-    services: tauri::State<'_, std::sync::Arc<crate::services::AppServices>>,
-) -> Result<(), String> {
-    let app = crate::connection_context::log(&services);
-    export_terminal_log_asciicast_service(app, ExportTerminalLogAsciicastInput { id, path }).await
-}
 struct ExportTerminalLogAsciicastInput {
     id: String,
     path: String,
@@ -428,14 +358,6 @@ async fn export_terminal_log_asciicast_service(
     .await
 }
 
-#[tauri::command]
-pub async fn delete_terminal_log(
-    id: String,
-    services: tauri::State<'_, std::sync::Arc<crate::services::AppServices>>,
-) -> Result<(), String> {
-    let app = crate::connection_context::log(&services);
-    delete_terminal_log_service(app, id).await
-}
 async fn delete_terminal_log_service(
     app: crate::session_log::LogContext,
     id: String,
@@ -447,16 +369,6 @@ async fn delete_terminal_log_service(
     Ok(())
 }
 
-/// Deletes several sessions; one that cannot be deleted (such as one still
-/// being logged) is reported and does not stop the rest.
-#[tauri::command]
-pub async fn delete_terminal_logs(
-    ids: Vec<String>,
-    services: tauri::State<'_, std::sync::Arc<crate::services::AppServices>>,
-) -> Result<library::DeleteReport, String> {
-    let app = crate::connection_context::log(&services);
-    delete_terminal_logs_service(app, ids).await
-}
 async fn delete_terminal_logs_service(
     app: crate::session_log::LogContext,
     ids: Vec<String>,
@@ -468,15 +380,6 @@ async fn delete_terminal_logs_service(
     Ok(report)
 }
 
-#[tauri::command]
-pub async fn reveal_terminal_log(
-    id: String,
-    services: tauri::State<'_, std::sync::Arc<crate::services::AppServices>>,
-) -> Result<(), String> {
-    let app = crate::connection_context::log(&services);
-    let open = services.shared.platform.open.clone();
-    reveal_terminal_log_service(app, open, id).await
-}
 async fn reveal_terminal_log_service(
     app: crate::session_log::LogContext,
     open: std::sync::Arc<dyn OpenTargets>,
@@ -489,11 +392,6 @@ async fn reveal_terminal_log_service(
         .map_err(|error| format!("Failed to show terminal log: {error}"))
 }
 
-/// Saves what a terminal shows (its text) to a file the user picked.
-#[tauri::command]
-pub async fn save_terminal_contents(path: String, contents: String) -> Result<(), String> {
-    save_terminal_contents_service(SaveTerminalContentsInput { path, contents }).await
-}
 struct SaveTerminalContentsInput {
     path: String,
     contents: String,
@@ -510,14 +408,6 @@ async fn save_terminal_contents_service(
     .await
 }
 
-#[tauri::command]
-pub async fn open_terminal_log_directory(
-    services: tauri::State<'_, std::sync::Arc<crate::services::AppServices>>,
-) -> Result<(), String> {
-    let app = crate::connection_context::log(&services);
-    let open = services.shared.platform.open.clone();
-    open_terminal_log_directory_service(app, open).await
-}
 async fn open_terminal_log_directory_service(
     app: crate::session_log::LogContext,
     open: std::sync::Arc<dyn OpenTargets>,
@@ -540,13 +430,6 @@ async fn open_terminal_log_directory_service(
         .map_err(|error| format!("Failed to open terminal log directory: {error}"))
 }
 
-#[tauri::command]
-pub async fn retry_terminal_logging(
-    services: tauri::State<'_, std::sync::Arc<crate::services::AppServices>>,
-) -> Result<TerminalLogStatus, String> {
-    let app = crate::connection_context::log(&services);
-    retry_terminal_logging_service(app).await
-}
 async fn retry_terminal_logging_service(
     app: crate::session_log::LogContext,
 ) -> Result<TerminalLogStatus, String> {
