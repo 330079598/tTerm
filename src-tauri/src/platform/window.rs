@@ -36,16 +36,16 @@ impl MainWindow for TauriWindow {
                 if let Some(window) = app.get_webview_window("main")
                     && (!window.is_visible().unwrap_or(true)
                         || window.is_minimized().unwrap_or(false))
+                {
+                    let _ = TauriWindow(app.clone()).show_and_focus();
+                    if let Some(services) =
+                        app.try_state::<std::sync::Arc<crate::services::AppServices>>()
                     {
-                        let _ = TauriWindow(app.clone()).show_and_focus();
-                        if let Some(services) =
-                            app.try_state::<std::sync::Arc<crate::services::AppServices>>()
-                        {
-                            crate::notification::badge::restore(
-                                services.shared.platform.badge.as_ref(),
-                            );
-                        }
+                        crate::notification::badge::restore(
+                            services.shared.platform.badge.as_ref(),
+                        );
                     }
+                }
             })
             .map_err(|e| e.to_string())
     }

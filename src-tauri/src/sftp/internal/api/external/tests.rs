@@ -248,17 +248,21 @@ fn macos_lists_the_applications_for_text_with_icons() {
         .into_iter()
         .map(|(path, bytes)| (path, bytes.map(super::png_data_url)))
         .collect::<std::collections::HashMap<_, _>>();
-    assert!(icons[&text_edit.path]
-        .as_deref()
-        .is_some_and(|icon| icon.starts_with("data:image/png;base64,")));
+    assert!(
+        icons[&text_edit.path]
+            .as_deref()
+            .is_some_and(|icon| icon.starts_with("data:image/png;base64,"))
+    );
     // Drawn once, the icon comes with the list from then on.
     let again = super::apps::apps_for("notes.txt")
         .into_iter()
         .map(super::AppChoice::from)
         .collect::<Vec<_>>();
-    assert!(again
-        .iter()
-        .any(|app| app.path == text_edit.path && app.icon.is_some()));
+    assert!(
+        again
+            .iter()
+            .any(|app| app.path == text_edit.path && app.icon.is_some())
+    );
     // A name without an extension is taken for text.
     assert!(!super::apps::apps_for("Makefile").is_empty());
 }
@@ -267,7 +271,7 @@ fn macos_lists_the_applications_for_text_with_icons() {
 async fn injected_watch_reports_saves_and_releases_its_dependencies() {
     use std::sync::atomic::Ordering;
     use tterm_core::events::recording::RecordingEventSink;
-    use tterm_core::events::{sftp::SftpEvent, AppEvent};
+    use tterm_core::events::{AppEvent, sftp::SftpEvent};
 
     let dir = TempDir::new();
     let path = dir.path.join("app.conf");

@@ -3,9 +3,9 @@
 //! Synology and Alist all accept.
 
 use percent_encoding::percent_decode_str;
+use quick_xml::Reader;
 use quick_xml::escape::resolve_predefined_entity;
 use quick_xml::events::Event;
-use quick_xml::Reader;
 use reqwest::header::{CONTENT_LENGTH, CONTENT_TYPE, ETAG, IF_MATCH, IF_NONE_MATCH};
 use reqwest::{Client, Method, RequestBuilder, Response, StatusCode, Url};
 use std::error::Error as _;
@@ -376,9 +376,10 @@ pub(crate) fn parse_multistatus(body: &str, directory: &Url) -> Result<Vec<DavEn
                     .local_name()
                     .as_ref()
                     .eq_ignore_ascii_case("collection")
-                    && let Some(raw) = current.as_mut() {
-                        raw.is_collection = true;
-                    }
+                    && let Some(raw) = current.as_mut()
+                {
+                    raw.is_collection = true;
+                }
             }
             Event::Text(value) => text.push_str(&value.xml10_content()),
             Event::CData(value) => text.push_str(&value.xml10_content()),
@@ -402,14 +403,14 @@ pub(crate) fn parse_multistatus(body: &str, directory: &Url) -> Result<Vec<DavEn
                             if let Some(raw) = current.take()
                                 && let Some(name) =
                                     entry_name(&raw.href, directory, &directory_path)
-                                {
-                                    entries.push(DavEntry {
-                                        name,
-                                        is_collection: raw.is_collection,
-                                        size: raw.size,
-                                        modified_at: raw.modified_at,
-                                    });
-                                }
+                            {
+                                entries.push(DavEntry {
+                                    name,
+                                    is_collection: raw.is_collection,
+                                    size: raw.size,
+                                    modified_at: raw.modified_at,
+                                });
+                            }
                         }
                         _ => {}
                     }

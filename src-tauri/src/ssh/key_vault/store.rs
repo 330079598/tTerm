@@ -1,7 +1,7 @@
 //! The key vault's keys among the saved secrets.
 
 use super::entry::VaultKey;
-use super::{reference_id, secret_key, SECRET_PREFIX};
+use super::{SECRET_PREFIX, reference_id, secret_key};
 use crate::profiles::types::SavedProfile;
 use crate::ssh::secret_store::crypto::SecretKey as DataKey;
 use crate::ssh::secret_store::store::{delete_secret, get_secret, put_secret, secret_keys};

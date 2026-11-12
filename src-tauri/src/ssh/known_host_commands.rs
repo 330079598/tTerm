@@ -1,4 +1,4 @@
-use super::store::{delete_known_host_entries, list_known_host_entries, KnownHostEntry};
+use super::store::{KnownHostEntry, delete_known_host_entries, list_known_host_entries};
 use crate::core::blocking::run_blocking;
 
 #[tauri::command]

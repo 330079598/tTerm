@@ -18,8 +18,8 @@ use std::process::{Child, Command, Stdio};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
-use russh::keys::{load_secret_key, PrivateKeyWithHashAlg};
-use russh::{client, ChannelMsg};
+use russh::keys::{PrivateKeyWithHashAlg, load_secret_key};
+use russh::{ChannelMsg, client};
 use tokio::io::AsyncWriteExt;
 
 use crate::core::state::ZmodemMap;

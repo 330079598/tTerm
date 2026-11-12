@@ -1,6 +1,6 @@
 use crate::config::paths::ensure_config_dir;
 use crate::db::sql_error;
-use rusqlite::{params, Connection, OptionalExtension};
+use rusqlite::{Connection, OptionalExtension, params};
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::PathBuf;
@@ -243,17 +243,18 @@ pub fn load_known_host(
     if let Some(profile_id) = profile_id
         && let Some(entry) =
             find_known_host_entry(&store, profile_name, Some(profile_id), host, port)
-        {
-            return Ok(Some(entry));
-        }
+    {
+        return Ok(Some(entry));
+    }
 
     let mut entry = find_known_host_entry(&store, profile_name, None, host, port);
 
     if let (Some(profile_id), Some(record)) = (profile_id, entry.as_mut())
-        && record.profile_id.as_deref() != Some(profile_id) {
-            record.profile_id = Some(profile_id.to_string());
-            let _ = save_known_host_entry(record.clone());
-        }
+        && record.profile_id.as_deref() != Some(profile_id)
+    {
+        record.profile_id = Some(profile_id.to_string());
+        let _ = save_known_host_entry(record.clone());
+    }
 
     Ok(entry)
 }
@@ -321,8 +322,8 @@ fn save_known_host(connection: &Connection, entry: &KnownHostRecord) -> Result<(
 #[cfg(test)]
 mod tests {
     use super::{
-        delete_known_host_entries, find_known_host_entry, list_known_host_entries,
-        list_known_hosts, save_known_host, KnownHostRecord, KnownHostStore,
+        KnownHostRecord, KnownHostStore, delete_known_host_entries, find_known_host_entry,
+        list_known_host_entries, list_known_hosts, save_known_host,
     };
     use crate::db::Database;
 

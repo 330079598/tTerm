@@ -167,10 +167,12 @@ mod tests {
         let mut object = Object::new();
         object.insert("a".to_string(), Json::Bool(true));
         write_object(&link, &object).unwrap();
-        assert!(fs::symlink_metadata(&link)
-            .unwrap()
-            .file_type()
-            .is_symlink());
+        assert!(
+            fs::symlink_metadata(&link)
+                .unwrap()
+                .file_type()
+                .is_symlink()
+        );
         assert_eq!(fs::read_to_string(&real).unwrap(), "{\n  \"a\": true\n}\n");
         fs::remove_dir_all(dir).ok();
     }

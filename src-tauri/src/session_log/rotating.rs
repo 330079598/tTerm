@@ -1,13 +1,13 @@
 //! A log file that moves on to a new part once it is full, and compresses
 //! the parts it finishes.
 
-use tterm_core::events::session_log::{LogErrorPayload, SessionLogEvent};
 use tterm_core::events::AppEvent;
+use tterm_core::events::session_log::{LogErrorPayload, SessionLogEvent};
 
-use super::naming::{compressed_path, part_path, partial_path};
 use super::LogContext;
-use flate2::write::GzEncoder;
+use super::naming::{compressed_path, part_path, partial_path};
 use flate2::Compression;
+use flate2::write::GzEncoder;
 use std::collections::HashSet;
 use std::fs::{self, File, OpenOptions};
 use std::io::{BufWriter, Write};

@@ -16,17 +16,17 @@
 use std::os::windows::process::CommandExt;
 use std::process::Command;
 use std::time::{Duration, Instant};
-use windows::core::w;
-use windows::core::PCWSTR;
 use windows::Win32::Foundation::{CloseHandle, GENERIC_READ, GENERIC_WRITE, HANDLE};
 use windows::Win32::Storage::FileSystem::{
     CreateFileW, FILE_FLAGS_AND_ATTRIBUTES, FILE_SHARE_READ, FILE_SHARE_WRITE, OPEN_EXISTING,
 };
 use windows::Win32::System::Console::{
-    AttachConsole, FlushConsoleInputBuffer, FreeConsole, GetConsoleMode, SetConsoleCtrlHandler,
-    SetConsoleMode, WriteConsoleW, CONSOLE_MODE, ENABLE_VIRTUAL_TERMINAL_PROCESSING,
+    AttachConsole, CONSOLE_MODE, ENABLE_VIRTUAL_TERMINAL_PROCESSING, FlushConsoleInputBuffer,
+    FreeConsole, GetConsoleMode, SetConsoleCtrlHandler, SetConsoleMode, WriteConsoleW,
 };
 use windows::Win32::System::Threading::DETACHED_PROCESS;
+use windows::core::PCWSTR;
+use windows::core::w;
 
 const RESET_ARG: &str = "--reset-console";
 const FLUSH_INPUT_ARG: &str = "--flush-console-input";

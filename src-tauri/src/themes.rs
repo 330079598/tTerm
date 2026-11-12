@@ -3,7 +3,7 @@
 
 use crate::core::blocking::run_blocking;
 use crate::db::{meta, sql_error};
-use rusqlite::{params, Connection};
+use rusqlite::{Connection, params};
 use serde_json::Value;
 use std::collections::HashSet;
 

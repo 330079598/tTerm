@@ -3,8 +3,8 @@ use tterm_core::events::zmodem::{
 };
 use tterm_core::events::zmodem::{TransferEmitter, TransferEvent};
 
-use super::protocol::{self, Link, OutgoingFile, Received, TransferError};
 use super::XmodemProtocol;
+use super::protocol::{self, Link, OutgoingFile, Received, TransferError};
 use crate::core::state::ZmodemMap;
 use crate::serial::io::SerialTap;
 use crate::terminal::types::PtyWriter;
@@ -145,9 +145,10 @@ pub(super) fn cancel_on_failure(link: &mut TapLink, result: &Result<(), Transfer
         && !matches!(
             error,
             TransferError::CancelledByDevice | TransferError::Disconnected
-        ) {
-            protocol::send_cancel(link);
-        }
+        )
+    {
+        protocol::send_cancel(link);
+    }
 }
 
 pub(super) struct TransferParams {

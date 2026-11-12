@@ -75,9 +75,9 @@ pub(crate) async fn move_profiles_to_group(
                 && !list_groups(transaction)?
                     .iter()
                     .any(|group| group.id == group_id)
-                {
-                    return Err("This group no longer exists".to_string());
-                }
+            {
+                return Err("This group no longer exists".to_string());
+            }
             move_profiles(transaction, &ids, group_id.as_deref(), target_id.as_deref())
         })
     })

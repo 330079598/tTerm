@@ -510,9 +510,10 @@ fn import_backup_blocking(
                     rollback_errors.push(err);
                 }
                 if let Some(commands) = command_snapshot.as_ref()
-                    && let Err(err) = replace_commands(commands) {
-                        rollback_errors.push(err);
-                    }
+                    && let Err(err) = replace_commands(commands)
+                {
+                    rollback_errors.push(err);
+                }
                 if rollback_errors.is_empty() {
                     return Err(format!("Import failed and was rolled back: {error}"));
                 }

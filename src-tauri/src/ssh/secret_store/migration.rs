@@ -7,6 +7,7 @@
 //! store. The old entries are deleted and the vault files renamed only after
 //! the database transaction commits.
 
+use super::CredentialStore;
 use super::crypto::{KdfParams, SecretKey};
 use super::keyring_backend::{
     DATA_KEY_ACCOUNT, LEGACY_PASSWORD_PREFIX, LEGACY_VAULT_MASTER_ACCOUNT,
@@ -14,8 +15,7 @@ use super::keyring_backend::{
 use super::legacy::LegacyVault;
 use super::store::{self, WRAP_PASSWORD, WRAP_SYSTEM};
 use super::types::SecretStorageMode;
-use super::CredentialStore;
-use crate::db::{sql_error, Database};
+use crate::db::{Database, sql_error};
 use std::collections::BTreeMap;
 use zeroize::Zeroizing;
 

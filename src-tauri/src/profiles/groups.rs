@@ -7,7 +7,7 @@
 use super::storage::{list_saved_profiles, upsert_profile};
 use super::types::{ProfileGroup, SavedProfile};
 use crate::db::sql_error;
-use rusqlite::{params, Connection};
+use rusqlite::{Connection, params};
 use std::collections::{HashMap, HashSet};
 
 /// Separates the names in a group path.

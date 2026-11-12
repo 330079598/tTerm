@@ -9,9 +9,10 @@ fn tokio_worker_threads_from(
     const ENV_MAX_WORKERS: usize = 16;
 
     if let Some(raw) = override_value
-        && let Ok(parsed) = raw.trim().parse::<usize>() {
-            return parsed.clamp(MIN_WORKERS, ENV_MAX_WORKERS);
-        }
+        && let Ok(parsed) = raw.trim().parse::<usize>()
+    {
+        return parsed.clamp(MIN_WORKERS, ENV_MAX_WORKERS);
+    }
 
     available_parallelism
         .map(|n| n.clamp(MIN_WORKERS, DEFAULT_MAX_WORKERS))

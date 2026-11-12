@@ -336,10 +336,12 @@ fn corrupt_file_aborts_the_whole_import() {
     let error = import_legacy_json_files(&database, &dir).expect_err("corrupt file");
     assert!(error.contains("tunnels.json"));
     assert!(!legacy_json_imported(&database).unwrap());
-    assert!(database
-        .read(crate::profiles::groups::list_groups)
-        .unwrap()
-        .is_empty());
+    assert!(
+        database
+            .read(crate::profiles::groups::list_groups)
+            .unwrap()
+            .is_empty()
+    );
     assert!(
         dir.join("profile_groups.json").exists(),
         "nothing is renamed"
@@ -353,10 +355,12 @@ fn missing_files_import_as_empty() {
     let dir = temp_dir("empty");
     let database = Database::open_in_memory().expect("open database");
     assert!(import_legacy_json_files(&database, &dir).expect("import"));
-    assert!(database
-        .read(crate::profiles::storage::list_saved_profiles)
-        .unwrap()
-        .is_empty());
+    assert!(
+        database
+            .read(crate::profiles::storage::list_saved_profiles)
+            .unwrap()
+            .is_empty()
+    );
     fs::remove_dir_all(dir).ok();
 }
 

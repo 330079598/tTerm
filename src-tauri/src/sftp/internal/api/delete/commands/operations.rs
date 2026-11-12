@@ -1,14 +1,14 @@
 use crate::core::session::types::PtyConnectionOptions;
 use crate::sftp::internal::api::delete::batch::{
-    preview_delete_entries, run_delete_batch, DeleteBatch,
+    DeleteBatch, preview_delete_entries, run_delete_batch,
 };
 use crate::sftp::internal::api::delete::commands::delete_directory_recursive;
 use crate::sftp::internal::api::delete::{
-    is_dangerous_delete_path, next_delete_batch_id, DeleteBatchStartResult, DeleteEntryRequest,
-    DeleteOptions, DeletePreviewResult,
+    DeleteBatchStartResult, DeleteEntryRequest, DeleteOptions, DeletePreviewResult,
+    is_dangerous_delete_path, next_delete_batch_id,
 };
 use crate::sftp::internal::connection::map_sftp_error;
-use crate::sftp::internal::connection::{ensure_ssh_plan, SftpContext};
+use crate::sftp::internal::connection::{SftpContext, ensure_ssh_plan};
 use crate::sftp::internal::types::SftpConnectionPool;
 use crate::ssh::secret_store::types::SecretStoreState;
 use std::sync::Arc;

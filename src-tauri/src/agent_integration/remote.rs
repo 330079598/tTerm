@@ -15,15 +15,15 @@ use std::time::Duration;
 
 use crate::services::AppServices;
 use russh::client::{Handle, Handler};
-use russh_sftp::client::error::Error as SftpError;
 use russh_sftp::client::SftpSession;
+use russh_sftp::client::error::Error as SftpError;
 use russh_sftp::protocol::StatusCode;
 use tokio::io::AsyncWriteExt;
 
 use super::json::{self, Object};
 use super::{
-    status_of, Agent, AgentIntegrationStatus, AgentSpec, ConfigSource, Integration,
-    IntegrationState, Location, AGENTS,
+    AGENTS, Agent, AgentIntegrationStatus, AgentSpec, ConfigSource, Integration, IntegrationState,
+    Location, status_of,
 };
 use crate::core::session::types::PtyConnectionOptions;
 use crate::sftp::internal::api::SftpHost;
@@ -62,9 +62,10 @@ fn parse_env(output: &str) -> HashMap<String, String> {
             continue;
         }
         if let Some((name, value)) = line.split_once('=')
-            && wanted.contains(&name) {
-                env.insert(name.to_string(), value.to_string());
-            }
+            && wanted.contains(&name)
+        {
+            env.insert(name.to_string(), value.to_string());
+        }
     }
     env
 }
@@ -261,9 +262,10 @@ async fn change(
                 // The folder it had to itself; fails, as it should, when
                 // something else is in it.
                 if plugin.path.len() > 2
-                    && let Some((folder, _)) = path.rsplit_once('/') {
-                        let _ = sftp.remove_dir(folder).await;
-                    }
+                    && let Some((folder, _)) = path.rsplit_once('/')
+                {
+                    let _ = sftp.remove_dir(folder).await;
+                }
             }
         }
     }

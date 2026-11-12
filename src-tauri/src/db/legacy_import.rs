@@ -4,7 +4,7 @@
 //! it, so it either happens completely or is retried on the next launch.
 //! Imported files are renamed to `<name>.migrated` rather than deleted.
 
-use super::{sql_error, Database};
+use super::{Database, sql_error};
 use crate::profiles::types::{ProfileGroup, SavedProfile};
 use crate::sftp::store::SftpDirectoryStore;
 use crate::ssh::store::KnownHostStore;

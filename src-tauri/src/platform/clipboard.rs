@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 use tauri_plugin_clipboard_manager::ClipboardExt;
-use tterm_platform::{clipboard::Clipboard, PlatformFuture};
+use tterm_platform::{PlatformFuture, clipboard::Clipboard};
 
 pub(super) struct TauriClipboard(pub tauri::AppHandle);
 impl Clipboard for TauriClipboard {

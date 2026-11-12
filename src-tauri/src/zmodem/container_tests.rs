@@ -1,9 +1,9 @@
 //! Explicit opt-in tests against this card's disposable OrbStack host.
 use crate::core::state::{ActiveSession, ActiveSsh};
-use crate::zmodem::send::{run, ZmodemSendParams};
+use crate::zmodem::send::{ZmodemSendParams, run};
 use crate::zmodem::session::ZmodemReceiveDriver;
-use russh::{client, ChannelMsg};
-use std::sync::{atomic::AtomicBool, Arc, Mutex};
+use russh::{ChannelMsg, client};
+use std::sync::{Arc, Mutex, atomic::AtomicBool};
 use std::time::Duration;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tterm_core::events::zmodem::TransferEvent;
@@ -32,11 +32,13 @@ async fn connect() -> client::Handle<TestHost> {
     )
     .await
     .unwrap();
-    assert!(handle
-        .authenticate_password("alice", "alice-pass")
-        .await
-        .unwrap()
-        .success());
+    assert!(
+        handle
+            .authenticate_password("alice", "alice-pass")
+            .await
+            .unwrap()
+            .success()
+    );
     handle
 }
 

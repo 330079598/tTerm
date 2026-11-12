@@ -1,9 +1,9 @@
 use std::{collections::HashMap, path::PathBuf};
 use tauri_plugin_opener::OpenerExt;
 use tterm_platform::{
+    PlatformFuture,
     native::open::launch,
     open::{ApplicationChoice, OpenTargets},
-    PlatformFuture,
 };
 
 pub(super) struct TauriOpen(pub tauri::AppHandle);

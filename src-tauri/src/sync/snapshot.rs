@@ -10,13 +10,13 @@ use crate::config::AppConfig;
 use crate::db::sql_error;
 use crate::profiles::types::{ProfileGroup, SavedProfile};
 use crate::proxy::ProxyServer;
-use crate::serial::history::{store as serial_sends, SerialSend};
+use crate::serial::history::{SerialSend, store as serial_sends};
 use crate::ssh::secret_store::{
     crypto::SecretKey as DataKey, store::delete_secret, store::get_secret, store::put_secret,
 };
 use crate::ssh::store::{KnownHostRecord, KnownHostStore};
 use crate::tunnel::types::TunnelRule;
-use rusqlite::{params, Connection, Transaction};
+use rusqlite::{Connection, Transaction, params};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 

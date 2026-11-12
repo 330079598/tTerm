@@ -1,13 +1,13 @@
 //! Builds the import preview entry of one `Host` block.
 
-use super::jump::{last_jump_host, parse_proxy_jump, JumpTarget};
+use super::jump::{JumpTarget, last_jump_host, parse_proxy_jump};
 use super::parse::SshConfig;
 use super::pattern::is_wildcard_host;
-use super::proxy_command::{classify, ProxyCommandUse};
-use super::tokens::{key_file_path, PathTokens};
+use super::proxy_command::{ProxyCommandUse, classify};
+use super::tokens::{PathTokens, key_file_path};
 use crate::profiles::types::{
-    default_keepalive_count, default_keepalive_interval, RawSshHost, SshConfigImportHost,
-    SshConfigImportProxy,
+    RawSshHost, SshConfigImportHost, SshConfigImportProxy, default_keepalive_count,
+    default_keepalive_interval,
 };
 use crate::tunnel::forwards::ForwardSpec;
 use std::collections::HashMap;

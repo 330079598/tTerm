@@ -73,9 +73,11 @@ mod tests {
             assert!(tauri.local_data_dir.ends_with(identifier));
             assert!(tauri.cache_dir.ends_with(identifier));
             #[cfg(target_os = "macos")]
-            assert!(tauri
-                .log_dir
-                .ends_with(format!("Library/Logs/{identifier}")));
+            assert!(
+                tauri
+                    .log_dir
+                    .ends_with(format!("Library/Logs/{identifier}"))
+            );
             #[cfg(not(target_os = "macos"))]
             assert_eq!(tauri.log_dir, tauri.local_data_dir.join("logs"));
             assert!(from_tauri(app.handle(), "different.identity").is_err());

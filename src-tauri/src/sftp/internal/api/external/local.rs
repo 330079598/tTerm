@@ -111,9 +111,10 @@ pub(super) fn create_session_dir(root: &Path, id: &str) -> Result<PathBuf, Strin
 /// Removes one opened file's folder and the copy in it.
 pub(super) fn remove_session_dir(dir: &Path) {
     if let Err(error) = fs::remove_dir_all(dir)
-        && error.kind() != std::io::ErrorKind::NotFound {
-            eprintln!("Failed to remove '{}': {error}", dir.display());
-        }
+        && error.kind() != std::io::ErrorKind::NotFound
+    {
+        eprintln!("Failed to remove '{}': {error}", dir.display());
+    }
 }
 
 /// Removes the copies left behind longer than [`STALE_AFTER`] ago.

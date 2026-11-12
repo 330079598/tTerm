@@ -1,6 +1,6 @@
 use super::types::{LocalTerminalOptions, SavedProfile, SavedSecretSummary};
 use crate::db::sql_error;
-use rusqlite::{params, Connection, OptionalExtension};
+use rusqlite::{Connection, OptionalExtension, params};
 
 /// Profiles in display order.
 pub(crate) fn load_profiles() -> Result<Vec<SavedProfile>, String> {

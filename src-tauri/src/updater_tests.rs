@@ -1,9 +1,9 @@
 use super::*;
 use std::sync::Mutex;
 use tterm_platform::{
+    PlatformFuture,
     updates::{AvailableUpdate, UpdateMetadata},
     window::MainWindow,
-    PlatformFuture,
 };
 
 type Trace = Arc<Mutex<Vec<&'static str>>>;
@@ -139,15 +139,17 @@ async fn missing_release_or_pending_download_does_not_save_or_install() {
     };
     let window = Window(trace.clone());
     let downloads = PendingUpdateDownloads::default();
-    assert!(!download_install_app_update_service(
-        &provider,
-        &window,
-        &downloads,
-        "stable".into(),
-        Arc::new(Progress(Arc::new(|_| panic!("no download"))))
-    )
-    .await
-    .unwrap());
+    assert!(
+        !download_install_app_update_service(
+            &provider,
+            &window,
+            &downloads,
+            "stable".into(),
+            Arc::new(Progress(Arc::new(|_| panic!("no download"))))
+        )
+        .await
+        .unwrap()
+    );
     assert!(
         !install_downloaded_app_update_service(&window, &downloads, "stable".into())
             .await

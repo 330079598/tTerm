@@ -5,10 +5,10 @@ use crate::ssh::context::ConnectionContext;
 use crate::ssh::openssh_known_hosts::verify::KnownHostVerdict;
 use crate::ssh::openssh_known_hosts::{check_presented_key, listed_record};
 use crate::ssh::store::{
-    load_known_host, now_unix_ms, save_known_host_entry, KnownHostRecord, JUMP_HOST_PROFILE_PREFIX,
+    JUMP_HOST_PROFILE_PREFIX, KnownHostRecord, load_known_host, now_unix_ms, save_known_host_entry,
 };
 use crate::ssh::types::{
-    emit_connection_progress, ConnectionStatusOptions, HostKeyVerificationMode, SshConnectError,
+    ConnectionStatusOptions, HostKeyVerificationMode, SshConnectError, emit_connection_progress,
 };
 use russh::client;
 use russh::keys::ssh_key::HashAlg;
@@ -90,11 +90,11 @@ impl client::Handler for JumpHostHandler {
 
         if let Some(record) = &known
             && record.host == self.host
-                && record.port == self.port
-                && record.fingerprint == fingerprint
-            {
-                return Ok(true);
-            }
+            && record.port == self.port
+            && record.fingerprint == fingerprint
+        {
+            return Ok(true);
+        }
 
         if self.host_key_verification_mode == HostKeyVerificationMode::TrustUnknownForSession {
             if known.is_none() {

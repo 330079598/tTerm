@@ -15,11 +15,7 @@ fn update_channel_for_version(version: &str) -> &'static str {
                 .is_some_and(|rest| rest.is_empty() || rest.starts_with('.'))
         })
     });
-    if prerelease {
-        "beta-dev"
-    } else {
-        "stable"
-    }
+    if prerelease { "beta-dev" } else { "stable" }
 }
 
 #[cfg(test)]

@@ -2,12 +2,12 @@
 //! exactly when `known_hosts` trusts an authority for the host, and the
 //! certificate it presents passes the check.
 
+use super::OpenSshKnownHosts;
 use super::tests::{key, known, line};
 use super::verify::KnownHostVerdict;
-use super::OpenSshKnownHosts;
 use crate::ssh::jump::config::compatibility_client_config;
-use russh::keys::ssh_key::certificate::{Builder, CertType};
 use russh::keys::ssh_key::Algorithm;
+use russh::keys::ssh_key::certificate::{Builder, CertType};
 use russh::keys::{PrivateKey, PublicKeyOrCertificate};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};

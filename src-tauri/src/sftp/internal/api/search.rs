@@ -4,7 +4,7 @@
 
 mod operations;
 use operations::{
-    sftp_search_entries_service, SftpSearchEntriesDependencies, SftpSearchEntriesInput,
+    SftpSearchEntriesDependencies, SftpSearchEntriesInput, sftp_search_entries_service,
 };
 
 use crate::event_sink::search::TauriSearchResultSink;
@@ -24,8 +24,8 @@ use crate::sftp::internal::types::SftpHandles;
 use find::{FindOutcome, FindSearch};
 use matcher::NameMatcher;
 use serde::{Deserialize, Serialize};
-use tauri::ipc::Channel;
 use tauri::State;
+use tauri::ipc::Channel;
 use tokio::sync::watch;
 
 /// A search stops after this many matches: more would not be read, and

@@ -1,6 +1,6 @@
 use crate::core::state::{ChannelContext, TabZmodem};
 use crate::terminal::io_batcher::TerminalOutputSender;
-use crate::terminal::reader::{spawn_reader_thread, FilteredOutput, OutputFilter};
+use crate::terminal::reader::{FilteredOutput, OutputFilter, spawn_reader_thread};
 use crate::zmodem::session::ZmodemSettings;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;

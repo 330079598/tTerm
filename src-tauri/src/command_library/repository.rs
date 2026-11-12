@@ -1,6 +1,6 @@
 use super::{models::CommandVariable, models::SavedCommand};
 use crate::db::Database;
-use rusqlite::{params, Connection, OptionalExtension, Row, Transaction};
+use rusqlite::{Connection, OptionalExtension, Row, Transaction, params};
 
 pub struct CommandRepository<'a> {
     database: &'a Database,
@@ -536,9 +536,11 @@ mod tests {
         repository.save(&command).expect("save command");
 
         assert!(repository.delete(&command.id).expect("delete command"));
-        assert!(!repository
-            .delete(&command.id)
-            .expect("delete missing command"));
+        assert!(
+            !repository
+                .delete(&command.id)
+                .expect("delete missing command")
+        );
         assert_eq!(
             repository.get(&command.id).expect("get deleted command"),
             None
@@ -610,9 +612,11 @@ mod tests {
         let command = sample_command();
         repository.save(&command).expect("save command");
 
-        assert!(repository
-            .record_use(&command.id, 1_800_000_000_000)
-            .expect("record use"));
+        assert!(
+            repository
+                .record_use(&command.id, 1_800_000_000_000)
+                .expect("record use")
+        );
 
         let used = repository
             .get(&command.id)
@@ -621,8 +625,10 @@ mod tests {
         assert_eq!(used.use_count, 1);
         assert_eq!(used.last_used_at, Some(1_800_000_000_000));
         assert_eq!(used.name, command.name);
-        assert!(!repository
-            .record_use("missing", 1_800_000_000_001)
-            .expect("record missing use"));
+        assert!(
+            !repository
+                .record_use("missing", 1_800_000_000_001)
+                .expect("record missing use")
+        );
     }
 }

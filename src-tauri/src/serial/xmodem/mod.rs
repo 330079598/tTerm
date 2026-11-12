@@ -3,8 +3,8 @@
 //! input goes to it instead of the terminal, and typing is held back as it
 //! is during ZMODEM, whose cancel and transfer rows it shares.
 
-use tterm_core::events::zmodem::TransferEmitter;
 use tterm_core::events::EventSink;
+use tterm_core::events::zmodem::TransferEmitter;
 
 mod disk;
 mod protocol;
@@ -19,7 +19,7 @@ use crate::core::blocking::run_blocking;
 use crate::core::state::{PtyMap, ZmodemMap, ZmodemTabHandle};
 use serde::Deserialize;
 use std::sync::atomic::AtomicBool;
-use std::sync::{mpsc, Arc, PoisonError};
+use std::sync::{Arc, PoisonError, mpsc};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
 #[serde(rename_all = "lowercase")]

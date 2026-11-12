@@ -1,8 +1,8 @@
 use super::*;
 use std::sync::{Arc, Mutex};
+use tauri::Listener;
 use tauri::ipc::{Channel, InvokeResponseBody};
 use tauri::test::{mock_builder, mock_context, noop_assets};
-use tauri::Listener;
 
 #[test]
 fn session_sink_preserves_raw_state_and_exit_contracts() {

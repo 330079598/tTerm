@@ -11,7 +11,7 @@ use super::automatic::{
     validate_automatic_backup_settings, write_automatic_backup_settings,
 };
 use super::export::{filter_frontend_state, secret_travels, strip_sensitive_fields};
-use super::snapshot::{restore_database, snapshot_database, DatabaseSnapshot};
+use super::snapshot::{DatabaseSnapshot, restore_database, snapshot_database};
 use super::*;
 use crate::config::AppConfig;
 use crate::db::meta;
@@ -1135,9 +1135,11 @@ fn encrypted_archive_round_trips_manifest_and_credentials() {
     });
     let archive = build_archive_for_version("test", &selection, &payload, Some("password123"))
         .expect("build encrypted archive");
-    assert!(!archive
-        .windows(b"top-secret".len())
-        .any(|value| value == b"top-secret"));
+    assert!(
+        !archive
+            .windows(b"top-secret".len())
+            .any(|value| value == b"top-secret")
+    );
 
     let path = std::env::temp_dir().join(format!(
         "tterm-backup-test-{}-{}.tterm-backup",
@@ -1154,7 +1156,7 @@ fn encrypted_archive_round_trips_manifest_and_credentials() {
 
 #[test]
 fn serial_sends_merge_by_their_later_use_or_replace() {
-    use crate::serial::history::{store, SerialSendMode};
+    use crate::serial::history::{SerialSendMode, store};
     let sent = |connection: &rusqlite::Connection| {
         store::list_all(connection)
             .unwrap()

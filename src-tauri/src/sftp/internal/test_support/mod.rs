@@ -28,11 +28,12 @@ pub(crate) async fn connect() -> (Handle<Client>, Arc<SftpSession>) {
     )
     .await
     .unwrap();
-    assert!(ssh
-        .authenticate_password("alice", "alice-pass")
-        .await
-        .unwrap()
-        .success());
+    assert!(
+        ssh.authenticate_password("alice", "alice-pass")
+            .await
+            .unwrap()
+            .success()
+    );
     let sftp = ChannelLauncher::default()
         .open_sftp_session(&ssh)
         .await

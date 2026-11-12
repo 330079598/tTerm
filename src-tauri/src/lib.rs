@@ -163,9 +163,9 @@ pub fn run() {
                             ),
                         ))
                     })
-                {
-                    api.prevent_close();
-                }
+            {
+                api.prevent_close();
+            }
         })
         .invoke_handler(tauri::generate_handler![
             backup::export_backup,

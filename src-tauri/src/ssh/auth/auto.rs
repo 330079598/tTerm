@@ -11,9 +11,9 @@ use crate::ssh::key_file::{parse_certificate, read_key};
 use crate::ssh::typed_passwords;
 use crate::ssh::types::SshConnectError;
 use russh::client::AuthResult;
-use russh::keys::agent::AgentIdentity;
 use russh::keys::PrivateKey;
-use russh::{client, MethodKind};
+use russh::keys::agent::AgentIdentity;
+use russh::{MethodKind, client};
 use std::path::PathBuf;
 use zeroize::Zeroizing;
 
@@ -86,9 +86,9 @@ where
             && let Some(verdict) =
                 crate::ssh::agent::try_agent_identities(session, target.username, &mut offered)
                     .await
-            {
-                return Ok((verdict, AuthUsed::Agent, None));
-            }
+        {
+            return Ok((verdict, AuthUsed::Agent, None));
+        }
         for path in identity_files(key_path, local_identities) {
             if !remaining.contains(&MethodKind::PublicKey) {
                 break;

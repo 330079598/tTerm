@@ -18,8 +18,8 @@
 
 use std::path::Path;
 
-use super::hooks::HookSet;
 use super::REPORT_ARG;
+use super::hooks::HookSet;
 
 /// `Interrupt` (Esc or Ctrl+C) leaves Codex waiting for the user without
 /// finishing anything.
@@ -81,8 +81,8 @@ fn is_cmd_word(text: &str) -> bool {
 #[cfg(windows)]
 fn short_path(path: &Path) -> Option<String> {
     use std::os::windows::ffi::OsStrExt;
-    use windows::core::PCWSTR;
     use windows::Win32::Storage::FileSystem::GetShortPathNameW;
+    use windows::core::PCWSTR;
 
     let wide: Vec<u16> = path.as_os_str().encode_wide().chain([0]).collect();
     let needed = unsafe { GetShortPathNameW(PCWSTR(wide.as_ptr()), None) };

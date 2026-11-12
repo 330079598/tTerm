@@ -12,12 +12,12 @@
 use std::collections::{HashMap, HashSet};
 use std::io::Read;
 
-use windows::core::w;
 use windows::Win32::Foundation::{CloseHandle, E_FAIL};
 use windows::Win32::System::Console::GetConsoleWindow;
 use windows::Win32::System::Diagnostics::ToolHelp::{
-    CreateToolhelp32Snapshot, Process32FirstW, Process32NextW, PROCESSENTRY32W, TH32CS_SNAPPROCESS,
+    CreateToolhelp32Snapshot, PROCESSENTRY32W, Process32FirstW, Process32NextW, TH32CS_SNAPPROCESS,
 };
+use windows::core::w;
 
 use super::REPORT_ARG;
 use crate::terminal::console_reset::{with_console, write_sequence};
@@ -257,9 +257,11 @@ mod tests {
             let input = serde_json::json!({"session_id":"abc-123", "cwd":cwd});
             assert!(parse_metadata(input.to_string().as_bytes()).cwd.is_none());
         }
-        assert!(parse_metadata(br#"{"session_id":"abc; rm -rf ~"}"#)
-            .session
-            .is_none());
+        assert!(
+            parse_metadata(br#"{"session_id":"abc; rm -rf ~"}"#)
+                .session
+                .is_none()
+        );
         assert!(parse_metadata(b"{").session.is_none());
     }
 

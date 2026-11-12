@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
 use std::sync::{Arc, Mutex as StdMutex, RwLock as StdRwLock};
-use tokio::sync::{mpsc, watch, Mutex as TokioMutex, RwLock};
+use tokio::sync::{Mutex as TokioMutex, RwLock, mpsc, watch};
 
 pub type PtyMap = Arc<RwLock<HashMap<String, PtySession>>>;
 /// A plain `std::sync::RwLock`, not `tokio::sync::RwLock`: this map is

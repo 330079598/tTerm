@@ -63,9 +63,11 @@ fn real_pty_output_pauses_until_ack_then_drains_before_exit() {
     }
     assert!(delivered < HIGH_WATERMARK_BYTES + MAX_CHUNK_BYTES);
     assert!(done_rx.try_recv().is_err());
-    assert!(delivered_rx
-        .recv_timeout(Duration::from_millis(50))
-        .is_err());
+    assert!(
+        delivered_rx
+            .recv_timeout(Duration::from_millis(50))
+            .is_err()
+    );
     flow.ack(delivered);
     let mut remaining = total - delivered;
     while remaining > 0 {
@@ -87,8 +89,10 @@ fn real_pty_output_pauses_until_ack_then_drains_before_exit() {
         })
         .collect();
     assert_eq!(received.len(), total);
-    assert!(received
-        .iter()
-        .enumerate()
-        .all(|(index, byte)| *byte == (index % 256) as u8));
+    assert!(
+        received
+            .iter()
+            .enumerate()
+            .all(|(index, byte)| *byte == (index % 256) as u8)
+    );
 }

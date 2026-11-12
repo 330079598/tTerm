@@ -7,7 +7,7 @@ use std::time::{Duration, Instant};
 
 use tokio::sync::watch;
 
-use super::checkpoint::{checkpoint_due, SidecarState, SidecarStore};
+use super::checkpoint::{SidecarState, SidecarStore, checkpoint_due};
 use super::chunks::{
     bitmap_len, bitmap_set, completed_bytes, decode_bitmap, effective_chunk_size, encode_bitmap,
     io_read_step, io_write_step,
@@ -740,10 +740,12 @@ async fn single_chunk_upload_skips_checkpoint_files() {
     assert_eq!(std::fs::read(server.root().join(relative)).unwrap(), data);
     assert!(!server.root().join(part_path(relative)).exists());
     assert!(!server.root().join(sidecar_path(relative)).exists());
-    assert!(!server
-        .root()
-        .join(format!("{}.tmp", sidecar_path(relative)))
-        .exists());
+    assert!(
+        !server
+            .root()
+            .join(format!("{}.tmp", sidecar_path(relative)))
+            .exists()
+    );
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]

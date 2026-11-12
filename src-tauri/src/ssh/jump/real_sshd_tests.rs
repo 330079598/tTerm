@@ -4,11 +4,11 @@
 
 use std::sync::Arc;
 
-use russh::{client, ChannelMsg};
+use russh::{ChannelMsg, client};
 
 use super::pool::{self, PooledSession, Relay, RouteKey};
-use crate::ssh::auth::{authenticate, AuthPrompter, AuthTarget};
-use crate::ssh::test_sshd::{current_user, AcceptAnyServerKey, TestSshd};
+use crate::ssh::auth::{AuthPrompter, AuthTarget, authenticate};
+use crate::ssh::test_sshd::{AcceptAnyServerKey, TestSshd, current_user};
 
 async fn log_in(sshd: &TestSshd, session: &mut client::Handle<AcceptAnyServerKey>) {
     let username = current_user();

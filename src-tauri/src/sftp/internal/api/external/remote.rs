@@ -1,9 +1,9 @@
 //! Moving an opened file between the server and its local copy.
 
 use crate::sftp::internal::connection::map_sftp_error;
+use russh_sftp::client::SftpSession;
 use russh_sftp::client::error::Error as SftpError;
 use russh_sftp::client::fs::Metadata;
-use russh_sftp::client::SftpSession;
 use russh_sftp::protocol::{OpenFlags, StatusCode};
 use std::path::Path;
 use tokio::io::AsyncWriteExt;

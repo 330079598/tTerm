@@ -1,9 +1,9 @@
 use super::{
-    load_editable_file, save_editable_file, SftpEditBaseline, SftpEditableFile,
-    SftpSaveEditedFileResult,
+    SftpEditBaseline, SftpEditableFile, SftpSaveEditedFileResult, load_editable_file,
+    save_editable_file,
 };
 use crate::core::session::types::PtyConnectionOptions;
-use crate::sftp::internal::connection::{ensure_ssh_plan, SftpContext};
+use crate::sftp::internal::connection::{SftpContext, ensure_ssh_plan};
 use crate::sftp::internal::types::SftpConnectionPool;
 use crate::ssh::secret_store::types::SecretStoreState;
 use std::sync::Arc;

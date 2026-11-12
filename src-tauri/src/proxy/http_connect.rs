@@ -1,8 +1,8 @@
 //! The HTTP `CONNECT` handshake (RFC 9110, section 9.3.6).
 
-use super::connect::ProxyError;
 use super::ProxyEndpoint;
-use base64::{engine::general_purpose::STANDARD as BASE64, Engine};
+use super::connect::ProxyError;
+use base64::{Engine, engine::general_purpose::STANDARD as BASE64};
 use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
 use zeroize::Zeroizing;
 

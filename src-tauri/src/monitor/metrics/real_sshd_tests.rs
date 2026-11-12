@@ -2,7 +2,7 @@
 //! tools (see [`crate::ssh::test_sshd`]), which shows the script's section
 //! for the system the tests run on, Linux or macOS, working end to end.
 
-use super::{parse_metrics_output, METRICS_SCRIPT};
+use super::{METRICS_SCRIPT, parse_metrics_output};
 use crate::sftp::internal::exec::RemoteScript;
 use crate::ssh::test_sshd::TestSshd;
 

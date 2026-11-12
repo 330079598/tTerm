@@ -9,8 +9,8 @@
 
 use super::consts::*;
 use super::frame::{
-    encode_bin32_header, encode_data_subpacket, encode_hex_header, scan_header, scan_subpacket,
-    CrcKind, Header, HeaderOutcome, SubpacketOutcome,
+    CrcKind, Header, HeaderOutcome, SubpacketOutcome, encode_bin32_header, encode_data_subpacket,
+    encode_hex_header, scan_header, scan_subpacket,
 };
 
 /// The capability bitmask tTerm advertises when acting as a receiver,
@@ -670,9 +670,10 @@ mod tests {
             if let HeaderOutcome::Found {
                 header, consumed, ..
             } = scan_header(&bytes[start..])
-                && start + consumed == bytes.len() {
-                    return Some(header.frame_type);
-                }
+                && start + consumed == bytes.len()
+            {
+                return Some(header.frame_type);
+            }
         }
         None
     }

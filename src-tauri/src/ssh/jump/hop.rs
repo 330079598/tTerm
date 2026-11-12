@@ -3,16 +3,16 @@
 use tterm_core::events::ssh::SshConnectionProgressPayload;
 
 use super::config::{compatibility_client_config, unverifiable_host_key_error};
-use super::connect::{connect_first_hop, emit_terminal_status, open_proxy_stream, ConnectContext};
+use super::connect::{ConnectContext, connect_first_hop, emit_terminal_status, open_proxy_stream};
 use super::handler::JumpHostHandler;
 use super::pool::{self, PooledSession, Relay, RouteKey};
 use crate::core::session::types::JumpHostPlan;
-use crate::proxy::command::CommandTarget;
 use crate::proxy::ProxyEndpoint;
-use crate::ssh::auth::{authenticate, AuthPrompter, AuthTarget};
+use crate::proxy::command::CommandTarget;
+use crate::ssh::auth::{AuthPrompter, AuthTarget, authenticate};
 use crate::ssh::openssh_known_hosts::request_host_certificates;
-use crate::ssh::types::{emit_connection_progress, SshConnectError};
-use russh::{client, Channel};
+use crate::ssh::types::{SshConnectError, emit_connection_progress};
+use russh::{Channel, client};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
@@ -89,9 +89,10 @@ fn map_jump_connect_error(
     }
 
     if let Ok(mut reason) = failure_reason.lock()
-        && let Some(reason) = reason.take() {
-            return SshConnectError::Permanent(reason);
-        }
+        && let Some(reason) = reason.take()
+    {
+        return SshConnectError::Permanent(reason);
+    }
 
     SshConnectError::Network(format!(
         "Jump host #{hop_index}: {}",

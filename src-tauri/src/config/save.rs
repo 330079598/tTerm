@@ -1,7 +1,7 @@
 //! Applies saved settings to the services that cache configuration.
-use super::{load_config_file, save_config_file, AppConfig};
+use super::{AppConfig, load_config_file, save_config_file};
 use crate::{
-    background::{tray::TrayContext, CloseBehaviorState},
+    background::{CloseBehaviorState, tray::TrayContext},
     session_log::LogContext,
 };
 use std::sync::Arc;

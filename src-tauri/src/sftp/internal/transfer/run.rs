@@ -9,18 +9,19 @@ use super::chunks::{
 use super::files::{ensure_remote_dir_all, local_fingerprint, now_unix_ms, remote_fingerprint};
 use super::lanes::execute_parallel;
 use super::{
-    chunk_count_for, chunk_len_for, failed, part_path, sidecar_path, ProgressSink, RemoteChannels,
-    TransferDirection, TransferError, TransferOptions, TransferOutcome, TransferProgress,
-    TransferSidecar, CHECKPOINT_TEARDOWN_TIMEOUT, PIPELINE_WINDOW, SIDECAR_SUFFIX, SIDECAR_VERSION,
+    CHECKPOINT_TEARDOWN_TIMEOUT, PIPELINE_WINDOW, ProgressSink, RemoteChannels, SIDECAR_SUFFIX,
+    SIDECAR_VERSION, TransferDirection, TransferError, TransferOptions, TransferOutcome,
+    TransferProgress, TransferSidecar, chunk_count_for, chunk_len_for, failed, part_path,
+    sidecar_path,
 };
-use russh_sftp::client::error::Error as SftpError;
 use russh_sftp::client::RawSftpSession;
+use russh_sftp::client::error::Error as SftpError;
 use russh_sftp::extensions::LimitsExtension;
 use russh_sftp::protocol::{FileAttributes, OpenFlags, StatusCode};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::Instant;
-use tokio::sync::{watch, Mutex};
+use tokio::sync::{Mutex, watch};
 
 pub(super) struct TransferPaths {
     pub(super) final_path: String,
@@ -126,20 +127,22 @@ pub(super) async fn run_transfer(
         TransferDirection::Upload => {
             if let Some(parent) =
                 crate::sftp::internal::paths::parent_remote_path(&paths.final_path)
-                && !parent.is_empty() {
-                    ensure_remote_dir_all(control.as_ref(), &parent).await?;
-                }
+                && !parent.is_empty()
+            {
+                ensure_remote_dir_all(control.as_ref(), &parent).await?;
+            }
         }
         TransferDirection::Download => {
             if let Some(parent) = paths.local_path.parent()
-                && !parent.as_os_str().is_empty() {
-                    tokio::fs::create_dir_all(parent).await.map_err(|err| {
-                        failed(format!(
-                            "Failed to create local directory '{}': {err}",
-                            parent.display()
-                        ))
-                    })?;
-                }
+                && !parent.as_os_str().is_empty()
+            {
+                tokio::fs::create_dir_all(parent).await.map_err(|err| {
+                    failed(format!(
+                        "Failed to create local directory '{}': {err}",
+                        parent.display()
+                    ))
+                })?;
+            }
         }
     }
 
@@ -476,9 +479,9 @@ async fn discard_partial(
                         FileAttributes::empty(),
                     )
                     .await
-                {
-                    let _ = control.close(opened.handle.as_str()).await;
-                }
+            {
+                let _ = control.close(opened.handle.as_str()).await;
+            }
         }
         TransferDirection::Download => {
             let gone = match tokio::fs::remove_file(&paths.local_path_part()).await {

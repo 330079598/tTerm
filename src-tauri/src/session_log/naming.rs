@@ -1,7 +1,7 @@
 //! Log file names: the name template filled in for a session, and the paths
 //! of a log's parts.
 
-use super::{library, LogFiles, SessionMetadata};
+use super::{LogFiles, SessionMetadata, library};
 use chrono::Local;
 use std::path::{Path, PathBuf};
 

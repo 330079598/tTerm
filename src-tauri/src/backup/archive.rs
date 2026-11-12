@@ -3,7 +3,7 @@
 
 use super::remote;
 use super::{
-    BackupCrypto, BackupManifest, BackupPayload, BackupSelection, DecodedBundle, BACKUP_AAD,
+    BACKUP_AAD, BackupCrypto, BackupManifest, BackupPayload, BackupSelection, DecodedBundle,
     ENCRYPTED_PAYLOAD_ENTRY, FORMAT_NAME, FORMAT_VERSION, MANIFEST_ENTRY, MAX_BACKUP_SIZE,
     MAX_PAYLOAD_SIZE, PAYLOAD_ENTRY,
 };
@@ -18,7 +18,7 @@ use crate::tunnel::types::TunnelRule;
 use aes_gcm::aead::{Aead, KeyInit, Payload as AeadPayload};
 use aes_gcm::{Aes256Gcm, Nonce};
 use argon2::{Algorithm, Argon2, Params, Version};
-use base64::{engine::general_purpose::STANDARD as BASE64, Engine};
+use base64::{Engine, engine::general_purpose::STANDARD as BASE64};
 use chrono::Utc;
 use rand::Rng;
 use sha2::{Digest, Sha256};

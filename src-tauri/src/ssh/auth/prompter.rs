@@ -5,8 +5,8 @@ use tterm_core::events::ssh::AuthPromptPayload;
 use super::methods::prompt_payload;
 use super::{AuthPrompter, AuthTarget, PROMPT_TIMEOUT};
 use crate::ssh::types::SshConnectError;
-use tterm_core::events::ssh::SshEvent;
 use tterm_core::events::AppEvent;
+use tterm_core::events::ssh::SshEvent;
 use zeroize::Zeroizing;
 
 impl AuthPrompter {

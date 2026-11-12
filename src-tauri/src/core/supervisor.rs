@@ -329,7 +329,7 @@ pub fn spawn_supervisor(
 
 #[cfg(test)]
 mod tests {
-    use super::{decayed_attempt, equal_jitter, reconnect_nominal_secs, RECONNECT_STABLE_RESET};
+    use super::{RECONNECT_STABLE_RESET, decayed_attempt, equal_jitter, reconnect_nominal_secs};
     use std::time::Duration;
 
     #[test]

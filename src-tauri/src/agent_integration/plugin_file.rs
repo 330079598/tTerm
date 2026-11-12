@@ -49,10 +49,11 @@ impl PluginFile {
         fs::remove_file(path)
             .map_err(|error| format!("Failed to remove {}: {error}", path.display()))?;
         if self.path.len() > 2
-            && let Some(folder) = path.parent() {
-                // Fails, as it should, when something else is in it.
-                let _ = fs::remove_dir(folder);
-            }
+            && let Some(folder) = path.parent()
+        {
+            // Fails, as it should, when something else is in it.
+            let _ = fs::remove_dir(folder);
+        }
         Ok(())
     }
 }

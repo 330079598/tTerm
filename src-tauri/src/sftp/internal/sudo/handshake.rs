@@ -6,9 +6,9 @@ use russh::{Channel, ChannelMsg};
 use std::future::Future;
 use zeroize::Zeroizing;
 
+use super::SudoAuth;
 use super::command::{PROBE, READY_MARKER, VALIDATE};
 use super::errors;
-use super::SudoAuth;
 use crate::sftp::internal::exec::{RemoteScript, ScriptOutcome};
 use crate::sftp::internal::launcher::SFTP_CHANNEL_SETUP_TIMEOUT;
 

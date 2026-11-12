@@ -149,9 +149,12 @@ Match bogus value
     assert!(prod.jump_hosts.is_empty());
     assert_eq!(prod.username.as_deref(), Some("deploy"));
     assert_eq!(prod.port, 22);
-    assert!(warnings.iter().any(|warning| warning
-        .contains("Line 5: Match exec cannot be checked during import, so the block")));
-    assert!(warnings
-        .iter()
-        .any(|warning| warning.contains("Match criterion 'bogus' is not known")));
+    assert!(warnings.iter().any(|warning| {
+        warning.contains("Line 5: Match exec cannot be checked during import, so the block")
+    }));
+    assert!(
+        warnings
+            .iter()
+            .any(|warning| warning.contains("Match criterion 'bogus' is not known"))
+    );
 }

@@ -1,7 +1,7 @@
-use super::protocol::{
-    crc16, send_xmodem, send_ymodem, Link, OutgoingFile, Received, TransferError,
-};
 use super::XmodemProtocol;
+use super::protocol::{
+    Link, OutgoingFile, Received, TransferError, crc16, send_xmodem, send_ymodem,
+};
 use std::collections::VecDeque;
 use std::io::Cursor;
 use std::time::{Duration, Instant};

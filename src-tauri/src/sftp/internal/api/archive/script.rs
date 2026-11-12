@@ -236,18 +236,21 @@ mod tests {
              exec tar -x -k -z -f '/srv/a.tgz' </dev/null\n"
         );
         let replace = extract_script("/srv/a.tar", "/srv", ArchiveFormat::Tar, true).unwrap();
-        assert!(replace
-            .text
-            .contains("exec tar -x -f '/srv/a.tar' </dev/null"));
+        assert!(
+            replace
+                .text
+                .contains("exec tar -x -f '/srv/a.tar' </dev/null")
+        );
     }
 
     #[test]
     fn extracts_zip_and_7z_with_their_overwrite_modes() {
         let zip = extract_script("/a.zip", "/out", ArchiveFormat::Zip, false).unwrap();
         assert_eq!(zip.tool, "unzip");
-        assert!(zip
-            .text
-            .contains("exec unzip -q -n '/a.zip' -d . </dev/null"));
+        assert!(
+            zip.text
+                .contains("exec unzip -q -n '/a.zip' -d . </dev/null")
+        );
         let seven = extract_script("/a.7z", "/out", ArchiveFormat::SevenZip, true).unwrap();
         assert_eq!(seven.tool, "7z");
         assert!(seven.text.contains("x -y -aoa -o. '/a.7z'"));
@@ -260,9 +263,11 @@ mod tests {
             extract_script("/logs/app.log.gz", "/logs", ArchiveFormat::Gzip, false).unwrap();
         assert_eq!(script.tool, "gzip");
         assert!(script.text.contains("if [ -e 'app.log' ]; then"));
-        assert!(script
-            .text
-            .ends_with("exec gzip -dc '/logs/app.log.gz' >'app.log' </dev/null\n"));
+        assert!(
+            script
+                .text
+                .ends_with("exec gzip -dc '/logs/app.log.gz' >'app.log' </dev/null\n")
+        );
         let replace = extract_script("/a.xz", "/", ArchiveFormat::Xz, true).unwrap();
         assert!(!replace.text.contains("if [ -e"));
     }

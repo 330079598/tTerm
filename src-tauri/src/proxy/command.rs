@@ -6,7 +6,7 @@ use std::future::Future;
 use std::io;
 use std::pin::Pin;
 use std::process::{ExitStatus, Stdio};
-use std::task::{ready, Context, Poll};
+use std::task::{Context, Poll, ready};
 use std::time::Duration;
 use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, ReadBuf};
 use tokio::process::{Child, ChildStderr, ChildStdin, ChildStdout, Command};
@@ -47,14 +47,14 @@ pub(crate) fn expand(template: &str, target: &CommandTarget<'_>) -> Result<Strin
             Some('r') => command.push_str(shell_safe("user name", target.username)?),
             Some(other) => {
                 return Err(format!(
-                "The proxy command uses %{other}, which tTerm does not know. Use %h, %p, %r or %%."
-            ))
+                    "The proxy command uses %{other}, which tTerm does not know. Use %h, %p, %r or %%."
+                ));
             }
             None => {
                 return Err(
                     "The proxy command ends with a lone %. Write %% for a percent sign."
                         .to_string(),
-                )
+                );
             }
         }
     }

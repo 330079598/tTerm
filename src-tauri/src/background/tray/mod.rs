@@ -7,8 +7,8 @@ use tterm_core::events::background::BackgroundEvent;
 use tterm_core::events::tunnel::TunnelState;
 use tterm_core::events::{AppEvent, EventSink};
 
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Mutex;
+use std::sync::atomic::{AtomicBool, Ordering};
 
 use crate::core::state::PtyMap;
 use crate::tunnel::commands::TunnelManager;

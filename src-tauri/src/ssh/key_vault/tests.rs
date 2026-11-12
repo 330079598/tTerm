@@ -1,6 +1,6 @@
-use super::entry::{inspect, VaultKey};
+use super::entry::{VaultKey, inspect};
 use super::import::{ensure_new, read_import};
-use super::{export, reference_id, store, ImportVaultKeyInput, REFERENCE_PREFIX};
+use super::{ImportVaultKeyInput, REFERENCE_PREFIX, export, reference_id, store};
 use crate::db::Database;
 use crate::profiles::types::SavedProfile;
 use crate::ssh::secret_store::crypto::SecretKey as DataKey;

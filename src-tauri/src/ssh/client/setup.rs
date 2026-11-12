@@ -1,4 +1,4 @@
-use super::{finish_output, SshExitSignal};
+use super::{SshExitSignal, finish_output};
 use crate::core::session::types::SessionPlan;
 use crate::ssh::jump::pool::PooledSession;
 use crate::ssh::types::SshClientHandler;
@@ -137,15 +137,16 @@ pub(super) async fn prepare_terminal(
     }
 
     if early_output.is_none()
-        && let Err(err) = channel.request_shell(false).await {
-            finish_output(sender);
-            return Err(SshExitSignal {
-                terminated: false,
-                recoverable: true,
-                reason: Some(format!("Failed to request SSH shell: {err}")),
-                connected_duration: None,
-            });
-        }
+        && let Err(err) = channel.request_shell(false).await
+    {
+        finish_output(sender);
+        return Err(SshExitSignal {
+            terminated: false,
+            recoverable: true,
+            reason: Some(format!("Failed to request SSH shell: {err}")),
+            connected_duration: None,
+        });
+    }
 
     Ok(PreparedTerminal {
         channel,

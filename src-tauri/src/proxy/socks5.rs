@@ -1,8 +1,8 @@
 //! The SOCKS5 client handshake (RFC 1928), with user name and password
 //! authentication (RFC 1929).
 
-use super::connect::ProxyError;
 use super::ProxyEndpoint;
+use super::connect::ProxyError;
 use std::net::{Ipv4Addr, Ipv6Addr};
 use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
 use zeroize::Zeroizing;
@@ -95,7 +95,7 @@ async fn skip_bound_address<S: AsyncRead + Unpin>(
         other => {
             return Err(ProxyError::Protocol(format!(
                 "unknown address type {other:#04x} in its reply"
-            )))
+            )));
         }
     };
     let mut rest = vec![0u8; length + 2];
@@ -135,7 +135,7 @@ pub(super) async fn handshake<S: AsyncRead + AsyncWrite + Unpin>(
         other => {
             return Err(ProxyError::Protocol(format!(
                 "it chose authentication method {other:#04x}, which was not offered"
-            )))
+            )));
         }
     }
 

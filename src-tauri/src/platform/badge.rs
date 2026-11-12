@@ -1,8 +1,8 @@
 //! Only window API calls remain here; Linux's DBus implementation is shared.
 use tauri::AppHandle;
 use tterm_platform::{
-    notifications::{AppBadge, RgbaImage},
     PlatformFuture,
+    notifications::{AppBadge, RgbaImage},
 };
 pub(super) struct TauriBadge(pub AppHandle);
 impl AppBadge for TauriBadge {

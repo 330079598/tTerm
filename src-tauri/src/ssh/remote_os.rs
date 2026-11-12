@@ -60,7 +60,7 @@ async fn read_output(mut script: RemoteScript) -> String {
 
 #[cfg(all(test, unix))]
 mod tests {
-    use super::{read_output, SCRIPT};
+    use super::{SCRIPT, read_output};
     use crate::monitor::metrics::parse_os_identity;
     use crate::sftp::internal::exec::RemoteScript;
     use crate::ssh::test_sshd::TestSshd;

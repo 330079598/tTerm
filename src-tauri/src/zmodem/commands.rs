@@ -7,8 +7,8 @@
 
 use std::io::Write;
 use std::path::PathBuf;
-use std::sync::atomic::Ordering;
 use std::sync::PoisonError;
+use std::sync::atomic::Ordering;
 
 use crate::core::state::ActiveSession;
 use crate::core::{
@@ -85,21 +85,22 @@ fn zmodem_cancel_service(
 
     let sessions = pty_state.blocking_read();
     if let Some(session) = sessions.get(&tab_id)
-        && session.session_nonce == session_nonce {
-            let mut active_guard = session.active.blocking_lock();
-            match active_guard.as_mut() {
-                Some(ActiveSession::Local(local)) => {
-                    let _ = local.writer.write_all(&super::session::abort_sequence());
-                }
-                Some(ActiveSession::Ssh(ssh)) => {
-                    let _ = ssh.input_tx.send(super::session::abort_sequence());
-                }
-                Some(ActiveSession::Serial(serial)) => {
-                    let _ = serial.writer.write_all(&super::session::abort_sequence());
-                }
-                None => {}
+        && session.session_nonce == session_nonce
+    {
+        let mut active_guard = session.active.blocking_lock();
+        match active_guard.as_mut() {
+            Some(ActiveSession::Local(local)) => {
+                let _ = local.writer.write_all(&super::session::abort_sequence());
             }
+            Some(ActiveSession::Ssh(ssh)) => {
+                let _ = ssh.input_tx.send(super::session::abort_sequence());
+            }
+            Some(ActiveSession::Serial(serial)) => {
+                let _ = serial.writer.write_all(&super::session::abort_sequence());
+            }
+            None => {}
         }
+    }
 
     Ok(())
 }

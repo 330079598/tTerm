@@ -1,6 +1,6 @@
 use super::{read_directory_entries, resolve_initial_directory};
 use crate::core::session::types::PtyConnectionOptions;
-use crate::sftp::internal::connection::{ensure_ssh_plan, SftpContext};
+use crate::sftp::internal::connection::{SftpContext, ensure_ssh_plan};
 use crate::sftp::internal::connection::{map_sftp_error, release_tab_connections};
 use crate::sftp::internal::types::SftpConnectionPool;
 use crate::sftp::internal::types::SftpDirectoryListing;

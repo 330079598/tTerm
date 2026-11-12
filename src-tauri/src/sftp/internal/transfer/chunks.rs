@@ -1,8 +1,8 @@
 //! The completed-chunk bitmap and the sizes of chunks and wire requests.
 
-use super::{chunk_len_for, failed, TransferError, DEFAULT_IO_STEP, MIN_CHUNK_SIZE};
-use base64::engine::general_purpose::STANDARD as BASE64;
+use super::{DEFAULT_IO_STEP, MIN_CHUNK_SIZE, TransferError, chunk_len_for, failed};
 use base64::Engine as _;
+use base64::engine::general_purpose::STANDARD as BASE64;
 use russh_sftp::extensions::LimitsExtension;
 
 pub(super) fn bitmap_len(chunk_count: usize) -> usize {
@@ -78,9 +78,10 @@ pub(super) fn io_write_step(limits: Option<&LimitsExtension>) -> u64 {
         .and_then(|limits| (limits.max_write_len > 0).then_some(limits.max_write_len))
         .unwrap_or(DEFAULT_IO_STEP);
     if let Some(limits) = limits
-        && limits.max_packet_len > 0 {
-            step = step.min(limits.max_packet_len.saturating_sub(1024));
-        }
+        && limits.max_packet_len > 0
+    {
+        step = step.min(limits.max_packet_len.saturating_sub(1024));
+    }
     step.max(1)
 }
 
@@ -90,9 +91,10 @@ pub(super) fn io_read_step(limits: Option<&LimitsExtension>) -> u64 {
         .and_then(|limits| (limits.max_read_len > 0).then_some(limits.max_read_len))
         .unwrap_or(DEFAULT_IO_STEP);
     if let Some(limits) = limits
-        && limits.max_packet_len > 0 {
-            step = step.min(limits.max_packet_len.saturating_sub(1024));
-        }
+        && limits.max_packet_len > 0
+    {
+        step = step.min(limits.max_packet_len.saturating_sub(1024));
+    }
     step.max(1)
 }
 

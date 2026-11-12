@@ -3,11 +3,11 @@
 //! --list` says the same, but in UTF-16 whatever the console's code page,
 //! with a localized marker on the default, and only once WSL answers.
 
-use windows::core::{w, HSTRING, PCWSTR, PWSTR};
 use windows::Win32::System::Registry::{
-    RegCloseKey, RegEnumKeyExW, RegGetValueW, RegOpenKeyExW, HKEY, HKEY_CURRENT_USER, KEY_READ,
-    RRF_RT_REG_DWORD, RRF_RT_REG_SZ,
+    HKEY, HKEY_CURRENT_USER, KEY_READ, RRF_RT_REG_DWORD, RRF_RT_REG_SZ, RegCloseKey, RegEnumKeyExW,
+    RegGetValueW, RegOpenKeyExW,
 };
+use windows::core::{HSTRING, PCWSTR, PWSTR, w};
 
 const LXSS_KEY: &str = r"Software\Microsoft\Windows\CurrentVersion\Lxss";
 
@@ -214,9 +214,11 @@ mod tests {
     fn reads_the_installed_distributions() {
         // Whatever this machine has, names come out whole and at most one is the default.
         let distros = installed_distros();
-        assert!(distros
-            .iter()
-            .all(|d| !d.name.is_empty() && !d.name.contains('\0')));
+        assert!(
+            distros
+                .iter()
+                .all(|d| !d.name.is_empty() && !d.name.contains('\0'))
+        );
         assert!(distros.iter().filter(|d| d.is_default).count() <= 1);
     }
 }

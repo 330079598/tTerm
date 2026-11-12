@@ -3,12 +3,12 @@
 //! ways (in place, or by writing another file and renaming it over the
 //! copy), and a look at the file itself sees every one of them the same way.
 
-use super::local::{self, FileStamp, Fingerprint};
 use super::ExternalEditState;
+use super::local::{self, FileStamp, Fingerprint};
 use crate::core::blocking::run_blocking;
 use std::path::PathBuf;
-use std::sync::atomic::Ordering;
 use std::sync::Arc;
+use std::sync::atomic::Ordering;
 use std::time::Duration;
 use tterm_core::events::sftp::SftpEvent;
 use tterm_core::events::{AppEvent, EventSink};

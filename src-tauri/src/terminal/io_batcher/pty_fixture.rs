@@ -1,5 +1,5 @@
 //! A real PTY fixture shared by correctness tests and the ignored benchmark.
-use portable_pty::{native_pty_system, Child, CommandBuilder, PtySize};
+use portable_pty::{Child, CommandBuilder, PtySize, native_pty_system};
 use std::io::Read;
 use std::time::Duration;
 

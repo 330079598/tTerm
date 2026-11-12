@@ -15,7 +15,7 @@ use crate::config::tab_icons::TabIconStyle;
 use crate::core::blocking::run_blocking;
 use crate::proxy::command::CommandTarget;
 use crate::ssh::jump::connect::{
-    connect_first_hop, connect_via_jump_chain, open_proxy_stream, ConnectContext,
+    ConnectContext, connect_first_hop, connect_via_jump_chain, open_proxy_stream,
 };
 
 use super::commands::connection_check::{
@@ -77,9 +77,10 @@ pub(super) async fn save_profile(
     typed_password_tab_id: Option<String>,
 ) -> Result<(), String> {
     if let Some(tab_id) = typed_password_tab_id.as_deref()
-        && profile.remember_password {
-            fill_typed_passwords(&mut profile, tab_id);
-        }
+        && profile.remember_password
+    {
+        fill_typed_passwords(&mut profile, tab_id);
+    }
     // Saving its passwords waits for startup to unlock saved passwords, which
     // may sit on a credential store prompt; keep that off the main thread.
     let secret_state = secret_state.clone();
@@ -97,11 +98,12 @@ fn fill_typed_passwords(profile: &mut SavedProfile, tab_id: &str) {
         profile.auth_method.as_deref(),
         Some("key" | "agent" | "interactive")
     );
-    if uses_password && profile.password.as_deref().is_none_or(str::is_empty)
+    if uses_password
+        && profile.password.as_deref().is_none_or(str::is_empty)
         && let (Some(host), Some(username)) = (profile.host.as_deref(), profile.username.as_deref())
-        {
-            profile.password = typed(host, profile.port.unwrap_or(22), username);
-        }
+    {
+        profile.password = typed(host, profile.port.unwrap_or(22), username);
+    }
     for jump in &mut profile.jump_hosts {
         if jump.auth_method == "password" && jump.password.as_deref().is_none_or(str::is_empty) {
             jump.password = typed(&jump.host, jump.port, &jump.username);
@@ -116,20 +118,21 @@ fn store_profile(
     let group_path = profile.group_path.take();
     normalize_profile(&mut profile);
 
-    if profile.auth_method.as_deref() != Some("key") && profile.remember_password
+    if profile.auth_method.as_deref() != Some("key")
+        && profile.remember_password
         && let Some(password) = profile
             .password
             .as_deref()
             .filter(|value| !value.is_empty())
-        {
-            let location = secret_state.save_password(profile.id.as_str(), password)?;
-            if matches!(location, SecretLocation::Memory) {
-                return Err(
+    {
+        let location = secret_state.save_password(profile.id.as_str(), password)?;
+        if matches!(location, SecretLocation::Memory) {
+            return Err(
                     "Password persistence is unavailable. Enable the app vault or use a supported system credential store."
                         .to_string(),
                 );
-            }
         }
+    }
 
     if !profile.remember_password || profile.auth_method.as_deref() == Some("key") {
         let _ = secret_state.delete_password(profile.id.as_str());

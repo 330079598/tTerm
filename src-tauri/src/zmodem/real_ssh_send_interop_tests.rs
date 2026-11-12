@@ -20,13 +20,13 @@ use std::sync::atomic::AtomicBool;
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
-use russh::keys::{load_secret_key, PrivateKeyWithHashAlg};
-use russh::{client, ChannelMsg};
+use russh::keys::{PrivateKeyWithHashAlg, load_secret_key};
+use russh::{ChannelMsg, client};
 use tokio::sync::Mutex as TokioMutex;
 
 use crate::core::state::ActiveSession;
 use crate::core::state::ZmodemMap;
-use crate::zmodem::send::{run, ZmodemSendParams};
+use crate::zmodem::send::{ZmodemSendParams, run};
 
 const TEST_PORT: u16 = 12399;
 

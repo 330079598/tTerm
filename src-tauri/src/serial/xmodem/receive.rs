@@ -1,8 +1,8 @@
 //! The receiving side of XMODEM, XMODEM-1K and YMODEM, over any [`Link`].
 
 use super::protocol::{
-    cancelled_by_device, crc16, read, write, Check, Link, Result, TransferError, ACK,
-    BLOCK_TIMEOUT, CAN, CRC_MODE, EOT, MAX_ATTEMPTS, NAK, SOH, START_TIMEOUT, STX, SUB,
+    ACK, BLOCK_TIMEOUT, CAN, CRC_MODE, Check, EOT, Link, MAX_ATTEMPTS, NAK, Result, SOH,
+    START_TIMEOUT, STX, SUB, TransferError, cancelled_by_device, crc16, read, write,
 };
 use std::time::Duration;
 
@@ -41,11 +41,7 @@ enum Incoming {
 }
 
 fn check_len(check: Check) -> usize {
-    if check == Check::Crc {
-        2
-    } else {
-        1
-    }
+    if check == Check::Crc { 2 } else { 1 }
 }
 
 /// Reads exactly `len` bytes of a block; `None` when the sender stalls.

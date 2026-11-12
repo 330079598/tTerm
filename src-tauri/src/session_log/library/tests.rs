@@ -1,6 +1,6 @@
 use super::*;
-use flate2::write::GzEncoder;
 use flate2::Compression;
+use flate2::write::GzEncoder;
 
 struct TempDir(PathBuf);
 

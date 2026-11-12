@@ -5,16 +5,16 @@
 
 mod operations;
 use operations::{
-    sftp_external_app_icons_service, sftp_external_edit_list_service,
-    sftp_external_edit_open_service, sftp_external_edit_release_tab_service,
-    sftp_external_edit_reveal_service, sftp_external_edit_stop_service,
-    sftp_external_edit_upload_service, sftp_external_open_with_choices_service,
     SftpExternalAppIconsInput, SftpExternalEditListDependencies, SftpExternalEditListInput,
     SftpExternalEditOpenDependencies, SftpExternalEditOpenInput,
     SftpExternalEditReleaseTabDependencies, SftpExternalEditReleaseTabInput,
     SftpExternalEditRevealInput, SftpExternalEditStopDependencies, SftpExternalEditStopInput,
     SftpExternalEditUploadDependencies, SftpExternalEditUploadInput,
-    SftpExternalOpenWithChoicesInput,
+    SftpExternalOpenWithChoicesInput, sftp_external_app_icons_service,
+    sftp_external_edit_list_service, sftp_external_edit_open_service,
+    sftp_external_edit_release_tab_service, sftp_external_edit_reveal_service,
+    sftp_external_edit_stop_service, sftp_external_edit_upload_service,
+    sftp_external_open_with_choices_service,
 };
 
 #[cfg(all(test, target_os = "macos"))]
@@ -35,8 +35,8 @@ use crate::core::session::types::{PtyConnectionOptions, SessionPlan};
 use crate::services::AppServices;
 use crate::sftp::internal::api::download::download_file_with_progress;
 use crate::sftp::internal::api::prepare_transfer;
-use crate::sftp::internal::connection::map_sftp_error;
 use crate::sftp::internal::connection::SftpContext;
+use crate::sftp::internal::connection::map_sftp_error;
 use crate::sftp::internal::types::{SftpConnectionPool, TransferCancelMap};
 #[cfg(target_os = "macos")]
 use base64::Engine;
@@ -45,9 +45,9 @@ use remote::RemoteStamp;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
-use std::sync::atomic::AtomicBool;
 use std::sync::Arc;
 use std::sync::Mutex;
+use std::sync::atomic::AtomicBool;
 use tauri::{AppHandle, Manager, State};
 use tterm_core::events::sftp::SftpEvent;
 use tterm_core::events::{AppEvent, EventSink};

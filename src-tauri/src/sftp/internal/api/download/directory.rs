@@ -238,9 +238,10 @@ pub(super) async fn download_file_into_directory(
     let item_size = item.size;
     let progress: ProgressSink = Arc::new(move |update: TransferProgress| {
         if let Some(receiver) = batch_cancel_rx.as_ref()
-            && *receiver.borrow() {
-                let _ = cancel_tx.send(true);
-            }
+            && *receiver.borrow()
+        {
+            let _ = cancel_tx.send(true);
+        }
 
         let item_progress = if item_size > 0 {
             ((update.transferred as f64 / item_size as f64) * 100.0).min(100.0) as u32

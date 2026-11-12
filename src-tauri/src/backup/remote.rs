@@ -5,11 +5,11 @@
 
 mod service;
 
+use super::BackupSelection;
 use super::archive::build_archive_for_version;
 use super::diff::value_array_len;
 use super::export::collect_payload;
-use super::webdav::{split_remote_directory, WebDavClient};
-use super::BackupSelection;
+use super::webdav::{WebDavClient, split_remote_directory};
 use crate::config;
 use crate::core::blocking::run_blocking;
 use crate::db::meta;

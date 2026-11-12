@@ -2,19 +2,19 @@ use tterm_core::events::ssh::SshConnectionProgressPayload;
 
 use super::config::{compatibility_client_config, unverifiable_host_key_error};
 use super::hop::{ChainHops, RouteError};
-use super::pool::{chain_keys, Relay};
+use super::pool::{Relay, chain_keys};
 use crate::core::session::{types::JumpHostPlan, types::SessionPlan};
 use crate::proxy::command::CommandTarget;
-use crate::proxy::connect::{open_stream, ProxyStream};
+use crate::proxy::connect::{ProxyStream, open_stream};
 use crate::proxy::{ProxyEndpoint, ProxyKind};
-use crate::ssh::auth::{authenticate, AuthMethod, AuthPrompter, AuthTarget};
+use crate::ssh::auth::{AuthMethod, AuthPrompter, AuthTarget, authenticate};
 use crate::ssh::context::ConnectionContext;
 use crate::ssh::openssh_known_hosts::request_host_certificates;
 use crate::ssh::types::{
-    emit_connection_progress, ConnectionStatusOptions, HostKeyVerificationMode, SshClientHandler,
-    SshConnectError,
+    ConnectionStatusOptions, HostKeyVerificationMode, SshClientHandler, SshConnectError,
+    emit_connection_progress,
 };
-use russh::{client, Disconnect};
+use russh::{Disconnect, client};
 use std::sync::Arc;
 
 /// What every hop of one connection shares: where it reports progress and how

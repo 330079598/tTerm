@@ -1,5 +1,5 @@
 use super::*;
-use tterm_core::events::{zmodem::ZmodemEvent, AppEvent};
+use tterm_core::events::{AppEvent, zmodem::ZmodemEvent};
 use tterm_core::session::recording::{RecordingSessionSink, SessionRecord};
 
 #[test]
@@ -16,12 +16,14 @@ fn arm_publishes_maps_and_trigger_before_send_requested_and_cleans_pipe() {
         .unwrap();
     assert_eq!(armed.session_nonce, 6);
     assert_eq!(armed.incoming_rx.try_recv().unwrap(), [0, 255]);
-    assert!(channel
-        .zmodem
-        .map
-        .read()
-        .unwrap()
-        .contains_key(&channel.tab_id));
+    assert!(
+        channel
+            .zmodem
+            .map
+            .read()
+            .unwrap()
+            .contains_key(&channel.tab_id)
+    );
     assert_eq!(
         sink.records(),
         [SessionRecord::Event(AppEvent::Zmodem(

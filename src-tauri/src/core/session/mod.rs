@@ -2,8 +2,8 @@ pub mod saved_hops;
 pub(crate) mod types;
 
 use types::{
-    jump_host_identity_secret_key, jump_host_secret_key, sudo_secret_key, JumpHostOptions,
-    JumpHostPlan, PtyConnectionOptions, SessionPlan, TerminalShellConfig, MAX_JUMP_HOSTS,
+    JumpHostOptions, JumpHostPlan, MAX_JUMP_HOSTS, PtyConnectionOptions, SessionPlan,
+    TerminalShellConfig, jump_host_identity_secret_key, jump_host_secret_key, sudo_secret_key,
 };
 
 use crate::core::state::SessionKind;
@@ -347,17 +347,19 @@ pub fn load_saved_ssh_password(
     let profile_name = profile_name.map(str::trim).filter(|v| !v.is_empty());
 
     if let Some(profile_id) = profile_id
-        && let Some(password) = secret_state.get_password(profile_id)? {
-            return Ok(Some(password));
-        }
+        && let Some(password) = secret_state.get_password(profile_id)?
+    {
+        return Ok(Some(password));
+    }
 
     if let Some(profile_name) = profile_name
-        && let Some(password) = secret_state.get_password(profile_name)? {
-            if let Some(profile_id) = profile_id {
-                let _ = secret_state.save_password(profile_id, &password);
-            }
-            return Ok(Some(password));
+        && let Some(password) = secret_state.get_password(profile_name)?
+    {
+        if let Some(profile_id) = profile_id {
+            let _ = secret_state.save_password(profile_id, &password);
         }
+        return Ok(Some(password));
+    }
 
     Ok(None)
 }
@@ -436,9 +438,10 @@ pub fn load_saved_jump_host_password(
     };
 
     if let Some(secret_key) = canonical_identity_key.as_deref()
-        && let Some(password) = secret_state.get_password(secret_key)? {
-            return Ok(Some(password));
-        }
+        && let Some(password) = secret_state.get_password(secret_key)?
+    {
+        return Ok(Some(password));
+    }
 
     if let (Some(profile_name), Some(host), Some(port), Some(username)) =
         (profile_name, host, port, username)
@@ -446,12 +449,13 @@ pub fn load_saved_jump_host_password(
         let name_identity_key =
             jump_host_identity_secret_key(None, profile_name, host, port, username);
         if canonical_identity_key.as_deref() != Some(name_identity_key.as_str())
-            && let Some(password) = secret_state.get_password(&name_identity_key)? {
-                if let Some(secret_key) = canonical_identity_key.as_deref() {
-                    let _ = secret_state.save_password(secret_key, &password);
-                }
-                return Ok(Some(password));
+            && let Some(password) = secret_state.get_password(&name_identity_key)?
+        {
+            if let Some(secret_key) = canonical_identity_key.as_deref() {
+                let _ = secret_state.save_password(secret_key, &password);
             }
+            return Ok(Some(password));
+        }
     }
 
     if allow_legacy_fallback {

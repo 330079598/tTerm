@@ -6,8 +6,8 @@ use super::{SerialLineEnding, SerialOptions, SerialPortEntry, SerialReceiveNewli
 use serialport::{SerialPortInfo, SerialPortType, UsbPortInfo};
 use std::collections::VecDeque;
 use std::io::{self, Read, Write};
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 
 fn options(port: &str, usb: Option<SerialUsbId>) -> SerialOptions {
     let mut options: SerialOptions =

@@ -8,7 +8,7 @@ use std::io::{Read, Write};
 use std::sync::PoisonError;
 use std::thread;
 use tokio::sync::mpsc;
-use tterm_core::events::{terminal::TerminalEvent, AppEvent};
+use tterm_core::events::{AppEvent, terminal::TerminalEvent};
 
 /// Result of reading a PTY reader to end-of-stream.
 #[derive(Debug, PartialEq, Eq)]

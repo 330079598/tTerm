@@ -2,7 +2,7 @@
 
 use super::ProxyServer;
 use crate::db::sql_error;
-use rusqlite::{params, Connection, OptionalExtension};
+use rusqlite::{Connection, OptionalExtension, params};
 
 /// Proxy servers in display order.
 pub(crate) fn list_proxies(connection: &Connection) -> Result<Vec<ProxyServer>, String> {

@@ -5,7 +5,7 @@ use std::sync::OnceLock;
 
 use portable_pty::CommandBuilder;
 
-use super::pty::{find_executable_in, resolve_home_dir, shell_program_name, TerminalShellProfile};
+use super::pty::{TerminalShellProfile, find_executable_in, resolve_home_dir, shell_program_name};
 use super::shell_integration::{self, ShellKind};
 use super::wsl_distros::WslDistro;
 

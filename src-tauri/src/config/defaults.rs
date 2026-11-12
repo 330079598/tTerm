@@ -3,7 +3,7 @@
 
 use super::keymap::KeymapConfig;
 use super::update_channel::default_update_channel;
-use super::{keyword_highlight, panes, tab_agent_indicator, tab_icons, AppConfig};
+use super::{AppConfig, keyword_highlight, panes, tab_agent_indicator, tab_icons};
 use sys_locale::get_locale;
 
 fn normalize_language(locale: &str) -> String {

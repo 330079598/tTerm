@@ -2,7 +2,7 @@
 //! files its `Include` lines name in place.
 
 use super::include::IncludeReader;
-use super::matching::{local_user_name, parse_match_criteria, MatchCriterion};
+use super::matching::{MatchCriterion, local_user_name, parse_match_criteria};
 use super::tokens::local_host_name;
 use super::words::{split_keyword, split_ssh_words, strip_inline_comment};
 use std::mem;

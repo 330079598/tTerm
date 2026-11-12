@@ -1,5 +1,5 @@
-use super::verify::KnownHostVerdict;
 use super::OpenSshKnownHosts;
+use super::verify::KnownHostVerdict;
 use base64::Engine;
 use hmac::{Hmac, KeyInit, Mac};
 use russh::keys::ssh_key::certificate::{Builder, CertType};

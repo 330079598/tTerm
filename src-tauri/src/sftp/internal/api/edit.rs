@@ -4,9 +4,8 @@ use crate::services::AppServices;
 use crate::sftp::internal::api::permissions::PERMISSION_MASK;
 use crate::sftp::internal::connection::map_sftp_error;
 use operations::{
-    sftp_open_file_for_edit_service, sftp_save_edited_file_service,
     SftpOpenFileForEditDependencies, SftpOpenFileForEditInput, SftpSaveEditedFileDependencies,
-    SftpSaveEditedFileInput,
+    SftpSaveEditedFileInput, sftp_open_file_for_edit_service, sftp_save_edited_file_service,
 };
 use russh_sftp::client::SftpSession;
 use russh_sftp::protocol::{FileAttributes, OpenFlags};
@@ -91,20 +90,22 @@ fn attributes_to_restore(
 ) -> Vec<FileAttributes> {
     let mut requests = Vec::new();
     if let (Some(uid), Some(gid)) = (original.uid, original.gid)
-        && (replaced.uid, replaced.gid) != (Some(uid), Some(gid)) {
-            requests.push(FileAttributes {
-                uid: Some(uid),
-                gid: Some(gid),
-                ..FileAttributes::empty()
-            });
-        }
+        && (replaced.uid, replaced.gid) != (Some(uid), Some(gid))
+    {
+        requests.push(FileAttributes {
+            uid: Some(uid),
+            gid: Some(gid),
+            ..FileAttributes::empty()
+        });
+    }
     if let Some(mode) = original.permissions.map(|mode| mode & PERMISSION_MASK)
-        && replaced.permissions.map(|now| now & PERMISSION_MASK) != Some(mode) {
-            requests.push(FileAttributes {
-                permissions: Some(mode),
-                ..FileAttributes::empty()
-            });
-        }
+        && replaced.permissions.map(|now| now & PERMISSION_MASK) != Some(mode)
+    {
+        requests.push(FileAttributes {
+            permissions: Some(mode),
+            ..FileAttributes::empty()
+        });
+    }
     requests
 }
 
@@ -236,9 +237,9 @@ async fn save_editable_file(
 
             if let Err(error) = direct_write_result {
                 return Err(format!(
-                "Failed to replace remote file '{}' with rename ({}), then direct overwrite failed: {}",
-                path, replace_error, error
-            ));
+                    "Failed to replace remote file '{}' with rename ({}), then direct overwrite failed: {}",
+                    path, replace_error, error
+                ));
             }
         }
     }

@@ -4,9 +4,9 @@
 use super::document::{Collections, KdfSpec};
 use crate::db::sql_error;
 use crate::ssh::secret_store::{
-    crypto::decrypt_secret, crypto::encrypt_secret, crypto::SecretKey as DataKey,
+    crypto::SecretKey as DataKey, crypto::decrypt_secret, crypto::encrypt_secret,
 };
-use rusqlite::{params, Connection, OptionalExtension};
+use rusqlite::{Connection, OptionalExtension, params};
 use serde::{Deserialize, Serialize};
 
 /// Names the base in the ciphertext's associated data.

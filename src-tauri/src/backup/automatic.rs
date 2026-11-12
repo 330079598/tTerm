@@ -6,8 +6,8 @@ use super::diff::value_array_len;
 use super::export::collect_payload;
 use super::remote;
 use super::{
-    AutomaticBackupSettings, BackupExportResult, BackupHistoryEntry, BackupSelection,
     AUTOMATIC_LAST_BACKUP_AT_KEY, AUTOMATIC_SETTINGS_FILE, AUTOMATIC_SETTINGS_KEY,
+    AutomaticBackupSettings, BackupExportResult, BackupHistoryEntry, BackupSelection,
 };
 use crate::config;
 use crate::db::meta;

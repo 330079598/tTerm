@@ -2,11 +2,11 @@
 //! settings no longer keep, measuring how much space the directory takes,
 //! and cleaning up after compression a quit cut short.
 
-use tterm_core::events::session_log::{LogErrorPayload, SessionLogEvent};
 use tterm_core::events::AppEvent;
+use tterm_core::events::session_log::{LogErrorPayload, SessionLogEvent};
 
 use super::LogContext;
-use super::{emit_status, retention, rotating, SessionLogState, CLEANUP_INTERVAL};
+use super::{CLEANUP_INTERVAL, SessionLogState, emit_status, retention, rotating};
 use std::fs;
 use std::path::Path;
 use std::sync::atomic::Ordering;

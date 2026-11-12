@@ -155,7 +155,7 @@ fn wait_for_start(link: &mut impl Link) -> Result<Check> {
             Some(CRC_MODE) => return Ok(Check::Crc),
             Some(NAK) => return Ok(Check::Sum),
             Some(CAN) if cancelled_by_device(link)? => {
-                return Err(TransferError::CancelledByDevice)
+                return Err(TransferError::CancelledByDevice);
             }
             _ => {}
         }
@@ -172,7 +172,7 @@ fn wait_for_answer(link: &mut impl Link) -> Result<bool> {
             Some(ACK) => return Ok(true),
             Some(NAK) => return Ok(false),
             Some(CAN) if cancelled_by_device(link)? => {
-                return Err(TransferError::CancelledByDevice)
+                return Err(TransferError::CancelledByDevice);
             }
             _ => {}
         }

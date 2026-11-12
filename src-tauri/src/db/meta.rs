@@ -2,10 +2,10 @@
 //! (such as when a backup last ran), the session and the backup and sync
 //! settings. Values are stored as JSON text.
 
-use super::{sql_error, Database};
+use super::{Database, sql_error};
 use rusqlite::{Connection, OptionalExtension};
-use serde::de::DeserializeOwned;
 use serde::Serialize;
+use serde::de::DeserializeOwned;
 use serde_json::Value;
 use std::path::Path;
 

@@ -1,6 +1,6 @@
-use super::{compress, extract, CompressRequest, ExtractRequest, RemoteOperationResult};
+use super::{CompressRequest, ExtractRequest, RemoteOperationResult, compress, extract};
 use crate::core::session::types::PtyConnectionOptions;
-use crate::sftp::internal::api::{with_cancel, SftpHost};
+use crate::sftp::internal::api::{SftpHost, with_cancel};
 use crate::sftp::internal::connection::SftpContext;
 use crate::sftp::internal::types::SftpConnectionPool;
 use crate::sftp::internal::types::TransferCancelMap;

@@ -10,8 +10,8 @@
 //! `TTERM_SUDO_TEST_REQUIRETTY=1` adds the account whose sudoers entry says
 //! `requiretty`, which sudo-rs does not support.
 
-use super::handshake::authenticate;
 use super::SudoAuth;
+use super::handshake::authenticate;
 use crate::sftp::internal::launcher::ChannelLauncher;
 use russh::client::{self, Handle};
 use std::sync::Arc;
@@ -193,11 +193,7 @@ async fn real_sudo_asks_when_nothing_is_saved_and_again_after_a_typo() {
     let mut typo = answer_with("alice-pas", &asked);
     let mut right = answer_with("alice-pass", &asked);
     let auth = authenticate(&ssh, nothing_saved(), move |retry| {
-        if retry {
-            right(retry)
-        } else {
-            typo(retry)
-        }
+        if retry { right(retry) } else { typo(retry) }
     })
     .await
     .expect("the second answer is right");

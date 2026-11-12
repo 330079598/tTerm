@@ -1,7 +1,7 @@
 //! Bringing a key file, and the certificate that goes with it, into the vault.
 
-use super::entry::{inspect, VaultKey};
-use super::{store, ImportVaultKeyInput, MAX_FILE_BYTES};
+use super::entry::{VaultKey, inspect};
+use super::{ImportVaultKeyInput, MAX_FILE_BYTES, store};
 use crate::ssh::secret_store::crypto::SecretKey as DataKey;
 use rusqlite::Connection;
 use russh::keys::{HashAlg, PublicKey};

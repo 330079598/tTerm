@@ -5,8 +5,8 @@
 //! since the agent process handles PIN/touch prompts itself.
 
 use russh::client::{self, AuthResult};
-use russh::keys::agent::client::AgentClient;
 use russh::keys::agent::AgentIdentity;
+use russh::keys::agent::client::AgentClient;
 
 use crate::ssh::types::SshConnectError;
 
@@ -20,8 +20,8 @@ async fn connect_local_agent() -> Result<AgentClient<tokio::net::UnixStream>, Ss
 }
 
 #[cfg(windows)]
-async fn connect_local_agent(
-) -> Result<AgentClient<tokio::net::windows::named_pipe::NamedPipeClient>, SshConnectError> {
+async fn connect_local_agent()
+-> Result<AgentClient<tokio::net::windows::named_pipe::NamedPipeClient>, SshConnectError> {
     // The OpenSSH agent service (Windows 10+) is what most hardware-key
     // tooling (e.g. YubiKey minidriver, Windows Hello) targets.
     AgentClient::connect_named_pipe(r"\\.\pipe\openssh-ssh-agent")
@@ -54,8 +54,8 @@ pub async fn connect_local_agent_socket() -> Result<tokio::net::UnixStream, SshC
 }
 
 #[cfg(windows)]
-pub async fn connect_local_agent_socket(
-) -> Result<tokio::net::windows::named_pipe::NamedPipeClient, SshConnectError> {
+pub async fn connect_local_agent_socket()
+-> Result<tokio::net::windows::named_pipe::NamedPipeClient, SshConnectError> {
     const ERROR_PIPE_BUSY: i32 = 231;
     const PIPE_PATH: &str = r"\\.\pipe\openssh-ssh-agent";
 
@@ -68,7 +68,7 @@ pub async fn connect_local_agent_socket(
             Err(e) => {
                 return Err(SshConnectError::Permanent(format!(
                     "Could not connect to the local SSH agent (checked the OpenSSH agent service at {PIPE_PATH}): {e}"
-                )))
+                )));
             }
         }
     }

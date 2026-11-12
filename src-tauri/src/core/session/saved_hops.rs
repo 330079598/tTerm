@@ -1,7 +1,7 @@
 //! Jump hosts that log in as one of the user's saved connections.
 
 use super::types::{JumpHostOptions, JumpHostPlan, SessionPlan};
-use super::{load_saved_jump_host_password, load_saved_ssh_password, JumpHostSecretOwner};
+use super::{JumpHostSecretOwner, load_saved_jump_host_password, load_saved_ssh_password};
 use crate::profiles::types::SavedProfile;
 use crate::ssh::secret_store::types::SecretStoreState;
 

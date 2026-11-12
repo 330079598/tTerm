@@ -4,9 +4,9 @@
 //! that backups and sync never carry what a terminal printed.
 
 use crate::core::blocking::run_blocking;
+use flate2::Compression;
 use flate2::read::GzDecoder;
 use flate2::write::GzEncoder;
-use flate2::Compression;
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 use std::fs;

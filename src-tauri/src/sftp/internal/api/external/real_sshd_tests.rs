@@ -49,10 +49,12 @@ async fn real_sshd_external_edit_round_trip_keeps_the_file_as_it_was() {
         .expect("the remote file is unchanged, so the upload goes ahead");
     assert_eq!(stamp.size, 12);
     assert_eq!(std::fs::read_to_string(&target).unwrap(), "port = 8080\n");
-    assert!(std::fs::symlink_metadata(&link)
-        .unwrap()
-        .file_type()
-        .is_symlink());
+    assert!(
+        std::fs::symlink_metadata(&link)
+            .unwrap()
+            .file_type()
+            .is_symlink()
+    );
     assert_eq!(
         std::fs::metadata(&target).unwrap().permissions().mode() & 0o777,
         0o640

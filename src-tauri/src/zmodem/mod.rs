@@ -5,9 +5,9 @@
 //! channel task; each call site stays responsible for actually writing the
 //! bytes these produce back to its own channel.
 
+use std::sync::Arc;
 use std::sync::atomic::AtomicBool;
 use std::sync::mpsc::Sender;
-use std::sync::Arc;
 
 use crate::core::state::ChannelContext;
 use crate::core::{state::ZmodemArmedSend, state::ZmodemTabHandle};

@@ -1,5 +1,5 @@
 use super::output::deliver_output;
-use super::{close_session, finish_output, SshChannelIo, SshExitSignal};
+use super::{SshChannelIo, SshExitSignal, close_session, finish_output};
 use crate::core::session::types::SessionPlan;
 use crate::core::state::ChannelContext;
 use crate::session_log::LogContext;
@@ -55,9 +55,10 @@ impl IncomingOutput<'_> {
         if !bytes.is_empty() {
             let outcome = self.zmodem_driver.process(&bytes);
             if !outcome.outgoing.is_empty()
-                && let Err(err) = writer_stream.write_all(&outcome.outgoing).await {
-                    return Err(format!("SSH write failed: {err}"));
-                }
+                && let Err(err) = writer_stream.write_all(&outcome.outgoing).await
+            {
+                return Err(format!("SSH write failed: {err}"));
+            }
             if let Some(remainder) = outcome.send_requested {
                 let tx = crate::zmodem::arm_send(self.tab, remainder);
                 self.zmodem_send_pipe.arm(tx);

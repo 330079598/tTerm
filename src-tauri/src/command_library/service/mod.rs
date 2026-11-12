@@ -197,11 +197,12 @@ fn normalize_variables(variables: Vec<CommandVariable>) -> Result<Vec<CommandVar
                 });
             if variable.value_type == "number"
                 && let Some(value) = &default_value
-                    && value.trim().parse::<f64>().is_err() {
-                        return Err(format!(
-                            "Command variable '{name}' has a default that is not a number"
-                        ));
-                    }
+                && value.trim().parse::<f64>().is_err()
+            {
+                return Err(format!(
+                    "Command variable '{name}' has a default that is not a number"
+                ));
+            }
 
             let label = variable.label.trim();
             Ok(CommandVariable {

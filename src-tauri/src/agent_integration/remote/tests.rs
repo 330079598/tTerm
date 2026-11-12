@@ -141,9 +141,11 @@ async fn leaves_settings_it_cannot_read_alone() {
     fs::write(codex_dir.join("hooks.json"), "{ not json").unwrap();
 
     let current = status(&sftp, &home, Agent::Codex).await;
-    assert!(current
-        .error
-        .is_some_and(|error| error.contains("hooks.json")));
+    assert!(
+        current
+            .error
+            .is_some_and(|error| error.contains("hooks.json"))
+    );
     assert!(change(&sftp, &home, Agent::Codex, true).await.is_err());
     assert_eq!(
         fs::read_to_string(codex_dir.join("hooks.json")).unwrap(),
@@ -169,13 +171,17 @@ async fn writes_a_symlinked_settings_file_through_the_link() {
     .unwrap();
 
     change(&sftp, &home, Agent::ClaudeCode, true).await.unwrap();
-    assert!(fs::symlink_metadata(claude_dir.join("settings.json"))
-        .unwrap()
-        .file_type()
-        .is_symlink());
-    assert!(fs::read_to_string(dotfiles.join("claude.json"))
-        .unwrap()
-        .contains("tterm-agent"));
+    assert!(
+        fs::symlink_metadata(claude_dir.join("settings.json"))
+            .unwrap()
+            .file_type()
+            .is_symlink()
+    );
+    assert!(
+        fs::read_to_string(dotfiles.join("claude.json"))
+            .unwrap()
+            .contains("tterm-agent")
+    );
 }
 
 /// The environment as OpenSSH hands it to the login shell, which the

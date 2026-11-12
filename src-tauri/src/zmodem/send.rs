@@ -25,10 +25,10 @@ use tterm_core::events::zmodem::{TransferEmitter, TransferEvent};
 use std::fs::File;
 use std::io::{Read as _, Seek, SeekFrom, Write as _};
 use std::path::{Path, PathBuf};
-use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::mpsc::Receiver;
 use std::sync::Arc;
 use std::sync::PoisonError;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::mpsc::Receiver;
 use std::time::{Duration, Instant};
 
 use tokio::sync::Mutex as TokioMutex;
@@ -185,13 +185,13 @@ pub fn run(params: ZmodemSendParams) {
             feed_until_ready(&mut engine, &incoming, &active, &cancel_requested, |e| {
                 e.finish_send()
             })
-        {
-            write_back(&active, &fin);
-            if let Ok(chunk) = incoming.recv_timeout(FEED_TIMEOUT) {
-                let result = engine.feed(&chunk);
-                write_back(&active, &result.outgoing);
-            }
+    {
+        write_back(&active, &fin);
+        if let Ok(chunk) = incoming.recv_timeout(FEED_TIMEOUT) {
+            let result = engine.feed(&chunk);
+            write_back(&active, &result.outgoing);
         }
+    }
 
     zmodem_map
         .write()

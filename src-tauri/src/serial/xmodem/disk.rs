@@ -2,10 +2,10 @@
 
 use tterm_core::events::zmodem::TransferEmitter;
 
+use super::XmodemProtocol;
 use super::protocol::{Result, TransferError};
 use super::receive::{self, FileSink};
-use super::transfer::{cancel_on_failure, FileInfo, FileRows, PortClaim, TapLink};
-use super::XmodemProtocol;
+use super::transfer::{FileInfo, FileRows, PortClaim, TapLink, cancel_on_failure};
 use std::fs::File;
 use std::io::{BufWriter, Write};
 use std::path::{Path, PathBuf};

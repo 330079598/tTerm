@@ -3,14 +3,14 @@
 
 use super::files::{remote_read_all, remote_write_all};
 use super::{
-    failed, TransferError, TransferSidecar, CHECKPOINT_MIN_BYTES, CHECKPOINT_MIN_INTERVAL,
-    CHECKPOINT_QUEUE_CAPACITY,
+    CHECKPOINT_MIN_BYTES, CHECKPOINT_MIN_INTERVAL, CHECKPOINT_QUEUE_CAPACITY, TransferError,
+    TransferSidecar, failed,
 };
 use russh_sftp::client::RawSftpSession;
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Instant;
-use tokio::sync::{mpsc, Mutex};
+use tokio::sync::{Mutex, mpsc};
 
 pub(super) enum SidecarStore {
     Remote {
@@ -35,9 +35,10 @@ impl SidecarStore {
                     .await
                     .ok()
                     .flatten()
-                    && let Ok(sidecar) = serde_json::from_slice::<TransferSidecar>(&data) {
-                        return Some(sidecar);
-                    }
+                    && let Ok(sidecar) = serde_json::from_slice::<TransferSidecar>(&data)
+                {
+                    return Some(sidecar);
+                }
                 // The save swap (write tmp -> remove primary -> rename) can
                 // crash after the remove but before the rename, leaving only
                 // the temp copy. Recover it instead of discarding the whole
@@ -56,9 +57,10 @@ impl SidecarStore {
             }
             SidecarStore::Local { path } => {
                 if let Ok(data) = tokio::fs::read(path).await
-                    && let Ok(sidecar) = serde_json::from_slice::<TransferSidecar>(&data) {
-                        return Some(sidecar);
-                    }
+                    && let Ok(sidecar) = serde_json::from_slice::<TransferSidecar>(&data)
+                {
+                    return Some(sidecar);
+                }
                 // Same recovery as the remote store for the failed
                 // remove-then-rename fallback in `save`.
                 let tmp = path.with_extension("json.tmp");

@@ -83,10 +83,11 @@ pub(super) fn apply_macos_login_shell_env(cmd: &mut CommandBuilder) {
     // `tterm` runs in tTerm's tabs whether or not the command is installed.
     // Last, so that it never stands in for a program of the user's.
     if let Some(bin) = crate::system_integration::tab_bin_dir().and_then(std::path::Path::to_str)
-        && !path.split(':').any(|entry| entry == bin) {
-            path.push(':');
-            path.push_str(bin);
-        }
+        && !path.split(':').any(|entry| entry == bin)
+    {
+        path.push(':');
+        path.push_str(bin);
+    }
     cmd.env("PATH", path);
 }
 
@@ -398,8 +399,8 @@ pub fn spawn_local_pty(
 /// older system ones drop the color queries TUIs send at startup.
 #[cfg(target_os = "windows")]
 fn log_conpty_source() {
-    use windows::core::w;
     use windows::Win32::System::LibraryLoader::GetModuleHandleW;
+    use windows::core::w;
 
     static LOGGED: std::sync::Once = std::sync::Once::new();
     LOGGED.call_once(|| {
