@@ -3,12 +3,11 @@ use crate::{
     cell::Cell,
     color::{Color, NamedColor},
     snapshot::Snapshot,
+    theme::color_to_hex,
 };
 use regress::{Flags, Regex};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-
-use crate::theme::keyword_color::parse_color;
 
 /// Palette values keyed by the frontend's sixteen terminal color names.
 pub type HighlightPalette = HashMap<String, String>;
@@ -191,7 +190,7 @@ pub fn highlight_pattern_error(rule: &HighlightRule) -> Option<&'static str> {
 pub fn resolve_highlight_color(color: Option<&str>, palette: &HighlightPalette) -> Option<String> {
     let value = color?;
     if PALETTE_NAMES.contains(&value) {
-        let supplied = palette.get(value).and_then(|v| parse_color(v));
+        let supplied = palette.get(value).and_then(|v| color_to_hex(v));
         return supplied.or_else(|| {
             XTERM
                 .iter()
@@ -199,7 +198,7 @@ pub fn resolve_highlight_color(color: Option<&str>, palette: &HighlightPalette) 
                 .map(|(_, v)| (*v).into())
         });
     }
-    parse_color(value)
+    color_to_hex(value)
 }
 /// Compiles enabled, valid, colored rules in set order.
 pub fn compile_highlight_set(

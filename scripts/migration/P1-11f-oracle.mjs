@@ -803,6 +803,8 @@ const output = {
       "0xabcdef",
       "#abcd",
       "#abcdef00",
+      "#abc\uFEFF",
+      "#abc\u0085",
       " rgb(1, 2, 3) ",
       "rgba(1 2 3 0.5)",
       "RGB(1,2,3)",

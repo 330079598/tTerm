@@ -29,9 +29,6 @@ use crate::palette::{Rgba, TerminalPalette};
 /// JavaScript-compatible string and number helpers.
 pub mod js;
 
-/// The color parser the keyword highlighter uses.
-pub(crate) mod keyword_color;
-
 use self::js::{js_number_to_string, js_round, js_trim};
 
 /// The interface color keys, in the order the frontend serializes them.

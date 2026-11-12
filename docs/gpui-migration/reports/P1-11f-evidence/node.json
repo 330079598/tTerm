@@ -994,6 +994,14 @@
         "hex": null
       },
       {
+        "value": "#abc﻿",
+        "hex": "#aabbcc"
+      },
+      {
+        "value": "#abc",
+        "hex": null
+      },
+      {
         "value": " rgb(1, 2, 3) ",
         "hex": "#010203"
       },
