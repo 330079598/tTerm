@@ -22,7 +22,7 @@ pub(crate) fn import_ssh_config_profiles_blocking(
         .group
         .as_deref()
         .unwrap_or("Imported from SSH config");
-    let group_id = crate::db::write(|transaction| resolve_path(transaction, group_path))?;
+    let group_id = tterm_core::db::write(|transaction| resolve_path(transaction, group_path))?;
     let mut profiles = load_profiles()?;
     let mut proxies = ImportedProxies::load()?;
     let mut imported = 0;
@@ -130,7 +130,7 @@ pub(crate) fn import_ssh_config_profiles_blocking(
         changed_profiles.push(profile);
     }
 
-    crate::db::write(|transaction| {
+    tterm_core::db::write(|transaction| {
         proxies.save(transaction)?;
         for profile in &changed_profiles {
             upsert_profile(transaction, profile)?;

@@ -452,7 +452,7 @@ fn import_backup_blocking(
     let file_snapshot = capture_file_snapshot(&options.selection, payload)?;
     let database_snapshot = capture_database_snapshot(&options.selection)?;
     let command_snapshot = if options.selection.command_library {
-        Some(CommandRepository::new(crate::db::get()?).list()?)
+        Some(CommandRepository::new(tterm_core::db::get()?).list()?)
     } else {
         None
     };

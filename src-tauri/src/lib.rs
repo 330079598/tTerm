@@ -463,7 +463,7 @@ pub fn run() {
                 eprintln!("Failed to clear WebDAV downloads: {error}");
             }
 
-            if let Err(error) = db::init() {
+            if let Err(error) = tterm_core::db::init() {
                 eprintln!("Failed to open database: {error}");
             }
 

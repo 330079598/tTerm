@@ -15,8 +15,8 @@ use super::keyring_backend::{
 use super::legacy::LegacyVault;
 use super::store::{self, WRAP_PASSWORD, WRAP_SYSTEM};
 use super::types::SecretStorageMode;
-use crate::db::{Database, sql_error};
 use std::collections::BTreeMap;
+use tterm_core::db::{Database, sql_error};
 use zeroize::Zeroizing;
 
 pub(crate) const NEEDS_VAULT_PASSWORD: &str =

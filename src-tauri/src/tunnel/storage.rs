@@ -1,12 +1,12 @@
 use super::types::TunnelRule;
-use crate::db::sql_error;
 use rusqlite::{Connection, OptionalExtension, Row, params};
 use std::collections::HashMap;
+use tterm_core::db::sql_error;
 use tterm_core::events::tunnel::TunnelTraffic;
 
 /// Tunnels in display order.
 pub(crate) fn load_tunnels() -> Result<Vec<TunnelRule>, String> {
-    crate::db::read(list_tunnel_rules)
+    tterm_core::db::read(list_tunnel_rules)
 }
 
 pub(crate) fn list_tunnel_rules(connection: &Connection) -> Result<Vec<TunnelRule>, String> {
@@ -166,7 +166,7 @@ pub(crate) fn reset_tunnel_traffic(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::db::Database;
+    use tterm_core::db::Database;
 
     fn rule(id: &str) -> TunnelRule {
         serde_json::from_value(serde_json::json!({

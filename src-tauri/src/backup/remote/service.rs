@@ -59,7 +59,7 @@ pub(in crate::backup) async fn save_webdav_backup_settings(
             None
         };
         // The server and its passwords are saved together or not at all.
-        crate::db::write(|transaction| {
+        tterm_core::db::write(|transaction| {
             if let Some(data_key) = data_key.as_ref() {
                 if let Some(password) = password.as_deref() {
                     put_secret(transaction, data_key, PASSWORD_KEY, password)?;
@@ -80,7 +80,7 @@ pub(in crate::backup) async fn clear_webdav_backup_settings(
 ) -> Result<WebDavBackupStatus, String> {
     let secret_state = secret_state.clone();
     run_blocking(move || {
-        crate::db::write(|transaction| clear_settings(transaction))?;
+        tterm_core::db::write(|transaction| clear_settings(transaction))?;
         status(&secret_state)
     })
     .await

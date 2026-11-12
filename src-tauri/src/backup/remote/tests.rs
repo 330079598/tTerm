@@ -8,7 +8,7 @@ use chrono::TimeZone;
 
 #[test]
 fn saving_settings_keeps_history_and_clearing_forgets_everything() {
-    let database = crate::db::Database::open_in_memory().unwrap();
+    let database = tterm_core::db::Database::open_in_memory().unwrap();
     database
         .write(|connection| {
             let settings = |url: &str| WebDavBackupSettings {

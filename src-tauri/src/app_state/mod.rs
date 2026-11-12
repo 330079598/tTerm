@@ -2,8 +2,8 @@
 //! stays out of `config.json` and sync. Backups carry the collapsed profile
 //! groups with the settings; the last update check stays on the device.
 
-use crate::db::meta;
 use serde::{Deserialize, Serialize};
+use tterm_core::db::meta;
 
 pub(crate) mod commands;
 
@@ -47,7 +47,7 @@ fn save(connection: &rusqlite::Connection, state: &AppState) -> Result<(), Strin
 
 /// Moves the state older versions kept in `config.json` into the database.
 pub(crate) fn import_from_config_file(
-    database: &crate::db::Database,
+    database: &tterm_core::db::Database,
     config_dir: &std::path::Path,
 ) -> Result<(), String> {
     meta::move_file_fields(
@@ -63,7 +63,7 @@ pub(crate) fn import_from_config_file(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::db::Database;
+    use tterm_core::db::Database;
 
     #[test]
     fn state_round_trips() {

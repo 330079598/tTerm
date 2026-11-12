@@ -241,7 +241,7 @@ pub(super) fn apply_payload(
 
     // The WebDAV passwords are only taken together with their server.
     let webdav_restored = options.selection.settings && payload.webdav_backup.is_some();
-    let (profiles_imported, secrets_imported) = crate::db::write(|transaction| {
+    let (profiles_imported, secrets_imported) = tterm_core::db::write(|transaction| {
         let profiles_imported = apply_database_payload(transaction, payload, options)?;
         if let Some(sends) = payload
             .serial_sends
@@ -280,7 +280,7 @@ pub(super) fn apply_payload(
         if options.conflict_strategy == "replace" {
             replace_commands(incoming)?;
         } else {
-            let repository = CommandRepository::new(crate::db::get()?);
+            let repository = CommandRepository::new(tterm_core::db::get()?);
             for command in incoming {
                 repository.save(command)?;
             }
@@ -485,7 +485,7 @@ pub(super) fn import_serial_sends(
 }
 
 pub(super) fn replace_commands(commands: &[SavedCommand]) -> Result<(), String> {
-    let repository = CommandRepository::new(crate::db::get()?);
+    let repository = CommandRepository::new(tterm_core::db::get()?);
     for existing in repository.list()? {
         repository.delete(&existing.id)?;
     }

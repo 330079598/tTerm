@@ -11,7 +11,6 @@ use super::diff::value_array_len;
 use super::export::collect_payload;
 use super::webdav::{WebDavClient, split_remote_directory};
 use crate::core::blocking::run_blocking;
-use crate::db::meta;
 use crate::ssh::secret_store::store::get_secret;
 use crate::ssh::secret_store::types::SecretStoreState;
 use chrono::Utc;
@@ -21,6 +20,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::fs;
 use std::sync::atomic::AtomicBool;
+use tterm_core::db::meta;
 use zeroize::Zeroizing;
 
 mod files;
@@ -175,7 +175,7 @@ async fn run_webdav_backup_locked(
     let result = upload(&app_version, &settings, frontend_state, secret_state).await;
     let message = result.as_ref().err().cloned();
     run_blocking(move || {
-        crate::db::write(|transaction| match message {
+        tterm_core::db::write(|transaction| match message {
             Some(message) => meta::set(transaction, LAST_ERROR_KEY, &message),
             None => {
                 meta::set(transaction, LAST_BACKUP_AT_KEY, &now_ms())?;
@@ -358,7 +358,7 @@ fn saved_secret(
     key: &str,
 ) -> Result<Option<Zeroizing<String>>, String> {
     let data_key = secret_state.data_key()?;
-    crate::db::read(|connection| get_secret(connection, &data_key, key))
+    tterm_core::db::read(|connection| get_secret(connection, &data_key, key))
 }
 
 /// The saved backup password, which opens backups this account uploaded.
@@ -453,7 +453,7 @@ fn backup_due(settings: &WebDavBackupSettings, now: i64) -> bool {
 
 /// The saved settings with this device's upload history.
 fn load_settings() -> Result<WebDavBackupSettings, String> {
-    crate::db::read(read_settings)
+    tterm_core::db::read(read_settings)
 }
 
 pub(crate) fn read_settings(connection: &Connection) -> Result<WebDavBackupSettings, String> {
@@ -502,7 +502,7 @@ fn clear_settings(connection: &Connection) -> Result<(), String> {
 /// Moves `webdav_backup_settings.json` from older versions into the
 /// database, its upload history apart from the settings.
 pub(crate) fn import_settings_file(
-    database: &crate::db::Database,
+    database: &tterm_core::db::Database,
     config_dir: &std::path::Path,
 ) -> Result<(), String> {
     meta::import_file(database, &config_dir.join(SETTINGS_FILE), import_settings)

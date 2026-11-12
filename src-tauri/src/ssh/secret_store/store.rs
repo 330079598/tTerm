@@ -2,8 +2,8 @@
 //! ciphertext; encryption happens in `crypto`.
 
 use super::crypto::{self, KdfParams, SecretKey};
-use crate::db::sql_error;
 use rusqlite::{Connection, OptionalExtension, params};
+use tterm_core::db::sql_error;
 use zeroize::Zeroizing;
 
 pub(crate) const WRAP_SYSTEM: &str = "system";
@@ -227,7 +227,7 @@ pub(crate) fn migrated(connection: &Connection) -> Result<bool, String> {
 
 /// When the passwords of older versions were moved (unix ms).
 pub(crate) fn migrated_at(connection: &Connection) -> Result<Option<i64>, String> {
-    crate::db::meta::get(connection, MIGRATED_MARKER)
+    tterm_core::db::meta::get(connection, MIGRATED_MARKER)
 }
 
 pub(crate) fn mark_migrated(connection: &Connection) -> Result<(), String> {
@@ -244,7 +244,7 @@ pub(crate) fn mark_migrated(connection: &Connection) -> Result<(), String> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::db::Database;
+    use tterm_core::db::Database;
 
     fn insert_profile(connection: &Connection, id: &str) {
         connection

@@ -132,7 +132,7 @@ pub(crate) fn load(id: &str, subject: &str) -> Result<VaultKey, String> {
     let data_key = state.data_key().map_err(|reason| {
         format!("{subject} is in the key vault, which cannot be read: {reason}")
     })?;
-    crate::db::read(|connection| store::get(connection, &data_key, id))?.ok_or_else(|| {
+    tterm_core::db::read(|connection| store::get(connection, &data_key, id))?.ok_or_else(|| {
         format!(
             "{subject} is not in this device's key vault. Sync or restore the saved passwords \
              of the device that has it, or choose another key."
@@ -143,7 +143,7 @@ pub(crate) fn load(id: &str, subject: &str) -> Result<VaultKey, String> {
 fn summarize_all(state: &SecretStoreState) -> Result<Vec<VaultKeySummary>, String> {
     let data_key = state.data_key()?;
     let profiles = crate::profiles::storage::load_profiles()?;
-    let mut summaries = crate::db::read(|connection| {
+    let mut summaries = tterm_core::db::read(|connection| {
         let mut summaries = Vec::new();
         for id in store::ids(connection)? {
             if let Some(key) = store::get(connection, &data_key, &id)? {
@@ -164,7 +164,7 @@ fn update(
 ) -> Result<VaultKeySummary, String> {
     let data_key = state.data_key()?;
     let profiles = crate::profiles::storage::load_profiles()?;
-    crate::db::write(|transaction| {
+    tterm_core::db::write(|transaction| {
         let mut key = store::get(transaction, &data_key, id)?
             .ok_or_else(|| "The key is no longer in the key vault.".to_string())?;
         change(&mut key)?;
@@ -189,7 +189,7 @@ async fn import_vault_key_service(
         let data_key = state.data_key()?;
         let key = import::read_import(&input)?;
         let id = uuid::Uuid::new_v4().to_string();
-        crate::db::write(|transaction| {
+        tterm_core::db::write(|transaction| {
             import::ensure_new(transaction, &data_key, &key)?;
             store::put(transaction, &data_key, &id, &key)
         })?;
@@ -248,7 +248,7 @@ async fn delete_vault_key_service(
     run_blocking(move || {
         // Deleting needs the vault unlocked, as every other change does.
         state.data_key()?;
-        crate::db::write(|transaction| store::delete(transaction, &input.id))
+        tterm_core::db::write(|transaction| store::delete(transaction, &input.id))
     })
     .await
 }
@@ -261,7 +261,7 @@ async fn export_vault_key_service(
     run_blocking(move || {
         let data_key = state.data_key()?;
         state.require_verification(VerificationPurpose::Sensitive)?;
-        let key = crate::db::read(|connection| store::get(connection, &data_key, &input.id))?
+        let key = tterm_core::db::read(|connection| store::get(connection, &data_key, &input.id))?
             .ok_or_else(|| "The key is no longer in the key vault.".to_string())?;
         export::write_key_files(Path::new(input.path.trim()), &key)
     })

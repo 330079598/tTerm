@@ -6,9 +6,9 @@
 
 use super::storage::{list_saved_profiles, upsert_profile};
 use super::types::{ProfileGroup, SavedProfile};
-use crate::db::sql_error;
 use rusqlite::{Connection, params};
 use std::collections::{HashMap, HashSet};
+use tterm_core::db::sql_error;
 
 /// Separates the names in a group path.
 const PATH_SEPARATOR: char = '/';

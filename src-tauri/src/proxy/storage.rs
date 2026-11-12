@@ -1,8 +1,8 @@
 //! The saved proxy servers, one row each in display order.
 
 use super::ProxyServer;
-use crate::db::sql_error;
 use rusqlite::{Connection, OptionalExtension, params};
+use tterm_core::db::sql_error;
 
 /// Proxy servers in display order.
 pub(crate) fn list_proxies(connection: &Connection) -> Result<Vec<ProxyServer>, String> {

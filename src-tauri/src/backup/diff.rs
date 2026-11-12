@@ -23,7 +23,7 @@ pub(super) fn calculate_diff(payload: &BackupPayload) -> Result<BackupDiff, Stri
         &["id"],
     )?;
 
-    let existing_commands = CommandRepository::new(crate::db::get()?).list()?;
+    let existing_commands = CommandRepository::new(tterm_core::db::get()?).list()?;
     let existing_by_id = existing_commands
         .into_iter()
         .map(|command| (command.id.clone(), command))

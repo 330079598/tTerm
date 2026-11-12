@@ -88,7 +88,7 @@ pub fn remove_retired_files(app: &tauri::AppHandle) -> Result<(), String> {
     );
     let secrets_dir = secrets_dir(app)?;
     let secrets_migrated_at =
-        crate::db::read(ssh::secret_store::store::migrated_at).unwrap_or(None);
+        tterm_core::db::read(ssh::secret_store::store::migrated_at).unwrap_or(None);
     errors.extend(remove_retired(
         &secrets_dir,
         &[

@@ -4,7 +4,6 @@
 //! it, so it either happens completely or is retried on the next launch.
 //! Imported files are renamed to `<name>.migrated` rather than deleted.
 
-use super::{Database, sql_error};
 use crate::profiles::types::{ProfileGroup, SavedProfile};
 use crate::sftp::store::SftpDirectoryStore;
 use crate::ssh::store::KnownHostStore;
@@ -14,6 +13,7 @@ use serde::de::DeserializeOwned;
 use std::fs;
 use std::path::Path;
 use tterm_core::config::paths::ensure_config_dir;
+use tterm_core::db::{Database, IMPORT_ERROR, get, init, read, sql_error};
 
 const IMPORTED_MARKER: &str = "legacy_json_imported_at";
 
@@ -28,7 +28,7 @@ pub(crate) const IMPORTED_FILES: &[&str] = &[
 
 /// When the JSON files were imported (unix ms); `None` before that.
 pub(crate) fn imported_at(connection: &Connection) -> Result<Option<i64>, String> {
-    super::meta::get(connection, IMPORTED_MARKER)
+    tterm_core::db::meta::get(connection, IMPORTED_MARKER)
 }
 
 /// Whether this database already records the JSON import.
@@ -150,29 +150,29 @@ fn read_json<T: DeserializeOwned>(path: &Path) -> Result<Option<T>, String> {
 /// Whether the legacy JSON files have been imported. False when the database
 /// is unavailable.
 pub(crate) fn legacy_json_imported() -> bool {
-    super::init().and_then(db_records_import).unwrap_or(false)
+    init().and_then(db_records_import).unwrap_or(false)
 }
 
 /// Moves the settings files and state older versions kept beside
 /// `config.json` into the database.
 pub(crate) fn import_settings_files() -> Result<(), String> {
-    import_settings_files_into(super::get()?, &ensure_config_dir()?)
+    import_settings_files_into(get()?, &ensure_config_dir()?)
 }
 
 /// When the legacy JSON files were imported (unix ms); `None` before that
 /// or when the database is unavailable.
 pub(crate) fn legacy_json_imported_at() -> Option<i64> {
-    super::read(imported_at).ok().flatten()
+    read(imported_at).ok().flatten()
 }
 
 /// Imports the JSON files that held app data before the database, once.
 pub(crate) fn import_legacy_json_files() -> Result<(), String> {
-    let database = super::init()?;
+    let database = init()?;
     let result = ensure_config_dir().and_then(|directory| import_json_files(database, &directory));
     match result {
         Ok(_) => Ok(()),
         Err(error) => {
-            let _ = super::IMPORT_ERROR.set(error.clone());
+            let _ = IMPORT_ERROR.set(error.clone());
             Err(error)
         }
     }

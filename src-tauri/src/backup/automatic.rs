@@ -9,7 +9,6 @@ use super::{
     AUTOMATIC_LAST_BACKUP_AT_KEY, AUTOMATIC_SETTINGS_FILE, AUTOMATIC_SETTINGS_KEY,
     AutomaticBackupSettings, BackupExportResult, BackupHistoryEntry, BackupSelection,
 };
-use crate::db::meta;
 use crate::ssh::secret_store::types::SecretStoreState;
 use chrono::Utc;
 use serde_json::Value;
@@ -17,6 +16,7 @@ use std::cmp::Reverse;
 use std::collections::HashSet;
 use std::fs;
 use std::path::{Path, PathBuf};
+use tterm_core::db::meta;
 
 pub(super) fn run_due_automatic_backup_blocking(
     app_version: String,
@@ -41,7 +41,7 @@ pub(super) fn run_due_automatic_backup_blocking(
     let command_count = payload.commands.as_ref().map_or(0, Vec::len);
     let archive = build_archive_for_version(&app_version, &settings.selection, &payload, None)?;
     tterm_core::config::atomic::atomic_write_private(&path, archive)?;
-    crate::db::write(|transaction| {
+    tterm_core::db::write(|transaction| {
         meta::set(
             transaction,
             AUTOMATIC_LAST_BACKUP_AT_KEY,
@@ -224,7 +224,7 @@ pub(super) fn adopt_automatic_backup_settings(
 
 /// The saved schedule with when the last automatic backup ran.
 pub(super) fn load_automatic_backup_settings() -> Result<AutomaticBackupSettings, String> {
-    crate::db::read(read_automatic_backup_settings)
+    tterm_core::db::read(read_automatic_backup_settings)
 }
 
 pub(crate) fn read_automatic_backup_settings(
@@ -253,7 +253,7 @@ pub(super) fn write_automatic_backup_settings(
 /// Moves the backup settings files of older versions into the database,
 /// with when backups last ran kept apart from the settings.
 pub(crate) fn import_settings_files(
-    database: &crate::db::Database,
+    database: &tterm_core::db::Database,
     config_dir: &Path,
 ) -> Result<(), String> {
     let automatic = meta::import_file(

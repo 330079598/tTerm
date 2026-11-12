@@ -2,9 +2,9 @@
 //! database; older versions kept them in `session.json`.
 
 use crate::core::blocking::run_blocking;
-use crate::db::meta;
 use rusqlite::Connection;
 use serde::{Deserialize, Serialize};
+use tterm_core::db::meta;
 
 pub(crate) mod commands;
 #[cfg(test)]
@@ -134,7 +134,7 @@ fn clear(connection: &Connection) -> Result<(), String> {
 }
 
 pub(super) async fn load_session_service() -> Result<SessionData, String> {
-    run_blocking(|| crate::db::read(read_session).map(Option::unwrap_or_default)).await
+    run_blocking(|| tterm_core::db::read(read_session).map(Option::unwrap_or_default)).await
 }
 
 pub(super) async fn save_session_service(session: SessionData) -> Result<(), String> {
@@ -144,14 +144,14 @@ pub(super) async fn save_session_service(session: SessionData) -> Result<(), Str
         if let Err(error) = scrollback::prune_to_session(&session.tabs) {
             eprintln!("Failed to delete the terminal content of closed tabs: {error}");
         }
-        crate::db::write(|transaction| write_session(transaction, session))
+        tterm_core::db::write(|transaction| write_session(transaction, session))
     })
     .await
 }
 
 pub(super) async fn clear_session_service() -> Result<(), String> {
     run_blocking(|| {
-        crate::db::write(|transaction| clear(transaction))?;
+        tterm_core::db::write(|transaction| clear(transaction))?;
         scrollback::clear_all()
     })
     .await
@@ -159,7 +159,7 @@ pub(super) async fn clear_session_service() -> Result<(), String> {
 
 /// Moves `session.json` from older versions into the database.
 pub(crate) fn import_file(
-    database: &crate::db::Database,
+    database: &tterm_core::db::Database,
     config_dir: &std::path::Path,
 ) -> Result<(), String> {
     meta::import_file(database, &config_dir.join(FILE_NAME), import_session)?;
@@ -174,7 +174,8 @@ pub(crate) fn import_file(
 
 /// Whether `session.json` was moved into the database.
 pub(crate) fn file_imported() -> bool {
-    crate::db::read(|connection| meta::contains(connection, FILE_IMPORTED_KEY)).unwrap_or(false)
+    tterm_core::db::read(|connection| meta::contains(connection, FILE_IMPORTED_KEY))
+        .unwrap_or(false)
 }
 
 fn import_session(connection: &Connection, bytes: &[u8]) -> Result<(), String> {
@@ -194,7 +195,7 @@ fn import_session(connection: &Connection, bytes: &[u8]) -> Result<(), String> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::db::Database;
+    use tterm_core::db::Database;
 
     #[test]
     fn sessions_round_trip_without_secrets() {

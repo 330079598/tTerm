@@ -4,7 +4,6 @@ use super::apply::imported_logs_root;
 use super::archive::validate_relative_path;
 use super::remote;
 use super::{AUTOMATIC_SETTINGS_KEY, BackupPayload, BackupSelection};
-use crate::db::meta;
 use crate::profiles::types::{ProfileGroup, SavedProfile};
 use crate::proxy::ProxyServer;
 use crate::sftp::store::SftpDirectoryStore;
@@ -14,6 +13,7 @@ use crate::tunnel::types::TunnelRule;
 use serde_json::Value;
 use std::fs;
 use std::path::{Path, PathBuf};
+use tterm_core::db::meta;
 
 /// Profiles with what travels with them: groups, tunnels and proxy servers.
 pub(super) type ProfilesSnapshot = (
@@ -60,7 +60,7 @@ fn imported_meta_keys(selection: &BackupSelection) -> Vec<&'static str> {
 pub(super) fn capture_database_snapshot(
     selection: &BackupSelection,
 ) -> Result<DatabaseSnapshot, String> {
-    crate::db::read(|connection| snapshot_database(connection, selection))
+    tterm_core::db::read(|connection| snapshot_database(connection, selection))
 }
 
 pub(super) fn snapshot_database(
@@ -111,7 +111,7 @@ pub(super) fn snapshot_database(
 }
 
 pub(super) fn restore_database_snapshot(snapshot: &DatabaseSnapshot) -> Result<(), String> {
-    crate::db::write(|transaction| restore_database(transaction, snapshot))
+    tterm_core::db::write(|transaction| restore_database(transaction, snapshot))
 }
 
 pub(super) fn restore_database(

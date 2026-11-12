@@ -4,7 +4,7 @@
 
 use super::*;
 use crate::core::agent_resume::{ResumeAgent, ResumeRequest, build_resume_command};
-use crate::db::Database;
+use tterm_core::db::Database;
 
 #[derive(Deserialize)]
 struct CurrentTab {

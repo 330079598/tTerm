@@ -33,7 +33,7 @@ use std::collections::HashSet;
 
 pub(super) async fn list_profiles() -> Result<Vec<SavedProfile>, String> {
     run_blocking(|| {
-        let (mut profiles, groups) = crate::db::read(|connection| {
+        let (mut profiles, groups) = tterm_core::db::read(|connection| {
             Ok((list_saved_profiles(connection)?, list_groups(connection)?))
         })?;
         let paths = group_paths(&groups);
@@ -202,7 +202,7 @@ fn store_profile(
 
     sanitize_profile(&mut profile);
 
-    let previous = crate::db::read(|connection| get_profile(connection, &profile.id))?;
+    let previous = tterm_core::db::read(|connection| get_profile(connection, &profile.id))?;
     profile.distro = previous
         .as_ref()
         .and_then(|previous| previous.distro_at(profile.host.as_deref(), profile.port));
@@ -217,7 +217,7 @@ fn store_profile(
             }
         }
     }
-    crate::db::write(|transaction| {
+    tterm_core::db::write(|transaction| {
         if let Some(path) = group_path.as_deref() {
             profile.group_id = resolve_path(transaction, path)?;
         }
@@ -235,11 +235,11 @@ pub(super) async fn delete_profile(
     // point it at another host.
     tunnels.stop_for_profile(&id).await;
 
-    if let Some(mut profile) = crate::db::read(|connection| get_profile(connection, &id))? {
+    if let Some(mut profile) = tterm_core::db::read(|connection| get_profile(connection, &id))? {
         normalize_profile(&mut profile);
         delete_profile_secrets(secret_state, &profile)?;
     }
-    crate::db::write(|transaction| super::storage::delete_profiles(transaction, &[id]))?;
+    tterm_core::db::write(|transaction| super::storage::delete_profiles(transaction, &[id]))?;
     Ok(())
 }
 
@@ -261,7 +261,7 @@ pub(super) async fn delete_profiles(
         delete_profile_secrets(secret_state, &profile)?;
     }
     let ids = ids.into_iter().collect::<Vec<_>>();
-    crate::db::write(|transaction| super::storage::delete_profiles(transaction, &ids))?;
+    tterm_core::db::write(|transaction| super::storage::delete_profiles(transaction, &ids))?;
     Ok(())
 }
 
@@ -291,7 +291,7 @@ async fn update_profile(
     change: impl FnOnce(&mut SavedProfile) + Send + 'static,
 ) -> Result<(), String> {
     run_blocking(move || {
-        crate::db::write(|transaction| {
+        tterm_core::db::write(|transaction| {
             if let Some(mut profile) = get_profile(transaction, &id)? {
                 change(&mut profile);
                 upsert_profile(transaction, &profile)?;

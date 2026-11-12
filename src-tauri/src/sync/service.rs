@@ -15,7 +15,7 @@ pub(super) async fn get_sync_status() -> Result<SyncStatus, String> {
 pub(super) async fn save_sync_settings(settings: SyncSettings) -> Result<SyncStatus, String> {
     run_blocking(move || {
         settings.validate()?;
-        crate::db::write(|transaction| write_settings(transaction, &settings))?;
+        tterm_core::db::write(|transaction| write_settings(transaction, &settings))?;
         status()
     })
     .await
@@ -24,7 +24,7 @@ pub(super) async fn save_sync_settings(settings: SyncSettings) -> Result<SyncSta
 pub(super) async fn reset_sync() -> Result<SyncStatus, String> {
     let _guard = SYNC_LOCK.lock().await;
     run_blocking(|| {
-        crate::db::write(|transaction| state::clear(transaction))?;
+        tterm_core::db::write(|transaction| state::clear(transaction))?;
         set_last_error(None);
         status()
     })

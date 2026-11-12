@@ -15,13 +15,13 @@ pub(crate) mod types;
 pub(crate) mod verification;
 
 use crate::config::{load_config_file, save_config_file};
-use crate::db::Database;
 use crypto::{KdfParams, SecretKey};
 use keyring_backend::DATA_KEY_ACCOUNT;
 use migration::{LegacySources, NEEDS_VAULT_PASSWORD};
 use std::path::Path;
 use std::sync::{Arc, Condvar, Mutex, MutexGuard, PoisonError};
 use store::{WRAP_PASSWORD, WRAP_SYSTEM};
+use tterm_core::db::Database;
 use types::{SecretStorageMode, SecretStoreRuntime};
 use zeroize::Zeroizing;
 
@@ -143,7 +143,7 @@ fn reset_with_system_key(
     database.write(|transaction| {
         transaction
             .execute("DELETE FROM secrets", [])
-            .map_err(crate::db::sql_error("Failed to reset saved passwords"))?;
+            .map_err(tterm_core::db::sql_error("Failed to reset saved passwords"))?;
         store::delete_wrap(transaction, WRAP_PASSWORD)?;
         store::save_wrap(transaction, WRAP_SYSTEM, None, &system_key, &data_key)
     })?;
@@ -288,7 +288,7 @@ impl SecretStoreState {
         };
         // A database that failed to open reports its error instead of
         // failing the whole settings page.
-        let (migrated, has_master_password, notice) = match crate::db::read(|connection| {
+        let (migrated, has_master_password, notice) = match tterm_core::db::read(|connection| {
             Ok((
                 store::migrated(connection)?,
                 store::has_wrap(connection, WRAP_PASSWORD)?,
@@ -354,7 +354,7 @@ impl SecretStoreState {
     }
 
     fn start(&self, data_dir: &Path) {
-        let result = crate::db::get().and_then(|database| {
+        let result = tterm_core::db::get().and_then(|database| {
             if database.read(store::migrated)? {
                 if Self::mode()? == SecretStorageMode::System {
                     self.unlock_with_system_key(database)?;
@@ -401,7 +401,7 @@ impl SecretStoreState {
         if !self.unlocked()? {
             // The credential store may have come up since it was checked.
             self.runtime()?.keyring_available = None;
-            let database = crate::db::get()?;
+            let database = tterm_core::db::get()?;
             if !database.read(store::migrated)? {
                 return Err(NEEDS_VAULT_PASSWORD.to_string());
             }
@@ -427,7 +427,7 @@ impl SecretStoreState {
         if self.unlocked()? {
             return Err("Saved passwords are already unlocked.".to_string());
         }
-        let database = crate::db::get()?;
+        let database = tterm_core::db::get()?;
         if !database.read(store::migrated)? {
             return Err(NEEDS_VAULT_PASSWORD.to_string());
         }
@@ -519,7 +519,7 @@ impl SecretStoreState {
         if password.is_empty() {
             return Err("Password cannot be empty.".to_string());
         }
-        let database = crate::db::get()?;
+        let database = tterm_core::db::get()?;
         if !database.read(store::migrated)? {
             self.migrate_legacy(data_dir, database, Some(&password))?;
             return self.get_status();
@@ -572,7 +572,7 @@ impl SecretStoreState {
         if new.is_empty() {
             return Err("Master password cannot be empty.".to_string());
         }
-        let database = crate::db::get()?;
+        let database = tterm_core::db::get()?;
         let data_key = open_with_password(database, &current)?
             .ok_or_else(|| "No master password is set.".to_string())
             .map_err(|error| {
@@ -591,7 +591,7 @@ impl SecretStoreState {
     /// `system` mode.
     pub fn set_master_password(&self, password: &str) -> Result<SecretBackendStatus, String> {
         self.wait_for_startup();
-        let database = crate::db::get()?;
+        let database = tterm_core::db::get()?;
         if database.read(|connection| store::has_wrap(connection, WRAP_PASSWORD))? {
             return Err("A master password is already set. Change it instead.".to_string());
         }
@@ -611,7 +611,7 @@ impl SecretStoreState {
         if Self::mode()? != SecretStorageMode::System {
             return Err("The master password is required in this storage mode.".to_string());
         }
-        let database = crate::db::get()?;
+        let database = tterm_core::db::get()?;
         if !database.read(|connection| store::has_wrap(connection, WRAP_SYSTEM))? {
             return Err(
                 "Unlock saved passwords with the system credential store first.".to_string(),
@@ -631,7 +631,7 @@ impl SecretStoreState {
     ) -> Result<SecretBackendStatus, String> {
         self.wait_for_startup();
         let mode = SecretStorageMode::parse(mode)?;
-        let database = crate::db::get()?;
+        let database = tterm_core::db::get()?;
         if !database.read(store::migrated)? {
             return Err(NEEDS_VAULT_PASSWORD.to_string());
         }
@@ -690,7 +690,7 @@ impl SecretStoreState {
         let Some(data_key) = self.unlocked_key()? else {
             return Ok(None);
         };
-        crate::db::read(|connection| store::get_secret(connection, &data_key, key))
+        tterm_core::db::read(|connection| store::get_secret(connection, &data_key, key))
             .map(|value| value.map(|value| value.to_string()))
     }
 
@@ -699,7 +699,9 @@ impl SecretStoreState {
         let Some(data_key) = self.unlocked_key()? else {
             return Ok(SecretLocation::Memory);
         };
-        crate::db::write(|transaction| store::put_secret(transaction, &data_key, key, password))?;
+        tterm_core::db::write(|transaction| {
+            store::put_secret(transaction, &data_key, key, password)
+        })?;
         Ok(SecretLocation::Database)
     }
 
@@ -728,11 +730,11 @@ impl SecretStoreState {
 
     /// Keys with a saved password, readable while locked.
     pub(crate) fn saved_keys(&self) -> Result<Vec<String>, String> {
-        crate::db::read(store::secret_keys)
+        tterm_core::db::read(store::secret_keys)
     }
 
     pub fn delete_password(&self, key: &str) -> Result<bool, String> {
-        crate::db::write(|transaction| store::delete_secret(transaction, key))
+        tterm_core::db::write(|transaction| store::delete_secret(transaction, key))
     }
 }
 

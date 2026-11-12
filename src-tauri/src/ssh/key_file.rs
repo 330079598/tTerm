@@ -57,9 +57,8 @@ pub fn read_key(path: &str, subject: &str) -> Result<KeyMaterial, String> {
 /// Whether the key a profile's key path names is on this device.
 pub fn key_exists(path: &str) -> bool {
     match key_vault::reference_id(path) {
-        Some(id) => {
-            crate::db::read(|connection| key_vault::store::exists(connection, id)).unwrap_or(false)
-        }
+        Some(id) => tterm_core::db::read(|connection| key_vault::store::exists(connection, id))
+            .unwrap_or(false),
         None => std::path::Path::new(path).is_file(),
     }
 }

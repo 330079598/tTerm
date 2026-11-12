@@ -2,10 +2,10 @@
 //! shape; each row keeps one theme as JSON, in display order.
 
 use crate::core::blocking::run_blocking;
-use crate::db::{meta, sql_error};
 use rusqlite::{Connection, params};
 use serde_json::Value;
 use std::collections::HashSet;
+use tterm_core::db::{meta, sql_error};
 
 pub(crate) mod commands;
 
@@ -112,7 +112,7 @@ fn theme_id(theme: &Value) -> Result<&str, String> {
 /// kept in localStorage) is taken over when given.
 pub(super) async fn load(legacy: Option<Vec<Value>>) -> Result<Vec<Value>, String> {
     run_blocking(move || {
-        crate::db::write(|transaction| {
+        tterm_core::db::write(|transaction| {
             if !themes_imported(transaction)? {
                 if let Some(themes) = legacy.as_deref() {
                     let valid: Vec<Value> = themes
@@ -132,7 +132,7 @@ pub(super) async fn load(legacy: Option<Vec<Value>>) -> Result<Vec<Value>, Strin
 
 pub(super) async fn save(themes: Vec<Value>) -> Result<(), String> {
     run_blocking(move || {
-        crate::db::write(|transaction| {
+        tterm_core::db::write(|transaction| {
             replace_themes(transaction, &themes)?;
             mark_themes_imported(transaction)
         })
@@ -159,8 +159,8 @@ fn dedupe(themes: Vec<Value>) -> Vec<Value> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::db::Database;
     use serde_json::json;
+    use tterm_core::db::Database;
 
     fn updated_at(connection: &Connection, id: &str) -> Option<i64> {
         connection

@@ -11002,6 +11002,7 @@ dependencies = [
  "gethostname",
  "indexmap 2.14.2",
  "regress",
+ "rusqlite",
  "serde",
  "serde_json",
  "tokio",

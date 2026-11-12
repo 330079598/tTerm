@@ -3,13 +3,13 @@ use super::snapshot::{
 };
 use super::*;
 use crate::command_library::{models::SavedCommand, repository::CommandRepository};
-use crate::db::Database;
 use crate::profiles::types::ProfileGroup;
 use crate::ssh::secret_store::{
     crypto::SecretKey as DataKey, store::get_secret, store::put_secret,
 };
 use crate::ssh::store::KnownHostRecord;
 use serde_json::json;
+use tterm_core::db::Database;
 
 const CATEGORIES: [&str; 9] = [
     PROFILES,

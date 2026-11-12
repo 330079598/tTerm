@@ -85,7 +85,7 @@ pub(super) fn collect_payload(
         )?,
         proxies: read_selected_data(selection.profiles, crate::proxy::storage::list_proxies)?,
         session: if selection.session {
-            crate::db::read(crate::session::read_session)?
+            tterm_core::db::read(crate::session::read_session)?
                 .map(|session| to_backup_value(&session))
                 .transpose()?
         } else {
@@ -100,12 +100,12 @@ pub(super) fn collect_payload(
             crate::sftp::store::list_sftp_directories,
         )?,
         commands: if selection.command_library {
-            Some(CommandRepository::new(crate::db::get()?).list()?)
+            Some(CommandRepository::new(tterm_core::db::get()?).list()?)
         } else {
             None
         },
         serial_sends: if selection.command_library {
-            Some(crate::db::read(serial_sends::list_all)?)
+            Some(tterm_core::db::read(serial_sends::list_all)?)
         } else {
             None
         },
@@ -122,7 +122,7 @@ pub(super) fn collect_payload(
             None
         },
         collapsed_profile_group_keys: if selection.settings {
-            Some(crate::db::read(
+            Some(tterm_core::db::read(
                 crate::app_state::collapsed_profile_group_keys,
             )?)
         } else {
@@ -157,7 +157,7 @@ pub(super) fn collect_payload(
         let with_webdav = payload.webdav_backup.is_some();
         let mut keys = secret_state.saved_keys()?;
         keys.retain(|key| secret_travels(key, with_webdav));
-        payload.secrets = crate::db::read(|connection| {
+        payload.secrets = tterm_core::db::read(|connection| {
             let mut secrets = Vec::new();
             for key in keys {
                 if let Some(password) = get_secret(connection, data_key, &key)? {
@@ -191,7 +191,7 @@ fn read_selected_data<T: Serialize>(
     if !selected {
         return Ok(None);
     }
-    let data = crate::db::read(read)?;
+    let data = tterm_core::db::read(read)?;
     serde_json::to_value(data)
         .map(Some)
         .map_err(|error| format!("Failed to serialize backup data: {error}"))
@@ -222,7 +222,7 @@ fn with_saved_themes(
     if !selection.themes {
         return Ok(state);
     }
-    let themes = crate::db::read(|connection| {
+    let themes = tterm_core::db::read(|connection| {
         if crate::themes::themes_imported(connection)? {
             crate::themes::list_themes(connection).map(Some)
         } else {

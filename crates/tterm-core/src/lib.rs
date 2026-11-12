@@ -15,6 +15,8 @@ pub mod command_tracking;
 pub mod config;
 /// Follows local and remote shell directory reports.
 pub mod cwd_reports;
+/// The app's SQLite database and the stores that keep their queries in it.
+pub mod db;
 /// Distribution identity for the server monitor's icons.
 pub mod distro;
 /// Typed events and delivery interfaces shared by client adapters.

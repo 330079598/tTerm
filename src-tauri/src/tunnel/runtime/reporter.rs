@@ -53,8 +53,8 @@ impl TunnelReporter {
         sink: Arc<dyn EventSink>,
         id: String,
     ) -> Arc<Self> {
-        let saved =
-            crate::db::read(|connection| tunnel_traffic(connection, &id)).unwrap_or_else(|error| {
+        let saved = tterm_core::db::read(|connection| tunnel_traffic(connection, &id))
+            .unwrap_or_else(|error| {
                 eprintln!("Failed to load traffic of tunnel {id}: {error}");
                 TunnelTraffic::default()
             });
@@ -118,8 +118,9 @@ impl TunnelReporter {
             return;
         }
         let now = crate::ssh::store::now_unix_ms().max(0) as u64;
-        match crate::db::write(|transaction| add_tunnel_traffic(transaction, &self.id, delta, now))
-        {
+        match tterm_core::db::write(|transaction| {
+            add_tunnel_traffic(transaction, &self.id, delta, now)
+        }) {
             Ok(()) => {
                 ledger.saved = ledger.saved.plus(delta);
                 ledger.saved.since.get_or_insert(now);
@@ -140,7 +141,7 @@ impl TunnelReporter {
         {
             let mut ledger = self.ledger();
             let now = crate::ssh::store::now_unix_ms().max(0) as u64;
-            crate::db::write(|transaction| reset_tunnel_traffic(transaction, &self.id, now))?;
+            tterm_core::db::write(|transaction| reset_tunnel_traffic(transaction, &self.id, now))?;
             ledger.saved = TunnelTraffic {
                 since: Some(now),
                 ..TunnelTraffic::default()

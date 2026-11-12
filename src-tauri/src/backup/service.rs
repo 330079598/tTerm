@@ -65,7 +65,9 @@ pub(super) async fn save_automatic_backup_settings(
 ) -> Result<AutomaticBackupSettings, String> {
     run_blocking(move || {
         validate_automatic_backup_settings(&settings)?;
-        crate::db::write(|transaction| write_automatic_backup_settings(transaction, &settings))?;
+        tterm_core::db::write(|transaction| {
+            write_automatic_backup_settings(transaction, &settings)
+        })?;
         load_automatic_backup_settings()
     })
     .await

@@ -51,7 +51,7 @@ pub fn resolve_proxy(
     let Some(id) = chosen_id(choice, &default_id) else {
         return Ok(None);
     };
-    let server = crate::db::read(|connection| storage::get_proxy(connection, id))?
+    let server = tterm_core::db::read(|connection| storage::get_proxy(connection, id))?
         .ok_or_else(|| missing_server_error(choice))?;
     let password = if server.username.is_some() {
         let key = proxy_secret_key(id);

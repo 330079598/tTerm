@@ -1,6 +1,6 @@
 use super::{models::CommandVariable, models::SavedCommand};
-use crate::db::Database;
 use rusqlite::{Connection, OptionalExtension, Row, Transaction, params};
+use tterm_core::db::Database;
 
 pub struct CommandRepository<'a> {
     database: &'a Database,

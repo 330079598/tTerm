@@ -10,10 +10,7 @@ use serde_json::Value;
 use std::path::Path;
 
 /// The value under `key`; `None` when it is missing or no longer parses.
-pub(crate) fn get<T: DeserializeOwned>(
-    connection: &Connection,
-    key: &str,
-) -> Result<Option<T>, String> {
+pub fn get<T: DeserializeOwned>(connection: &Connection, key: &str) -> Result<Option<T>, String> {
     let text = connection
         .query_row("SELECT value FROM app_meta WHERE key = ?1", [key], |row| {
             row.get::<_, String>(0)
@@ -23,7 +20,7 @@ pub(crate) fn get<T: DeserializeOwned>(
     Ok(text.and_then(|text| serde_json::from_str(&text).ok()))
 }
 
-pub(crate) fn contains(connection: &Connection, key: &str) -> Result<bool, String> {
+pub fn contains(connection: &Connection, key: &str) -> Result<bool, String> {
     connection
         .query_row("SELECT 1 FROM app_meta WHERE key = ?1", [key], |_| Ok(()))
         .optional()
@@ -31,7 +28,7 @@ pub(crate) fn contains(connection: &Connection, key: &str) -> Result<bool, Strin
         .map_err(sql_error("Failed to read app state"))
 }
 
-pub(crate) fn set<T: Serialize + ?Sized>(
+pub fn set<T: Serialize + ?Sized>(
     connection: &Connection,
     key: &str,
     value: &T,
@@ -48,7 +45,7 @@ pub(crate) fn set<T: Serialize + ?Sized>(
     Ok(())
 }
 
-pub(crate) fn remove(connection: &Connection, key: &str) -> Result<(), String> {
+pub fn remove(connection: &Connection, key: &str) -> Result<(), String> {
     connection
         .execute("DELETE FROM app_meta WHERE key = ?1", [key])
         .map_err(sql_error("Failed to save app state"))?;
@@ -56,7 +53,7 @@ pub(crate) fn remove(connection: &Connection, key: &str) -> Result<(), String> {
 }
 
 /// The stored text under `key`, for restoring it later with [`put_raw`].
-pub(crate) fn get_raw(connection: &Connection, key: &str) -> Result<Option<String>, String> {
+pub fn get_raw(connection: &Connection, key: &str) -> Result<Option<String>, String> {
     connection
         .query_row("SELECT value FROM app_meta WHERE key = ?1", [key], |row| {
             row.get::<_, String>(0)
@@ -66,11 +63,7 @@ pub(crate) fn get_raw(connection: &Connection, key: &str) -> Result<Option<Strin
 }
 
 /// Stores `value` as read by [`get_raw`]; `None` removes the key.
-pub(crate) fn put_raw(
-    connection: &Connection,
-    key: &str,
-    value: Option<&str>,
-) -> Result<(), String> {
+pub fn put_raw(connection: &Connection, key: &str, value: Option<&str>) -> Result<(), String> {
     match value {
         Some(text) => connection
             .execute(
@@ -86,7 +79,7 @@ pub(crate) fn put_raw(
 
 /// Sets `key` unless it already has a value; the database wins over a file
 /// that an older version wrote after the data moved.
-pub(crate) fn set_if_absent<T: Serialize + ?Sized>(
+pub fn set_if_absent<T: Serialize + ?Sized>(
     connection: &Connection,
     key: &str,
     value: &T,
@@ -100,7 +93,7 @@ pub(crate) fn set_if_absent<T: Serialize + ?Sized>(
 /// Moves the file at `path`, kept by older versions, into the database:
 /// `import` gets its content inside a transaction, and the file is deleted
 /// once that committed. A file that fails to import is left in place.
-pub(crate) fn import_file(
+pub fn import_file(
     database: &Database,
     path: &Path,
     import: impl FnOnce(&Connection, &[u8]) -> Result<(), String>,
@@ -122,7 +115,7 @@ pub(crate) fn import_file(
 }
 
 /// Parses a settings file's JSON for [`import_file`].
-pub(crate) fn parse_file<T: DeserializeOwned>(bytes: &[u8]) -> Result<T, String> {
+pub fn parse_file<T: DeserializeOwned>(bytes: &[u8]) -> Result<T, String> {
     serde_json::from_slice(bytes).map_err(|error| format!("Invalid JSON: {error}"))
 }
 
@@ -130,7 +123,7 @@ pub(crate) fn parse_file<T: DeserializeOwned>(bytes: &[u8]) -> Result<T, String>
 /// `app_meta`, for state older versions kept in their settings files. A key
 /// already in the database wins, and the fields are removed from the file
 /// afterwards, so this is a no-op once done.
-pub(crate) fn move_file_fields(
+pub fn move_file_fields(
     database: &Database,
     path: &Path,
     fields: &[(&str, &str)],
@@ -160,7 +153,7 @@ pub(crate) fn move_file_fields(
     })?;
     let content = serde_json::to_vec_pretty(&Value::Object(object))
         .map_err(|error| format!("Failed to encode '{}': {error}", path.display()))?;
-    tterm_core::config::atomic::atomic_write(path, content)
+    crate::config::atomic::atomic_write(path, content)
 }
 
 #[cfg(test)]

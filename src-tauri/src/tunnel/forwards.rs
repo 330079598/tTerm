@@ -143,7 +143,7 @@ pub(crate) fn add_rules(candidates: Vec<TunnelRule>) -> Result<(usize, usize), S
     if candidates.is_empty() {
         return Ok((0, 0));
     }
-    crate::db::write(|transaction| {
+    tterm_core::db::write(|transaction| {
         let mut rules = list_tunnel_rules(transaction)?;
         let existing = rules.len();
         let counts = merge_new_rules(&mut rules, candidates);

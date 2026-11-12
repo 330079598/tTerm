@@ -14,12 +14,12 @@ use super::export::{filter_frontend_state, secret_travels, strip_sensitive_field
 use super::snapshot::{DatabaseSnapshot, restore_database, snapshot_database};
 use super::*;
 use crate::config::AppConfig;
-use crate::db::meta;
 use crate::ssh::secret_store::{
     crypto::SecretKey as DataKey, store::get_secret, store::put_secret, store::snapshot_secrets,
 };
 use chrono::Utc;
 use std::fs;
+use tterm_core::db::meta;
 
 fn db_profile(id: &str, name: &str, group: &str) -> Value {
     serde_json::json!({
@@ -184,7 +184,7 @@ fn settings_summary(connection: &rusqlite::Connection) -> Value {
 
 #[test]
 fn imported_settings_and_session_land_in_the_database_and_roll_back() {
-    let database = crate::db::Database::open_in_memory().unwrap();
+    let database = tterm_core::db::Database::open_in_memory().unwrap();
     database
         .write(|connection| {
             seed_settings(connection)?;
@@ -244,7 +244,7 @@ fn imported_settings_and_session_land_in_the_database_and_roll_back() {
 
 #[test]
 fn unselected_settings_and_session_are_not_touched() {
-    let database = crate::db::Database::open_in_memory().unwrap();
+    let database = tterm_core::db::Database::open_in_memory().unwrap();
     database
         .write(|connection| {
             seed_settings(connection)?;
@@ -264,7 +264,7 @@ fn unselected_settings_and_session_are_not_touched() {
 
 #[test]
 fn merged_collapsed_groups_add_to_this_devices() {
-    let database = crate::db::Database::open_in_memory().unwrap();
+    let database = tterm_core::db::Database::open_in_memory().unwrap();
     database
         .write(|connection| {
             crate::app_state::set_collapsed_profile_group_keys(
@@ -299,7 +299,7 @@ fn merged_collapsed_groups_add_to_this_devices() {
 
 #[test]
 fn merge_import_keeps_existing_data_and_updates_by_key() {
-    let database = crate::db::Database::open_in_memory().unwrap();
+    let database = tterm_core::db::Database::open_in_memory().unwrap();
     database
         .write(|connection| {
             seed_database(connection);
@@ -360,7 +360,7 @@ fn merge_import_keeps_known_hosts_of_profiles_sharing_a_host_key() {
         known_hosts: true,
         ..BackupSelection::default()
     };
-    let database = crate::db::Database::open_in_memory().unwrap();
+    let database = tterm_core::db::Database::open_in_memory().unwrap();
     database
         .write(|connection| {
             apply_database_payload(connection, &payload, &options)?;
@@ -396,7 +396,7 @@ fn merge_import_never_lets_a_name_only_entry_replace_a_profile_entry() {
         known_hosts: true,
         ..BackupSelection::default()
     };
-    let database = crate::db::Database::open_in_memory().unwrap();
+    let database = tterm_core::db::Database::open_in_memory().unwrap();
     database
         .write(|connection| {
             apply_database_payload(connection, &payload, &options)?;
@@ -411,7 +411,7 @@ fn merge_import_never_lets_a_name_only_entry_replace_a_profile_entry() {
 
 #[test]
 fn replacing_profiles_keeps_passwords_of_profiles_that_stay() {
-    let database = crate::db::Database::open_in_memory().unwrap();
+    let database = tterm_core::db::Database::open_in_memory().unwrap();
     let data_key = DataKey::generate();
     let profile = |id: &str| -> SavedProfile {
         serde_json::from_value(serde_json::json!({
@@ -460,7 +460,7 @@ fn replacing_profiles_keeps_passwords_of_profiles_that_stay() {
 
 #[test]
 fn replace_import_drops_data_missing_from_the_backup() {
-    let database = crate::db::Database::open_in_memory().unwrap();
+    let database = tterm_core::db::Database::open_in_memory().unwrap();
     database
         .write(|connection| {
             seed_database(connection);
@@ -487,7 +487,7 @@ fn replace_import_drops_data_missing_from_the_backup() {
 
 #[test]
 fn unselected_categories_are_not_touched() {
-    let database = crate::db::Database::open_in_memory().unwrap();
+    let database = tterm_core::db::Database::open_in_memory().unwrap();
     database
         .write(|connection| {
             seed_database(connection);
@@ -509,7 +509,7 @@ fn unselected_categories_are_not_touched() {
 
 #[test]
 fn database_snapshot_undoes_an_import() {
-    let database = crate::db::Database::open_in_memory().unwrap();
+    let database = tterm_core::db::Database::open_in_memory().unwrap();
     database
         .write(|connection| {
             seed_database(connection);
@@ -532,7 +532,7 @@ fn database_snapshot_undoes_an_import() {
 
 #[test]
 fn exported_data_imports_back_unchanged() {
-    let source = crate::db::Database::open_in_memory().unwrap();
+    let source = tterm_core::db::Database::open_in_memory().unwrap();
     source
         .write(|connection| {
             seed_database(connection);
@@ -567,7 +567,7 @@ fn exported_data_imports_back_unchanged() {
         .unwrap();
     validate_payload(&payload).expect("exported payload validates");
 
-    let target = crate::db::Database::open_in_memory().unwrap();
+    let target = tterm_core::db::Database::open_in_memory().unwrap();
     target
         .write(|connection| {
             apply_database_payload(connection, &payload, &import_options("replace"))?;
@@ -606,7 +606,7 @@ fn real_pre_database_backups_import() {
             })
             .unwrap_or(0);
         for strategy in ["replace", "merge"] {
-            let database = crate::db::Database::open_in_memory().unwrap();
+            let database = tterm_core::db::Database::open_in_memory().unwrap();
             database
                 .write(|connection| {
                     let mut options = import_options(strategy);
@@ -1164,7 +1164,7 @@ fn serial_sends_merge_by_their_later_use_or_replace() {
             .map(|send| (send.text, send.sent_at))
             .collect::<Vec<_>>()
     };
-    let backup = crate::db::Database::open_in_memory().unwrap();
+    let backup = tterm_core::db::Database::open_in_memory().unwrap();
     let incoming = backup
         .write(|connection| {
             store::record(connection, "port:COM3", SerialSendMode::Text, "AT", 9)?;
@@ -1172,7 +1172,7 @@ fn serial_sends_merge_by_their_later_use_or_replace() {
             store::list_all(connection)
         })
         .unwrap();
-    let database = crate::db::Database::open_in_memory().unwrap();
+    let database = tterm_core::db::Database::open_in_memory().unwrap();
     database
         .write(|connection| {
             store::record(connection, "port:COM3", SerialSendMode::Text, "AT", 5)?;

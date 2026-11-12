@@ -7,7 +7,6 @@ use super::document::Collections;
 use super::merge::{Collection, SyncRecord};
 use crate::command_library::models::SavedCommand;
 use crate::config::AppConfig;
-use crate::db::sql_error;
 use crate::profiles::types::{ProfileGroup, SavedProfile};
 use crate::proxy::ProxyServer;
 use crate::serial::history::{SerialSend, store as serial_sends};
@@ -19,6 +18,7 @@ use crate::tunnel::types::TunnelRule;
 use rusqlite::{Connection, Transaction, params};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use tterm_core::db::sql_error;
 
 pub(crate) const PROFILES: &str = "profiles";
 pub(crate) const PROFILE_GROUPS: &str = "profileGroups";

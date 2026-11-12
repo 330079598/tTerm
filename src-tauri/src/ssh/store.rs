@@ -1,10 +1,10 @@
-use crate::db::sql_error;
 use rusqlite::{Connection, OptionalExtension, params};
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::PathBuf;
 use std::time::{SystemTime, UNIX_EPOCH};
 use tterm_core::config::paths::ensure_config_dir;
+use tterm_core::db::sql_error;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct LegacySshPasswordRecord {
@@ -236,7 +236,7 @@ pub fn load_known_host(
     host: &str,
     port: u16,
 ) -> Result<Option<KnownHostRecord>, String> {
-    let store = crate::db::read(list_known_hosts)?;
+    let store = tterm_core::db::read(list_known_hosts)?;
     let profile_id = profile_id.map(str::trim).filter(|value| !value.is_empty());
     let host = host.trim();
 
@@ -280,7 +280,7 @@ fn find_known_host_entry(
 }
 
 pub fn save_known_host_entry(entry: KnownHostRecord) -> Result<(), String> {
-    crate::db::write(|transaction| save_known_host(transaction, &entry))
+    tterm_core::db::write(|transaction| save_known_host(transaction, &entry))
 }
 
 /// Replaces the entry for the same profile id and endpoint, else the entry for
@@ -325,7 +325,7 @@ mod tests {
         KnownHostRecord, KnownHostStore, delete_known_host_entries, find_known_host_entry,
         list_known_host_entries, list_known_hosts, save_known_host,
     };
-    use crate::db::Database;
+    use tterm_core::db::Database;
 
     #[test]
     fn saving_a_known_host_prefers_the_profile_id_match() {

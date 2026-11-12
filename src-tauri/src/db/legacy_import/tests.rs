@@ -1,5 +1,5 @@
 use super::*;
-use crate::db::Database;
+use tterm_core::db::Database;
 
 fn temp_dir(label: &str) -> std::path::PathBuf {
     let nanos = std::time::SystemTime::now()

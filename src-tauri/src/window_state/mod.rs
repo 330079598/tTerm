@@ -10,7 +10,6 @@ mod state;
 #[cfg(test)]
 mod tests;
 
-use crate::db::meta;
 use placement::{Area, centered, top_edge_on_screen};
 use serde::{Deserialize, Serialize};
 use state::Bounds;
@@ -18,6 +17,7 @@ use std::sync::Mutex;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::Duration;
 use tauri::{AppHandle, Manager, PhysicalPosition, PhysicalSize, WebviewWindow, WindowEvent};
+use tterm_core::db::meta;
 
 const KEY: &str = "window_state";
 
@@ -114,7 +114,7 @@ fn observe(window: &WebviewWindow) -> tauri::Result<Observation> {
 /// Puts the main window back the way it was left and starts following its
 /// moves and resizes. Called on the hidden window before it is first shown.
 pub fn restore(window: &WebviewWindow) {
-    let saved = crate::db::read(|connection| meta::get::<SavedWindowState>(connection, KEY))
+    let saved = tterm_core::db::read(|connection| meta::get::<SavedWindowState>(connection, KEY))
         .unwrap_or_else(|error| {
             eprintln!("Failed to read the window state: {error}");
             None
@@ -210,7 +210,7 @@ pub fn save(app: &AppHandle) {
     let Some(state) = state else {
         return;
     };
-    if let Err(error) = crate::db::write(|transaction| meta::set(transaction, KEY, &state)) {
+    if let Err(error) = tterm_core::db::write(|transaction| meta::set(transaction, KEY, &state)) {
         eprintln!("Failed to save the window state: {error}");
     }
 }
