@@ -96,6 +96,22 @@ export function mirrorFrontendStateToLegacy(): FrontendStateKey[] {
 }
 
 /**
+ * Records the old-format copies that were written successfully, so the next
+ * start does not mistake them for changes made by an older version.
+ */
+export async function acknowledgeFrontendStateMirror(
+  keys: FrontendStateKey[]
+): Promise<void> {
+  for (const key of keys) {
+    try {
+      await invoke("acknowledge_frontend_state_sync", { key, value: snapshot[key] })
+    } catch (error) {
+      console.error(`Failed to record the localStorage copy of '${key}':`, error)
+    }
+  }
+}
+
+/**
  * Leaves this session on localStorage after startup could not reach the
  * backend. The values are not emptied into the backend on the next write.
  */
@@ -148,13 +164,7 @@ export async function reloadFrontendState(importedState?: unknown): Promise<void
   hydrateFrontendState(state)
   const mirrored = mirrorFrontendStateToLegacy()
   for (const listener of reloadListeners) listener()
-  for (const key of mirrored) {
-    try {
-      await invoke("acknowledge_frontend_state_sync", { key, value: snapshot[key] })
-    } catch (error) {
-      console.error(`Failed to record the localStorage copy of '${key}':`, error)
-    }
-  }
+  await acknowledgeFrontendStateMirror(mirrored)
 }
 
 async function retryDegradedReload(importedState: unknown): Promise<unknown> {

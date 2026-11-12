@@ -83,6 +83,29 @@ describe("frontend state storage", () => {
     expect(localStorage.getItem(RECENT_COMMANDS_STORAGE_KEY)).toBe(JSON.stringify(fromBackend))
   })
 
+  it("acknowledges the values mirrored at startup", async () => {
+    const commands = [{ id: "c1", commandText: "ls", lastUsedAt: 1, useCount: 1 }]
+    const profiles = [{ profileId: "p1", lastUsedAt: 2 }]
+    mockedInvoke.mockResolvedValue({
+      recentCommands: commands,
+      recentProfiles: profiles,
+    })
+
+    await initializeFrontendState()
+
+    expect(mockedInvoke).toHaveBeenCalledWith("acknowledge_frontend_state_sync", {
+      key: "recentCommands",
+      value: commands,
+    })
+    expect(mockedInvoke).toHaveBeenCalledWith("acknowledge_frontend_state_sync", {
+      key: "recentProfiles",
+      value: profiles,
+    })
+    expect(
+      mockedInvoke.mock.calls.filter(([command]) => command === "acknowledge_frontend_state_sync")
+    ).toHaveLength(2)
+  })
+
   it("mirrors every successful backend write in the format 0.8.x reads", async () => {
     mockedInvoke.mockResolvedValue({})
     await initializeFrontendState()
@@ -211,7 +234,7 @@ describe("frontend state storage", () => {
 
     mockedInvoke.mockResolvedValueOnce({ recentCommands: updated })
     await initializeFrontendState()
-    expect(mockedInvoke).toHaveBeenCalledTimes(2)
+    expect(mockedInvoke).toHaveBeenCalledTimes(3)
     expect(cachedFrontendState("recentCommands")).toEqual(updated)
   })
 

@@ -11,6 +11,7 @@ import {
 } from "@/lib/commandComposer"
 import {
   FRONTEND_STATE_KEYS,
+  acknowledgeFrontendStateMirror,
   hydrateFrontendState,
   mirrorFrontendStateToLegacy,
   registerFrontendStateDegradedReload,
@@ -150,7 +151,8 @@ export async function initializeFrontendState(): Promise<void> {
   try {
     const state = await invoke<unknown>("migrate_frontend_state", { legacy })
     hydrateFrontendState(state)
-    mirrorFrontendStateToLegacy()
+    const mirrored = mirrorFrontendStateToLegacy()
+    await acknowledgeFrontendStateMirror(mirrored)
   } catch (error) {
     console.error("Failed to load frontend state from the backend:", error)
     resetFrontendStateToLegacyForThisSession()
