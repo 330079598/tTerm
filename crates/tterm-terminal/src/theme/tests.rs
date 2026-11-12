@@ -293,8 +293,10 @@ fn palette_colors_match_xterm() {
     for case in oracle["xterm"].as_array().expect("an array") {
         let value = case["value"].as_str().expect("a color string");
         let expected = rgba(&case["rgba"]).expect("four channels");
-        let mut palette = PaletteText::default();
-        palette.background = value.to_string();
+        let palette = PaletteText {
+            background: value.to_string(),
+            ..PaletteText::default()
+        };
         assert_eq!(
             palette.to_terminal_palette().background,
             expected,
@@ -310,8 +312,10 @@ fn hsl_alpha_is_rejected_the_way_xterm_rejects_canvas_transparency() {
     for case in oracle["themePalette"].as_array().expect("an array") {
         let value = case["value"].as_str().expect("a color string");
         let expected = rgba(&case["rgba"]).expect("four channels");
-        let mut palette = PaletteText::default();
-        palette.background = value.to_string();
+        let palette = PaletteText {
+            background: value.to_string(),
+            ..PaletteText::default()
+        };
         assert_eq!(
             palette.to_terminal_palette().background,
             expected,
