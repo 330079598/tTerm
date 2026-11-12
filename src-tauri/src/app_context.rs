@@ -1,6 +1,6 @@
 //! Entry adapters assemble concrete dependencies before handing work to services.
 use crate::{
-    background::{quit::QuitContext, tray::TrayContext, BackgroundContext},
+    background::{BackgroundContext, quit::QuitContext, tray::TrayContext},
     services::AppServices,
     tunnel::commands::TunnelContext,
 };

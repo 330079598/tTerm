@@ -69,6 +69,7 @@ pub fn run_console_helper() -> Option<i32> {
     reason = "one builder chain registers every plugin and Tauri command"
 )]
 pub fn run() {
+    tterm_core::identity::install_app_version(env!("CARGO_PKG_VERSION"));
     let pty_map: PtyMap = Arc::new(RwLock::new(std::collections::HashMap::new()));
     let sftp_pool: sftp::internal::types::SftpConnectionPool =
         Arc::new(RwLock::new(std::collections::HashMap::new()));
@@ -151,8 +152,8 @@ pub fn run() {
     builder
         .manage(TokioRuntimeState { runtime })
         .on_window_event(|window, event| {
-            if let tauri::WindowEvent::CloseRequested { api, .. } = event {
-                if window
+            if let tauri::WindowEvent::CloseRequested { api, .. } = event
+                && window
                     .app_handle()
                     .try_state::<Arc<services::AppServices>>()
                     .is_some_and(|services| {
@@ -163,9 +164,8 @@ pub fn run() {
                             ),
                         ))
                     })
-                {
-                    api.prevent_close();
-                }
+            {
+                api.prevent_close();
             }
         })
         .invoke_handler(tauri::generate_handler![

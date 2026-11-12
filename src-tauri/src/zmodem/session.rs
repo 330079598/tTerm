@@ -13,9 +13,9 @@ use tterm_core::events::zmodem::{TransferEmitter, TransferEvent};
 use std::fs::{File, OpenOptions};
 use std::io::Write as _;
 use std::path::{Path, PathBuf};
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::sync::PoisonError;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::{Duration, Instant};
 
 use super::detect;
@@ -180,15 +180,15 @@ impl ZmodemReceiveDriver {
 
     /// Processes one chunk of incoming bytes.
     pub fn process(&mut self, chunk: &[u8]) -> ZmodemStepOutcome {
-        if let Some(transfer) = &self.transfer {
-            if transfer.cancel_requested.load(Ordering::Relaxed) {
-                self.on_local_cancel();
-                return ZmodemStepOutcome {
-                    passthrough: chunk.to_vec(),
-                    outgoing: Vec::new(),
-                    send_requested: None,
-                };
-            }
+        if let Some(transfer) = &self.transfer
+            && transfer.cancel_requested.load(Ordering::Relaxed)
+        {
+            self.on_local_cancel();
+            return ZmodemStepOutcome {
+                passthrough: chunk.to_vec(),
+                outgoing: Vec::new(),
+                send_requested: None,
+            };
         }
 
         if self.transfer.is_none() {
@@ -379,15 +379,15 @@ impl ZmodemReceiveDriver {
     }
 
     fn on_peer_cancelled(&mut self) {
-        if let Some(transfer) = self.transfer.as_ref() {
-            if transfer.file.is_some() {
-                (self.emit)(TransferEvent::Complete(TransferCompletePayload {
-                    transfer_id: transfer.transfer_id.clone(),
-                    success: false,
-                    cancelled: true,
-                    error: Some("Cancelled by the remote rz/sz process".to_string()),
-                }));
-            }
+        if let Some(transfer) = self.transfer.as_ref()
+            && transfer.file.is_some()
+        {
+            (self.emit)(TransferEvent::Complete(TransferCompletePayload {
+                transfer_id: transfer.transfer_id.clone(),
+                success: false,
+                cancelled: true,
+                error: Some("Cancelled by the remote rz/sz process".to_string()),
+            }));
         }
         self.zmodem_map
             .write()
@@ -397,15 +397,15 @@ impl ZmodemReceiveDriver {
     }
 
     fn on_local_cancel(&mut self) {
-        if let Some(transfer) = self.transfer.as_ref() {
-            if transfer.file.is_some() {
-                (self.emit)(TransferEvent::Complete(TransferCompletePayload {
-                    transfer_id: transfer.transfer_id.clone(),
-                    success: false,
-                    cancelled: true,
-                    error: None,
-                }));
-            }
+        if let Some(transfer) = self.transfer.as_ref()
+            && transfer.file.is_some()
+        {
+            (self.emit)(TransferEvent::Complete(TransferCompletePayload {
+                transfer_id: transfer.transfer_id.clone(),
+                success: false,
+                cancelled: true,
+                error: None,
+            }));
         }
         self.zmodem_map
             .write()

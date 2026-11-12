@@ -2,8 +2,8 @@
 //! instead of one SFTP round trip per folder. `find` lists names only; the
 //! matches are then looked up over SFTP for the details a listing shows.
 
-use super::matcher::NameMatcher;
 use super::ResultSink;
+use super::matcher::NameMatcher;
 use crate::sftp::internal::api::base::directory_entry;
 use crate::sftp::internal::exec::{cancelled, shell_path, shell_quote};
 use crate::sftp::internal::launcher::ChannelLauncher;
@@ -216,9 +216,11 @@ mod tests {
     #[test]
     fn parser_rejects_output_without_the_marker() {
         let mut parser = RecordParser::default();
-        assert!(parser
-            .push(b"'exec' is not recognized\r\n\0./a\0")
-            .is_empty());
+        assert!(
+            parser
+                .push(b"'exec' is not recognized\r\n\0./a\0")
+                .is_empty()
+        );
         assert_eq!(parser.is_find_output(), Some(false));
     }
 

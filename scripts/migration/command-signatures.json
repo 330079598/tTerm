@@ -3,7 +3,6 @@
   "commands": [
     {
       "name": "ack_pty_output",
-      "module": "core::commands",
       "attributes": {},
       "params": [
         {
@@ -23,21 +22,18 @@
     },
     {
       "name": "agent_integration_status",
-      "module": "agent_integration",
       "attributes": {},
       "params": [],
       "returns": "Result<Vec<AgentIntegrationStatus>, String>"
     },
     {
       "name": "auto_start_tunnels",
-      "module": "tunnel::commands",
       "attributes": {},
       "params": [],
       "returns": "Result<(), String>"
     },
     {
       "name": "build_agent_resume_command",
-      "module": "core::agent_resume",
       "attributes": {},
       "params": [
         {
@@ -61,14 +57,12 @@
     },
     {
       "name": "cancel_quit_prompt",
-      "module": "background::exit_guard",
       "attributes": {},
       "params": [],
       "returns": "()"
     },
     {
       "name": "change_remote_agent_integration",
-      "module": "agent_integration::remote",
       "attributes": {},
       "params": [
         {
@@ -92,7 +86,6 @@
     },
     {
       "name": "change_vault_password",
-      "module": "ssh::secret_commands",
       "attributes": {},
       "params": [
         {
@@ -104,7 +97,6 @@
     },
     {
       "name": "check_app_update",
-      "module": "updater",
       "attributes": {},
       "params": [
         {
@@ -116,7 +108,6 @@
     },
     {
       "name": "check_local_shell",
-      "module": "terminal::pty",
       "attributes": {},
       "params": [
         {
@@ -128,14 +119,12 @@
     },
     {
       "name": "clear_scrollback_snapshots",
-      "module": "session::scrollback",
       "attributes": {},
       "params": [],
       "returns": "Result<(), String>"
     },
     {
       "name": "clear_serial_sends",
-      "module": "serial::history",
       "attributes": {},
       "params": [
         {
@@ -147,28 +136,24 @@
     },
     {
       "name": "clear_session",
-      "module": "session",
       "attributes": {},
       "params": [],
       "returns": "Result<(), String>"
     },
     {
       "name": "clear_webdav_backup_settings",
-      "module": "backup::remote",
       "attributes": {},
       "params": [],
       "returns": "Result<WebDavBackupStatus, String>"
     },
     {
       "name": "confirm_quit_app",
-      "module": "background::exit_guard",
       "attributes": {},
       "params": [],
       "returns": "()"
     },
     {
       "name": "create_command_tag",
-      "module": "command_library::commands",
       "attributes": {},
       "params": [
         {
@@ -180,7 +165,6 @@
     },
     {
       "name": "create_profile_group",
-      "module": "profiles::commands::groups",
       "attributes": {},
       "params": [
         {
@@ -196,7 +180,6 @@
     },
     {
       "name": "create_pty",
-      "module": "core::commands",
       "attributes": {},
       "params": [
         {
@@ -228,7 +211,6 @@
     },
     {
       "name": "delete_backup_history_entry",
-      "module": "backup",
       "attributes": {},
       "params": [
         {
@@ -240,7 +222,6 @@
     },
     {
       "name": "delete_command_tag",
-      "module": "command_library::commands",
       "attributes": {},
       "params": [
         {
@@ -252,7 +233,6 @@
     },
     {
       "name": "delete_known_hosts",
-      "module": "ssh::known_host_commands",
       "attributes": {},
       "params": [
         {
@@ -263,20 +243,7 @@
       "returns": "Result<usize, String>"
     },
     {
-      "name": "delete_profile_group",
-      "module": "profiles::commands::groups",
-      "attributes": {},
-      "params": [
-        {
-          "name": "id",
-          "type": "String"
-        }
-      ],
-      "returns": "Result<Vec<ProfileGroup>, String>"
-    },
-    {
       "name": "delete_profile",
-      "module": "profiles::commands",
       "attributes": {},
       "params": [
         {
@@ -287,8 +254,18 @@
       "returns": "Result<(), String>"
     },
     {
+      "name": "delete_profile_group",
+      "attributes": {},
+      "params": [
+        {
+          "name": "id",
+          "type": "String"
+        }
+      ],
+      "returns": "Result<Vec<ProfileGroup>, String>"
+    },
+    {
       "name": "delete_profiles",
-      "module": "profiles::commands",
       "attributes": {},
       "params": [
         {
@@ -300,7 +277,6 @@
     },
     {
       "name": "delete_proxy",
-      "module": "proxy",
       "attributes": {},
       "params": [
         {
@@ -312,7 +288,6 @@
     },
     {
       "name": "delete_saved_command",
-      "module": "command_library::commands",
       "attributes": {},
       "params": [
         {
@@ -324,7 +299,6 @@
     },
     {
       "name": "delete_saved_secret",
-      "module": "ssh::secret_commands",
       "attributes": {},
       "params": [
         {
@@ -336,7 +310,6 @@
     },
     {
       "name": "delete_serial_send",
-      "module": "serial::history",
       "attributes": {},
       "params": [
         {
@@ -352,7 +325,6 @@
     },
     {
       "name": "delete_terminal_log",
-      "module": "session_log",
       "attributes": {},
       "params": [
         {
@@ -364,7 +336,6 @@
     },
     {
       "name": "delete_terminal_logs",
-      "module": "session_log",
       "attributes": {},
       "params": [
         {
@@ -376,7 +347,6 @@
     },
     {
       "name": "delete_tunnel",
-      "module": "tunnel::commands",
       "attributes": {},
       "params": [
         {
@@ -388,7 +358,6 @@
     },
     {
       "name": "delete_vault_key",
-      "module": "ssh::key_vault",
       "attributes": {},
       "params": [
         {
@@ -400,7 +369,6 @@
     },
     {
       "name": "delete_webdav_backup",
-      "module": "backup::remote",
       "attributes": {},
       "params": [
         {
@@ -412,7 +380,6 @@
     },
     {
       "name": "delete_webdav_backups",
-      "module": "backup::remote",
       "attributes": {},
       "params": [
         {
@@ -424,14 +391,12 @@
     },
     {
       "name": "discard_webdav_download",
-      "module": "backup::remote",
       "attributes": {},
       "params": [],
       "returns": "Result<(), String>"
     },
     {
       "name": "download_app_update",
-      "module": "updater",
       "attributes": {},
       "params": [
         {
@@ -447,7 +412,6 @@
     },
     {
       "name": "download_install_app_update",
-      "module": "updater",
       "attributes": {},
       "params": [
         {
@@ -463,7 +427,6 @@
     },
     {
       "name": "download_webdav_backup",
-      "module": "backup::remote",
       "attributes": {},
       "params": [
         {
@@ -475,7 +438,6 @@
     },
     {
       "name": "export_backup",
-      "module": "backup",
       "attributes": {},
       "params": [
         {
@@ -491,7 +453,6 @@
     },
     {
       "name": "export_terminal_log_asciicast",
-      "module": "session_log",
       "attributes": {},
       "params": [
         {
@@ -507,7 +468,6 @@
     },
     {
       "name": "export_vault_key",
-      "module": "ssh::key_vault",
       "attributes": {},
       "params": [
         {
@@ -519,14 +479,12 @@
     },
     {
       "name": "folder_menu_status",
-      "module": "system_integration",
       "attributes": {},
       "params": [],
       "returns": "Result<IntegrationStatus, String>"
     },
     {
       "name": "forget_typed_passwords",
-      "module": "ssh::typed_passwords",
       "attributes": {},
       "params": [
         {
@@ -538,14 +496,12 @@
     },
     {
       "name": "get_automatic_backup_settings",
-      "module": "backup",
       "attributes": {},
       "params": [],
       "returns": "Result<AutomaticBackupSettings, String>"
     },
     {
       "name": "get_file_size",
-      "module": "sftp::internal::api::download",
       "attributes": {},
       "params": [
         {
@@ -557,7 +513,6 @@
     },
     {
       "name": "get_saved_secret",
-      "module": "ssh::secret_commands",
       "attributes": {},
       "params": [
         {
@@ -569,14 +524,12 @@
     },
     {
       "name": "get_secret_backend_status",
-      "module": "ssh::secret_commands",
       "attributes": {},
       "params": [],
       "returns": "Result<SecretBackendStatus, String>"
     },
     {
       "name": "get_server_metrics_snapshot",
-      "module": "monitor",
       "attributes": {},
       "params": [
         {
@@ -596,7 +549,6 @@
     },
     {
       "name": "get_sudo_password_source",
-      "module": "core::commands",
       "attributes": {},
       "params": [
         {
@@ -612,28 +564,24 @@
     },
     {
       "name": "get_sync_status",
-      "module": "sync",
       "attributes": {},
       "params": [],
       "returns": "Result<SyncStatus, String>"
     },
     {
       "name": "get_terminal_log_status",
-      "module": "session_log",
       "attributes": {},
       "params": [],
       "returns": "Result<TerminalLogStatus, String>"
     },
     {
       "name": "get_webdav_backup_status",
-      "module": "backup::remote",
       "attributes": {},
       "params": [],
       "returns": "Result<WebDavBackupStatus, String>"
     },
     {
       "name": "has_saved_jump_host_password",
-      "module": "core::commands",
       "attributes": {},
       "params": [
         {
@@ -665,7 +613,6 @@
     },
     {
       "name": "has_saved_password",
-      "module": "core::commands",
       "attributes": {},
       "params": [
         {
@@ -681,7 +628,6 @@
     },
     {
       "name": "has_saved_sudo_password",
-      "module": "core::commands",
       "attributes": {},
       "params": [
         {
@@ -693,7 +639,6 @@
     },
     {
       "name": "has_typed_password",
-      "module": "ssh::typed_passwords",
       "attributes": {},
       "params": [
         {
@@ -717,7 +662,6 @@
     },
     {
       "name": "import_backup",
-      "module": "backup",
       "attributes": {},
       "params": [
         {
@@ -733,7 +677,6 @@
     },
     {
       "name": "import_notification_sound",
-      "module": "notification",
       "attributes": {},
       "params": [
         {
@@ -745,7 +688,6 @@
     },
     {
       "name": "import_ssh_config_profiles",
-      "module": "profiles::commands",
       "attributes": {},
       "params": [
         {
@@ -757,7 +699,6 @@
     },
     {
       "name": "import_vault_key",
-      "module": "ssh::key_vault",
       "attributes": {},
       "params": [
         {
@@ -769,7 +710,6 @@
     },
     {
       "name": "inspect_backup",
-      "module": "backup",
       "attributes": {},
       "params": [
         {
@@ -781,7 +721,6 @@
     },
     {
       "name": "install_agent_integration",
-      "module": "agent_integration",
       "attributes": {},
       "params": [
         {
@@ -793,7 +732,6 @@
     },
     {
       "name": "install_downloaded_app_update",
-      "module": "updater",
       "attributes": {},
       "params": [
         {
@@ -805,7 +743,6 @@
     },
     {
       "name": "kill_pty",
-      "module": "core::commands",
       "attributes": {},
       "params": [
         {
@@ -821,84 +758,72 @@
     },
     {
       "name": "list_available_terminal_shells",
-      "module": "terminal::pty",
       "attributes": {},
       "params": [],
       "returns": "Result<Vec<TerminalShellProfile>, String>"
     },
     {
       "name": "list_backup_history",
-      "module": "backup",
       "attributes": {},
       "params": [],
       "returns": "Result<Vec<BackupHistoryEntry>, String>"
     },
     {
       "name": "list_command_tags",
-      "module": "command_library::commands",
       "attributes": {},
       "params": [],
       "returns": "Result<Vec<String>, String>"
     },
     {
       "name": "list_fonts",
-      "module": "fonts",
       "attributes": {},
       "params": [],
       "returns": "Vec<String>"
     },
     {
       "name": "list_known_hosts",
-      "module": "ssh::known_host_commands",
       "attributes": {},
       "params": [],
       "returns": "Result<Vec<KnownHostEntry>, String>"
     },
     {
       "name": "list_profile_groups",
-      "module": "profiles::commands::groups",
       "attributes": {},
       "params": [],
       "returns": "Result<Vec<ProfileGroup>, String>"
     },
     {
       "name": "list_profiles",
-      "module": "profiles::commands",
       "attributes": {},
       "params": [],
       "returns": "Result<Vec<SavedProfile>, String>"
     },
     {
       "name": "list_proxies",
-      "module": "proxy",
       "attributes": {},
       "params": [],
       "returns": "Result<Vec<ProxyServerEntry>, String>"
     },
     {
       "name": "list_saved_commands",
-      "module": "command_library::commands",
       "attributes": {},
       "params": [],
       "returns": "Result<Vec<SavedCommand>, String>"
     },
     {
       "name": "list_saved_secrets",
-      "module": "ssh::secret_commands",
       "attributes": {},
       "params": [],
       "returns": "Result<Vec<SavedSecretEntry>, String>"
     },
     {
       "name": "list_serial_ports",
-      "module": "serial",
       "attributes": {},
       "params": [],
       "returns": "Result<Vec<SerialPortEntry>, String>"
     },
     {
       "name": "list_serial_sends",
-      "module": "serial::history",
       "attributes": {},
       "params": [
         {
@@ -910,56 +835,48 @@
     },
     {
       "name": "list_terminal_logs",
-      "module": "session_log",
       "attributes": {},
       "params": [],
       "returns": "Result<Vec<library::LogSession>, String>"
     },
     {
       "name": "list_tunnel_statuses",
-      "module": "tunnel::commands",
       "attributes": {},
       "params": [],
       "returns": "Result<Vec<TunnelStatus>, String>"
     },
     {
       "name": "list_tunnels",
-      "module": "tunnel::commands",
       "attributes": {},
       "params": [],
       "returns": "Result<Vec<TunnelRule>, String>"
     },
     {
       "name": "list_vault_keys",
-      "module": "ssh::key_vault",
       "attributes": {},
       "params": [],
       "returns": "Result<Vec<VaultKeySummary>, String>"
     },
     {
       "name": "list_webdav_backups",
-      "module": "backup::remote",
       "attributes": {},
       "params": [],
       "returns": "Result<Vec<RemoteBackupEntry>, String>"
     },
     {
       "name": "load_app_state",
-      "module": "app_state",
       "attributes": {},
       "params": [],
       "returns": "Result<AppState, String>"
     },
     {
       "name": "load_config",
-      "module": "config",
       "attributes": {},
       "params": [],
       "returns": "Result<AppConfig, String>"
     },
     {
       "name": "load_custom_themes",
-      "module": "themes",
       "attributes": {},
       "params": [
         {
@@ -971,7 +888,6 @@
     },
     {
       "name": "load_scrollback_snapshots",
-      "module": "session::scrollback",
       "attributes": {},
       "params": [
         {
@@ -983,14 +899,12 @@
     },
     {
       "name": "load_session",
-      "module": "session",
       "attributes": {},
       "params": [],
       "returns": "Result<SessionData, String>"
     },
     {
       "name": "load_terminal_log_recording",
-      "module": "session_log",
       "attributes": {},
       "params": [
         {
@@ -1002,7 +916,6 @@
     },
     {
       "name": "load_terminal_log_text",
-      "module": "session_log",
       "attributes": {},
       "params": [
         {
@@ -1014,7 +927,6 @@
     },
     {
       "name": "local_terminal_shell_name",
-      "module": "terminal::pty",
       "attributes": {},
       "params": [
         {
@@ -1030,14 +942,12 @@
     },
     {
       "name": "lock_secret_vault",
-      "module": "ssh::secret_commands",
       "attributes": {},
       "params": [],
       "returns": "Result<SecretBackendStatus, String>"
     },
     {
       "name": "move_profile_group",
-      "module": "profiles::commands::groups",
       "attributes": {},
       "params": [
         {
@@ -1053,7 +963,6 @@
     },
     {
       "name": "move_profiles_to_group",
-      "module": "profiles::commands::groups",
       "attributes": {},
       "params": [
         {
@@ -1073,28 +982,24 @@
     },
     {
       "name": "notification_permission",
-      "module": "notification",
       "attributes": {},
       "params": [],
       "returns": "NotificationPermission"
     },
     {
       "name": "open_terminal_log_directory",
-      "module": "session_log",
       "attributes": {},
       "params": [],
       "returns": "Result<(), String>"
     },
     {
       "name": "pending_proxy_command_prompts",
-      "module": "proxy::approval",
       "attributes": {},
       "params": [],
       "returns": "Vec<ProxyCommandPrompt>"
     },
     {
       "name": "preview_ssh_config_import",
-      "module": "profiles::commands",
       "attributes": {},
       "params": [
         {
@@ -1106,7 +1011,6 @@
     },
     {
       "name": "pty_shell_in_foreground",
-      "module": "terminal::foreground",
       "attributes": {},
       "params": [
         {
@@ -1122,7 +1026,6 @@
     },
     {
       "name": "pulse_serial_line",
-      "module": "serial",
       "attributes": {},
       "params": [
         {
@@ -1146,28 +1049,24 @@
     },
     {
       "name": "read_clipboard_file_paths",
-      "module": "clipboard_files",
       "attributes": {},
       "params": [],
       "returns": "Result<Vec<String>, String>"
     },
     {
       "name": "read_notification_sound",
-      "module": "notification",
       "attributes": {},
       "params": [],
       "returns": "Result<Response, String>"
     },
     {
       "name": "ready_to_quit",
-      "module": "background::quit",
       "attributes": {},
       "params": [],
       "returns": "()"
     },
     {
       "name": "record_saved_command_use",
-      "module": "command_library::commands",
       "attributes": {},
       "params": [
         {
@@ -1179,7 +1078,6 @@
     },
     {
       "name": "record_serial_send",
-      "module": "serial::history",
       "attributes": {},
       "params": [
         {
@@ -1199,7 +1097,6 @@
     },
     {
       "name": "refresh_drop_folder",
-      "module": "drag_out",
       "attributes": {},
       "params": [
         {
@@ -1211,7 +1108,6 @@
     },
     {
       "name": "release_server_monitor_session",
-      "module": "monitor",
       "attributes": {},
       "params": [
         {
@@ -1227,7 +1123,6 @@
     },
     {
       "name": "remote_agent_integration_status",
-      "module": "agent_integration::remote",
       "attributes": {},
       "params": [
         {
@@ -1243,14 +1138,12 @@
     },
     {
       "name": "remove_master_password",
-      "module": "ssh::secret_commands",
       "attributes": {},
       "params": [],
       "returns": "Result<SecretBackendStatus, String>"
     },
     {
       "name": "rename_command_tag",
-      "module": "command_library::commands",
       "attributes": {},
       "params": [
         {
@@ -1266,7 +1159,6 @@
     },
     {
       "name": "rename_profile_group",
-      "module": "profiles::commands::groups",
       "attributes": {},
       "params": [
         {
@@ -1282,7 +1174,6 @@
     },
     {
       "name": "rename_vault_key",
-      "module": "ssh::key_vault",
       "attributes": {},
       "params": [
         {
@@ -1294,14 +1185,12 @@
     },
     {
       "name": "repair_ime_focus",
-      "module": "ime_focus",
       "attributes": {},
       "params": [],
       "returns": "Result<(), String>"
     },
     {
       "name": "reset_pty_console",
-      "module": "core::commands",
       "attributes": {},
       "params": [
         {
@@ -1317,21 +1206,18 @@
     },
     {
       "name": "reset_saved_passwords",
-      "module": "ssh::secret_commands",
       "attributes": {},
       "params": [],
       "returns": "Result<SecretBackendStatus, String>"
     },
     {
       "name": "reset_sync",
-      "module": "sync",
       "attributes": {},
       "params": [],
       "returns": "Result<SyncStatus, String>"
     },
     {
       "name": "reset_tunnel_traffic_totals",
-      "module": "tunnel::commands",
       "attributes": {},
       "params": [
         {
@@ -1343,7 +1229,6 @@
     },
     {
       "name": "resize_pty",
-      "module": "core::commands",
       "attributes": {},
       "params": [
         {
@@ -1367,7 +1252,6 @@
     },
     {
       "name": "resolve_close_request",
-      "module": "background",
       "attributes": {},
       "params": [
         {
@@ -1379,7 +1263,6 @@
     },
     {
       "name": "resolve_ssh_config_host",
-      "module": "profiles::commands",
       "attributes": {},
       "params": [
         {
@@ -1391,7 +1274,6 @@
     },
     {
       "name": "respond_proxy_command_prompt",
-      "module": "proxy::approval",
       "attributes": {},
       "params": [
         {
@@ -1407,7 +1289,6 @@
     },
     {
       "name": "respond_ssh_auth_prompt",
-      "module": "ssh::auth",
       "attributes": {},
       "params": [
         {
@@ -1423,7 +1304,6 @@
     },
     {
       "name": "respond_ssh_host_key_prompt",
-      "module": "core::commands",
       "attributes": {},
       "params": [
         {
@@ -1439,21 +1319,18 @@
     },
     {
       "name": "retry_system_unlock",
-      "module": "ssh::secret_commands",
       "attributes": {},
       "params": [],
       "returns": "Result<SecretBackendStatus, String>"
     },
     {
       "name": "retry_terminal_logging",
-      "module": "session_log",
       "attributes": {},
       "params": [],
       "returns": "Result<TerminalLogStatus, String>"
     },
     {
       "name": "reveal_terminal_log",
-      "module": "session_log",
       "attributes": {},
       "params": [
         {
@@ -1465,7 +1342,6 @@
     },
     {
       "name": "run_blocking",
-      "module": "core::blocking",
       "attributes": {},
       "params": [
         {
@@ -1477,7 +1353,6 @@
     },
     {
       "name": "run_due_automatic_backup",
-      "module": "backup",
       "attributes": {},
       "params": [
         {
@@ -1493,7 +1368,6 @@
     },
     {
       "name": "run_sync",
-      "module": "sync",
       "attributes": {},
       "params": [
         {
@@ -1509,7 +1383,6 @@
     },
     {
       "name": "run_webdav_backup",
-      "module": "backup::remote",
       "attributes": {},
       "params": [
         {
@@ -1525,7 +1398,6 @@
     },
     {
       "name": "save_app_state",
-      "module": "app_state",
       "attributes": {},
       "params": [
         {
@@ -1537,7 +1409,6 @@
     },
     {
       "name": "save_automatic_backup_settings",
-      "module": "backup",
       "attributes": {},
       "params": [
         {
@@ -1549,7 +1420,6 @@
     },
     {
       "name": "save_config",
-      "module": "config",
       "attributes": {},
       "params": [
         {
@@ -1561,7 +1431,6 @@
     },
     {
       "name": "save_custom_themes",
-      "module": "themes",
       "attributes": {},
       "params": [
         {
@@ -1573,7 +1442,6 @@
     },
     {
       "name": "save_profile",
-      "module": "profiles::commands",
       "attributes": {},
       "params": [
         {
@@ -1589,7 +1457,6 @@
     },
     {
       "name": "save_proxy",
-      "module": "proxy",
       "attributes": {},
       "params": [
         {
@@ -1609,7 +1476,6 @@
     },
     {
       "name": "save_saved_command",
-      "module": "command_library::commands",
       "attributes": {},
       "params": [
         {
@@ -1621,7 +1487,6 @@
     },
     {
       "name": "save_scrollback_snapshots",
-      "module": "session::scrollback",
       "attributes": {},
       "params": [
         {
@@ -1633,7 +1498,6 @@
     },
     {
       "name": "save_session",
-      "module": "session",
       "attributes": {},
       "params": [
         {
@@ -1645,7 +1509,6 @@
     },
     {
       "name": "save_sync_settings",
-      "module": "sync",
       "attributes": {},
       "params": [
         {
@@ -1657,7 +1520,6 @@
     },
     {
       "name": "save_terminal_contents",
-      "module": "session_log",
       "attributes": {},
       "params": [
         {
@@ -1673,7 +1535,6 @@
     },
     {
       "name": "save_tunnel",
-      "module": "tunnel::commands",
       "attributes": {},
       "params": [
         {
@@ -1684,8 +1545,22 @@
       "returns": "Result<TunnelRule, String>"
     },
     {
+      "name": "save_webdav_backup",
+      "attributes": {},
+      "params": [
+        {
+          "name": "file_name",
+          "type": "String"
+        },
+        {
+          "name": "output_path",
+          "type": "String"
+        }
+      ],
+      "returns": "Result<String, String>"
+    },
+    {
       "name": "save_webdav_backup_settings",
-      "module": "backup::remote",
       "attributes": {},
       "params": [
         {
@@ -1704,24 +1579,7 @@
       "returns": "Result<WebDavBackupStatus, String>"
     },
     {
-      "name": "save_webdav_backup",
-      "module": "backup::remote",
-      "attributes": {},
-      "params": [
-        {
-          "name": "file_name",
-          "type": "String"
-        },
-        {
-          "name": "output_path",
-          "type": "String"
-        }
-      ],
-      "returns": "Result<String, String>"
-    },
-    {
       "name": "save_window_background",
-      "module": "config::window_background",
       "attributes": {},
       "params": [
         {
@@ -1733,7 +1591,6 @@
     },
     {
       "name": "send_serial_break",
-      "module": "serial",
       "attributes": {},
       "params": [
         {
@@ -1753,7 +1610,6 @@
     },
     {
       "name": "serial_receive_files",
-      "module": "serial::xmodem",
       "attributes": {},
       "params": [
         {
@@ -1777,7 +1633,6 @@
     },
     {
       "name": "serial_send_files",
-      "module": "serial::xmodem",
       "attributes": {},
       "params": [
         {
@@ -1801,7 +1656,6 @@
     },
     {
       "name": "set_folder_menu",
-      "module": "system_integration",
       "attributes": {},
       "params": [
         {
@@ -1813,7 +1667,6 @@
     },
     {
       "name": "set_master_password",
-      "module": "ssh::secret_commands",
       "attributes": {},
       "params": [
         {
@@ -1825,7 +1678,6 @@
     },
     {
       "name": "set_profile_distro",
-      "module": "profiles::commands",
       "attributes": {},
       "params": [
         {
@@ -1841,7 +1693,6 @@
     },
     {
       "name": "set_profile_server_monitor_visible",
-      "module": "profiles::commands",
       "attributes": {},
       "params": [
         {
@@ -1857,7 +1708,6 @@
     },
     {
       "name": "set_profile_tab_icon",
-      "module": "profiles::commands",
       "attributes": {},
       "params": [
         {
@@ -1873,7 +1723,6 @@
     },
     {
       "name": "set_save_before_quit",
-      "module": "background::quit",
       "attributes": {},
       "params": [
         {
@@ -1885,7 +1734,6 @@
     },
     {
       "name": "set_saved_command_favorite",
-      "module": "command_library::commands",
       "attributes": {},
       "params": [
         {
@@ -1901,7 +1749,6 @@
     },
     {
       "name": "set_secret_storage_mode",
-      "module": "ssh::secret_commands",
       "attributes": {},
       "params": [
         {
@@ -1913,7 +1760,6 @@
     },
     {
       "name": "set_serial_signals",
-      "module": "serial",
       "attributes": {},
       "params": [
         {
@@ -1937,7 +1783,6 @@
     },
     {
       "name": "set_serial_view",
-      "module": "serial",
       "attributes": {},
       "params": [
         {
@@ -1957,7 +1802,6 @@
     },
     {
       "name": "set_shell_command",
-      "module": "system_integration",
       "attributes": {},
       "params": [
         {
@@ -1973,7 +1817,6 @@
     },
     {
       "name": "set_terminal_log_recording",
-      "module": "session_log",
       "attributes": {},
       "params": [
         {
@@ -1989,7 +1832,6 @@
     },
     {
       "name": "set_unseen_notifications",
-      "module": "notification::badge",
       "attributes": {},
       "params": [
         {
@@ -2005,7 +1847,6 @@
     },
     {
       "name": "set_vault_key_certificate",
-      "module": "ssh::key_vault",
       "attributes": {},
       "params": [
         {
@@ -2017,7 +1858,6 @@
     },
     {
       "name": "set_window_blur",
-      "module": "window_blur",
       "attributes": {},
       "params": [
         {
@@ -2041,7 +1881,6 @@
     },
     {
       "name": "sftp_cancel_remote_operation",
-      "module": "sftp::internal::api::archive",
       "attributes": {},
       "params": [
         {
@@ -2053,7 +1892,6 @@
     },
     {
       "name": "sftp_cancel_upload",
-      "module": "sftp::internal::api::upload::commands",
       "attributes": {},
       "params": [
         {
@@ -2065,7 +1903,6 @@
     },
     {
       "name": "sftp_check_download_conflicts",
-      "module": "sftp::internal::api::download",
       "attributes": {},
       "params": [
         {
@@ -2089,7 +1926,6 @@
     },
     {
       "name": "sftp_check_upload_conflicts",
-      "module": "sftp::internal::api::upload::commands",
       "attributes": {},
       "params": [
         {
@@ -2113,7 +1949,6 @@
     },
     {
       "name": "sftp_compress_entries",
-      "module": "sftp::internal::api::archive",
       "attributes": {},
       "params": [
         {
@@ -2137,7 +1972,6 @@
     },
     {
       "name": "sftp_create_directory",
-      "module": "sftp::internal::api::base",
       "attributes": {},
       "params": [
         {
@@ -2157,7 +1991,6 @@
     },
     {
       "name": "sftp_delete_entries",
-      "module": "sftp::internal::api::delete::commands",
       "attributes": {},
       "params": [
         {
@@ -2181,7 +2014,6 @@
     },
     {
       "name": "sftp_delete_entry",
-      "module": "sftp::internal::api::delete::commands",
       "attributes": {},
       "params": [
         {
@@ -2205,7 +2037,6 @@
     },
     {
       "name": "sftp_download_file",
-      "module": "sftp::internal::api::download",
       "attributes": {},
       "params": [
         {
@@ -2233,7 +2064,6 @@
     },
     {
       "name": "sftp_download_paths",
-      "module": "sftp::internal::api::download",
       "attributes": {},
       "params": [
         {
@@ -2269,7 +2099,6 @@
     },
     {
       "name": "sftp_external_app_icons",
-      "module": "sftp::internal::api::external",
       "attributes": {},
       "params": [
         {
@@ -2281,7 +2110,6 @@
     },
     {
       "name": "sftp_external_edit_list",
-      "module": "sftp::internal::api::external",
       "attributes": {},
       "params": [
         {
@@ -2293,7 +2121,6 @@
     },
     {
       "name": "sftp_external_edit_open",
-      "module": "sftp::internal::api::external",
       "attributes": {},
       "params": [
         {
@@ -2321,7 +2148,6 @@
     },
     {
       "name": "sftp_external_edit_release_tab",
-      "module": "sftp::internal::api::external",
       "attributes": {},
       "params": [
         {
@@ -2333,7 +2159,6 @@
     },
     {
       "name": "sftp_external_edit_reveal",
-      "module": "sftp::internal::api::external",
       "attributes": {},
       "params": [
         {
@@ -2345,7 +2170,6 @@
     },
     {
       "name": "sftp_external_edit_stop",
-      "module": "sftp::internal::api::external",
       "attributes": {},
       "params": [
         {
@@ -2357,7 +2181,6 @@
     },
     {
       "name": "sftp_external_edit_upload",
-      "module": "sftp::internal::api::external",
       "attributes": {},
       "params": [
         {
@@ -2381,7 +2204,6 @@
     },
     {
       "name": "sftp_external_open_with_choices",
-      "module": "sftp::internal::api::external",
       "attributes": {},
       "params": [
         {
@@ -2393,7 +2215,6 @@
     },
     {
       "name": "sftp_extract_archive",
-      "module": "sftp::internal::api::archive",
       "attributes": {},
       "params": [
         {
@@ -2417,7 +2238,6 @@
     },
     {
       "name": "sftp_list_directory",
-      "module": "sftp::internal::api::base",
       "attributes": {},
       "params": [
         {
@@ -2437,7 +2257,6 @@
     },
     {
       "name": "sftp_open_file_for_edit",
-      "module": "sftp::internal::api::edit",
       "attributes": {},
       "params": [
         {
@@ -2457,7 +2276,6 @@
     },
     {
       "name": "sftp_preview_delete_entries",
-      "module": "sftp::internal::api::delete::commands",
       "attributes": {},
       "params": [
         {
@@ -2477,7 +2295,6 @@
     },
     {
       "name": "sftp_release_tab_connections",
-      "module": "sftp::internal::api::base",
       "attributes": {},
       "params": [
         {
@@ -2489,7 +2306,6 @@
     },
     {
       "name": "sftp_rename_entry",
-      "module": "sftp::internal::api::base",
       "attributes": {},
       "params": [
         {
@@ -2513,7 +2329,6 @@
     },
     {
       "name": "sftp_save_edited_file",
-      "module": "sftp::internal::api::edit",
       "attributes": {},
       "params": [
         {
@@ -2541,7 +2356,6 @@
     },
     {
       "name": "sftp_search_entries",
-      "module": "sftp::internal::api::search",
       "attributes": {},
       "params": [
         {
@@ -2569,7 +2383,6 @@
     },
     {
       "name": "sftp_set_permissions",
-      "module": "sftp::internal::api::permissions",
       "attributes": {},
       "params": [
         {
@@ -2593,7 +2406,6 @@
     },
     {
       "name": "sftp_upload_file",
-      "module": "sftp::internal::api::upload::commands",
       "attributes": {},
       "params": [
         {
@@ -2621,7 +2433,6 @@
     },
     {
       "name": "sftp_upload_paths",
-      "module": "sftp::internal::api::upload::commands",
       "attributes": {},
       "params": [
         {
@@ -2653,14 +2464,12 @@
     },
     {
       "name": "shell_command_status",
-      "module": "system_integration",
       "attributes": {},
       "params": [],
       "returns": "Result<IntegrationStatus, String>"
     },
     {
       "name": "show_notification",
-      "module": "notification",
       "attributes": {},
       "params": [
         {
@@ -2672,7 +2481,6 @@
     },
     {
       "name": "start_drag_out",
-      "module": "drag_out",
       "attributes": {},
       "params": [
         {
@@ -2684,7 +2492,6 @@
     },
     {
       "name": "start_tunnel",
-      "module": "tunnel::commands",
       "attributes": {},
       "params": [
         {
@@ -2700,7 +2507,6 @@
     },
     {
       "name": "stop_tunnel",
-      "module": "tunnel::commands",
       "attributes": {},
       "params": [
         {
@@ -2712,28 +2518,24 @@
     },
     {
       "name": "system_prefers_dark",
-      "module": "window_blur",
       "attributes": {},
       "params": [],
       "returns": "Option<bool>"
     },
     {
       "name": "take_launch_dirs",
-      "module": "launch_dir",
       "attributes": {},
       "params": [],
       "returns": "Vec<LaunchDir>"
     },
     {
       "name": "take_tray_update_check",
-      "module": "background::tray",
       "attributes": {},
       "params": [],
       "returns": "bool"
     },
     {
       "name": "terminal_log_ids_for_tab",
-      "module": "session_log",
       "attributes": {},
       "params": [
         {
@@ -2745,7 +2547,6 @@
     },
     {
       "name": "test_connection",
-      "module": "profiles::commands",
       "attributes": {},
       "params": [
         {
@@ -2761,7 +2562,6 @@
     },
     {
       "name": "test_webdav_connection",
-      "module": "backup::remote",
       "attributes": {},
       "params": [
         {
@@ -2777,7 +2577,6 @@
     },
     {
       "name": "toggle_devtools",
-      "module": "main_window",
       "attributes": {},
       "params": [
         {
@@ -2789,7 +2588,6 @@
     },
     {
       "name": "uninstall_agent_integration",
-      "module": "agent_integration",
       "attributes": {},
       "params": [
         {
@@ -2801,7 +2599,6 @@
     },
     {
       "name": "unlock_secret_vault",
-      "module": "ssh::secret_commands",
       "attributes": {},
       "params": [
         {
@@ -2813,7 +2610,6 @@
     },
     {
       "name": "verify_user",
-      "module": "ssh::secret_commands",
       "attributes": {},
       "params": [
         {
@@ -2824,28 +2620,7 @@
       "returns": "Result<(), String>"
     },
     {
-      "name": "write_pty_batch",
-      "module": "core::commands",
-      "attributes": {},
-      "params": [
-        {
-          "name": "targets",
-          "type": "Vec<PtyWriteTarget>"
-        },
-        {
-          "name": "guard_target",
-          "type": "Option<PtyWriteTarget>"
-        },
-        {
-          "name": "data",
-          "type": "String"
-        }
-      ],
-      "returns": "Vec<PtyWriteResult>"
-    },
-    {
       "name": "write_pty",
-      "module": "core::commands",
       "attributes": {},
       "params": [
         {
@@ -2864,8 +2639,26 @@
       "returns": "Result<(), String>"
     },
     {
+      "name": "write_pty_batch",
+      "attributes": {},
+      "params": [
+        {
+          "name": "targets",
+          "type": "Vec<PtyWriteTarget>"
+        },
+        {
+          "name": "guard_target",
+          "type": "Option<PtyWriteTarget>"
+        },
+        {
+          "name": "data",
+          "type": "String"
+        }
+      ],
+      "returns": "Vec<PtyWriteResult>"
+    },
+    {
       "name": "write_saved_password_for_sudo",
-      "module": "core::commands",
       "attributes": {},
       "params": [
         {
@@ -2893,7 +2686,6 @@
     },
     {
       "name": "write_serial_bytes",
-      "module": "serial",
       "attributes": {},
       "params": [
         {
@@ -2913,7 +2705,6 @@
     },
     {
       "name": "zmodem_arm_manual_detect",
-      "module": "zmodem::commands",
       "attributes": {},
       "params": [
         {
@@ -2929,7 +2720,6 @@
     },
     {
       "name": "zmodem_cancel",
-      "module": "zmodem::commands",
       "attributes": {},
       "params": [
         {
@@ -2945,7 +2735,6 @@
     },
     {
       "name": "zmodem_start_send",
-      "module": "zmodem::commands",
       "attributes": {},
       "params": [
         {
@@ -2965,57 +2754,215 @@
     }
   ],
   "handlers": [
-    "#[cfg(any(target_os = \"windows\", target_os = \"macos\"))",
-    "app_state::load_app_state",
-    "app_state::save_app_state",
-    "backup::delete_backup_history_entry",
-    "backup::export_backup",
-    "backup::get_automatic_backup_settings",
-    "backup::import_backup",
-    "backup::inspect_backup",
-    "backup::list_backup_history",
-    "backup::remote::clear_webdav_backup_settings",
-    "backup::remote::delete_webdav_backup",
-    "backup::remote::delete_webdav_backups",
-    "backup::remote::discard_webdav_download",
-    "backup::remote::download_webdav_backup",
-    "backup::remote::get_webdav_backup_status",
-    "backup::remote::list_webdav_backups",
-    "backup::remote::run_webdav_backup",
-    "backup::remote::save_webdav_backup",
-    "backup::remote::save_webdav_backup_settings",
-    "backup::remote::test_webdav_connection",
-    "backup::run_due_automatic_backup",
-    "backup::save_automatic_backup_settings",
-    "clipboard_files::read_clipboard_file_paths",
-    "config::load_config",
-    "config::save_config",
-    "config::window_background::save_window_background",
-    "proxy::approval::pending_proxy_command_prompts",
-    "proxy::approval::respond_proxy_command_prompt",
-    "proxy::delete_proxy",
-    "proxy::list_proxies",
-    "proxy::save_proxy",
-    "session_log::delete_terminal_log",
-    "session_log::delete_terminal_logs",
-    "session_log::export_terminal_log_asciicast",
-    "session_log::get_terminal_log_status",
-    "session_log::list_terminal_logs",
-    "session_log::load_terminal_log_recording",
-    "session_log::load_terminal_log_text",
-    "session_log::open_terminal_log_directory",
-    "session_log::retry_terminal_logging",
-    "session_log::reveal_terminal_log",
-    "session_log::save_terminal_contents",
-    "session_log::set_terminal_log_recording",
-    "session_log::terminal_log_ids_for_tab",
-    "sync::get_sync_status",
-    "sync::reset_sync",
-    "sync::run_sync",
-    "sync::save_sync_settings",
-    "themes::load_custom_themes",
-    "themes::save_custom_themes",
-    "window_blur::set_window_blur",
-    "window_blur::system_prefers_dark"
+    "ack_pty_output",
+    "agent_integration_status",
+    "auto_start_tunnels",
+    "build_agent_resume_command",
+    "cancel_quit_prompt",
+    "change_remote_agent_integration",
+    "change_vault_password",
+    "check_app_update",
+    "check_local_shell",
+    "clear_scrollback_snapshots",
+    "clear_serial_sends",
+    "clear_session",
+    "clear_webdav_backup_settings",
+    "confirm_quit_app",
+    "create_command_tag",
+    "create_profile_group",
+    "create_pty",
+    "delete_backup_history_entry",
+    "delete_command_tag",
+    "delete_known_hosts",
+    "delete_profile",
+    "delete_profile_group",
+    "delete_profiles",
+    "delete_proxy",
+    "delete_saved_command",
+    "delete_saved_secret",
+    "delete_serial_send",
+    "delete_terminal_log",
+    "delete_terminal_logs",
+    "delete_tunnel",
+    "delete_vault_key",
+    "delete_webdav_backup",
+    "delete_webdav_backups",
+    "discard_webdav_download",
+    "download_app_update",
+    "download_install_app_update",
+    "download_webdav_backup",
+    "export_backup",
+    "export_terminal_log_asciicast",
+    "export_vault_key",
+    "folder_menu_status",
+    "forget_typed_passwords",
+    "get_automatic_backup_settings",
+    "get_file_size",
+    "get_saved_secret",
+    "get_secret_backend_status",
+    "get_server_metrics_snapshot",
+    "get_sudo_password_source",
+    "get_sync_status",
+    "get_terminal_log_status",
+    "get_webdav_backup_status",
+    "has_saved_jump_host_password",
+    "has_saved_password",
+    "has_saved_sudo_password",
+    "has_typed_password",
+    "import_backup",
+    "import_notification_sound",
+    "import_ssh_config_profiles",
+    "import_vault_key",
+    "inspect_backup",
+    "install_agent_integration",
+    "install_downloaded_app_update",
+    "kill_pty",
+    "list_available_terminal_shells",
+    "list_backup_history",
+    "list_command_tags",
+    "list_fonts",
+    "list_known_hosts",
+    "list_profile_groups",
+    "list_profiles",
+    "list_proxies",
+    "list_saved_commands",
+    "list_saved_secrets",
+    "list_serial_ports",
+    "list_serial_sends",
+    "list_terminal_logs",
+    "list_tunnel_statuses",
+    "list_tunnels",
+    "list_vault_keys",
+    "list_webdav_backups",
+    "load_app_state",
+    "load_config",
+    "load_custom_themes",
+    "load_scrollback_snapshots",
+    "load_session",
+    "load_terminal_log_recording",
+    "load_terminal_log_text",
+    "local_terminal_shell_name",
+    "lock_secret_vault",
+    "move_profile_group",
+    "move_profiles_to_group",
+    "notification_permission",
+    "open_terminal_log_directory",
+    "pending_proxy_command_prompts",
+    "preview_ssh_config_import",
+    "pty_shell_in_foreground",
+    "pulse_serial_line",
+    "read_clipboard_file_paths",
+    "read_notification_sound",
+    "ready_to_quit",
+    "record_saved_command_use",
+    "record_serial_send",
+    "refresh_drop_folder",
+    "release_server_monitor_session",
+    "remote_agent_integration_status",
+    "remove_master_password",
+    "rename_command_tag",
+    "rename_profile_group",
+    "rename_vault_key",
+    "repair_ime_focus",
+    "reset_pty_console",
+    "reset_saved_passwords",
+    "reset_sync",
+    "reset_tunnel_traffic_totals",
+    "resize_pty",
+    "resolve_close_request",
+    "resolve_ssh_config_host",
+    "respond_proxy_command_prompt",
+    "respond_ssh_auth_prompt",
+    "respond_ssh_host_key_prompt",
+    "retry_system_unlock",
+    "retry_terminal_logging",
+    "reveal_terminal_log",
+    "run_due_automatic_backup",
+    "run_sync",
+    "run_webdav_backup",
+    "save_app_state",
+    "save_automatic_backup_settings",
+    "save_config",
+    "save_custom_themes",
+    "save_profile",
+    "save_proxy",
+    "save_saved_command",
+    "save_scrollback_snapshots",
+    "save_session",
+    "save_sync_settings",
+    "save_terminal_contents",
+    "save_tunnel",
+    "save_webdav_backup",
+    "save_webdav_backup_settings",
+    "save_window_background",
+    "send_serial_break",
+    "serial_receive_files",
+    "serial_send_files",
+    "set_folder_menu",
+    "set_master_password",
+    "set_profile_distro",
+    "set_profile_server_monitor_visible",
+    "set_profile_tab_icon",
+    "set_save_before_quit",
+    "set_saved_command_favorite",
+    "set_secret_storage_mode",
+    "set_serial_signals",
+    "set_serial_view",
+    "set_shell_command",
+    "set_terminal_log_recording",
+    "set_unseen_notifications",
+    "set_vault_key_certificate",
+    "set_window_blur",
+    "sftp_cancel_remote_operation",
+    "sftp_cancel_upload",
+    "sftp_check_download_conflicts",
+    "sftp_check_upload_conflicts",
+    "sftp_compress_entries",
+    "sftp_create_directory",
+    "sftp_delete_entries",
+    "sftp_delete_entry",
+    "sftp_download_file",
+    "sftp_download_paths",
+    "sftp_external_app_icons",
+    "sftp_external_edit_list",
+    "sftp_external_edit_open",
+    "sftp_external_edit_release_tab",
+    "sftp_external_edit_reveal",
+    "sftp_external_edit_stop",
+    "sftp_external_edit_upload",
+    "sftp_external_open_with_choices",
+    "sftp_extract_archive",
+    "sftp_list_directory",
+    "sftp_open_file_for_edit",
+    "sftp_preview_delete_entries",
+    "sftp_release_tab_connections",
+    "sftp_rename_entry",
+    "sftp_save_edited_file",
+    "sftp_search_entries",
+    "sftp_set_permissions",
+    "sftp_upload_file",
+    "sftp_upload_paths",
+    "shell_command_status",
+    "show_notification",
+    "start_drag_out",
+    "start_tunnel",
+    "stop_tunnel",
+    "system_prefers_dark",
+    "take_launch_dirs",
+    "take_tray_update_check",
+    "terminal_log_ids_for_tab",
+    "test_connection",
+    "test_webdav_connection",
+    "toggle_devtools",
+    "uninstall_agent_integration",
+    "unlock_secret_vault",
+    "verify_user",
+    "write_pty",
+    "write_pty_batch",
+    "write_saved_password_for_sudo",
+    "write_serial_bytes",
+    "zmodem_arm_manual_detect",
+    "zmodem_cancel",
+    "zmodem_start_send"
   ]
 }

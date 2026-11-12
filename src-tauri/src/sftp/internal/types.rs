@@ -4,8 +4,8 @@ use serde::Serialize;
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Instant;
-use tokio::sync::watch;
 use tokio::sync::RwLock;
+use tokio::sync::watch;
 use tterm_core::sftp::entry::SftpDirectoryEntry;
 
 use crate::sftp::internal::launcher::ChannelLauncher;

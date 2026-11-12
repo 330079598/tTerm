@@ -1,10 +1,10 @@
 //! One session's log: its raw and plain-text files.
 
+use super::LogContext;
 use super::naming::{render_name, unique_base_name};
 use super::plain::PlainLog;
 use super::rotating::RotatingFile;
-use super::LogContext;
-use super::{library, LogConfig, SessionMetadata};
+use super::{LogConfig, SessionMetadata, library};
 use base64::Engine;
 use chrono::{DateTime, Local};
 use std::fs;

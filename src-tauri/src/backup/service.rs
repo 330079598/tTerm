@@ -5,9 +5,9 @@ use super::automatic::{
     validate_automatic_backup_settings, write_automatic_backup_settings,
 };
 use super::{
-    export_backup_blocking, import_backup_blocking, inspect_backup_blocking,
     AutomaticBackupSettings, BackupExportOptions, BackupExportResult, BackupHistoryEntry,
     BackupImportOptions, BackupImportResult, BackupInspectInput, BackupInspectResult,
+    export_backup_blocking, import_backup_blocking, inspect_backup_blocking,
 };
 use crate::core::blocking::run_blocking;
 use crate::ssh::secret_store::types::SecretStoreState;

@@ -9,7 +9,7 @@
 use super::host::first_option;
 use super::parse::SshConfig;
 use super::resolve::resolve_host;
-use super::tokens::{key_file_path, PathTokens};
+use super::tokens::{PathTokens, key_file_path};
 use crate::profiles::types::SavedJumpHost;
 use std::collections::HashMap;
 
@@ -116,18 +116,18 @@ impl Chain<'_> {
             }
 
             let resolved = resolve_host(self.config, &spec.host);
-            if index == 0 {
-                if let Some(own_jump) = first_option(&resolved.options, "proxyjump") {
-                    if depth >= MAX_CHAIN_DEPTH {
-                        self.warnings.push(format!(
+            if index == 0
+                && let Some(own_jump) = first_option(&resolved.options, "proxyjump")
+            {
+                if depth >= MAX_CHAIN_DEPTH {
+                    self.warnings.push(format!(
                             "The ProxyJump of '{}' was not followed: jump hosts go deeper than {MAX_CHAIN_DEPTH}.",
                             spec.host
                         ));
-                    } else {
-                        self.visited.push(spec.host.clone());
-                        hops.extend(self.read(&own_jump, depth + 1));
-                        self.visited.pop();
-                    }
+                } else {
+                    self.visited.push(spec.host.clone());
+                    hops.extend(self.read(&own_jump, depth + 1));
+                    self.visited.pop();
                 }
             }
             hops.push(self.hop(spec, &resolved.options));

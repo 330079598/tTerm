@@ -1,9 +1,9 @@
 //! Whole-file helpers on either side of a transfer: small remote reads and
 //! writes, remote directories, and source fingerprints.
 
-use super::{failed, TransferError};
-use russh_sftp::client::error::Error as SftpError;
+use super::{TransferError, failed};
 use russh_sftp::client::RawSftpSession;
+use russh_sftp::client::error::Error as SftpError;
 use russh_sftp::protocol::{FileAttributes, OpenFlags, StatusCode};
 use std::path::Path;
 
@@ -15,7 +15,7 @@ pub(super) async fn remote_read_all(
     let attrs = match session.stat(path).await {
         Ok(attrs) => attrs,
         Err(SftpError::Status(status)) if status.status_code == StatusCode::NoSuchFile => {
-            return Ok(None)
+            return Ok(None);
         }
         Err(err) => return Err(failed(format!("Failed to stat '{path}': {err}"))),
     };

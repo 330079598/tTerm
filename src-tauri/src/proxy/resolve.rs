@@ -1,6 +1,6 @@
 //! Turns a host's proxy choice into the server its connection dials.
 
-use super::{proxy_secret_key, storage, ProxyChoice, ProxyEndpoint, ProxyServer};
+use super::{ProxyChoice, ProxyEndpoint, ProxyServer, proxy_secret_key, storage};
 use crate::ssh::secret_store::types::SecretStoreState;
 use zeroize::Zeroizing;
 
@@ -56,10 +56,10 @@ pub fn resolve_proxy(
     let password = if server.username.is_some() {
         let key = proxy_secret_key(id);
         let password = secret_state.get_password(&key)?;
-        if password.is_none() {
-            if let Some(reason) = secret_state.unreadable_reason(&[key.as_str()])? {
-                return Err(reason.to_string());
-            }
+        if password.is_none()
+            && let Some(reason) = secret_state.unreadable_reason(&[key.as_str()])?
+        {
+            return Err(reason.to_string());
         }
         password.map(Zeroizing::new)
     } else {
@@ -97,9 +97,11 @@ mod tests {
             command: None,
         };
         let password = Some(Zeroizing::new("secret".to_string()));
-        assert!(endpoint(server.clone(), password.clone())
-            .password
-            .is_none());
+        assert!(
+            endpoint(server.clone(), password.clone())
+                .password
+                .is_none()
+        );
 
         let with_user = ProxyServer {
             username: Some("me".to_string()),

@@ -140,7 +140,9 @@ fn an_include_loop_is_stopped() {
 
     let (hosts, warnings) = dir.import();
     assert_eq!(hosts.len(), 1);
-    assert!(warnings
-        .iter()
-        .any(|warning| warning.contains("Include loop")));
+    assert!(
+        warnings
+            .iter()
+            .any(|warning| warning.contains("Include loop"))
+    );
 }

@@ -1,6 +1,6 @@
 use crate::ssh::context::ConnectionContext;
-use russh::client;
 use russh::Disconnect;
+use russh::client;
 use russh_sftp::client::error::Error as SftpError;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
@@ -17,8 +17,8 @@ use crate::sftp::internal::types::{
 use crate::ssh::auth::{AuthPrompter, AuthTarget};
 use crate::ssh::types::ConnectionStatusOptions;
 use crate::ssh::{
-    jump::connect::open_target_ssh_session, jump::connect::ConnectContext,
-    jump::connect::JumpChain, jump::connect::SshTarget, secret_store::types::SecretStoreState,
+    jump::connect::ConnectContext, jump::connect::JumpChain, jump::connect::SshTarget,
+    jump::connect::open_target_ssh_session, secret_store::types::SecretStoreState,
     types::SshClientHandler,
 };
 

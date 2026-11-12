@@ -197,7 +197,9 @@ fn rejects_whitespace_only_command_text() {
     let mut input = create_input();
     input.command_text = "  \n  ".to_string();
 
-    assert!(save(&repository, input, 100)
-        .expect_err("blank command must fail")
-        .contains("Command text must contain"));
+    assert!(
+        save(&repository, input, 100)
+            .expect_err("blank command must fail")
+            .contains("Command text must contain")
+    );
 }

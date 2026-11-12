@@ -3,7 +3,7 @@
 
 use tterm_core::events::ssh::LinuxDistributionInfo;
 
-use super::bsd::{parse_common, Sysctl};
+use super::bsd::{Sysctl, parse_common};
 use super::extract_block;
 use crate::monitor::types::{MemoryMetrics, ServerMetricsSnapshot};
 use std::collections::HashMap;

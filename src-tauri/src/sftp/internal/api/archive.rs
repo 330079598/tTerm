@@ -4,10 +4,10 @@
 
 mod operations;
 use operations::{
-    sftp_cancel_remote_operation_service, sftp_compress_entries_service,
-    sftp_extract_archive_service, SftpCancelRemoteOperationDependencies,
-    SftpCancelRemoteOperationInput, SftpCompressEntriesDependencies, SftpCompressEntriesInput,
-    SftpExtractArchiveDependencies, SftpExtractArchiveInput,
+    SftpCancelRemoteOperationDependencies, SftpCancelRemoteOperationInput,
+    SftpCompressEntriesDependencies, SftpCompressEntriesInput, SftpExtractArchiveDependencies,
+    SftpExtractArchiveInput, sftp_cancel_remote_operation_service, sftp_compress_entries_service,
+    sftp_extract_archive_service,
 };
 
 #[cfg(all(test, unix))]
@@ -17,9 +17,9 @@ mod script;
 use crate::core::session::types::PtyConnectionOptions;
 use crate::services::AppServices;
 use crate::sftp::internal::api::SftpHost;
-use crate::sftp::internal::exec::{run_to_end, ScriptOutcome};
+use crate::sftp::internal::exec::{ScriptOutcome, run_to_end};
 use crate::sftp::internal::paths::join_remote_path;
-use script::{compress_script, extract_script, ArchiveScript, MISSING_TOOL_STATUS};
+use script::{ArchiveScript, MISSING_TOOL_STATUS, compress_script, extract_script};
 use serde::{Deserialize, Serialize};
 use tauri::State;
 use tokio::sync::watch;

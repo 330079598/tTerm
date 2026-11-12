@@ -166,10 +166,12 @@ fn system_mode_reads_each_entry_and_keeps_unreadable_ones() {
     );
     assert_eq!(secret(&database, &data_key, "denied"), None);
     assert_eq!(migration.cleanup.unreadable_accounts, ["password::denied"]);
-    assert!(!migration
-        .cleanup
-        .keyring_accounts
-        .contains(&"password::denied".to_string()));
+    assert!(
+        !migration
+            .cleanup
+            .keyring_accounts
+            .contains(&"password::denied".to_string())
+    );
     assert!(migration.cleanup.remove_plaintext);
     assert!(!migration.cleanup.retire_vault);
     std::fs::remove_dir_all(dir).ok();
@@ -186,9 +188,11 @@ fn a_fresh_install_starts_with_an_empty_store() {
     assert_eq!(migration.mode, SecretStorageMode::System);
     assert_eq!(migration.migrated, 0);
     assert!(migration.data_key.is_some());
-    assert!(open_with_system_key(&database, &credentials)
-        .unwrap()
-        .is_some());
+    assert!(
+        open_with_system_key(&database, &credentials)
+            .unwrap()
+            .is_some()
+    );
 
     // Without a credential store there is no key source until the user
     // picks a master password.

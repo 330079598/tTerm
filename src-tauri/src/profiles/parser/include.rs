@@ -1,6 +1,6 @@
 //! Opens an SSH config file and the files its `Include` lines name.
 
-use super::parse::{parse_ssh_config_with, SshConfig};
+use super::parse::{SshConfig, parse_ssh_config_with};
 use super::paths::{expand_home_path, home_dir};
 use super::pattern::{has_glob_pattern, wildcard_matches};
 use std::fs;

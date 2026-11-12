@@ -1,6 +1,6 @@
 //! Backup file names on the server, and which backups to keep.
 
-use super::{RemoteBackupEntry, FILE_EXTENSION, FILE_PREFIX, TIMESTAMP_FORMAT, TIMESTAMP_LEN};
+use super::{FILE_EXTENSION, FILE_PREFIX, RemoteBackupEntry, TIMESTAMP_FORMAT, TIMESTAMP_LEN};
 use crate::backup::webdav::DavEntry;
 use chrono::{DateTime, NaiveDateTime, Utc};
 

@@ -6,7 +6,7 @@
 //! stays open while anything rides on it; the pool only remembers it.
 
 use crate::proxy::ProxyEndpoint;
-use russh::{client, Channel};
+use russh::{Channel, client};
 use std::collections::HashMap;
 use std::fmt::Write as _;
 use std::sync::{Arc, LazyLock, Mutex, Weak};

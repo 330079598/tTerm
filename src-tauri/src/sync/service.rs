@@ -1,7 +1,7 @@
 //! Domain operations behind the IPC entry points.
 use super::state;
 use super::{
-    set_last_error, status, sync, write_settings, SyncOutcome, SyncSettings, SyncStatus, SYNC_LOCK,
+    SYNC_LOCK, SyncOutcome, SyncSettings, SyncStatus, set_last_error, status, sync, write_settings,
 };
 use crate::core::blocking::run_blocking;
 use crate::ssh::secret_store::types::SecretStoreState;

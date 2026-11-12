@@ -222,7 +222,7 @@ fn scan_hex_header(buf: &[u8], start: usize) -> HeaderOutcome {
             _ => {
                 return HeaderOutcome::Corrupt {
                     consumed: start + HEX_CHARS,
-                }
+                };
             }
         }
     }
@@ -549,7 +549,9 @@ mod tests {
 
         match scan_header(&garbled) {
             HeaderOutcome::Corrupt { consumed } => assert_eq!(consumed, 1),
-            other => panic!("expected the leading byte to be reported as corrupt, got a header/need-more instead: {other:?}"),
+            other => panic!(
+                "expected the leading byte to be reported as corrupt, got a header/need-more instead: {other:?}"
+            ),
         }
         match scan_header(&garbled[1..]) {
             HeaderOutcome::Found {

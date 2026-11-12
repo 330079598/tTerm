@@ -1,5 +1,5 @@
 use super::*;
-use crate::ssh::test_sshd::{current_user, TempDir, TestSshd};
+use crate::ssh::test_sshd::{TempDir, TestSshd, current_user};
 use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
@@ -212,7 +212,7 @@ fn real_shell_integration_reports_the_directory_with_marks_off() {
 #[tokio::test]
 #[ignore = "spawns a real sshd; run with --ignored real_shell_integration"]
 async fn real_shell_integration_over_sshd_marks_commands_in_the_login_shell() {
-    use crate::ssh::auth::{authenticate, AuthPrompter, AuthTarget};
+    use crate::ssh::auth::{AuthPrompter, AuthTarget, authenticate};
 
     let cache = TempDir::new();
     let sshd = TestSshd::spawn(

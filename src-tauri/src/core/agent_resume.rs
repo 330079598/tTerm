@@ -268,7 +268,9 @@ mod tests {
             );
             assert_eq!(
                 build_resume_command(&request("pwsh", &cwd, "abc-123")),
-                Some(format!("Set-Location -LiteralPath 'C:\\x{quote}{quote}; calc; {quote}{quote}'; if ($?) {{ claude --resume 'abc-123' }}"))
+                Some(format!(
+                    "Set-Location -LiteralPath 'C:\\x{quote}{quote}; calc; {quote}{quote}'; if ($?) {{ claude --resume 'abc-123' }}"
+                ))
             );
         }
         assert_eq!(quote_powershell("C:\\John’s files"), "'C:\\John’’s files'");

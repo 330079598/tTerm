@@ -1,5 +1,5 @@
 use super::host::build_import_host;
-use super::parse::{parse_ssh_config, SshConfig};
+use super::parse::{SshConfig, parse_ssh_config};
 use super::resolve::import_entries;
 use crate::profiles::storage::sanitize_profile;
 use crate::profiles::types::{SavedProfile, SshConfigImportHost};
@@ -93,10 +93,11 @@ Host *
         host.jump_hosts[0].private_key_path.as_deref(),
         host.private_key_path.as_deref()
     );
-    assert!(host
-        .warnings
-        .iter()
-        .any(|warning| warning.contains("verify each jump host authentication setting")));
+    assert!(
+        host.warnings
+            .iter()
+            .any(|warning| warning.contains("verify each jump host authentication setting"))
+    );
 }
 
 #[test]
@@ -141,10 +142,11 @@ Host prod
     assert_eq!(host.forwards[0].dest_host, "db.internal");
     assert_eq!(host.forwards[2].bind_port, 9000);
     assert_eq!(host.forwards[3].bind_port, 1080);
-    assert!(host
-        .warnings
-        .iter()
-        .any(|warning| warning.contains("LocalForward 'nonsense' was skipped")));
+    assert!(
+        host.warnings
+            .iter()
+            .any(|warning| warning.contains("LocalForward 'nonsense' was skipped"))
+    );
     assert!(
         host.unsupported_options.is_empty(),
         "forwards are supported now"
@@ -176,10 +178,13 @@ Host *
     assert!(hosts[0].agent_forward, "Host * default applies to key auth");
     assert!(!hosts[1].agent_forward, "host-level no comes before Host *");
     assert!(!hosts[2].agent_forward);
-    assert!(hosts[2]
-        .warnings
-        .iter()
-        .any(|warning| warning.contains("ForwardAgent '~/.1password/agent.sock' was not enabled")));
+    assert!(
+        hosts[2]
+            .warnings
+            .iter()
+            .any(|warning| warning
+                .contains("ForwardAgent '~/.1password/agent.sock' was not enabled"))
+    );
     assert!(hosts.iter().all(|host| host.unsupported_options.is_empty()));
 }
 
@@ -229,10 +234,12 @@ Host keyless
 
     assert_eq!(hosts[2].auth_method, "password");
     assert!(hosts[2].certificate_path.is_none());
-    assert!(hosts[2]
-        .warnings
-        .iter()
-        .any(|warning| warning.contains("has no IdentityFile")));
+    assert!(
+        hosts[2]
+            .warnings
+            .iter()
+            .any(|warning| warning.contains("has no IdentityFile"))
+    );
 }
 
 #[test]
@@ -294,10 +301,11 @@ Host *
     let both = host("both");
     assert_eq!(both.proxy, None);
     assert_eq!(both.jump_hosts[0].host, "gateway");
-    assert!(both
-        .warnings
-        .iter()
-        .any(|w| w.contains("ProxyCommand was not imported")));
+    assert!(
+        both.warnings
+            .iter()
+            .any(|w| w.contains("ProxyCommand was not imported"))
+    );
     assert_eq!(host("plain").proxy, Some(SshConfigImportProxy::Direct));
     assert!(matches!(
         host("fallback").proxy,
@@ -420,10 +428,12 @@ Host app-*
         hosts[0].host.as_deref(),
         Some("app-web.internal.example.com")
     );
-    assert!(hosts[0]
-        .warnings
-        .iter()
-        .any(|warning| warning.contains("only 'app-web' is imported")));
+    assert!(
+        hosts[0]
+            .warnings
+            .iter()
+            .any(|warning| warning.contains("only 'app-web' is imported"))
+    );
     assert!(hosts[1].skipped);
 }
 
@@ -447,18 +457,18 @@ Host *
 
     assert_eq!(hosts[0].proxy, Some(SshConfigImportProxy::Direct));
     assert!(hosts[0].jump_hosts.is_empty());
-    assert!(hosts[0]
-        .warnings
-        .iter()
-        .any(|warning| warning
-            .contains("ProxyJump was not imported because ProxyCommand comes first")));
+    assert!(hosts[0].warnings.iter().any(|warning| {
+        warning.contains("ProxyJump was not imported because ProxyCommand comes first")
+    }));
 
     assert_eq!(hosts[1].proxy, None);
     assert_eq!(hosts[1].jump_hosts[0].host, "gateway");
-    assert!(hosts[1]
-        .warnings
-        .iter()
-        .any(|warning| warning.contains("ProxyCommand was not imported")));
+    assert!(
+        hosts[1]
+            .warnings
+            .iter()
+            .any(|warning| warning.contains("ProxyCommand was not imported"))
+    );
 }
 
 #[test]
@@ -490,10 +500,11 @@ Host *
         db.private_key_path.as_deref(),
         Some(key("db.corp.example.com_deploy").as_str())
     );
-    assert!(db
-        .warnings
-        .iter()
-        .any(|warning| warning.contains("cannot fill in %Z")));
+    assert!(
+        db.warnings
+            .iter()
+            .any(|warning| warning.contains("cannot fill in %Z"))
+    );
     assert_eq!(
         db.jump_hosts[0].private_key_path.as_deref(),
         Some(key("bastion.example.com_local-user").as_str()),

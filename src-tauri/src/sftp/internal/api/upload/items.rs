@@ -1,11 +1,11 @@
 use super::commands::resolve_upload_target;
-use super::{next_transfer_id, upload_single_file_with_progress, UploadFilePlanItem};
+use super::{UploadFilePlanItem, next_transfer_id, upload_single_file_with_progress};
 use crate::sftp::internal::{transfer::RemoteChannels, types::TransferCancelMap};
 use russh_sftp::client::SftpSession;
 use std::sync::Arc;
 use tokio::sync::watch;
-use tterm_core::events::sftp::upload::{UploadItemCompleteEvent, UploadItemStartEvent};
 use tterm_core::events::sftp::SftpEvent;
+use tterm_core::events::sftp::upload::{UploadItemCompleteEvent, UploadItemStartEvent};
 use tterm_core::events::{AppEvent, EventSink};
 use tterm_core::sftp::conflict::ConflictPolicy;
 

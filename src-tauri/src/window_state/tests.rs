@@ -1,5 +1,5 @@
-use super::placement::{centered, top_edge_on_screen, Area};
-use super::{fold, Bounds, Observation, SavedWindowState};
+use super::placement::{Area, centered, top_edge_on_screen};
+use super::{Bounds, Observation, SavedWindowState, fold};
 
 const NORMAL: Bounds = Bounds {
     x: 400,

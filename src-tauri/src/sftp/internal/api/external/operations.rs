@@ -1,12 +1,12 @@
-use super::{
-    emit, end_sessions, file_name_of, fingerprint, launch, local, start_session, ExternalEditState,
-    Host, OpenIn, OpenWithChoices, UploadOutcome,
-};
 #[cfg(target_os = "macos")]
-use super::{png_data_url, AppChoice};
+use super::{AppChoice, png_data_url};
+use super::{
+    ExternalEditState, Host, OpenIn, OpenWithChoices, UploadOutcome, emit, end_sessions,
+    file_name_of, fingerprint, launch, local, start_session,
+};
 use crate::core::blocking::run_blocking;
 use crate::core::session::types::PtyConnectionOptions;
-use crate::sftp::internal::connection::{ensure_ssh_plan, SftpContext};
+use crate::sftp::internal::connection::{SftpContext, ensure_ssh_plan};
 use crate::sftp::internal::paths::normalize_remote_path;
 use crate::sftp::internal::types::SftpConnectionPool;
 use crate::sftp::internal::types::TransferCancelMap;
@@ -14,8 +14,8 @@ use crate::ssh::secret_store::types::SecretStoreState;
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::Arc;
-use tterm_core::events::sftp::external::{EditStatus, ExternalEdit};
 use tterm_core::events::EventSink;
+use tterm_core::events::sftp::external::{EditStatus, ExternalEdit};
 use tterm_core::paths::AppPaths;
 use tterm_core::prompts::PromptBroker;
 use tterm_platform::open::OpenTargets;
@@ -111,10 +111,11 @@ pub(super) async fn sftp_external_edit_open_service(
 
     let local = PathBuf::from(&edit.local_path);
     let launched = launch(opener.as_ref(), open_in, &local).await;
-    if !matches!(launched, Ok(true)) && started {
-        if let Some(session) = state.remove(&edit.id) {
-            end_sessions(vec![session]).await;
-        }
+    if !matches!(launched, Ok(true))
+        && started
+        && let Some(session) = state.remove(&edit.id)
+    {
+        end_sessions(vec![session]).await;
     }
     Ok(launched?.then_some(edit))
 }

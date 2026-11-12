@@ -2,7 +2,7 @@
 //! through a proxy server, or the input and output of a proxy command.
 
 use super::command::{self, CommandStream, CommandTarget};
-use super::{http_connect, socks5, ProxyEndpoint, ProxyKind};
+use super::{ProxyEndpoint, ProxyKind, http_connect, socks5};
 use crate::ssh::types::SshConnectError;
 use std::io;
 use std::pin::Pin;
@@ -93,7 +93,7 @@ async fn open_tunnel(
         ProxyKind::Command => {
             return Err(ProxyError::Invalid(
                 "a proxy command is not a server to dial".to_string(),
-            ))
+            ));
         }
     }
     Ok(stream)

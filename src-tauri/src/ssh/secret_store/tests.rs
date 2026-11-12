@@ -119,9 +119,11 @@ fn resetting_drops_unreadable_secrets_and_unlocks_with_the_credential_store() {
         .unwrap();
     assert_eq!(reopened.to_base64(), data_key.to_base64());
     assert!(database.read(store::secret_keys).unwrap().is_empty());
-    assert!(!database
-        .read(|c| store::has_wrap(c, WRAP_PASSWORD))
-        .unwrap());
+    assert!(
+        !database
+            .read(|c| store::has_wrap(c, WRAP_PASSWORD))
+            .unwrap()
+    );
 }
 
 #[test]
@@ -151,12 +153,16 @@ fn a_second_database_keeps_the_credential_store_key_of_the_first() {
     create_system_wrap(&second, &credentials, &SecretKey::generate()).unwrap();
 
     assert_eq!(credentials.get(DATA_KEY_ACCOUNT).unwrap(), stored);
-    assert!(open_with_system_key(&first, &credentials)
-        .unwrap()
-        .is_some());
-    assert!(open_with_system_key(&second, &credentials)
-        .unwrap()
-        .is_some());
+    assert!(
+        open_with_system_key(&first, &credentials)
+            .unwrap()
+            .is_some()
+    );
+    assert!(
+        open_with_system_key(&second, &credentials)
+            .unwrap()
+            .is_some()
+    );
 }
 
 #[test]

@@ -10,10 +10,10 @@ use crate::ssh::{
     jump::connect::JumpChain, types::ForwardedTcpIp, types::SshClientHandler,
     types::SshConnectError,
 };
-use russh::client::Handle;
 use russh::Disconnect;
-use std::collections::hash_map::DefaultHasher;
+use russh::client::Handle;
 use std::collections::HashMap;
+use std::collections::hash_map::DefaultHasher;
 use std::fmt::Write as _;
 use std::future::Future;
 use std::hash::{Hash, Hasher};
@@ -340,10 +340,11 @@ impl<C: HubConnection> SessionHub<C> {
         if let Some(lease) = slot.lease() {
             return Ok(lease);
         }
-        if let Some(failure) = &slot.lock().failure {
-            if failure.at >= asked_at && failure.credentials == key.credentials {
-                return Err(failure.error.clone());
-            }
+        if let Some(failure) = &slot.lock().failure
+            && failure.at >= asked_at
+            && failure.credentials == key.credentials
+        {
+            return Err(failure.error.clone());
         }
 
         let (tx, mut rx) = mpsc::unbounded_channel::<ForwardedTcpIp>();

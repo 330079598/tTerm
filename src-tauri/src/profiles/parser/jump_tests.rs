@@ -59,10 +59,11 @@ Host relay
         Some(key_path("app_key").as_str()),
         "a jump host without a key file uses the target's"
     );
-    assert!(app
-        .warnings
-        .iter()
-        .any(|warning| warning.contains("imported with the target host private key")));
+    assert!(
+        app.warnings
+            .iter()
+            .any(|warning| warning.contains("imported with the target host private key"))
+    );
 }
 
 #[test]
@@ -121,10 +122,12 @@ Host *
 
     let bastion = host("bastion");
     assert!(bastion.jump_hosts.is_empty());
-    assert!(bastion
-        .warnings
-        .iter()
-        .any(|warning| warning.contains("leads back to a host already on the way")));
+    assert!(
+        bastion
+            .warnings
+            .iter()
+            .any(|warning| warning.contains("leads back to a host already on the way"))
+    );
 }
 
 #[test]
@@ -144,10 +147,7 @@ Host bastion
         app.jump_hosts[0].username, "alice",
         "ssh signs in to a jump host as the local user, not as the target's user"
     );
-    assert!(
-        app.warnings
-            .iter()
-            .any(|warning| warning
-                .contains("without a User were imported with the user name 'alice'"))
-    );
+    assert!(app.warnings.iter().any(|warning| {
+        warning.contains("without a User were imported with the user name 'alice'")
+    }));
 }

@@ -1,8 +1,8 @@
 //! The plain-text log: typed lines, screen output and events in the order
 //! they happened.
 
-use super::screen::{OutputLog, ScreenLine};
 use super::MAX_QUEUED_PLAIN_LINES;
+use super::screen::{OutputLog, ScreenLine};
 use chrono::{DateTime, Local};
 use std::collections::VecDeque;
 use vte::{Params, Perform};

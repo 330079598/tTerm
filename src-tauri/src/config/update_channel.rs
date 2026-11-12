@@ -2,8 +2,14 @@
 
 /// A prerelease build follows the beta channel from its first launch, as the
 /// frontend's default does, so it keeps receiving prereleases.
+///
+/// The client must install the running version before it loads configuration
+/// for the first time; otherwise a missing channel falls back to "stable".
 pub(super) fn default_update_channel() -> String {
-    update_channel_for_version(env!("CARGO_PKG_VERSION")).to_string()
+    let Some(version) = tterm_core::identity::app_version() else {
+        return "stable".to_string();
+    };
+    update_channel_for_version(version).to_string()
 }
 
 /// "beta-dev" for a version with an alpha, beta, rc or dev prerelease part
@@ -15,11 +21,7 @@ fn update_channel_for_version(version: &str) -> &'static str {
                 .is_some_and(|rest| rest.is_empty() || rest.starts_with('.'))
         })
     });
-    if prerelease {
-        "beta-dev"
-    } else {
-        "stable"
-    }
+    if prerelease { "beta-dev" } else { "stable" }
 }
 
 #[cfg(test)]

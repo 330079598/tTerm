@@ -147,10 +147,11 @@ async fn a_failed_dial_is_shared_only_with_tunnels_that_waited_for_it() {
     );
 
     // A tunnel that asks later, or with other secrets, tries for itself.
-    assert!(hub
-        .acquire(&k, |_| failing(attempts.clone()))
-        .await
-        .is_err());
+    assert!(
+        hub.acquire(&k, |_| failing(attempts.clone()))
+            .await
+            .is_err()
+    );
     assert_eq!(attempts.load(Ordering::SeqCst), 2);
 }
 

@@ -1,7 +1,7 @@
 use super::{app::AppLevelServices, session::SessionServices, sftp::SftpServices};
 use crate::{
     background::{
-        exit_guard::ExitGuardState, quit::QuitState, tray::TrayState, CloseBehaviorState,
+        CloseBehaviorState, exit_guard::ExitGuardState, quit::QuitState, tray::TrayState,
     },
     core::state::{PtyMap, ZmodemArmedSendMap, ZmodemManualDetectMap, ZmodemMap},
     launch_dir::LaunchDirs,

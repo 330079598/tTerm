@@ -1,6 +1,6 @@
 use super::*;
-use serde_json::json;
 use serde_json::Value;
+use serde_json::json;
 fn check(key: &str, actual: Value) {
     let fixtures: Value = serde_json::from_str(include_str!(concat!(
         env!("CARGO_MANIFEST_DIR"),

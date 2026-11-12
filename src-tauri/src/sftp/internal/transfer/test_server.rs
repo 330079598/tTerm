@@ -228,10 +228,10 @@ impl russh_sftp::server::Handler for SftpHandler {
         pflags: OpenFlags,
         attrs: FileAttributes,
     ) -> Result<Handle, Self::Error> {
-        if let Some(modes) = &self.options.recorded_open_modes {
-            if let Ok(mut modes) = modes.lock() {
-                modes.push((filename.clone(), attrs.permissions));
-            }
+        if let Some(modes) = &self.options.recorded_open_modes
+            && let Ok(mut modes) = modes.lock()
+        {
+            modes.push((filename.clone(), attrs.permissions));
         }
         let path = self.real_path(&filename);
         let options = std::fs::OpenOptions::from(pflags);
@@ -453,11 +453,13 @@ impl TestServer {
         let (client_io, server_io) = tokio::io::duplex(8 * 1024 * 1024);
 
         let server_config = Arc::new(russh::server::Config {
-            keys: vec![russh::keys::PrivateKey::random(
-                &mut rand::rng(),
-                russh::keys::ssh_key::Algorithm::Ed25519,
-            )
-            .expect("host key")],
+            keys: vec![
+                russh::keys::PrivateKey::random(
+                    &mut rand::rng(),
+                    russh::keys::ssh_key::Algorithm::Ed25519,
+                )
+                .expect("host key"),
+            ],
             ..Default::default()
         });
 

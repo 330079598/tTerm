@@ -1,7 +1,7 @@
 use super::*;
 use std::sync::{Arc, Mutex};
-use tauri::test::{mock_builder, mock_context, noop_assets};
 use tauri::Listener;
+use tauri::test::{mock_builder, mock_context, noop_assets};
 use tterm_core::session::sink::SessionSink;
 
 #[test]

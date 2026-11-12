@@ -21,7 +21,7 @@ test('command signatures include the generated handler list', () => {
 
 // Lifetimes are syntax inside injected types, not quoted string contents.
 test('parameters after injected state retain their IPC names and types', () => {
-  const commands = parseCommands(path.resolve('src-tauri/src/profiles/commands.rs'), `
+  const commands = parseCommands(`
     #[tauri::command]
     pub async fn save_profile(
       services: tauri::State<'_, Arc<AppServices>>,
@@ -33,4 +33,26 @@ test('parameters after injected state retain their IPC names and types', () => {
     { name: 'profile', type: 'SavedProfile' },
     { name: 'typed_password_tab_id', type: 'Option<String>' },
   ]);
+});
+
+test('moving a command to another file keeps its signature', () => {
+  const command = `
+    #[tauri::command]
+    pub async fn save_profile(profile: SavedProfile) -> Result<(), String> {
+      Ok(())
+    }
+  `;
+  const inOldFile = `use crate::profiles::SavedProfile;\n${command}`;
+  const inNewFile = `mod commands {\n${command}\n}`;
+
+  assert.deepStrictEqual(parseCommands(inOldFile), parseCommands(inNewFile));
+});
+
+test('changing a command parameter type changes its signature', () => {
+  const source = (type) => `
+    #[tauri::command]
+    pub fn resize(tab_id: String, size: ${type}) {}
+  `;
+
+  assert.notDeepStrictEqual(parseCommands(source('u16')), parseCommands(source('u32')));
 });

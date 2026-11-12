@@ -1,6 +1,6 @@
 use super::set_permissions;
 use crate::core::session::types::PtyConnectionOptions;
-use crate::sftp::internal::connection::{ensure_ssh_plan, SftpContext};
+use crate::sftp::internal::connection::{SftpContext, ensure_ssh_plan};
 use crate::sftp::internal::types::SftpConnectionPool;
 use crate::ssh::secret_store::types::SecretStoreState;
 use std::sync::Arc;

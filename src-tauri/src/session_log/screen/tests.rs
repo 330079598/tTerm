@@ -103,14 +103,16 @@ fn shrinking_pushes_top_rows_into_the_log() {
 #[test]
 fn prompt_redraw_after_backspaces_is_logged_once() {
     let mut log = OutputLog::new(5, 40);
-    assert!(log
-        .advance(Local::now(), b"\r\x1b[0m\x1b[32m> \x1b[36m~\x1b[0m \x1b[K")
-        .is_empty());
+    assert!(
+        log.advance(Local::now(), b"\r\x1b[0m\x1b[32m> \x1b[36m~\x1b[0m \x1b[K")
+            .is_empty()
+    );
     assert!(log.advance(Local::now(), b"l").is_empty());
     assert!(log.advance(Local::now(), b"\x08ll").is_empty());
-    assert!(log
-        .advance(Local::now(), b"\x08\x08\x1b[32ml\x1b[32ml\x1b[39m")
-        .is_empty());
+    assert!(
+        log.advance(Local::now(), b"\x08\x08\x1b[32ml\x1b[32ml\x1b[39m")
+            .is_empty()
+    );
     assert!(log.advance(Local::now(), b"\x1b[?1l\x1b>\r\r\n").is_empty());
     assert_eq!(texts(log.finish(Local::now())), vec!["> ~ ll"]);
 }

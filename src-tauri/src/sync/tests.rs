@@ -1,5 +1,5 @@
 use super::snapshot::{
-    COMMANDS, KNOWN_HOSTS, PROFILES, PROFILE_GROUPS, PROXIES, SECRETS, SERIAL_SENDS, THEMES,
+    COMMANDS, KNOWN_HOSTS, PROFILE_GROUPS, PROFILES, PROXIES, SECRETS, SERIAL_SENDS, THEMES,
 };
 use super::*;
 use crate::command_library::{models::SavedCommand, repository::CommandRepository};

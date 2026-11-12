@@ -4,16 +4,16 @@
 use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use russh::keys::agent::client::AgentClient;
 use russh::keys::agent::AgentIdentity;
+use russh::keys::agent::client::AgentClient;
 use russh::keys::signature::Signer;
-use russh::keys::ssh_key::certificate::{Builder, CertType};
 use russh::keys::ssh_key::Algorithm;
-use russh::keys::{load_secret_key, Certificate, PrivateKey, PublicKey};
+use russh::keys::ssh_key::certificate::{Builder, CertType};
+use russh::keys::{Certificate, PrivateKey, PublicKey, load_secret_key};
 use russh::server::Auth;
 use tokio::io::{AsyncReadExt, AsyncWriteExt, DuplexStream};
 
-use super::{auto, write_client_key, AuthMethod, AuthUsed, Harness, Script, USER};
+use super::{AuthMethod, AuthUsed, Harness, Script, USER, auto, write_client_key};
 use crate::ssh::agent::{offer_identities, offered_before};
 
 fn now() -> u64 {

@@ -2,11 +2,11 @@
 //! it, the way `check_host_key` in OpenSSH's `sshconnect.c` does.
 
 use super::{KnownHostLine, OpenSshKnownHosts};
+use russh::keys::PublicKeyOrCertificate;
 use russh::keys::ssh_key::certificate::CertType;
 use russh::keys::ssh_key::known_hosts::Marker;
 use russh::keys::ssh_key::public::KeyData;
 use russh::keys::ssh_key::{Algorithm, Certificate, HashAlg, PublicKey};
-use russh::keys::PublicKeyOrCertificate;
 
 /// What `known_hosts` says about the key a host presents.
 #[derive(Debug)]

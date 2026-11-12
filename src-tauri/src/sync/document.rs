@@ -6,10 +6,10 @@
 use super::merge::Collection;
 use aes_gcm::aead::{Aead, KeyInit, Payload};
 use aes_gcm::{Aes256Gcm, Nonce};
-use base64::{engine::general_purpose::STANDARD as BASE64, Engine};
+use base64::{Engine, engine::general_purpose::STANDARD as BASE64};
+use flate2::Compression;
 use flate2::read::GzDecoder;
 use flate2::write::GzEncoder;
-use flate2::Compression;
 use rand::Rng;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
@@ -116,12 +116,12 @@ struct CachedKey {
 
 fn key_for(password: &str, kdf: &KdfSpec) -> Result<Zeroizing<[u8; 32]>, String> {
     let digest: [u8; 32] = Sha256::digest(password.as_bytes()).into();
-    if let Ok(cache) = KEY_CACHE.lock() {
-        if let Some(cached) = cache.as_ref() {
-            if cached.kdf == *kdf && cached.password_digest == digest {
-                return Ok(cached.key.clone());
-            }
-        }
+    if let Ok(cache) = KEY_CACHE.lock()
+        && let Some(cached) = cache.as_ref()
+        && cached.kdf == *kdf
+        && cached.password_digest == digest
+    {
+        return Ok(cached.key.clone());
     }
     let salt = BASE64
         .decode(&kdf.salt_b64)

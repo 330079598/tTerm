@@ -1,6 +1,6 @@
 use std::io::{self, Read, Write};
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::{mpsc, Arc, Mutex, PoisonError};
+use std::sync::{Arc, Mutex, PoisonError, mpsc};
 
 /// Where a port's input goes instead of the terminal while a file transfer
 /// has the port: the transfer's end of a channel.

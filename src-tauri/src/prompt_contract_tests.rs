@@ -4,7 +4,7 @@ use tterm_core::events::ssh::AuthPromptField;
 use tterm_core::events::ssh::AuthPromptPayload;
 use tterm_core::events::ssh::SshHostKeyPromptPayload;
 
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 
 fn host_key(profile: &str, known: Option<&str>) -> SshHostKeyPromptPayload {
     SshHostKeyPromptPayload {
@@ -183,7 +183,7 @@ fn auth_wire(payload: AuthPromptPayload) -> Value {
 
 #[test]
 fn prompt_contract_expired_events_are_strings_with_legacy_names_and_any_target() {
-    use tterm_core::events::{proxy::ProxyEvent, ssh::SshEvent, AppEvent};
+    use tterm_core::events::{AppEvent, proxy::ProxyEvent, ssh::SshEvent};
     assert_eq!(
         wire(
             AppEvent::Ssh(SshEvent::HostKeyPromptExpired {

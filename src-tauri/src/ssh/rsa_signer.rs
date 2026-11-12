@@ -13,12 +13,12 @@ use base64::Engine;
 use num_bigint::BigUint;
 use ring::rand::SystemRandom;
 use ring::rsa::{KeyPair, KeyPairComponents, PublicKeyComponents};
-use ring::signature::{RsaEncoding, RSA_PKCS1_SHA256, RSA_PKCS1_SHA512};
+use ring::signature::{RSA_PKCS1_SHA256, RSA_PKCS1_SHA512, RsaEncoding};
+use russh::keys::HashAlg;
 use russh::keys::agent::AgentIdentity;
 use russh::keys::ssh_key::private::RsaKeypair;
 use russh::keys::ssh_key::public::{KeyData, RsaPublicKey};
 use russh::keys::ssh_key::{Mpint, PublicKey};
-use russh::keys::HashAlg;
 
 /// Why an RSA challenge was not signed.
 #[derive(Debug)]
@@ -154,7 +154,7 @@ impl RingRsaSigner {
             _ => {
                 return Err(RsaSignError::Sign(
                     "SHA-1 RSA signatures are not supported".to_string(),
-                ))
+                ));
             }
         };
 

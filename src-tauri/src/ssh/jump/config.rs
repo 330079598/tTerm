@@ -1,5 +1,5 @@
 use crate::ssh::types::SshConnectError;
-use russh::{cipher, client, kex, mac, AlgorithmKind, Preferred};
+use russh::{AlgorithmKind, Preferred, cipher, client, kex, mac};
 use std::time::Duration;
 
 /// Recognizes a connect failure caused by a server whose only host keys are
@@ -82,8 +82,8 @@ pub fn compatibility_client_config(
 #[cfg(test)]
 mod tests {
     use super::{compatibility_preferred_algorithms, unverifiable_host_key_error};
-    use russh::keys::{Algorithm, HashAlg};
     use russh::AlgorithmKind;
+    use russh::keys::{Algorithm, HashAlg};
 
     fn no_common(kind: AlgorithmKind, theirs: &[&str]) -> russh::Error {
         russh::Error::NoCommonAlgo {
@@ -116,9 +116,11 @@ mod tests {
         assert!(position(&Algorithm::Ed25519) < rsa_sha512);
         assert!(rsa_sha512 < rsa_sha256 && rsa_sha256 < rsa_sha1);
         assert_eq!(rsa_sha1, offered.len() - 1);
-        assert!(russh::keys::key::ALL_KEY_TYPES
-            .iter()
-            .any(|algorithm| matches!(algorithm, Algorithm::Rsa { .. })));
+        assert!(
+            russh::keys::key::ALL_KEY_TYPES
+                .iter()
+                .any(|algorithm| matches!(algorithm, Algorithm::Rsa { .. }))
+        );
     }
 
     #[test]

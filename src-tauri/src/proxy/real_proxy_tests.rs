@@ -6,11 +6,11 @@
 //! cargo test --lib -- --ignored real_proxy
 //! ```
 
-use super::command::{expand, spawn, CommandTarget};
+use super::command::{CommandTarget, expand, spawn};
 use super::connect::connect_through_proxy;
 use super::{ProxyEndpoint, ProxyKind};
-use crate::ssh::auth::{authenticate, AuthPrompter, AuthTarget};
-use crate::ssh::test_sshd::{current_user, AcceptAnyServerKey, TempDir, TestSshd};
+use crate::ssh::auth::{AuthPrompter, AuthTarget, authenticate};
+use crate::ssh::test_sshd::{AcceptAnyServerKey, TempDir, TestSshd, current_user};
 use russh::ChannelMsg;
 use std::process::{Child, Command, Stdio};
 use std::sync::Arc;

@@ -1,13 +1,13 @@
 //! The sessions being logged and the settings they are logged with.
 
+use super::LogContext;
 use super::retention::Retention;
 use super::rotating;
 use super::worker::{self, LogHandle};
 use super::writer::{SessionWriter, Stamp};
-use super::LogContext;
 use super::{
-    emit_error, emit_start_error, emit_status, LogConfig, SessionLogPolicy, SessionLogState,
-    SessionMetadata, TerminalLogStatus,
+    LogConfig, SessionLogPolicy, SessionLogState, SessionMetadata, TerminalLogStatus, emit_error,
+    emit_start_error, emit_status,
 };
 use crate::config::AppConfig;
 use crate::core::session::types::SessionPlan;
@@ -15,8 +15,8 @@ use std::collections::{HashMap, HashSet};
 use std::fs::{self, File};
 use std::io::Write;
 use std::path::{Path, PathBuf};
-use std::sync::atomic::Ordering;
 use std::sync::MutexGuard;
+use std::sync::atomic::Ordering;
 use std::time::Duration;
 
 /// How long quitting waits for logs to write out what they still hold.
@@ -165,10 +165,11 @@ impl SessionLogState {
                     writer.close("logging_disabled");
                 }
             }
-            if records && manager.sessions[&tab_id].writer.is_none() {
-                if let Err(err) = manager.start_tracked_writer(app, &tab_id, "logging_enabled") {
-                    error = Some(err);
-                }
+            if records
+                && manager.sessions[&tab_id].writer.is_none()
+                && let Err(err) = manager.start_tracked_writer(app, &tab_id, "logging_enabled")
+            {
+                error = Some(err);
             }
         }
         manager.last_error = error.clone();

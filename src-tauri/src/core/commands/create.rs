@@ -5,11 +5,11 @@ use crate::core::state::{
     ActiveSession, AtomicTerminalSize, ChannelContext, PtyMap, PtySession, SessionExitSignal,
     TabZmodem, ZmodemArmedSendMap, ZmodemManualDetectMap, ZmodemMap,
 };
-use crate::core::supervisor::{spawn_ssh_attempt, spawn_supervisor, TabConnection};
+use crate::core::supervisor::{TabConnection, spawn_ssh_attempt, spawn_supervisor};
 use crate::ssh::context::ConnectionContext;
 use crate::{terminal, zmodem::session::ZmodemSettings};
-use std::sync::{atomic::AtomicBool, Arc, PoisonError};
-use tokio::sync::{mpsc, watch, Mutex as TokioMutex};
+use std::sync::{Arc, PoisonError, atomic::AtomicBool};
+use tokio::sync::{Mutex as TokioMutex, mpsc, watch};
 
 pub(super) struct CreateContext {
     pub(super) connection: ConnectionContext,

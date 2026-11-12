@@ -1,7 +1,7 @@
-use super::credentials::{apply_credentials, collect_requests, StartOutcome, TunnelCredentials};
+use super::credentials::{StartOutcome, TunnelCredentials, apply_credentials, collect_requests};
 use super::hub::{SessionHub, SshConnection};
 use super::runtime::reporter::TunnelReporter;
-use super::runtime::{run_tunnel, RunContext};
+use super::runtime::{RunContext, run_tunnel};
 use super::storage::{
     delete_tunnel as delete_tunnel_rule, list_tunnel_traffic, load_tunnels, reset_tunnel_traffic,
     upsert_tunnel,
@@ -18,11 +18,11 @@ use crate::profiles::types::SavedProfile;
 use crate::ssh::context::ConnectionContext;
 use crate::ssh::secret_store::types::SecretStoreState;
 use std::collections::HashMap;
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
 
-use tokio::sync::{watch, Mutex};
+use tokio::sync::{Mutex, watch};
 use tokio::task::JoinHandle;
 use tterm_core::events::tunnel::{TunnelState, TunnelStatus, TunnelTraffic};
 

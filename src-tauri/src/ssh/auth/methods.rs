@@ -12,7 +12,7 @@ use russh::client::{AuthResult, KeyboardInteractiveAuthResponse};
 use russh::keys::agent::AgentIdentity;
 use russh::keys::ssh_key::private::KeypairData;
 use russh::keys::{Certificate, HashAlg, PrivateKey, PrivateKeyWithHashAlg, PublicKey};
-use russh::{client, MethodKind};
+use russh::{MethodKind, client};
 use std::sync::Arc;
 use zeroize::Zeroizing;
 
@@ -303,7 +303,7 @@ where
                 "{} server only accepts SHA-1 signatures for RSA keys, which tTerm \
                  does not produce. Use an Ed25519 or ECDSA key for this host.",
                 target.subject()
-            )))
+            )));
         }
         // Not advertised (servers older than OpenSSH 7.2): those that know
         // rsa-sha2 at all accept SHA-256.
@@ -395,7 +395,7 @@ where
                 return Ok(AuthResult::Failure {
                     remaining_methods,
                     partial_success,
-                })
+                });
             }
             KeyboardInteractiveAuthResponse::InfoRequest {
                 name,

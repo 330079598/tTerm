@@ -52,10 +52,10 @@ pub(crate) struct QuitContext {
 
 /// Quits the app once the UI has saved, or once it took too long to.
 pub(crate) fn quit(context: &QuitContext) {
-    if !quit_after_save(context) {
-        if let Err(error) = context.process.exit(0) {
-            eprintln!("Failed to exit tTerm: {error}");
-        }
+    if !quit_after_save(context)
+        && let Err(error) = context.process.exit(0)
+    {
+        eprintln!("Failed to exit tTerm: {error}");
     }
 }
 

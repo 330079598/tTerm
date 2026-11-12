@@ -233,7 +233,7 @@ pub(super) fn walk(directory: &Path) -> Result<Vec<FoundFile>, String> {
             return Err(format!(
                 "Failed to read terminal log directory '{}': {error}",
                 directory.display()
-            ))
+            ));
         }
     };
     let mut pending: Vec<(String, usize)> = folders.into_iter().map(|name| (name, 1)).collect();
@@ -468,16 +468,15 @@ fn read_frames(
                 }
                 "header" | "data" => {}
                 _ => {
-                    if let Some((cols, rows)) = event.detail.as_ref().and_then(size_of) {
-                        if each(Frame::Resize {
+                    if let Some((cols, rows)) = event.detail.as_ref().and_then(size_of)
+                        && each(Frame::Resize {
                             at_us: event.elapsed_us,
                             cols,
                             rows,
                         })?
                         .is_break()
-                        {
-                            return Ok(());
-                        }
+                    {
+                        return Ok(());
                     }
                 }
             }
@@ -709,7 +708,7 @@ pub(super) fn delete(directory: &Path, id: &str, in_use: &HashSet<PathBuf>) -> R
                 return Err(format!(
                     "Failed to delete terminal log '{}': {error}",
                     file.path.display()
-                ))
+                ));
             }
         }
     }

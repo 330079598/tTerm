@@ -1,9 +1,9 @@
 mod operations;
 use operations::{
-    sftp_check_download_conflicts_service, sftp_download_file_service, sftp_download_paths_service,
     SftpCheckDownloadConflictsDependencies, SftpCheckDownloadConflictsInput,
     SftpDownloadFileDependencies, SftpDownloadFileInput, SftpDownloadPathsDependencies,
-    SftpDownloadPathsInput,
+    SftpDownloadPathsInput, sftp_check_download_conflicts_service, sftp_download_file_service,
+    sftp_download_paths_service,
 };
 use tterm_core::events::sftp::SftpEvent;
 use tterm_core::events::{AppEvent, EventSink};

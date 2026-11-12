@@ -111,8 +111,8 @@ async fn plans_files_and_folders_of_a_selection_side_by_side() {
 #[tokio::test]
 #[ignore = "spawns a real sshd; run with --ignored real_sshd"]
 async fn real_sshd_plans_files_and_folders_of_a_selection() {
-    use crate::ssh::auth::{authenticate, AuthPrompter, AuthTarget};
-    use crate::ssh::test_sshd::{current_user, TempDir, TestSshd};
+    use crate::ssh::auth::{AuthPrompter, AuthTarget, authenticate};
+    use crate::ssh::test_sshd::{TempDir, TestSshd, current_user};
 
     let sshd = TestSshd::spawn(12322, &["-t", "ed25519"], "Subsystem sftp internal-sftp\n").await;
     let username = current_user();

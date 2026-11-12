@@ -237,10 +237,10 @@ pub(super) async fn download_file_into_directory(
     let remote_path_for_progress = item.remote_path.clone();
     let item_size = item.size;
     let progress: ProgressSink = Arc::new(move |update: TransferProgress| {
-        if let Some(receiver) = batch_cancel_rx.as_ref() {
-            if *receiver.borrow() {
-                let _ = cancel_tx.send(true);
-            }
+        if let Some(receiver) = batch_cancel_rx.as_ref()
+            && *receiver.borrow()
+        {
+            let _ = cancel_tx.send(true);
         }
 
         let item_progress = if item_size > 0 {

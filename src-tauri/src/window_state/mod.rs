@@ -10,10 +10,10 @@ mod placement;
 mod tests;
 
 use crate::db::meta;
-use placement::{centered, top_edge_on_screen, Area};
+use placement::{Area, centered, top_edge_on_screen};
 use serde::{Deserialize, Serialize};
-use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Mutex;
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::Duration;
 use tauri::{AppHandle, Manager, PhysicalPosition, PhysicalSize, WebviewWindow, WindowEvent};
 
@@ -127,10 +127,10 @@ pub fn restore(window: &WebviewWindow) {
             eprintln!("Failed to read the window state: {error}");
             None
         });
-    if let Some(saved) = saved {
-        if let Err(error) = apply(window, saved) {
-            eprintln!("Failed to restore the window state: {error}");
-        }
+    if let Some(saved) = saved
+        && let Err(error) = apply(window, saved)
+    {
+        eprintln!("Failed to restore the window state: {error}");
     }
     let tracker = Tracker {
         latest: Mutex::new(saved),

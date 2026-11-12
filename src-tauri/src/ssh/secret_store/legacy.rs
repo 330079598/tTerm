@@ -4,7 +4,7 @@
 use super::crypto::{self, SecretKey};
 use aes_gcm::aead::{Aead, KeyInit};
 use aes_gcm::{Aes256Gcm, Nonce};
-use base64::{engine::general_purpose::STANDARD as BASE64, Engine};
+use base64::{Engine, engine::general_purpose::STANDARD as BASE64};
 use serde::Deserialize;
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -121,10 +121,10 @@ impl LegacyVault {
         let verifier = self.file.secrets.iter().find(|record| {
             record.profile_id == VERIFIER_PROFILE_ID && record.kind == SECRET_KIND_VERIFIER
         });
-        if let Some(record) = verifier {
-            if decrypt(&key, record)?.as_str() != VERIFIER_PLAINTEXT {
-                return Err(wrong_password());
-            }
+        if let Some(record) = verifier
+            && decrypt(&key, record)?.as_str() != VERIFIER_PLAINTEXT
+        {
+            return Err(wrong_password());
         }
 
         let mut passwords = Vec::new();

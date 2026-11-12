@@ -47,8 +47,8 @@ pub(super) fn local_host_name() -> String {
 /// of OpenSSH for `%l`, or empty when it cannot be found.
 #[cfg(windows)]
 pub(super) fn local_host_name() -> String {
-    use windows::core::PWSTR;
     use windows::Win32::System::SystemInformation::{ComputerNameDnsHostname, GetComputerNameExW};
+    use windows::core::PWSTR;
 
     let mut buffer = [0u16; 256];
     let mut size = buffer.len() as u32;

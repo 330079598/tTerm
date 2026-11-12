@@ -3,8 +3,8 @@ use crate::profiles;
 use crate::session;
 use crate::sftp;
 use crate::ssh;
-use serde::de::DeserializeOwned;
 use serde::Serialize;
+use serde::de::DeserializeOwned;
 use std::path::{Path, PathBuf};
 
 const MIGRATED_CONFIG_FILES: &[&str] = &[
@@ -100,10 +100,10 @@ pub fn remove_retired_files(app: &tauri::AppHandle) -> Result<(), String> {
         now,
     ));
     // Only removed when empty, so a vault still waiting for its password stays.
-    if std::fs::read_dir(&secrets_dir).is_ok_and(|mut entries| entries.next().is_none()) {
-        if let Err(error) = std::fs::remove_dir(&secrets_dir) {
-            errors.push(format!("'{}': {error}", secrets_dir.display()));
-        }
+    if std::fs::read_dir(&secrets_dir).is_ok_and(|mut entries| entries.next().is_none())
+        && let Err(error) = std::fs::remove_dir(&secrets_dir)
+    {
+        errors.push(format!("'{}': {error}", secrets_dir.display()));
     }
     if errors.is_empty() {
         Ok(())

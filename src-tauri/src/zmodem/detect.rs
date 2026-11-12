@@ -5,7 +5,7 @@
 //! uncertain tail" idiom `terminal/io_batcher.rs`'s `utf8_complete_prefix_len`
 //! already uses for partial UTF-8 sequences.
 
-use crate::zmodem::protocol::consts::{ZmodemDirection, TRIGGER_ZRINIT, TRIGGER_ZRQINIT};
+use crate::zmodem::protocol::consts::{TRIGGER_ZRINIT, TRIGGER_ZRQINIT, ZmodemDirection};
 
 const TRIGGERS: [(&[u8], ZmodemDirection); 2] = [
     (TRIGGER_ZRQINIT, ZmodemDirection::Receive),

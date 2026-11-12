@@ -1,16 +1,16 @@
 use tterm_core::events::zmodem::TransferEmitter;
 
+use super::XmodemProtocol;
 use super::disk::{safe_file_name, unused_path};
 use super::protocol::{
-    crc16, send_xmodem, send_ymodem, Link, OutgoingFile, Received, Result, TransferError,
+    Link, OutgoingFile, Received, Result, TransferError, crc16, send_xmodem, send_ymodem,
 };
-use super::receive::{receive_xmodem, receive_ymodem, FileSink};
+use super::receive::{FileSink, receive_xmodem, receive_ymodem};
 use super::transfer::{FileInfo, FileRows};
-use super::XmodemProtocol;
 use serde_json::json;
 use std::collections::VecDeque;
 use std::io::Cursor;
-use std::sync::mpsc::{channel, Receiver, RecvTimeoutError, Sender};
+use std::sync::mpsc::{Receiver, RecvTimeoutError, Sender, channel};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
@@ -186,10 +186,10 @@ impl Link for ScriptedSender {
 
     fn write(&mut self, bytes: &[u8]) -> std::io::Result<()> {
         self.said.extend_from_slice(bytes);
-        if self.pending.is_empty() {
-            if let Some(turn) = self.turns.pop_front() {
-                self.pending.extend(turn);
-            }
+        if self.pending.is_empty()
+            && let Some(turn) = self.turns.pop_front()
+        {
+            self.pending.extend(turn);
         }
         Ok(())
     }

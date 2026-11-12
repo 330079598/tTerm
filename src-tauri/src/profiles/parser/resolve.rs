@@ -5,7 +5,7 @@
 //! it have set, and `Match final` makes a second pass that matches `Host`
 //! lines against the `HostName`.
 
-use super::matching::{criteria_match, MatchContext};
+use super::matching::{MatchContext, criteria_match};
 use super::parse::{BlockCondition, SshConfig, SshConfigBlock};
 use super::pattern::{is_wildcard_host, wildcard_matches};
 use crate::profiles::types::RawSshHost;

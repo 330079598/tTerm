@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use crate::{
     background::{
-        exit_guard::ExitGuardState, quit::QuitState, tray::TrayState, CloseBehaviorState,
+        CloseBehaviorState, exit_guard::ExitGuardState, quit::QuitState, tray::TrayState,
     },
     launch_dir::LaunchDirs,
     session_log::SessionLogState,

@@ -4,8 +4,8 @@
 //! starts on the host is decided in one place for the whole connection: as
 //! the account, or as root through sudo (see [`crate::sftp::internal::sudo`]).
 
-use russh::client::{Handle, Handler, Msg};
 use russh::Channel;
+use russh::client::{Handle, Handler, Msg};
 use russh_sftp::client::rawsession::Limits;
 use russh_sftp::client::{RawSftpSession, SftpSession};
 use russh_sftp::extensions::LimitsExtension;
@@ -15,7 +15,7 @@ use std::time::Duration;
 use crate::sftp::internal::connection::map_sftp_error;
 use crate::sftp::internal::exec::RemoteScript;
 use crate::sftp::internal::sudo::handshake::open_elevated;
-use crate::sftp::internal::sudo::{command, SudoAuth};
+use crate::sftp::internal::sudo::{SudoAuth, command};
 
 const SFTP_REQUEST_TIMEOUT_SECS: u64 = 120;
 /// Bound on opening an SSH channel and negotiating the SFTP subsystem on it.

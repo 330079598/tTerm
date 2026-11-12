@@ -12,12 +12,12 @@ use crate::profiles::groups::{list_groups, repair, replace_groups, with_legacy_g
 use crate::profiles::storage::normalize_profile;
 use crate::profiles::types::{ProfileGroup, SavedProfile};
 use crate::proxy::ProxyServer;
-use crate::serial::history::{store as serial_sends, SerialSend};
+use crate::serial::history::{SerialSend, store as serial_sends};
 use crate::sftp::store::SftpDirectoryStore;
 use crate::ssh::secret_store::{crypto::SecretKey as DataKey, store::put_secret};
 use crate::ssh::store::KnownHostStore;
 use crate::tunnel::types::TunnelRule;
-use base64::{engine::general_purpose::STANDARD as BASE64, Engine};
+use base64::{Engine, engine::general_purpose::STANDARD as BASE64};
 use serde::Serialize;
 use serde_json::Value;
 use std::collections::{BTreeMap, HashMap};
@@ -324,10 +324,10 @@ pub(super) fn apply_database_payload(
             crate::app_state::set_collapsed_profile_group_keys(transaction, &keys)?;
         }
     }
-    if options.selection.session {
-        if let Some(session) = payload.session.clone() {
-            crate::session::write_session(transaction, from_backup_value(session)?)?;
-        }
+    if options.selection.session
+        && let Some(session) = payload.session.clone()
+    {
+        crate::session::write_session(transaction, from_backup_value(session)?)?;
     }
     let mut profiles_imported = 0;
     if options.selection.profiles {
@@ -399,16 +399,16 @@ pub(super) fn apply_database_payload(
             )?;
         }
     }
-    if options.selection.known_hosts {
-        if let Some(incoming) = payload.known_hosts.as_ref() {
-            let incoming = from_backup_value::<KnownHostStore>(incoming.clone())?;
-            if merge {
-                for entry in &incoming.entries {
-                    crate::ssh::store::merge_known_host(transaction, entry)?;
-                }
-            } else {
-                crate::ssh::store::replace_known_hosts(transaction, &incoming)?;
+    if options.selection.known_hosts
+        && let Some(incoming) = payload.known_hosts.as_ref()
+    {
+        let incoming = from_backup_value::<KnownHostStore>(incoming.clone())?;
+        if merge {
+            for entry in &incoming.entries {
+                crate::ssh::store::merge_known_host(transaction, entry)?;
             }
+        } else {
+            crate::ssh::store::replace_known_hosts(transaction, &incoming)?;
         }
     }
     if options.selection.themes {
@@ -433,20 +433,20 @@ pub(super) fn apply_database_payload(
             crate::themes::mark_themes_imported(transaction)?;
         }
     }
-    if options.selection.sftp_directories {
-        if let Some(incoming) = payload.sftp_directories.as_ref() {
-            let store = if merge {
-                let existing =
-                    to_backup_value(&crate::sftp::store::list_sftp_directories(transaction)?)?;
-                merge_object_entries(existing, incoming.clone(), &["host", "port", "username"])?
-            } else {
-                incoming.clone()
-            };
-            crate::sftp::store::replace_sftp_directories(
-                transaction,
-                &from_backup_value::<SftpDirectoryStore>(store)?,
-            )?;
-        }
+    if options.selection.sftp_directories
+        && let Some(incoming) = payload.sftp_directories.as_ref()
+    {
+        let store = if merge {
+            let existing =
+                to_backup_value(&crate::sftp::store::list_sftp_directories(transaction)?)?;
+            merge_object_entries(existing, incoming.clone(), &["host", "port", "username"])?
+        } else {
+            incoming.clone()
+        };
+        crate::sftp::store::replace_sftp_directories(
+            transaction,
+            &from_backup_value::<SftpDirectoryStore>(store)?,
+        )?;
     }
     Ok(profiles_imported)
 }

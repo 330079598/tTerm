@@ -97,7 +97,7 @@ pub fn create_main_window(
 
 #[cfg(test)]
 mod background_throttling_tests {
-    use super::{background_throttling_policy, BackgroundThrottlingPolicy};
+    use super::{BackgroundThrottlingPolicy, background_throttling_policy};
 
     #[test]
     fn unknown_values_fall_back_to_throttle() {

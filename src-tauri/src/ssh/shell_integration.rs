@@ -26,7 +26,7 @@ use russh::client::{self, Msg};
 use russh::{Channel, ChannelMsg};
 use sha2::{Digest, Sha256};
 
-use crate::terminal::shell_scripts::{lf, UNIX_SCRIPTS};
+use crate::terminal::shell_scripts::{UNIX_SCRIPTS, lf};
 
 /// How long installing the scripts, or starting the shell with them, may
 /// take before the session falls back to a plain shell.
@@ -246,10 +246,10 @@ pub(crate) async fn prepare<H: client::Handler>(
         }
         Err(_) => Err(UnavailableReason::TimedOut),
     };
-    if let Err(reason) = &result {
-        if is_lasting(reason) {
-            lasting_reasons().insert(host.to_string(), reason.clone());
-        }
+    if let Err(reason) = &result
+        && is_lasting(reason)
+    {
+        lasting_reasons().insert(host.to_string(), reason.clone());
     }
     result
 }

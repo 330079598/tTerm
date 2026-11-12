@@ -90,10 +90,12 @@ fn resolve_host_key_check(
     port: u16,
     fingerprint: &str,
 ) -> HostKeyCheckOutcome {
-    if let Some(record) = known {
-        if record.host == host && record.port == port && record.fingerprint == fingerprint {
-            return HostKeyCheckOutcome::TrustedKnown;
-        }
+    if let Some(record) = known
+        && record.host == host
+        && record.port == port
+        && record.fingerprint == fingerprint
+    {
+        return HostKeyCheckOutcome::TrustedKnown;
     }
 
     match (mode, known.is_some()) {
@@ -417,8 +419,8 @@ impl SshClientHandler {
 #[cfg(test)]
 mod tests {
     use super::{
-        resolve_host_key_check, HostKeyCheckOutcome, HostKeyVerificationMode, SshConnectError,
-        HOST_KEY_REJECTED_REASON,
+        HOST_KEY_REJECTED_REASON, HostKeyCheckOutcome, HostKeyVerificationMode, SshConnectError,
+        resolve_host_key_check,
     };
 
     fn known_host(fingerprint: &str) -> crate::ssh::store::KnownHostRecord {
@@ -494,9 +496,11 @@ mod tests {
             "Jump host #1: boom"
         );
         // Prefixing must not change the retry classification.
-        assert!(SshConnectError::HostKeyRejected
-            .with_prefix("ignored: ")
-            .is_host_key_rejected());
+        assert!(
+            SshConnectError::HostKeyRejected
+                .with_prefix("ignored: ")
+                .is_host_key_rejected()
+        );
     }
 }
 

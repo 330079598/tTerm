@@ -11,7 +11,7 @@ use super::types::{SecretStorageMode, SecretStoreRuntime};
 use super::{open_with_password, os_verifier, store, types::SecretStoreState};
 use serde::Deserialize;
 use std::time::{Duration, Instant};
-use tterm_platform::verification::{UserVerification, CANCELED};
+use tterm_platform::verification::{CANCELED, UserVerification};
 
 /// Prefix of the error asking the UI to verify and retry. The method
 /// (`system` or `masterPassword`) follows it.

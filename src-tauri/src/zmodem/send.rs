@@ -25,10 +25,10 @@ use tterm_core::events::zmodem::{TransferEmitter, TransferEvent};
 use std::fs::File;
 use std::io::{Read as _, Seek, SeekFrom, Write as _};
 use std::path::{Path, PathBuf};
-use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::mpsc::Receiver;
 use std::sync::Arc;
 use std::sync::PoisonError;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::mpsc::Receiver;
 use std::time::{Duration, Instant};
 
 use tokio::sync::Mutex as TokioMutex;
@@ -180,17 +180,16 @@ pub fn run(params: ZmodemSendParams) {
 
     // No more files: wait for the peer's final "ready" signal, send ZFIN,
     // and give it one chance to echo back before closing out either way.
-    if !cancel_requested.load(Ordering::Relaxed) {
-        if let Some(fin) =
+    if !cancel_requested.load(Ordering::Relaxed)
+        && let Some(fin) =
             feed_until_ready(&mut engine, &incoming, &active, &cancel_requested, |e| {
                 e.finish_send()
             })
-        {
-            write_back(&active, &fin);
-            if let Ok(chunk) = incoming.recv_timeout(FEED_TIMEOUT) {
-                let result = engine.feed(&chunk);
-                write_back(&active, &result.outgoing);
-            }
+    {
+        write_back(&active, &fin);
+        if let Ok(chunk) = incoming.recv_timeout(FEED_TIMEOUT) {
+            let result = engine.feed(&chunk);
+            write_back(&active, &result.outgoing);
         }
     }
 

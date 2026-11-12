@@ -1,5 +1,5 @@
 use super::*;
-use crate::sftp::internal::transfer::{TransferSidecar, DEFAULT_PROGRESS_INTERVAL};
+use crate::sftp::internal::transfer::{DEFAULT_PROGRESS_INTERVAL, TransferSidecar};
 
 #[test]
 fn default_progress_interval_preserves_first_sample_gate_and_forced_final() {

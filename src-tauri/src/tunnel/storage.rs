@@ -1,6 +1,6 @@
 use super::types::TunnelRule;
 use crate::db::sql_error;
-use rusqlite::{params, Connection, OptionalExtension, Row};
+use rusqlite::{Connection, OptionalExtension, Row, params};
 use std::collections::HashMap;
 use tterm_core::events::tunnel::TunnelTraffic;
 

@@ -1,9 +1,9 @@
 //! Tauri tray icons and callbacks; domain menu policy lives in background::tray.
 use crate::background::tray::TRAY_ID;
 use crate::services::AppServices;
-use std::sync::atomic::Ordering;
 use std::sync::Arc;
 use std::sync::Once;
+use std::sync::atomic::Ordering;
 use tauri::image::Image;
 use tauri::menu::{Menu, MenuEvent};
 use tauri::tray::{MouseButton, MouseButtonState, TrayIcon, TrayIconBuilder, TrayIconEvent};
@@ -59,10 +59,10 @@ pub fn set_attention(app: &AppHandle, attention: bool) {
     if state.attention.swap(attention, Ordering::SeqCst) == attention {
         return;
     }
-    if let Some(tray) = app.tray_by_id(TRAY_ID) {
-        if let Err(error) = tray.set_icon(tray_icon(app, attention)) {
-            eprintln!("Failed to update the tray icon: {error}");
-        }
+    if let Some(tray) = app.tray_by_id(TRAY_ID)
+        && let Err(error) = tray.set_icon(tray_icon(app, attention))
+    {
+        eprintln!("Failed to update the tray icon: {error}");
     }
 }
 

@@ -9,10 +9,10 @@
 use std::collections::VecDeque;
 use std::sync::{Arc, Mutex};
 
-use russh::keys::{load_secret_key, PrivateKeyWithHashAlg};
+use russh::keys::{PrivateKeyWithHashAlg, load_secret_key};
 
-use super::{authenticate, AuthMethod, AuthPrompter, AuthTarget, ScriptedPrompts};
-use crate::ssh::test_sshd::{current_user, TempDir, TestSshd};
+use super::{AuthMethod, AuthPrompter, AuthTarget, ScriptedPrompts, authenticate};
+use crate::ssh::test_sshd::{TempDir, TestSshd, current_user};
 
 fn target<'a>(username: &'a str, port: u16) -> AuthTarget<'a> {
     AuthTarget {

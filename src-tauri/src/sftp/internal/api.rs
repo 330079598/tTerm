@@ -1,5 +1,5 @@
 macro_rules! with_sftp {
-    ($app:expr, $tab_id:expr, $plan:expr, $prompts:expr, $pool:expr, $sftp:ident => $body:block) => {{
+    ($app:expr_2021, $tab_id:expr_2021, $plan:expr_2021, $prompts:expr_2021, $pool:expr_2021, $sftp:ident => $body:block) => {{
         let key = $crate::sftp::internal::types::SftpConnectionKey::from_plan($tab_id, $plan)?;
 
         // Ensure connection exists
@@ -60,7 +60,7 @@ use crate::sftp::internal::connection::{
 };
 use crate::sftp::internal::transfer::rate_limit::RateLimiter;
 use crate::sftp::internal::transfer::{
-    RemoteChannels, TransferDirection, DEFAULT_PARALLELISM, MAX_PARALLELISM,
+    DEFAULT_PARALLELISM, MAX_PARALLELISM, RemoteChannels, TransferDirection,
 };
 use crate::sftp::internal::types::{
     SftpConnectionKey, SftpConnectionPool, SftpHandles, TransferCancelMap,
@@ -247,18 +247,18 @@ pub async fn prepare_transfer(
         }
     }
 
-    if let Some(error) = open_error {
-        if sessions.is_empty() {
-            // Every channel failed. Only evict the pooled connection when
-            // the transport itself is gone: a live connection that merely
-            // refuses new channels (e.g. a tight MaxSessions limit) must
-            // stay — the terminal and other SFTP work on this tab run over
-            // it, and evicting would tear them all down.
-            if ssh.is_closed() {
-                evict_connection(pool, &key).await;
-            }
-            return Err(error);
+    if let Some(error) = open_error
+        && sessions.is_empty()
+    {
+        // Every channel failed. Only evict the pooled connection when
+        // the transport itself is gone: a live connection that merely
+        // refuses new channels (e.g. a tight MaxSessions limit) must
+        // stay — the terminal and other SFTP work on this tab run over
+        // it, and evicting would tear them all down.
+        if ssh.is_closed() {
+            evict_connection(pool, &key).await;
         }
+        return Err(error);
     }
 
     // Elastic degradation: with at least one channel open, run the transfer

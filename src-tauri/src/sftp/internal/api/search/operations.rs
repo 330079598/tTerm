@@ -1,6 +1,6 @@
-use super::{search, SearchRequest, SearchSummary};
+use super::{SearchRequest, SearchSummary, search};
 use crate::core::session::types::PtyConnectionOptions;
-use crate::sftp::internal::api::{with_cancel, SftpHost};
+use crate::sftp::internal::api::{SftpHost, with_cancel};
 use crate::sftp::internal::connection::SftpContext;
 use crate::sftp::internal::types::SftpConnectionPool;
 use crate::sftp::internal::types::TransferCancelMap;

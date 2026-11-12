@@ -13,7 +13,7 @@ use russh::{MethodKind, MethodSet};
 use crate::ssh::typed_passwords;
 
 use super::methods::is_password_prompt;
-use super::{authenticate, AuthMethod, AuthPrompter, AuthTarget, AuthUsed, ScriptedPrompts};
+use super::{AuthMethod, AuthPrompter, AuthTarget, AuthUsed, ScriptedPrompts, authenticate};
 
 mod broker;
 mod certificates;
@@ -191,11 +191,13 @@ impl Harness {
             .unwrap_or_else(MethodSet::server_supported);
         let server_config = Arc::new(russh::server::Config {
             methods,
-            keys: vec![russh::keys::PrivateKey::random(
-                &mut rand::rng(),
-                russh::keys::ssh_key::Algorithm::Ed25519,
-            )
-            .expect("host key")],
+            keys: vec![
+                russh::keys::PrivateKey::random(
+                    &mut rand::rng(),
+                    russh::keys::ssh_key::Algorithm::Ed25519,
+                )
+                .expect("host key"),
+            ],
             // Rejections are delayed to a constant time; keep the tests fast.
             auth_rejection_time: Duration::from_millis(1),
             auth_rejection_time_initial: Some(Duration::from_millis(1)),

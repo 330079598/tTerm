@@ -1,8 +1,8 @@
 use super::{
-    build_delete_complete_event, collect_delete_stats, command_delete_script, emit_delete_progress,
-    is_dangerous_delete_path, should_emit_delete_progress, DeleteEntryRequest, DeleteMethod,
+    DELETE_COMMAND_PROMPT_THRESHOLD, DELETE_STATS_LIMIT, DeleteEntryRequest, DeleteMethod,
     DeleteOptions, DeletePlan, DeletePreviewResult, DeleteProgress, DeleteStats,
-    DELETE_COMMAND_PROMPT_THRESHOLD, DELETE_STATS_LIMIT,
+    build_delete_complete_event, collect_delete_stats, command_delete_script, emit_delete_progress,
+    is_dangerous_delete_path, should_emit_delete_progress,
 };
 use crate::sftp::internal::connection::SftpContext;
 use crate::sftp::internal::connection::{
@@ -14,8 +14,8 @@ use russh_sftp::client::SftpSession;
 use std::future::Future;
 use std::pin::Pin;
 use std::sync::Arc;
-use tterm_core::events::sftp::delete::DeleteBatchStartEvent;
 use tterm_core::events::sftp::SftpEvent;
+use tterm_core::events::sftp::delete::DeleteBatchStartEvent;
 use tterm_core::events::{AppEvent, EventSink};
 pub(super) async fn preview_delete_entries(
     app: &SftpContext,

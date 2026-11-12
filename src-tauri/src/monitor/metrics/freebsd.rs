@@ -3,7 +3,7 @@
 
 use tterm_core::events::ssh::LinuxDistributionInfo;
 
-use super::bsd::{parse_common, Sysctl};
+use super::bsd::{Sysctl, parse_common};
 use super::{extract_block, parse_os_release};
 use crate::monitor::types::{CpuCoreTimes, CpuTimes, MemoryMetrics, ServerMetricsSnapshot};
 

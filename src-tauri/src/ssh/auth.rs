@@ -400,10 +400,10 @@ where
 {
     let offers = |kind| remaining.contains(&kind);
 
-    if offers(MethodKind::Password) {
-        if let Some(password) = stored_password.take() {
-            return password_method(session, target, password).await;
-        }
+    if offers(MethodKind::Password)
+        && let Some(password) = stored_password.take()
+    {
+        return password_method(session, target, password).await;
     }
     if offers(MethodKind::KeyboardInteractive) {
         return keyboard_interactive(session, target, prompter, stored_password).await;

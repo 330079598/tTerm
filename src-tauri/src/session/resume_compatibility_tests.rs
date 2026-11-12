@@ -3,7 +3,7 @@
 //! backend; typed projections model an old UI that ignores the added field.
 
 use super::*;
-use crate::core::agent_resume::{build_resume_command, ResumeAgent, ResumeRequest};
+use crate::core::agent_resume::{ResumeAgent, ResumeRequest, build_resume_command};
 use crate::db::Database;
 
 #[derive(Deserialize)]

@@ -43,7 +43,7 @@ pub(super) fn classify(command: &str) -> ProxyCommandUse {
             return ssh_jump(args).map_or_else(
                 || ProxyCommandUse::Command(command.to_string()),
                 ProxyCommandUse::Jump,
-            )
+            );
         }
         _ => None,
     };

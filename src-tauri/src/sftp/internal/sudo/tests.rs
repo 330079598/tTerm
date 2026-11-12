@@ -1,6 +1,6 @@
-use super::command::{script_shell, sftp_server, MISSING_SFTP_SERVER, READY_MARKER};
-use super::errors::{elevation_failed, is_wrong_password, probe_failed, validation_failed};
 use super::SudoAuth;
+use super::command::{MISSING_SFTP_SERVER, READY_MARKER, script_shell, sftp_server};
+use super::errors::{elevation_failed, is_wrong_password, probe_failed, validation_failed};
 use zeroize::Zeroizing;
 
 fn password() -> SudoAuth {

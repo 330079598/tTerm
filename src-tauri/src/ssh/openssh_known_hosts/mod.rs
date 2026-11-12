@@ -17,10 +17,10 @@ use crate::profiles::parser::config_known_hosts_files;
 use crate::profiles::parser::paths::home_dir;
 use crate::ssh::store::KnownHostRecord;
 use hosts::{host_key_name, patterns_match};
+use russh::keys::PublicKeyOrCertificate;
+use russh::keys::ssh_key::Algorithm;
 use russh::keys::ssh_key::known_hosts::{Entry, HostPatterns, Marker};
 use russh::keys::ssh_key::public::KeyData;
-use russh::keys::ssh_key::Algorithm;
-use russh::keys::PublicKeyOrCertificate;
 use std::borrow::Cow;
 use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -111,7 +111,7 @@ impl OpenSshKnownHosts {
     }
 
     /// The entries whose host names match `host` at `port`.
-    fn lines_for(&self, host: &str, port: u16) -> impl Iterator<Item = &KnownHostLine> {
+    fn lines_for(&self, host: &str, port: u16) -> impl Iterator<Item = &KnownHostLine> + use<'_> {
         let name = host_key_name(host, port);
         self.lines
             .iter()

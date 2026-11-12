@@ -105,7 +105,7 @@ pub(super) fn clean(
                 return Err(format!(
                     "Failed to remove old terminal log '{}': {error}",
                     file.path.display()
-                ))
+                ));
             }
         }
     }
@@ -119,8 +119,8 @@ fn has_log_suffix(name: &str) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use flate2::write::GzEncoder;
     use flate2::Compression;
+    use flate2::write::GzEncoder;
     use std::fs::File;
     use std::io::Write;
 

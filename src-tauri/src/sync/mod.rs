@@ -23,7 +23,7 @@ use document::{Collections, MAX_DOCUMENT_SIZE, SYNC_FILE_NAME};
 use merge::{merge_collection, same_data};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use snapshot::{removed_ids, PROFILES, PROFILE_GROUPS, SERIAL_SENDS, SETTINGS, TUNNELS};
+use snapshot::{PROFILE_GROUPS, PROFILES, SERIAL_SENDS, SETTINGS, TUNNELS, removed_ids};
 use std::sync::Mutex;
 
 use snapshot::SyncSelection;
@@ -539,10 +539,10 @@ fn normalize_lenient(collections: &Collections, categories: &[&str]) -> Collecti
             let entry = normalized.entry(category.to_string()).or_default();
             for (id, record) in collection {
                 let single = merge::Collection::from([(id.clone(), record.clone())]);
-                if let Ok(mut done) = snapshot::normalize(category, &single) {
-                    if let Some(record) = done.remove(id) {
-                        entry.insert(id.clone(), record);
-                    }
+                if let Ok(mut done) = snapshot::normalize(category, &single)
+                    && let Some(record) = done.remove(id)
+                {
+                    entry.insert(id.clone(), record);
                 }
             }
         }

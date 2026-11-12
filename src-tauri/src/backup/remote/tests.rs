@@ -2,8 +2,8 @@ use super::files::{
     parse_backup_file_name, remote_backups, sanitize_device_name, validate_file_name,
 };
 use super::*;
-use crate::backup::webdav::DavEntry;
 use crate::backup::MAX_BACKUP_SIZE;
+use crate::backup::webdav::DavEntry;
 use chrono::TimeZone;
 
 #[test]
@@ -113,9 +113,11 @@ async fn live_archive_upload_prune_and_restore() {
             "tterm-mac-20260902-000000.tterm-backup",
         ]
     );
-    assert!(listed
-        .iter()
-        .all(|entry| entry.size_bytes == archive.len() as u64));
+    assert!(
+        listed
+            .iter()
+            .all(|entry| entry.size_bytes == archive.len() as u64)
+    );
 
     let data = client
         .get(&directory, &listed[0].file_name, MAX_BACKUP_SIZE)
@@ -230,21 +232,27 @@ fn normalizes_and_validates_settings() {
         username: "me".to_string(),
         ..WebDavBackupSettings::default()
     };
-    assert!(normalized_settings(WebDavBackupSettings {
-        username: " ".into(),
-        ..valid()
-    })
-    .is_err());
-    assert!(normalized_settings(WebDavBackupSettings {
-        retention_count: 0,
-        ..valid()
-    })
-    .is_err());
-    assert!(normalized_settings(WebDavBackupSettings {
-        frequency: "hourly".into(),
-        ..valid()
-    })
-    .is_err());
+    assert!(
+        normalized_settings(WebDavBackupSettings {
+            username: " ".into(),
+            ..valid()
+        })
+        .is_err()
+    );
+    assert!(
+        normalized_settings(WebDavBackupSettings {
+            retention_count: 0,
+            ..valid()
+        })
+        .is_err()
+    );
+    assert!(
+        normalized_settings(WebDavBackupSettings {
+            frequency: "hourly".into(),
+            ..valid()
+        })
+        .is_err()
+    );
     let mut no_profiles = valid();
     no_profiles.selection.profiles = false;
     assert!(normalized_settings(no_profiles).is_err());

@@ -4,9 +4,9 @@ use crate::core::session::types::PtyConnectionOptions;
 use crate::services::AppServices;
 use crate::sftp::internal::connection::map_sftp_error;
 use operations::{
-    sftp_delete_entries_service, sftp_delete_entry_service, sftp_preview_delete_entries_service,
     SftpDeleteEntriesDependencies, SftpDeleteEntriesInput, SftpDeleteEntryDependencies,
     SftpDeleteEntryInput, SftpPreviewDeleteEntriesDependencies, SftpPreviewDeleteEntriesInput,
+    sftp_delete_entries_service, sftp_delete_entry_service, sftp_preview_delete_entries_service,
 };
 use russh_sftp::client::SftpSession;
 use std::future::Future;

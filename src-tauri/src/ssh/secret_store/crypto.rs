@@ -5,7 +5,7 @@
 use aes_gcm::aead::{Aead, KeyInit, Payload};
 use aes_gcm::{Aes256Gcm, Nonce};
 use argon2::{Algorithm, Argon2, Params, Version};
-use base64::{engine::general_purpose::STANDARD as BASE64, Engine};
+use base64::{Engine, engine::general_purpose::STANDARD as BASE64};
 use rand::Rng;
 use serde::{Deserialize, Serialize};
 use zeroize::{Zeroize, Zeroizing};
@@ -227,13 +227,15 @@ mod tests {
             decrypt_secret(&data_key, "profile-1", &sealed.nonce, &sealed.ciphertext).unwrap();
         assert_eq!(plaintext.as_str(), "hunter2");
         assert!(decrypt_secret(&data_key, "profile-2", &sealed.nonce, &sealed.ciphertext).is_err());
-        assert!(decrypt_secret(
-            &SecretKey::generate(),
-            "profile-1",
-            &sealed.nonce,
-            &sealed.ciphertext
-        )
-        .is_err());
+        assert!(
+            decrypt_secret(
+                &SecretKey::generate(),
+                "profile-1",
+                &sealed.nonce,
+                &sealed.ciphertext
+            )
+            .is_err()
+        );
     }
 
     #[test]
@@ -244,20 +246,24 @@ mod tests {
         let unwrapped =
             unwrap_data_key(&wrapping_key, "system", &wrapped.nonce, &wrapped.ciphertext).unwrap();
         assert_eq!(unwrapped.0[..], data_key.0[..]);
-        assert!(unwrap_data_key(
-            &wrapping_key,
-            "password",
-            &wrapped.nonce,
-            &wrapped.ciphertext
-        )
-        .is_none());
-        assert!(unwrap_data_key(
-            &SecretKey::generate(),
-            "system",
-            &wrapped.nonce,
-            &wrapped.ciphertext
-        )
-        .is_none());
+        assert!(
+            unwrap_data_key(
+                &wrapping_key,
+                "password",
+                &wrapped.nonce,
+                &wrapped.ciphertext
+            )
+            .is_none()
+        );
+        assert!(
+            unwrap_data_key(
+                &SecretKey::generate(),
+                "system",
+                &wrapped.nonce,
+                &wrapped.ciphertext
+            )
+            .is_none()
+        );
     }
 
     #[test]

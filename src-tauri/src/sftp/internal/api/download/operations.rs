@@ -2,11 +2,11 @@ use super::download_file_with_progress;
 use crate::core::session::types::PtyConnectionOptions;
 use crate::sftp::internal::api::conflict::{self, ConflictReport, TransferConflict};
 use crate::sftp::internal::api::download::directory::{
-    collect_download_plan, download_directory_with_progress, remote_basename,
-    DirectoryDownloadRequest, DownloadTarget,
+    DirectoryDownloadRequest, DownloadTarget, collect_download_plan,
+    download_directory_with_progress, remote_basename,
 };
 use crate::sftp::internal::api::prepare_transfer;
-use crate::sftp::internal::connection::{ensure_ssh_plan, SftpContext};
+use crate::sftp::internal::connection::{SftpContext, ensure_ssh_plan};
 use crate::sftp::internal::types::SftpConnectionPool;
 use crate::sftp::internal::types::TransferCancelMap;
 use crate::ssh::secret_store::types::SecretStoreState;

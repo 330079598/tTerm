@@ -115,26 +115,27 @@ where
         // DCS XTGETTCAP: ESC P + q <hex> ESC \
         // Terminal capability query (xterm extension)
         // Response: ESC P {0/1} + r {hex} ESC \ (0=unknown, 1=supported)
-        if !matched && rest.starts_with(b"\x1bP+q") {
-            if let Some(end) = find_dcs_end(rest) {
-                let hex_query = &rest[4..end.index];
+        if !matched
+            && rest.starts_with(b"\x1bP+q")
+            && let Some(end) = find_dcs_end(rest)
+        {
+            let hex_query = &rest[4..end.index];
 
-                // "Co" = 436f/436F in hex (terminal colors capability)
-                if hex_query == b"436f" || hex_query == b"436F" {
-                    // Respond with 256 colors: 1+r436f3d323536 = "Co=256"
-                    writer.write_all(b"\x1bP1+r436f3d323536\x1b\\").await?;
-                } else if hex_query.eq_ignore_ascii_case(b"4d73") {
-                    writer.write_all(XTGETTCAP_MS_REPLY).await?;
-                } else {
-                    // Unknown capability - respond with failure
-                    writer.write_all(b"\x1bP0+r").await?;
-                    writer.write_all(hex_query).await?;
-                    writer.write_all(b"\x1b\\").await?;
-                }
-                writer.flush().await?;
-                i += end.index + end.terminator_len;
-                matched = true;
+            // "Co" = 436f/436F in hex (terminal colors capability)
+            if hex_query == b"436f" || hex_query == b"436F" {
+                // Respond with 256 colors: 1+r436f3d323536 = "Co=256"
+                writer.write_all(b"\x1bP1+r436f3d323536\x1b\\").await?;
+            } else if hex_query.eq_ignore_ascii_case(b"4d73") {
+                writer.write_all(XTGETTCAP_MS_REPLY).await?;
+            } else {
+                // Unknown capability - respond with failure
+                writer.write_all(b"\x1bP0+r").await?;
+                writer.write_all(hex_query).await?;
+                writer.write_all(b"\x1b\\").await?;
             }
+            writer.flush().await?;
+            i += end.index + end.terminator_len;
+            matched = true;
         }
 
         if !matched && is_incomplete_query(rest) {

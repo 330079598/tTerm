@@ -7,7 +7,7 @@ use super::jump::last_jump_host;
 use super::parse::SshConfig;
 use super::paths::expand_home_path;
 use super::resolve::resolve_host;
-use super::tokens::{expand_tokens, PathTokens};
+use super::tokens::{PathTokens, expand_tokens};
 use super::words::split_ssh_words;
 use std::path::PathBuf;
 

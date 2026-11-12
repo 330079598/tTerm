@@ -7,7 +7,7 @@ use std::path::{Path, PathBuf};
 
 use portable_pty::CommandBuilder;
 
-use super::pty::{find_executable_in, TerminalShellProfile};
+use super::pty::{TerminalShellProfile, find_executable_in};
 use crate::core::session::types::TerminalShellConfig;
 
 /// Builds the command a local tab starts. `auto`, and the Windows-only
@@ -204,9 +204,11 @@ mod tests {
             shell: "pwsh".to_string(),
             ..TerminalShellConfig::default()
         };
-        assert!(build_command(&config, "/")
-            .expect("build")
-            .is_default_prog());
+        assert!(
+            build_command(&config, "/")
+                .expect("build")
+                .is_default_prog()
+        );
         assert!(build_command(&custom(" ", None), "/").is_err());
     }
 }

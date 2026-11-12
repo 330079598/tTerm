@@ -3,8 +3,8 @@ use super::broker::{Ui, Window};
 use super::*;
 use russh::{ChannelMsg, Disconnect};
 use tterm_core::events::{
-    ssh::{SshEvent, SshHostKeyPromptPayload},
     AppEvent,
+    ssh::{SshEvent, SshHostKeyPromptPayload},
 };
 use tterm_core::prompts::PromptBroker;
 

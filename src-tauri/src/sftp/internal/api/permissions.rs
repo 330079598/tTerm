@@ -2,7 +2,7 @@ mod operations;
 use crate::core::session::types::PtyConnectionOptions;
 use crate::sftp::internal::connection::map_sftp_error;
 use operations::{
-    sftp_set_permissions_service, SftpSetPermissionsDependencies, SftpSetPermissionsInput,
+    SftpSetPermissionsDependencies, SftpSetPermissionsInput, sftp_set_permissions_service,
 };
 use russh_sftp::client::SftpSession;
 use russh_sftp::protocol::FileAttributes;
@@ -99,8 +99,8 @@ mod tests {
     #[tokio::test]
     #[ignore = "spawns a real sshd; run with --ignored real_sshd"]
     async fn real_sshd_applies_the_mode() {
-        use crate::ssh::auth::{authenticate, AuthPrompter, AuthTarget};
-        use crate::ssh::test_sshd::{current_user, TempDir, TestSshd};
+        use crate::ssh::auth::{AuthPrompter, AuthTarget, authenticate};
+        use crate::ssh::test_sshd::{TempDir, TestSshd, current_user};
 
         let sshd =
             TestSshd::spawn(12321, &["-t", "ed25519"], "Subsystem sftp internal-sftp\n").await;

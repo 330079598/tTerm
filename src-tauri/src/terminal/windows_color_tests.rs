@@ -1,5 +1,5 @@
-use base64::engine::general_purpose::STANDARD;
 use base64::Engine;
+use base64::engine::general_purpose::STANDARD;
 use portable_pty::{CommandBuilder, PtySize};
 use std::io::{Read, Write};
 use std::sync::mpsc;

@@ -59,7 +59,10 @@ fn claude_hook_transports_valid_session_and_cwd_as_json() {
         r#"{"session_id":"abc-123","cwd":"/John’s files;100%"}"#,
     );
     let json: serde_json::Value = serde_json::from_str(&output).unwrap();
-    assert_eq!(json["terminalSequence"], "\u{1b}]777;tterm-agent;claude;done;abc-123;direct;%2F%4A%6F%68%6E%E2%80%99%73%20%66%69%6C%65%73%3B%31%30%30%25\u{7}");
+    assert_eq!(
+        json["terminalSequence"],
+        "\u{1b}]777;tterm-agent;claude;done;abc-123;direct;%2F%4A%6F%68%6E%E2%80%99%73%20%66%69%6C%65%73%3B%31%30%30%25\u{7}"
+    );
 }
 
 #[test]

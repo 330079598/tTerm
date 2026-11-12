@@ -5,9 +5,9 @@
 //!
 //! What was allowed is kept in this device's database by the SHA-256 of the
 //! command, outside sync and backups, so a changed command asks again.
+use tterm_core::events::AppEvent;
 use tterm_core::events::proxy::ProxyCommandPrompt;
 use tterm_core::events::proxy::ProxyEvent;
-use tterm_core::events::AppEvent;
 use tterm_core::prompts::{
     PromptBroker, PromptId, PromptKind, PromptOptions, PromptOutcome, PromptReply, PromptRequest,
 };
@@ -15,7 +15,7 @@ use tterm_core::prompts::{
 use crate::core::blocking::run_blocking;
 use crate::db::sql_error;
 use crate::ssh::types::SshConnectError;
-use rusqlite::{params, Connection, OptionalExtension};
+use rusqlite::{Connection, OptionalExtension, params};
 use sha2::{Digest, Sha256};
 use std::fmt::Write as _;
 use std::sync::Arc;

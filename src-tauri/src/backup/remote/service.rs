@@ -1,13 +1,13 @@
 //! Domain operations behind the IPC entry points.
 use super::files::{device_name, remote_backups, user_agent, validate_file_name};
 use super::{
+    BACKUP_PASSWORD_KEY, DOWNLOAD_DIRECTORY, PASSWORD_KEY, RemoteBackupEntry, UPLOADING,
+    WebDavBackupSettings, WebDavBackupStatus, WebDavDeleteResult, WebDavUploadResult,
     clear_downloads, clear_settings, connect, load_settings, non_empty, normalized_settings,
     run_webdav_backup_locked, same_account, save_keeping_history, saved_secret, status,
-    RemoteBackupEntry, WebDavBackupSettings, WebDavBackupStatus, WebDavDeleteResult,
-    WebDavUploadResult, BACKUP_PASSWORD_KEY, DOWNLOAD_DIRECTORY, PASSWORD_KEY, UPLOADING,
 };
-use crate::backup::webdav::{split_remote_directory, WebDavClient};
-use crate::backup::{normalized_backup_path, MAX_BACKUP_SIZE};
+use crate::backup::webdav::{WebDavClient, split_remote_directory};
+use crate::backup::{MAX_BACKUP_SIZE, normalized_backup_path};
 use crate::config;
 use crate::core::blocking::run_blocking;
 use crate::ssh::secret_store::{
@@ -101,7 +101,7 @@ pub(super) async fn test_webdav_connection(
             Some(password) => password,
             // The saved password only goes to the server it was saved for.
             None if !same_account(&settings, &load_settings()?) => {
-                return Err("Enter the WebDAV password.".to_string())
+                return Err("Enter the WebDAV password.".to_string());
             }
             None => saved_secret(&secret_state, PASSWORD_KEY)?
                 .ok_or_else(|| "Enter the WebDAV password.".to_string())?,

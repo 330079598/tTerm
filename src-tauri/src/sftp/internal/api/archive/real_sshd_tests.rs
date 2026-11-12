@@ -1,9 +1,9 @@
 //! The archive scripts against a real OpenSSH server and the host's own
 //! `tar`, `zip` and `gzip` (see [`crate::ssh::test_sshd`]).
 
-use super::script::{compress_script, extract_script, ArchiveScript, MISSING_TOOL_STATUS};
 use super::ArchiveFormat;
-use crate::sftp::internal::exec::{run_to_end, ScriptOutcome};
+use super::script::{ArchiveScript, MISSING_TOOL_STATUS, compress_script, extract_script};
+use crate::sftp::internal::exec::{ScriptOutcome, run_to_end};
 use crate::sftp::internal::launcher::ChannelLauncher;
 use crate::ssh::test_sshd::{AcceptAnyServerKey, TempDir, TestSshd};
 use russh::client::Handle;

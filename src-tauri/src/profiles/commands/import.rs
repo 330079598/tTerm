@@ -48,17 +48,17 @@ pub(crate) fn import_ssh_config_profiles_blocking(
             .iter()
             .position(|profile| profile.name == host.name && profile.group_id == group_id);
 
-        if let Some(index) = existing_index {
-            if !options.overwrite_existing {
-                // The profile stays as it is, but its forwards can still be added.
-                forward_sources.push((
-                    profiles[index].id.clone(),
-                    profiles[index].name.clone(),
-                    host.forwards,
-                ));
-                skipped += 1;
-                continue;
-            }
+        if let Some(index) = existing_index
+            && !options.overwrite_existing
+        {
+            // The profile stays as it is, but its forwards can still be added.
+            forward_sources.push((
+                profiles[index].id.clone(),
+                profiles[index].name.clone(),
+                host.forwards,
+            ));
+            skipped += 1;
+            continue;
         }
 
         // An overwritten profile keeps its host's distribution while it still

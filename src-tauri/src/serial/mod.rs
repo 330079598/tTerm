@@ -15,8 +15,8 @@ pub(crate) mod xmodem;
 use crate::core::blocking::run_blocking;
 use crate::core::state::{ActiveSession, PtyMap, ZmodemMap};
 use serde::{Deserialize, Serialize};
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 
 /// How long a serial pulse holds its line before releasing it, unless asked.
 const DEFAULT_PULSE_MS: u64 = 100;

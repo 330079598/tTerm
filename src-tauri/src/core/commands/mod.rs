@@ -14,7 +14,7 @@ use arguments::{
     SudoPasswordContext, WritePtyBatchInput, WritePtyInput, WriteSavedPasswordForSudoInput,
 };
 use batch_write::{
-    snapshot_batch_targets, write_guarded_batch, PtyWriteResult, PtyWriteStatus, PtyWriteTarget,
+    PtyWriteResult, PtyWriteStatus, PtyWriteTarget, snapshot_batch_targets, write_guarded_batch,
 };
 use std::io::Write;
 use std::sync::Arc;
@@ -24,7 +24,7 @@ use tokio::sync::Mutex as TokioMutex;
 
 mod batch_write;
 mod create;
-use create::{create_pty_blocking, CreateContext, PtyIdentity};
+use create::{CreateContext, PtyIdentity, create_pty_blocking};
 
 fn stop_pty_session(
     context: StopPtyContext<'_>,
@@ -322,10 +322,10 @@ async fn ack_pty_output_service(state: PtyMap, arguments: AckPtyOutputInput) -> 
     } = arguments;
 
     let map = state.read().await;
-    if let Some(session) = map.get(&tab_id) {
-        if session.session_nonce == session_nonce {
-            session.sink.ack_output(bytes);
-        }
+    if let Some(session) = map.get(&tab_id)
+        && session.session_nonce == session_nonce
+    {
+        session.sink.ack_output(bytes);
     }
     Ok(())
 }

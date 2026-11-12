@@ -141,7 +141,7 @@ mod tests {
 
     #[test]
     fn follows_a_real_shell_handing_its_terminal_to_a_command() {
-        use portable_pty::{native_pty_system, CommandBuilder, PtySize};
+        use portable_pty::{CommandBuilder, PtySize, native_pty_system};
         use std::io::{Read, Write};
 
         let pair = native_pty_system()

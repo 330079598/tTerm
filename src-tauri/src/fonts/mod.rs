@@ -78,7 +78,7 @@ fn get_windows_fonts() -> Result<HashSet<String>, Box<dyn std::error::Error>> {
     use std::sync::Mutex;
     use windows::Win32::Foundation::LPARAM;
     use windows::Win32::Graphics::Gdi::{
-        CreateCompatibleDC, DeleteDC, EnumFontFamiliesExW, DEFAULT_CHARSET, FONT_CHARSET, LOGFONTW,
+        CreateCompatibleDC, DEFAULT_CHARSET, DeleteDC, EnumFontFamiliesExW, FONT_CHARSET, LOGFONTW,
     };
 
     let fonts = Mutex::new(HashSet::new());
@@ -100,15 +100,21 @@ fn get_windows_fonts() -> Result<HashSet<String>, Box<dyn std::error::Error>> {
             _font_type: u32,
             lparam: LPARAM,
         ) -> i32 {
-            let fonts = &*(lparam.0 as *const Mutex<HashSet<String>>);
-            if let Some(logfont) = lpelfe.as_ref() {
-                let name = String::from_utf16_lossy(&logfont.lfFaceName);
-                let name = name.trim_end_matches('\0').to_string();
-                if !name.is_empty() && !name.starts_with('@') {
-                    fonts
-                        .lock()
-                        .unwrap_or_else(std::sync::PoisonError::into_inner)
-                        .insert(name);
+            // SAFETY: `lparam` points to `fonts` for the whole
+            // `EnumFontFamiliesExW` call, which is the only time Windows can
+            // invoke this callback. `lpelfe` is either null or points to a
+            // valid font record for the duration of the callback.
+            unsafe {
+                let fonts = &*(lparam.0 as *const Mutex<HashSet<String>>);
+                if let Some(logfont) = lpelfe.as_ref() {
+                    let name = String::from_utf16_lossy(&logfont.lfFaceName);
+                    let name = name.trim_end_matches('\0').to_string();
+                    if !name.is_empty() && !name.starts_with('@') {
+                        fonts
+                            .lock()
+                            .unwrap_or_else(std::sync::PoisonError::into_inner)
+                            .insert(name);
+                    }
                 }
             }
             1 // Continue enumeration
@@ -186,20 +192,20 @@ fn get_font_family_name(face: &ttf_parser::Face) -> Option<String> {
     for name in face.names() {
         if name.name_id == ttf_parser::name_id::FAMILY {
             // Prefer English (US) names
-            if name.language_id == 0x0409 {
-                if let Some(name_str) = name.to_string() {
-                    return Some(name_str);
-                }
+            if name.language_id == 0x0409
+                && let Some(name_str) = name.to_string()
+            {
+                return Some(name_str);
             }
         }
     }
 
     // Fallback: try any language for family name
     for name in face.names() {
-        if name.name_id == ttf_parser::name_id::FAMILY {
-            if let Some(name_str) = name.to_string() {
-                return Some(name_str);
-            }
+        if name.name_id == ttf_parser::name_id::FAMILY
+            && let Some(name_str) = name.to_string()
+        {
+            return Some(name_str);
         }
     }
 

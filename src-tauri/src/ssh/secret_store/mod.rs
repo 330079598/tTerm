@@ -487,15 +487,15 @@ impl SecretStoreState {
                 eprintln!("Failed to delete old credential '{account}': {error}");
             }
         }
-        if cleanup.retire_vault {
-            if let Err(error) = vault.retire() {
-                eprintln!("Failed to retire the old vault files: {error}");
-            }
+        if cleanup.retire_vault
+            && let Err(error) = vault.retire()
+        {
+            eprintln!("Failed to retire the old vault files: {error}");
         }
-        if cleanup.remove_plaintext {
-            if let Err(error) = crate::ssh::store::remove_legacy_password_store() {
-                eprintln!("Failed to remove the old password file: {error}");
-            }
+        if cleanup.remove_plaintext
+            && let Err(error) = crate::ssh::store::remove_legacy_password_store()
+        {
+            eprintln!("Failed to remove the old password file: {error}");
         }
         if !cleanup.unreadable_accounts.is_empty() {
             self.set_notice(format!(
@@ -670,10 +670,10 @@ impl SecretStoreState {
         if let Some(data_key) = self.runtime()?.data_key.clone() {
             return Ok(data_key);
         }
-        if self.keyring_available()? {
-            if let Ok(Some(data_key)) = open_with_system_key(database, &OsCredentials) {
-                return Ok(data_key);
-            }
+        if self.keyring_available()?
+            && let Ok(Some(data_key)) = open_with_system_key(database, &OsCredentials)
+        {
+            return Ok(data_key);
         }
         let has_any_wrap = database.read(|connection| {
             Ok(store::has_wrap(connection, WRAP_SYSTEM)?

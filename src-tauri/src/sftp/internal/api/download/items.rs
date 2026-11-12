@@ -1,16 +1,16 @@
 use super::directory::{
-    download_file_into_directory, resolve_download_target, BatchProgress, DirectoryDownloadItem,
-    DownloadTarget,
+    BatchProgress, DirectoryDownloadItem, DownloadTarget, download_file_into_directory,
+    resolve_download_target,
 };
 use super::next_transfer_id;
 use crate::sftp::internal::transfer::RemoteChannels;
 use std::path::Path;
 use tokio::sync::watch;
+use tterm_core::events::AppEvent;
+use tterm_core::events::sftp::SftpEvent;
 use tterm_core::events::sftp::download::{
     DownloadItemCompleteEvent, DownloadItemStartEvent, DownloadProgressEvent,
 };
-use tterm_core::events::sftp::SftpEvent;
-use tterm_core::events::AppEvent;
 use tterm_core::sftp::conflict::ConflictPolicy;
 
 #[derive(Default)]

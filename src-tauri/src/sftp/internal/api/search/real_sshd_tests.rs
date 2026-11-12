@@ -5,7 +5,7 @@
 use super::find::{FindOutcome, FindSearch};
 use super::matcher::NameMatcher;
 use super::walk::walk;
-use super::{ResultSink, MAX_RESULTS};
+use super::{MAX_RESULTS, ResultSink};
 use crate::event_sink::search::TauriSearchResultSink;
 use crate::sftp::internal::launcher::ChannelLauncher;
 use crate::ssh::test_sshd::{TempDir, TestSshd};

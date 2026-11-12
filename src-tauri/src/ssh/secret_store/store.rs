@@ -3,7 +3,7 @@
 
 use super::crypto::{self, KdfParams, SecretKey};
 use crate::db::sql_error;
-use rusqlite::{params, Connection, OptionalExtension};
+use rusqlite::{Connection, OptionalExtension, params};
 use zeroize::Zeroizing;
 
 pub(crate) const WRAP_SYSTEM: &str = "system";

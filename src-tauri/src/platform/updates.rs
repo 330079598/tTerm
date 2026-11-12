@@ -2,10 +2,10 @@
 use std::{future::Future, sync::Arc, time::Duration};
 use tauri_plugin_updater::UpdaterExt;
 use tterm_platform::{
+    PlatformFuture,
     updates::{
         AvailableUpdate, DownloadEvent, DownloadedUpdate, UpdateMetadata, UpdateProgress, Updates,
     },
-    PlatformFuture,
 };
 const UPDATE_CONNECT_TIMEOUT: Duration = Duration::from_secs(15);
 // Resets after every chunk, so a slow but steady download is never cut off; only a stall is.

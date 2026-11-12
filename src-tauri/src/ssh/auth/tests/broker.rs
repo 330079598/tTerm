@@ -1,7 +1,7 @@
 //! Authentication protocol tests using the production broker transport.
 use super::*;
 use std::sync::atomic::{AtomicUsize, Ordering};
-use tterm_core::events::{ssh::SshEvent, AppEvent, EventSink};
+use tterm_core::events::{AppEvent, EventSink, ssh::SshEvent};
 use tterm_core::prompts::PromptBroker;
 use tterm_platform::window::MainWindow;
 

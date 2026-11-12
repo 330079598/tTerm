@@ -1,5 +1,5 @@
 use super::store::{clear, delete, list, list_all, record, replace_all, send_id};
-use super::{validate_key, SerialSendMode, HISTORY_LIMIT};
+use super::{HISTORY_LIMIT, SerialSendMode, validate_key};
 use crate::db::Database;
 use serde_json::json;
 

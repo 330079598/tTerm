@@ -2,9 +2,9 @@
 //! never holds up the terminal. The terminal side only queues what happened
 //! and when; the thread turns that into log lines and writes them out.
 
+use super::LogContext;
 use super::emit_error;
 use super::writer::{SessionWriter, Stamp};
-use super::LogContext;
 use std::sync::atomic::{AtomicU64, AtomicUsize, Ordering};
 use std::sync::mpsc::{self, Receiver, RecvTimeoutError, Sender};
 use std::sync::{Arc, LazyLock, Mutex};

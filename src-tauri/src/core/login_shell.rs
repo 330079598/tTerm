@@ -11,7 +11,7 @@ use std::io::Read;
 #[cfg(unix)]
 use std::process::{Command, Stdio};
 #[cfg(unix)]
-use std::sync::{mpsc, Mutex, OnceLock};
+use std::sync::{Mutex, OnceLock, mpsc};
 #[cfg(unix)]
 use std::time::Duration;
 
