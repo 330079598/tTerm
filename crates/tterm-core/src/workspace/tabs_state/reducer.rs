@@ -247,8 +247,8 @@ fn open_page(state: &mut TabsState, mut tab: crate::workspace::tab::Tab) -> bool
         {
             for existing in state.tabs.iter_mut().filter(|existing| existing.id == id) {
                 existing.set_settings_section(tab.settings_section.clone());
-                let next = u64::from(existing.settings_request.unwrap_or(0)) + 1;
-                existing.set_saved_field("settingsRequest", Some(next.into()));
+                let next = super::js_value::increment(existing.saved_field("settingsRequest"));
+                existing.set_saved_field("settingsRequest", Some(next));
             }
         }
         return activate(state, &id);

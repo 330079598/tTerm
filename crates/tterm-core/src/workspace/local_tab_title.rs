@@ -182,7 +182,7 @@ pub fn command_title(command: &str) -> Option<String> {
 
 /// What a local tab named automatically shows while its shell runs a command.
 pub fn running_command_title(tab: &Tab, commands: &IndexMap<String, String>) -> Option<String> {
-    if !tab.auto_title.unwrap_or(false) {
+    if !super::tabs_state::js_value::truthy(tab.saved_field("autoTitle")) {
         return None;
     }
     let command = commands.get(&tab.id)?;
@@ -202,7 +202,7 @@ fn cwd_title(cwd: Option<&str>, home_directory: Option<&str>) -> Option<String> 
 
 /// The tab with the directory its local shell reported.
 pub fn with_local_cwd(tab: &Tab, cwd: &str, home_directory: Option<&str>) -> Tab {
-    let title = if tab.auto_title.unwrap_or(false) {
+    let title = if super::tabs_state::js_value::truthy(tab.saved_field("autoTitle")) {
         cwd_title(Some(cwd), home_directory)
     } else {
         None
@@ -265,7 +265,7 @@ pub fn distinct_local_titles(tabs: &[Tab], home_directory: Option<&str>) -> Vec<
         else {
             continue;
         };
-        if !tab.auto_title.unwrap_or(false) {
+        if !super::tabs_state::js_value::truthy(tab.saved_field("autoTitle")) {
             continue;
         }
         let Some(base) = directory_title(cwd, home_directory) else {

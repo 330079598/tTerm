@@ -47,6 +47,12 @@ export function reducerCases(tabsState, home = null) {
   add("duplicate missing tab", { type: "duplicate", sourceId: "missing", newId: "d" })
   add("duplicate page is ignored", { type: "duplicate", sourceId: "s", newId: "d" }, structuredClone(page))
   add("duplicate fractional nonce", { type: "duplicate", sourceId: "a", newId: "d" }, { ...initial(), tabs: [tab("a", { sessionNonce: 4294967295.75 }), tab("b"), tab("c")] })
+  for (const sessionNonce of [" 5", "\uFEFF5", [5], [[5]], [], [null], [5, 6], true, false, null, {}, "0x5", "5 "]) {
+    add(`duplicate coerces nonce ${JSON.stringify(sessionNonce)}`, { type: "duplicate", sourceId: "a", newId: "d" }, { ...initial(), tabs: [tab("a", { sessionNonce }), tab("b"), tab("c")] })
+  }
+  for (const autoTitle of [1, "yes", [], {}, 0, "", null]) {
+    add(`duplicate uses JS truthiness ${JSON.stringify(autoTitle)}`, { type: "duplicate", sourceId: "a", newId: "d" }, { ...initial(), tabs: [tab("a", { autoTitle, title: "src", duplicateBaseTitle: "old", connection: { cwd: "/home/me" } }), tab("b"), tab("c")] })
+  }
   add("duplicate null connection fills its type", { type: "duplicate", sourceId: "a", newId: "d" }, { ...initial(), tabs: [tab("a", { connection: null, sessionNonce: null }), tab("b"), tab("c")] })
   add("rename clears generated metadata", { type: "rename", id: "a", title: "manual" }, { ...initial(), tabs: [tab("a", { autoTitle: true, duplicateBaseTitle: "base" }), tab("b"), tab("c")] })
   add("rename missing tab", { type: "rename", id: "missing", title: "manual" })

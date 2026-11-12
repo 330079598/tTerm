@@ -25,7 +25,7 @@ pub(super) fn activate(state: &mut TabsState, id: &str) -> bool {
 
 pub(super) fn duplicate(source: &Tab, new_id: &str, tabs: &[Tab]) -> Tab {
     let mut next = source.clone();
-    let base = if source.auto_title.unwrap_or(false) {
+    let base = if super::js_value::truthy(source.saved_field("autoTitle")) {
         None
     } else {
         Some(
@@ -49,7 +49,9 @@ pub(super) fn duplicate(source: &Tab, new_id: &str, tabs: &[Tab]) -> Tab {
         }));
         next.set_connection(Some(connection));
     }
-    next.set_session_nonce(Some(next_nonce(source)));
+    next.set_session_nonce(Some(super::js_value::next_nonce(
+        source.saved_field("sessionNonce"),
+    )));
     next.set_id(new_id.to_string());
     next.set_title(base.as_ref().map_or_else(
         || source.title.clone(),
@@ -64,23 +66,6 @@ pub(super) fn duplicate(source: &Tab, new_id: &str, tabs: &[Tab]) -> Tab {
     next.set_is_active(true);
     next.set_has_connected(Some(true));
     ensure_tab_defaults(&next)
-}
-
-fn next_nonce(source: &Tab) -> u32 {
-    let saved = source.saved_field("sessionNonce");
-    let value = match saved {
-        Some(serde_json::Value::Number(value)) => value.as_f64().unwrap_or(0.0) + 1.0,
-        Some(serde_json::Value::String(value)) => {
-            format!("{value}1").parse::<f64>().unwrap_or(f64::NAN)
-        }
-        Some(serde_json::Value::Bool(value)) => f64::from(u8::from(*value)) + 1.0,
-        _ => f64::from(source.session_nonce.unwrap_or(0)) + 1.0,
-    };
-    if !value.is_finite() || value == 0.0 {
-        0
-    } else {
-        value.trunc().rem_euclid(4_294_967_296.0) as u32
-    }
 }
 
 pub(super) fn apply_template(

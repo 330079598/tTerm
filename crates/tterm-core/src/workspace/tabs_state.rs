@@ -7,6 +7,7 @@ use std::collections::HashSet;
 use super::tab::{Tab, TabType, is_page_tab};
 
 pub mod action;
+pub(crate) mod js_value;
 mod reducer;
 pub mod reopen;
 mod transitions;
