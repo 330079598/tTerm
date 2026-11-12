@@ -1,0 +1,3 @@
+command: CARGO_BUILD_JOBS=3 cargo test --workspace -- --list 2>/dev/null | grep -c ': test$'
+baseline (before P1-09a1, 85ddffd7): 1829
+final (after P1-09a1, 330984b4): 1829

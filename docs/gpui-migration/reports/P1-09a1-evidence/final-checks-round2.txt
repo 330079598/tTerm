@@ -1,0 +1,57 @@
+P1-09a1 round 2 final checks
+
+Commands and results:
+
+VITEST_MAX_WORKERS=3 pnpm lint
+  passed
+
+pnpm format:check
+  passed: All matched files use Prettier code style
+
+pnpm check:tokens
+  passed
+
+pnpm typecheck
+  passed (Vite config-loader warning only)
+
+VITEST_MAX_WORKERS=3 pnpm test
+  passed: 183 test files, 1354 tests
+  passed: layout 2 tests
+  passed: migration 8 tests
+
+pnpm check:size
+  passed: 1251 files within their limits
+
+CARGO_BUILD_JOBS=3 cargo fmt --all --check
+  passed
+
+CARGO_BUILD_JOBS=3 cargo clippy --workspace --all-targets -- -D warnings
+  passed
+
+CARGO_BUILD_JOBS=3 cargo check --workspace --all-targets
+  passed at 0753a7a7 (checked from an exported tree in /private/tmp)
+  passed at 0f886b03 in the worktree
+
+CARGO_BUILD_JOBS=3 cargo test --workspace
+  sandbox run: only the known macOS application-enumeration test failed
+  escalated run: exit 0; 1850 tests passed; 64 ignored; no failures
+
+CARGO_BUILD_JOBS=3 cargo doc -p tTerm --no-deps
+  passed
+
+RUSTDOCFLAGS='-D warnings' CARGO_BUILD_JOBS=3 cargo doc -p tTerm --no-deps --document-private-items
+  exit 101: only pre-existing warnings in untouched files; see cargo-doc-private-round2.txt
+
+node scripts/migration/command-signatures.mjs --check
+  passed
+
+git diff --check
+  passed
+
+python3 -I scripts/migration/core-move-graph.py adapters
+  start (f111b795): 272 movable files, 21 adapter or stay files still needed
+  end (0f886b03): byte-identical output
+
+CARGO_BUILD_JOBS=3 cargo test --workspace -- --list 2>/dev/null | grep -c ': test$'
+  start: 1829
+  end: 1829

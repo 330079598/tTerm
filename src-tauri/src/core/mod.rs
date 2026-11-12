@@ -1,4 +1,5 @@
 pub mod agent_resume;
+pub(crate) mod agent_resume_commands;
 pub mod blocking;
 #[cfg(test)]
 pub(crate) mod channel_test_support;

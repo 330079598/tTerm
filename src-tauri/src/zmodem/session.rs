@@ -137,7 +137,7 @@ impl ZmodemReceiveDriver {
             Box::new(move |event| {
                 let name = event.name("").as_string();
                 let kind = name.strip_prefix("zmodem-").unwrap().trim_end_matches('-');
-                let payload = crate::event_sink::zmodem::transfer_wire(&event).unwrap();
+                let payload = super::wire::transfer_wire(&event).unwrap();
                 emit(kind, payload);
             }),
             tab_id,

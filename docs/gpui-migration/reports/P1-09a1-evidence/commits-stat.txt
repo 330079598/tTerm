@@ -1,0 +1,110 @@
+===== b17ec39c :truck: split SSH commands out of their logic modules =====
+ src-tauri/src/lib.rs                          | 18 ++++----
+ src-tauri/src/ssh/auth.rs                     | 24 ++---------
+ src-tauri/src/ssh/auth_commands.rs            | 18 ++++++++
+ src-tauri/src/ssh/key_vault/commands.rs       | 62 +++++++++++++++++++++++++++
+ src-tauri/src/ssh/key_vault/mod.rs            | 51 +---------------------
+ src-tauri/src/ssh/mod.rs                      |  2 +
+ src-tauri/src/ssh/typed_passwords.rs          |  2 -
+ src-tauri/src/ssh/typed_passwords_commands.rs |  9 ++++
+ 8 files changed, 105 insertions(+), 81 deletions(-)
+
+===== 7c3f8be8 :truck: split proxy commands out of the proxy logic modules =====
+ src-tauri/src/lib.rs                     | 10 +++----
+ src-tauri/src/proxy/approval.rs          | 32 ++++-----------------
+ src-tauri/src/proxy/approval_commands.rs | 29 +++++++++++++++++++
+ src-tauri/src/proxy/commands.rs          | 44 ++++++++++++++++++++++++++++
+ src-tauri/src/proxy/mod.rs               | 49 +++++---------------------------
+ 5 files changed, 91 insertions(+), 73 deletions(-)
+
+===== cc479e2e :truck: split local terminal commands out of their logic modules =====
+ src-tauri/src/lib.rs                          |  8 +++----
+ src-tauri/src/terminal/foreground.rs          | 24 ++++----------------
+ src-tauri/src/terminal/foreground_commands.rs | 21 ++++++++++++++++++
+ src-tauri/src/terminal/mod.rs                 |  2 ++
+ src-tauri/src/terminal/pty.rs                 | 32 ++++++++-------------------
+ src-tauri/src/terminal/pty_commands.rs        | 28 +++++++++++++++++++++++
+ 6 files changed, 68 insertions(+), 47 deletions(-)
+
+===== 3f9d2a8c :white_check_mark: use the recording session sink in io batcher tests =====
+ src-tauri/src/terminal/io_batcher.rs | 61 +++++++++++++++++++++++++++++++-----
+ 1 file changed, 54 insertions(+), 7 deletions(-)
+
+===== 9ae783a3 :truck: split serial commands out of the serial logic modules =====
+ src-tauri/src/lib.rs                     |  24 +++---
+ src-tauri/src/serial/commands.rs         | 121 +++++++++++++++++++++++++++++++
+ src-tauri/src/serial/history/commands.rs |  42 +++++++++++
+ src-tauri/src/serial/history/mod.rs      |  34 +--------
+ src-tauri/src/serial/mod.rs              | 110 +---------------------------
+ src-tauri/src/serial/xmodem/commands.rs  |  59 +++++++++++++++
+ src-tauri/src/serial/xmodem/mod.rs       |  54 +-------------
+ 7 files changed, 237 insertions(+), 207 deletions(-)
+
+===== afe004a6 :recycle: move transfer event serialization out of the event sinks =====
+ src-tauri/src/event_sink/serial.rs                  |  2 +-
+ src-tauri/src/event_sink/zmodem.rs                  | 15 +++------------
+ src-tauri/src/serial/xmodem/receive_tests.rs        |  2 +-
+ src-tauri/src/zmodem/mod.rs                         |  1 +
+ src-tauri/src/zmodem/real_pty_send_interop_tests.rs |  2 +-
+ src-tauri/src/zmodem/real_ssh_send_interop_tests.rs |  2 +-
+ src-tauri/src/zmodem/session.rs                     |  2 +-
+ src-tauri/src/zmodem/wire.rs                        | 11 +++++++++++
+ 8 files changed, 20 insertions(+), 17 deletions(-)
+
+===== bd4fd9c7 :truck: split core commands and move PTY teardown into the session module =====
+ src-tauri/src/core/agent_resume.rs          | 28 +++++----------
+ src-tauri/src/core/agent_resume_commands.rs | 18 ++++++++++
+ src-tauri/src/core/commands/arguments.rs    |  5 ---
+ src-tauri/src/core/commands/create.rs       |  3 +-
+ src-tauri/src/core/commands/mod.rs          | 56 +++--------------------------
+ src-tauri/src/core/mod.rs                   |  1 +
+ src-tauri/src/core/session/mod.rs           |  1 +
+ src-tauri/src/core/session/stop.rs          | 56 +++++++++++++++++++++++++++++
+ src-tauri/src/lib.rs                        |  2 +-
+ 9 files changed, 90 insertions(+), 80 deletions(-)
+
+===== e508f9af :truck: split monitor commands out of monitor/mod.rs =====
+ src-tauri/src/lib.rs              |  4 +--
+ src-tauri/src/monitor/commands.rs | 54 +++++++++++++++++++++++++++++++++++++++
+ src-tauri/src/monitor/mod.rs      | 47 +---------------------------------
+ 3 files changed, 57 insertions(+), 48 deletions(-)
+
+===== b82c50eb :truck: split session log commands out of session_log/mod.rs =====
+ src-tauri/src/lib.rs                  |  26 +++----
+ src-tauri/src/session_log/commands.rs | 140 ++++++++++++++++++++++++++++++++++
+ src-tauri/src/session_log/mod.rs      | 119 +----------------------------
+ 3 files changed, 154 insertions(+), 131 deletions(-)
+
+===== 4211c60b :truck: split SFTP commands out of the SFTP logic modules =====
+ src-tauri/src/lib.rs                               |  46 ++--
+ src-tauri/src/sftp/internal/api/archive.rs         |  80 +------
+ .../src/sftp/internal/api/archive_commands.rs      |  79 +++++++
+ src-tauri/src/sftp/internal/api/base.rs            |  99 +-------
+ src-tauri/src/sftp/internal/api/base_commands.rs   |  96 ++++++++
+ src-tauri/src/sftp/internal/api/delete.rs          |   1 +
+ .../src/sftp/internal/api/delete/commands/mod.rs   |  35 ---
+ .../internal/api/delete/commands/operations.rs     |   2 +-
+ .../src/sftp/internal/api/delete/recursive.rs      |  35 +++
+ src-tauri/src/sftp/internal/api/download.rs        | 113 +--------
+ .../src/sftp/internal/api/download_commands.rs     | 111 +++++++++
+ src-tauri/src/sftp/internal/api/edit.rs            |  59 +----
+ src-tauri/src/sftp/internal/api/edit_commands.rs   |  58 +++++
+ .../src/sftp/internal/api/external/commands.rs     | 171 ++++++++++++++
+ src-tauri/src/sftp/internal/api/external/mod.rs    | 169 +-------------
+ src-tauri/src/sftp/internal/api/external/tests.rs  |   4 +
+ src-tauri/src/sftp/internal/api/permissions.rs     |  32 +--
+ .../src/sftp/internal/api/permissions_commands.rs  |  30 +++
+ src-tauri/src/sftp/internal/api/search.rs          |  41 +---
+ .../src/sftp/internal/api/search/contract_tests.rs |   4 +-
+ src-tauri/src/sftp/internal/api/search_commands.rs |  41 ++++
+ src-tauri/src/sftp/internal/api/upload.rs          |   3 +
+ .../src/sftp/internal/api/upload/commands/mod.rs   | 252 +-------------------
+ .../internal/api/upload/commands/operations.rs     |   6 +-
+ src-tauri/src/sftp/internal/api/upload/items.rs    |   2 +-
+ src-tauri/src/sftp/internal/api/upload/targets.rs  | 256 +++++++++++++++++++++
+ 26 files changed, 933 insertions(+), 892 deletions(-)
+
+===== 330984b4 :recycle: take external edit paths from AppServices =====
+ src-tauri/src/sftp/internal/api/external/commands.rs   | 3 +--
+ src-tauri/src/sftp/internal/api/external/operations.rs | 4 ++--
+ 2 files changed, 3 insertions(+), 4 deletions(-)

@@ -58,11 +58,6 @@ pub(super) struct WriteSavedPasswordForSudoInput {
     pub(super) prompt: String,
 }
 
-pub(super) struct StopPtyContext<'a> {
-    pub(super) prompts: &'a tterm_core::prompts::PromptBroker,
-    pub(super) tab_id: &'a str,
-}
-
 pub(super) struct SudoPasswordContext<'a> {
     pub(super) app: &'a crate::ssh::context::ConnectionContext,
     pub(super) secret_state: &'a crate::ssh::secret_store::types::SecretStoreState,

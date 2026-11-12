@@ -1,0 +1,28 @@
+0753a7a7 :memo: fix stale rustdoc links and document extracted helpers
+ src-tauri/src/core/session/stop.rs | 5 +++++
+ src-tauri/src/ssh/auth.rs          | 2 +-
+ src-tauri/src/zmodem/wire.rs       | 2 ++
+ 3 files changed, 8 insertions(+), 1 deletion(-)
+
+0f886b03 :truck: declare SFTP command modules beside their logic
+ src-tauri/src/lib.rs                               | 30 ++++----
+ src-tauri/src/sftp/internal/api.rs                 |  6 ++
+ src-tauri/src/sftp/internal/api/archive.rs         |  4 +-
+ .../src/sftp/internal/api/archive/operations.rs    | 58 +++++++--------
+ .../src/sftp/internal/api/archive_commands.rs      |  4 +-
+ src-tauri/src/sftp/internal/api/base.rs            |  4 +-
+ src-tauri/src/sftp/internal/api/base/operations.rs | 72 +++++++++----------
+ src-tauri/src/sftp/internal/api/base_commands.rs   |  2 +-
+ src-tauri/src/sftp/internal/api/download.rs        |  4 +-
+ .../src/sftp/internal/api/download/operations.rs   | 84 +++++++++++-----------
+ .../src/sftp/internal/api/download_commands.rs     |  2 +-
+ src-tauri/src/sftp/internal/api/edit.rs            |  4 +-
+ src-tauri/src/sftp/internal/api/edit/operations.rs | 44 ++++++------
+ src-tauri/src/sftp/internal/api/edit_commands.rs   |  4 +-
+ src-tauri/src/sftp/internal/api/permissions.rs     |  4 +-
+ .../sftp/internal/api/permissions/operations.rs    | 22 +++---
+ .../src/sftp/internal/api/permissions_commands.rs  |  2 +-
+ src-tauri/src/sftp/internal/api/search.rs          |  4 +-
+ .../src/sftp/internal/api/search/operations.rs     | 26 +++----
+ src-tauri/src/sftp/internal/api/search_commands.rs |  4 +-
+ 20 files changed, 189 insertions(+), 195 deletions(-)

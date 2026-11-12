@@ -1,16 +1,9 @@
-mod operations;
-use crate::core::session::types::PtyConnectionOptions;
-use crate::services::AppServices;
+pub(super) mod operations;
 use crate::sftp::internal::api::permissions::PERMISSION_MASK;
 use crate::sftp::internal::connection::map_sftp_error;
-use operations::{
-    SftpOpenFileForEditDependencies, SftpOpenFileForEditInput, SftpSaveEditedFileDependencies,
-    SftpSaveEditedFileInput, sftp_open_file_for_edit_service, sftp_save_edited_file_service,
-};
 use russh_sftp::client::SftpSession;
 use russh_sftp::protocol::{FileAttributes, OpenFlags};
 use serde::{Deserialize, Serialize};
-use tauri::State;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
 #[cfg(test)]
@@ -249,54 +242,4 @@ async fn save_editable_file(
         modified_at: metadata_modified_at(&next_metadata),
         size: next_metadata.size.unwrap_or(content.len() as u64),
     })
-}
-
-#[tauri::command]
-pub async fn sftp_open_file_for_edit(
-    tab_id: String,
-    connection: Option<PtyConnectionOptions>,
-    path: String,
-    services: State<'_, std::sync::Arc<AppServices>>,
-) -> Result<SftpEditableFile, String> {
-    sftp_open_file_for_edit_service(
-        SftpOpenFileForEditDependencies {
-            context: crate::connection_context::sftp(&services),
-            prompts: services.shared.prompts.clone(),
-            secrets: services.shared.secrets.clone(),
-            pool: services.sftp.pool.clone(),
-        },
-        SftpOpenFileForEditInput {
-            tab_id,
-            connection,
-            path,
-        },
-    )
-    .await
-}
-
-#[tauri::command]
-pub async fn sftp_save_edited_file(
-    tab_id: String,
-    connection: Option<PtyConnectionOptions>,
-    path: String,
-    content: String,
-    baseline: SftpEditBaseline,
-    services: State<'_, std::sync::Arc<crate::services::AppServices>>,
-) -> Result<SftpSaveEditedFileResult, String> {
-    sftp_save_edited_file_service(
-        SftpSaveEditedFileDependencies {
-            context: crate::connection_context::sftp(&services),
-            prompts: services.shared.prompts.clone(),
-            secrets: services.shared.secrets.clone(),
-            pool: services.sftp.pool.clone(),
-        },
-        SftpSaveEditedFileInput {
-            tab_id,
-            connection,
-            path,
-            content,
-            baseline,
-        },
-    )
-    .await
 }

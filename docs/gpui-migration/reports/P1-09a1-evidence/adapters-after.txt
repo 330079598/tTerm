@@ -1,0 +1,108 @@
+config/mod.rs  (24 movable dependents)
+    backup/apply.rs: AppConfig config
+    backup/archive.rs: AppConfig
+    backup/automatic.rs: config
+    backup/diff.rs: config
+    backup/export.rs: config
+    backup/remote/service.rs: config
+    backup/snapshot.rs: config
+    config/defaults.rs: AppConfig
+    config/local_shells.rs: AppConfig
+    config/reconnect.rs: load_config_file
+    config/save.rs: AppConfig load_config_file save_config_file
+    core/session/mod.rs: ssh_shell_integration_enabled
+    proxy/resolve.rs: load_config_file
+    session_log/manager.rs: AppConfig
+    session_log/mod.rs: AppConfig load_config_file
+    sftp/internal/api.rs: AppConfig load_config_file
+    ssh/client.rs: tab_icons_enabled
+    ssh/client/setup.rs: command_marks_enabled
+    ssh/secret_store/mod.rs: config load_config_file save_config_file
+    ssh/secret_store/verification.rs: load_config_file
+    sync/snapshot.rs: AppConfig load_config_file save_config_file
+    terminal/local_integration.rs: command_marks_enabled local_shell_integration_enabled
+    terminal/windows_shell.rs: command_marks_enabled
+    zmodem/session.rs: load_config_file
+backup/mod.rs  (8 movable dependents)
+    backup/apply.rs: BackupImportOptions BackupLogFile BackupPayload BackupSelection MissingKeyFile
+    backup/archive.rs: BACKUP_AAD BackupCrypto BackupManifest BackupPayload BackupSelection DecodedBundle ENCRYPTED_PAYLOAD_ENTRY FORMAT_NAME FORMAT_VERSION MANIFEST_ENTRY MAX_BACKUP_SIZE MAX_PAYLOAD_SIZE PAYLOAD_ENTRY
+    backup/automatic.rs: AUTOMATIC_LAST_BACKUP_AT_KEY AUTOMATIC_SETTINGS_FILE AUTOMATIC_SETTINGS_KEY AutomaticBackupSettings BackupExportResult BackupHistoryEntry BackupSelection
+    backup/diff.rs: BackupDiff BackupPayload CategoryDiff
+    backup/export.rs: AutomaticBackupSettings BackupExportOptions BackupLogFile BackupPayload BackupSelection MigrationSecretRecord
+    backup/remote/service.rs: MAX_BACKUP_SIZE backup normalized_backup_path
+    backup/service.rs: AutomaticBackupSettings BackupExportOptions BackupExportResult BackupHistoryEntry BackupImportOptions BackupImportResult BackupInspectInput BackupInspectResult export_backup_blocking import_backup_blocking inspect_backup_blocking
+    backup/snapshot.rs: AUTOMATIC_SETTINGS_KEY BackupPayload BackupSelection
+backup/remote.rs  (8 movable dependents)
+    backup/apply.rs: remote
+    backup/archive.rs: remote
+    backup/automatic.rs: remote
+    backup/diff.rs: remote
+    backup/export.rs: remote
+    backup/remote/files.rs: FILE_EXTENSION FILE_PREFIX RemoteBackupEntry TIMESTAMP_FORMAT TIMESTAMP_LEN
+    backup/remote/service.rs: BACKUP_PASSWORD_KEY DOWNLOAD_DIRECTORY PASSWORD_KEY RemoteBackupEntry UPLOADING WebDavBackupSettings WebDavBackupStatus WebDavDeleteResult WebDavUploadResult clear_downloads clear_settings connect load_settings non_empty normalized_settings run_webdav_backup_locked same_account save_keeping_history saved_secret status
+    backup/snapshot.rs: remote
+agent_integration/mod.rs  (5 movable dependents)
+    agent_integration/claude_code.rs: agent_integration
+    agent_integration/codex.rs: REPORT_ARG agent_integration
+    agent_integration/console_report.rs: REPORT_ARG
+    agent_integration/hooks.rs: IntegrationState REPORT_MARKER
+    agent_integration/plugin_file.rs: IntegrationState REPORT_MARKER
+session/mod.rs  (5 movable dependents)
+    backup/apply.rs: write_session
+    backup/archive.rs: SessionData
+    backup/export.rs: read_session
+    backup/snapshot.rs: SESSION_KEY
+    db/legacy_import.rs: import_file
+sync/mod.rs  (5 movable dependents)
+    backup/apply.rs: restore_settings
+    backup/export.rs: load_settings
+    backup/snapshot.rs: SETTINGS_KEY
+    db/legacy_import.rs: import_settings_file
+    sync/service.rs: SYNC_LOCK SyncOutcome SyncSettings SyncStatus set_last_error status sync write_settings
+app_state.rs  (4 movable dependents)
+    backup/apply.rs: collapsed_profile_group_keys set_collapsed_profile_group_keys
+    backup/export.rs: collapsed_profile_group_keys
+    backup/snapshot.rs: COLLAPSED_PROFILE_GROUP_KEYS
+    db/legacy_import.rs: import_from_config_file
+background/tray/mod.rs  (4 movable dependents)
+    app_context.rs: TrayContext
+    config/save.rs: TrayContext
+    services/app.rs: TrayState
+    tunnel/runtime/reporter.rs: TrayContext refresh_tunnels
+themes.rs  (4 movable dependents)
+    backup/apply.rs: list_themes mark_themes_imported replace_themes
+    backup/export.rs: list_themes themes_imported
+    backup/snapshot.rs: list_themes replace_themes
+    sync/snapshot.rs: delete_theme upsert_theme
+tunnel/commands.rs  (4 movable dependents)
+    app_context.rs: TunnelContext
+    profiles/service.rs: TunnelManager
+    services/app.rs: TunnelManager
+    sync/service.rs: TunnelManager
+background/mod.rs  (3 movable dependents)
+    app_context.rs: BackgroundContext
+    config/save.rs: CloseBehaviorState apply_config
+    services/app.rs: CloseBehaviorState
+background/quit.rs  (2 movable dependents)
+    app_context.rs: QuitContext
+    services/app.rs: QuitState
+system_integration/mod.rs  (2 movable dependents)
+    config/save.rs: apply_config
+    terminal/pty.rs: tab_bin_dir
+background/exit_guard.rs  (1 movable dependents)
+    services/app.rs: ExitGuardState
+command_library/commands.rs  (1 movable dependents)
+    command_library/service/mod.rs: SaveCommandInput
+config/window_background.rs  (1 movable dependents)
+    db/legacy_import.rs: import_file
+launch_dir.rs  (1 movable dependents)
+    services/app.rs: LaunchDirs
+profiles/commands.rs  (1 movable dependents)
+    profiles/service.rs: TestConnectionResult
+session/scrollback.rs  (1 movable dependents)
+    backup/apply.rs: clear_all
+updater.rs  (1 movable dependents)
+    services/app.rs: PendingUpdateDownloads
+window_state/mod.rs  (1 movable dependents)
+    window_state/placement.rs: Bounds
+272 movable files, 21 adapter or stay files still needed

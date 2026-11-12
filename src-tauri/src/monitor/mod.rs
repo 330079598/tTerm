@@ -1,3 +1,4 @@
+pub(crate) mod commands;
 pub(crate) mod metrics;
 pub(crate) mod prompts;
 mod session;
@@ -14,32 +15,6 @@ use session::{
 use types::MonitorSessionMap;
 use types::ServerMetricsSnapshot;
 
-#[tauri::command]
-pub async fn get_server_metrics_snapshot(
-    tab_id: String,
-    session_nonce: u32,
-    connection: Option<PtyConnectionOptions>,
-    services: tauri::State<'_, std::sync::Arc<crate::services::AppServices>>,
-) -> Result<ServerMetricsSnapshot, String> {
-    let app = crate::connection_context::connection(&services);
-    let prompt_state = services.shared.prompts.clone();
-    let secret_state = services.shared.secrets.clone();
-    let monitor_sessions = services.session.monitors.clone();
-    let registry = services.session.monitor_prompts.clone();
-    get_server_metrics_snapshot_service(
-        app,
-        prompt_state,
-        secret_state,
-        monitor_sessions,
-        registry,
-        GetServerMetricsSnapshotInput {
-            tab_id,
-            session_nonce,
-            connection,
-        },
-    )
-    .await
-}
 struct GetServerMetricsSnapshotInput {
     tab_id: String,
     session_nonce: u32,
@@ -97,26 +72,6 @@ async fn get_server_metrics_snapshot_service(
     }
 }
 
-#[tauri::command]
-pub async fn release_server_monitor_session(
-    tab_id: String,
-    session_nonce: Option<u32>,
-    services: tauri::State<'_, std::sync::Arc<crate::services::AppServices>>,
-) -> Result<(), String> {
-    let app = crate::connection_context::connection(&services);
-    let monitor_sessions = services.session.monitors.clone();
-    let registry = services.session.monitor_prompts.clone();
-    release_server_monitor_session_service(
-        app,
-        monitor_sessions,
-        registry,
-        ReleaseServerMonitorSessionInput {
-            tab_id,
-            session_nonce,
-        },
-    )
-    .await
-}
 struct ReleaseServerMonitorSessionInput {
     tab_id: String,
     session_nonce: Option<u32>,

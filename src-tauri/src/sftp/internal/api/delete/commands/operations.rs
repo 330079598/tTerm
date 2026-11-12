@@ -2,7 +2,7 @@ use crate::core::session::types::PtyConnectionOptions;
 use crate::sftp::internal::api::delete::batch::{
     DeleteBatch, preview_delete_entries, run_delete_batch,
 };
-use crate::sftp::internal::api::delete::commands::delete_directory_recursive;
+use crate::sftp::internal::api::delete::recursive::delete_directory_recursive;
 use crate::sftp::internal::api::delete::{
     DeleteBatchStartResult, DeleteEntryRequest, DeleteOptions, DeletePreviewResult,
     is_dangerous_delete_path, next_delete_batch_id,

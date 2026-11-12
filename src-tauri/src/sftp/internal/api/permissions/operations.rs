@@ -6,19 +6,19 @@ use crate::ssh::secret_store::types::SecretStoreState;
 use std::sync::Arc;
 use tterm_core::prompts::PromptBroker;
 
-pub(super) struct SftpSetPermissionsInput {
-    pub(super) tab_id: String,
-    pub(super) connection: Option<PtyConnectionOptions>,
-    pub(super) paths: Vec<String>,
-    pub(super) mode: u32,
+pub(crate) struct SftpSetPermissionsInput {
+    pub(crate) tab_id: String,
+    pub(crate) connection: Option<PtyConnectionOptions>,
+    pub(crate) paths: Vec<String>,
+    pub(crate) mode: u32,
 }
-pub(super) struct SftpSetPermissionsDependencies {
-    pub(super) context: SftpContext,
-    pub(super) prompts: Arc<PromptBroker>,
-    pub(super) secrets: SecretStoreState,
-    pub(super) pool: SftpConnectionPool,
+pub(crate) struct SftpSetPermissionsDependencies {
+    pub(crate) context: SftpContext,
+    pub(crate) prompts: Arc<PromptBroker>,
+    pub(crate) secrets: SecretStoreState,
+    pub(crate) pool: SftpConnectionPool,
 }
-pub(super) async fn sftp_set_permissions_service(
+pub(crate) async fn sftp_set_permissions_service(
     dependencies: SftpSetPermissionsDependencies,
     input: SftpSetPermissionsInput,
 ) -> Result<(), String> {

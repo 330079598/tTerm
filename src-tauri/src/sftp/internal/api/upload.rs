@@ -16,6 +16,9 @@ use std::sync::Arc;
 use tokio::fs;
 use tokio::sync::watch;
 use tterm_core::events::sftp::upload::UploadItemProgressEvent;
+
+mod targets;
+
 #[derive(Clone)]
 struct UploadFilePlanItem {
     file_name: String,

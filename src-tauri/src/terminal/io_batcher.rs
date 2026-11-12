@@ -374,14 +374,61 @@ mod real_pty_tests;
 
 #[cfg(test)]
 fn test_sink(output: TerminalOutput) -> Arc<dyn SessionSink> {
-    let app = tauri::test::mock_builder()
-        .build(tauri::test::mock_context(tauri::test::noop_assets()))
-        .unwrap();
-    Arc::new(crate::session_sink::TauriSessionSink::new(
-        "test-tab".into(),
-        app.handle().clone(),
+    Arc::new(RecordingOutputSink {
+        records: tterm_core::session::recording::RecordingSessionSink::default(),
         output,
-    ))
+    })
+}
+
+#[cfg(test)]
+struct RecordingOutputSink {
+    records: tterm_core::session::recording::RecordingSessionSink,
+    output: TerminalOutput,
+}
+
+#[cfg(test)]
+impl tterm_core::events::EventSink for RecordingOutputSink {
+    fn emit(&self, event: tterm_core::events::AppEvent) -> Result<(), String> {
+        self.records.emit(event)
+    }
+}
+
+#[cfg(test)]
+impl SessionSink for RecordingOutputSink {
+    fn send_bytes(&self, bytes: Vec<u8>) -> Result<(), String> {
+        self.output.send(bytes.clone())?;
+        self.records.send_bytes(bytes)
+    }
+
+    fn state_changed(
+        &self,
+        progress: tterm_core::events::ssh::SshConnectionProgressPayload,
+    ) -> Result<(), String> {
+        self.records.state_changed(progress)
+    }
+
+    fn exited(&self, reason: Option<String>) -> Result<(), String> {
+        self.records.exited(reason)
+    }
+
+    fn ack_output(&self, bytes: usize) {
+        self.output.flow().ack(bytes);
+        self.records.ack_output(bytes);
+    }
+
+    fn close_output(&self) {
+        self.output.flow().close();
+        self.records.close_output();
+    }
+
+    fn note_input(&self) {
+        self.output.note_input();
+        self.records.note_input();
+    }
+
+    fn answers_input(&self) -> bool {
+        self.output.answers_input()
+    }
 }
 #[cfg(test)]
 mod lifecycle_tests;
