@@ -57,6 +57,20 @@ impl ChunkRecorder {
         });
         TerminalOutput::with_flow(channel, flow)
     }
+
+    /// Waits until the first chunk arrives and returns what has arrived so
+    /// far. A fixed sleep of a few windows is not enough on a loaded CI
+    /// runner, where the sender thread can wake well after its deadline.
+    fn wait_for_first_chunk(&self) -> Vec<Vec<u8>> {
+        let give_up = Instant::now() + Duration::from_secs(5);
+        loop {
+            let chunks = self.chunks.lock().unwrap().clone();
+            if !chunks.is_empty() || Instant::now() >= give_up {
+                return chunks;
+            }
+            std::thread::sleep(Duration::from_millis(1));
+        }
+    }
 }
 
 /// Records chunks without acknowledging them, like a webview that has
@@ -343,9 +357,10 @@ fn output_nobody_typed_for_waits_a_window_after_a_quiet_spell() {
     sender.send(b"\x1b[1G".to_vec());
     sender.send(b"\x1b[0K".to_vec());
     sender.send("\u{2839} Installing".as_bytes().to_vec());
-    std::thread::sleep(BATCH_INTERVAL * 4);
 
-    let chunks = recorder.chunks.lock().unwrap().clone();
+    // The first piece going out alone would show up here as a chunk of its
+    // own, so the first delivery must already hold the whole frame.
+    let chunks = recorder.wait_for_first_chunk();
     sender.finish();
     assert_eq!(
         chunks,
@@ -381,9 +396,8 @@ fn steady_trickle_flushes_without_waiting_for_disconnect() {
         sender.send(message);
         std::thread::sleep(Duration::from_millis(2));
     }
-    std::thread::sleep(BATCH_INTERVAL * 4);
 
-    let delivered_before_finish = recorder.chunks.lock().unwrap().len();
+    let delivered_before_finish = recorder.wait_for_first_chunk().len();
     sender.finish();
     assert!(
         delivered_before_finish > 0,
