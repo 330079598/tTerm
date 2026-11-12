@@ -3,6 +3,18 @@ use crate::workspace::pane_navigation::{
     sort_panes_by_reading_order,
 };
 
+fn stress_pane(id: &str) -> PaneRect {
+    match id {
+        "L1" => pane("L1", 0.0, 0.0, 496.0, 200.0),
+        "L2" => pane("L2", 0.0, 209.0, 496.0, 600.0),
+        "M1" => pane("M1", 504.0, 0.0, 1000.0, 200.0),
+        "M2" => pane("M2", 504.0, 207.0, 1000.0, 600.0),
+        "R1" => pane("R1", 1008.0, 0.0, 1504.0, 200.0),
+        "R2" => pane("R2", 1008.0, 205.0, 1504.0, 600.0),
+        other => panic!("unexpected stress pane {other}"),
+    }
+}
+
 fn pane(id: &str, left: f64, top: f64, right: f64, bottom: f64) -> PaneRect {
     PaneRect {
         id: id.to_owned(),
@@ -266,4 +278,98 @@ fn oracle_returns_none_for_an_offset_beyond_the_negative_end_instead_of_throwing
     // and throws a TypeError; the Rust port returns None because production
     // code must not panic. The deviation is recorded in the card report.
     assert_eq!(get_sibling_pane_id(&tall_left(), Some("a"), -4), None);
+}
+
+fn sorted_ids(panes: &[PaneRect]) -> Vec<&str> {
+    panes.iter().map(|pane| pane.id.as_str()).collect()
+}
+
+#[test]
+fn oracle_breaks_the_reading_order_cycle_like_v8() {
+    let oracle = super::oracle_json();
+    let example = &oracle["paneNavigation"]["readingOrder"]["example"];
+    let input: Vec<PaneRect> = example["input"]
+        .as_array()
+        .expect("the example has an input list")
+        .iter()
+        .map(|id| stress_pane(id.as_str().expect("an input id")))
+        .collect();
+    let expected: Vec<&str> = example["sorted"]
+        .as_array()
+        .expect("the example has a sorted list")
+        .iter()
+        .map(|id| id.as_str().expect("a sorted id"))
+        .collect();
+
+    assert_eq!(sorted_ids(&sort_panes_by_reading_order(&input)), expected);
+    assert_eq!(
+        get_sibling_pane_id(&input, Some("R1"), 1).as_deref(),
+        example["sibling"].as_str()
+    );
+}
+
+#[test]
+fn oracle_matches_v8_for_every_permutation_of_the_reading_order_stress_case() {
+    let oracle = super::oracle_json();
+    let permutations = oracle["paneNavigation"]["readingOrder"]["permutations"]
+        .as_array()
+        .expect("the oracle has the permutation results");
+    assert_eq!(permutations.len(), 720);
+
+    for permutation in permutations {
+        let input: Vec<PaneRect> = permutation["input"]
+            .as_array()
+            .expect("an input list")
+            .iter()
+            .map(|id| stress_pane(id.as_str().expect("an input id")))
+            .collect();
+        let expected_sorted: Vec<&str> = permutation["sorted"]
+            .as_array()
+            .expect("a sorted list")
+            .iter()
+            .map(|id| id.as_str().expect("a sorted id"))
+            .collect();
+        let actual = sort_panes_by_reading_order(&input);
+        assert_eq!(
+            sorted_ids(&actual),
+            expected_sorted,
+            "input order: {:?}",
+            permutation["input"]
+        );
+        assert_eq!(
+            get_sibling_pane_id(&input, Some("R1"), 1).as_deref(),
+            permutation["sibling"].as_str(),
+            "sibling after input order: {:?}",
+            permutation["input"]
+        );
+    }
+}
+
+#[test]
+fn oracle_sorts_seventy_panes_with_a_non_transitive_comparator_without_panicking() {
+    let panes: Vec<PaneRect> = (0..70)
+        .map(|index| {
+            let group = index % 3;
+            let left = ((2 - group) * 1000 + index) as f64;
+            let top = (group * 2) as f64;
+            pane(&format!("p{index}"), left, top, left + 100.0, top + 100.0)
+        })
+        .collect();
+
+    let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        sort_panes_by_reading_order(&panes)
+    }));
+    let Ok(sorted) = result else {
+        panic!("sorting 70 panes with a non-transitive comparator panicked");
+    };
+    assert_eq!(sorted.len(), 70);
+
+    let mut actual: Vec<&str> = sorted.iter().map(|pane| pane.id.as_str()).collect();
+    actual.sort_unstable();
+    let mut expected: Vec<String> = (0..70).map(|index| format!("p{index}")).collect();
+    expected.sort_unstable();
+    assert_eq!(
+        actual,
+        expected.iter().map(String::as_str).collect::<Vec<_>>()
+    );
 }

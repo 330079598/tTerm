@@ -117,6 +117,40 @@ const tallLeft = [
   rect("a", 0, 0, 500, 600),
   rect("b", 508, 0, 1000, 296),
 ]
+const readingOrderStress = [
+  rect("L1", 0, 0, 496, 200),
+  rect("L2", 0, 209, 496, 600),
+  rect("M1", 504, 0, 1000, 200),
+  rect("M2", 504, 207, 1000, 600),
+  rect("R2", 1008, 205, 1504, 600),
+  rect("R1", 1008, 0, 1504, 200),
+]
+const readingOrderSeventy = Array.from({ length: 70 }, (_, index) => {
+  const group = index % 3
+  const left = (2 - group) * 1000 + index
+  const top = group * 2
+  return rect(`p${index}`, left, top, left + 100, top + 100)
+})
+
+function permutations(items) {
+  const result = []
+  const visit = (start) => {
+    if (start === items.length) {
+      result.push(items.slice())
+      return
+    }
+    for (let index = start; index < items.length; index += 1) {
+      ;[items[start], items[index]] = [items[index], items[start]]
+      visit(start + 1)
+      ;[items[start], items[index]] = [items[index], items[start]]
+    }
+  }
+  visit(0)
+  return result
+}
+
+const sortedReadingOrderIds = (panes) =>
+  paneNavigation.sortPanesByReadingOrder(panes).map((pane) => pane.id)
 
 const nestedShape = {
   type: "split",
@@ -361,6 +395,19 @@ const result = {
     }),
   },
   paneNavigation: {
+    readingOrder: {
+      example: {
+        input: readingOrderStress.map((pane) => pane.id),
+        sorted: sortedReadingOrderIds(readingOrderStress),
+        sibling: paneNavigation.getSiblingPaneId(readingOrderStress, "R1", 1) ?? null,
+      },
+      permutations: permutations(readingOrderStress).map((input) => ({
+        input: input.map((pane) => pane.id),
+        sorted: sortedReadingOrderIds(input),
+        sibling: paneNavigation.getSiblingPaneId(input, "R1", 1) ?? null,
+      })),
+      seventyNative: sortedReadingOrderIds(readingOrderSeventy),
+    },
     sorted: paneNavigation.sortPanesByReadingOrder([
       rect("right", 504, 0, 1000, 600),
       rect("left", 0, 1, 496, 600),

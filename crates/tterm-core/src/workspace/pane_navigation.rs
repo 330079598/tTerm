@@ -37,17 +37,70 @@ fn is_visible(pane: &PaneRect) -> bool {
     pane.right > pane.left && pane.bottom > pane.top
 }
 
-fn compare_reading_order(first: &PaneRect, second: &PaneRect) -> Ordering {
-    if (first.top - second.top).abs() > EDGE_TOLERANCE {
-        first
-            .top
-            .partial_cmp(&second.top)
-            .unwrap_or(Ordering::Equal)
+fn compare_reading_order(first: &PaneRect, second: &PaneRect) -> f64 {
+    let vertical_distance = first.top - second.top;
+    if vertical_distance.abs() > EDGE_TOLERANCE {
+        vertical_distance
     } else {
-        first
-            .left
-            .partial_cmp(&second.left)
-            .unwrap_or(Ordering::Equal)
+        first.left - second.left
+    }
+}
+
+// V8's Array.prototype.sort uses TimSort. For fewer than 64 elements it
+// counts the first run and then binary-insertion-sorts the rest; reproducing
+// that path keeps the order for comparisons that are not transitive.
+fn count_and_make_run(panes: &mut [PaneRect], low_argument: usize, high: usize) -> usize {
+    let low = low_argument + 1;
+    if low == high {
+        return 1;
+    }
+
+    let mut run_length = 2;
+    let mut order = compare_reading_order(&panes[low], &panes[low - 1]);
+    let descending = order < 0.0;
+    let mut previous = low;
+    for index in low + 1..high {
+        order = compare_reading_order(&panes[index], &panes[previous]);
+        if descending {
+            if order >= 0.0 {
+                break;
+            }
+        } else if order < 0.0 {
+            break;
+        }
+        previous = index;
+        run_length += 1;
+    }
+
+    if descending {
+        panes[low_argument..low_argument + run_length].reverse();
+    }
+    run_length
+}
+
+fn binary_insertion_sort(panes: &mut [PaneRect], low: usize, start_argument: usize, high: usize) {
+    let start = if low == start_argument {
+        start_argument + 1
+    } else {
+        start_argument
+    };
+    for start in start..high {
+        let pivot = panes[start].clone();
+        let mut left = low;
+        let mut right = start;
+        while left < right {
+            let middle = left + (right - left) / 2;
+            let order = compare_reading_order(&pivot, &panes[middle]);
+            if order < 0.0 {
+                right = middle;
+            } else {
+                left = middle + 1;
+            }
+        }
+        for position in (left..start).rev() {
+            panes.swap(position, position + 1);
+        }
+        panes[left] = pivot;
     }
 }
 
@@ -59,7 +112,17 @@ pub fn sort_panes_by_reading_order(panes: &[PaneRect]) -> Vec<PaneRect> {
         .filter(|pane| is_visible(pane))
         .cloned()
         .collect();
-    ordered.sort_by(compare_reading_order);
+    if ordered.len() >= 2 {
+        // V8 switches to the merging path at 64 elements. This port keeps the
+        // short-array algorithm for every length so it cannot panic on a
+        // comparison that is not a total order; its order above 63 elements
+        // may differ from V8's.
+        let length = ordered.len();
+        let run_length = count_and_make_run(&mut ordered, 0, length);
+        if run_length < length {
+            binary_insertion_sort(&mut ordered, 0, run_length, length);
+        }
+    }
     ordered
 }
 
