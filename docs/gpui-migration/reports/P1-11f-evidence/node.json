@@ -3247,13 +3247,13 @@
       {
         "name": "alacritty YAML from the TypeScript test",
         "text": "colors:\n  primary:\n    background: '0x1e1e1e'\n    foreground: '0xcccccc'\n  normal:\n    black: '0x000000'\n    red: '0xcd3131'\n    green: '0x0dbc79'\n    yellow: '0xe5e510'\n    blue: '0x2472c8'\n    magenta: '0xbc3fbc'\n    cyan: '0x11a8cd'\n    white: '0xe5e5e5'\n  bright:\n    black: '0x666666'\n    red: '0xf14c4c'\n    green: '0x23d18b'\n    yellow: '0xf5f543'\n    blue: '0x3b8eea'\n    magenta: '0xd670d6'\n    cyan: '0x29b8db'\n    white: '0xffffff'",
-        "fileName": "old.yml",
+        "fileName": "",
         "ok": true,
         "value": {
           "format": "alacritty",
           "schemes": [
             {
-              "name": "old",
+              "name": "Imported theme",
               "palette": [
                 "#000000",
                 "#cd3131",

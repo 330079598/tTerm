@@ -326,7 +326,7 @@ const importCases = [
         ),
       ]),
     ].join("\n"),
-    "old.yml"
+    ""
   ),
   importCase(
     "alacritty cursor and selection sections",
