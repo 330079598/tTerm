@@ -11,12 +11,12 @@ use super::types::{
     SavedProfile, SshConfigImportHost, SshConfigImportOptions, SshConfigImportPreview,
     SshConfigImportResult,
 };
-use crate::core::blocking::run_blocking;
 use crate::proxy::command::CommandTarget;
 use crate::ssh::jump::connect::{
     ConnectContext, connect_first_hop, connect_via_jump_chain, open_proxy_stream,
 };
 use tterm_core::config::tab_icons::TabIconStyle;
+use tterm_core::core::blocking::run_blocking;
 
 use super::commands::connection_check::{
     authenticate_test_connection, test_connection_handler, test_session_plan,
@@ -54,7 +54,8 @@ pub(super) async fn preview_ssh_config_import(
     source_path: Option<String>,
 ) -> Result<SshConfigImportPreview, String> {
     // Reads the config and every file it includes; keep that off the main thread.
-    crate::core::blocking::run_blocking(move || build_ssh_config_import_preview(source_path)).await
+    tterm_core::core::blocking::run_blocking(move || build_ssh_config_import_preview(source_path))
+        .await
 }
 
 /// What `~/.ssh/config` sets for a host typed into the launcher by a name it
@@ -68,7 +69,8 @@ pub(super) async fn resolve_ssh_config_host(
 pub(super) async fn import_ssh_config_profiles(
     options: SshConfigImportOptions,
 ) -> Result<SshConfigImportResult, String> {
-    crate::core::blocking::run_blocking(move || import_ssh_config_profiles_blocking(options)).await
+    tterm_core::core::blocking::run_blocking(move || import_ssh_config_profiles_blocking(options))
+        .await
 }
 
 pub(super) async fn save_profile(
@@ -84,7 +86,7 @@ pub(super) async fn save_profile(
     // Saving its passwords waits for startup to unlock saved passwords, which
     // may sit on a credential store prompt; keep that off the main thread.
     let secret_state = secret_state.clone();
-    crate::core::blocking::run_blocking(move || store_profile(secret_state, profile)).await
+    tterm_core::core::blocking::run_blocking(move || store_profile(secret_state, profile)).await
 }
 
 /// A profile saved (or tested) from a quick connection tab uses the

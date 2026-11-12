@@ -14,7 +14,6 @@ mod state;
 pub(crate) mod commands;
 mod service;
 
-use crate::core::blocking::run_blocking;
 use crate::ssh::secret_store::types::SecretStoreState;
 use crate::tunnel::manager::TunnelManager;
 use document::{Collections, MAX_DOCUMENT_SIZE, SYNC_FILE_NAME};
@@ -23,6 +22,7 @@ use serde_json::Value;
 use snapshot::{PROFILE_GROUPS, PROFILES, SERIAL_SENDS, SETTINGS, TUNNELS, removed_ids};
 use std::sync::Mutex;
 use tterm_core::backup::webdav::{Fetched, Stored, WebDavClient};
+use tterm_core::core::blocking::run_blocking;
 use tterm_core::db::meta;
 use tterm_core::sync::merge::{merge_collection, same_data};
 

@@ -6,8 +6,8 @@ pub(crate) mod store;
 #[cfg(test)]
 mod tests;
 
-use crate::core::blocking::run_blocking;
 use serde::{Deserialize, Serialize};
+use tterm_core::core::blocking::run_blocking;
 
 /// How many sends a connection keeps; older ones are dropped.
 pub(crate) const HISTORY_LIMIT: usize = 30;

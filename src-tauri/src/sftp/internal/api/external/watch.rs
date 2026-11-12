@@ -4,11 +4,11 @@
 //! copy), and a look at the file itself sees every one of them the same way.
 
 use super::ExternalEditState;
-use crate::core::blocking::run_blocking;
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::sync::atomic::Ordering;
 use std::time::Duration;
+use tterm_core::core::blocking::run_blocking;
 use tterm_core::events::sftp::SftpEvent;
 use tterm_core::events::{AppEvent, EventSink};
 use tterm_core::sftp::internal::api::external::local::{FileStamp, Fingerprint};

@@ -185,7 +185,7 @@ fn config_dir(spec: &AgentSpec) -> Option<(PathBuf, ConfigSource)> {
     let from_environment = std::env::var(spec.variable)
         .ok()
         .filter(|dir| !dir.trim().is_empty())
-        .or_else(|| crate::core::login_shell::variable(spec.variable))
+        .or_else(|| tterm_core::core::login_shell::variable(spec.variable))
         .map(|dir| tterm_core::profiles::parser::paths::expand_home_path(&dir))
         .filter(|dir| dir.is_absolute());
     if let Some(dir) = from_environment {

@@ -147,7 +147,7 @@ async fn saved_sudo_password(
     let secret_state = app.secrets.clone();
     let profile_id = plan.profile_id.clone();
     let profile_name = plan.profile_name.clone();
-    crate::core::blocking::run_blocking(move || {
+    tterm_core::core::blocking::run_blocking(move || {
         let saved = crate::core::session::load_saved_sudo_password(
             &secret_state,
             profile_id.as_deref(),

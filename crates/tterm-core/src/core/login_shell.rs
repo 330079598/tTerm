@@ -26,7 +26,7 @@ const TIMEOUT: Duration = Duration::from_secs(5);
 
 /// `name` as an interactive login shell sets it; asked once per run.
 #[cfg(unix)]
-pub(crate) fn variable(name: &'static str) -> Option<String> {
+pub fn variable(name: &'static str) -> Option<String> {
     static CACHE: OnceLock<Mutex<HashMap<&'static str, Option<String>>>> = OnceLock::new();
     let cache = CACHE.get_or_init(Default::default);
     if let Some(value) = cache.lock().ok()?.get(name) {
@@ -39,7 +39,7 @@ pub(crate) fn variable(name: &'static str) -> Option<String> {
 
 /// Windows programs inherit what the user sets; there are no startup files.
 #[cfg(not(unix))]
-pub(crate) fn variable(_name: &'static str) -> Option<String> {
+pub fn variable(_name: &'static str) -> Option<String> {
     None
 }
 

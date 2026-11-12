@@ -1,9 +1,9 @@
 //! The open tabs and layout, restored on the next launch. Kept in the
 //! database; older versions kept them in `session.json`.
 
-use crate::core::blocking::run_blocking;
 use rusqlite::Connection;
 use serde::{Deserialize, Serialize};
+use tterm_core::core::blocking::run_blocking;
 use tterm_core::db::meta;
 
 pub(crate) mod commands;

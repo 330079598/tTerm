@@ -15,7 +15,6 @@ mod worker;
 mod writer;
 
 use crate::config::AppConfig;
-use crate::core::blocking::run_blocking;
 use crate::core::session::types::SessionPlan;
 use crate::core::state::SessionKind;
 use manager::LogManager;
@@ -28,6 +27,7 @@ use std::sync::Arc;
 use std::sync::Mutex;
 use std::sync::atomic::{AtomicBool, AtomicU64};
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
+use tterm_core::core::blocking::run_blocking;
 use tterm_platform::open::OpenTargets;
 
 const LOG_FORMAT_RAW: &str = "raw";

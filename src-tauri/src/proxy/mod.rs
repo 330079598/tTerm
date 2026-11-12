@@ -18,10 +18,10 @@ pub(crate) mod resolve;
 mod socks5;
 pub(crate) mod storage;
 
-use crate::core::blocking::run_blocking;
 use crate::ssh::secret_store::types::{SecretLocation, SecretStoreState};
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
+use tterm_core::core::blocking::run_blocking;
 use zeroize::Zeroizing;
 
 /// The protocol a proxy server speaks.

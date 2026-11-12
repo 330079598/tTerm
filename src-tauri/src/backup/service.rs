@@ -9,9 +9,9 @@ use super::{
     BackupImportOptions, BackupImportResult, BackupInspectInput, BackupInspectResult,
     export_backup_blocking, import_backup_blocking, inspect_backup_blocking,
 };
-use crate::core::blocking::run_blocking;
 use crate::ssh::secret_store::types::SecretStoreState;
 use serde_json::Value;
+use tterm_core::core::blocking::run_blocking;
 
 pub(super) async fn export_backup(
     app_version: String,

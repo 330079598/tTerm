@@ -194,7 +194,7 @@ pub(super) fn find_executable_in(executable: &str, path: Option<&OsStr>) -> Opti
 /// waits for the login shell's PATH.
 pub(super) async fn list_available_terminal_shells_service()
 -> Result<Vec<TerminalShellProfile>, String> {
-    crate::core::blocking::run_blocking(|| {
+    tterm_core::core::blocking::run_blocking(|| {
         #[cfg(target_os = "windows")]
         let shells = super::windows_shell::list_windows_terminal_shells();
         #[cfg(not(target_os = "windows"))]
@@ -260,7 +260,7 @@ pub(crate) fn has_terminal_shell(kind: &str) -> bool {
 /// The program a custom shell's path leads to on this machine, or why it
 /// leads nowhere, for the settings to show before a tab tries it.
 pub(super) async fn check_local_shell_service(path: String) -> Result<String, String> {
-    crate::core::blocking::run_blocking(move || {
+    tterm_core::core::blocking::run_blocking(move || {
         #[cfg(target_os = "windows")]
         let program = super::windows_shell::resolve_windows_custom_shell(&path);
         #[cfg(not(target_os = "windows"))]

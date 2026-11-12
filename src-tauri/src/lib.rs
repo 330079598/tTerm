@@ -84,7 +84,7 @@ pub fn run() {
     let zmodem_manual_detect_map: core::state::ZmodemManualDetectMap =
         Arc::new(std::sync::Mutex::new(std::collections::HashMap::new()));
     let runtime = tokio::runtime::Builder::new_multi_thread()
-        .worker_threads(core::runtime::tokio_worker_threads())
+        .worker_threads(tterm_core::core::runtime::tokio_worker_threads())
         .enable_all()
         .build()
         .expect("failed to build tokio runtime");

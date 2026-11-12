@@ -12,13 +12,13 @@ use tterm_core::prompts::{
     PromptBroker, PromptId, PromptKind, PromptOptions, PromptOutcome, PromptReply, PromptRequest,
 };
 
-use crate::core::blocking::run_blocking;
 use crate::ssh::types::SshConnectError;
 use rusqlite::{Connection, OptionalExtension, params};
 use sha2::{Digest, Sha256};
 use std::fmt::Write as _;
 use std::sync::Arc;
 use std::time::Duration;
+use tterm_core::core::blocking::run_blocking;
 use tterm_core::db::sql_error;
 
 /// As long as the host key and sign-in prompts wait for an answer.

@@ -19,6 +19,8 @@ pub mod command_tracking;
 /// Configuration values both clients keep: the config directory, keymap
 /// overrides, keyword highlight sets, split pane layouts and tab icons.
 pub mod config;
+/// Cross-cutting services shared by the clients, such as the blocking worker.
+pub mod core;
 /// Follows local and remote shell directory reports.
 pub mod cwd_reports;
 /// The app's SQLite database and the stores that keep their queries in it.

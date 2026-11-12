@@ -15,13 +15,13 @@ pub(crate) mod store;
 #[cfg(test)]
 mod tests;
 
-use crate::core::blocking::run_blocking;
 use crate::ssh::secret_store::types::SecretStoreState;
 use crate::ssh::secret_store::verification::VerificationPurpose;
 use entry::VaultKey;
 use serde::{Deserialize, Serialize};
 use std::path::Path;
 use std::sync::OnceLock;
+use tterm_core::core::blocking::run_blocking;
 
 /// The start of a private key path that names a key in the vault.
 pub(crate) const REFERENCE_PREFIX: &str = "tterm-key:";

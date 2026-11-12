@@ -2,7 +2,6 @@ use super::credentials::{StartOutcome, TunnelCredentials, apply_credentials, col
 use super::hub::{SessionHub, SshConnection};
 use super::runtime::reporter::TunnelReporter;
 use super::runtime::{RunContext, run_tunnel};
-use crate::core::blocking::run_blocking;
 use crate::core::session::saved_hops::load_saved_hop_password;
 use crate::core::session::{
     load_saved_ssh_password, normalize_connection, resolve_ssh_password, types::JumpHostOptions,
@@ -15,6 +14,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
+use tterm_core::core::blocking::run_blocking;
 use tterm_core::tunnel::storage::{
     delete_tunnel as delete_tunnel_rule, list_tunnel_traffic, load_tunnels, reset_tunnel_traffic,
     upsert_tunnel,

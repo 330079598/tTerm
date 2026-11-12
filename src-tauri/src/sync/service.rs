@@ -3,10 +3,10 @@ use super::state;
 use super::{
     SYNC_LOCK, SyncOutcome, SyncSettings, SyncStatus, set_last_error, status, sync, write_settings,
 };
-use crate::core::blocking::run_blocking;
 use crate::ssh::secret_store::types::SecretStoreState;
 use crate::tunnel::manager::TunnelManager;
 use serde_json::Value;
+use tterm_core::core::blocking::run_blocking;
 
 pub(super) async fn get_sync_status() -> Result<SyncStatus, String> {
     run_blocking(status).await

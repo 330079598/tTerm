@@ -1,4 +1,4 @@
-use crate::core::blocking::run_blocking;
+use tterm_core::core::blocking::run_blocking;
 use tterm_core::ssh::store::{KnownHostEntry, delete_known_host_entries, list_known_host_entries};
 
 #[tauri::command]

@@ -32,14 +32,14 @@ pub struct ResumeRequest<'a> {
     pub shell: &'a str,
 }
 
-pub(super) struct BuildAgentResumeCommandInput {
-    pub(super) agent: ResumeAgent,
-    pub(super) session_id: String,
-    pub(super) cwd: String,
-    pub(super) shell: String,
+pub struct BuildAgentResumeCommandInput {
+    pub agent: ResumeAgent,
+    pub session_id: String,
+    pub cwd: String,
+    pub shell: String,
 }
 
-pub(super) fn build_agent_resume_command_service(
+pub fn build_agent_resume_command_service(
     arguments: BuildAgentResumeCommandInput,
 ) -> Option<String> {
     let BuildAgentResumeCommandInput {

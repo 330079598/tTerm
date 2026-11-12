@@ -1,5 +1,4 @@
 mod arguments;
-use super::blocking::run_blocking;
 use super::session::stop::{StopPtyContext, stop_pty_session};
 use super::state::{ActiveSession, PtyMap, ZmodemArmedSendMap, ZmodemManualDetectMap, ZmodemMap};
 use crate::services::AppServices;
@@ -21,6 +20,7 @@ use std::sync::Arc;
 use std::sync::PoisonError;
 use tauri::{AppHandle, State};
 use tokio::sync::Mutex as TokioMutex;
+use tterm_core::core::blocking::run_blocking;
 
 mod batch_write;
 mod create;

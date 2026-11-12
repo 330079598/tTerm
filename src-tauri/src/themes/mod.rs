@@ -1,10 +1,10 @@
 //! Custom themes and edited preset themes. The web view defines a theme's
 //! shape; each row keeps one theme as JSON, in display order.
 
-use crate::core::blocking::run_blocking;
 use rusqlite::{Connection, params};
 use serde_json::Value;
 use std::collections::HashSet;
+use tterm_core::core::blocking::run_blocking;
 use tterm_core::db::{meta, sql_error};
 
 pub(crate) mod commands;

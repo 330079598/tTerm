@@ -218,7 +218,7 @@ pub fn save(app: &AppHandle) {
 /// Writes the main window's state before an update is installed: on Windows
 /// the installer ends the process without the exit [`save`] runs on.
 pub async fn save_now(app: AppHandle) {
-    let saved = crate::core::blocking::run_blocking(move || {
+    let saved = tterm_core::core::blocking::run_blocking(move || {
         save(&app);
         Ok(())
     })

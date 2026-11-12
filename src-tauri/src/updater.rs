@@ -90,7 +90,7 @@ pub(crate) async fn download_app_update_service(
     };
     let mut download = update.download(progress).await?;
     let cache_channel = channel.clone();
-    let path = crate::core::blocking::run_blocking(move || {
+    let path = tterm_core::core::blocking::run_blocking(move || {
         pending_update_download_path(&paths, &cache_channel)
     })
     .await?;

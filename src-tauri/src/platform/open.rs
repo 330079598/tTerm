@@ -34,18 +34,21 @@ impl OpenTargets for TauriOpen {
     }
     fn open_with(&self, program: String, path: PathBuf) -> PlatformFuture<'_, ()> {
         Box::pin(async move {
-            crate::core::blocking::run_blocking(move || launch::open_with(&program, &path)).await
+            tterm_core::core::blocking::run_blocking(move || launch::open_with(&program, &path))
+                .await
         })
     }
     fn choose_application(&self, path: PathBuf) -> PlatformFuture<'_, bool> {
         Box::pin(async move {
-            crate::core::blocking::run_blocking(move || launch::open_with_system_chooser(&path))
-                .await
+            tterm_core::core::blocking::run_blocking(move || {
+                launch::open_with_system_chooser(&path)
+            })
+            .await
         })
     }
     fn applications_for(&self, file_name: String) -> PlatformFuture<'_, Vec<ApplicationChoice>> {
         Box::pin(async move {
-            crate::core::blocking::run_blocking(move || {
+            tterm_core::core::blocking::run_blocking(move || {
                 #[cfg(target_os = "macos")]
                 return Ok(tterm_platform::native::open::apps::apps_for(&file_name));
                 #[cfg(not(target_os = "macos"))]
@@ -62,7 +65,7 @@ impl OpenTargets for TauriOpen {
         programs: Vec<String>,
     ) -> PlatformFuture<'_, HashMap<String, Option<Vec<u8>>>> {
         Box::pin(async move {
-            crate::core::blocking::run_blocking(move || {
+            tterm_core::core::blocking::run_blocking(move || {
                 #[cfg(target_os = "macos")]
                 return Ok(tterm_platform::native::open::apps::icons_for(programs));
                 #[cfg(not(target_os = "macos"))]

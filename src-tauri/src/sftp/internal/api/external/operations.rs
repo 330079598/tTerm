@@ -4,7 +4,6 @@ use super::{
     ExternalEditState, Host, OpenIn, OpenWithChoices, UploadOutcome, emit, end_sessions,
     file_name_of, fingerprint, launch, start_session,
 };
-use crate::core::blocking::run_blocking;
 use crate::core::session::types::PtyConnectionOptions;
 use crate::sftp::internal::connection::{SftpContext, ensure_ssh_plan};
 use crate::sftp::internal::types::SftpConnectionPool;
@@ -13,6 +12,7 @@ use crate::ssh::secret_store::types::SecretStoreState;
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::Arc;
+use tterm_core::core::blocking::run_blocking;
 use tterm_core::events::EventSink;
 use tterm_core::events::sftp::external::{EditStatus, ExternalEdit};
 use tterm_core::paths::AppPaths;

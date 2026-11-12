@@ -3,7 +3,6 @@
 //! `scrollback/` beside the database. The files stay out of the database so
 //! that backups and sync never carry what a terminal printed.
 
-use crate::core::blocking::run_blocking;
 use flate2::Compression;
 use flate2::read::GzDecoder;
 use flate2::write::GzEncoder;
@@ -13,6 +12,7 @@ use std::fs;
 use std::io::{ErrorKind, Read, Write};
 use std::path::{Path, PathBuf};
 use std::time::UNIX_EPOCH;
+use tterm_core::core::blocking::run_blocking;
 
 const DIR_NAME: &str = "scrollback";
 const EXTENSION: &str = "gz";

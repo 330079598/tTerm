@@ -1,10 +1,10 @@
 //! Commands that create, rename, move and delete profile groups, and file
 //! profiles in them. Each returns what the groups page needs to redraw.
 
-use crate::core::blocking::run_blocking;
 use crate::profiles::groups::{create_group, delete_group, list_groups, move_group, rename_group};
 use crate::profiles::storage::move_profiles;
 use crate::profiles::types::ProfileGroup;
+use tterm_core::core::blocking::run_blocking;
 
 pub(crate) async fn list_profile_groups() -> Result<Vec<ProfileGroup>, String> {
     run_blocking(|| tterm_core::db::read(list_groups)).await

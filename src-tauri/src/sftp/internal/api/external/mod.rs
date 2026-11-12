@@ -18,7 +18,6 @@ mod sessions;
 mod tests;
 mod watch;
 
-use crate::core::blocking::run_blocking;
 use crate::core::session::types::SessionPlan;
 use crate::sftp::internal::api::download::download_file_with_progress;
 use crate::sftp::internal::api::prepare_transfer;
@@ -34,6 +33,7 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::sync::Mutex;
 use std::sync::atomic::AtomicBool;
+use tterm_core::core::blocking::run_blocking;
 use tterm_core::events::sftp::SftpEvent;
 use tterm_core::events::{AppEvent, EventSink};
 use tterm_core::sftp::internal::api::external::local::{FileStamp, Fingerprint};
