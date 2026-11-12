@@ -16728,6 +16728,464 @@
       "tabBytes": "[{\"id\":\"a\",\"title\":\"a/src\",\"type\":\"terminal\",\"isActive\":false,\"autoTitle\":true,\"connection\":{\"cwd\":\"/a/src\"}},{\"id\":\"b\",\"title\":\"b\",\"type\":\"terminal\",\"isActive\":false},{\"id\":\"c\",\"title\":\"c\",\"type\":\"terminal\",\"isActive\":false},{\"id\":\"d\",\"title\":\"b/src\",\"type\":\"terminal\",\"isActive\":true,\"autoTitle\":true,\"connection\":{\"cwd\":\"/b/src\"},\"hasConnected\":true}]"
     }
   ],
+  "closedTabs": [
+    {
+      "tabs": [],
+      "groups": [],
+      "ids": [],
+      "snapshots": [],
+      "entries": [],
+      "pushed": [],
+      "emptyPlacement": [],
+      "emptyActive": null,
+      "anchors": [],
+      "active": [
+        {
+          "activeIndex": 0,
+          "id": "x"
+        },
+        {
+          "activeIndex": 99,
+          "id": "x"
+        },
+        {
+          "activeIndex": -1,
+          "id": "x"
+        }
+      ]
+    },
+    {
+      "tabs": [
+        {
+          "id": "a",
+          "title": "t",
+          "type": "ssh",
+          "isActive": false,
+          "connection": {
+            "password": "secret",
+            "privateKeyPassphrase": "p",
+            "jumpHosts": [
+              {
+                "password": "x",
+                "privateKeyPassphrase": "y",
+                "host": "h"
+              }
+            ]
+          }
+        }
+      ],
+      "groups": [
+        {
+          "id": "g",
+          "root": {
+            "type": "pane",
+            "tabId": "a"
+          },
+          "activeTabId": "a"
+        }
+      ],
+      "ids": [
+        "a"
+      ],
+      "snapshots": [
+        {
+          "title": "t",
+          "type": "ssh",
+          "connection": {
+            "jumpHosts": [
+              {
+                "host": "h"
+              }
+            ]
+          },
+          "quickConnect": false
+        }
+      ],
+      "entries": [
+        {
+          "tabs": [
+            {
+              "title": "t",
+              "type": "ssh",
+              "connection": {
+                "jumpHosts": [
+                  {
+                    "host": "h"
+                  }
+                ]
+              },
+              "quickConnect": false
+            }
+          ],
+          "layout": {
+            "kind": "group",
+            "shape": {
+              "type": "pane"
+            },
+            "activeIndex": 0,
+            "index": 0
+          }
+        }
+      ],
+      "pushed": [
+        {
+          "tabs": [
+            {
+              "title": "t",
+              "type": "ssh",
+              "connection": {
+                "jumpHosts": [
+                  {
+                    "host": "h"
+                  }
+                ]
+              },
+              "quickConnect": false
+            }
+          ],
+          "layout": {
+            "kind": "group",
+            "shape": {
+              "type": "pane"
+            },
+            "activeIndex": 0,
+            "index": 0
+          }
+        }
+      ],
+      "emptyPlacement": [
+        {
+          "id": "g",
+          "root": {
+            "type": "pane",
+            "tabId": "a"
+          },
+          "activeTabId": "a"
+        }
+      ],
+      "emptyActive": null,
+      "anchors": [
+        {
+          "root": {
+            "type": "pane",
+            "tabId": "a"
+          },
+          "id": "a",
+          "anchor": null
+        },
+        {
+          "root": {
+            "type": "pane",
+            "tabId": "a"
+          },
+          "id": "missing",
+          "anchor": null
+        }
+      ],
+      "active": [
+        {
+          "activeIndex": 0,
+          "id": "x"
+        },
+        {
+          "activeIndex": 99,
+          "id": "x"
+        },
+        {
+          "activeIndex": -1,
+          "id": "x"
+        }
+      ]
+    },
+    {
+      "tabs": [
+        {
+          "id": "a",
+          "title": "a",
+          "type": "terminal",
+          "isActive": false
+        },
+        {
+          "id": "b",
+          "title": "b",
+          "type": "settings",
+          "isActive": false
+        }
+      ],
+      "groups": [
+        {
+          "id": "g",
+          "root": {
+            "type": "split",
+            "orientation": "horizontal",
+            "children": [
+              {
+                "type": "pane",
+                "tabId": "a"
+              },
+              {
+                "type": "pane",
+                "tabId": "b"
+              }
+            ],
+            "sizes": [
+              0.5,
+              0.5
+            ]
+          },
+          "activeTabId": "a"
+        }
+      ],
+      "ids": [
+        "a"
+      ],
+      "snapshots": [
+        {
+          "title": "a",
+          "type": "terminal",
+          "quickConnect": false
+        },
+        null
+      ],
+      "entries": [
+        {
+          "tabs": [
+            {
+              "title": "a",
+              "type": "terminal",
+              "quickConnect": false
+            }
+          ],
+          "layout": {
+            "kind": "pane",
+            "closedId": "a",
+            "previousRoot": {
+              "type": "split",
+              "orientation": "horizontal",
+              "children": [
+                {
+                  "type": "pane",
+                  "tabId": "a"
+                },
+                {
+                  "type": "pane",
+                  "tabId": "b"
+                }
+              ],
+              "sizes": [
+                0.5,
+                0.5
+              ]
+            },
+            "anchor": {
+              "tabId": "b",
+              "direction": "left"
+            }
+          }
+        }
+      ],
+      "pushed": [
+        {
+          "tabs": [
+            {
+              "title": "a",
+              "type": "terminal",
+              "quickConnect": false
+            }
+          ],
+          "layout": {
+            "kind": "pane",
+            "closedId": "a",
+            "previousRoot": {
+              "type": "split",
+              "orientation": "horizontal",
+              "children": [
+                {
+                  "type": "pane",
+                  "tabId": "a"
+                },
+                {
+                  "type": "pane",
+                  "tabId": "b"
+                }
+              ],
+              "sizes": [
+                0.5,
+                0.5
+              ]
+            },
+            "anchor": {
+              "tabId": "b",
+              "direction": "left"
+            }
+          }
+        }
+      ],
+      "emptyPlacement": [
+        {
+          "id": "g",
+          "root": {
+            "type": "split",
+            "orientation": "horizontal",
+            "children": [
+              {
+                "type": "pane",
+                "tabId": "a"
+              },
+              {
+                "type": "pane",
+                "tabId": "b"
+              }
+            ],
+            "sizes": [
+              0.5,
+              0.5
+            ]
+          },
+          "activeTabId": "a"
+        }
+      ],
+      "emptyActive": null,
+      "anchors": [
+        {
+          "root": {
+            "type": "split",
+            "orientation": "horizontal",
+            "children": [
+              {
+                "type": "pane",
+                "tabId": "a"
+              },
+              {
+                "type": "pane",
+                "tabId": "b"
+              }
+            ],
+            "sizes": [
+              0.5,
+              0.5
+            ]
+          },
+          "id": "a",
+          "anchor": {
+            "tabId": "b",
+            "direction": "left"
+          }
+        },
+        {
+          "root": {
+            "type": "split",
+            "orientation": "horizontal",
+            "children": [
+              {
+                "type": "pane",
+                "tabId": "a"
+              },
+              {
+                "type": "pane",
+                "tabId": "b"
+              }
+            ],
+            "sizes": [
+              0.5,
+              0.5
+            ]
+          },
+          "id": "missing",
+          "anchor": null
+        }
+      ],
+      "active": [
+        {
+          "activeIndex": 0,
+          "id": "x"
+        },
+        {
+          "activeIndex": 99,
+          "id": "x"
+        },
+        {
+          "activeIndex": -1,
+          "id": "x"
+        }
+      ]
+    },
+    {
+      "tabs": [
+        {
+          "id": "a",
+          "title": "a",
+          "type": "terminal",
+          "isActive": false
+        }
+      ],
+      "groups": [
+        {
+          "id": "g",
+          "root": {
+            "type": "pane",
+            "tabId": "a"
+          },
+          "activeTabId": "a"
+        }
+      ],
+      "ids": [
+        "missing"
+      ],
+      "snapshots": [
+        {
+          "title": "a",
+          "type": "terminal",
+          "quickConnect": false
+        }
+      ],
+      "entries": [],
+      "pushed": [],
+      "emptyPlacement": [
+        {
+          "id": "g",
+          "root": {
+            "type": "pane",
+            "tabId": "a"
+          },
+          "activeTabId": "a"
+        }
+      ],
+      "emptyActive": null,
+      "anchors": [
+        {
+          "root": {
+            "type": "pane",
+            "tabId": "a"
+          },
+          "id": "a",
+          "anchor": null
+        },
+        {
+          "root": {
+            "type": "pane",
+            "tabId": "a"
+          },
+          "id": "missing",
+          "anchor": null
+        }
+      ],
+      "active": [
+        {
+          "activeIndex": 0,
+          "id": "x"
+        },
+        {
+          "activeIndex": 99,
+          "id": "x"
+        },
+        {
+          "activeIndex": -1,
+          "id": "x"
+        }
+      ]
+    }
+  ],
   "shortSizeInsertions": [
     {
       "root": {

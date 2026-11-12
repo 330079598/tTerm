@@ -1,6 +1,7 @@
 //! Specification tests transcribed from `src/lib/*.test.ts`.
 
 mod app_navigation;
+mod closed_tabs;
 mod local_tab_title;
 mod pane_layout;
 mod pane_navigation;

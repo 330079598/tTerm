@@ -69,6 +69,7 @@ const persistence = await import(persistenceUrl)
 const tabIcons = await import(tabIconsUrl)
 const localTabTitle = await import(localTabTitleUrl)
 const tabsState = await import(tabsStateUrl)
+const closedTabs = await import(closedTabsUrl)
 const brandLogos = await import(brandLogosUrl)
 const distro = await import(distroUrl)
 
@@ -1315,6 +1316,17 @@ audit("^#[0-9a-f]{6}$", "i", "#AABBCC", "#GGGGGG")
 output.regexAudit = regexAudit
 
 output.reducer = reducerCases(tabsState)
+
+output.closedTabs = [
+  { tabs: [], groups: [], ids: [] },
+  { tabs: [{ id: "a", title: "t", type: "ssh", isActive: false, connection: { password: "secret", privateKeyPassphrase: "p", jumpHosts: [{ password: "x", privateKeyPassphrase: "y", host: "h" }] } }], groups: [group("g", pane("a"))], ids: ["a"] },
+  { tabs: [{ id: "a", title: "a", type: "terminal", isActive: false }, { id: "b", title: "b", type: "settings", isActive: false }], groups: [group("g", row([pane("a"), pane("b")]))], ids: ["a"] },
+  { tabs: [{ id: "a", title: "a", type: "terminal", isActive: false }], groups: [group("g", pane("a"))], ids: ["missing"] },
+].map(input => {
+  const entries = closedTabs.closedEntries(input.tabs, input.groups, input.ids)
+  const emptyLayout = { kind: "group", shape: { type: "pane" }, activeIndex: 0, index: 0 }
+  return { ...input, snapshots: input.tabs.map(tab => closedTabs.closedTabSnapshot(tab)), entries, pushed: closedTabs.pushClosedEntries([], entries), emptyPlacement: closedTabs.placeReopenedTabs(input.groups, emptyLayout, [], () => "unused"), emptyActive: closedTabs.reopenedActiveTabId(emptyLayout, []) ?? null, anchors: input.groups.flatMap(group => ["a", "missing"].map(id => ({ root: group.root, id, anchor: closedTabs.paneAnchor(group.root, id) }))), active: [0, 99, -1].map(activeIndex => ({ activeIndex, id: closedTabs.reopenedActiveTabId({ kind: "group", activeIndex }, ["x"]) ?? null })) }
+})
 
 output.shortSizeInsertions = [
   { sizes: [0.5], target: "b", direction: "right" },

@@ -1,4 +1,6 @@
-//! The `closedTabs.ts` placement helpers needed by the reducer's reopen action.
+//! Closed-tab snapshots, history and placement, from `closedTabs.ts`.
+
+pub mod history;
 
 use crate::workspace::pane_templates::{LayoutShape, fill_shape};
 use crate::workspace::tab_groups::{
@@ -6,7 +8,8 @@ use crate::workspace::tab_groups::{
 };
 
 /// The surviving pane beside which a closed pane is reopened.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct PaneAnchor {
     /// The surviving tab id.
     pub tab_id: String,
@@ -15,13 +18,15 @@ pub struct PaneAnchor {
 }
 
 /// The group or pane layout recorded when tabs closed.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize)]
+#[serde(tag = "kind", rename_all = "lowercase")]
 pub enum ClosedLayout {
     /// A complete group restored at its original position.
     Group {
         /// The group's split shape.
         shape: LayoutShape,
         /// The index of its previously focused pane.
+        #[serde(rename = "activeIndex")]
         active_index: i64,
         /// Its position in the tab bar.
         index: i64,
@@ -29,8 +34,10 @@ pub enum ClosedLayout {
     /// A single pane restored into a surviving group.
     Pane {
         /// The pane's old id.
+        #[serde(rename = "closedId")]
         closed_id: String,
         /// The group's root before the pane closed.
+        #[serde(rename = "previousRoot")]
         previous_root: PaneNode,
         /// A surviving neighbor, when one existed.
         anchor: Option<PaneAnchor>,

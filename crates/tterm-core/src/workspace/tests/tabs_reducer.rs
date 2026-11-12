@@ -34,7 +34,7 @@ pub(super) fn pane_node(value: &Value) -> PaneNode {
     }
 }
 
-fn state(value: &Value) -> TabsState {
+pub(super) fn state(value: &Value) -> TabsState {
     TabsState {
         tabs: serde_json::from_value(value["tabs"].clone()).unwrap(),
         active_tab_id: value["activeTabId"].as_str().map(str::to_string),
@@ -177,7 +177,9 @@ fn check_action(action_type: &str) {
                 .expect("loaded home cases"),
         )
     {
-        if case["action"]["type"] != action_type { continue; }
+        if case["action"]["type"] != action_type {
+            continue;
+        }
         let result = tabs_reducer(
             state(&case["state"]),
             action(&case["action"]),

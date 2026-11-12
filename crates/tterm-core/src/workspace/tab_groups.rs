@@ -6,7 +6,8 @@ use std::collections::HashSet;
 use super::js_number::serialize_sizes;
 
 /// The side of a pane on which a new pane or group is inserted.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "lowercase")]
 pub enum SplitDirection {
     /// Insert to the left.
     Left,
