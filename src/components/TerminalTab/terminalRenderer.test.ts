@@ -4,7 +4,11 @@ import { Terminal, type ITerminalAddon } from "@xterm/xterm"
 import { CanvasAddon } from "@xterm/addon-canvas"
 import { WebglAddon } from "@xterm/addon-webgl"
 
-import { disposeRendererAddon, renderAllRowsNow } from "@/components/TerminalTab/rendererRelease"
+import { disposeRendererAddon } from "@/components/TerminalTab/rendererRelease"
+import {
+  recoverTerminalRenderer,
+  renderAllRowsNow,
+} from "@/components/TerminalTab/rendererRecovery"
 
 describe("Terminal Renderer Addon & Canvas Lifecycle", () => {
   beforeAll(() => {
@@ -285,6 +289,71 @@ describe("Terminal Renderer Addon & Canvas Lifecycle", () => {
     term.dispose()
     container.remove()
   })
+
+  it.each([false, true])(
+    "replays Canvas selection after recovery without changing buffer or scroll position (column=%s)",
+    async (columnSelectMode) => {
+      const container = document.createElement("div")
+      document.body.appendChild(container)
+      const term = new Terminal({ allowProposedApi: true, rows: 12, cols: 40 })
+      const canvasAddon = new CanvasAddon()
+      try {
+        term.open(container)
+        term.loadAddon(canvasAddon)
+        await new Promise<void>((resolve) => {
+          term.write(
+            Array.from({ length: 30 }, (_, index) => `line ${index}\r\n`).join(""),
+            resolve
+          )
+        })
+        term.scrollToLine(5)
+        term.select(1, 6, 4)
+        const buffer = term.buffer.active
+        const viewportY = buffer.viewportY
+        const cursor = [buffer.cursorX, buffer.cursorY]
+        const selection = term.getSelection()
+        const lines = Array.from({ length: buffer.length }, (_, index) =>
+          buffer.getLine(index)?.translateToString()
+        )
+        const service = (
+          term as unknown as {
+            _core: {
+              _renderService: {
+                _needsSelectionRefresh: boolean
+                handleSelectionChanged: (
+                  start: [number, number],
+                  end: [number, number],
+                  column: boolean
+                ) => void
+                _renderer: {
+                  value: { handleSelectionChanged: (...args: unknown[]) => void }
+                }
+              }
+            }
+          }
+        )._core._renderService
+        service.handleSelectionChanged([1, 6], [5, 7], columnSelectMode)
+        const replay = vi.spyOn(service._renderer.value, "handleSelectionChanged")
+
+        recoverTerminalRenderer(term)
+
+        expect(replay).toHaveBeenCalledExactlyOnceWith([1, 6], [5, 7], columnSelectMode)
+        expect(service._needsSelectionRefresh).toBe(false)
+        expect(term.getSelection()).toBe(selection)
+        expect(buffer.viewportY).toBe(viewportY)
+        expect([buffer.cursorX, buffer.cursorY]).toEqual(cursor)
+        expect(
+          Array.from({ length: buffer.length }, (_, index) =>
+            buffer.getLine(index)?.translateToString()
+          )
+        ).toEqual(lines)
+      } finally {
+        canvasAddon.dispose()
+        term.dispose()
+        container.remove()
+      }
+    }
+  )
 
   it("draws every row of a reloaded renderer at once, even while xterm is paused", () => {
     const container = document.createElement("div")

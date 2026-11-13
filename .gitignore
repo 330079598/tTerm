@@ -28,6 +28,7 @@ Thumbs.db
 *.njsproj
 *.sln
 *.sw?
+__pycache__/
 
 .kiro
 .claude

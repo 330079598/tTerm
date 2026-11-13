@@ -7,6 +7,8 @@ import type { TerminalTabProps } from "@/components/TerminalTab/types"
 import { clearTabAttention } from "@/lib/tabAttention"
 import { markActiveTerminal, registerTerminalFocus } from "@/lib/terminalFocus"
 import { dismissTabToast } from "@/hooks/useTerminalNotifications"
+import { subscribeWindowResume } from "@/lib/windowResume"
+import { recoverTerminalRenderer } from "@/components/TerminalTab/rendererRecovery"
 
 type UseTerminalActivationOptions = Pick<
   TerminalTabProps,
@@ -88,6 +90,18 @@ export function useTerminalActivation({
     surfaceRef,
     termRef,
   ])
+
+  useEffect(() => {
+    if (!isActive) return
+    const recover = () => {
+      const term = termRef.current
+      if (!term) return
+      recoverTerminalRenderer(term)
+      scheduleFitDuringResize()
+    }
+    recover()
+    return subscribeWindowResume(recover)
+  }, [isActive, scheduleFitDuringResize, termRef])
 
   // Looking at the tab answers whatever it wanted attention for.
   useEffect(() => {

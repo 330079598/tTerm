@@ -4,7 +4,8 @@ import { WebglAddon } from "@xterm/addon-webgl"
 import { Terminal } from "@xterm/xterm"
 
 import type { UseTerminalLifecycleOptions } from "@/components/TerminalTab/terminalLifecycleTypes"
-import { disposeRendererAddon, renderAllRowsNow } from "@/components/TerminalTab/rendererRelease"
+import { disposeRendererAddon } from "@/components/TerminalTab/rendererRelease"
+import { renderAllRowsNow } from "@/components/TerminalTab/rendererRecovery"
 import type { TerminalRenderer } from "@/lib/appConfig"
 
 type ActiveRendererAddon = (WebglAddon | CanvasAddon) & {

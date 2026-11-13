@@ -1,7 +1,7 @@
 import { useCallback } from "react"
 import { invoke } from "@tauri-apps/api/core"
 
-import { renderAllRowsNow } from "@/components/TerminalTab/rendererRelease"
+import { renderAllRowsNow } from "@/components/TerminalTab/rendererRecovery"
 import type { TerminalTabRefs } from "@/components/TerminalTab/useTerminalTabRefs"
 import type { TerminalTabProps } from "@/components/TerminalTab/types"
 

@@ -76,23 +76,3 @@ function releaseWebglCanvas(canvas: HTMLCanvasElement, gl: WebGL2RenderingContex
   // The first frame shows the one-pixel buffer, the second runs after it.
   requestAnimationFrame(() => requestAnimationFrame(finish))
 }
-
-type RenderServiceInternals = {
-  _core?: { _renderService?: { _renderRows?: (start: number, end: number) => void } }
-}
-
-/**
- * Draws every row now. A terminal coming back into sight is still paused
- * until xterm's intersection observer reports it visible, which only happens
- * after the first frame is painted, so a renderer loaded for it would show
- * that frame empty; the canvas the released renderer drew on is gone.
- */
-export function renderAllRowsNow(term: Terminal): void {
-  const renderService = (term as unknown as RenderServiceInternals)._core?._renderService
-  const end = Math.max(0, term.rows - 1)
-  if (typeof renderService?._renderRows === "function") {
-    renderService._renderRows(0, end)
-  } else {
-    term.refresh(0, end)
-  }
-}
