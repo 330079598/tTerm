@@ -240,20 +240,21 @@ pub(crate) fn wsl_distro_names() -> Vec<String> {
 /// `custom` always, a built-in one such as `pwsh` or `wsl` only where it was
 /// found. Other platforms start the login shell for those.
 pub(crate) fn has_terminal_shell(kind: &str) -> bool {
-    if matches!(kind, "auto" | "custom") {
-        return true;
-    }
+    match kind {
+        "auto" | "custom" => true,
+        _ => {
+            #[cfg(target_os = "windows")]
+            {
+                super::windows_shell::list_windows_terminal_shells()
+                    .iter()
+                    .any(|profile| profile.shell == kind)
+            }
 
-    #[cfg(target_os = "windows")]
-    {
-        super::windows_shell::list_windows_terminal_shells()
-            .iter()
-            .any(|profile| profile.shell == kind)
-    }
-
-    #[cfg(not(target_os = "windows"))]
-    {
-        false
+            #[cfg(not(target_os = "windows"))]
+            {
+                false
+            }
+        }
     }
 }
 

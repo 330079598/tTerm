@@ -32,10 +32,7 @@ pub fn set_installed(bin: &Path, installed: bool, admin_prompt: &str) -> Result<
         };
     }
     // Another program's `tterm` is not tTerm's to remove.
-    if was_installed && !unlink(admin_prompt)? {
-        return Ok(true);
-    }
-    Ok(false)
+    Ok(was_installed && !unlink(admin_prompt)?)
 }
 
 /// Writes the launcher, pointed at this tTerm, which moving the app moves.

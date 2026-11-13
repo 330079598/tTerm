@@ -88,12 +88,12 @@ impl Listeners {
 /// it, so clients fail at once instead of hanging in the accept backlog and
 /// being served stale after the tunnel recovers. Never completes.
 pub(super) async fn refuse_connections(listeners: Option<&Listeners>) -> std::convert::Infallible {
-    let Some(listeners) = listeners else {
-        return std::future::pending().await;
-    };
-    loop {
-        // The dropped stream is closed immediately.
-        let _ = listeners.accept().await;
+    match listeners {
+        Some(listeners) => loop {
+            // The dropped stream is closed immediately.
+            let _ = listeners.accept().await;
+        },
+        None => std::future::pending().await,
     }
 }
 
