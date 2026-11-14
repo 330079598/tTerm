@@ -106,10 +106,7 @@ pub fn default_archive_name(
     format: ArchiveFormat,
 ) -> Option<String> {
     let extension = compress_extension(format)?;
-    let folder_name = folder_path
-        .split('/')
-        .filter(|name| !name.is_empty())
-        .next_back();
+    let folder_name = folder_path.split('/').rfind(|name| !name.is_empty());
     let base = if entries.len() == 1 {
         entries[0].name.as_str()
     } else {
