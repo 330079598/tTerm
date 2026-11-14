@@ -1,4 +1,4 @@
-use super::*;
+use crate::notification::*;
 use serde_json::Value;
 fn check(key: &str, actual: Value) {
     let fixtures: Value = serde_json::from_str(include_str!(concat!(

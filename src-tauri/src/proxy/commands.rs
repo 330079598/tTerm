@@ -1,6 +1,6 @@
-use super::{
-    ProxyServer, ProxyServerEntry, SaveProxyInput, delete_proxy_service, list_proxies_service,
-    save_proxy_service,
+use tterm_core::{
+    proxy::ProxyServer, proxy::ProxyServerEntry, proxy::SaveProxyInput,
+    proxy::delete_proxy_service, proxy::list_proxies_service, proxy::save_proxy_service,
 };
 
 #[tauri::command]

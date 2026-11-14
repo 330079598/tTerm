@@ -1,25 +1,35 @@
-use super::apply::{
-    apply_database_payload, import_serial_sends, keep_device_settings, merge_arrays_by_keys,
-    to_backup_value,
+use crate::backup::*;
+use crate::{
+    backup::apply::apply_database_payload, backup::apply::import_serial_sends,
+    backup::apply::keep_device_settings, backup::apply::merge_arrays_by_keys,
+    backup::apply::to_backup_value,
 };
-use super::archive::{
-    build_archive_for_version, decode_archive, decrypt_payload, derive_key, encrypt_payload,
-    validate_relative_path,
+use crate::{
+    backup::archive::build_archive_for_version, backup::archive::decode_archive,
+    backup::archive::decrypt_payload, backup::archive::derive_key,
+    backup::archive::encrypt_payload, backup::archive::validate_relative_path,
 };
-use super::automatic::{
-    adopt_automatic_backup_settings, read_automatic_backup_settings,
-    validate_automatic_backup_settings, write_automatic_backup_settings,
+use crate::{
+    backup::automatic::adopt_automatic_backup_settings,
+    backup::automatic::read_automatic_backup_settings,
+    backup::automatic::validate_automatic_backup_settings,
+    backup::automatic::write_automatic_backup_settings,
 };
-use super::export::{filter_frontend_state, secret_travels, strip_sensitive_fields};
-use super::snapshot::{DatabaseSnapshot, restore_database, snapshot_database};
-use super::*;
-use crate::config::AppConfig;
-use crate::ssh::secret_store::{
-    crypto::SecretKey as DataKey, store::get_secret, store::put_secret, store::snapshot_secrets,
+use crate::{
+    backup::export::filter_frontend_state, backup::export::secret_travels,
+    backup::export::strip_sensitive_fields,
+};
+use crate::{
+    backup::snapshot::DatabaseSnapshot, backup::snapshot::restore_database,
+    backup::snapshot::snapshot_database,
 };
 use chrono::Utc;
 use std::fs;
+use tterm_core::config::AppConfig;
 use tterm_core::db::meta;
+use tterm_core::ssh::secret_store::{
+    crypto::SecretKey as DataKey, store::get_secret, store::put_secret, store::snapshot_secrets,
+};
 
 fn db_profile(id: &str, name: &str, group: &str) -> Value {
     serde_json::json!({
@@ -100,7 +110,7 @@ fn incoming_payload() -> BackupPayload {
 }
 
 fn profile_summary(connection: &rusqlite::Connection) -> Vec<(String, String, String)> {
-    crate::profiles::storage::list_saved_profiles(connection)
+    tterm_core::profiles::storage::list_saved_profiles(connection)
         .unwrap()
         .into_iter()
         .map(|p| (p.id, p.name, p.group_id.unwrap_or_default()))
@@ -320,7 +330,10 @@ fn merge_import_keeps_existing_data_and_updates_by_key() {
                 tterm_core::tunnel::storage::list_tunnel_rules(connection)?.len(),
                 1
             );
-            assert_eq!(crate::proxy::storage::list_proxies(connection)?.len(), 1);
+            assert_eq!(
+                tterm_core::proxy::storage::list_proxies(connection)?.len(),
+                1
+            );
             let hosts = tterm_core::ssh::store::list_known_hosts(connection)?.entries;
             assert_eq!(
                 hosts.len(),
@@ -434,7 +447,7 @@ fn replacing_profiles_keeps_passwords_of_profiles_that_stay() {
     };
     database
         .write(|connection| {
-            crate::profiles::storage::replace_profiles(
+            tterm_core::profiles::storage::replace_profiles(
                 connection,
                 &[profile("keep"), profile("gone")],
             )?;
@@ -442,7 +455,7 @@ fn replacing_profiles_keeps_passwords_of_profiles_that_stay() {
             put_secret(connection, &data_key, "gone", "g")?;
             let before = snapshot_database(connection, &database_selection())?;
 
-            crate::profiles::storage::replace_profiles(
+            tterm_core::profiles::storage::replace_profiles(
                 connection,
                 &[profile("keep"), profile("new")],
             )?;
@@ -544,7 +557,7 @@ fn exported_data_imports_back_unchanged() {
             Ok({
                 let mut payload = BackupPayload::default();
                 payload.profiles = Some(to_backup_value(
-                    &crate::profiles::storage::list_saved_profiles(connection)?,
+                    &tterm_core::profiles::storage::list_saved_profiles(connection)?,
                 )?);
                 payload.profile_groups = Some(to_backup_value(
                     &crate::profiles::groups::list_groups(connection)?,
@@ -552,9 +565,9 @@ fn exported_data_imports_back_unchanged() {
                 payload.tunnels = Some(to_backup_value(
                     &tterm_core::tunnel::storage::list_tunnel_rules(connection)?,
                 )?);
-                payload.proxies = Some(to_backup_value(&crate::proxy::storage::list_proxies(
-                    connection,
-                )?)?);
+                payload.proxies = Some(to_backup_value(
+                    &tterm_core::proxy::storage::list_proxies(connection)?,
+                )?);
                 payload.known_hosts = Some(to_backup_value(
                     &tterm_core::ssh::store::list_known_hosts(connection)?,
                 )?);
@@ -619,7 +632,7 @@ fn real_pre_database_backups_import() {
                     // Merging twice must not duplicate anything.
                     apply_database_payload(connection, payload, &options)?;
                     apply_database_payload(connection, payload, &options)?;
-                    let profiles = crate::profiles::storage::list_saved_profiles(connection)?.len();
+                    let profiles = tterm_core::profiles::storage::list_saved_profiles(connection)?.len();
                     let known = tterm_core::ssh::store::list_known_hosts(connection)?.entries.len();
                     let sftp = tterm_core::sftp::store::list_sftp_directories(connection)?
                         .entries
@@ -781,7 +794,7 @@ fn imported_settings_keep_this_devices_unlock_mode_and_missing_paths() {
 
 #[test]
 fn imported_settings_keep_this_devices_shells_and_add_those_found_here() {
-    use crate::config::local_shells::LocalShell;
+    use tterm_core::config::local_shells::LocalShell;
     let shell = |id: &str, path: &str| LocalShell {
         id: id.to_string(),
         name: id.to_string(),
@@ -859,7 +872,7 @@ fn imported_settings_keep_this_devices_shells_and_add_those_found_here() {
 
 #[test]
 fn imported_shells_under_an_id_used_here_come_in_as_their_own() {
-    use crate::config::local_shells::LocalShell;
+    use tterm_core::config::local_shells::LocalShell;
     let shell = |id: &str, path: &str| LocalShell {
         id: id.to_string(),
         name: path.to_string(),

@@ -1,24 +1,23 @@
 //! Gathering what a backup carries from this device.
 
-use super::apply::to_backup_value;
-use super::archive::{validate_payload, validate_relative_path};
-use super::automatic::load_automatic_backup_settings;
-use super::remote;
-use super::{
-    AutomaticBackupSettings, BackupExportOptions, BackupLogFile, BackupPayload, BackupSelection,
-    MigrationSecretRecord,
-};
-use crate::config;
-use crate::profiles::types::SavedProfile;
+use crate::backup::apply::to_backup_value;
+use crate::backup::automatic::load_automatic_backup_settings;
+use crate::backup::remote;
 use crate::serial::history::store as serial_sends;
-use crate::ssh::secret_store::store::get_secret;
-use crate::ssh::secret_store::types::SecretStoreState;
+use crate::{
+    backup::AutomaticBackupSettings, backup::BackupExportOptions, backup::BackupLogFile,
+    backup::BackupPayload, backup::BackupSelection, backup::MigrationSecretRecord,
+};
+use crate::{backup::archive::validate_payload, backup::archive::validate_relative_path};
 use base64::{Engine, engine::general_purpose::STANDARD as BASE64};
 use serde::Serialize;
 use serde_json::Value;
 use std::fs;
 use std::path::{Component, PathBuf};
 use tterm_core::command_library::repository::CommandRepository;
+use tterm_core::profiles::types::SavedProfile;
+use tterm_core::ssh::secret_store::store::get_secret;
+use tterm_core::ssh::secret_store::types::SecretStoreState;
 
 pub(super) fn validate_export_options(options: &BackupExportOptions) -> Result<(), String> {
     if !options.selection.any() {
@@ -73,7 +72,7 @@ pub(super) fn collect_payload(
         config: read_selected_json(selection.settings, "config.json")?,
         profiles: read_selected_data(
             selection.profiles,
-            crate::profiles::storage::list_saved_profiles,
+            tterm_core::profiles::storage::list_saved_profiles,
         )?,
         profile_groups: read_selected_data(
             selection.profiles,
@@ -83,7 +82,7 @@ pub(super) fn collect_payload(
             selection.profiles,
             tterm_core::tunnel::storage::list_tunnel_rules,
         )?,
-        proxies: read_selected_data(selection.profiles, crate::proxy::storage::list_proxies)?,
+        proxies: read_selected_data(selection.profiles, tterm_core::proxy::storage::list_proxies)?,
         session: if selection.session {
             tterm_core::db::read(tterm_core::session_restore::read_session)?
                 .map(|session| to_backup_value(&session))
@@ -291,7 +290,7 @@ pub(super) fn strip_sensitive_fields(value: Value) -> Value {
 }
 
 fn configured_log_root() -> Result<PathBuf, String> {
-    let config_value = config::load_config_file()?;
+    let config_value = tterm_core::config::load_config_file()?;
     if config_value.terminal_log_directory.trim().is_empty() {
         Ok(tterm_core::config::paths::get_config_path()?.join("logs"))
     } else {

@@ -1,12 +1,13 @@
 //! The SSH session behind the profile dialog's connection test.
 
-use super::super::storage::normalize_profile;
-use super::super::types::SavedProfile;
-use crate::core::session::types::SessionPlan;
-use crate::ssh::{
-    types::ConnectionStatusOptions, types::HostKeyVerificationMode, types::SshClientHandler,
-};
 use std::sync::Arc;
+use tterm_core::core::session::types::SessionPlan;
+use tterm_core::profiles::storage::normalize_profile;
+use tterm_core::profiles::types::SavedProfile;
+use tterm_core::{
+    ssh::types::ConnectionStatusOptions, ssh::types::HostKeyVerificationMode,
+    ssh::types::SshClientHandler,
+};
 
 pub(crate) struct TestVerification {
     pub mode: HostKeyVerificationMode,
@@ -14,9 +15,9 @@ pub(crate) struct TestVerification {
 }
 
 pub(crate) fn test_connection_handler(
-    app: &crate::ssh::context::ConnectionContext,
+    app: &tterm_core::ssh::context::ConnectionContext,
     tab_id: &str,
-    plan: &crate::core::session::types::SessionPlan,
+    plan: &tterm_core::core::session::types::SessionPlan,
     host: &str,
     port: u16,
     prompts: std::sync::Arc<tterm_core::prompts::PromptBroker>,
@@ -46,12 +47,12 @@ pub(crate) async fn authenticate_test_connection<H: russh::client::Handler>(
     host: &str,
     port: u16,
     username: &str,
-    plan: &crate::core::session::types::SessionPlan,
-    auth_prompter: &crate::ssh::auth::AuthPrompter,
+    plan: &tterm_core::core::session::types::SessionPlan,
+    auth_prompter: &tterm_core::ssh::auth::AuthPrompter,
 ) -> Result<(), String> {
-    crate::ssh::auth::authenticate(
+    tterm_core::ssh::auth::authenticate(
         session,
-        &crate::ssh::auth::AuthTarget {
+        &tterm_core::ssh::auth::AuthTarget {
             host,
             port,
             username,
@@ -79,7 +80,7 @@ pub(crate) fn test_session_plan(
         profile
             .jump_hosts
             .into_iter()
-            .map(|j| crate::core::session::types::JumpHostPlan {
+            .map(|j| tterm_core::core::session::types::JumpHostPlan {
                 host: j.host,
                 port: j.port,
                 username: j.username,
@@ -114,7 +115,7 @@ pub(crate) fn test_session_plan(
     };
 
     SessionPlan {
-        kind: crate::core::state::SessionKind::Ssh,
+        kind: tterm_core::core::state::SessionKind::Ssh,
         profile_id: Some(profile.id.clone()),
         profile_name: profile.name.clone(),
         host: Some(host.to_string()),

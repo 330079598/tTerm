@@ -1,6 +1,8 @@
 //! The `serial_send_history` table.
 
-use super::{HISTORY_LIMIT, SerialSend, SerialSendMode};
+use crate::{
+    serial::history::HISTORY_LIMIT, serial::history::SerialSend, serial::history::SerialSendMode,
+};
 use rusqlite::{Connection, Row, params};
 use sha2::{Digest, Sha256};
 use tterm_core::db::sql_error;

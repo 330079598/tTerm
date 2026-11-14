@@ -1,8 +1,8 @@
 use std::sync::Arc;
 
-use crate::sftp::internal::{
-    api::external::ExternalEditState,
-    types::{SftpConnectionPool, TransferCancelMap},
+use crate::sftp::internal::api::external::ExternalEditState;
+use tterm_core::{
+    sftp::internal::types::SftpConnectionPool, sftp::internal::types::TransferCancelMap,
 };
 
 pub struct SftpServices {

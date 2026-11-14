@@ -1,8 +1,11 @@
-use super::directory::{
-    BatchProgress, DirectoryDownloadItem, DownloadTarget, download_file_into_directory,
-    resolve_download_target,
+use crate::sftp::internal::api::download::next_transfer_id;
+use crate::{
+    sftp::internal::api::download::directory::BatchProgress,
+    sftp::internal::api::download::directory::DirectoryDownloadItem,
+    sftp::internal::api::download::directory::DownloadTarget,
+    sftp::internal::api::download::directory::download_file_into_directory,
+    sftp::internal::api::download::directory::resolve_download_target,
 };
-use super::next_transfer_id;
 use std::path::Path;
 use tokio::sync::watch;
 use tterm_core::events::AppEvent;

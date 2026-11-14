@@ -1,4 +1,4 @@
-use super::*;
+use crate::background::*;
 use std::sync::Mutex;
 
 struct Sink {

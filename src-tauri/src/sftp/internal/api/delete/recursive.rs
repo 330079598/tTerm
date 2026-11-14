@@ -1,7 +1,7 @@
-use crate::sftp::internal::connection::map_sftp_error;
 use russh_sftp::client::SftpSession;
 use std::future::Future;
 use std::pin::Pin;
+use tterm_core::sftp::internal::connection::map_sftp_error;
 
 pub(super) fn delete_directory_recursive<'a>(
     sftp: &'a SftpSession,

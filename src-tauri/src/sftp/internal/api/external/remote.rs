@@ -1,12 +1,12 @@
 //! Moving an opened file between the server and its local copy.
 
-use crate::sftp::internal::connection::map_sftp_error;
 use russh_sftp::client::SftpSession;
 use russh_sftp::client::error::Error as SftpError;
 use russh_sftp::client::fs::Metadata;
 use russh_sftp::protocol::{OpenFlags, StatusCode};
 use std::path::Path;
 use tokio::io::AsyncWriteExt;
+use tterm_core::sftp::internal::connection::map_sftp_error;
 
 /// The remote file as it was when last downloaded or uploaded. An upload
 /// compares the file against it to tell whether someone changed it since.

@@ -20,7 +20,7 @@ pub struct WindowBlur {
 }
 
 impl WindowBlur {
-    pub fn from_config(cfg: &crate::config::AppConfig, dark: bool) -> Self {
+    pub fn from_config(cfg: &tterm_core::config::AppConfig, dark: bool) -> Self {
         Self {
             radius: u32::from(cfg.window_blur_radius),
             mica: cfg.window_blur_material == "mica",

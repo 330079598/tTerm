@@ -1,7 +1,7 @@
 //! The raw binary channel contract captured before the output endpoint moved.
-use crate::terminal::io_batcher::{OutputFlow, TerminalOutputSender, test_sink};
 use std::sync::{Arc, Mutex};
 use tauri::ipc::{Channel, InvokeResponseBody};
+use tterm_core::terminal::io_batcher::{OutputFlow, TerminalOutputSender, test_sink};
 
 #[test]
 fn binary_channel_keeps_nul_non_utf8_and_capped_messages() {

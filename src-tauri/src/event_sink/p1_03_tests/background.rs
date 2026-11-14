@@ -1,4 +1,4 @@
-use super::*;
+use crate::event_sink::p1_03_tests::*;
 
 #[test]
 fn background_wire_contracts_keep_default_scope_and_null_units() {

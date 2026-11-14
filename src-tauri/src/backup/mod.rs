@@ -1,13 +1,14 @@
 pub(crate) mod commands;
 mod service;
-use crate::profiles::types::SavedProfile;
-use crate::ssh::{
-    secret_store::types::SecretStoreState, secret_store::verification::VerificationPurpose,
-};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::path::{Path, PathBuf};
 use tterm_core::command_library::{models::SavedCommand, repository::CommandRepository};
+use tterm_core::profiles::types::SavedProfile;
+use tterm_core::{
+    ssh::secret_store::types::SecretStoreState,
+    ssh::secret_store::verification::VerificationPurpose,
+};
 use zeroize::Zeroize;
 
 mod apply;

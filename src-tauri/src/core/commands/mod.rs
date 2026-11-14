@@ -1,9 +1,6 @@
 mod arguments;
-use super::session::stop::{StopPtyContext, stop_pty_session};
-use super::state::{ActiveSession, PtyMap, ZmodemArmedSendMap, ZmodemManualDetectMap, ZmodemMap};
 use crate::services::AppServices;
-use crate::ssh::context::ConnectionContext;
-use crate::ssh::secret_store::types::SecretStoreState;
+use crate::{core::session::stop::StopPtyContext, core::session::stop::stop_pty_session};
 use arguments::{
     GetSudoPasswordSourceInput, HasSavedPasswordInput, KillPtyInput, ResetPtyConsoleInput,
     ResizePtyInput, RespondSshHostKeyPromptInput, SudoPasswordContext, WritePtyBatchInput,
@@ -19,6 +16,12 @@ use std::sync::PoisonError;
 use tauri::{AppHandle, State};
 use tokio::sync::Mutex as TokioMutex;
 use tterm_core::core::blocking::run_blocking;
+use tterm_core::ssh::context::ConnectionContext;
+use tterm_core::ssh::secret_store::types::SecretStoreState;
+use tterm_core::{
+    core::state::ActiveSession, core::state::PtyMap, core::state::ZmodemArmedSendMap,
+    core::state::ZmodemManualDetectMap, core::state::ZmodemMap,
+};
 
 mod batch_write;
 mod create;
@@ -39,7 +42,7 @@ pub async fn create_pty(
     session_nonce: u32,
     rows: u16,
     cols: u16,
-    connection: Option<super::session::types::PtyConnectionOptions>,
+    connection: Option<tterm_core::core::session::types::PtyConnectionOptions>,
     output_channel: tauri::ipc::JavaScriptChannelId,
     services: State<'_, Arc<AppServices>>,
 ) -> Result<u32, String> {
@@ -103,15 +106,17 @@ fn intercept_zmodem_input(
             Some(ActiveSession::Local(local)) => {
                 let _ = local
                     .writer
-                    .write_all(&crate::zmodem::session::abort_sequence());
+                    .write_all(&tterm_core::zmodem::session::abort_sequence());
             }
             Some(ActiveSession::Ssh(ssh)) => {
-                let _ = ssh.input_tx.send(crate::zmodem::session::abort_sequence());
+                let _ = ssh
+                    .input_tx
+                    .send(tterm_core::zmodem::session::abort_sequence());
             }
             Some(ActiveSession::Serial(serial)) => {
                 let _ = serial
                     .writer
-                    .write_all(&crate::zmodem::session::abort_sequence());
+                    .write_all(&tterm_core::zmodem::session::abort_sequence());
             }
             None => {}
         }
@@ -192,7 +197,7 @@ fn write_pty_service(
     };
     if result.is_ok() {
         session.sink.note_input();
-        crate::session_log::record_input(&app.log, &tab_id, &input);
+        tterm_core::session_log::record_input(&app.log, &tab_id, &input);
     }
     result
 }
@@ -317,7 +322,7 @@ fn write_pty_batch_service(
     let results = write_guarded_batch(guard_target, targets, data.as_bytes());
     for result in &results {
         if result.status == PtyWriteStatus::Written {
-            crate::session_log::record_input(&app.log, &result.tab_id, data.as_bytes());
+            tterm_core::session_log::record_input(&app.log, &result.tab_id, data.as_bytes());
         }
     }
     results
@@ -390,7 +395,7 @@ fn resize_pty_service(
         ActiveSession::Serial(_) => Ok(()),
     };
     if result.is_ok() {
-        crate::session_log::record_resize(&app.log, &tab_id, rows, cols);
+        tterm_core::session_log::record_resize(&app.log, &tab_id, rows, cols);
     }
     result
 }
@@ -452,7 +457,7 @@ fn kill_pty_service(
             &zmodem_armed_send_state,
             &zmodem_manual_detect_state,
         );
-        crate::session_log::end_session(&app.log, &tab_id);
+        tterm_core::session_log::end_session(&app.log, &tab_id);
     }
 
     Ok(())
@@ -506,7 +511,7 @@ async fn has_saved_password_service(
 
     let secret_state = secret_state.clone();
     run_blocking(move || {
-        Ok(super::session::load_saved_ssh_password(
+        Ok(tterm_core::core::session::load_saved_ssh_password(
             &secret_state,
             profile_id.as_deref(),
             profile_name.as_deref(),
@@ -549,9 +554,9 @@ async fn has_saved_jump_host_password_service(
 ) -> Result<bool, String> {
     let secret_state = secret_state.clone();
     run_blocking(move || {
-        Ok(super::session::load_saved_jump_host_password(
+        Ok(tterm_core::core::session::load_saved_jump_host_password(
             &secret_state,
-            super::session::JumpHostSecretOwner {
+            tterm_core::core::session::JumpHostSecretOwner {
                 profile_id: profile_id.as_deref(),
                 profile_name: profile_name.as_deref(),
                 host: host.as_deref(),
@@ -571,7 +576,7 @@ pub async fn get_sudo_password_source(
     profile_id: Option<String>,
     profile_name: Option<String>,
     services: tauri::State<'_, std::sync::Arc<crate::services::AppServices>>,
-) -> Result<Option<super::session::SudoPasswordSource>, String> {
+) -> Result<Option<tterm_core::core::session::SudoPasswordSource>, String> {
     let secret_state = services.shared.secrets.clone();
     get_sudo_password_source_service(
         secret_state,
@@ -585,7 +590,7 @@ pub async fn get_sudo_password_source(
 async fn get_sudo_password_source_service(
     secret_state: SecretStoreState,
     arguments: GetSudoPasswordSourceInput,
-) -> Result<Option<super::session::SudoPasswordSource>, String> {
+) -> Result<Option<tterm_core::core::session::SudoPasswordSource>, String> {
     let GetSudoPasswordSourceInput {
         profile_id,
         profile_name,
@@ -593,7 +598,7 @@ async fn get_sudo_password_source_service(
 
     let secret_state = secret_state.clone();
     run_blocking(move || {
-        Ok(super::session::load_saved_sudo_password(
+        Ok(tterm_core::core::session::load_saved_sudo_password(
             &secret_state,
             profile_id.as_deref(),
             profile_name.as_deref(),
@@ -618,7 +623,9 @@ async fn has_saved_sudo_password_service(
     let secret_state = secret_state.clone();
     run_blocking(move || {
         Ok(secret_state
-            .get_password(&super::session::types::sudo_secret_key(profile_id.trim()))?
+            .get_password(&tterm_core::core::session::types::sudo_secret_key(
+                profile_id.trim(),
+            ))?
             .is_some())
     })
     .await
@@ -713,8 +720,11 @@ fn write_saved_password_for_sudo_blocking(
         return Ok(false);
     }
 
-    let Some((password, _)) =
-        super::session::load_saved_sudo_password(secret_state, profile_id, profile_name)?
+    let Some((password, _)) = tterm_core::core::session::load_saved_sudo_password(
+        secret_state,
+        profile_id,
+        profile_name,
+    )?
     else {
         return Ok(false);
     };
@@ -732,6 +742,6 @@ fn write_saved_password_for_sudo_blocking(
     ssh.input
         .send(data.to_vec())
         .map_err(|_| format!("PTY session {} is not writable", tab_id))?;
-    crate::session_log::record_credential_injection(&app.log, tab_id);
+    tterm_core::session_log::record_credential_injection(&app.log, tab_id);
     Ok(true)
 }

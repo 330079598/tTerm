@@ -1,5 +1,3 @@
-use crate::profiles;
-use crate::ssh;
 use serde::Serialize;
 use serde::de::DeserializeOwned;
 use std::path::{Path, PathBuf};
@@ -86,12 +84,12 @@ pub fn remove_retired_files(app: &tauri::AppHandle) -> Result<(), String> {
     );
     let secrets_dir = secrets_dir(app)?;
     let secrets_migrated_at =
-        tterm_core::db::read(ssh::secret_store::store::migrated_at).unwrap_or(None);
+        tterm_core::db::read(tterm_core::ssh::secret_store::store::migrated_at).unwrap_or(None);
     errors.extend(remove_retired(
         &secrets_dir,
         &[
-            ssh::secret_store::legacy::VAULT_FILE_NAME,
-            ssh::secret_store::legacy::VAULT_CONFIG_FILE_NAME,
+            tterm_core::ssh::secret_store::legacy::VAULT_FILE_NAME,
+            tterm_core::ssh::secret_store::legacy::VAULT_CONFIG_FILE_NAME,
         ],
         secrets_migrated_at,
         now,
@@ -166,9 +164,10 @@ fn merge_profile_groups_file(old_path: &Path, new_path: &Path) -> Result<(), Str
 }
 
 fn merge_profiles_file(old_path: &Path, new_path: &Path) -> Result<(), String> {
-    let old_profiles = read_json_file::<Vec<profiles::types::SavedProfile>>(old_path, "profiles")?;
+    let old_profiles =
+        read_json_file::<Vec<tterm_core::profiles::types::SavedProfile>>(old_path, "profiles")?;
     let mut new_profiles =
-        read_json_file::<Vec<profiles::types::SavedProfile>>(new_path, "profiles")?;
+        read_json_file::<Vec<tterm_core::profiles::types::SavedProfile>>(new_path, "profiles")?;
     let mut changed = false;
 
     for profile in old_profiles {

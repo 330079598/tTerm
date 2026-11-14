@@ -1,6 +1,8 @@
-use super::pty::{
-    LocalTerminalShellNameInput, TerminalShellProfile, check_local_shell_service,
-    list_available_terminal_shells_service, local_terminal_shell_name_service,
+use tterm_core::{
+    terminal::pty::LocalTerminalShellNameInput, terminal::pty::TerminalShellProfile,
+    terminal::pty::check_local_shell_service,
+    terminal::pty::list_available_terminal_shells_service,
+    terminal::pty::local_terminal_shell_name_service,
 };
 
 /// The shells a local tab can start. Async, because finding them on macOS

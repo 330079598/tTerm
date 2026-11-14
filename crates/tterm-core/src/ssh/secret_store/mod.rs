@@ -1,3 +1,741 @@
-//! Saved SSH passwords and the platform prompts that unlock them.
+//! Saved passwords, stored encrypted in the database.
+//!
+//! One data key encrypts every secret. It is kept wrapped by a key in the OS
+//! credential store (`system` mode, unlocks at startup with one credential
+//! store read) and/or by a key derived from the user's master password
+//! (`password` mode, or a recovery path in `system` mode).
 
 pub mod os_verifier;
+
+pub mod crypto;
+mod keyring_backend;
+pub mod legacy;
+mod migration;
+pub mod store;
+pub mod types;
+pub mod verification;
+
+use crate::config::{load_config_file, save_config_file};
+use crate::db::Database;
+use crypto::{KdfParams, SecretKey};
+use keyring_backend::DATA_KEY_ACCOUNT;
+use migration::{LegacySources, NEEDS_VAULT_PASSWORD};
+use std::path::Path;
+use std::sync::{Arc, Condvar, Mutex, MutexGuard, PoisonError};
+use store::{WRAP_PASSWORD, WRAP_SYSTEM};
+use types::{SecretStorageMode, SecretStoreRuntime};
+use zeroize::Zeroizing;
+
+use types::{
+    ChangeVaultPasswordInput, SecretBackendStatus, SecretLocation, SecretStoreState,
+    VaultPasswordInput,
+};
+use verification::VerificationMethod;
+use verification::VerificationPurpose;
+
+const MISSING_SYSTEM_KEY: &str = "The key for saved passwords is missing from the system credential store. Enter the master password to restore it.";
+const WRONG_SYSTEM_KEY: &str = "The key in the system credential store does not match saved passwords. Enter the master password to restore it.";
+const WRONG_MASTER_PASSWORD: &str = "Incorrect master password.";
+const LOCKED: &str = "Saved passwords are locked. Unlock them first.";
+const STARTING: &str = "Saved passwords are still being unlocked. Try again in a moment.";
+
+/// The OS credential store, behind a trait so the logic can be tested.
+pub(crate) trait CredentialStore {
+    fn read(&self, account: &str) -> Result<Option<Zeroizing<String>>, String>;
+    fn write(&self, account: &str, value: &str) -> Result<(), String>;
+    fn delete(&self, account: &str) -> Result<bool, String>;
+    fn list_accounts(&self) -> Option<Vec<String>>;
+}
+
+struct OsCredentials;
+
+impl CredentialStore for OsCredentials {
+    fn read(&self, account: &str) -> Result<Option<Zeroizing<String>>, String> {
+        keyring_backend::read(account)
+    }
+
+    fn write(&self, account: &str, value: &str) -> Result<(), String> {
+        keyring_backend::write(account, value)
+    }
+
+    fn delete(&self, account: &str) -> Result<bool, String> {
+        keyring_backend::delete(account)
+    }
+
+    fn list_accounts(&self) -> Option<Vec<String>> {
+        keyring_backend::list_accounts()
+    }
+}
+
+/// Unwraps the data key with the key in the credential store. `Ok(None)`
+/// means this database has no credential store wrap. The credential store is
+/// read outside the database lock since it may wait on an unlock prompt.
+fn open_with_system_key(
+    database: &Database,
+    credentials: &dyn CredentialStore,
+) -> Result<Option<SecretKey>, String> {
+    let Some(wrap) = database.read(|connection| store::load_wrap(connection, WRAP_SYSTEM))? else {
+        return Ok(None);
+    };
+    let encoded = credentials
+        .read(DATA_KEY_ACCOUNT)?
+        .ok_or_else(|| MISSING_SYSTEM_KEY.to_string())?;
+    let system_key = SecretKey::from_base64(&encoded).map_err(|_| WRONG_SYSTEM_KEY.to_string())?;
+    crypto::unwrap_data_key(&system_key, WRAP_SYSTEM, &wrap.nonce, &wrap.wrapped_key)
+        .map(Some)
+        .ok_or_else(|| WRONG_SYSTEM_KEY.to_string())
+}
+
+/// Unwraps the data key with the master password. `Ok(None)` means no master
+/// password is set. Key derivation runs outside the database lock.
+fn open_with_password(database: &Database, password: &str) -> Result<Option<SecretKey>, String> {
+    let Some(wrap) = database.read(|connection| store::load_wrap(connection, WRAP_PASSWORD))?
+    else {
+        return Ok(None);
+    };
+    let kdf = wrap
+        .kdf
+        .ok_or_else(|| "Master password settings are missing.".to_string())?;
+    let password_key = kdf.derive(password)?;
+    crypto::unwrap_data_key(&password_key, WRAP_PASSWORD, &wrap.nonce, &wrap.wrapped_key)
+        .map(Some)
+        .ok_or_else(|| WRONG_MASTER_PASSWORD.to_string())
+}
+
+/// Wraps the data key with the key in the credential store, putting a fresh
+/// one there only when it has none. A key already there is kept since another
+/// database may still be wrapped with it.
+fn create_system_wrap(
+    database: &Database,
+    credentials: &dyn CredentialStore,
+    data_key: &SecretKey,
+) -> Result<(), String> {
+    let system_key = system_key(credentials)?;
+    database.write(|transaction| {
+        store::save_wrap(transaction, WRAP_SYSTEM, None, &system_key, data_key)
+    })
+}
+
+/// The key in the credential store, put there first when it has none.
+fn system_key(credentials: &dyn CredentialStore) -> Result<SecretKey, String> {
+    let existing = credentials
+        .read(DATA_KEY_ACCOUNT)?
+        .and_then(|encoded| SecretKey::from_base64(&encoded).ok());
+    match existing {
+        Some(system_key) => Ok(system_key),
+        None => {
+            let system_key = SecretKey::generate();
+            credentials.write(DATA_KEY_ACCOUNT, &system_key.to_base64())?;
+            Ok(system_key)
+        }
+    }
+}
+
+/// Starts saved passwords over with a new data key wrapped by the credential
+/// store, for when the old one cannot be unwrapped. Saved passwords and the
+/// master password go with it, all in one transaction, and only once the
+/// credential store has answered.
+fn reset_with_system_key(
+    database: &Database,
+    credentials: &dyn CredentialStore,
+) -> Result<SecretKey, String> {
+    let system_key = system_key(credentials)?;
+    let data_key = SecretKey::generate();
+    database.write(|transaction| {
+        transaction
+            .execute("DELETE FROM secrets", [])
+            .map_err(crate::db::sql_error("Failed to reset saved passwords"))?;
+        store::delete_wrap(transaction, WRAP_PASSWORD)?;
+        store::save_wrap(transaction, WRAP_SYSTEM, None, &system_key, &data_key)
+    })?;
+    Ok(data_key)
+}
+
+fn create_password_wrap(
+    database: &Database,
+    password: &str,
+    data_key: &SecretKey,
+) -> Result<(), String> {
+    if password.is_empty() {
+        return Err("Master password cannot be empty.".to_string());
+    }
+    let kdf = KdfParams::generate();
+    let password_key = kdf.derive(password)?;
+    database.write(|transaction| {
+        store::save_wrap(
+            transaction,
+            WRAP_PASSWORD,
+            Some(&kdf),
+            &password_key,
+            data_key,
+        )
+    })
+}
+
+/// Ends startup when dropped, also when it panicked.
+struct StartupFinished(Arc<(Mutex<bool>, Condvar)>);
+
+impl Drop for StartupFinished {
+    fn drop(&mut self) {
+        let (starting, finished) = &*self.0;
+        *starting.lock().unwrap_or_else(PoisonError::into_inner) = false;
+        finished.notify_all();
+    }
+}
+
+impl SecretStoreState {
+    pub fn new() -> Self {
+        Self {
+            inner: Arc::new(Mutex::new(SecretStoreRuntime::default())),
+            starting: Arc::new((Mutex::new(false), Condvar::new())),
+        }
+    }
+
+    fn runtime(&self) -> Result<MutexGuard<'_, SecretStoreRuntime>, String> {
+        self.inner
+            .lock()
+            .map_err(|_| "Secret store state is poisoned".to_string())
+    }
+
+    /// Whatever changes saved passwords or reports their status waits for
+    /// startup, which may sit on a credential store unlock prompt, so it
+    /// neither sees them locked nor races the migration. Reads don't wait:
+    /// until startup is done they find saved passwords locked.
+    fn wait_for_startup(&self) {
+        let (starting, finished) = &*self.starting;
+        let starting = starting.lock().unwrap_or_else(PoisonError::into_inner);
+        let _starting = finished
+            .wait_while(starting, |starting| *starting)
+            .unwrap_or_else(PoisonError::into_inner);
+    }
+
+    fn set_data_key(&self, data_key: Option<SecretKey>) -> Result<(), String> {
+        let mut runtime = self.runtime()?;
+        runtime.data_key = data_key;
+        runtime.notice = None;
+        Ok(())
+    }
+
+    fn set_notice(&self, notice: String) {
+        if let Ok(mut runtime) = self.runtime() {
+            runtime.notice = Some(notice);
+        }
+    }
+
+    fn mode() -> Result<SecretStorageMode, String> {
+        Ok(SecretStorageMode::from_config_value(
+            &load_config_file()?.secret_storage_mode,
+        ))
+    }
+
+    fn save_mode(mode: SecretStorageMode) -> Result<(), String> {
+        let mut config = load_config_file()?;
+        if config.secret_storage_mode == mode.as_str() {
+            return Ok(());
+        }
+        // A master password is useless unless it is asked for, so turn the
+        // startup prompt on when switching to it.
+        if mode == SecretStorageMode::Password
+            && SecretStorageMode::from_config_value(&config.secret_storage_mode) != mode
+        {
+            config.prompt_unlock_vault_on_startup = true;
+        }
+        config.secret_storage_mode = mode.as_str().to_string();
+        save_config_file(&config)
+    }
+
+    pub fn keyring_available(&self) -> Result<bool, String> {
+        if let Some(value) = self.runtime()?.keyring_available {
+            return Ok(value);
+        }
+        let available = keyring_backend::probe();
+        self.runtime()?.keyring_available = Some(available);
+        Ok(available)
+    }
+
+    pub fn unlocked(&self) -> Result<bool, String> {
+        Ok(self.runtime()?.data_key.is_some())
+    }
+
+    /// The data key, for writing many secrets in one transaction.
+    pub fn data_key(&self) -> Result<SecretKey, String> {
+        self.wait_for_startup();
+        if Self::mode()? == SecretStorageMode::Memory {
+            return Err(
+                "Passwords are not saved in this storage mode. Choose another mode in Settings > Security."
+                    .to_string(),
+            );
+        }
+        self.runtime()?
+            .data_key
+            .clone()
+            .ok_or_else(|| LOCKED.to_string())
+    }
+
+    fn unlocked_key(&self) -> Result<Option<SecretKey>, String> {
+        if Self::mode()? == SecretStorageMode::Memory {
+            return Ok(None);
+        }
+        Ok(self.runtime()?.data_key.clone())
+    }
+
+    pub fn get_status(&self) -> Result<SecretBackendStatus, String> {
+        self.wait_for_startup();
+        let mode = Self::mode()?;
+        let keyring_available = self.keyring_available()?;
+        let (unlocked, notice) = {
+            let runtime = self.runtime()?;
+            (runtime.data_key.is_some(), runtime.notice.clone())
+        };
+        // A database that failed to open reports its error instead of
+        // failing the whole settings page.
+        let (migrated, has_master_password, notice) = match crate::db::read(|connection| {
+            Ok((
+                store::migrated(connection)?,
+                store::has_wrap(connection, WRAP_PASSWORD)?,
+            ))
+        }) {
+            Ok((migrated, has_master_password)) => (migrated, has_master_password, notice),
+            Err(error) => (true, false, notice.or(Some(error))),
+        };
+        let migration_pending = !migrated;
+        let verification_method =
+            VerificationMethod::choose(mode, self.os_verifier_available()?, has_master_password);
+        let persistence_available = unlocked && mode != SecretStorageMode::Memory;
+        let message = notice.or_else(|| match mode {
+            _ if migration_pending => Some(NEEDS_VAULT_PASSWORD.to_string()),
+            SecretStorageMode::Memory => {
+                Some("Passwords are only kept for the current app session.".to_string())
+            }
+            SecretStorageMode::System if !keyring_available => Some(
+                "The system credential store is unavailable. Use a master password instead."
+                    .to_string(),
+            ),
+            SecretStorageMode::Password if !has_master_password => {
+                Some("Set a master password to save passwords.".to_string())
+            }
+            _ if !unlocked => {
+                Some("Enter the master password to unlock saved passwords.".to_string())
+            }
+            _ => None,
+        });
+
+        Ok(SecretBackendStatus {
+            storage_mode: mode.as_str().to_string(),
+            keyring_available,
+            unlocked,
+            has_master_password,
+            persistence_available,
+            migration_pending,
+            verification_method: verification_method.as_str().to_string(),
+            message,
+        })
+    }
+
+    /// Starts at startup: moves passwords saved by older versions into the
+    /// database once, then unlocks from the credential store in `system` mode.
+    /// Runs on its own thread since the credential store may wait on an
+    /// unlock prompt (Secret Service on Linux) or not answer for a while.
+    pub fn initialize(&self, identity: &crate::identity::AppIdentity, data_dir: &Path) {
+        keyring_backend::init_service(&identity.identifier);
+        // Looking for Windows Hello or Touch ID can take a moment; do it off
+        // the main thread before the status is first asked for.
+        let state = self.clone();
+        std::thread::spawn(move || {
+            let _ = state.os_verifier_available();
+        });
+
+        let (starting, _) = &*self.starting;
+        *starting.lock().unwrap_or_else(PoisonError::into_inner) = true;
+        let (state, data_dir) = (self.clone(), data_dir.to_path_buf());
+        std::thread::spawn(move || {
+            let _finished = StartupFinished(state.starting.clone());
+            state.start(&data_dir);
+        });
+    }
+
+    fn start(&self, data_dir: &Path) {
+        let result = crate::db::get().and_then(|database| {
+            if database.read(store::migrated)? {
+                if Self::mode()? == SecretStorageMode::System {
+                    self.unlock_with_system_key(database)?;
+                }
+                Ok(())
+            } else {
+                self.migrate_legacy(data_dir, database, None)
+            }
+        });
+        if let Err(error) = result {
+            eprintln!("Saved passwords: {error}");
+            if error != NEEDS_VAULT_PASSWORD {
+                self.set_notice(error);
+            }
+        }
+    }
+
+    fn unlock_with_system_key(&self, database: &Database) -> Result<(), String> {
+        if !self.keyring_available()? {
+            return Err("The system credential store is unavailable.".to_string());
+        }
+        match open_with_system_key(database, &OsCredentials)? {
+            Some(data_key) => self.set_data_key(Some(data_key)),
+            None if database.read(|connection| store::has_wrap(connection, WRAP_PASSWORD))? => {
+                Err("Enter the master password to unlock saved passwords.".to_string())
+            }
+            None => {
+                // No key at all yet (e.g. the database was reset): start over.
+                let data_key = reset_with_system_key(database, &OsCredentials)?;
+                self.set_data_key(Some(data_key))
+            }
+        }
+    }
+
+    /// Tries the credential store again after startup could not unlock with
+    /// it, e.g. when it did not answer in time.
+    pub fn retry_system_unlock(&self) -> Result<SecretBackendStatus, String> {
+        self.wait_for_startup();
+        if Self::mode()? != SecretStorageMode::System {
+            return Err(
+                "Saved passwords are not unlocked by the system credential store.".to_string(),
+            );
+        }
+        if !self.unlocked()? {
+            // The credential store may have come up since it was checked.
+            self.runtime()?.keyring_available = None;
+            let database = crate::db::get()?;
+            if !database.read(store::migrated)? {
+                return Err(NEEDS_VAULT_PASSWORD.to_string());
+            }
+            if let Err(error) = self.unlock_with_system_key(database) {
+                self.set_notice(error.clone());
+                return Err(error);
+            }
+        }
+        self.get_status()
+    }
+
+    /// Deletes saved passwords that can no longer be unlocked and starts over
+    /// with a new key in the credential store. Only while locked in `system`
+    /// mode: the old key is lost (or its recovery password forgotten), so
+    /// nothing readable is thrown away.
+    pub fn reset_saved_passwords(&self) -> Result<SecretBackendStatus, String> {
+        self.wait_for_startup();
+        if Self::mode()? != SecretStorageMode::System {
+            return Err(
+                "Saved passwords are not unlocked by the system credential store.".to_string(),
+            );
+        }
+        if self.unlocked()? {
+            return Err("Saved passwords are already unlocked.".to_string());
+        }
+        let database = crate::db::get()?;
+        if !database.read(store::migrated)? {
+            return Err(NEEDS_VAULT_PASSWORD.to_string());
+        }
+        self.runtime()?.keyring_available = None;
+        if !self.keyring_available()? {
+            return Err("The system credential store is unavailable.".to_string());
+        }
+        let data_key = reset_with_system_key(database, &OsCredentials)?;
+        self.set_data_key(Some(data_key))?;
+        self.runtime()?.clear_grants();
+        self.get_status()
+    }
+
+    fn migrate_legacy(
+        &self,
+        data_dir: &Path,
+        database: &Database,
+        password: Option<&str>,
+    ) -> Result<(), String> {
+        let secrets_dir = data_dir.join("secrets");
+        let vault = legacy::LegacyVault::load(&secrets_dir)?;
+        let old_mode = load_config_file()?.secret_storage_mode;
+        let plaintext = crate::ssh::store::load_legacy_password_store()?
+            .profiles
+            .into_iter()
+            .map(|record| (record.profile_name, Zeroizing::new(record.password)))
+            .collect::<Vec<_>>();
+        let mut candidate_keys = crate::profiles::storage::saved_secret_keys()?;
+        candidate_keys.extend(plaintext.iter().map(|(key, _)| key.clone()));
+        candidate_keys.sort();
+        candidate_keys.dedup();
+
+        let migration = migration::migrate(
+            database,
+            &OsCredentials,
+            LegacySources {
+                old_mode: &old_mode,
+                keyring_available: self.keyring_available()?,
+                vault: &vault,
+                password,
+                plaintext,
+                candidate_keys,
+            },
+        )?;
+        eprintln!(
+            "Moved {} saved passwords into the database ({} mode)",
+            migration.migrated,
+            migration.mode.as_str()
+        );
+        Self::save_mode(migration.mode)?;
+        self.set_data_key(migration.data_key)?;
+
+        // The database now holds everything; the rest is tidying up.
+        let cleanup = migration.cleanup;
+        for account in &cleanup.keyring_accounts {
+            if let Err(error) = OsCredentials.delete(account) {
+                eprintln!("Failed to delete old credential '{account}': {error}");
+            }
+        }
+        if cleanup.retire_vault
+            && let Err(error) = vault.retire()
+        {
+            eprintln!("Failed to retire the old vault files: {error}");
+        }
+        if cleanup.remove_plaintext
+            && let Err(error) = crate::ssh::store::remove_legacy_password_store()
+        {
+            eprintln!("Failed to remove the old password file: {error}");
+        }
+        if !cleanup.unreadable_accounts.is_empty() {
+            self.set_notice(format!(
+                "{} saved passwords could not be read from the system credential store and were left there.",
+                cleanup.unreadable_accounts.len()
+            ));
+        }
+        Ok(())
+    }
+
+    /// Unlocks with the master password. Also finishes a migration waiting
+    /// for the old vault password, sets the first master password in
+    /// `password` mode, and restores the credential store key in `system` mode.
+    pub fn unlock(
+        &self,
+        data_dir: &Path,
+        input: VaultPasswordInput,
+    ) -> Result<SecretBackendStatus, String> {
+        self.wait_for_startup();
+        let password = Zeroizing::new(input.password);
+        if password.is_empty() {
+            return Err("Password cannot be empty.".to_string());
+        }
+        let database = crate::db::get()?;
+        if !database.read(store::migrated)? {
+            self.migrate_legacy(data_dir, database, Some(&password))?;
+            return self.get_status();
+        }
+
+        let mode = Self::mode()?;
+        let data_key = match open_with_password(database, &password)? {
+            Some(data_key) => data_key,
+            None if mode == SecretStorageMode::Password => {
+                // First master password. Keep the current data key when there
+                // is one so saved passwords stay readable.
+                let data_key = match self.runtime()?.data_key.clone() {
+                    Some(data_key) => data_key,
+                    None => match open_with_system_key(database, &OsCredentials) {
+                        Ok(Some(data_key)) => data_key,
+                        _ => SecretKey::generate(),
+                    },
+                };
+                create_password_wrap(database, &password, &data_key)?;
+                data_key
+            }
+            None => return Err("No master password is set.".to_string()),
+        };
+
+        if mode == SecretStorageMode::System && self.keyring_available()? {
+            let system_key_works =
+                matches!(open_with_system_key(database, &OsCredentials), Ok(Some(_)));
+            if !system_key_works {
+                create_system_wrap(database, &OsCredentials, &data_key)?;
+            }
+        }
+        self.set_data_key(Some(data_key))?;
+        self.get_status()
+    }
+
+    pub fn lock(&self) -> Result<SecretBackendStatus, String> {
+        self.wait_for_startup();
+        self.set_data_key(None)?;
+        self.runtime()?.clear_grants();
+        self.get_status()
+    }
+
+    pub fn change_master_password(
+        &self,
+        input: ChangeVaultPasswordInput,
+    ) -> Result<SecretBackendStatus, String> {
+        self.wait_for_startup();
+        let current = Zeroizing::new(input.current_password);
+        let new = Zeroizing::new(input.new_password);
+        if new.is_empty() {
+            return Err("Master password cannot be empty.".to_string());
+        }
+        let database = crate::db::get()?;
+        let data_key = open_with_password(database, &current)?
+            .ok_or_else(|| "No master password is set.".to_string())
+            .map_err(|error| {
+                if current.is_empty() {
+                    WRONG_MASTER_PASSWORD.to_string()
+                } else {
+                    error
+                }
+            })?;
+        create_password_wrap(database, &new, &data_key)?;
+        self.set_data_key(Some(data_key))?;
+        self.get_status()
+    }
+
+    /// Adds a master password while unlocked, e.g. as a recovery password in
+    /// `system` mode.
+    pub fn set_master_password(&self, password: &str) -> Result<SecretBackendStatus, String> {
+        self.wait_for_startup();
+        let database = crate::db::get()?;
+        if database.read(|connection| store::has_wrap(connection, WRAP_PASSWORD))? {
+            return Err("A master password is already set. Change it instead.".to_string());
+        }
+        let data_key = self
+            .runtime()?
+            .data_key
+            .clone()
+            .ok_or_else(|| LOCKED.to_string())?;
+        create_password_wrap(database, password, &data_key)?;
+        self.get_status()
+    }
+
+    /// Drops the master password in `system` mode, which then relies on the
+    /// credential store alone.
+    pub fn remove_master_password(&self) -> Result<SecretBackendStatus, String> {
+        self.wait_for_startup();
+        if Self::mode()? != SecretStorageMode::System {
+            return Err("The master password is required in this storage mode.".to_string());
+        }
+        let database = crate::db::get()?;
+        if !database.read(|connection| store::has_wrap(connection, WRAP_SYSTEM))? {
+            return Err(
+                "Unlock saved passwords with the system credential store first.".to_string(),
+            );
+        }
+        // Without an OS check the recovery password is what guards showing
+        // and exporting saved passwords.
+        self.require_verification(VerificationPurpose::Sensitive)?;
+        database.write(|transaction| store::delete_wrap(transaction, WRAP_PASSWORD))?;
+        self.get_status()
+    }
+
+    pub fn set_storage_mode(
+        &self,
+        mode: &str,
+        password: Option<&str>,
+    ) -> Result<SecretBackendStatus, String> {
+        self.wait_for_startup();
+        let mode = SecretStorageMode::parse(mode)?;
+        let database = crate::db::get()?;
+        if !database.read(store::migrated)? {
+            return Err(NEEDS_VAULT_PASSWORD.to_string());
+        }
+        match mode {
+            SecretStorageMode::System => {
+                if !self.keyring_available()? {
+                    return Err("The system credential store is unavailable.".to_string());
+                }
+                let data_key = self.data_key_for_mode_change(database)?;
+                create_system_wrap(database, &OsCredentials, &data_key)?;
+                self.set_data_key(Some(data_key))?;
+            }
+            SecretStorageMode::Password => {
+                let data_key = self.data_key_for_mode_change(database)?;
+                if !database.read(|connection| store::has_wrap(connection, WRAP_PASSWORD))? {
+                    let password = password
+                        .filter(|password| !password.is_empty())
+                        .ok_or_else(|| "Choose a master password first.".to_string())?;
+                    create_password_wrap(database, password, &data_key)?;
+                }
+                database.write(|transaction| store::delete_wrap(transaction, WRAP_SYSTEM))?;
+                if let Err(error) = OsCredentials.delete(DATA_KEY_ACCOUNT) {
+                    eprintln!("Failed to delete the credential store key: {error}");
+                }
+                self.set_data_key(Some(data_key))?;
+            }
+            // Saved passwords stay in the database, unused until the mode
+            // is switched back.
+            SecretStorageMode::Memory => self.set_data_key(None)?,
+        }
+        Self::save_mode(mode)?;
+        self.get_status()
+    }
+
+    fn data_key_for_mode_change(&self, database: &Database) -> Result<SecretKey, String> {
+        if let Some(data_key) = self.runtime()?.data_key.clone() {
+            return Ok(data_key);
+        }
+        if self.keyring_available()?
+            && let Ok(Some(data_key)) = open_with_system_key(database, &OsCredentials)
+        {
+            return Ok(data_key);
+        }
+        let has_any_wrap = database.read(|connection| {
+            Ok(store::has_wrap(connection, WRAP_SYSTEM)?
+                || store::has_wrap(connection, WRAP_PASSWORD)?)
+        })?;
+        if has_any_wrap {
+            Err("Enter the master password to unlock saved passwords first.".to_string())
+        } else {
+            Ok(SecretKey::generate())
+        }
+    }
+
+    pub fn get_password(&self, key: &str) -> Result<Option<String>, String> {
+        let Some(data_key) = self.unlocked_key()? else {
+            return Ok(None);
+        };
+        crate::db::read(|connection| store::get_secret(connection, &data_key, key))
+            .map(|value| value.map(|value| value.to_string()))
+    }
+
+    pub fn save_password(&self, key: &str, password: &str) -> Result<SecretLocation, String> {
+        self.wait_for_startup();
+        let Some(data_key) = self.unlocked_key()? else {
+            return Ok(SecretLocation::Memory);
+        };
+        crate::db::write(|transaction| store::put_secret(transaction, &data_key, key, password))?;
+        Ok(SecretLocation::Database)
+    }
+
+    /// Why saved passwords under `keys` can't be read right now: they are
+    /// still being unlocked at startup, or they are locked. `None` when there
+    /// are none under `keys` or they are readable, so a connection reports
+    /// this instead of a missing password.
+    pub(crate) fn unreadable_reason(&self, keys: &[&str]) -> Result<Option<&'static str>, String> {
+        if self.unlocked_key()?.is_some() || Self::mode()? == SecretStorageMode::Memory {
+            return Ok(None);
+        }
+        let saved = self.saved_keys()?;
+        if !keys
+            .iter()
+            .any(|key| saved.iter().any(|saved| saved == key))
+        {
+            return Ok(None);
+        }
+        let starting = *self
+            .starting
+            .0
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner);
+        Ok(Some(if starting { STARTING } else { LOCKED }))
+    }
+
+    /// Keys with a saved password, readable while locked.
+    pub fn saved_keys(&self) -> Result<Vec<String>, String> {
+        crate::db::read(store::secret_keys)
+    }
+
+    pub fn delete_password(&self, key: &str) -> Result<bool, String> {
+        crate::db::write(|transaction| store::delete_secret(transaction, key))
+    }
+}
+
+#[cfg(test)]
+pub(crate) mod tests;

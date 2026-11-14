@@ -11,7 +11,7 @@ pub(super) struct MonitorPromptScope<'a> {
     registry: &'a PendingMonitorPrompts,
     tab_id: String,
     nonce: u32,
-    pub scope: crate::prompt_scope::PromptScope,
+    pub scope: tterm_core::prompt_scope::PromptScope,
 }
 
 impl PendingMonitorPrompts {
@@ -22,7 +22,7 @@ impl PendingMonitorPrompts {
         nonce: u32,
     ) -> Result<MonitorPromptScope<'_>, String> {
         let mut entries = self.0.lock().unwrap_or_else(|p| p.into_inner());
-        let scope = crate::prompt_scope::PromptScope::new(
+        let scope = tterm_core::prompt_scope::PromptScope::new(
             broker,
             Some(SessionKey {
                 tab_id: tab_id.to_string(),

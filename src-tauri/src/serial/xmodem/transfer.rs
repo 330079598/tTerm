@@ -3,11 +3,12 @@ use tterm_core::events::zmodem::{
 };
 use tterm_core::events::zmodem::{TransferEmitter, TransferEvent};
 
-use super::XmodemProtocol;
-use super::protocol::{self, Link, OutgoingFile, Received, TransferError};
-use crate::core::state::ZmodemMap;
-use crate::serial::io::SerialTap;
-use crate::terminal::types::PtyWriter;
+use crate::serial::xmodem::XmodemProtocol;
+use crate::{
+    serial::xmodem::protocol, serial::xmodem::protocol::Link,
+    serial::xmodem::protocol::OutgoingFile, serial::xmodem::protocol::Received,
+    serial::xmodem::protocol::TransferError,
+};
 use std::collections::VecDeque;
 use std::fs::File;
 use std::io::Write;
@@ -16,6 +17,9 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc::{Receiver, RecvTimeoutError};
 use std::sync::{Arc, PoisonError};
 use std::time::{Duration, Instant, UNIX_EPOCH};
+use tterm_core::core::state::ZmodemMap;
+use tterm_core::serial::io::SerialTap;
+use tterm_core::terminal::types::PtyWriter;
 use tterm_core::zmodem::events;
 
 /// How often the transfer list hears how far a file has got.

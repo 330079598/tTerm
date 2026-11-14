@@ -1,7 +1,7 @@
 pub(super) mod operations;
-use crate::sftp::internal::connection::map_sftp_error;
 use russh_sftp::client::SftpSession;
 use russh_sftp::protocol::FileAttributes;
+use tterm_core::sftp::internal::connection::map_sftp_error;
 
 /// The bits a chmod may set: rwx for owner, group and others, plus setuid,
 /// setgid and sticky. The file type bits are not the client's to change.
@@ -69,8 +69,8 @@ mod tests {
     #[tokio::test]
     #[ignore = "spawns a real sshd; run with --ignored real_sshd"]
     async fn real_sshd_applies_the_mode() {
-        use crate::ssh::auth::{AuthPrompter, AuthTarget, authenticate};
-        use crate::ssh::test_sshd::{TempDir, TestSshd, current_user};
+        use tterm_core::ssh::auth::{AuthPrompter, AuthTarget, authenticate};
+        use tterm_core::ssh::test_sshd::{TempDir, TestSshd, current_user};
 
         let sshd =
             TestSshd::spawn(12321, &["-t", "ed25519"], "Subsystem sftp internal-sftp\n").await;

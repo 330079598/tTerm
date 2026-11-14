@@ -1,4 +1,4 @@
-use super::*;
+use crate::session_sink::*;
 use std::sync::{Arc, Mutex};
 use tauri::Listener;
 use tauri::ipc::{Channel, InvokeResponseBody};

@@ -2,17 +2,17 @@
 //! servers, appliances with no shell, accounts limited to SFTP. Each folder
 //! costs a round trip, so several are read at once.
 
-use super::ResultSink;
-use super::matcher::NameMatcher;
 use crate::sftp::internal::api::base::directory_entry;
-use crate::sftp::internal::connection::map_sftp_error;
-use crate::sftp::internal::exec::cancelled;
+use crate::sftp::internal::api::search::ResultSink;
+use crate::sftp::internal::api::search::matcher::NameMatcher;
 use russh_sftp::client::SftpSession;
 use russh_sftp::client::fs::Metadata;
 use std::collections::VecDeque;
 use std::sync::Arc;
 use tokio::sync::watch;
 use tokio::task::JoinSet;
+use tterm_core::sftp::internal::connection::map_sftp_error;
+use tterm_core::sftp::internal::exec::cancelled;
 use tterm_core::sftp::internal::paths::join_remote_path;
 
 /// How many folders are read at once.

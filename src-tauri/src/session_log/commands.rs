@@ -1,14 +1,16 @@
-use super::{
-    ExportTerminalLogAsciicastInput, SaveTerminalContentsInput, SetTerminalLogRecordingInput,
-    TerminalLogStatus, delete_terminal_log_service, delete_terminal_logs_service,
-    export_terminal_log_asciicast_service, get_terminal_log_status_service,
-    list_terminal_logs_service, load_terminal_log_recording_service,
-    load_terminal_log_text_service, open_terminal_log_directory_service,
-    retry_terminal_logging_service, reveal_terminal_log_service, save_terminal_contents_service,
-    set_terminal_log_recording_service, terminal_log_ids_for_tab_service,
-};
 use tauri::ipc::Response;
+use tterm_core::events::session_log::TerminalLogStatus;
 use tterm_core::session_log::library;
+use tterm_core::{
+    session_log::ExportTerminalLogAsciicastInput, session_log::SaveTerminalContentsInput,
+    session_log::SetTerminalLogRecordingInput, session_log::delete_terminal_log_service,
+    session_log::delete_terminal_logs_service, session_log::export_terminal_log_asciicast_service,
+    session_log::get_terminal_log_status_service, session_log::list_terminal_logs_service,
+    session_log::load_terminal_log_recording_service, session_log::load_terminal_log_text_service,
+    session_log::open_terminal_log_directory_service, session_log::retry_terminal_logging_service,
+    session_log::reveal_terminal_log_service, session_log::save_terminal_contents_service,
+    session_log::set_terminal_log_recording_service, session_log::terminal_log_ids_for_tab_service,
+};
 
 /// The logging status; the disk usage in it is remeasured in the background
 /// and sent again with `terminal-log-status` if it changed.

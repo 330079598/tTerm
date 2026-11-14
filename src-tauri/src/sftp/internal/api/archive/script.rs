@@ -2,8 +2,8 @@
 //! quoted, and each script checks for its tool first, so a missing tool
 //! exits 127 rather than failing somewhere in the middle.
 
-use super::ArchiveFormat;
-use crate::sftp::internal::exec::{shell_path, shell_quote};
+use crate::sftp::internal::api::archive::ArchiveFormat;
+use tterm_core::sftp::internal::exec::{shell_path, shell_quote};
 
 /// The exit status a script ends with when the host lacks its tool.
 pub const MISSING_TOOL_STATUS: u32 = 127;

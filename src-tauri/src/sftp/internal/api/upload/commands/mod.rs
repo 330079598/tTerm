@@ -1,8 +1,7 @@
 mod operations;
-use super::UploadBatchResult;
-use crate::core::session::types::PtyConnectionOptions;
 use crate::services::AppServices;
 use crate::sftp::internal::api::conflict::ConflictReport;
+use crate::sftp::internal::api::upload::UploadBatchResult;
 use operations::{
     SftpCancelUploadDependencies, SftpCancelUploadInput, SftpCheckUploadConflictsDependencies,
     SftpCheckUploadConflictsInput, SftpUploadFileDependencies, SftpUploadFileInput,
@@ -10,6 +9,7 @@ use operations::{
     sftp_check_upload_conflicts_service, sftp_upload_file_service, sftp_upload_paths_service,
 };
 use tauri::State;
+use tterm_core::core::session::types::PtyConnectionOptions;
 use tterm_core::sftp::conflict::ConflictPolicy;
 
 /// Pre-flight for `sftp_upload_paths`: which planned files already exist on

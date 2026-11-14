@@ -1,12 +1,13 @@
 //! Domain operations behind the IPC entry points.
-use super::state;
-use super::{
-    SYNC_LOCK, SyncOutcome, SyncSettings, SyncStatus, set_last_error, status, sync, write_settings,
-};
-use crate::ssh::secret_store::types::SecretStoreState;
+use crate::sync::state;
 use crate::tunnel::manager::TunnelManager;
+use crate::{
+    sync::SYNC_LOCK, sync::SyncOutcome, sync::SyncSettings, sync::SyncStatus, sync::set_last_error,
+    sync::status, sync::sync, sync::write_settings,
+};
 use serde_json::Value;
 use tterm_core::core::blocking::run_blocking;
+use tterm_core::ssh::secret_store::types::SecretStoreState;
 
 pub(super) async fn get_sync_status() -> Result<SyncStatus, String> {
     run_blocking(status).await

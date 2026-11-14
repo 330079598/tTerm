@@ -1,12 +1,18 @@
 use tterm_core::events::zmodem::TransferEmitter;
 
-use super::XmodemProtocol;
-use super::disk::{safe_file_name, unused_path};
-use super::protocol::{
-    Link, OutgoingFile, Received, Result, TransferError, crc16, send_xmodem, send_ymodem,
+use crate::serial::xmodem::XmodemProtocol;
+use crate::{serial::xmodem::disk::safe_file_name, serial::xmodem::disk::unused_path};
+use crate::{
+    serial::xmodem::protocol::Link, serial::xmodem::protocol::OutgoingFile,
+    serial::xmodem::protocol::Received, serial::xmodem::protocol::Result,
+    serial::xmodem::protocol::TransferError, serial::xmodem::protocol::crc16,
+    serial::xmodem::protocol::send_xmodem, serial::xmodem::protocol::send_ymodem,
 };
-use super::receive::{FileSink, receive_xmodem, receive_ymodem};
-use super::transfer::{FileInfo, FileRows};
+use crate::{
+    serial::xmodem::receive::FileSink, serial::xmodem::receive::receive_xmodem,
+    serial::xmodem::receive::receive_ymodem,
+};
+use crate::{serial::xmodem::transfer::FileInfo, serial::xmodem::transfer::FileRows};
 use serde_json::json;
 use std::collections::VecDeque;
 use std::io::Cursor;

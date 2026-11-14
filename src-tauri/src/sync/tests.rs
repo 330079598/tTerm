@@ -1,14 +1,16 @@
-use super::snapshot::{
-    COMMANDS, KNOWN_HOSTS, PROFILE_GROUPS, PROFILES, PROXIES, SECRETS, SERIAL_SENDS, THEMES,
-};
-use super::*;
-use crate::profiles::types::ProfileGroup;
-use crate::ssh::secret_store::{
-    crypto::SecretKey as DataKey, store::get_secret, store::put_secret,
+use crate::sync::*;
+use crate::{
+    sync::snapshot::COMMANDS, sync::snapshot::KNOWN_HOSTS, sync::snapshot::PROFILE_GROUPS,
+    sync::snapshot::PROFILES, sync::snapshot::PROXIES, sync::snapshot::SECRETS,
+    sync::snapshot::SERIAL_SENDS, sync::snapshot::THEMES,
 };
 use serde_json::json;
 use tterm_core::command_library::{models::SavedCommand, repository::CommandRepository};
 use tterm_core::db::Database;
+use tterm_core::profiles::types::ProfileGroup;
+use tterm_core::ssh::secret_store::{
+    crypto::SecretKey as DataKey, store::get_secret, store::put_secret,
+};
 use tterm_core::ssh::store::KnownHostRecord;
 
 const CATEGORIES: [&str; 9] = [
@@ -146,7 +148,9 @@ impl Device {
         }))
         .unwrap();
         self.database
-            .write(|transaction| crate::profiles::storage::upsert_profile(transaction, &profile))
+            .write(|transaction| {
+                tterm_core::profiles::storage::upsert_profile(transaction, &profile)
+            })
             .unwrap();
     }
 
@@ -160,16 +164,16 @@ impl Device {
         self.database.read(tterm_core::themes::list_themes).unwrap()
     }
 
-    fn profile(&self, id: &str) -> Option<crate::profiles::types::SavedProfile> {
+    fn profile(&self, id: &str) -> Option<tterm_core::profiles::types::SavedProfile> {
         self.database
-            .read(|connection| crate::profiles::storage::get_profile(connection, id))
+            .read(|connection| tterm_core::profiles::storage::get_profile(connection, id))
             .unwrap()
     }
 
     fn delete_profile(&self, id: &str) {
         self.database
             .write(|transaction| {
-                crate::profiles::storage::delete_profiles(transaction, &[id.to_string()])
+                tterm_core::profiles::storage::delete_profiles(transaction, &[id.to_string()])
             })
             .unwrap();
     }
@@ -231,7 +235,7 @@ fn two_devices_converge_and_deletions_travel() {
     let mut edited = b.profile("p1").unwrap();
     edited.port = Some(2222);
     b.database
-        .write(|transaction| crate::profiles::storage::upsert_profile(transaction, &edited))
+        .write(|transaction| tterm_core::profiles::storage::upsert_profile(transaction, &edited))
         .unwrap();
     a.save_profile("p1", "renamed.example");
     a.sync(&mut remote);
@@ -465,10 +469,10 @@ fn groups_tunnels_and_known_hosts_sync() {
 fn proxies_and_their_passwords_sync_in_order() {
     let mut remote = None;
     let (mut a, mut b) = (Device::new(), Device::new());
-    let server = |id: &str, name: &str| crate::proxy::ProxyServer {
+    let server = |id: &str, name: &str| tterm_core::proxy::ProxyServer {
         id: id.to_string(),
         name: name.to_string(),
-        kind: crate::proxy::ProxyKind::Http,
+        kind: tterm_core::proxy::ProxyKind::Http,
         host: "proxy.corp".to_string(),
         port: 8080,
         username: Some("me".to_string()),
@@ -476,19 +480,19 @@ fn proxies_and_their_passwords_sync_in_order() {
     };
     a.database
         .write(|transaction| {
-            crate::proxy::storage::replace_proxies(
+            tterm_core::proxy::storage::replace_proxies(
                 transaction,
                 &[server("p2", "Second"), server("p1", "First")],
             )
         })
         .unwrap();
-    a.save_secret(&crate::proxy::proxy_secret_key("p1"), "pw");
+    a.save_secret(&tterm_core::proxy::proxy_secret_key("p1"), "pw");
     a.sync(&mut remote);
     assert_eq!(b.sync(&mut remote), [PROXIES, SECRETS]);
     let names = |device: &Device| -> Vec<String> {
         device
             .database
-            .read(crate::proxy::storage::list_proxies)
+            .read(tterm_core::proxy::storage::list_proxies)
             .unwrap()
             .into_iter()
             .map(|server| server.name)
@@ -496,12 +500,13 @@ fn proxies_and_their_passwords_sync_in_order() {
     };
     assert_eq!(names(&b), ["Second", "First"]);
     assert_eq!(
-        b.secret(&crate::proxy::proxy_secret_key("p1")).as_deref(),
+        b.secret(&tterm_core::proxy::proxy_secret_key("p1"))
+            .as_deref(),
         Some("pw")
     );
 
     a.database
-        .write(|transaction| crate::proxy::storage::delete_proxy(transaction, "p2"))
+        .write(|transaction| tterm_core::proxy::storage::delete_proxy(transaction, "p2"))
         .unwrap();
     a.sync(&mut remote);
     assert_eq!(b.sync(&mut remote), [PROXIES]);
@@ -618,7 +623,7 @@ fn fields_from_a_newer_version_survive_an_older_device() {
     let mut edited = b.profile("p1").unwrap();
     edited.port = Some(2200);
     b.database
-        .write(|transaction| crate::profiles::storage::upsert_profile(transaction, &edited))
+        .write(|transaction| tterm_core::profiles::storage::upsert_profile(transaction, &edited))
         .unwrap();
     b.sync(&mut remote);
     let record = &remote.as_ref().unwrap().0[PROFILES]["p1"].data;
@@ -680,7 +685,7 @@ async fn live_devices_sync_through_a_server() {
     let mut edited = b.profile("p1").unwrap();
     edited.port = Some(2222);
     b.database
-        .write(|transaction| crate::profiles::storage::upsert_profile(transaction, &edited))
+        .write(|transaction| tterm_core::profiles::storage::upsert_profile(transaction, &edited))
         .unwrap();
     a.sync_live(&remote("a")).await;
     let merged = b.sync_live(&remote("b")).await;
@@ -820,7 +825,7 @@ fn nested_groups_sync_and_merge_a_rename_with_a_move() {
     });
     a.save_profile("p1", "one.example");
     a.edit(|connection| {
-        crate::profiles::storage::move_profiles(connection, &["p1"], Some(&web), None)
+        tterm_core::profiles::storage::move_profiles(connection, &["p1"], Some(&web), None)
     });
     a.sync(&mut remote);
     assert_eq!(b.sync(&mut remote), [PROFILES, PROFILE_GROUPS]);

@@ -1,9 +1,9 @@
 pub(super) mod operations;
-use crate::core::session::types::SessionPlan;
-use crate::sftp::internal::connection::map_sftp_error;
 use russh_sftp::client::SftpSession;
 use russh_sftp::client::fs::Metadata;
+use tterm_core::core::session::types::SessionPlan;
 use tterm_core::sftp::entry::SftpDirectoryEntry;
+use tterm_core::sftp::internal::connection::map_sftp_error;
 use tterm_core::sftp::store;
 
 fn push_unique_candidate(candidates: &mut Vec<String>, path: impl Into<String>) {

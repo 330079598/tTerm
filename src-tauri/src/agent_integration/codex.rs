@@ -18,8 +18,8 @@
 
 use std::path::Path;
 
-use super::REPORT_ARG;
-use super::hooks::HookSet;
+use crate::agent_integration::REPORT_ARG;
+use crate::agent_integration::hooks::HookSet;
 
 /// `Interrupt` (Esc or Ctrl+C) leaves Codex waiting for the user without
 /// finishing anything.

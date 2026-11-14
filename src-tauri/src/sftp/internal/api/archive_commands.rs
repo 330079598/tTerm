@@ -1,13 +1,21 @@
-use super::archive::operations::{
-    SftpCancelRemoteOperationDependencies, SftpCancelRemoteOperationInput,
-    SftpCompressEntriesDependencies, SftpCompressEntriesInput, SftpExtractArchiveDependencies,
-    SftpExtractArchiveInput, sftp_cancel_remote_operation_service, sftp_compress_entries_service,
-    sftp_extract_archive_service,
-};
-use super::archive::{CompressRequest, ExtractRequest, RemoteOperationResult};
-use crate::core::session::types::PtyConnectionOptions;
 use crate::services::AppServices;
+use crate::{
+    sftp::internal::api::archive::CompressRequest, sftp::internal::api::archive::ExtractRequest,
+    sftp::internal::api::archive::RemoteOperationResult,
+};
+use crate::{
+    sftp::internal::api::archive::operations::SftpCancelRemoteOperationDependencies,
+    sftp::internal::api::archive::operations::SftpCancelRemoteOperationInput,
+    sftp::internal::api::archive::operations::SftpCompressEntriesDependencies,
+    sftp::internal::api::archive::operations::SftpCompressEntriesInput,
+    sftp::internal::api::archive::operations::SftpExtractArchiveDependencies,
+    sftp::internal::api::archive::operations::SftpExtractArchiveInput,
+    sftp::internal::api::archive::operations::sftp_cancel_remote_operation_service,
+    sftp::internal::api::archive::operations::sftp_compress_entries_service,
+    sftp::internal::api::archive::operations::sftp_extract_archive_service,
+};
 use tauri::State;
+use tterm_core::core::session::types::PtyConnectionOptions;
 
 /// Packs entries of one folder into a new archive beside them.
 #[tauri::command]

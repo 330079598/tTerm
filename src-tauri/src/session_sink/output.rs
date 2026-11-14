@@ -1,8 +1,8 @@
 //! Wraps Tauri binary IPC as a session byte sender.
-use crate::terminal::io_batcher::OutputFlow;
-use crate::terminal::output::TerminalOutput;
 use std::sync::Arc;
 use tauri::ipc::{Channel, InvokeResponseBody};
+use tterm_core::terminal::io_batcher::OutputFlow;
+use tterm_core::terminal::output::TerminalOutput;
 
 pub(crate) fn new(channel: Channel<InvokeResponseBody>) -> TerminalOutput {
     with_flow(channel, Arc::new(OutputFlow::default()))

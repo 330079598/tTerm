@@ -1,13 +1,17 @@
 mod operations;
-use super::{DeleteBatchStartResult, DeleteEntryRequest, DeleteOptions, DeletePreviewResult};
-use crate::core::session::types::PtyConnectionOptions;
 use crate::services::AppServices;
+use crate::{
+    sftp::internal::api::delete::DeleteBatchStartResult,
+    sftp::internal::api::delete::DeleteEntryRequest, sftp::internal::api::delete::DeleteOptions,
+    sftp::internal::api::delete::DeletePreviewResult,
+};
 use operations::{
     SftpDeleteEntriesDependencies, SftpDeleteEntriesInput, SftpDeleteEntryDependencies,
     SftpDeleteEntryInput, SftpPreviewDeleteEntriesDependencies, SftpPreviewDeleteEntriesInput,
     sftp_delete_entries_service, sftp_delete_entry_service, sftp_preview_delete_entries_service,
 };
 use tauri::State;
+use tterm_core::core::session::types::PtyConnectionOptions;
 #[tauri::command]
 pub async fn sftp_preview_delete_entries(
     tab_id: String,

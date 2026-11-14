@@ -4,11 +4,11 @@
 //! distinct. Sync and backups write groups as they come, so [`repair`] mends
 //! what they can leave behind.
 
-use super::storage::{list_saved_profiles, upsert_profile};
-use super::types::{ProfileGroup, SavedProfile};
 use rusqlite::{Connection, params};
 use std::collections::{HashMap, HashSet};
 use tterm_core::db::sql_error;
+use tterm_core::{profiles::storage::list_saved_profiles, profiles::storage::upsert_profile};
+use tterm_core::{profiles::types::ProfileGroup, profiles::types::SavedProfile};
 
 /// Separates the names in a group path.
 const PATH_SEPARATOR: char = '/';

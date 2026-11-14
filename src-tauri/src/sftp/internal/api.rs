@@ -1,9 +1,9 @@
 macro_rules! with_sftp {
     ($app:expr_2021, $tab_id:expr_2021, $plan:expr_2021, $prompts:expr_2021, $pool:expr_2021, $sftp:ident => $body:block) => {{
-        let key = $crate::sftp::internal::types::SftpConnectionKey::from_plan($tab_id, $plan)?;
+        let key = tterm_core::sftp::internal::types::SftpConnectionKey::from_plan($tab_id, $plan)?;
 
         // Ensure connection exists
-        $crate::sftp::internal::connection::get_or_create_sftp_connection(
+        tterm_core::sftp::internal::connection::get_or_create_sftp_connection(
             $app,
             $tab_id,
             $plan,
@@ -29,11 +29,12 @@ macro_rules! with_sftp {
         // answers stays pooled, so that an error the server answered, such as
         // a missing file, costs no reconnect, nor in sudo mode another
         // password prompt.
-        if result.is_err() && !$crate::sftp::internal::connection::session_answers(&sftp).await {
+        if result.is_err() && !tterm_core::sftp::internal::connection::session_answers(&sftp).await
+        {
             let mut pool_guard = $pool.write().await;
             if let Some(cached) = pool_guard.remove(&key) {
                 tokio::spawn(async move {
-                    $crate::sftp::internal::connection::close_sftp(cached.connection).await;
+                    tterm_core::sftp::internal::connection::close_sftp(cached.connection).await;
                 });
             }
         }
@@ -59,24 +60,24 @@ pub mod search;
 pub(crate) mod search_commands;
 pub mod upload;
 
-use crate::core::session::types::{PtyConnectionOptions, SessionPlan};
-use crate::sftp::internal::connection::SftpContext;
-use crate::sftp::internal::connection::{
-    ensure_ssh_plan, evict_connection, get_or_create_sftp_connection, pooled_handles,
-};
-use crate::sftp::internal::types::{
-    SftpConnectionKey, SftpConnectionPool, SftpHandles, TransferCancelMap,
-};
-use crate::ssh::secret_store::types::SecretStoreState;
 use russh_sftp::client::SftpSession;
 use std::future::Future;
 use std::sync::PoisonError;
 use std::sync::{Arc, LazyLock, RwLock};
 use std::time::SystemTime;
+use tterm_core::core::session::types::{PtyConnectionOptions, SessionPlan};
+use tterm_core::sftp::internal::connection::SftpContext;
+use tterm_core::sftp::internal::connection::{
+    ensure_ssh_plan, evict_connection, get_or_create_sftp_connection, pooled_handles,
+};
 use tterm_core::sftp::internal::transfer::rate_limit::RateLimiter;
 use tterm_core::sftp::internal::transfer::{
     DEFAULT_PARALLELISM, MAX_PARALLELISM, RemoteChannels, TransferDirection,
 };
+use tterm_core::sftp::internal::types::{
+    SftpConnectionKey, SftpConnectionPool, SftpHandles, TransferCancelMap,
+};
+use tterm_core::ssh::secret_store::types::SecretStoreState;
 
 /// Resolved parallelism cached against the config file's mtime: transfers
 /// resolve this per file (directory batches), and re-reading + re-parsing the
@@ -112,7 +113,7 @@ pub fn resolve_transfer_parallelism() -> usize {
         return cached;
     }
 
-    let parallelism = crate::config::load_config_file()
+    let parallelism = tterm_core::config::load_config_file()
         .ok()
         .map(|config| config.sftp_transfer_parallelism as usize)
         .unwrap_or(DEFAULT_PARALLELISM)
@@ -140,7 +141,7 @@ pub fn transfer_rate_limiter(direction: TransferDirection) -> Arc<RateLimiter> {
 
 /// Applies the configured SFTP bandwidth limits (KiB/s, 0 = unlimited). Takes
 /// effect immediately, including for transfers already running.
-pub fn apply_bandwidth_limits(config: &crate::config::AppConfig) {
+pub fn apply_bandwidth_limits(config: &tterm_core::config::AppConfig) {
     UPLOAD_LIMITER.set_rate(u64::from(config.sftp_upload_limit_kib) * 1024);
     DOWNLOAD_LIMITER.set_rate(u64::from(config.sftp_download_limit_kib) * 1024);
 }

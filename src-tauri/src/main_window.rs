@@ -38,7 +38,7 @@ fn background_throttling_policy(value: &str) -> BackgroundThrottlingPolicy {
 /// then jump.
 pub fn create_main_window(
     app: &tauri::App,
-    cfg: Option<&crate::config::AppConfig>,
+    cfg: Option<&tterm_core::config::AppConfig>,
 ) -> tauri::Result<()> {
     let window_config = app
         .config()

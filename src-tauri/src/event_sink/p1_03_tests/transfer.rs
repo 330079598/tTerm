@@ -1,4 +1,4 @@
-use super::*;
+use crate::event_sink::p1_03_tests::*;
 
 #[test]
 fn zmodem_and_serial_keep_the_same_transfer_wire_protocol() {

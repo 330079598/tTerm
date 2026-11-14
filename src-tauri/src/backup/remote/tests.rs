@@ -1,8 +1,9 @@
-use super::files::{
-    parse_backup_file_name, remote_backups, sanitize_device_name, validate_file_name,
-};
-use super::*;
 use crate::backup::MAX_BACKUP_SIZE;
+use crate::backup::remote::*;
+use crate::{
+    backup::remote::files::parse_backup_file_name, backup::remote::files::remote_backups,
+    backup::remote::files::sanitize_device_name, backup::remote::files::validate_file_name,
+};
 use chrono::TimeZone;
 use tterm_core::backup::webdav::DavEntry;
 

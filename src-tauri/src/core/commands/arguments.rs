@@ -53,6 +53,6 @@ pub(super) struct WriteSavedPasswordForSudoInput {
 }
 
 pub(super) struct SudoPasswordContext<'a> {
-    pub(super) app: &'a crate::ssh::context::ConnectionContext,
-    pub(super) secret_state: &'a crate::ssh::secret_store::types::SecretStoreState,
+    pub(super) app: &'a tterm_core::ssh::context::ConnectionContext,
+    pub(super) secret_state: &'a tterm_core::ssh::secret_store::types::SecretStoreState,
 }

@@ -1,6 +1,9 @@
-use super::XmodemProtocol;
-use super::protocol::{
-    Link, OutgoingFile, Received, TransferError, crc16, send_xmodem, send_ymodem,
+use crate::serial::xmodem::XmodemProtocol;
+use crate::{
+    serial::xmodem::protocol::Link, serial::xmodem::protocol::OutgoingFile,
+    serial::xmodem::protocol::Received, serial::xmodem::protocol::TransferError,
+    serial::xmodem::protocol::crc16, serial::xmodem::protocol::send_xmodem,
+    serial::xmodem::protocol::send_ymodem,
 };
 use std::collections::VecDeque;
 use std::io::Cursor;

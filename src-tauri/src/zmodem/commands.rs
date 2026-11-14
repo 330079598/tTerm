@@ -10,9 +10,10 @@ use std::path::PathBuf;
 use std::sync::PoisonError;
 use std::sync::atomic::Ordering;
 
-use crate::core::state::ActiveSession;
-use crate::core::{
-    state::PtyMap, state::ZmodemArmedSendMap, state::ZmodemManualDetectMap, state::ZmodemMap,
+use tterm_core::core::state::ActiveSession;
+use tterm_core::{
+    core::state::PtyMap, core::state::ZmodemArmedSendMap, core::state::ZmodemManualDetectMap,
+    core::state::ZmodemMap,
 };
 
 /// Cancels an in-progress or armed-but-not-yet-started ZMODEM transfer for
@@ -90,13 +91,19 @@ fn zmodem_cancel_service(
         let mut active_guard = session.active.blocking_lock();
         match active_guard.as_mut() {
             Some(ActiveSession::Local(local)) => {
-                let _ = local.writer.write_all(&super::session::abort_sequence());
+                let _ = local
+                    .writer
+                    .write_all(&tterm_core::zmodem::session::abort_sequence());
             }
             Some(ActiveSession::Ssh(ssh)) => {
-                let _ = ssh.input_tx.send(super::session::abort_sequence());
+                let _ = ssh
+                    .input_tx
+                    .send(tterm_core::zmodem::session::abort_sequence());
             }
             Some(ActiveSession::Serial(serial)) => {
-                let _ = serial.writer.write_all(&super::session::abort_sequence());
+                let _ = serial
+                    .writer
+                    .write_all(&tterm_core::zmodem::session::abort_sequence());
             }
             None => {}
         }
@@ -182,7 +189,7 @@ fn zmodem_start_send_service(
     });
 
     std::thread::spawn(move || {
-        super::send::run(super::send::ZmodemSendParams {
+        tterm_core::zmodem::send::run(tterm_core::zmodem::send::ZmodemSendParams {
             emit,
             tab_id,
             zmodem_map: zmodem_map_for_thread,

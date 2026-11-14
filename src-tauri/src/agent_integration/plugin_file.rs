@@ -6,7 +6,7 @@
 use std::fs;
 use std::path::Path;
 
-use super::{IntegrationState, REPORT_MARKER};
+use crate::{agent_integration::IntegrationState, agent_integration::REPORT_MARKER};
 
 pub(super) struct PluginFile {
     /// Where the agent looks for it, under its config directory.

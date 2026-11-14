@@ -1,16 +1,13 @@
 //! The archive format: building, encrypting, decoding and validating a
 //! `.tterm-backup` file.
 
-use super::remote;
-use super::{
-    BACKUP_AAD, BackupCrypto, BackupManifest, BackupPayload, BackupSelection, DecodedBundle,
-    ENCRYPTED_PAYLOAD_ENTRY, FORMAT_NAME, FORMAT_VERSION, MANIFEST_ENTRY, MAX_BACKUP_SIZE,
-    MAX_PAYLOAD_SIZE, PAYLOAD_ENTRY,
+use crate::backup::remote;
+use crate::{
+    backup::BACKUP_AAD, backup::BackupCrypto, backup::BackupManifest, backup::BackupPayload,
+    backup::BackupSelection, backup::DecodedBundle, backup::ENCRYPTED_PAYLOAD_ENTRY,
+    backup::FORMAT_NAME, backup::FORMAT_VERSION, backup::MANIFEST_ENTRY, backup::MAX_BACKUP_SIZE,
+    backup::MAX_PAYLOAD_SIZE, backup::PAYLOAD_ENTRY,
 };
-use crate::config::AppConfig;
-use crate::profiles::types::SavedProfile;
-use crate::proxy::ProxyServer;
-use crate::ssh::secret_store::types::SecretStoreState;
 use aes_gcm::aead::{Aead, KeyInit, Payload as AeadPayload};
 use aes_gcm::{Aes256Gcm, Nonce};
 use argon2::{Algorithm, Argon2, Params, Version};
@@ -22,8 +19,12 @@ use std::collections::HashSet;
 use std::fs;
 use std::io::{Cursor, Read, Write};
 use std::path::{Component, Path};
+use tterm_core::config::AppConfig;
+use tterm_core::profiles::types::SavedProfile;
+use tterm_core::proxy::ProxyServer;
 use tterm_core::session_restore::SessionData;
 use tterm_core::sftp::store::SftpDirectoryStore;
+use tterm_core::ssh::secret_store::types::SecretStoreState;
 use tterm_core::ssh::store::KnownHostStore;
 use tterm_core::tunnel::types::TunnelRule;
 use zeroize::Zeroize;

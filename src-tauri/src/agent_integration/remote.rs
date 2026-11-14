@@ -19,12 +19,13 @@ use russh_sftp::client::error::Error as SftpError;
 use russh_sftp::protocol::StatusCode;
 use tokio::io::AsyncWriteExt;
 
-use super::json::{self, Object};
-use super::{
-    AGENTS, Agent, AgentIntegrationStatus, AgentSpec, ConfigSource, Integration, IntegrationState,
-    Location, status_of,
+use crate::{
+    agent_integration::AGENTS, agent_integration::Agent, agent_integration::AgentIntegrationStatus,
+    agent_integration::AgentSpec, agent_integration::ConfigSource, agent_integration::Integration,
+    agent_integration::IntegrationState, agent_integration::Location, agent_integration::status_of,
 };
-use crate::sftp::internal::exec::RemoteScript;
+use crate::{agent_integration::json, agent_integration::json::Object};
+use tterm_core::sftp::internal::exec::RemoteScript;
 
 /// Bounds reading the host's environment: a login shell that takes longer
 /// leaves the variables only it sets unread.
@@ -271,7 +272,7 @@ async fn change(
 
 /// The host's SFTP session and the environment its agents see.
 async fn open(
-    handles: crate::sftp::internal::types::SftpHandles,
+    handles: tterm_core::sftp::internal::types::SftpHandles,
 ) -> Result<(Arc<SftpSession>, HashMap<String, String>), String> {
     let env = read_env(&handles.ssh).await?;
     Ok((handles.sftp, env))
@@ -279,7 +280,7 @@ async fn open(
 
 /// Each agent's integration on the tab's SSH host.
 pub(super) async fn remote_status(
-    handles: crate::sftp::internal::types::SftpHandles,
+    handles: tterm_core::sftp::internal::types::SftpHandles,
 ) -> Result<Vec<AgentIntegrationStatus>, String> {
     let (sftp, env) = open(handles).await?;
     let mut statuses = Vec::with_capacity(AGENTS.len());
@@ -290,7 +291,7 @@ pub(super) async fn remote_status(
 }
 
 pub(super) async fn remote_change(
-    handles: crate::sftp::internal::types::SftpHandles,
+    handles: tterm_core::sftp::internal::types::SftpHandles,
     agent: Agent,
     install: bool,
 ) -> Result<AgentIntegrationStatus, String> {

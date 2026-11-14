@@ -1,9 +1,6 @@
-use super::hub::{Lease, RouteGuard, SessionHub, SessionKey, SshConnection, SshHandle};
-use crate::core::session::types::SessionPlan;
-use crate::ssh::{
-    jump::connect::ConnectContext, jump::connect::SshTarget,
-    jump::connect::open_target_ssh_session_with_forwarding, types::ConnectionStatusOptions,
-    types::ForwardedTcpIp, types::HostKeyVerificationMode,
+use crate::{
+    tunnel::hub::Lease, tunnel::hub::RouteGuard, tunnel::hub::SessionHub, tunnel::hub::SessionKey,
+    tunnel::hub::SshConnection, tunnel::hub::SshHandle,
 };
 use connections::{
     ConnectionLimiter, Listeners, forward_local_connection, forward_remote_connection,
@@ -14,8 +11,15 @@ use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::watch;
 use tokio::task::JoinSet;
+use tterm_core::core::session::types::SessionPlan;
 use tterm_core::events::tunnel::TunnelState;
 use tterm_core::tunnel::types::{TunnelKind, TunnelRule};
+use tterm_core::{
+    ssh::jump::connect::ConnectContext, ssh::jump::connect::SshTarget,
+    ssh::jump::connect::open_target_ssh_session_with_forwarding,
+    ssh::types::ConnectionStatusOptions, ssh::types::ForwardedTcpIp,
+    ssh::types::HostKeyVerificationMode,
+};
 
 mod connections;
 pub(super) mod reporter;
@@ -245,7 +249,7 @@ async fn run_remote_session(
 }
 
 pub struct RunContext {
-    pub connection: crate::ssh::context::ConnectionContext,
+    pub connection: tterm_core::ssh::context::ConnectionContext,
     pub rule: TunnelRule,
     pub plan: SessionPlan,
     pub prompts: std::sync::Arc<tterm_core::prompts::PromptBroker>,
@@ -337,8 +341,8 @@ pub async fn run_tunnel(ctx: RunContext, mut stop_rx: watch::Receiver<bool>) {
         // Joins the connection another tunnel to this host already has, or
         // opens it for the others to join.
         let connect = hub.acquire(&session_key, |forwarded_tx| async {
-            let scope = crate::prompt_scope::PromptScope::new(prompts.clone(), None)
-                .map_err(crate::ssh::types::SshConnectError::Cancelled)?;
+            let scope = tterm_core::prompt_scope::PromptScope::new(prompts.clone(), None)
+                .map_err(tterm_core::ssh::types::SshConnectError::Cancelled)?;
             let (jump_chain, handle) = open_target_ssh_session_with_forwarding(
                 ConnectContext {
                     app: &connection,
@@ -349,7 +353,7 @@ pub async fn run_tunnel(ctx: RunContext, mut stop_rx: watch::Receiver<bool>) {
                     // Tunnels reconnect on their own, so there is no moment at
                     // which a prompt is expected.
                     prompt_owner: Some(&scope.owner),
-                    auth_prompter: &crate::ssh::auth::AuthPrompter::Unavailable,
+                    auth_prompter: &tterm_core::ssh::auth::AuthPrompter::Unavailable,
                 },
                 SshTarget {
                     keepalive_interval_secs,

@@ -4,13 +4,13 @@
 //! it, so it either happens completely or is retried on the next launch.
 //! Imported files are renamed to `<name>.migrated` rather than deleted.
 
-use crate::profiles::types::{ProfileGroup, SavedProfile};
 use rusqlite::{Connection, OptionalExtension};
 use serde::de::DeserializeOwned;
 use std::fs;
 use std::path::Path;
 use tterm_core::config::paths::ensure_config_dir;
 use tterm_core::db::{Database, IMPORT_ERROR, get, init, read, sql_error};
+use tterm_core::profiles::types::{ProfileGroup, SavedProfile};
 use tterm_core::sftp::store::SftpDirectoryStore;
 use tterm_core::ssh::store::KnownHostStore;
 use tterm_core::tunnel::types::TunnelRule;
@@ -109,7 +109,7 @@ pub(crate) fn import_settings_files_into(
 fn import_files(connection: &Connection, config_dir: &Path) -> Result<(), String> {
     let profiles = read_json::<Vec<SavedProfile>>(&config_dir.join("profiles.json"))?;
     if let Some(profiles) = &profiles {
-        crate::profiles::storage::replace_profiles(connection, profiles)?;
+        tterm_core::profiles::storage::replace_profiles(connection, profiles)?;
     }
     let groups = read_json::<Vec<ProfileGroup>>(&config_dir.join("profile_groups.json"))?;
     if groups.is_some() || profiles.is_some() {

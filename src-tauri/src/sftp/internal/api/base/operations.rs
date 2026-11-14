@@ -1,13 +1,16 @@
-use super::{read_directory_entries, resolve_initial_directory};
-use crate::core::session::types::PtyConnectionOptions;
-use crate::sftp::internal::connection::{SftpContext, ensure_ssh_plan};
-use crate::sftp::internal::connection::{map_sftp_error, release_tab_connections};
-use crate::sftp::internal::types::SftpConnectionPool;
-use crate::sftp::internal::types::SftpDirectoryListing;
-use crate::ssh::secret_store::types::SecretStoreState;
+use crate::{
+    sftp::internal::api::base::read_directory_entries,
+    sftp::internal::api::base::resolve_initial_directory,
+};
 use std::sync::Arc;
+use tterm_core::core::session::types::PtyConnectionOptions;
 use tterm_core::prompts::PromptBroker;
+use tterm_core::sftp::internal::connection::{SftpContext, ensure_ssh_plan};
+use tterm_core::sftp::internal::connection::{map_sftp_error, release_tab_connections};
+use tterm_core::sftp::internal::types::SftpConnectionPool;
+use tterm_core::sftp::internal::types::SftpDirectoryListing;
 use tterm_core::sftp::store;
+use tterm_core::ssh::secret_store::types::SecretStoreState;
 
 pub(crate) struct SftpReleaseTabConnectionsInput {
     pub(crate) tab_id: String,

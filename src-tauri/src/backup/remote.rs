@@ -5,12 +5,10 @@
 
 pub(super) mod service;
 
-use super::BackupSelection;
-use super::archive::build_archive_for_version;
-use super::diff::value_array_len;
-use super::export::collect_payload;
-use crate::ssh::secret_store::store::get_secret;
-use crate::ssh::secret_store::types::SecretStoreState;
+use crate::backup::BackupSelection;
+use crate::backup::archive::build_archive_for_version;
+use crate::backup::diff::value_array_len;
+use crate::backup::export::collect_payload;
 use chrono::Utc;
 use files::{backup_file_name, device_name, now_ms, stale_backups, user_agent};
 use rusqlite::Connection;
@@ -21,6 +19,8 @@ use std::sync::atomic::AtomicBool;
 use tterm_core::backup::webdav::{WebDavClient, split_remote_directory};
 use tterm_core::core::blocking::run_blocking;
 use tterm_core::db::meta;
+use tterm_core::ssh::secret_store::store::get_secret;
+use tterm_core::ssh::secret_store::types::SecretStoreState;
 use zeroize::Zeroizing;
 
 mod files;
@@ -491,8 +491,8 @@ fn save_keeping_history(
 
 /// Forgets the server, its passwords and the upload history.
 fn clear_settings(connection: &Connection) -> Result<(), String> {
-    crate::ssh::secret_store::store::delete_secret(connection, PASSWORD_KEY)?;
-    crate::ssh::secret_store::store::delete_secret(connection, BACKUP_PASSWORD_KEY)?;
+    tterm_core::ssh::secret_store::store::delete_secret(connection, PASSWORD_KEY)?;
+    tterm_core::ssh::secret_store::store::delete_secret(connection, BACKUP_PASSWORD_KEY)?;
     for key in [SETTINGS_KEY, LAST_BACKUP_AT_KEY, LAST_ERROR_KEY] {
         meta::remove(connection, key)?;
     }

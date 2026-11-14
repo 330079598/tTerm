@@ -1,15 +1,15 @@
 //! Scheduled backups, recovery points and the backup history.
 
-use super::apply::is_default_or_existing_directory;
-use super::archive::build_archive_for_version;
-use super::diff::value_array_len;
-use super::export::collect_payload;
-use super::remote;
-use super::{
-    AUTOMATIC_LAST_BACKUP_AT_KEY, AUTOMATIC_SETTINGS_FILE, AUTOMATIC_SETTINGS_KEY,
-    AutomaticBackupSettings, BackupExportResult, BackupHistoryEntry, BackupSelection,
+use crate::backup::apply::is_default_or_existing_directory;
+use crate::backup::archive::build_archive_for_version;
+use crate::backup::diff::value_array_len;
+use crate::backup::export::collect_payload;
+use crate::backup::remote;
+use crate::{
+    backup::AUTOMATIC_LAST_BACKUP_AT_KEY, backup::AUTOMATIC_SETTINGS_FILE,
+    backup::AUTOMATIC_SETTINGS_KEY, backup::AutomaticBackupSettings, backup::BackupExportResult,
+    backup::BackupHistoryEntry, backup::BackupSelection,
 };
-use crate::ssh::secret_store::types::SecretStoreState;
 use chrono::Utc;
 use serde_json::Value;
 use std::cmp::Reverse;
@@ -17,6 +17,7 @@ use std::collections::HashSet;
 use std::fs;
 use std::path::{Path, PathBuf};
 use tterm_core::db::meta;
+use tterm_core::ssh::secret_store::types::SecretStoreState;
 
 pub(super) fn run_due_automatic_backup_blocking(
     app_version: String,

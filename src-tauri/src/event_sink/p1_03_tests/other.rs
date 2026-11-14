@@ -1,4 +1,4 @@
-use super::*;
+use crate::event_sink::p1_03_tests::*;
 
 #[test]
 fn cwd_notification_and_launch_contracts_match_legacy() {

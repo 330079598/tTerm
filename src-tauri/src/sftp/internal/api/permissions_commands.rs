@@ -1,8 +1,10 @@
-use super::permissions::operations::{
-    SftpSetPermissionsDependencies, SftpSetPermissionsInput, sftp_set_permissions_service,
+use crate::{
+    sftp::internal::api::permissions::operations::SftpSetPermissionsDependencies,
+    sftp::internal::api::permissions::operations::SftpSetPermissionsInput,
+    sftp::internal::api::permissions::operations::sftp_set_permissions_service,
 };
-use crate::core::session::types::PtyConnectionOptions;
 use tauri::State;
+use tterm_core::core::session::types::PtyConnectionOptions;
 
 #[tauri::command]
 pub async fn sftp_set_permissions(

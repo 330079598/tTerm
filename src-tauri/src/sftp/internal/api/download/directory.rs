@@ -1,15 +1,21 @@
 //! Downloading folders, and several remote paths as one transfer.
 
-use super::{is_cancelled, transfer_options, transfer_outcome};
-use crate::sftp::internal::api::conflict::{self, CandidateDecision, SourceStat};
-use crate::sftp::internal::connection::map_sftp_error;
-use crate::sftp::internal::types::TransferCancelMap;
+use crate::{
+    sftp::internal::api::conflict, sftp::internal::api::conflict::CandidateDecision,
+    sftp::internal::api::conflict::SourceStat,
+};
+use crate::{
+    sftp::internal::api::download::is_cancelled, sftp::internal::api::download::transfer_options,
+    sftp::internal::api::download::transfer_outcome,
+};
 use russh_sftp::client::SftpSession;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use tterm_core::events::sftp::SftpEvent;
 use tterm_core::events::{AppEvent, EventSink};
+use tterm_core::sftp::internal::connection::map_sftp_error;
 use tterm_core::sftp::internal::transfer::{self, ProgressSink, RemoteChannels, TransferProgress};
+use tterm_core::sftp::internal::types::TransferCancelMap;
 
 use tokio::sync::watch;
 use tterm_core::events::sftp::download::{DownloadBatchCompleteEvent, DownloadProgressEvent};

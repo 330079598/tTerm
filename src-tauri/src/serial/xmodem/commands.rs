@@ -1,6 +1,7 @@
-use super::{
-    SerialReceiveFilesInput, SerialSendFilesInput, XmodemProtocol, serial_receive_files_service,
-    serial_send_files_service,
+use crate::{
+    serial::xmodem::SerialReceiveFilesInput, serial::xmodem::SerialSendFilesInput,
+    serial::xmodem::XmodemProtocol, serial::xmodem::serial_receive_files_service,
+    serial::xmodem::serial_send_files_service,
 };
 
 /// Sends files to a serial tab's device. Returns once the transfer starts;

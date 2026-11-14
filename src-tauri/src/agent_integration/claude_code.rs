@@ -5,7 +5,7 @@
 //! writes the sequence for it. Only synchronous hooks get theirs written,
 //! and only while Claude Code's interface is up (not from `SessionStart`).
 
-use super::hooks::HookSet;
+use crate::agent_integration::hooks::HookSet;
 
 /// The hook events tTerm listens to and the state each one reports.
 /// `PermissionRequest` fires the moment Claude asks; the `Notification` hook's

@@ -1,17 +1,21 @@
 //! Domain operations behind the IPC entry points.
-use super::automatic::{
-    delete_backup_history_entry_blocking, list_backup_history_blocking,
-    load_automatic_backup_settings, run_due_automatic_backup_blocking,
-    validate_automatic_backup_settings, write_automatic_backup_settings,
+use crate::{
+    backup::AutomaticBackupSettings, backup::BackupExportOptions, backup::BackupExportResult,
+    backup::BackupHistoryEntry, backup::BackupImportOptions, backup::BackupImportResult,
+    backup::BackupInspectInput, backup::BackupInspectResult, backup::export_backup_blocking,
+    backup::import_backup_blocking, backup::inspect_backup_blocking,
 };
-use super::{
-    AutomaticBackupSettings, BackupExportOptions, BackupExportResult, BackupHistoryEntry,
-    BackupImportOptions, BackupImportResult, BackupInspectInput, BackupInspectResult,
-    export_backup_blocking, import_backup_blocking, inspect_backup_blocking,
+use crate::{
+    backup::automatic::delete_backup_history_entry_blocking,
+    backup::automatic::list_backup_history_blocking,
+    backup::automatic::load_automatic_backup_settings,
+    backup::automatic::run_due_automatic_backup_blocking,
+    backup::automatic::validate_automatic_backup_settings,
+    backup::automatic::write_automatic_backup_settings,
 };
-use crate::ssh::secret_store::types::SecretStoreState;
 use serde_json::Value;
 use tterm_core::core::blocking::run_blocking;
+use tterm_core::ssh::secret_store::types::SecretStoreState;
 
 pub(super) async fn export_backup(
     app_version: String,

@@ -1,8 +1,9 @@
 //! The Tauri commands for backups kept on a WebDAV server.
 
-use super::remote::{
-    RemoteBackupEntry, WebDavBackupSettings, WebDavBackupStatus, WebDavDeleteResult,
-    WebDavUploadResult,
+use crate::{
+    backup::remote::RemoteBackupEntry, backup::remote::WebDavBackupSettings,
+    backup::remote::WebDavBackupStatus, backup::remote::WebDavDeleteResult,
+    backup::remote::WebDavUploadResult,
 };
 use serde_json::Value;
 

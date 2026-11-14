@@ -3,5 +3,10 @@
 
 pub mod agent_resume;
 pub mod blocking;
+#[cfg(test)]
+pub mod channel_test_support;
 pub mod login_shell;
 pub mod runtime;
+pub mod session;
+pub mod state;
+pub mod supervisor;

@@ -1,0 +1,711 @@
+pub mod saved_hops;
+pub mod types;
+
+use types::{
+    JumpHostOptions, JumpHostPlan, MAX_JUMP_HOSTS, PtyConnectionOptions, SessionPlan,
+    TerminalShellConfig, jump_host_identity_secret_key, jump_host_secret_key, sudo_secret_key,
+};
+
+use crate::core::state::SessionKind;
+
+/// The local shell a terminal session starts, as the connection chose it.
+fn terminal_shell_config(
+    connection: &PtyConnectionOptions,
+    cwd: Option<String>,
+) -> TerminalShellConfig {
+    let trimmed = |value: &Option<String>| {
+        value
+            .as_deref()
+            .map(str::trim)
+            .filter(|v| !v.is_empty())
+            .map(str::to_string)
+    };
+    TerminalShellConfig {
+        shell: connection
+            .terminal_shell
+            .as_deref()
+            .unwrap_or("auto")
+            .trim()
+            .to_string(),
+        custom_path: trimmed(&connection.terminal_shell_custom_path),
+        custom_args: trimmed(&connection.terminal_shell_custom_args),
+        #[cfg(windows)]
+        wsl_distro: trimmed(&connection.terminal_shell_wsl_distro),
+        cwd,
+    }
+}
+
+pub fn normalize_connection(
+    connection: Option<PtyConnectionOptions>,
+) -> Result<SessionPlan, String> {
+    let connection = connection.unwrap_or_default();
+    let kind = match connection.connection_type.as_deref() {
+        Some("ssh") => SessionKind::Ssh,
+        Some("serial") => SessionKind::Serial,
+        _ => SessionKind::Terminal,
+    };
+
+    let keepalive_interval_secs = connection.keepalive_interval_secs.unwrap_or(15).max(5);
+    let session_log =
+        crate::session_log::SessionLogPolicy::from_label(connection.session_log.as_deref());
+    let keepalive_count_max = connection.keepalive_count_max.unwrap_or(3).max(1);
+
+    let cwd = connection
+        .cwd
+        .clone()
+        .filter(|value| !value.trim().is_empty());
+
+    let terminal_shell = Some(terminal_shell_config(&connection, cwd));
+
+    match kind {
+        SessionKind::Terminal => Ok(SessionPlan {
+            kind,
+            profile_id: None,
+            profile_name: "terminal".to_string(),
+            host: None,
+            port: 0,
+            username: None,
+            password: None,
+            ignore_saved_password: false,
+            remember_password: false,
+            keepalive_interval_secs,
+            keepalive_count_max,
+            reconnect_enabled: false,
+            reconnect_max_attempts: 0,
+            private_key_path: None,
+            private_key_passphrase: None,
+            certificate_path: None,
+            use_agent: false,
+            keyboard_interactive: false,
+            auto_auth: false,
+            agent_forward: false,
+            terminal_shell,
+            jump_hosts: Vec::new(),
+            encoding: Default::default(),
+            shell_integration: false,
+            session_log,
+            proxy_choice: Default::default(),
+            proxy: None,
+            serial: None,
+            sftp_sudo: false,
+        }),
+        SessionKind::Ssh => normalize_ssh(
+            connection,
+            session_log,
+            keepalive_interval_secs,
+            keepalive_count_max,
+        ),
+        SessionKind::Serial => normalize_serial(connection, session_log),
+    }
+}
+
+/// The plan of a serial connection. It reconnects whenever its device comes
+/// back, however long that takes, so it has no retry budget.
+fn normalize_serial(
+    connection: PtyConnectionOptions,
+    session_log: crate::session_log::SessionLogPolicy,
+) -> Result<SessionPlan, String> {
+    let serial = connection
+        .serial
+        .ok_or_else(|| "Choose a serial port to connect to".to_string())?
+        .validated()?;
+    let profile_name = connection
+        .profile_name
+        .map(|v| v.trim().to_string())
+        .filter(|v| !v.is_empty())
+        .unwrap_or_else(|| serial.port.clone());
+    let profile_id = connection
+        .profile_id
+        .map(|v| v.trim().to_string())
+        .filter(|v| !v.is_empty());
+
+    Ok(SessionPlan {
+        kind: SessionKind::Serial,
+        profile_id,
+        profile_name,
+        host: Some(serial.port.clone()),
+        port: 0,
+        username: None,
+        password: None,
+        ignore_saved_password: false,
+        remember_password: false,
+        keepalive_interval_secs: 0,
+        keepalive_count_max: 0,
+        reconnect_enabled: true,
+        reconnect_max_attempts: 0,
+        private_key_path: None,
+        private_key_passphrase: None,
+        certificate_path: None,
+        use_agent: false,
+        keyboard_interactive: false,
+        auto_auth: false,
+        agent_forward: false,
+        terminal_shell: None,
+        jump_hosts: Vec::new(),
+        encoding: crate::terminal::encoding::TerminalEncoding::from_label(
+            connection.encoding.as_deref(),
+        ),
+        shell_integration: false,
+        session_log,
+        proxy_choice: Default::default(),
+        proxy: None,
+        serial: Some(crate::serial::SerialPlan::new(serial)),
+        sftp_sudo: false,
+    })
+}
+
+/// The plan of an SSH connection: who to log in as, how, and through what.
+fn normalize_ssh(
+    connection: PtyConnectionOptions,
+    session_log: crate::session_log::SessionLogPolicy,
+    keepalive_interval_secs: u16,
+    keepalive_count_max: u16,
+) -> Result<SessionPlan, String> {
+    let host = connection
+        .host
+        .as_ref()
+        .map(|v| v.trim().to_string())
+        .filter(|v| !v.is_empty())
+        .ok_or_else(|| "SSH host is required".to_string())?;
+    let port = connection.port.unwrap_or(22);
+    let username = connection
+        .username
+        .as_ref()
+        .map(|v| v.trim().to_string())
+        .filter(|v| !v.is_empty())
+        .ok_or_else(|| "SSH username is required".to_string())?;
+
+    let profile_name = connection
+        .profile_name
+        .as_ref()
+        .map(|v| v.trim().to_string())
+        .filter(|v| !v.is_empty())
+        .unwrap_or_else(|| format!("{}@{}:{}", username, host, port));
+    let profile_id = connection
+        .profile_id
+        .as_ref()
+        .map(|v| v.trim().to_string())
+        .filter(|v| !v.is_empty());
+
+    let use_agent = connection.auth_method.as_deref() == Some("agent");
+    let keyboard_interactive = connection.auth_method.as_deref() == Some("interactive");
+    let auto_auth = connection.auth_method.as_deref() == Some("auto");
+    // Neither method stores a password or reads a key file.
+    let stores_nothing = use_agent || keyboard_interactive;
+    let agent_forward = connection.agent_forward;
+    // Automatic authentication asks for the password and passphrase it needs.
+    let password = if stores_nothing || auto_auth {
+        None
+    } else {
+        connection.password.filter(|v| !v.is_empty())
+    };
+    let ignore_saved_password = connection.ignore_saved_password;
+    let remember_password = connection.remember_password.unwrap_or(false);
+    let private_key_path = if stores_nothing {
+        None
+    } else {
+        connection.private_key_path.filter(|v| !v.is_empty())
+    };
+    let private_key_passphrase = if stores_nothing || auto_auth {
+        None
+    } else {
+        connection.private_key_passphrase.filter(|v| !v.is_empty())
+    };
+    // Only a configured key has a configured certificate.
+    let certificate_path = if stores_nothing || auto_auth {
+        None
+    } else {
+        connection.certificate_path.filter(|v| !v.trim().is_empty())
+    };
+
+    let jump_hosts = normalize_jump_hosts(connection.jump_hosts)?;
+    let (reconnect_enabled, reconnect_max_attempts) =
+        crate::config::reconnect::resolve_reconnect_settings();
+
+    Ok(SessionPlan {
+        kind: SessionKind::Ssh,
+        profile_id,
+        profile_name,
+        host: Some(host),
+        port,
+        username: Some(username),
+        password,
+        ignore_saved_password,
+        remember_password,
+        keepalive_interval_secs,
+        keepalive_count_max,
+        reconnect_enabled,
+        reconnect_max_attempts,
+        private_key_path,
+        private_key_passphrase,
+        certificate_path,
+        use_agent,
+        keyboard_interactive,
+        auto_auth,
+        agent_forward,
+        terminal_shell: None,
+        jump_hosts,
+        encoding: crate::terminal::encoding::TerminalEncoding::from_label(
+            connection.encoding.as_deref(),
+        ),
+        shell_integration: connection
+            .ssh_shell_integration
+            .unwrap_or_else(crate::config::ssh_shell_integration_enabled),
+        session_log,
+        proxy_choice: connection.proxy,
+        proxy: None,
+        serial: None,
+        sftp_sudo: connection.sftp_sudo,
+    })
+}
+
+pub fn normalize_jump_hosts(jump_hosts: Vec<JumpHostOptions>) -> Result<Vec<JumpHostPlan>, String> {
+    if jump_hosts.len() > MAX_JUMP_HOSTS {
+        return Err(format!(
+            "At most {MAX_JUMP_HOSTS} jump hosts are supported per connection"
+        ));
+    }
+
+    let mut plans = jump_hosts
+        .into_iter()
+        .map(normalize_jump_host)
+        .collect::<Result<Vec<_>, _>>()?;
+    saved_hops::fill_from_saved_connections(&mut plans)?;
+    Ok(plans)
+}
+
+/// Validate and convert raw jump host options into a resolved plan.
+/// Returns `Err` if required fields (host, username) are missing or empty.
+fn normalize_jump_host(opts: JumpHostOptions) -> Result<JumpHostPlan, String> {
+    let host = opts
+        .host
+        .as_deref()
+        .map(str::trim)
+        .filter(|v| !v.is_empty())
+        .ok_or_else(|| "Jump host is required".to_string())?
+        .to_string();
+
+    let port = opts.port.unwrap_or(22);
+
+    let username = opts
+        .username
+        .as_deref()
+        .map(str::trim)
+        .filter(|v| !v.is_empty())
+        .ok_or_else(|| "Jump host username is required".to_string())?
+        .to_string();
+
+    let use_key = opts.auth_method.as_deref() == Some("key");
+    let use_agent = opts.auth_method.as_deref() == Some("agent");
+    let keyboard_interactive = opts.auth_method.as_deref() == Some("interactive");
+    let auto_auth = opts.auth_method.as_deref() == Some("auto");
+    let private_key_path = if use_key || auto_auth {
+        opts.private_key_path.filter(|v| !v.is_empty())
+    } else {
+        None
+    };
+    let private_key_passphrase = if use_key {
+        opts.private_key_passphrase.filter(|v| !v.is_empty())
+    } else {
+        None
+    };
+    let certificate_path = if use_key {
+        opts.certificate_path.filter(|v| !v.trim().is_empty())
+    } else {
+        None
+    };
+    let password = if use_key || use_agent || keyboard_interactive || auto_auth {
+        None
+    } else {
+        opts.password.filter(|v| !v.is_empty())
+    };
+
+    Ok(JumpHostPlan {
+        host,
+        port,
+        username,
+        password,
+        private_key_path,
+        private_key_passphrase,
+        certificate_path,
+        use_agent,
+        keyboard_interactive,
+        auto_auth,
+        profile_id: opts
+            .profile_id
+            .map(|id| id.trim().to_string())
+            .filter(|id| !id.is_empty()),
+    })
+}
+
+pub fn load_saved_ssh_password(
+    secret_state: &crate::ssh::secret_store::types::SecretStoreState,
+    profile_id: Option<&str>,
+    profile_name: Option<&str>,
+) -> Result<Option<String>, String> {
+    let profile_id = profile_id.map(str::trim).filter(|v| !v.is_empty());
+    let profile_name = profile_name.map(str::trim).filter(|v| !v.is_empty());
+
+    if let Some(profile_id) = profile_id
+        && let Some(password) = secret_state.get_password(profile_id)?
+    {
+        return Ok(Some(password));
+    }
+
+    if let Some(profile_name) = profile_name
+        && let Some(password) = secret_state.get_password(profile_name)?
+    {
+        if let Some(profile_id) = profile_id {
+            let _ = secret_state.save_password(profile_id, &password);
+        }
+        return Ok(Some(password));
+    }
+
+    Ok(None)
+}
+
+/// Which saved password answers a sudo prompt.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub enum SudoPasswordSource {
+    /// The profile's dedicated sudo password.
+    Sudo,
+    /// The SSH login password, used when no sudo password is saved.
+    Login,
+}
+
+/// The saved password for a sudo prompt, or `None` when the profile turned
+/// sudo autofill off or has no usable password.
+pub fn load_saved_sudo_password(
+    secret_state: &crate::ssh::secret_store::types::SecretStoreState,
+    profile_id: Option<&str>,
+    profile_name: Option<&str>,
+) -> Result<Option<(zeroize::Zeroizing<String>, SudoPasswordSource)>, String> {
+    let profile_id = profile_id.map(str::trim).filter(|v| !v.is_empty());
+
+    if let Some(profile_id) = profile_id {
+        if crate::profiles::storage::profile_sudo_autofill(profile_id)? == Some(false) {
+            return Ok(None);
+        }
+        let sudo_key = sudo_secret_key(profile_id);
+        if let Some(password) = secret_state.get_password(&sudo_key)? {
+            return Ok(Some((password.into(), SudoPasswordSource::Sudo)));
+        }
+    }
+
+    Ok(
+        load_saved_ssh_password(secret_state, profile_id, profile_name)?
+            .map(|password| (password.into(), SudoPasswordSource::Login)),
+    )
+}
+
+/// Whose saved jump host password to look up: the profile it was saved under
+/// and the hop's address. Missing or blank fields narrow the lookup.
+#[derive(Debug, Clone, Copy)]
+pub struct JumpHostSecretOwner<'a> {
+    pub profile_id: Option<&'a str>,
+    pub profile_name: Option<&'a str>,
+    pub host: Option<&'a str>,
+    pub port: Option<u16>,
+    pub username: Option<&'a str>,
+}
+
+pub fn load_saved_jump_host_password(
+    secret_state: &crate::ssh::secret_store::types::SecretStoreState,
+    owner: JumpHostSecretOwner<'_>,
+    allow_legacy_fallback: bool,
+) -> Result<Option<String>, String> {
+    let JumpHostSecretOwner {
+        profile_id,
+        profile_name,
+        host,
+        port,
+        username,
+    } = owner;
+    let profile_id = profile_id.map(str::trim).filter(|v| !v.is_empty());
+    let profile_name = profile_name.map(str::trim).filter(|v| !v.is_empty());
+    let host = host.map(str::trim).filter(|v| !v.is_empty());
+    let username = username.map(str::trim).filter(|v| !v.is_empty());
+
+    let canonical_identity_key = match (profile_id, profile_name, host, port, username) {
+        (Some(profile_id), _, Some(host), Some(port), Some(username)) => Some(
+            jump_host_identity_secret_key(Some(profile_id), "", host, port, username),
+        ),
+        (None, Some(profile_name), Some(host), Some(port), Some(username)) => Some(
+            jump_host_identity_secret_key(None, profile_name, host, port, username),
+        ),
+        _ => None,
+    };
+
+    if let Some(secret_key) = canonical_identity_key.as_deref()
+        && let Some(password) = secret_state.get_password(secret_key)?
+    {
+        return Ok(Some(password));
+    }
+
+    if let (Some(profile_name), Some(host), Some(port), Some(username)) =
+        (profile_name, host, port, username)
+    {
+        let name_identity_key =
+            jump_host_identity_secret_key(None, profile_name, host, port, username);
+        if canonical_identity_key.as_deref() != Some(name_identity_key.as_str())
+            && let Some(password) = secret_state.get_password(&name_identity_key)?
+        {
+            if let Some(secret_key) = canonical_identity_key.as_deref() {
+                let _ = secret_state.save_password(secret_key, &password);
+            }
+            return Ok(Some(password));
+        }
+    }
+
+    if allow_legacy_fallback {
+        for legacy_key in [
+            profile_id.map(|value| jump_host_secret_key(Some(value), "")),
+            profile_name.map(|value| jump_host_secret_key(None, value)),
+        ]
+        .into_iter()
+        .flatten()
+        {
+            if let Some(password) = secret_state.get_password(&legacy_key)? {
+                if let Some(secret_key) = canonical_identity_key.as_deref() {
+                    let _ = secret_state.save_password(secret_key, &password);
+                }
+                return Ok(Some(password));
+            }
+        }
+    }
+
+    Ok(None)
+}
+
+pub fn resolve_ssh_password(
+    secret_state: &crate::ssh::secret_store::types::SecretStoreState,
+    plan: &mut SessionPlan,
+) -> Result<(), String> {
+    if !matches!(plan.kind, SessionKind::Ssh) {
+        return Ok(());
+    }
+
+    if plan.private_key_path.is_none()
+        && !plan.use_agent
+        && !plan.keyboard_interactive
+        && !plan.auto_auth
+    {
+        if let Some(password) = plan.password.clone() {
+            let secret_key = plan
+                .profile_id
+                .as_deref()
+                .unwrap_or(plan.profile_name.as_str());
+
+            // Persist only when the user explicitly enabled "remember password".
+            if plan.remember_password {
+                let location = secret_state.save_password(secret_key, &password)?;
+                if plan.remember_password
+                    && matches!(
+                        location,
+                        crate::ssh::secret_store::types::SecretLocation::Memory
+                    )
+                {
+                    return Err(
+                        "Password persistence is unavailable. Enable the app vault or use a supported system credential store."
+                            .to_string(),
+                    );
+                }
+            }
+        } else if plan.ignore_saved_password {
+            return Err(format!(
+                "Password is required for profile '{}'",
+                plan.profile_name
+            ));
+        } else {
+            // Try to get password from secret store
+            let Some(password) = load_saved_ssh_password(
+                secret_state,
+                plan.profile_id.as_deref(),
+                Some(plan.profile_name.as_str()),
+            )?
+            else {
+                let keys = [plan.profile_id.as_deref(), Some(plan.profile_name.as_str())];
+                let keys: Vec<&str> = keys.into_iter().flatten().collect();
+                if let Some(reason) = secret_state.unreadable_reason(&keys)? {
+                    return Err(reason.to_string());
+                }
+                return Err(format!(
+                    "No password provided and no saved password found for profile '{}'",
+                    plan.profile_name
+                ));
+            };
+
+            plan.password = Some(password);
+        }
+    }
+
+    // Resolve jump host passwords independently of target authentication.
+    resolve_jump_host_passwords(secret_state, plan)?;
+    plan.proxy = crate::proxy::resolve::resolve_proxy(secret_state, &plan.proxy_choice)?;
+
+    Ok(())
+}
+
+/// Saves a jump host's password under `secret_key`, as the user asked.
+fn remember_jump_password(
+    secret_state: &crate::ssh::secret_store::types::SecretStoreState,
+    secret_key: &str,
+    password: &str,
+) -> Result<(), String> {
+    let location = secret_state.save_password(secret_key, password)?;
+    if matches!(
+        location,
+        crate::ssh::secret_store::types::SecretLocation::Memory
+    ) {
+        return Err(
+            "Jump host password persistence is unavailable. Enable the app vault or use a supported system credential store."
+                .to_string(),
+        );
+    }
+    Ok(())
+}
+
+/// Resolve jump host passwords from the secret store when not already provided.
+fn resolve_jump_host_passwords(
+    secret_state: &crate::ssh::secret_store::types::SecretStoreState,
+    plan: &mut SessionPlan,
+) -> Result<(), String> {
+    let allow_legacy_fallback = plan.jump_hosts.len() == 1;
+
+    for jump in plan.jump_hosts.iter_mut() {
+        if jump.private_key_path.is_some()
+            || jump.use_agent
+            || jump.keyboard_interactive
+            || jump.auto_auth
+        {
+            continue;
+        }
+        if let Some(profile_id) = jump.profile_id.as_deref() {
+            // A password typed for a hop that logs in as a saved connection,
+            // as the tunnel's credentials dialog asks, is that connection's.
+            match &jump.password {
+                Some(password) if plan.remember_password => {
+                    remember_jump_password(secret_state, profile_id, password)?;
+                }
+                Some(_) => {}
+                None => saved_hops::fill_saved_password(secret_state, jump)?,
+            }
+            continue;
+        }
+
+        let secret_key = jump_host_identity_secret_key(
+            plan.profile_id.as_deref(),
+            plan.profile_name.as_str(),
+            &jump.host,
+            jump.port,
+            &jump.username,
+        );
+
+        if let Some(pw) = &jump.password {
+            if plan.remember_password {
+                remember_jump_password(secret_state, &secret_key, pw)?;
+            }
+            continue;
+        }
+
+        if let Some(pw) = load_saved_jump_host_password(
+            secret_state,
+            JumpHostSecretOwner {
+                profile_id: plan.profile_id.as_deref(),
+                profile_name: Some(plan.profile_name.as_str()),
+                host: Some(jump.host.as_str()),
+                port: Some(jump.port),
+                username: Some(jump.username.as_str()),
+            },
+            allow_legacy_fallback,
+        )? {
+            jump.password = Some(pw);
+            continue;
+        }
+
+        let name_identity_key = jump_host_identity_secret_key(
+            None,
+            plan.profile_name.as_str(),
+            &jump.host,
+            jump.port,
+            &jump.username,
+        );
+        let mut keys = vec![secret_key.as_str(), name_identity_key.as_str()];
+        let legacy_keys = [
+            plan.profile_id
+                .as_deref()
+                .map(|profile_id| jump_host_secret_key(Some(profile_id), "")),
+            Some(jump_host_secret_key(None, plan.profile_name.as_str())),
+        ];
+        if allow_legacy_fallback {
+            keys.extend(legacy_keys.iter().flatten().map(String::as_str));
+        }
+        if let Some(reason) = secret_state.unreadable_reason(&keys)? {
+            return Err(reason.to_string());
+        }
+    }
+
+    Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn sanitize_session_tabs_migrates_legacy_jump_host_to_jump_hosts() {
+        let options: PtyConnectionOptions = serde_json::from_value(serde_json::json!({
+            "type": "ssh",
+            "host": "target",
+            "port": 22,
+            "username": "user",
+            "jumpHost": {
+                "host": "bastion",
+                "port": 22,
+                "username": "jump"
+            }
+        }))
+        .expect("options should deserialize");
+
+        // jumpHost (singular) should be deserialized into jump_hosts via the From impl
+        let plan = normalize_connection(Some(options)).expect("should normalize");
+        assert_eq!(plan.jump_hosts.len(), 1);
+        assert_eq!(plan.jump_hosts[0].host, "bastion");
+    }
+
+    #[test]
+    fn a_certificate_is_kept_only_for_key_authentication() {
+        let plan = |auth_method: &str| {
+            let options: PtyConnectionOptions = serde_json::from_value(serde_json::json!({
+                "type": "ssh",
+                "host": "target",
+                "username": "user",
+                "authMethod": auth_method,
+                "privateKeyPath": "/keys/id",
+                "certificatePath": "/keys/id-cert.pub",
+                "jumpHosts": [{
+                    "host": "bastion",
+                    "username": "jump",
+                    "authMethod": auth_method,
+                    "privateKeyPath": "/keys/jump",
+                    "certificatePath": "/keys/jump-cert.pub"
+                }]
+            }))
+            .expect("options should deserialize");
+            normalize_connection(Some(options)).expect("should normalize")
+        };
+
+        let keyed = plan("key");
+        assert_eq!(keyed.certificate_path.as_deref(), Some("/keys/id-cert.pub"));
+        assert_eq!(
+            keyed.jump_hosts[0].certificate_path.as_deref(),
+            Some("/keys/jump-cert.pub")
+        );
+        for other in ["agent", "interactive", "auto"] {
+            let plan = plan(other);
+            assert!(plan.certificate_path.is_none(), "{other}");
+            assert!(plan.jump_hosts[0].certificate_path.is_none(), "{other}");
+        }
+    }
+}

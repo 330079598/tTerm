@@ -1,4 +1,4 @@
-use super::*;
+use crate::db::legacy_import::*;
 use tterm_core::db::Database;
 
 fn temp_dir(label: &str) -> std::path::PathBuf {
@@ -74,7 +74,7 @@ fn imports_every_file_once_and_renames_them() {
 
     database
         .read(|connection| {
-            let profiles = crate::profiles::storage::list_saved_profiles(connection)?;
+            let profiles = tterm_core::profiles::storage::list_saved_profiles(connection)?;
             assert_eq!(
                 profiles.iter().map(|p| p.id.as_str()).collect::<Vec<_>>(),
                 ["b", "a"],
@@ -103,7 +103,7 @@ fn imports_every_file_once_and_renames_them() {
             let named = |name: &str| (name.to_string(), name.to_string());
             assert_eq!(groups, [named("empty"), named("ops")]);
             assert_eq!(
-                crate::profiles::storage::get_profile(connection, "b")?
+                tterm_core::profiles::storage::get_profile(connection, "b")?
                     .and_then(|profile| profile.group_id)
                     .as_deref(),
                 Some("ops")
@@ -134,7 +134,7 @@ fn imports_every_file_once_and_renames_them() {
     assert!(!import_json_files(&database, &dir).expect("second run"));
     assert_eq!(
         database
-            .read(crate::profiles::storage::list_saved_profiles)
+            .read(tterm_core::profiles::storage::list_saved_profiles)
             .unwrap()
             .len(),
         2
@@ -357,7 +357,7 @@ fn missing_files_import_as_empty() {
     assert!(import_json_files(&database, &dir).expect("import"));
     assert!(
         database
-            .read(crate::profiles::storage::list_saved_profiles)
+            .read(tterm_core::profiles::storage::list_saved_profiles)
             .unwrap()
             .is_empty()
     );
@@ -379,7 +379,7 @@ fn imports_a_real_config_directory_copy() {
     let mut expected_profiles: Vec<SavedProfile> =
         serde_json::from_value(json("profiles.json")).unwrap();
     for profile in &mut expected_profiles {
-        crate::profiles::storage::normalize_profile(profile);
+        tterm_core::profiles::storage::normalize_profile(profile);
     }
     let expected_groups: Vec<String> = serde_json::from_value(json("profile_groups.json")).unwrap();
     let expected_groups = expected_groups
@@ -405,7 +405,7 @@ fn imports_a_real_config_directory_copy() {
 
     database
         .read(|connection| {
-            let profiles = crate::profiles::storage::list_saved_profiles(connection)?;
+            let profiles = tterm_core::profiles::storage::list_saved_profiles(connection)?;
             assert_eq!(
                 serde_json::to_value(&profiles).unwrap(),
                 serde_json::to_value(&expected_profiles).unwrap()

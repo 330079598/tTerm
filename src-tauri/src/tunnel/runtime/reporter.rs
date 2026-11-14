@@ -1,8 +1,8 @@
 //! A tunnel's status and traffic, reported to the frontend and saved.
 
-use super::TRAFFIC_SAVE_INTERVAL;
 use crate::background::tray::TrayState;
 use crate::tunnel::manager::TunnelManager;
+use crate::tunnel::runtime::TRAFFIC_SAVE_INTERVAL;
 use std::sync::atomic::Ordering;
 use std::sync::{Arc, Mutex};
 use std::time::Instant;

@@ -13,12 +13,12 @@ mod real_sshd_tests;
 mod walk;
 
 use crate::sftp::internal::api::SftpHost;
-use crate::sftp::internal::connection::map_sftp_error;
-use crate::sftp::internal::types::SftpHandles;
 use find::{FindOutcome, FindSearch};
 use matcher::NameMatcher;
 use serde::{Deserialize, Serialize};
 use tokio::sync::watch;
+use tterm_core::sftp::internal::connection::map_sftp_error;
+use tterm_core::sftp::internal::types::SftpHandles;
 
 /// A search stops after this many matches: more would not be read, and
 /// would slow the drawer down.

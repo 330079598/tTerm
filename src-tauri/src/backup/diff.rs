@@ -1,14 +1,16 @@
 //! How an imported backup differs from what this device has.
 
-use super::apply::{json_key, read_json_value, to_backup_value};
-use super::remote;
-use super::{BackupDiff, BackupPayload, CategoryDiff};
+use crate::backup::remote;
+use crate::{backup::BackupDiff, backup::BackupPayload, backup::CategoryDiff};
+use crate::{
+    backup::apply::json_key, backup::apply::read_json_value, backup::apply::to_backup_value,
+};
 use serde_json::Value;
 use std::collections::HashMap;
 use tterm_core::command_library::repository::CommandRepository;
 
 pub(super) fn calculate_diff(payload: &BackupPayload) -> Result<BackupDiff, String> {
-    let existing_profiles = to_backup_value(&crate::profiles::storage::load_profiles()?)?;
+    let existing_profiles = to_backup_value(&tterm_core::profiles::storage::load_profiles()?)?;
     let profiles = calculate_json_array_diff(
         existing_profiles
             .as_array()

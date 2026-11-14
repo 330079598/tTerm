@@ -16,7 +16,7 @@ use tterm_core::events::zmodem::{
 };
 use tterm_core::events::{AppEvent, EventTarget};
 
-use super::TauriEventSink;
+use crate::event_sink::TauriEventSink;
 use serde_json::Value;
 
 fn check(event: AppEvent, name: &str, target: EventTarget, key: &str) {

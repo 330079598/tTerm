@@ -1,6 +1,6 @@
 //! The Tauri command for the unseen-notification badge.
 
-use super::badge::OverlayImage;
+use crate::notification::badge::OverlayImage;
 use std::sync::Arc;
 
 /// Shows `count` on the app icon, or takes it off at zero. `overlay` is the

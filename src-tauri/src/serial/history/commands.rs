@@ -1,7 +1,8 @@
-use super::{
-    DeleteSerialSendInput, RecordSerialSendInput, SerialSend, SerialSendMode,
-    clear_serial_sends_service, delete_serial_send_service, list_serial_sends_service,
-    record_serial_send_service,
+use crate::{
+    serial::history::DeleteSerialSendInput, serial::history::RecordSerialSendInput,
+    serial::history::SerialSend, serial::history::SerialSendMode,
+    serial::history::clear_serial_sends_service, serial::history::delete_serial_send_service,
+    serial::history::list_serial_sends_service, serial::history::record_serial_send_service,
 };
 
 /// The connection's sends, newest first.

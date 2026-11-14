@@ -1,19 +1,16 @@
 pub(crate) mod commands;
-pub(crate) mod metrics;
 pub(crate) mod prompts;
 mod session;
-pub(crate) mod types;
 
-use crate::core::session::{
-    normalize_connection, resolve_ssh_password, types::PtyConnectionOptions,
-};
-use crate::ssh::secret_store::types::SecretStoreState;
-use session::{
+use crate::monitor::session::{
     collect_metrics_snapshot, get_or_open_monitor_session, monitor_connection_fingerprint,
     reap_idle_monitor_sessions, release_monitor_session_inner,
 };
-use types::MonitorSessionMap;
-use types::ServerMetricsSnapshot;
+use tterm_core::core::session::types::PtyConnectionOptions;
+use tterm_core::monitor::types::MonitorSessionMap;
+use tterm_core::monitor::types::ServerMetricsSnapshot;
+use tterm_core::ssh::secret_store::types::SecretStoreState;
+use tterm_core::{core::session::normalize_connection, core::session::resolve_ssh_password};
 
 struct GetServerMetricsSnapshotInput {
     tab_id: String,
@@ -22,7 +19,7 @@ struct GetServerMetricsSnapshotInput {
 }
 
 async fn get_server_metrics_snapshot_service(
-    app: crate::ssh::context::ConnectionContext,
+    app: tterm_core::ssh::context::ConnectionContext,
     prompt_state: std::sync::Arc<tterm_core::prompts::PromptBroker>,
     secret_state: SecretStoreState,
     monitor_sessions: MonitorSessionMap,
@@ -36,7 +33,7 @@ async fn get_server_metrics_snapshot_service(
     } = arguments;
 
     let mut plan = normalize_connection(connection)?;
-    if !matches!(plan.kind, crate::core::state::SessionKind::Ssh) {
+    if !matches!(plan.kind, tterm_core::core::state::SessionKind::Ssh) {
         return Err("Server monitoring requires an SSH connection".to_string());
     }
     resolve_ssh_password(&secret_state, &mut plan)?;
@@ -78,7 +75,7 @@ struct ReleaseServerMonitorSessionInput {
 }
 
 async fn release_server_monitor_session_service(
-    app: crate::ssh::context::ConnectionContext,
+    app: tterm_core::ssh::context::ConnectionContext,
     monitor_sessions: MonitorSessionMap,
     registry: std::sync::Arc<prompts::PendingMonitorPrompts>,
     arguments: ReleaseServerMonitorSessionInput,
@@ -103,8 +100,8 @@ async fn release_server_monitor_session_service(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::core::session::{types::JumpHostPlan, types::SessionPlan};
-    use crate::core::state::SessionKind;
+    use tterm_core::core::session::types::{JumpHostPlan, SessionPlan};
+    use tterm_core::core::state::SessionKind;
 
     fn ssh_plan(host: &str, username: &str, profile_name: &str) -> SessionPlan {
         SessionPlan {

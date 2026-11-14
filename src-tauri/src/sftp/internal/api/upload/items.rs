@@ -1,6 +1,8 @@
-use super::targets::resolve_upload_target;
-use super::{UploadFilePlanItem, next_transfer_id, upload_single_file_with_progress};
-use crate::sftp::internal::types::TransferCancelMap;
+use crate::sftp::internal::api::upload::targets::resolve_upload_target;
+use crate::{
+    sftp::internal::api::upload::UploadFilePlanItem, sftp::internal::api::upload::next_transfer_id,
+    sftp::internal::api::upload::upload_single_file_with_progress,
+};
 use russh_sftp::client::SftpSession;
 use std::sync::Arc;
 use tokio::sync::watch;
@@ -9,6 +11,7 @@ use tterm_core::events::sftp::upload::{UploadItemCompleteEvent, UploadItemStartE
 use tterm_core::events::{AppEvent, EventSink};
 use tterm_core::sftp::conflict::ConflictPolicy;
 use tterm_core::sftp::internal::transfer::RemoteChannels;
+use tterm_core::sftp::internal::types::TransferCancelMap;
 
 pub(super) struct UploadItems<'a> {
     pub events: &'a Arc<dyn EventSink>,

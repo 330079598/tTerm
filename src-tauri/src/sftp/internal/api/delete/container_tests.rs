@@ -1,4 +1,4 @@
-use super::*;
+use crate::sftp::internal::api::delete::*;
 use crate::sftp::internal::test_support;
 use tterm_core::events::recording::RecordingEventSink;
 use tterm_core::events::sftp::SftpEvent;
@@ -7,7 +7,7 @@ use tterm_core::events::sftp::SftpEvent;
 #[ignore = "requires the P1-04 disposable Docker host on port 22404"]
 async fn container_recursive_delete_preserves_sampled_events() {
     let (ssh, sftp) = test_support::connect().await;
-    let launcher = crate::sftp::internal::launcher::ChannelLauncher::default();
+    let launcher = tterm_core::sftp::internal::launcher::ChannelLauncher::default();
     let root = format!("/home/alice/p104-delete-{}", uuid::Uuid::new_v4());
     launcher.start_script(&ssh,&format!("mkdir '{root}'; i=0; while [ $i -lt 80 ]; do touch '{root}/file'$i; i=$((i+1)); done")).await.unwrap().finish().await;
     let record = RecordingEventSink::default();

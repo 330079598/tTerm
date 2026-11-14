@@ -1,12 +1,12 @@
 //! Run explicitly in release mode after checking that the machine is idle.
-use crate::terminal::io_batcher::{OutputFlow, TerminalOutputSender, test_sink};
-use crate::terminal::reader::run_pty_reader;
 use std::path::PathBuf;
 use std::sync::mpsc::RecvTimeoutError;
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 use tauri::ipc::{Channel, InvokeResponseBody};
 use tterm_core::terminal::io_batcher::pty_fixture::PtyFixture;
+use tterm_core::terminal::io_batcher::{OutputFlow, TerminalOutputSender, test_sink};
+use tterm_core::terminal::reader::run_pty_reader;
 
 const TOTAL_BYTES: usize = 50_000_000;
 const ACK_BATCH: usize = 64 * 1024;
@@ -164,7 +164,10 @@ fn p106_real_pty_cat_throughput() {
     drop(sender);
     acker.tx.take();
     assert!(fixture.child.wait().unwrap().success());
-    assert_eq!(outcome, crate::terminal::reader::ReaderOutcome::Terminated);
+    assert_eq!(
+        outcome,
+        tterm_core::terminal::reader::ReaderOutcome::Terminated
+    );
     let mut sample = measured.lock().unwrap();
     assert_eq!(sample.bytes, TOTAL_BYTES);
     let expected = sha2::Sha256::digest(std::fs::read(directory.join("text-50MB.txt")).unwrap());

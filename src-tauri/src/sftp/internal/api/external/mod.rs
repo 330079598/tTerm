@@ -18,12 +18,8 @@ mod sessions;
 mod tests;
 mod watch;
 
-use crate::core::session::types::SessionPlan;
 use crate::sftp::internal::api::download::download_file_with_progress;
 use crate::sftp::internal::api::prepare_transfer;
-use crate::sftp::internal::connection::SftpContext;
-use crate::sftp::internal::connection::map_sftp_error;
-use crate::sftp::internal::types::{SftpConnectionPool, TransferCancelMap};
 #[cfg(target_os = "macos")]
 use base64::Engine;
 use remote::RemoteStamp;
@@ -34,9 +30,13 @@ use std::sync::Arc;
 use std::sync::Mutex;
 use std::sync::atomic::AtomicBool;
 use tterm_core::core::blocking::run_blocking;
+use tterm_core::core::session::types::SessionPlan;
 use tterm_core::events::sftp::SftpEvent;
 use tterm_core::events::{AppEvent, EventSink};
 use tterm_core::sftp::internal::api::external::local::{FileStamp, Fingerprint};
+use tterm_core::sftp::internal::connection::SftpContext;
+use tterm_core::sftp::internal::connection::map_sftp_error;
+use tterm_core::sftp::internal::types::{SftpConnectionPool, TransferCancelMap};
 #[cfg(target_os = "macos")]
 use tterm_platform::open::ApplicationChoice;
 use tterm_platform::open::OpenTargets;
