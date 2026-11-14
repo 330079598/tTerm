@@ -1,8 +1,10 @@
 //! Domain services both clients call: SSH sessions, authentication, SFTP,
 //! tunnels, storage, backup and sync.
 //!
-//! The code lives in `src-tauri/src` today and moves here in P1, so this crate
-//! is empty until then.
+//! Everything that is not a Tauri command or a Tauri adapter lives here after
+//! P1-09. `src-tauri` keeps the command functions that convert IPC arguments,
+//! the event and session sinks, the platform implementations and the window
+//! glue.
 
 /// Hooks and plugins installed into AI coding agents so they report what they do.
 pub mod agent_integration;

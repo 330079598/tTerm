@@ -28,55 +28,19 @@ tauri = { version = "2", features = ["macos-private-api", "devtools", "tray-icon
 tauri-plugin-opener = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
-indexmap = { version = "2", features = ["serde"] }
-rusqlite = { version = "0.40", features = ["bundled"] }
 tauri-plugin-os = "2.3.2"
 tauri-plugin-dialog = "2"
 tauri-plugin-clipboard-manager = "2.3.2"
 portable-pty = "0.9"
 uuid = { version = "1", features = ["v4"] }
 tokio = { version = "1", features = ["rt-multi-thread", "macros", "sync", "time", "io-util", "fs", "net", "process"] }
-# `rsa` lets russh verify RSA host keys. It brings in the RustCrypto `rsa`
-# crate, whose RUSTSEC-2023-0071 leaks a private key through the timing of
-# private-key operations; verifying a server's signature uses only its public
-# key, and tTerm still signs with RSA keys through ring (ssh/rsa_signer.rs).
-russh = { version = "0.63", default-features = false, features = ["ring", "rsa"] }
-russh-sftp = "3"
-# Both are already linked through russh and rustls; named here because RSA key
-# files are signed with ring instead of the `rsa` crate (see ssh/rsa_signer.rs).
-ring = "0.17"
-num-bigint = "0.5"
-async-trait = "0.1"
-aes-gcm = "0.11"
-argon2 = "0.6"
-base64 = "0.23"
 chrono = { version = "0.4", default-features = false, features = ["clock"] }
-crc32fast = "1"
-flate2 = "1"
+# Used by the session-sink throughput benchmark only.
 sha2 = "0.11"
-# Already linked through ssh-key; named here to match the hashed host names
-# of OpenSSH known_hosts files, which are an HMAC-SHA1 of the name.
-hmac = "0.13"
-sha1 = "0.11"
-zip = { version = "8", default-features = false, features = ["deflate-flate2-zlib-rs"] }
-reqwest = { version = "0.13", default-features = false, features = ["rustls-no-provider"] }
-rustls = { version = "0.23", default-features = false, features = ["ring", "std", "tls12"] }
-quick-xml = "0.42"
-regex = "1"
-percent-encoding = "2"
-rand = "0.10"
-vte = "0.15"
-unicode-width = "0.2"
-encoding_rs = "0.8"
 zeroize = "1"
-# `v1` (default) picks Keychain / Credential Manager / Secret Service per platform.
-keyring = "4"
-sys-locale = "0.3"
-ttf-parser = "0.25"
 tauri-plugin-updater = "2"
 tauri-plugin-process = "2"
 tauri-plugin-single-instance = "2"
-serialport = "4.10.1"
 
 [target.'cfg(target_os = "windows")'.dependencies]
 tauri-plugin-frame = "1.1.6"
@@ -84,32 +48,10 @@ windows = { version = "0.62", features = ["Win32_Graphics_Gdi", "Win32_Foundatio
 # Names the WebView2 controller types for the IME focus repair (see ime_focus.rs).
 # Must be the version tauri/wry use; upgrade together.
 webview2-com = "0.39"
-# Names the async result type of Windows Hello prompts (see ssh/secret_store/os_verifier.rs).
-# Must be the version `windows` itself uses (0.62 -> 0.3); upgrade the two together.
-windows-future = "0.3"
 
 [target.'cfg(target_os = "macos")'.dependencies]
 tauri-plugin-frame = "1.1.6"
-security-framework = "3"
 objc2 = "0.6"
-# Touch ID / login password prompts (see ssh/secret_store/os_verifier.rs).
-objc2-local-authentication = { version = "0.3", default-features = false, features = ["std", "block2", "LAContext", "LAError"] }
-objc2-foundation = { version = "0.3", default-features = false, features = ["std", "NSArray", "NSData", "NSError", "NSString", "NSBundle", "NSDate", "NSDictionary", "NSFileManager", "NSGeometry", "NSObject", "NSOperation", "NSProcessInfo", "NSURL", "NSValue"] }
-# System notifications whose clicks lead back to their tab (see notification/macos.rs).
-objc2-user-notifications = { version = "0.3", default-features = false, features = ["std", "bitflags", "block2", "UNUserNotificationCenter", "UNNotification", "UNNotificationContent", "UNNotificationRequest", "UNNotificationResponse", "UNNotificationSettings", "UNNotificationSound", "UNNotificationTrigger"] }
-block2 = "0.6"
-# Dragging remote files onto Finder as file promises (see drag_out/macos.rs),
-# and the Open With applications with their icons (see sftp/internal/api/external/apps.rs).
-objc2-app-kit = { version = "0.3", default-features = false, features = ["std", "block2", "objc2-core-foundation", "objc2-uniform-type-identifiers", "NSBitmapImageRep", "NSDragging", "NSDraggingItem", "NSDraggingSession", "NSEvent", "NSFilePromiseProvider", "NSGraphics", "NSGraphicsContext", "NSImage", "NSImageRep", "NSPasteboard", "NSResponder", "NSView", "NSWindow", "NSWorkspace"] }
-objc2-uniform-type-identifiers = { version = "0.3", default-features = false, features = ["std", "UTType"] }
-
-[target.'cfg(unix)'.dependencies]
-libc = "0.2"
-
-[target.'cfg(all(unix, not(target_os = "macos")))'.dependencies]
-# The launcher count docks read over DBus (see notification/launcher_entry.rs);
-# already built for the keyring, opener and single-instance plugins.
-zbus = "5"
 
 [dev-dependencies]
 tterm-core = { path = "../crates/tterm-core", features = ["test-support"] }
