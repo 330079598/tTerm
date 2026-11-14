@@ -6,5 +6,6 @@
 //! ranks the translated items a page supplies.
 
 pub mod search;
+pub mod search_index;
 #[cfg(test)]
 mod tests;
