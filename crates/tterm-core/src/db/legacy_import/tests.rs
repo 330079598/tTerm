@@ -1,5 +1,5 @@
+use crate::db::Database;
 use crate::db::legacy_import::*;
-use tterm_core::db::Database;
 
 fn temp_dir(label: &str) -> std::path::PathBuf {
     let nanos = std::time::SystemTime::now()
@@ -74,7 +74,7 @@ fn imports_every_file_once_and_renames_them() {
 
     database
         .read(|connection| {
-            let profiles = tterm_core::profiles::storage::list_saved_profiles(connection)?;
+            let profiles = crate::profiles::storage::list_saved_profiles(connection)?;
             assert_eq!(
                 profiles.iter().map(|p| p.id.as_str()).collect::<Vec<_>>(),
                 ["b", "a"],
@@ -96,28 +96,28 @@ fn imports_every_file_once_and_renames_them() {
                 "secrets never reach the database"
             );
 
-            let groups = tterm_core::profiles::groups::list_groups(connection)?
+            let groups = crate::profiles::groups::list_groups(connection)?
                 .into_iter()
                 .map(|group| (group.id, group.name))
                 .collect::<Vec<_>>();
             let named = |name: &str| (name.to_string(), name.to_string());
             assert_eq!(groups, [named("empty"), named("ops")]);
             assert_eq!(
-                tterm_core::profiles::storage::get_profile(connection, "b")?
+                crate::profiles::storage::get_profile(connection, "b")?
                     .and_then(|profile| profile.group_id)
                     .as_deref(),
                 Some("ops")
             );
             assert_eq!(
-                tterm_core::tunnel::storage::list_tunnel_rules(connection)?[0].profile_id,
+                crate::tunnel::storage::list_tunnel_rules(connection)?[0].profile_id,
                 "b"
             );
             assert_eq!(
-                tterm_core::ssh::store::list_known_hosts(connection)?.entries[0].fingerprint,
+                crate::ssh::store::list_known_hosts(connection)?.entries[0].fingerprint,
                 "SHA256:x"
             );
             assert_eq!(
-                tterm_core::sftp::store::list_sftp_directories(connection)?.entries[0].last_path,
+                crate::sftp::store::list_sftp_directories(connection)?.entries[0].last_path,
                 "/srv"
             );
             Ok(())
@@ -134,7 +134,7 @@ fn imports_every_file_once_and_renames_them() {
     assert!(!import_json_files(&database, &dir).expect("second run"));
     assert_eq!(
         database
-            .read(tterm_core::profiles::storage::list_saved_profiles)
+            .read(crate::profiles::storage::list_saved_profiles)
             .unwrap()
             .len(),
         2
@@ -224,33 +224,32 @@ fn settings_files_move_into_the_database_leaving_only_config_json() {
     );
     database
         .read(|connection| {
-            let state = tterm_core::app_state::load(connection)?;
+            let state = crate::app_state::load(connection)?;
             assert_eq!(state.last_update_check_at, Some(123));
             assert_eq!(state.collapsed_profile_group_keys, ["ops"]);
 
-            let session = tterm_core::session_restore::read_session(connection)?.unwrap();
+            let session = crate::session_restore::read_session(connection)?.unwrap();
             assert_eq!(session.active_tab_id.as_deref(), Some("1"));
             assert_eq!(session.last_saved, 9);
             assert!(session.tabs[0]["connection"].get("password").is_none());
 
             assert_eq!(
-                tterm_core::config::window_background::read(connection)?,
+                crate::config::window_background::read(connection)?,
                 Some((0x11, 0x22, 0x33))
             );
 
-            let automatic =
-                tterm_core::backup::automatic::read_automatic_backup_settings(connection)?;
+            let automatic = crate::backup::automatic::read_automatic_backup_settings(connection)?;
             assert_eq!(automatic.frequency, "weekly");
             assert_eq!(automatic.retention_count, 5);
             assert_eq!(automatic.last_backup_at, Some(77));
 
-            let webdav = tterm_core::backup::remote::read_settings(connection)?;
+            let webdav = crate::backup::remote::read_settings(connection)?;
             assert_eq!(webdav.url, "https://dav.example/remote.php");
             assert_eq!(webdav.username, "me");
             assert_eq!(webdav.last_backup_at, Some(88));
             assert_eq!(webdav.last_error.as_deref(), Some("boom"));
 
-            let sync = tterm_core::sync::read_settings(connection)?;
+            let sync = crate::sync::read_settings(connection)?;
             assert!(sync.enabled);
             assert!(!sync.selection.secrets);
             assert_eq!((sync.push_interval_secs, sync.pull_interval_mins), (60, 15));
@@ -272,11 +271,11 @@ fn files_written_again_by_an_older_version_do_not_overwrite_the_database() {
     import_settings_files_into(&database, &dir).unwrap();
     database
         .write(|connection| {
-            tterm_core::session_restore::write_session(
+            crate::session_restore::write_session(
                 connection,
-                tterm_core::session_restore::SessionData {
+                crate::session_restore::SessionData {
                     active_tab_id: Some("newer".to_string()),
-                    ..tterm_core::session_restore::SessionData::default()
+                    ..crate::session_restore::SessionData::default()
                 },
             )
         })
@@ -289,10 +288,10 @@ fn files_written_again_by_an_older_version_do_not_overwrite_the_database() {
     assert_eq!(file_names(&dir), ["config.json"]);
     database
         .read(|connection| {
-            let session = tterm_core::session_restore::read_session(connection)?.unwrap();
+            let session = crate::session_restore::read_session(connection)?.unwrap();
             assert_eq!(session.active_tab_id.as_deref(), Some("newer"));
             assert_eq!(
-                tterm_core::config::window_background::read(connection)?,
+                crate::config::window_background::read(connection)?,
                 Some((0x11, 0x22, 0x33))
             );
             Ok(())
@@ -315,10 +314,10 @@ fn an_unreadable_settings_file_stays_while_the_others_move() {
     assert_eq!(file_names(&dir), ["config.json", "sync_settings.json"]);
     database
         .read(|connection| {
-            assert!(tterm_core::session_restore::read_session(connection)?.is_none());
-            assert!(!tterm_core::sync::read_settings(connection)?.enabled);
+            assert!(crate::session_restore::read_session(connection)?.is_none());
+            assert!(!crate::sync::read_settings(connection)?.enabled);
             assert_eq!(
-                tterm_core::backup::remote::read_settings(connection)?.last_backup_at,
+                crate::backup::remote::read_settings(connection)?.last_backup_at,
                 Some(88)
             );
             Ok(())
@@ -339,7 +338,7 @@ fn corrupt_file_aborts_the_whole_import() {
     assert!(!db_records_import(&database).unwrap());
     assert!(
         database
-            .read(tterm_core::profiles::groups::list_groups)
+            .read(crate::profiles::groups::list_groups)
             .unwrap()
             .is_empty()
     );
@@ -358,7 +357,7 @@ fn missing_files_import_as_empty() {
     assert!(import_json_files(&database, &dir).expect("import"));
     assert!(
         database
-            .read(tterm_core::profiles::storage::list_saved_profiles)
+            .read(crate::profiles::storage::list_saved_profiles)
             .unwrap()
             .is_empty()
     );
@@ -380,7 +379,7 @@ fn imports_a_real_config_directory_copy() {
     let mut expected_profiles: Vec<SavedProfile> =
         serde_json::from_value(json("profiles.json")).unwrap();
     for profile in &mut expected_profiles {
-        tterm_core::profiles::storage::normalize_profile(profile);
+        crate::profiles::storage::normalize_profile(profile);
     }
     let expected_groups: Vec<String> = serde_json::from_value(json("profile_groups.json")).unwrap();
     let expected_groups = expected_groups
@@ -397,21 +396,20 @@ fn imports_a_real_config_directory_copy() {
     let expected_sftp = json("sftp_directories.json");
 
     let database = Database::open(&dir.join("tterm.db")).expect("open database copy");
-    let commands_before =
-        tterm_core::command_library::repository::CommandRepository::new(&database)
-            .list()
-            .unwrap()
-            .len();
+    let commands_before = crate::command_library::repository::CommandRepository::new(&database)
+        .list()
+        .unwrap()
+        .len();
     assert!(import_json_files(&database, &dir).expect("import"));
 
     database
         .read(|connection| {
-            let profiles = tterm_core::profiles::storage::list_saved_profiles(connection)?;
+            let profiles = crate::profiles::storage::list_saved_profiles(connection)?;
             assert_eq!(
                 serde_json::to_value(&profiles).unwrap(),
                 serde_json::to_value(&expected_profiles).unwrap()
             );
-            let mut groups = tterm_core::profiles::groups::list_groups(connection)?
+            let mut groups = crate::profiles::groups::list_groups(connection)?
                 .into_iter()
                 .map(|group| group.id)
                 .collect::<Vec<_>>();
@@ -425,17 +423,16 @@ fn imports_a_real_config_directory_copy() {
             expected.dedup();
             assert_eq!(groups, expected);
             assert_eq!(
-                serde_json::to_value(tterm_core::tunnel::storage::list_tunnel_rules(connection)?)
+                serde_json::to_value(crate::tunnel::storage::list_tunnel_rules(connection)?)
                     .unwrap(),
                 expected_tunnels
             );
             assert_eq!(
-                serde_json::to_value(tterm_core::ssh::store::list_known_hosts(connection)?)
-                    .unwrap(),
+                serde_json::to_value(crate::ssh::store::list_known_hosts(connection)?).unwrap(),
                 expected_known_hosts
             );
             assert_eq!(
-                serde_json::to_value(tterm_core::sftp::store::list_sftp_directories(connection)?)
+                serde_json::to_value(crate::sftp::store::list_sftp_directories(connection)?)
                     .unwrap(),
                 expected_sftp
             );
@@ -453,7 +450,7 @@ fn imports_a_real_config_directory_copy() {
         })
         .expect("verify import");
     assert_eq!(
-        tterm_core::command_library::repository::CommandRepository::new(&database)
+        crate::command_library::repository::CommandRepository::new(&database)
             .list()
             .unwrap()
             .len(),

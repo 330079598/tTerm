@@ -4,21 +4,21 @@
 //! it, so it either happens completely or is retried on the next launch.
 //! Imported files are renamed to `<name>.migrated` rather than deleted.
 
+use crate::config::paths::ensure_config_dir;
+use crate::db::{Database, IMPORT_ERROR, get, init, read, sql_error};
+use crate::profiles::types::{ProfileGroup, SavedProfile};
+use crate::sftp::store::SftpDirectoryStore;
+use crate::ssh::store::KnownHostStore;
+use crate::tunnel::types::TunnelRule;
 use rusqlite::{Connection, OptionalExtension};
 use serde::de::DeserializeOwned;
 use std::fs;
 use std::path::Path;
-use tterm_core::config::paths::ensure_config_dir;
-use tterm_core::db::{Database, IMPORT_ERROR, get, init, read, sql_error};
-use tterm_core::profiles::types::{ProfileGroup, SavedProfile};
-use tterm_core::sftp::store::SftpDirectoryStore;
-use tterm_core::ssh::store::KnownHostStore;
-use tterm_core::tunnel::types::TunnelRule;
 
 const IMPORTED_MARKER: &str = "legacy_json_imported_at";
 
 /// Files whose contents now live in the database.
-pub(crate) const IMPORTED_FILES: &[&str] = &[
+pub const IMPORTED_FILES: &[&str] = &[
     "profiles.json",
     "profile_groups.json",
     "tunnels.json",
@@ -28,7 +28,7 @@ pub(crate) const IMPORTED_FILES: &[&str] = &[
 
 /// When the JSON files were imported (unix ms); `None` before that.
 pub(crate) fn imported_at(connection: &Connection) -> Result<Option<i64>, String> {
-    tterm_core::db::meta::get(connection, IMPORTED_MARKER)
+    crate::db::meta::get(connection, IMPORTED_MARKER)
 }
 
 /// Whether this database already records the JSON import.
@@ -90,11 +90,11 @@ pub(crate) fn import_settings_files_into(
     config_dir: &Path,
 ) -> Result<(), String> {
     let errors: Vec<String> = [
-        tterm_core::app_state::import_from_config_file(database, config_dir),
-        tterm_core::session_restore::import_file(database, config_dir),
-        tterm_core::config::window_background::import_file(database, config_dir),
-        tterm_core::backup::automatic::import_settings_files(database, config_dir),
-        tterm_core::sync::import_settings_file(database, config_dir),
+        crate::app_state::import_from_config_file(database, config_dir),
+        crate::session_restore::import_file(database, config_dir),
+        crate::config::window_background::import_file(database, config_dir),
+        crate::backup::automatic::import_settings_files(database, config_dir),
+        crate::sync::import_settings_file(database, config_dir),
     ]
     .into_iter()
     .filter_map(Result::err)
@@ -109,26 +109,26 @@ pub(crate) fn import_settings_files_into(
 fn import_files(connection: &Connection, config_dir: &Path) -> Result<(), String> {
     let profiles = read_json::<Vec<SavedProfile>>(&config_dir.join("profiles.json"))?;
     if let Some(profiles) = &profiles {
-        tterm_core::profiles::storage::replace_profiles(connection, profiles)?;
+        crate::profiles::storage::replace_profiles(connection, profiles)?;
     }
     let groups = read_json::<Vec<ProfileGroup>>(&config_dir.join("profile_groups.json"))?;
     if groups.is_some() || profiles.is_some() {
         // These files name groups; a profile's group name is its group's id.
-        let groups = tterm_core::profiles::groups::with_legacy_groups(
+        let groups = crate::profiles::groups::with_legacy_groups(
             groups.unwrap_or_default(),
             profiles.as_deref().unwrap_or_default(),
         );
-        tterm_core::profiles::groups::replace_groups(connection, &groups)?;
+        crate::profiles::groups::replace_groups(connection, &groups)?;
     }
     if let Some(tunnels) = read_json::<Vec<TunnelRule>>(&config_dir.join("tunnels.json"))? {
-        tterm_core::tunnel::storage::replace_tunnels(connection, &tunnels)?;
+        crate::tunnel::storage::replace_tunnels(connection, &tunnels)?;
     }
     if let Some(store) = read_json::<KnownHostStore>(&config_dir.join("ssh_known_hosts.json"))? {
-        tterm_core::ssh::store::replace_known_hosts(connection, &store)?;
+        crate::ssh::store::replace_known_hosts(connection, &store)?;
     }
     if let Some(store) = read_json::<SftpDirectoryStore>(&config_dir.join("sftp_directories.json"))?
     {
-        tterm_core::sftp::store::replace_sftp_directories(connection, &store)?;
+        crate::sftp::store::replace_sftp_directories(connection, &store)?;
     }
     Ok(())
 }
@@ -149,24 +149,24 @@ fn read_json<T: DeserializeOwned>(path: &Path) -> Result<Option<T>, String> {
 
 /// Whether the legacy JSON files have been imported. False when the database
 /// is unavailable.
-pub(crate) fn legacy_json_imported() -> bool {
+pub fn legacy_json_imported() -> bool {
     init().and_then(db_records_import).unwrap_or(false)
 }
 
 /// Moves the settings files and state older versions kept beside
 /// `config.json` into the database.
-pub(crate) fn import_settings_files() -> Result<(), String> {
+pub fn import_settings_files() -> Result<(), String> {
     import_settings_files_into(get()?, &ensure_config_dir()?)
 }
 
 /// When the legacy JSON files were imported (unix ms); `None` before that
 /// or when the database is unavailable.
-pub(crate) fn legacy_json_imported_at() -> Option<i64> {
+pub fn legacy_json_imported_at() -> Option<i64> {
     read(imported_at).ok().flatten()
 }
 
 /// Imports the JSON files that held app data before the database, once.
-pub(crate) fn import_legacy_json_files() -> Result<(), String> {
+pub fn import_legacy_json_files() -> Result<(), String> {
     let database = init()?;
     let result = ensure_config_dir().and_then(|directory| import_json_files(database, &directory));
     match result {

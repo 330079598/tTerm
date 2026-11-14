@@ -8,7 +8,6 @@ mod clipboard_files;
 pub mod command_library;
 mod config;
 mod core;
-mod db;
 #[cfg(any(target_os = "windows", target_os = "macos"))]
 mod drag_out;
 mod event_sink;
@@ -474,12 +473,12 @@ pub fn run() {
 
             // After the legacy config merge so data from the old config
             // directory is imported along with everything else.
-            if let Err(error) = db::legacy_import::import_legacy_json_files() {
+            if let Err(error) = tterm_core::db::legacy_import::import_legacy_json_files() {
                 eprintln!("Failed to import JSON data into the database: {error}");
             }
 
             // Settings files and state older versions kept beside config.json.
-            if let Err(error) = db::legacy_import::import_settings_files() {
+            if let Err(error) = tterm_core::db::legacy_import::import_settings_files() {
                 eprintln!("Failed to move settings files into the database: {error}");
             }
 
