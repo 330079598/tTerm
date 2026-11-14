@@ -6,6 +6,7 @@ mod open;
 mod output;
 pub(crate) mod ports;
 pub(crate) mod reconnect;
+pub mod send_store;
 pub mod session;
 #[cfg(test)]
 mod tests;
