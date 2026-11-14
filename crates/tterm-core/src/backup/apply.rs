@@ -1,35 +1,36 @@
 //! Writing an imported backup's data into this device's settings and database.
 
+use crate::backup::BackupImportOptions;
+use crate::backup::BackupLogFile;
+use crate::backup::BackupPayload;
+use crate::backup::BackupSelection;
+use crate::backup::MissingKeyFile;
 use crate::backup::archive::validate_relative_path;
 use crate::backup::automatic::restore_automatic_backup_settings;
 use crate::backup::export::secret_travels;
 use crate::backup::remote;
-use crate::{
-    backup::BackupImportOptions, backup::BackupLogFile, backup::BackupPayload,
-    backup::BackupSelection, backup::MissingKeyFile,
-};
+use crate::command_library::{models::SavedCommand, repository::CommandRepository};
+use crate::config::AppConfig;
+use crate::config::local_shells::LocalShell;
+use crate::profiles::groups::list_groups;
+use crate::profiles::groups::repair;
+use crate::profiles::groups::replace_groups;
+use crate::profiles::groups::with_legacy_groups;
+use crate::profiles::storage::normalize_profile;
+use crate::profiles::types::{ProfileGroup, SavedProfile};
+use crate::proxy::ProxyServer;
+use crate::serial::history::SerialSend;
+use crate::serial::history::store as serial_sends;
+use crate::sftp::store::SftpDirectoryStore;
+use crate::ssh::secret_store::{crypto::SecretKey as DataKey, store::put_secret};
+use crate::ssh::store::KnownHostStore;
+use crate::tunnel::types::TunnelRule;
 use base64::{Engine, engine::general_purpose::STANDARD as BASE64};
 use serde::Serialize;
 use serde_json::Value;
 use std::collections::{BTreeMap, HashMap};
 use std::fs;
 use std::path::{Path, PathBuf};
-use tterm_core::command_library::{models::SavedCommand, repository::CommandRepository};
-use tterm_core::config::AppConfig;
-use tterm_core::config::local_shells::LocalShell;
-use tterm_core::profiles::groups::list_groups;
-use tterm_core::profiles::groups::repair;
-use tterm_core::profiles::groups::replace_groups;
-use tterm_core::profiles::groups::with_legacy_groups;
-use tterm_core::profiles::storage::normalize_profile;
-use tterm_core::profiles::types::{ProfileGroup, SavedProfile};
-use tterm_core::proxy::ProxyServer;
-use tterm_core::serial::history::SerialSend;
-use tterm_core::serial::history::store as serial_sends;
-use tterm_core::sftp::store::SftpDirectoryStore;
-use tterm_core::ssh::secret_store::{crypto::SecretKey as DataKey, store::put_secret};
-use tterm_core::ssh::store::KnownHostStore;
-use tterm_core::tunnel::types::TunnelRule;
 
 /// Whether importing hands the WebDAV settings to another server or backup
 /// password, which scheduled uploads and sync would then send saved
@@ -90,7 +91,7 @@ pub(super) fn missing_key_files(profiles: &[SavedProfile]) -> Vec<MissingKeyFile
             .flat_map(|jump| [&jump.private_key_path, &jump.certificate_path])
             .filter_map(Option::as_deref);
         for path in own.chain(jumps).map(str::trim) {
-            if path.is_empty() || tterm_core::ssh::key_file::key_exists(path) {
+            if path.is_empty() || crate::ssh::key_file::key_exists(path) {
                 continue;
             }
             let users = missing.entry(path).or_default();
@@ -183,8 +184,8 @@ fn keep_device_shells(imported: &mut AppConfig, current: &AppConfig) {
     let distro = imported.terminal_shell_wsl_distro.trim();
     let missing_distro = imported.terminal_shell == "wsl"
         && !distro.is_empty()
-        && !tterm_core::terminal::pty::wsl_distro_installed(distro);
-    if missing_distro || !tterm_core::terminal::pty::has_terminal_shell(&imported.terminal_shell) {
+        && !crate::terminal::pty::wsl_distro_installed(distro);
+    if missing_distro || !crate::terminal::pty::has_terminal_shell(&imported.terminal_shell) {
         imported.terminal_shell.clone_from(&current.terminal_shell);
         imported
             .terminal_shell_custom_path
@@ -236,19 +237,19 @@ pub(super) fn apply_payload(
         if let Some(value) = payload.config.as_ref() {
             let mut imported = serde_json::from_value::<AppConfig>(value.clone())
                 .map_err(|error| format!("Invalid settings: {error}"))?;
-            tterm_core::config::migrate_local_shell_integration(&mut imported);
-            keep_device_settings(&mut imported, tterm_core::config::load_config_file()?);
-            tterm_core::config::save_config_file(&imported)?;
+            crate::config::migrate_local_shell_integration(&mut imported);
+            keep_device_settings(&mut imported, crate::config::load_config_file()?);
+            crate::config::save_config_file(&imported)?;
         }
         // A backup made before sounds travelled keeps this device's sound.
         if let Some(sound) = payload.notification_sound.as_deref() {
-            tterm_core::notification::sound::restore(sound)?;
+            crate::notification::sound::restore(sound)?;
         }
     }
 
     // The WebDAV passwords are only taken together with their server.
     let webdav_restored = options.selection.settings && payload.webdav_backup.is_some();
-    let (profiles_imported, secrets_imported) = tterm_core::db::write(|transaction| {
+    let (profiles_imported, secrets_imported) = crate::db::write(|transaction| {
         let profiles_imported = apply_database_payload(transaction, payload, options)?;
         if let Some(sends) = payload
             .serial_sends
@@ -279,7 +280,7 @@ pub(super) fn apply_payload(
     // The imported tabs reuse the ids of the tabs open now, whose saved
     // content must not show in them.
     if options.selection.session && payload.session.is_some() {
-        tterm_core::session_restore::scrollback::clear_all()?;
+        crate::session_restore::scrollback::clear_all()?;
     }
 
     let commands_imported = if options.selection.command_library {
@@ -287,7 +288,7 @@ pub(super) fn apply_payload(
         if options.conflict_strategy == "replace" {
             replace_commands(incoming)?;
         } else {
-            let repository = CommandRepository::new(tterm_core::db::get()?);
+            let repository = CommandRepository::new(crate::db::get()?);
             for command in incoming {
                 repository.save(command)?;
             }
@@ -319,7 +320,7 @@ pub(super) fn apply_database_payload(
         }
         if let Some(incoming) = payload.collapsed_profile_group_keys.as_ref() {
             let mut keys = if merge {
-                tterm_core::app_state::collapsed_profile_group_keys(transaction)?
+                crate::app_state::collapsed_profile_group_keys(transaction)?
             } else {
                 Vec::new()
             };
@@ -328,13 +329,13 @@ pub(super) fn apply_database_payload(
                     keys.push(key.clone());
                 }
             }
-            tterm_core::app_state::set_collapsed_profile_group_keys(transaction, &keys)?;
+            crate::app_state::set_collapsed_profile_group_keys(transaction, &keys)?;
         }
     }
     if options.selection.session
         && let Some(session) = payload.session.clone()
     {
-        tterm_core::session_restore::write_session(transaction, from_backup_value(session)?)?;
+        crate::session_restore::write_session(transaction, from_backup_value(session)?)?;
     }
     let mut profiles_imported = 0;
     if options.selection.profiles {
@@ -351,14 +352,13 @@ pub(super) fn apply_database_payload(
             }
             let profiles = if merge {
                 let safe_incoming = to_backup_value(&incoming_profiles)?;
-                let existing = to_backup_value(
-                    &tterm_core::profiles::storage::list_saved_profiles(transaction)?,
-                )?;
+                let existing =
+                    to_backup_value(&crate::profiles::storage::list_saved_profiles(transaction)?)?;
                 from_backup_value(merge_arrays_by_keys(existing, safe_incoming, &["id"])?)?
             } else {
                 incoming_profiles
             };
-            tterm_core::profiles::storage::replace_profiles(transaction, &profiles)?;
+            crate::profiles::storage::replace_profiles(transaction, &profiles)?;
         }
         if payload.profile_groups.is_some() || !legacy_groups.is_empty() {
             let incoming = match payload.profile_groups.as_ref() {
@@ -382,14 +382,13 @@ pub(super) fn apply_database_payload(
         // Backups made before tunnels existed carry none; keep the current rules then.
         if let Some(incoming) = payload.tunnels.as_ref() {
             let tunnels = if merge {
-                let existing = to_backup_value(&tterm_core::tunnel::storage::list_tunnel_rules(
-                    transaction,
-                )?)?;
+                let existing =
+                    to_backup_value(&crate::tunnel::storage::list_tunnel_rules(transaction)?)?;
                 merge_arrays_by_keys(existing, incoming.clone(), &["id"])?
             } else {
                 incoming.clone()
             };
-            tterm_core::tunnel::storage::replace_tunnels(
+            crate::tunnel::storage::replace_tunnels(
                 transaction,
                 &from_backup_value::<Vec<TunnelRule>>(tunnels)?,
             )?;
@@ -397,13 +396,12 @@ pub(super) fn apply_database_payload(
         // Backups made before proxies existed carry none; keep the current servers then.
         if let Some(incoming) = payload.proxies.as_ref() {
             let proxies = if merge {
-                let existing =
-                    to_backup_value(&tterm_core::proxy::storage::list_proxies(transaction)?)?;
+                let existing = to_backup_value(&crate::proxy::storage::list_proxies(transaction)?)?;
                 merge_arrays_by_keys(existing, incoming.clone(), &["id"])?
             } else {
                 incoming.clone()
             };
-            tterm_core::proxy::storage::replace_proxies(
+            crate::proxy::storage::replace_proxies(
                 transaction,
                 &from_backup_value::<Vec<ProxyServer>>(proxies)?,
             )?;
@@ -415,10 +413,10 @@ pub(super) fn apply_database_payload(
         let incoming = from_backup_value::<KnownHostStore>(incoming.clone())?;
         if merge {
             for entry in &incoming.entries {
-                tterm_core::ssh::store::merge_known_host(transaction, entry)?;
+                crate::ssh::store::merge_known_host(transaction, entry)?;
             }
         } else {
-            tterm_core::ssh::store::replace_known_hosts(transaction, &incoming)?;
+            crate::ssh::store::replace_known_hosts(transaction, &incoming)?;
         }
     }
     if options.selection.themes {
@@ -430,7 +428,7 @@ pub(super) fn apply_database_payload(
         if let Some(incoming) = incoming {
             // Merging into nothing still drops duplicate ids.
             let existing = if merge {
-                Value::Array(tterm_core::themes::list_themes(transaction)?)
+                Value::Array(crate::themes::list_themes(transaction)?)
             } else {
                 Value::Null
             };
@@ -439,22 +437,21 @@ pub(super) fn apply_database_payload(
                 Value::Array(incoming.clone()),
                 &["id"],
             )?)?;
-            tterm_core::themes::replace_themes(transaction, &themes)?;
-            tterm_core::themes::mark_themes_imported(transaction)?;
+            crate::themes::replace_themes(transaction, &themes)?;
+            crate::themes::mark_themes_imported(transaction)?;
         }
     }
     if options.selection.sftp_directories
         && let Some(incoming) = payload.sftp_directories.as_ref()
     {
         let store = if merge {
-            let existing = to_backup_value(&tterm_core::sftp::store::list_sftp_directories(
-                transaction,
-            )?)?;
+            let existing =
+                to_backup_value(&crate::sftp::store::list_sftp_directories(transaction)?)?;
             merge_object_entries(existing, incoming.clone(), &["host", "port", "username"])?
         } else {
             incoming.clone()
         };
-        tterm_core::sftp::store::replace_sftp_directories(
+        crate::sftp::store::replace_sftp_directories(
             transaction,
             &from_backup_value::<SftpDirectoryStore>(store)?,
         )?;
@@ -496,7 +493,7 @@ pub(super) fn import_serial_sends(
 }
 
 pub(super) fn replace_commands(commands: &[SavedCommand]) -> Result<(), String> {
-    let repository = CommandRepository::new(tterm_core::db::get()?);
+    let repository = CommandRepository::new(crate::db::get()?);
     for existing in repository.list()? {
         repository.delete(&existing.id)?;
     }
@@ -577,7 +574,7 @@ fn merge_object_entries(existing: Value, incoming: Value, keys: &[&str]) -> Resu
 }
 
 pub(super) fn imported_logs_root() -> Result<PathBuf, String> {
-    Ok(tterm_core::config::paths::get_config_path()?
+    Ok(crate::config::paths::get_config_path()?
         .join("logs")
         .join("imported"))
 }
@@ -589,7 +586,7 @@ fn restore_log_files(logs: &[BackupLogFile]) -> Result<(), String> {
         let bytes = BASE64
             .decode(&log.data_b64)
             .map_err(|_| "Backup contains invalid terminal log data.".to_string())?;
-        tterm_core::config::atomic::atomic_write_private(
+        crate::config::atomic::atomic_write_private(
             &root.join(Path::new(&log.relative_path)),
             bytes,
         )?;

@@ -3,24 +3,28 @@
 //! password and the server password are kept with the other saved passwords,
 //! so scheduled uploads can include credentials and need no prompt.
 
-pub(super) mod service;
+pub mod service;
 
 use crate::backup::BackupSelection;
 use crate::backup::archive::build_archive_for_version;
 use crate::backup::diff::value_array_len;
 use crate::backup::export::collect_payload;
+use crate::backup::remote::files::backup_file_name;
+use crate::backup::remote::files::device_name;
+use crate::backup::remote::files::now_ms;
+use crate::backup::remote::files::stale_backups;
+use crate::backup::remote::files::user_agent;
+use crate::backup::webdav::{WebDavClient, split_remote_directory};
+use crate::core::blocking::run_blocking;
+use crate::db::meta;
+use crate::ssh::secret_store::store::get_secret;
+use crate::ssh::secret_store::types::SecretStoreState;
 use chrono::Utc;
-use files::{backup_file_name, device_name, now_ms, stale_backups, user_agent};
 use rusqlite::Connection;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::fs;
 use std::sync::atomic::AtomicBool;
-use tterm_core::backup::webdav::{WebDavClient, split_remote_directory};
-use tterm_core::core::blocking::run_blocking;
-use tterm_core::db::meta;
-use tterm_core::ssh::secret_store::store::get_secret;
-use tterm_core::ssh::secret_store::types::SecretStoreState;
 use zeroize::Zeroizing;
 
 mod files;
@@ -175,7 +179,7 @@ async fn run_webdav_backup_locked(
     let result = upload(&app_version, &settings, frontend_state, secret_state).await;
     let message = result.as_ref().err().cloned();
     run_blocking(move || {
-        tterm_core::db::write(|transaction| match message {
+        crate::db::write(|transaction| match message {
             Some(message) => meta::set(transaction, LAST_ERROR_KEY, &message),
             None => {
                 meta::set(transaction, LAST_BACKUP_AT_KEY, &now_ms())?;
@@ -257,8 +261,8 @@ async fn upload(
 }
 
 /// Removes downloaded backups; also run at startup for any a quit left behind.
-pub(crate) fn clear_downloads() -> Result<(), String> {
-    let downloads = tterm_core::config::paths::ensure_config_dir()?.join(DOWNLOAD_DIRECTORY);
+pub fn clear_downloads() -> Result<(), String> {
+    let downloads = crate::config::paths::ensure_config_dir()?.join(DOWNLOAD_DIRECTORY);
     if downloads.exists() {
         fs::remove_dir_all(&downloads)
             .map_err(|error| format!("Failed to clear old WebDAV downloads: {error}"))?;
@@ -358,7 +362,7 @@ fn saved_secret(
     key: &str,
 ) -> Result<Option<Zeroizing<String>>, String> {
     let data_key = secret_state.data_key()?;
-    tterm_core::db::read(|connection| get_secret(connection, &data_key, key))
+    crate::db::read(|connection| get_secret(connection, &data_key, key))
 }
 
 /// The saved backup password, which opens backups this account uploaded.
@@ -419,7 +423,7 @@ fn is_configured(settings: &WebDavBackupSettings) -> bool {
 }
 
 fn normalized_settings(mut settings: WebDavBackupSettings) -> Result<WebDavBackupSettings, String> {
-    settings.url = tterm_core::backup::webdav::parse_server_url(&settings.url)?.to_string();
+    settings.url = crate::backup::webdav::parse_server_url(&settings.url)?.to_string();
     settings.username = settings.username.trim().to_string();
     if settings.username.is_empty() {
         return Err("Enter the WebDAV user name.".to_string());
@@ -453,10 +457,10 @@ fn backup_due(settings: &WebDavBackupSettings, now: i64) -> bool {
 
 /// The saved settings with this device's upload history.
 fn load_settings() -> Result<WebDavBackupSettings, String> {
-    tterm_core::db::read(read_settings)
+    crate::db::read(read_settings)
 }
 
-pub(crate) fn read_settings(connection: &Connection) -> Result<WebDavBackupSettings, String> {
+pub fn read_settings(connection: &Connection) -> Result<WebDavBackupSettings, String> {
     Ok(WebDavBackupSettings {
         last_backup_at: meta::get(connection, LAST_BACKUP_AT_KEY)?,
         last_error: meta::get(connection, LAST_ERROR_KEY)?,
@@ -491,8 +495,8 @@ fn save_keeping_history(
 
 /// Forgets the server, its passwords and the upload history.
 fn clear_settings(connection: &Connection) -> Result<(), String> {
-    tterm_core::ssh::secret_store::store::delete_secret(connection, PASSWORD_KEY)?;
-    tterm_core::ssh::secret_store::store::delete_secret(connection, BACKUP_PASSWORD_KEY)?;
+    crate::ssh::secret_store::store::delete_secret(connection, PASSWORD_KEY)?;
+    crate::ssh::secret_store::store::delete_secret(connection, BACKUP_PASSWORD_KEY)?;
     for key in [SETTINGS_KEY, LAST_BACKUP_AT_KEY, LAST_ERROR_KEY] {
         meta::remove(connection, key)?;
     }
@@ -501,8 +505,8 @@ fn clear_settings(connection: &Connection) -> Result<(), String> {
 
 /// Moves `webdav_backup_settings.json` from older versions into the
 /// database, its upload history apart from the settings.
-pub(crate) fn import_settings_file(
-    database: &tterm_core::db::Database,
+pub fn import_settings_file(
+    database: &crate::db::Database,
     config_dir: &std::path::Path,
 ) -> Result<(), String> {
     meta::import_file(database, &config_dir.join(SETTINGS_FILE), import_settings)

@@ -11040,6 +11040,7 @@ dependencies = [
  "vte",
  "windows 0.62.2",
  "zeroize",
+ "zip 8.6.0",
 ]
 
 [[package]]

@@ -1,38 +1,42 @@
 //! Domain operations behind the IPC entry points.
+use crate::core::blocking::run_blocking;
+use crate::ssh::secret_store::types::SecretStoreState;
+use crate::sync::SYNC_LOCK;
+use crate::sync::SyncOutcome;
+use crate::sync::SyncSettings;
+use crate::sync::SyncStatus;
+use crate::sync::set_last_error;
 use crate::sync::state;
-use crate::{
-    sync::SYNC_LOCK, sync::SyncOutcome, sync::SyncSettings, sync::SyncStatus, sync::set_last_error,
-    sync::status, sync::sync, sync::write_settings,
-};
+use crate::sync::status;
+use crate::sync::sync;
+use crate::sync::write_settings;
+use crate::tunnel::manager::TunnelManager;
 use serde_json::Value;
-use tterm_core::core::blocking::run_blocking;
-use tterm_core::ssh::secret_store::types::SecretStoreState;
-use tterm_core::tunnel::manager::TunnelManager;
 
-pub(super) async fn get_sync_status() -> Result<SyncStatus, String> {
+pub async fn get_sync_status() -> Result<SyncStatus, String> {
     run_blocking(status).await
 }
 
-pub(super) async fn save_sync_settings(settings: SyncSettings) -> Result<SyncStatus, String> {
+pub async fn save_sync_settings(settings: SyncSettings) -> Result<SyncStatus, String> {
     run_blocking(move || {
         settings.validate()?;
-        tterm_core::db::write(|transaction| write_settings(transaction, &settings))?;
+        crate::db::write(|transaction| write_settings(transaction, &settings))?;
         status()
     })
     .await
 }
 
-pub(super) async fn reset_sync() -> Result<SyncStatus, String> {
+pub async fn reset_sync() -> Result<SyncStatus, String> {
     let _guard = SYNC_LOCK.lock().await;
     run_blocking(|| {
-        tterm_core::db::write(|transaction| state::clear(transaction))?;
+        crate::db::write(|transaction| state::clear(transaction))?;
         set_last_error(None);
         status()
     })
     .await
 }
 
-pub(super) async fn run_sync(
+pub async fn run_sync(
     app_version: String,
     frontend_state: Option<Value>,
     check_remote: bool,

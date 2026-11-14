@@ -1,23 +1,26 @@
 //! Gathering what a backup carries from this device.
 
+use crate::backup::AutomaticBackupSettings;
+use crate::backup::BackupExportOptions;
+use crate::backup::BackupLogFile;
+use crate::backup::BackupPayload;
+use crate::backup::BackupSelection;
+use crate::backup::MigrationSecretRecord;
 use crate::backup::apply::to_backup_value;
+use crate::backup::archive::validate_payload;
+use crate::backup::archive::validate_relative_path;
 use crate::backup::automatic::load_automatic_backup_settings;
 use crate::backup::remote;
-use crate::{
-    backup::AutomaticBackupSettings, backup::BackupExportOptions, backup::BackupLogFile,
-    backup::BackupPayload, backup::BackupSelection, backup::MigrationSecretRecord,
-};
-use crate::{backup::archive::validate_payload, backup::archive::validate_relative_path};
+use crate::command_library::repository::CommandRepository;
+use crate::profiles::types::SavedProfile;
+use crate::serial::history::store as serial_sends;
+use crate::ssh::secret_store::store::get_secret;
+use crate::ssh::secret_store::types::SecretStoreState;
 use base64::{Engine, engine::general_purpose::STANDARD as BASE64};
 use serde::Serialize;
 use serde_json::Value;
 use std::fs;
 use std::path::{Component, PathBuf};
-use tterm_core::command_library::repository::CommandRepository;
-use tterm_core::profiles::types::SavedProfile;
-use tterm_core::serial::history::store as serial_sends;
-use tterm_core::ssh::secret_store::store::get_secret;
-use tterm_core::ssh::secret_store::types::SecretStoreState;
 
 pub(super) fn validate_export_options(options: &BackupExportOptions) -> Result<(), String> {
     if !options.selection.any() {
@@ -72,19 +75,19 @@ pub(super) fn collect_payload(
         config: read_selected_json(selection.settings, "config.json")?,
         profiles: read_selected_data(
             selection.profiles,
-            tterm_core::profiles::storage::list_saved_profiles,
+            crate::profiles::storage::list_saved_profiles,
         )?,
         profile_groups: read_selected_data(
             selection.profiles,
-            tterm_core::profiles::groups::list_groups,
+            crate::profiles::groups::list_groups,
         )?,
         tunnels: read_selected_data(
             selection.profiles,
-            tterm_core::tunnel::storage::list_tunnel_rules,
+            crate::tunnel::storage::list_tunnel_rules,
         )?,
-        proxies: read_selected_data(selection.profiles, tterm_core::proxy::storage::list_proxies)?,
+        proxies: read_selected_data(selection.profiles, crate::proxy::storage::list_proxies)?,
         session: if selection.session {
-            tterm_core::db::read(tterm_core::session_restore::read_session)?
+            crate::db::read(crate::session_restore::read_session)?
                 .map(|session| to_backup_value(&session))
                 .transpose()?
         } else {
@@ -92,19 +95,19 @@ pub(super) fn collect_payload(
         },
         known_hosts: read_selected_data(
             selection.known_hosts,
-            tterm_core::ssh::store::list_known_hosts,
+            crate::ssh::store::list_known_hosts,
         )?,
         sftp_directories: read_selected_data(
             selection.sftp_directories,
-            tterm_core::sftp::store::list_sftp_directories,
+            crate::sftp::store::list_sftp_directories,
         )?,
         commands: if selection.command_library {
-            Some(CommandRepository::new(tterm_core::db::get()?).list()?)
+            Some(CommandRepository::new(crate::db::get()?).list()?)
         } else {
             None
         },
         serial_sends: if selection.command_library {
-            Some(tterm_core::db::read(serial_sends::list_all)?)
+            Some(crate::db::read(serial_sends::list_all)?)
         } else {
             None
         },
@@ -116,13 +119,13 @@ pub(super) fn collect_payload(
         automatic_backup,
         sync,
         notification_sound: if selection.settings {
-            tterm_core::notification::sound::export()?
+            crate::notification::sound::export()?
         } else {
             None
         },
         collapsed_profile_group_keys: if selection.settings {
-            Some(tterm_core::db::read(
-                tterm_core::app_state::collapsed_profile_group_keys,
+            Some(crate::db::read(
+                crate::app_state::collapsed_profile_group_keys,
             )?)
         } else {
             None
@@ -156,7 +159,7 @@ pub(super) fn collect_payload(
         let with_webdav = payload.webdav_backup.is_some();
         let mut keys = secret_state.saved_keys()?;
         keys.retain(|key| secret_travels(key, with_webdav));
-        payload.secrets = tterm_core::db::read(|connection| {
+        payload.secrets = crate::db::read(|connection| {
             let mut secrets = Vec::new();
             for key in keys {
                 if let Some(password) = get_secret(connection, data_key, &key)? {
@@ -190,7 +193,7 @@ fn read_selected_data<T: Serialize>(
     if !selected {
         return Ok(None);
     }
-    let data = tterm_core::db::read(read)?;
+    let data = crate::db::read(read)?;
     serde_json::to_value(data)
         .map(Some)
         .map_err(|error| format!("Failed to serialize backup data: {error}"))
@@ -200,7 +203,7 @@ fn read_selected_json(selected: bool, name: &str) -> Result<Option<Value>, Strin
     if !selected {
         return Ok(None);
     }
-    let path = tterm_core::config::paths::get_config_path()?.join(name);
+    let path = crate::config::paths::get_config_path()?.join(name);
     if !path.exists() {
         return Ok(None);
     }
@@ -221,9 +224,9 @@ fn with_saved_themes(
     if !selection.themes {
         return Ok(state);
     }
-    let themes = tterm_core::db::read(|connection| {
-        if tterm_core::themes::themes_imported(connection)? {
-            tterm_core::themes::list_themes(connection).map(Some)
+    let themes = crate::db::read(|connection| {
+        if crate::themes::themes_imported(connection)? {
+            crate::themes::list_themes(connection).map(Some)
         } else {
             Ok(None)
         }
@@ -290,9 +293,9 @@ pub(super) fn strip_sensitive_fields(value: Value) -> Value {
 }
 
 fn configured_log_root() -> Result<PathBuf, String> {
-    let config_value = tterm_core::config::load_config_file()?;
+    let config_value = crate::config::load_config_file()?;
     if config_value.terminal_log_directory.trim().is_empty() {
-        Ok(tterm_core::config::paths::get_config_path()?.join("logs"))
+        Ok(crate::config::paths::get_config_path()?.join("logs"))
     } else {
         Ok(PathBuf::from(config_value.terminal_log_directory.trim()))
     }

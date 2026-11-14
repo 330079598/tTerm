@@ -1,23 +1,25 @@
 //! Scheduled backups, recovery points and the backup history.
 
+use crate::backup::AUTOMATIC_LAST_BACKUP_AT_KEY;
+use crate::backup::AUTOMATIC_SETTINGS_FILE;
+use crate::backup::AUTOMATIC_SETTINGS_KEY;
+use crate::backup::AutomaticBackupSettings;
+use crate::backup::BackupExportResult;
+use crate::backup::BackupHistoryEntry;
+use crate::backup::BackupSelection;
 use crate::backup::apply::is_default_or_existing_directory;
 use crate::backup::archive::build_archive_for_version;
 use crate::backup::diff::value_array_len;
 use crate::backup::export::collect_payload;
 use crate::backup::remote;
-use crate::{
-    backup::AUTOMATIC_LAST_BACKUP_AT_KEY, backup::AUTOMATIC_SETTINGS_FILE,
-    backup::AUTOMATIC_SETTINGS_KEY, backup::AutomaticBackupSettings, backup::BackupExportResult,
-    backup::BackupHistoryEntry, backup::BackupSelection,
-};
+use crate::db::meta;
+use crate::ssh::secret_store::types::SecretStoreState;
 use chrono::Utc;
 use serde_json::Value;
 use std::cmp::Reverse;
 use std::collections::HashSet;
 use std::fs;
 use std::path::{Path, PathBuf};
-use tterm_core::db::meta;
-use tterm_core::ssh::secret_store::types::SecretStoreState;
 
 pub(super) fn run_due_automatic_backup_blocking(
     app_version: String,
@@ -41,8 +43,8 @@ pub(super) fn run_due_automatic_backup_blocking(
     let profile_count = value_array_len(payload.profiles.as_ref());
     let command_count = payload.commands.as_ref().map_or(0, Vec::len);
     let archive = build_archive_for_version(&app_version, &settings.selection, &payload, None)?;
-    tterm_core::config::atomic::atomic_write_private(&path, archive)?;
-    tterm_core::db::write(|transaction| {
+    crate::config::atomic::atomic_write_private(&path, archive)?;
+    crate::db::write(|transaction| {
         meta::set(
             transaction,
             AUTOMATIC_LAST_BACKUP_AT_KEY,
@@ -61,7 +63,7 @@ pub(super) fn run_due_automatic_backup_blocking(
 
 pub(super) fn list_backup_history_blocking() -> Result<Vec<BackupHistoryEntry>, String> {
     let settings = load_automatic_backup_settings()?;
-    let mut directories = vec![tterm_core::config::paths::ensure_config_dir()?.join("backups")];
+    let mut directories = vec![crate::config::paths::ensure_config_dir()?.join("backups")];
     let automatic = automatic_backup_directory(&settings)?;
     if !directories.contains(&automatic) {
         directories.push(automatic);
@@ -133,7 +135,7 @@ pub(super) fn delete_backup_history_entry_blocking(path: String) -> Result<bool,
         .map_err(|error| format!("Failed to resolve backup path: {error}"))?;
     let settings = load_automatic_backup_settings()?;
     let allowed = [
-        tterm_core::config::paths::ensure_config_dir()?.join("backups"),
+        crate::config::paths::ensure_config_dir()?.join("backups"),
         automatic_backup_directory(&settings)?,
     ];
     let allowed = allowed
@@ -154,7 +156,7 @@ pub(super) fn create_pre_import_backup(
     selection: &BackupSelection,
     secret_state: &SecretStoreState,
 ) -> Result<PathBuf, String> {
-    let backup_dir = tterm_core::config::paths::ensure_config_dir()?.join("backups");
+    let backup_dir = crate::config::paths::ensure_config_dir()?.join("backups");
     fs::create_dir_all(&backup_dir)
         .map_err(|error| format!("Failed to create backup directory: {error}"))?;
     let path = backup_dir.join(format!(
@@ -164,7 +166,7 @@ pub(super) fn create_pre_import_backup(
     let safe_selection = selection.without_secrets();
     let payload = collect_payload(&safe_selection, None, secret_state)?;
     let archive = build_archive_for_version(app_version, &safe_selection, &payload, None)?;
-    tterm_core::config::atomic::atomic_write_private(&path, archive)?;
+    crate::config::atomic::atomic_write_private(&path, archive)?;
     Ok(path)
 }
 
@@ -178,7 +180,7 @@ pub(crate) fn create_recovery_backup(
     secret_state: &SecretStoreState,
     keep: usize,
 ) -> Result<PathBuf, String> {
-    let backup_dir = tterm_core::config::paths::ensure_config_dir()?.join("backups");
+    let backup_dir = crate::config::paths::ensure_config_dir()?.join("backups");
     fs::create_dir_all(&backup_dir)
         .map_err(|error| format!("Failed to create backup directory: {error}"))?;
     let path = backup_dir.join(format!(
@@ -195,7 +197,7 @@ pub(crate) fn create_recovery_backup(
     };
     let payload = collect_payload(&selection, frontend_state, secret_state)?;
     let archive = build_archive_for_version(app_version, &selection, &payload, None)?;
-    tterm_core::config::atomic::atomic_write_private(&path, archive)?;
+    crate::config::atomic::atomic_write_private(&path, archive)?;
     enforce_retention(&backup_dir, &format!("{prefix}-"), keep)?;
     Ok(path)
 }
@@ -225,10 +227,10 @@ pub(super) fn adopt_automatic_backup_settings(
 
 /// The saved schedule with when the last automatic backup ran.
 pub(super) fn load_automatic_backup_settings() -> Result<AutomaticBackupSettings, String> {
-    tterm_core::db::read(read_automatic_backup_settings)
+    crate::db::read(read_automatic_backup_settings)
 }
 
-pub(crate) fn read_automatic_backup_settings(
+pub fn read_automatic_backup_settings(
     connection: &rusqlite::Connection,
 ) -> Result<AutomaticBackupSettings, String> {
     Ok(AutomaticBackupSettings {
@@ -253,8 +255,8 @@ pub(super) fn write_automatic_backup_settings(
 
 /// Moves the backup settings files of older versions into the database,
 /// with when backups last ran kept apart from the settings.
-pub(crate) fn import_settings_files(
-    database: &tterm_core::db::Database,
+pub fn import_settings_files(
+    database: &crate::db::Database,
     config_dir: &Path,
 ) -> Result<(), String> {
     let automatic = meta::import_file(
@@ -309,7 +311,7 @@ pub(super) fn validate_automatic_backup_settings(
 
 fn automatic_backup_directory(settings: &AutomaticBackupSettings) -> Result<PathBuf, String> {
     if settings.directory.trim().is_empty() {
-        Ok(tterm_core::config::paths::ensure_config_dir()?.join("backups"))
+        Ok(crate::config::paths::ensure_config_dir()?.join("backups"))
     } else {
         Ok(PathBuf::from(settings.directory.trim()))
     }

@@ -1,17 +1,20 @@
-use crate::sync::*;
-use crate::{
-    sync::snapshot::COMMANDS, sync::snapshot::KNOWN_HOSTS, sync::snapshot::PROFILE_GROUPS,
-    sync::snapshot::PROFILES, sync::snapshot::PROXIES, sync::snapshot::SECRETS,
-    sync::snapshot::SERIAL_SENDS, sync::snapshot::THEMES,
-};
-use serde_json::json;
-use tterm_core::command_library::{models::SavedCommand, repository::CommandRepository};
-use tterm_core::db::Database;
-use tterm_core::profiles::types::ProfileGroup;
-use tterm_core::ssh::secret_store::{
+use crate::command_library::{models::SavedCommand, repository::CommandRepository};
+use crate::db::Database;
+use crate::profiles::types::ProfileGroup;
+use crate::ssh::secret_store::{
     crypto::SecretKey as DataKey, store::get_secret, store::put_secret,
 };
-use tterm_core::ssh::store::KnownHostRecord;
+use crate::ssh::store::KnownHostRecord;
+use crate::sync::snapshot::COMMANDS;
+use crate::sync::snapshot::KNOWN_HOSTS;
+use crate::sync::snapshot::PROFILE_GROUPS;
+use crate::sync::snapshot::PROFILES;
+use crate::sync::snapshot::PROXIES;
+use crate::sync::snapshot::SECRETS;
+use crate::sync::snapshot::SERIAL_SENDS;
+use crate::sync::snapshot::THEMES;
+use crate::sync::*;
+use serde_json::json;
 
 const CATEGORIES: [&str; 9] = [
     PROFILES,
@@ -132,7 +135,7 @@ impl Device {
                     .iter()
                     .any(|category| [PROFILES, PROFILE_GROUPS].contains(category))
                 {
-                    tterm_core::profiles::groups::repair(transaction)?;
+                    crate::profiles::groups::repair(transaction)?;
                 }
                 Ok(())
             })
@@ -148,32 +151,30 @@ impl Device {
         }))
         .unwrap();
         self.database
-            .write(|transaction| {
-                tterm_core::profiles::storage::upsert_profile(transaction, &profile)
-            })
+            .write(|transaction| crate::profiles::storage::upsert_profile(transaction, &profile))
             .unwrap();
     }
 
     fn save_themes(&self, themes: &[Value]) {
         self.database
-            .write(|transaction| tterm_core::themes::replace_themes(transaction, themes))
+            .write(|transaction| crate::themes::replace_themes(transaction, themes))
             .unwrap();
     }
 
     fn themes(&self) -> Vec<Value> {
-        self.database.read(tterm_core::themes::list_themes).unwrap()
+        self.database.read(crate::themes::list_themes).unwrap()
     }
 
-    fn profile(&self, id: &str) -> Option<tterm_core::profiles::types::SavedProfile> {
+    fn profile(&self, id: &str) -> Option<crate::profiles::types::SavedProfile> {
         self.database
-            .read(|connection| tterm_core::profiles::storage::get_profile(connection, id))
+            .read(|connection| crate::profiles::storage::get_profile(connection, id))
             .unwrap()
     }
 
     fn delete_profile(&self, id: &str) {
         self.database
             .write(|transaction| {
-                tterm_core::profiles::storage::delete_profiles(transaction, &[id.to_string()])
+                crate::profiles::storage::delete_profiles(transaction, &[id.to_string()])
             })
             .unwrap();
     }
@@ -235,7 +236,7 @@ fn two_devices_converge_and_deletions_travel() {
     let mut edited = b.profile("p1").unwrap();
     edited.port = Some(2222);
     b.database
-        .write(|transaction| tterm_core::profiles::storage::upsert_profile(transaction, &edited))
+        .write(|transaction| crate::profiles::storage::upsert_profile(transaction, &edited))
         .unwrap();
     a.save_profile("p1", "renamed.example");
     a.sync(&mut remote);
@@ -410,14 +411,14 @@ fn commands_sync_but_usage_counts_stay_per_device() {
 fn groups_tunnels_and_known_hosts_sync() {
     let mut remote = None;
     let (mut a, mut b) = (Device::new(), Device::new());
-    let rule: tterm_core::tunnel::types::TunnelRule = serde_json::from_value(json!({
+    let rule: crate::tunnel::types::TunnelRule = serde_json::from_value(json!({
         "id": "t1", "name": "db", "profileId": "p1", "kind": "local",
         "bindHost": "127.0.0.1", "bindPort": 8080, "destHost": "db", "destPort": 5432
     }))
     .unwrap();
     a.database
         .write(|transaction| {
-            tterm_core::profiles::groups::replace_groups(
+            crate::profiles::groups::replace_groups(
                 transaction,
                 &[ProfileGroup {
                     id: "g1".to_string(),
@@ -425,8 +426,8 @@ fn groups_tunnels_and_known_hosts_sync() {
                     parent_id: None,
                 }],
             )?;
-            tterm_core::tunnel::storage::replace_tunnels(transaction, &[rule])?;
-            tterm_core::ssh::store::merge_known_host(
+            crate::tunnel::storage::replace_tunnels(transaction, &[rule])?;
+            crate::ssh::store::merge_known_host(
                 transaction,
                 &KnownHostRecord {
                     profile_id: Some("p1".to_string()),
@@ -445,18 +446,18 @@ fn groups_tunnels_and_known_hosts_sync() {
     b.database
         .read(|connection| {
             assert_eq!(
-                tterm_core::profiles::groups::list_groups(connection)?
+                crate::profiles::groups::list_groups(connection)?
                     .into_iter()
                     .map(|group| group.name)
                     .collect::<Vec<_>>(),
                 ["Empty group"]
             );
             assert_eq!(
-                tterm_core::tunnel::storage::list_tunnel_rules(connection)?[0].dest_port,
+                crate::tunnel::storage::list_tunnel_rules(connection)?[0].dest_port,
                 5432
             );
             assert_eq!(
-                tterm_core::ssh::store::list_known_hosts(connection)?.entries[0].fingerprint,
+                crate::ssh::store::list_known_hosts(connection)?.entries[0].fingerprint,
                 "SHA256:abc"
             );
             Ok(())
@@ -469,10 +470,10 @@ fn groups_tunnels_and_known_hosts_sync() {
 fn proxies_and_their_passwords_sync_in_order() {
     let mut remote = None;
     let (mut a, mut b) = (Device::new(), Device::new());
-    let server = |id: &str, name: &str| tterm_core::proxy::ProxyServer {
+    let server = |id: &str, name: &str| crate::proxy::ProxyServer {
         id: id.to_string(),
         name: name.to_string(),
-        kind: tterm_core::proxy::ProxyKind::Http,
+        kind: crate::proxy::ProxyKind::Http,
         host: "proxy.corp".to_string(),
         port: 8080,
         username: Some("me".to_string()),
@@ -480,19 +481,19 @@ fn proxies_and_their_passwords_sync_in_order() {
     };
     a.database
         .write(|transaction| {
-            tterm_core::proxy::storage::replace_proxies(
+            crate::proxy::storage::replace_proxies(
                 transaction,
                 &[server("p2", "Second"), server("p1", "First")],
             )
         })
         .unwrap();
-    a.save_secret(&tterm_core::proxy::proxy_secret_key("p1"), "pw");
+    a.save_secret(&crate::proxy::proxy_secret_key("p1"), "pw");
     a.sync(&mut remote);
     assert_eq!(b.sync(&mut remote), [PROXIES, SECRETS]);
     let names = |device: &Device| -> Vec<String> {
         device
             .database
-            .read(tterm_core::proxy::storage::list_proxies)
+            .read(crate::proxy::storage::list_proxies)
             .unwrap()
             .into_iter()
             .map(|server| server.name)
@@ -500,13 +501,12 @@ fn proxies_and_their_passwords_sync_in_order() {
     };
     assert_eq!(names(&b), ["Second", "First"]);
     assert_eq!(
-        b.secret(&tterm_core::proxy::proxy_secret_key("p1"))
-            .as_deref(),
+        b.secret(&crate::proxy::proxy_secret_key("p1")).as_deref(),
         Some("pw")
     );
 
     a.database
-        .write(|transaction| tterm_core::proxy::storage::delete_proxy(transaction, "p2"))
+        .write(|transaction| crate::proxy::storage::delete_proxy(transaction, "p2"))
         .unwrap();
     a.sync(&mut remote);
     assert_eq!(b.sync(&mut remote), [PROXIES]);
@@ -517,10 +517,10 @@ impl Device {
     fn send(&self, key: &str, text: &str, sent_at: i64) {
         self.database
             .write(|transaction| {
-                tterm_core::serial::history::store::record(
+                crate::serial::history::store::record(
                     transaction,
                     key,
-                    tterm_core::serial::history::SerialSendMode::Text,
+                    crate::serial::history::SerialSendMode::Text,
                     text,
                     sent_at,
                 )
@@ -530,7 +530,7 @@ impl Device {
 
     fn sends(&self, key: &str) -> Vec<(String, i64)> {
         self.database
-            .read(|connection| tterm_core::serial::history::store::list(connection, key))
+            .read(|connection| crate::serial::history::store::list(connection, key))
             .unwrap()
             .into_iter()
             .map(|send| (send.text, send.sent_at))
@@ -563,9 +563,7 @@ fn serial_sends_sync_as_one_history_and_clearing_travels() {
 
     // B clears the history; A loses it too.
     b.database
-        .write(|transaction| {
-            tterm_core::serial::history::store::clear(transaction, "profile:board")
-        })
+        .write(|transaction| crate::serial::history::store::clear(transaction, "profile:board"))
         .unwrap();
     b.sync(&mut remote);
     a.sync(&mut remote);
@@ -577,15 +575,12 @@ fn serial_sends_sync_as_one_history_and_clearing_travels() {
 fn categories_this_device_skips_are_carried_over() {
     let mut remote = Some(Collections::from([(
         "themes".to_string(),
-        tterm_core::sync::merge::Collection::from([(
+        crate::sync::merge::Collection::from([(
             "t".to_string(),
-            tterm_core::sync::merge::SyncRecord::new(json!({"id": "t"}), None),
+            crate::sync::merge::SyncRecord::new(json!({"id": "t"}), None),
         )]),
     )]));
-    let local = Collections::from([(
-        PROFILES.to_string(),
-        tterm_core::sync::merge::Collection::new(),
-    )]);
+    let local = Collections::from([(PROFILES.to_string(), crate::sync::merge::Collection::new())]);
     let merged = merge_all(&[PROFILES], None, &local, remote.as_ref());
     assert_eq!(merged["themes"], remote.as_ref().unwrap()["themes"]);
     assert!(merged[PROFILES].is_empty());
@@ -593,9 +588,9 @@ fn categories_this_device_skips_are_carried_over() {
     // A remote file without a category never deletes local records.
     let local = Collections::from([(
         PROFILES.to_string(),
-        tterm_core::sync::merge::Collection::from([(
+        crate::sync::merge::Collection::from([(
             "p".to_string(),
-            tterm_core::sync::merge::SyncRecord::new(json!({"a": 1}), None),
+            crate::sync::merge::SyncRecord::new(json!({"a": 1}), None),
         )]),
     )]);
     let base = local.clone();
@@ -625,7 +620,7 @@ fn fields_from_a_newer_version_survive_an_older_device() {
     let mut edited = b.profile("p1").unwrap();
     edited.port = Some(2200);
     b.database
-        .write(|transaction| tterm_core::profiles::storage::upsert_profile(transaction, &edited))
+        .write(|transaction| crate::profiles::storage::upsert_profile(transaction, &edited))
         .unwrap();
     b.sync(&mut remote);
     let record = &remote.as_ref().unwrap().0[PROFILES]["p1"].data;
@@ -687,7 +682,7 @@ async fn live_devices_sync_through_a_server() {
     let mut edited = b.profile("p1").unwrap();
     edited.port = Some(2222);
     b.database
-        .write(|transaction| tterm_core::profiles::storage::upsert_profile(transaction, &edited))
+        .write(|transaction| crate::profiles::storage::upsert_profile(transaction, &edited))
         .unwrap();
     a.sync_live(&remote("a")).await;
     let merged = b.sync_live(&remote("b")).await;
@@ -806,8 +801,8 @@ impl Device {
     fn group_paths(&self) -> std::collections::HashMap<String, String> {
         self.database
             .read(|connection| {
-                Ok(tterm_core::profiles::groups::group_paths(
-                    &tterm_core::profiles::groups::list_groups(connection)?,
+                Ok(crate::profiles::groups::group_paths(
+                    &crate::profiles::groups::list_groups(connection)?,
                 ))
             })
             .unwrap()
@@ -816,9 +811,9 @@ impl Device {
 
 #[test]
 fn nested_groups_sync_and_merge_a_rename_with_a_move() {
-    use tterm_core::profiles::groups::create_group;
-    use tterm_core::profiles::groups::move_group;
-    use tterm_core::profiles::groups::rename_group;
+    use crate::profiles::groups::create_group;
+    use crate::profiles::groups::move_group;
+    use crate::profiles::groups::rename_group;
     let mut remote = None;
     let (mut a, mut b) = (Device::new(), Device::new());
     let (prod, web, dev) = a.edit(|connection| {
@@ -829,7 +824,7 @@ fn nested_groups_sync_and_merge_a_rename_with_a_move() {
     });
     a.save_profile("p1", "one.example");
     a.edit(|connection| {
-        tterm_core::profiles::storage::move_profiles(connection, &["p1"], Some(&web), None)
+        crate::profiles::storage::move_profiles(connection, &["p1"], Some(&web), None)
     });
     a.sync(&mut remote);
     assert_eq!(b.sync(&mut remote), [PROFILES, PROFILE_GROUPS]);
@@ -852,8 +847,8 @@ fn nested_groups_sync_and_merge_a_rename_with_a_move() {
 
 #[test]
 fn groups_moved_into_each_other_on_two_devices_settle_on_one_tree() {
-    use tterm_core::profiles::groups::create_group;
-    use tterm_core::profiles::groups::move_group;
+    use crate::profiles::groups::create_group;
+    use crate::profiles::groups::move_group;
     let mut remote = None;
     let (mut a, mut b) = (Device::new(), Device::new());
     let (x, y) = a.edit(|connection| {
@@ -885,16 +880,16 @@ fn a_sync_file_from_before_groups_had_ids_files_profiles_by_group_name() {
     let collections = Collections::from([
         (
             PROFILE_GROUPS.to_string(),
-            tterm_core::sync::merge::Collection::from([(
+            crate::sync::merge::Collection::from([(
                 "ops".to_string(),
-                tterm_core::sync::merge::SyncRecord::new(json!(true), None),
+                crate::sync::merge::SyncRecord::new(json!(true), None),
             )]),
         ),
         (
             PROFILES.to_string(),
-            tterm_core::sync::merge::Collection::from([(
+            crate::sync::merge::Collection::from([(
                 "p1".to_string(),
-                tterm_core::sync::merge::SyncRecord::new(
+                crate::sync::merge::SyncRecord::new(
                     json!({
                         "id": "p1", "name": "p1", "group": "ops", "connection_type": "ssh",
                         "host": "one.example", "_position": 0

@@ -238,18 +238,19 @@ fn settings_files_move_into_the_database_leaving_only_config_json() {
                 Some((0x11, 0x22, 0x33))
             );
 
-            let automatic = crate::backup::automatic::read_automatic_backup_settings(connection)?;
+            let automatic =
+                tterm_core::backup::automatic::read_automatic_backup_settings(connection)?;
             assert_eq!(automatic.frequency, "weekly");
             assert_eq!(automatic.retention_count, 5);
             assert_eq!(automatic.last_backup_at, Some(77));
 
-            let webdav = crate::backup::remote::read_settings(connection)?;
+            let webdav = tterm_core::backup::remote::read_settings(connection)?;
             assert_eq!(webdav.url, "https://dav.example/remote.php");
             assert_eq!(webdav.username, "me");
             assert_eq!(webdav.last_backup_at, Some(88));
             assert_eq!(webdav.last_error.as_deref(), Some("boom"));
 
-            let sync = crate::sync::read_settings(connection)?;
+            let sync = tterm_core::sync::read_settings(connection)?;
             assert!(sync.enabled);
             assert!(!sync.selection.secrets);
             assert_eq!((sync.push_interval_secs, sync.pull_interval_mins), (60, 15));
@@ -315,9 +316,9 @@ fn an_unreadable_settings_file_stays_while_the_others_move() {
     database
         .read(|connection| {
             assert!(tterm_core::session_restore::read_session(connection)?.is_none());
-            assert!(!crate::sync::read_settings(connection)?.enabled);
+            assert!(!tterm_core::sync::read_settings(connection)?.enabled);
             assert_eq!(
-                crate::backup::remote::read_settings(connection)?.last_backup_at,
+                tterm_core::backup::remote::read_settings(connection)?.last_backup_at,
                 Some(88)
             );
             Ok(())

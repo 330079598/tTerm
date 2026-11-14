@@ -3,6 +3,7 @@
 //! AES-256-GCM ciphertext of the gzip-compressed collections, encrypted with
 //! a key derived from the backup password.
 
+use crate::sync::merge::Collection;
 use aes_gcm::aead::{Aead, KeyInit, Payload};
 use aes_gcm::{Aes256Gcm, Nonce};
 use base64::{Engine, engine::general_purpose::STANDARD as BASE64};
@@ -15,7 +16,6 @@ use sha2::{Digest, Sha256};
 use std::collections::BTreeMap;
 use std::io::{Read, Write};
 use std::sync::Mutex;
-use tterm_core::sync::merge::Collection;
 use zeroize::Zeroizing;
 
 pub(crate) const SYNC_FILE_NAME: &str = "tterm-sync.enc";
@@ -261,8 +261,8 @@ pub(crate) fn decode(bytes: &[u8], password: &str) -> Result<Decoded, String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::sync::merge::SyncRecord;
     use serde_json::json;
-    use tterm_core::sync::merge::SyncRecord;
 
     fn sample() -> Collections {
         let mut profiles = Collection::new();

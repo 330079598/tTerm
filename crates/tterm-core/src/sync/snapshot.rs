@@ -3,23 +3,23 @@
 //! side and the base compare equal when nothing changed, while fields added
 //! by a newer tTerm on another device are kept in the remote document.
 
+use crate::command_library::models::SavedCommand;
+use crate::config::AppConfig;
+use crate::db::sql_error;
+use crate::profiles::types::{ProfileGroup, SavedProfile};
+use crate::proxy::ProxyServer;
+use crate::serial::history::SerialSend;
+use crate::serial::history::store as serial_sends;
+use crate::ssh::secret_store::{
+    crypto::SecretKey as DataKey, store::delete_secret, store::get_secret, store::put_secret,
+};
+use crate::ssh::store::{KnownHostRecord, KnownHostStore};
 use crate::sync::document::Collections;
+use crate::sync::merge::{Collection, SyncRecord};
+use crate::tunnel::types::TunnelRule;
 use rusqlite::{Connection, Transaction, params};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use tterm_core::command_library::models::SavedCommand;
-use tterm_core::config::AppConfig;
-use tterm_core::db::sql_error;
-use tterm_core::profiles::types::{ProfileGroup, SavedProfile};
-use tterm_core::proxy::ProxyServer;
-use tterm_core::serial::history::SerialSend;
-use tterm_core::serial::history::store as serial_sends;
-use tterm_core::ssh::secret_store::{
-    crypto::SecretKey as DataKey, store::delete_secret, store::get_secret, store::put_secret,
-};
-use tterm_core::ssh::store::{KnownHostRecord, KnownHostStore};
-use tterm_core::sync::merge::{Collection, SyncRecord};
-use tterm_core::tunnel::types::TunnelRule;
 
 pub(crate) const PROFILES: &str = "profiles";
 pub(crate) const PROFILE_GROUPS: &str = "profileGroups";
@@ -168,7 +168,7 @@ pub(crate) fn collect(
             PROFILES => collect_rows(connection, "profiles", normalize_profile)?,
             TUNNELS => collect_rows(connection, "tunnels", normalize_tunnel)?,
             PROXIES => collect_rows(connection, "proxies", normalize_proxy)?,
-            PROFILE_GROUPS => tterm_core::profiles::groups::group_rows(connection)?
+            PROFILE_GROUPS => crate::profiles::groups::group_rows(connection)?
                 .into_iter()
                 .map(|(group, updated_at)| {
                     let data = profile_group_data(&group);
@@ -176,7 +176,7 @@ pub(crate) fn collect(
                 })
                 .collect(),
             SECRETS => collect_secrets(connection, data_key)?,
-            COMMANDS => tterm_core::command_library::repository::list_commands(connection)?
+            COMMANDS => crate::command_library::repository::list_commands(connection)?
                 .into_iter()
                 .map(|command| Ok((command.id.clone(), command_record(&command)?)))
                 .collect::<Result<_, String>>()?,
@@ -272,7 +272,7 @@ fn known_host_data(entry: &KnownHostRecord) -> Value {
 
 fn collect_known_hosts(connection: &Connection) -> Result<Collection, String> {
     // A later row for the same endpoint wins, as it does for lookups.
-    Ok(tterm_core::ssh::store::list_known_hosts(connection)?
+    Ok(crate::ssh::store::list_known_hosts(connection)?
         .entries
         .iter()
         .map(|entry| {
@@ -285,7 +285,7 @@ fn collect_known_hosts(connection: &Connection) -> Result<Collection, String> {
 }
 
 fn collect_settings() -> Result<Collection, String> {
-    let config = serde_json::to_value(tterm_core::config::load_config_file()?)
+    let config = serde_json::to_value(crate::config::load_config_file()?)
         .map_err(|error| format!("Failed to read settings: {error}"))?;
     let mut settings: Collection = SYNCED_SETTINGS
         .iter()
@@ -295,7 +295,7 @@ fn collect_settings() -> Result<Collection, String> {
                 .map(|value| (key.to_string(), SyncRecord::new(value.clone(), None)))
         })
         .collect();
-    if let Some(sound) = tterm_core::notification::sound::export()? {
+    if let Some(sound) = crate::notification::sound::export()? {
         settings.insert(
             NOTIFICATION_SOUND.to_string(),
             SyncRecord::new(Value::String(sound), None),
@@ -355,7 +355,7 @@ fn normalize_profile(value: &Value) -> Result<Value, String> {
     let (data, position) = take_position(value);
     let profile = serde_json::from_value::<SavedProfile>(data)
         .map_err(|error| format!("Synced profile is invalid: {error}"))?;
-    let encoded = tterm_core::profiles::storage::encode_profile(&profile)?;
+    let encoded = crate::profiles::storage::encode_profile(&profile)?;
     let value = serde_json::from_str(&encoded)
         .map_err(|error| format!("Failed to encode profile: {error}"))?;
     Ok(with_position(value, position))
@@ -521,7 +521,7 @@ pub(crate) fn apply_database(
     let removed = removed_ids(local, merged);
     match category {
         PROFILES => {
-            tterm_core::profiles::storage::delete_profiles(transaction, &removed)?;
+            crate::profiles::storage::delete_profiles(transaction, &removed)?;
             for (id, record) in changed(local, merged) {
                 let (data, position) = take_position(&record.data);
                 let mut profile = serde_json::from_value::<SavedProfile>(data)
@@ -532,13 +532,13 @@ pub(crate) fn apply_database(
                     "profiles",
                     id,
                     position,
-                    &tterm_core::profiles::storage::encode_profile(&profile)?,
+                    &crate::profiles::storage::encode_profile(&profile)?,
                 )?;
             }
         }
         TUNNELS => {
             for id in &removed {
-                tterm_core::tunnel::storage::delete_tunnel(transaction, id)?;
+                crate::tunnel::storage::delete_tunnel(transaction, id)?;
             }
             for (id, record) in changed(local, merged) {
                 let (data, position) = take_position(&record.data);
@@ -552,31 +552,31 @@ pub(crate) fn apply_database(
         }
         PROXIES => {
             for id in &removed {
-                tterm_core::proxy::storage::delete_proxy(transaction, id)?;
+                crate::proxy::storage::delete_proxy(transaction, id)?;
             }
             for (id, record) in changed(local, merged) {
                 let (data, position) = take_position(&record.data);
                 let mut server = serde_json::from_value::<ProxyServer>(data)
                     .map_err(|error| format!("Synced proxy is invalid: {error}"))?;
                 server.id = id.clone();
-                tterm_core::proxy::storage::put_proxy_at(transaction, &server, position)?;
+                crate::proxy::storage::put_proxy_at(transaction, &server, position)?;
             }
         }
         PROFILE_GROUPS => {
             for id in &removed {
-                tterm_core::profiles::groups::delete_group_row(transaction, id)?;
+                crate::profiles::groups::delete_group_row(transaction, id)?;
             }
             for (id, record) in changed(local, merged) {
-                tterm_core::profiles::groups::put_group(
+                crate::profiles::groups::put_group(
                     transaction,
                     &profile_group_from(id, &record.data)?,
                 )?;
             }
         }
         COMMANDS => {
-            let current = tterm_core::command_library::repository::list_commands(transaction)?;
+            let current = crate::command_library::repository::list_commands(transaction)?;
             for id in &removed {
-                tterm_core::command_library::repository::delete_command(transaction, id)?;
+                crate::command_library::repository::delete_command(transaction, id)?;
             }
             for (id, record) in changed(local, merged) {
                 let existing = current.iter().find(|command| &command.id == id);
@@ -584,7 +584,7 @@ pub(crate) fn apply_database(
                 command.updated_at = record
                     .updated_at
                     .unwrap_or_else(|| chrono::Utc::now().timestamp_millis());
-                tterm_core::command_library::repository::save_command(transaction, &command)?;
+                crate::command_library::repository::save_command(transaction, &command)?;
             }
         }
         SERIAL_SENDS => {
@@ -600,15 +600,15 @@ pub(crate) fn apply_database(
                 .values()
                 .map(known_host_from)
                 .collect::<Result<Vec<_>, _>>()?;
-            tterm_core::ssh::store::replace_known_hosts(transaction, &KnownHostStore { entries })?;
+            crate::ssh::store::replace_known_hosts(transaction, &KnownHostStore { entries })?;
         }
         THEMES => {
             for id in &removed {
-                tterm_core::themes::delete_theme(transaction, id)?;
+                crate::themes::delete_theme(transaction, id)?;
             }
             for (_, record) in changed(local, merged) {
                 let (theme, position) = take_position(&record.data);
-                tterm_core::themes::upsert_theme(transaction, &theme, position)?;
+                crate::themes::upsert_theme(transaction, &theme, position)?;
             }
         }
         SECRETS => {
@@ -649,7 +649,7 @@ fn upsert_row(
 
 /// Writes synced settings over the current ones.
 pub(crate) fn apply_settings(merged: &Collection) -> Result<(), String> {
-    let mut config = serde_json::to_value(tterm_core::config::load_config_file()?)
+    let mut config = serde_json::to_value(crate::config::load_config_file()?)
         .map_err(|error| format!("Failed to read settings: {error}"))?;
     let Value::Object(fields) = &mut config else {
         return Err("Settings are not an object.".to_string());
@@ -662,18 +662,18 @@ pub(crate) fn apply_settings(merged: &Collection) -> Result<(), String> {
                 .data
                 .as_str()
                 .ok_or("The synced notification sound is invalid.")?;
-            tterm_core::notification::sound::restore(sound)?;
+            crate::notification::sound::restore(sound)?;
         }
     }
     let config = serde_json::from_value::<AppConfig>(config)
         .map_err(|error| format!("Synced settings are invalid: {error}"))?;
-    tterm_core::config::save_config_file(&config)
+    crate::config::save_config_file(&config)
 }
 
 #[cfg(test)]
 mod tests {
     use super::SYNCED_SETTINGS;
-    use tterm_core::config::AppConfig;
+    use crate::config::AppConfig;
 
     #[test]
     fn every_synced_setting_names_a_config_field() {

@@ -1,11 +1,12 @@
 //! Backup file names on the server, and which backups to keep.
 
-use crate::{
-    backup::remote::FILE_EXTENSION, backup::remote::FILE_PREFIX, backup::remote::RemoteBackupEntry,
-    backup::remote::TIMESTAMP_FORMAT, backup::remote::TIMESTAMP_LEN,
-};
+use crate::backup::remote::FILE_EXTENSION;
+use crate::backup::remote::FILE_PREFIX;
+use crate::backup::remote::RemoteBackupEntry;
+use crate::backup::remote::TIMESTAMP_FORMAT;
+use crate::backup::remote::TIMESTAMP_LEN;
+use crate::backup::webdav::DavEntry;
 use chrono::{DateTime, NaiveDateTime, Utc};
-use tterm_core::backup::webdav::DavEntry;
 
 pub(super) fn now_ms() -> i64 {
     Utc::now().timestamp_millis()
@@ -16,7 +17,7 @@ pub(super) fn user_agent(app_version: &str) -> String {
 }
 
 pub(super) fn device_name() -> String {
-    sanitize_device_name(&tterm_core::identity::hostname())
+    sanitize_device_name(&crate::identity::hostname())
 }
 
 /// A file-name-safe device label: `Stone's MacBook.local` -> `stone-s-macbook`.

@@ -460,7 +460,7 @@ pub fn run() {
                 eprintln!("Failed to clean stale update cache files: {}", err);
             }
 
-            if let Err(error) = backup::remote::clear_downloads() {
+            if let Err(error) = tterm_core::backup::remote::clear_downloads() {
                 eprintln!("Failed to clear WebDAV downloads: {error}");
             }
 

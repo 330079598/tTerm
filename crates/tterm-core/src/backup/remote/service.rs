@@ -1,36 +1,47 @@
 //! Domain operations behind the IPC entry points.
-use crate::{backup::MAX_BACKUP_SIZE, backup::normalized_backup_path};
-use crate::{
-    backup::remote::BACKUP_PASSWORD_KEY, backup::remote::DOWNLOAD_DIRECTORY,
-    backup::remote::PASSWORD_KEY, backup::remote::RemoteBackupEntry, backup::remote::UPLOADING,
-    backup::remote::WebDavBackupSettings, backup::remote::WebDavBackupStatus,
-    backup::remote::WebDavDeleteResult, backup::remote::WebDavUploadResult,
-    backup::remote::clear_downloads, backup::remote::clear_settings, backup::remote::connect,
-    backup::remote::load_settings, backup::remote::non_empty, backup::remote::normalized_settings,
-    backup::remote::run_webdav_backup_locked, backup::remote::same_account,
-    backup::remote::save_keeping_history, backup::remote::saved_secret, backup::remote::status,
-};
-use crate::{
-    backup::remote::files::device_name, backup::remote::files::remote_backups,
-    backup::remote::files::user_agent, backup::remote::files::validate_file_name,
+use crate::backup::MAX_BACKUP_SIZE;
+use crate::backup::normalized_backup_path;
+use crate::backup::remote::BACKUP_PASSWORD_KEY;
+use crate::backup::remote::DOWNLOAD_DIRECTORY;
+use crate::backup::remote::PASSWORD_KEY;
+use crate::backup::remote::RemoteBackupEntry;
+use crate::backup::remote::UPLOADING;
+use crate::backup::remote::WebDavBackupSettings;
+use crate::backup::remote::WebDavBackupStatus;
+use crate::backup::remote::WebDavDeleteResult;
+use crate::backup::remote::WebDavUploadResult;
+use crate::backup::remote::clear_downloads;
+use crate::backup::remote::clear_settings;
+use crate::backup::remote::connect;
+use crate::backup::remote::files::device_name;
+use crate::backup::remote::files::remote_backups;
+use crate::backup::remote::files::user_agent;
+use crate::backup::remote::files::validate_file_name;
+use crate::backup::remote::load_settings;
+use crate::backup::remote::non_empty;
+use crate::backup::remote::normalized_settings;
+use crate::backup::remote::run_webdav_backup_locked;
+use crate::backup::remote::same_account;
+use crate::backup::remote::save_keeping_history;
+use crate::backup::remote::saved_secret;
+use crate::backup::remote::status;
+use crate::backup::webdav::{WebDavClient, split_remote_directory};
+use crate::core::blocking::run_blocking;
+use crate::ssh::secret_store::{
+    store::put_secret, types::SecretStoreState, verification::VerificationPurpose,
 };
 use serde_json::Value;
 use std::{fs, sync::atomic::Ordering};
-use tterm_core::backup::webdav::{WebDavClient, split_remote_directory};
-use tterm_core::core::blocking::run_blocking;
-use tterm_core::ssh::secret_store::{
-    store::put_secret, types::SecretStoreState, verification::VerificationPurpose,
-};
 use zeroize::Zeroizing;
 
-pub(in crate::backup) async fn get_webdav_backup_status(
+pub async fn get_webdav_backup_status(
     secret_state: &SecretStoreState,
 ) -> Result<WebDavBackupStatus, String> {
     let secret_state = secret_state.clone();
     run_blocking(move || status(&secret_state)).await
 }
 
-pub(in crate::backup) async fn save_webdav_backup_settings(
+pub async fn save_webdav_backup_settings(
     settings: WebDavBackupSettings,
     password: Option<String>,
     backup_password: Option<String>,
@@ -66,7 +77,7 @@ pub(in crate::backup) async fn save_webdav_backup_settings(
             None
         };
         // The server and its passwords are saved together or not at all.
-        tterm_core::db::write(|transaction| {
+        crate::db::write(|transaction| {
             if let Some(data_key) = data_key.as_ref() {
                 if let Some(password) = password.as_deref() {
                     put_secret(transaction, data_key, PASSWORD_KEY, password)?;
@@ -82,18 +93,18 @@ pub(in crate::backup) async fn save_webdav_backup_settings(
     .await
 }
 
-pub(in crate::backup) async fn clear_webdav_backup_settings(
+pub async fn clear_webdav_backup_settings(
     secret_state: &SecretStoreState,
 ) -> Result<WebDavBackupStatus, String> {
     let secret_state = secret_state.clone();
     run_blocking(move || {
-        tterm_core::db::write(|transaction| clear_settings(transaction))?;
+        crate::db::write(|transaction| clear_settings(transaction))?;
         status(&secret_state)
     })
     .await
 }
 
-pub(in crate::backup) async fn test_webdav_connection(
+pub async fn test_webdav_connection(
     app_version: String,
     settings: WebDavBackupSettings,
     password: Option<String>,
@@ -127,7 +138,7 @@ pub(in crate::backup) async fn test_webdav_connection(
         .await
 }
 
-pub(in crate::backup) async fn run_webdav_backup(
+pub async fn run_webdav_backup(
     app_version: String,
     frontend_state: Option<Value>,
     force: bool,
@@ -151,7 +162,7 @@ pub(in crate::backup) async fn run_webdav_backup(
     run_webdav_backup_locked(app_version, frontend_state, force, secret_state).await
 }
 
-pub(in crate::backup) async fn list_webdav_backups(
+pub async fn list_webdav_backups(
     app_version: String,
     secret_state: &SecretStoreState,
 ) -> Result<Vec<RemoteBackupEntry>, String> {
@@ -160,7 +171,7 @@ pub(in crate::backup) async fn list_webdav_backups(
     Ok(remote_backups(&entries, &device_name()))
 }
 
-pub(in crate::backup) async fn download_webdav_backup(
+pub async fn download_webdav_backup(
     app_version: String,
     file_name: String,
     secret_state: &SecretStoreState,
@@ -171,21 +182,21 @@ pub(in crate::backup) async fn download_webdav_backup(
     run_blocking(move || {
         // Only the backup being restored is kept.
         clear_downloads()?;
-        let downloads = tterm_core::config::paths::ensure_config_dir()?.join(DOWNLOAD_DIRECTORY);
+        let downloads = crate::config::paths::ensure_config_dir()?.join(DOWNLOAD_DIRECTORY);
         fs::create_dir_all(&downloads)
             .map_err(|error| format!("Failed to create the WebDAV download folder: {error}"))?;
         let path = downloads.join(&file_name);
-        tterm_core::config::atomic::atomic_write_private(&path, data)?;
+        crate::config::atomic::atomic_write_private(&path, data)?;
         Ok(path.to_string_lossy().into_owned())
     })
     .await
 }
 
-pub(in crate::backup) async fn discard_webdav_download() -> Result<(), String> {
+pub async fn discard_webdav_download() -> Result<(), String> {
     run_blocking(clear_downloads).await
 }
 
-pub(in crate::backup) async fn delete_webdav_backup(
+pub async fn delete_webdav_backup(
     app_version: String,
     file_name: String,
     secret_state: &SecretStoreState,
@@ -195,7 +206,7 @@ pub(in crate::backup) async fn delete_webdav_backup(
     client.delete(&directory, &file_name).await
 }
 
-pub(in crate::backup) async fn delete_webdav_backups(
+pub async fn delete_webdav_backups(
     app_version: String,
     file_names: Vec<String>,
     secret_state: &SecretStoreState,
@@ -217,7 +228,7 @@ pub(in crate::backup) async fn delete_webdav_backups(
     Ok(WebDavDeleteResult { deleted, error })
 }
 
-pub(in crate::backup) async fn save_webdav_backup(
+pub async fn save_webdav_backup(
     app_version: String,
     file_name: String,
     output_path: String,
@@ -228,7 +239,7 @@ pub(in crate::backup) async fn save_webdav_backup(
     let (client, directory) = connect(&app_version, secret_state).await?;
     let data = client.get(&directory, &file_name, MAX_BACKUP_SIZE).await?;
     run_blocking(move || {
-        tterm_core::config::atomic::atomic_write_private(&output, data)?;
+        crate::config::atomic::atomic_write_private(&output, data)?;
         Ok(output.to_string_lossy().into_owned())
     })
     .await

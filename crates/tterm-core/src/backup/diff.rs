@@ -1,16 +1,18 @@
 //! How an imported backup differs from what this device has.
 
+use crate::backup::BackupDiff;
+use crate::backup::BackupPayload;
+use crate::backup::CategoryDiff;
+use crate::backup::apply::json_key;
+use crate::backup::apply::read_json_value;
+use crate::backup::apply::to_backup_value;
 use crate::backup::remote;
-use crate::{backup::BackupDiff, backup::BackupPayload, backup::CategoryDiff};
-use crate::{
-    backup::apply::json_key, backup::apply::read_json_value, backup::apply::to_backup_value,
-};
+use crate::command_library::repository::CommandRepository;
 use serde_json::Value;
 use std::collections::HashMap;
-use tterm_core::command_library::repository::CommandRepository;
 
 pub(super) fn calculate_diff(payload: &BackupPayload) -> Result<BackupDiff, String> {
-    let existing_profiles = to_backup_value(&tterm_core::profiles::storage::load_profiles()?)?;
+    let existing_profiles = to_backup_value(&crate::profiles::storage::load_profiles()?)?;
     let profiles = calculate_json_array_diff(
         existing_profiles
             .as_array()
@@ -25,7 +27,7 @@ pub(super) fn calculate_diff(payload: &BackupPayload) -> Result<BackupDiff, Stri
         &["id"],
     )?;
 
-    let existing_commands = CommandRepository::new(tterm_core::db::get()?).list()?;
+    let existing_commands = CommandRepository::new(crate::db::get()?).list()?;
     let existing_by_id = existing_commands
         .into_iter()
         .map(|command| (command.id.clone(), command))
@@ -41,7 +43,7 @@ pub(super) fn calculate_diff(payload: &BackupPayload) -> Result<BackupDiff, Stri
 
     let settings_changed = match payload.config.as_ref() {
         Some(imported) => {
-            read_json_value(&tterm_core::config::paths::get_config_path()?.join("config.json"))?
+            read_json_value(&crate::config::paths::get_config_path()?.join("config.json"))?
                 != *imported
         }
         None => false,

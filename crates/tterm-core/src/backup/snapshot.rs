@@ -1,21 +1,21 @@
 //! What an import may change, captured first so a failed import can be undone.
 
+use crate::backup::AUTOMATIC_SETTINGS_KEY;
+use crate::backup::BackupPayload;
+use crate::backup::BackupSelection;
 use crate::backup::apply::imported_logs_root;
 use crate::backup::archive::validate_relative_path;
 use crate::backup::remote;
-use crate::{backup::AUTOMATIC_SETTINGS_KEY, backup::BackupPayload, backup::BackupSelection};
+use crate::db::meta;
+use crate::profiles::types::{ProfileGroup, SavedProfile};
+use crate::proxy::ProxyServer;
+use crate::sftp::store::SftpDirectoryStore;
+use crate::ssh::secret_store::{store::SecretRow, store::restore_secrets, store::snapshot_secrets};
+use crate::ssh::store::KnownHostStore;
+use crate::tunnel::types::TunnelRule;
 use serde_json::Value;
 use std::fs;
 use std::path::{Path, PathBuf};
-use tterm_core::db::meta;
-use tterm_core::profiles::types::{ProfileGroup, SavedProfile};
-use tterm_core::proxy::ProxyServer;
-use tterm_core::sftp::store::SftpDirectoryStore;
-use tterm_core::ssh::secret_store::{
-    store::SecretRow, store::restore_secrets, store::snapshot_secrets,
-};
-use tterm_core::ssh::store::KnownHostStore;
-use tterm_core::tunnel::types::TunnelRule;
 
 /// Profiles with what travels with them: groups, tunnels and proxy servers.
 pub(super) type ProfilesSnapshot = (
@@ -36,7 +36,7 @@ pub(super) struct DatabaseSnapshot {
     pub(super) sftp_directories: Option<SftpDirectoryStore>,
     pub(super) themes: Option<Vec<Value>>,
     /// Taken with the command library, which the send history travels with.
-    pub(super) serial_sends: Option<Vec<tterm_core::serial::history::SerialSend>>,
+    pub(super) serial_sends: Option<Vec<crate::serial::history::SerialSend>>,
     /// The `app_meta` values an import may change: settings and the session.
     pub(super) meta: Vec<(&'static str, Option<String>)>,
 }
@@ -50,11 +50,11 @@ fn imported_meta_keys(selection: &BackupSelection) -> Vec<&'static str> {
             remote::SETTINGS_KEY,
             remote::LAST_ERROR_KEY,
             crate::sync::SETTINGS_KEY,
-            tterm_core::app_state::COLLAPSED_PROFILE_GROUP_KEYS,
+            crate::app_state::COLLAPSED_PROFILE_GROUP_KEYS,
         ]);
     }
     if selection.session {
-        keys.push(tterm_core::session_restore::SESSION_KEY);
+        keys.push(crate::session_restore::SESSION_KEY);
     }
     keys
 }
@@ -62,7 +62,7 @@ fn imported_meta_keys(selection: &BackupSelection) -> Vec<&'static str> {
 pub(super) fn capture_database_snapshot(
     selection: &BackupSelection,
 ) -> Result<DatabaseSnapshot, String> {
-    tterm_core::db::read(|connection| snapshot_database(connection, selection))
+    crate::db::read(|connection| snapshot_database(connection, selection))
 }
 
 pub(super) fn snapshot_database(
@@ -72,10 +72,10 @@ pub(super) fn snapshot_database(
     Ok(DatabaseSnapshot {
         profiles: if selection.profiles {
             Some((
-                tterm_core::profiles::storage::list_saved_profiles(connection)?,
-                tterm_core::profiles::groups::list_groups(connection)?,
-                tterm_core::tunnel::storage::list_tunnel_rules(connection)?,
-                tterm_core::proxy::storage::list_proxies(connection)?,
+                crate::profiles::storage::list_saved_profiles(connection)?,
+                crate::profiles::groups::list_groups(connection)?,
+                crate::tunnel::storage::list_tunnel_rules(connection)?,
+                crate::proxy::storage::list_proxies(connection)?,
             ))
         } else {
             None
@@ -86,22 +86,22 @@ pub(super) fn snapshot_database(
             None
         },
         known_hosts: if selection.known_hosts {
-            Some(tterm_core::ssh::store::list_known_hosts(connection)?)
+            Some(crate::ssh::store::list_known_hosts(connection)?)
         } else {
             None
         },
         sftp_directories: if selection.sftp_directories {
-            Some(tterm_core::sftp::store::list_sftp_directories(connection)?)
+            Some(crate::sftp::store::list_sftp_directories(connection)?)
         } else {
             None
         },
         themes: if selection.themes {
-            Some(tterm_core::themes::list_themes(connection)?)
+            Some(crate::themes::list_themes(connection)?)
         } else {
             None
         },
         serial_sends: if selection.command_library {
-            Some(tterm_core::serial::history::store::list_all(connection)?)
+            Some(crate::serial::history::store::list_all(connection)?)
         } else {
             None
         },
@@ -113,7 +113,7 @@ pub(super) fn snapshot_database(
 }
 
 pub(super) fn restore_database_snapshot(snapshot: &DatabaseSnapshot) -> Result<(), String> {
-    tterm_core::db::write(|transaction| restore_database(transaction, snapshot))
+    crate::db::write(|transaction| restore_database(transaction, snapshot))
 }
 
 pub(super) fn restore_database(
@@ -121,25 +121,25 @@ pub(super) fn restore_database(
     snapshot: &DatabaseSnapshot,
 ) -> Result<(), String> {
     if let Some((profiles, groups, tunnels, proxies)) = snapshot.profiles.as_ref() {
-        tterm_core::profiles::storage::replace_profiles(transaction, profiles)?;
-        tterm_core::profiles::groups::replace_groups(transaction, groups)?;
-        tterm_core::tunnel::storage::replace_tunnels(transaction, tunnels)?;
-        tterm_core::proxy::storage::replace_proxies(transaction, proxies)?;
+        crate::profiles::storage::replace_profiles(transaction, profiles)?;
+        crate::profiles::groups::replace_groups(transaction, groups)?;
+        crate::tunnel::storage::replace_tunnels(transaction, tunnels)?;
+        crate::proxy::storage::replace_proxies(transaction, proxies)?;
     }
     if let Some(secrets) = snapshot.secrets.as_ref() {
         restore_secrets(transaction, secrets)?;
     }
     if let Some(store) = snapshot.known_hosts.as_ref() {
-        tterm_core::ssh::store::replace_known_hosts(transaction, store)?;
+        crate::ssh::store::replace_known_hosts(transaction, store)?;
     }
     if let Some(store) = snapshot.sftp_directories.as_ref() {
-        tterm_core::sftp::store::replace_sftp_directories(transaction, store)?;
+        crate::sftp::store::replace_sftp_directories(transaction, store)?;
     }
     if let Some(themes) = snapshot.themes.as_ref() {
-        tterm_core::themes::replace_themes(transaction, themes)?;
+        crate::themes::replace_themes(transaction, themes)?;
     }
     if let Some(sends) = snapshot.serial_sends.as_ref() {
-        tterm_core::serial::history::store::replace_all(transaction, sends)?;
+        crate::serial::history::store::replace_all(transaction, sends)?;
     }
     for (key, value) in &snapshot.meta {
         meta::put_raw(transaction, key, value.as_deref())?;
@@ -155,11 +155,11 @@ pub(super) fn capture_file_snapshot(
     selection: &BackupSelection,
     payload: &BackupPayload,
 ) -> Result<FileSnapshot, String> {
-    let directory = tterm_core::config::paths::ensure_config_dir()?;
+    let directory = crate::config::paths::ensure_config_dir()?;
     let mut names = Vec::new();
     if selection.settings {
         names.push("config.json");
-        names.push(tterm_core::notification::sound::SOUND_FILE);
+        names.push(crate::notification::sound::SOUND_FILE);
     }
     let mut snapshot = names
         .into_iter()
@@ -199,7 +199,7 @@ pub(super) fn restore_file_snapshot(snapshot: &[(PathBuf, Option<Vec<u8>>)]) -> 
     let mut errors = Vec::new();
     for (path, content) in snapshot {
         let result = match content {
-            Some(bytes) => tterm_core::config::atomic::atomic_write(path, bytes),
+            Some(bytes) => crate::config::atomic::atomic_write(path, bytes),
             None if path.exists() => fs::remove_file(path)
                 .map_err(|error| format!("Failed to remove '{}': {error}", path.display())),
             None => Ok(()),

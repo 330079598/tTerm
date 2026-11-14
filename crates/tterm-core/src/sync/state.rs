@@ -1,13 +1,14 @@
 //! The merge base: what this device and the server agreed on at the last
 //! sync. It holds saved passwords, so it is encrypted with the data key.
 
-use crate::{sync::document::Collections, sync::document::KdfSpec};
-use rusqlite::{Connection, OptionalExtension, params};
-use serde::{Deserialize, Serialize};
-use tterm_core::db::sql_error;
-use tterm_core::ssh::secret_store::{
+use crate::db::sql_error;
+use crate::ssh::secret_store::{
     crypto::SecretKey as DataKey, crypto::decrypt_secret, crypto::encrypt_secret,
 };
+use crate::sync::document::Collections;
+use crate::sync::document::KdfSpec;
+use rusqlite::{Connection, OptionalExtension, params};
+use serde::{Deserialize, Serialize};
 
 /// Names the base in the ciphertext's associated data.
 const BASE_KEY: &str = "sync:base";

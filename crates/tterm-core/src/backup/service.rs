@@ -1,23 +1,26 @@
 //! Domain operations behind the IPC entry points.
-use crate::{
-    backup::AutomaticBackupSettings, backup::BackupExportOptions, backup::BackupExportResult,
-    backup::BackupHistoryEntry, backup::BackupImportOptions, backup::BackupImportResult,
-    backup::BackupInspectInput, backup::BackupInspectResult, backup::export_backup_blocking,
-    backup::import_backup_blocking, backup::inspect_backup_blocking,
-};
-use crate::{
-    backup::automatic::delete_backup_history_entry_blocking,
-    backup::automatic::list_backup_history_blocking,
-    backup::automatic::load_automatic_backup_settings,
-    backup::automatic::run_due_automatic_backup_blocking,
-    backup::automatic::validate_automatic_backup_settings,
-    backup::automatic::write_automatic_backup_settings,
-};
+use crate::backup::AutomaticBackupSettings;
+use crate::backup::BackupExportOptions;
+use crate::backup::BackupExportResult;
+use crate::backup::BackupHistoryEntry;
+use crate::backup::BackupImportOptions;
+use crate::backup::BackupImportResult;
+use crate::backup::BackupInspectInput;
+use crate::backup::BackupInspectResult;
+use crate::backup::automatic::delete_backup_history_entry_blocking;
+use crate::backup::automatic::list_backup_history_blocking;
+use crate::backup::automatic::load_automatic_backup_settings;
+use crate::backup::automatic::run_due_automatic_backup_blocking;
+use crate::backup::automatic::validate_automatic_backup_settings;
+use crate::backup::automatic::write_automatic_backup_settings;
+use crate::backup::export_backup_blocking;
+use crate::backup::import_backup_blocking;
+use crate::backup::inspect_backup_blocking;
+use crate::core::blocking::run_blocking;
+use crate::ssh::secret_store::types::SecretStoreState;
 use serde_json::Value;
-use tterm_core::core::blocking::run_blocking;
-use tterm_core::ssh::secret_store::types::SecretStoreState;
 
-pub(super) async fn export_backup(
+pub async fn export_backup(
     app_version: String,
     output_path: String,
     options: BackupExportOptions,
@@ -28,7 +31,7 @@ pub(super) async fn export_backup(
         .await
 }
 
-pub(super) async fn inspect_backup(
+pub async fn inspect_backup(
     input: BackupInspectInput,
     secret_state: &SecretStoreState,
 ) -> Result<BackupInspectResult, String> {
@@ -36,7 +39,7 @@ pub(super) async fn inspect_backup(
     run_blocking(move || inspect_backup_blocking(input, &secret_state)).await
 }
 
-pub(super) async fn import_backup(
+pub async fn import_backup(
     app_version: String,
     input_path: String,
     options: BackupImportOptions,
@@ -47,7 +50,7 @@ pub(super) async fn import_backup(
         .await
 }
 
-pub(super) async fn run_due_automatic_backup(
+pub async fn run_due_automatic_backup(
     app_version: String,
     frontend_state: Option<Value>,
     force: bool,
@@ -60,28 +63,26 @@ pub(super) async fn run_due_automatic_backup(
     .await
 }
 
-pub(super) async fn get_automatic_backup_settings() -> Result<AutomaticBackupSettings, String> {
+pub async fn get_automatic_backup_settings() -> Result<AutomaticBackupSettings, String> {
     run_blocking(load_automatic_backup_settings).await
 }
 
-pub(super) async fn save_automatic_backup_settings(
+pub async fn save_automatic_backup_settings(
     settings: AutomaticBackupSettings,
 ) -> Result<AutomaticBackupSettings, String> {
     run_blocking(move || {
         validate_automatic_backup_settings(&settings)?;
-        tterm_core::db::write(|transaction| {
-            write_automatic_backup_settings(transaction, &settings)
-        })?;
+        crate::db::write(|transaction| write_automatic_backup_settings(transaction, &settings))?;
         load_automatic_backup_settings()
     })
     .await
 }
 
-pub(super) async fn list_backup_history() -> Result<Vec<BackupHistoryEntry>, String> {
+pub async fn list_backup_history() -> Result<Vec<BackupHistoryEntry>, String> {
     // The automatic backup directory may be on a slow or network drive.
     run_blocking(list_backup_history_blocking).await
 }
 
-pub(super) async fn delete_backup_history_entry(path: String) -> Result<bool, String> {
+pub async fn delete_backup_history_entry(path: String) -> Result<bool, String> {
     run_blocking(move || delete_backup_history_entry_blocking(path)).await
 }
