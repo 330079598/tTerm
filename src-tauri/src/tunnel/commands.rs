@@ -1,6 +1,5 @@
 //! The Tauri commands for port-forwarding rules.
 
-use crate::{tunnel::credentials::StartOutcome, tunnel::credentials::TunnelCredentials};
 use crate::{
     tunnel::manager::auto_start_tunnels_service, tunnel::manager::delete_tunnel_service,
     tunnel::manager::list_tunnel_statuses_service, tunnel::manager::list_tunnels_service,
@@ -9,6 +8,8 @@ use crate::{
 };
 use std::sync::Arc;
 use tterm_core::events::tunnel::TunnelStatus;
+use tterm_core::tunnel::credentials::StartOutcome;
+use tterm_core::tunnel::credentials::TunnelCredentials;
 use tterm_core::tunnel::types::TunnelRule;
 
 #[tauri::command]

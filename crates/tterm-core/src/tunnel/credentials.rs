@@ -1,12 +1,12 @@
 //! Works out which secrets a tunnel still needs from the user before it can
 //! connect, so the UI can ask for them instead of failing.
 
-use russh::keys::{self, ssh_key};
-use serde::{Deserialize, Serialize};
-use tterm_core::{
+use crate::{
     core::session::types::JumpHostPlan, core::session::types::PtyConnectionOptions,
     core::session::types::SessionPlan,
 };
+use russh::keys::{self, ssh_key};
+use serde::{Deserialize, Serialize};
 
 /// Secrets entered by the user in answer to a [`CredentialRequest`].
 #[derive(Debug, Default, Deserialize)]
@@ -83,7 +83,7 @@ enum KeyCheck {
 }
 
 fn check_key(path: &str, passphrase: Option<&str>) -> Result<KeyCheck, String> {
-    let key = tterm_core::ssh::key_file::read_key(path, "SSH key")?;
+    let key = crate::ssh::key_file::read_key(path, "SSH key")?;
     let passphrase = passphrase.or(key.saved_passphrase());
     match keys::decode_secret_key(&key.text, passphrase) {
         Ok(_) => Ok(KeyCheck::Usable),
@@ -92,8 +92,8 @@ fn check_key(path: &str, passphrase: Option<&str>) -> Result<KeyCheck, String> {
             Ok(KeyCheck::NeedsPassphrase { incorrect: true })
         }
         // Old PEM-format RSA keys are loaded when connecting, not by `russh`.
-        Err(_) if tterm_core::ssh::rsa_signer::pem_key_is_usable(&key.text) => Ok(KeyCheck::Usable),
-        Err(err) => Err(tterm_core::ssh::key_file::describe_key_error(
+        Err(_) if crate::ssh::rsa_signer::pem_key_is_usable(&key.text) => Ok(KeyCheck::Usable),
+        Err(err) => Err(crate::ssh::key_file::describe_key_error(
             "SSH key", &key.label, &err,
         )),
     }

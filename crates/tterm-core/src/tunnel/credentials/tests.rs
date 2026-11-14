@@ -1,8 +1,8 @@
+use crate::core::session::normalize_connection;
+use crate::core::session::types::JumpHostOptions;
 use crate::tunnel::credentials::*;
 use russh::keys::ssh_key::{Algorithm, LineEnding, PrivateKey};
 use std::sync::atomic::{AtomicUsize, Ordering};
-use tterm_core::core::session::normalize_connection;
-use tterm_core::core::session::types::JumpHostOptions;
 
 static COUNTER: AtomicUsize = AtomicUsize::new(0);
 

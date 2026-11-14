@@ -195,7 +195,7 @@ fn router_hands_channels_to_the_tunnel_that_claimed_the_port() {
 #[test]
 fn keys_ignore_secrets_in_the_id_but_not_in_the_hash() {
     let plan = |password: &str| SessionPlan {
-        kind: tterm_core::core::state::SessionKind::Ssh,
+        kind: crate::core::state::SessionKind::Ssh,
         profile_id: Some("p1".into()),
         profile_name: "prod".into(),
         host: Some("h".into()),

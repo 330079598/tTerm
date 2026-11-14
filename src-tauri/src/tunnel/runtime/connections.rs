@@ -1,6 +1,5 @@
 //! Accepting and forwarding a tunnel's connections.
 
-use crate::tunnel::hub::SshHandle;
 use crate::{
     tunnel::runtime::CHANNEL_OPEN_TIMEOUT, tunnel::runtime::DEST_CONNECT_TIMEOUT,
     tunnel::runtime::MAX_CONNECTIONS, tunnel::runtime::SOCKS_HANDSHAKE_TIMEOUT,
@@ -14,6 +13,7 @@ use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
 use tokio::net::{TcpListener, TcpStream};
 use tokio::sync::{OwnedSemaphorePermit, Semaphore};
 use tterm_core::ssh::types::ForwardedTcpIp;
+use tterm_core::tunnel::hub::SshHandle;
 use tterm_core::tunnel::socks5;
 use tterm_core::tunnel::socks5::ConnectOutcome;
 use tterm_core::tunnel::types::TunnelStats;

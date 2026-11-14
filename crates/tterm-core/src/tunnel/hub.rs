@@ -5,6 +5,11 @@
 //! one host therefore lease a single session from the hub; the last tunnel to
 //! let go closes it.
 
+use crate::core::session::types::SessionPlan;
+use crate::{
+    ssh::jump::connect::JumpChain, ssh::types::ForwardedTcpIp, ssh::types::SshClientHandler,
+    ssh::types::SshConnectError,
+};
 use russh::Disconnect;
 use russh::client::Handle;
 use std::collections::HashMap;
@@ -17,11 +22,6 @@ use std::sync::{Arc, Mutex};
 use tokio::sync::mpsc;
 use tokio::task::JoinHandle;
 use tokio::time::Instant;
-use tterm_core::core::session::types::SessionPlan;
-use tterm_core::{
-    ssh::jump::connect::JumpChain, ssh::types::ForwardedTcpIp, ssh::types::SshClientHandler,
-    ssh::types::SshConnectError,
-};
 
 pub type SshHandle = Handle<SshClientHandler>;
 
