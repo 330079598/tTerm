@@ -1,27 +1,25 @@
-//! The command the prototype starts.
+//! The session the prototype opens.
 //!
-//! It follows the Tauri version's `build_terminal_command`
-//! (`src-tauri/src/terminal/pty.rs`) and its automatic shell choice, so the
-//! two clients run the same shell with the same environment and start
-//! directory and their output can be compared. Shell integration (prompt
-//! marks, working directory reports) is left out; P1-12 replaces this module
-//! with the core's session service.
+//! Local shells and `--exec` workloads become local connection options.
+//! `--ssh` selects a saved connection from the isolated GPUI database by id
+//! or name. The core's `AppServices` builds the actual PTY or SSH session.
 
-#[cfg(any(windows, test))]
-use std::path::PathBuf;
+use tterm_core::core::session::types::PtyConnectionOptions;
+use tterm_core::profiles::connection::connection_options_for_profile;
+use tterm_core::profiles::types::SavedProfile;
 
-use portable_pty::CommandBuilder;
+const USAGE: &str =
+    "usage: tterm-gpui [--ssh <saved-profile-id-or-name> | --exec <program> [args...]]";
 
-const USAGE: &str = "usage: tterm-gpui [--ssh <target> [args...] | --exec <program> [args...]]";
-
-/// What the prototype runs in its PTY.
+/// What the prototype opens through `AppServices`.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(super) enum CommandSpec {
-    /// The platform's default shell.
+    /// The platform's configured local shell.
     Shell,
-    /// A program with arguments: the system `ssh`, the P0 stand-in for
-    /// tTerm's own SSH sessions, or a workload a P0 card runs.
+    /// A local program and its arguments.
     Program { program: String, args: Vec<String> },
+    /// A saved SSH profile selected by id or name.
+    SshProfile { selector: String },
 }
 
 impl CommandSpec {
@@ -30,137 +28,216 @@ impl CommandSpec {
         let Some((first, rest)) = arguments.split_first() else {
             return Ok(Self::Shell);
         };
-        let (program, args) = match first.as_str() {
-            "--ssh" => match rest.first() {
-                Some(_) => ("ssh".to_string(), rest.to_vec()),
-                None => return Err(format!("--ssh needs a target; {USAGE}")),
-            },
-            "--exec" => match rest.split_first() {
-                Some((program, args)) => (program.clone(), args.to_vec()),
-                None => return Err(format!("--exec needs a program; {USAGE}")),
-            },
-            _ => return Err(USAGE.to_string()),
-        };
-        Ok(Self::Program { program, args })
-    }
-
-    /// The command with the Tauri version's environment and start directory.
-    pub fn builder(&self) -> CommandBuilder {
-        let home = home_dir(|key| std::env::var(key).ok());
-        let mut command = match self {
-            Self::Shell => shell_command(),
-            Self::Program { program, args } => {
-                let mut command = CommandBuilder::new(program);
-                command.args(args);
-                command
+        match first.as_str() {
+            "--ssh" => {
+                let [selector] = rest else {
+                    return Err(format!("--ssh needs one saved profile id or name; {USAGE}"));
+                };
+                if selector.trim().is_empty() {
+                    return Err(format!("--ssh needs a saved profile; {USAGE}"));
+                }
+                Ok(Self::SshProfile {
+                    selector: selector.trim().to_string(),
+                })
             }
-        };
-        command.env("TERM", "xterm-256color");
-        command.env("COLORTERM", "truecolor");
-        command.env("HOME", &home);
-        if std::env::var_os("LANG").is_none() {
-            command.env("LANG", "en_US.UTF-8");
+            "--exec" => match rest.split_first() {
+                Some((program, args)) => Ok(Self::Program {
+                    program: program.clone(),
+                    args: args.to_vec(),
+                }),
+                None => Err(format!("--exec needs a program; {USAGE}")),
+            },
+            _ => Err(USAGE.to_string()),
         }
-        command.cwd(&home);
-        command
+    }
+
+    /// The connection options passed to `AppServices`.
+    pub fn connection_options(&self) -> Result<PtyConnectionOptions, String> {
+        match self {
+            Self::Shell => local_options(None, &[]),
+            Self::Program { program, args } => local_options(Some(program), args),
+            Self::SshProfile { selector } => saved_ssh_profile(selector),
+        }
     }
 }
 
-/// Windows: the Tauri version's automatic shell.
-#[cfg(windows)]
-fn shell_command() -> CommandBuilder {
-    let (program, args) = windows_shell(find_pwsh(), find_windows_powershell(), find_cmd());
-    let mut command = CommandBuilder::new(program);
-    command.args(args);
-    command
-}
-
-/// macOS and Linux: the user's login shell, as the Tauri version starts it
-/// when no shell is configured.
-#[cfg(not(windows))]
-fn shell_command() -> CommandBuilder {
-    CommandBuilder::new_default_prog()
-}
-
-/// PowerShell 7, else Windows PowerShell, both without the banner, else cmd.
-#[cfg(any(windows, test))]
-pub(super) fn windows_shell(
-    pwsh: Option<PathBuf>,
-    powershell: Option<PathBuf>,
-    cmd: Option<PathBuf>,
-) -> (PathBuf, Vec<&'static str>) {
-    match pwsh.or(powershell) {
-        Some(path) => (path, vec!["-NoLogo"]),
-        None => (cmd.unwrap_or_else(|| PathBuf::from("cmd.exe")), Vec::new()),
-    }
-}
-
-/// PowerShell 7 where its installer puts it, else on PATH.
-#[cfg(windows)]
-fn find_pwsh() -> Option<PathBuf> {
-    env_dir("ProgramFiles")
-        .map(|base| base.join("PowerShell").join("7").join("pwsh.exe"))
-        .filter(|path| path.exists())
-        .or_else(|| find_on_path("pwsh.exe"))
-}
-
-/// Windows PowerShell where Windows installs it, else on PATH.
-#[cfg(windows)]
-fn find_windows_powershell() -> Option<PathBuf> {
-    env_dir("SystemRoot")
-        .map(|base| {
-            base.join("System32")
-                .join("WindowsPowerShell")
-                .join("v1.0")
-                .join("powershell.exe")
-        })
-        .filter(|path| path.exists())
-        .or_else(|| find_on_path("powershell.exe"))
-}
-
-/// `COMSPEC`, else cmd in System32, else on PATH.
-#[cfg(windows)]
-fn find_cmd() -> Option<PathBuf> {
-    std::env::var_os("COMSPEC")
-        .map(PathBuf::from)
-        .filter(|path| path.exists())
-        .or_else(|| {
-            env_dir("SystemRoot")
-                .map(|base| base.join("System32").join("cmd.exe"))
-                .filter(|path| path.exists())
-        })
-        .or_else(|| find_on_path("cmd.exe"))
-}
-
-#[cfg(windows)]
-fn env_dir(key: &str) -> Option<PathBuf> {
-    std::env::var_os(key)
-        .map(PathBuf::from)
-        .filter(|path| !path.as_os_str().is_empty() && path.exists())
-}
-
-#[cfg(windows)]
-fn find_on_path(executable: &str) -> Option<PathBuf> {
-    std::env::split_paths(&std::env::var_os("PATH")?)
-        .map(|dir| dir.join(executable))
-        .find(|candidate| candidate.exists())
-}
-
-/// The home directory as the Tauri version resolves it: on Windows
-/// `USERPROFILE`, then `HOMEDRIVE` and `HOMEPATH`, then `HOME`, then `C:\`;
-/// elsewhere `HOME`, then `/`. `get` reads one environment variable.
-pub(super) fn home_dir(get: impl Fn(&str) -> Option<String>) -> String {
-    let value = |key: &str| {
-        get(key)
-            .map(|value| value.trim().to_string())
-            .filter(|value| !value.is_empty())
+fn local_options(
+    program: Option<&String>,
+    args: &[String],
+) -> Result<PtyConnectionOptions, String> {
+    let (shell, custom_path, custom_args) = match program {
+        Some(program) => (
+            "custom".to_string(),
+            Some(program.clone()),
+            Some(join_arguments(args)?),
+        ),
+        None => ("auto".to_string(), None, None),
     };
-    if cfg!(windows) {
-        value("USERPROFILE")
-            .or_else(|| Some(format!("{}{}", value("HOMEDRIVE")?, value("HOMEPATH")?)))
-            .or_else(|| value("HOME"))
-            .unwrap_or_else(|| "C:\\".to_string())
-    } else {
-        value("HOME").unwrap_or_else(|| "/".to_string())
+    Ok(PtyConnectionOptions {
+        connection_type: Some("terminal".to_string()),
+        terminal_shell: Some(shell),
+        terminal_shell_custom_path: custom_path,
+        terminal_shell_custom_args: custom_args,
+        session_log: Some("never".to_string()),
+        ..PtyConnectionOptions::default()
+    })
+}
+
+fn saved_ssh_profile(selector: &str) -> Result<PtyConnectionOptions, String> {
+    let profiles = tterm_core::profiles::storage::load_profiles()?;
+    let mut profile = select_saved_profile(selector, &profiles)?;
+    tterm_core::profiles::storage::normalize_profile(&mut profile);
+    connection_options_for_profile(&profile)
+}
+
+fn select_saved_profile(selector: &str, profiles: &[SavedProfile]) -> Result<SavedProfile, String> {
+    if let Some(profile) = profiles
+        .iter()
+        .find(|profile| profile.id == selector)
+        .cloned()
+    {
+        return Ok(profile);
+    }
+    let mut matches = profiles
+        .iter()
+        .filter(|profile| profile.name.eq_ignore_ascii_case(selector));
+    let Some(profile) = matches.next() else {
+        return Err(format!(
+            "No saved connection matches '{selector}'. Save it in tTerm first, or pass its id."
+        ));
+    };
+    if matches.next().is_some() {
+        return Err(format!(
+            "More than one saved connection is named '{selector}'; pass its id instead."
+        ));
+    }
+    Ok(profile.clone())
+}
+
+#[cfg(windows)]
+fn join_arguments(args: &[String]) -> Result<String, String> {
+    let mut words = Vec::with_capacity(args.len());
+    for argument in args {
+        if argument.contains('"') {
+            return Err(format!(
+                "The GPUI prototype cannot represent a double quote in '--exec' argument {argument:?}"
+            ));
+        }
+        if argument.is_empty() || argument.chars().any(char::is_whitespace) {
+            words.push(format!("\"{argument}\""));
+        } else {
+            words.push(argument.clone());
+        }
+    }
+    Ok(words.join(" "))
+}
+
+#[cfg(not(windows))]
+fn join_arguments(args: &[String]) -> Result<String, String> {
+    Ok(args
+        .iter()
+        .map(|argument| format!("'{}'", argument.replace('\'', r"'\''")))
+        .collect::<Vec<_>>()
+        .join(" "))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{CommandSpec, join_arguments, select_saved_profile};
+    use tterm_core::profiles::types::SavedProfile;
+
+    fn args(list: &[&str]) -> Vec<String> {
+        list.iter().map(|arg| arg.to_string()).collect()
+    }
+
+    #[test]
+    fn the_command_line_picks_a_local_shell_a_program_or_a_saved_profile() {
+        assert_eq!(CommandSpec::from_args(&[]), Ok(CommandSpec::Shell));
+        assert_eq!(
+            CommandSpec::from_args(&args(&["--ssh", "Production"])),
+            Ok(CommandSpec::SshProfile {
+                selector: "Production".to_string()
+            })
+        );
+        assert_eq!(
+            CommandSpec::from_args(&args(&["--exec", "vim", "notes.txt"])),
+            Ok(CommandSpec::Program {
+                program: "vim".to_string(),
+                args: args(&["notes.txt"]),
+            })
+        );
+        assert!(CommandSpec::from_args(&args(&["--ssh"])).is_err());
+        assert!(CommandSpec::from_args(&args(&["--ssh", "one", "extra"])).is_err());
+        assert!(CommandSpec::from_args(&args(&["--exec"])).is_err());
+        assert!(CommandSpec::from_args(&args(&["--unknown"])).is_err());
+    }
+
+    #[test]
+    fn program_arguments_are_quoted_for_the_core_custom_shell_parser() {
+        let joined = join_arguments(&args(&["one", "two words"])).expect("join arguments");
+        if cfg!(windows) {
+            assert_eq!(joined, r#"one "two words""#);
+        } else {
+            assert_eq!(joined, "'one' 'two words'");
+        }
+    }
+
+    #[test]
+    fn local_options_use_the_core_auto_or_custom_shell_path() {
+        let shell = CommandSpec::Shell
+            .connection_options()
+            .expect("local shell options");
+        assert_eq!(shell.connection_type.as_deref(), Some("terminal"));
+        assert_eq!(shell.terminal_shell.as_deref(), Some("auto"));
+
+        let program = CommandSpec::Program {
+            program: "vim".to_string(),
+            args: args(&["two words"]),
+        }
+        .connection_options()
+        .expect("program options");
+        assert_eq!(program.terminal_shell_custom_path.as_deref(), Some("vim"));
+        assert!(
+            program
+                .terminal_shell_custom_args
+                .as_deref()
+                .is_some_and(|value| value.contains("two words"))
+        );
+    }
+
+    #[test]
+    fn saved_profiles_are_selected_by_id_before_name() {
+        let profile = |id: &str, name: &str| -> SavedProfile {
+            serde_json::from_value(serde_json::json!({
+                "id": id, "name": name, "connection_type": "ssh",
+                "host": "example.com", "username": "user"
+            }))
+            .expect("profile")
+        };
+        let profiles = vec![profile("prod", "Production"), profile("other", "prod")];
+
+        assert_eq!(
+            select_saved_profile("prod", &profiles).expect("id").name,
+            "Production"
+        );
+        assert_eq!(
+            select_saved_profile("production", &profiles)
+                .expect("case-insensitive name")
+                .id,
+            "prod"
+        );
+    }
+
+    #[test]
+    fn ambiguous_saved_profile_names_are_rejected() {
+        let profile = |id: &str| -> SavedProfile {
+            serde_json::from_value(serde_json::json!({
+                "id": id, "name": "Production", "connection_type": "ssh",
+                "host": "example.com", "username": "user"
+            }))
+            .expect("profile")
+        };
+        let profiles = vec![profile("one"), profile("two")];
+        assert!(select_saved_profile("production", &profiles).is_err());
     }
 }

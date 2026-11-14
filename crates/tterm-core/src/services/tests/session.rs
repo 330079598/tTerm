@@ -335,7 +335,7 @@ fn app_services_ssh_through_jump_hosts_uses_prompts_and_round_trips() {
         port: Some(port),
         username: Some("alice".into()),
         password: None,
-        auth_method: Some("keyboard-interactive".into()),
+        auth_method: Some("auto".into()),
         private_key_path: None,
         private_key_passphrase: None,
         certificate_path: None,
@@ -348,7 +348,7 @@ fn app_services_ssh_through_jump_hosts_uses_prompts_and_round_trips() {
         port: Some(22),
         username: Some("alice".into()),
         password: None,
-        auth_method: Some("keyboard-interactive".into()),
+        auth_method: Some("auto".into()),
         jump_hosts: vec![jump("127.0.0.1", 22506), jump("tterm-P1-05-host", 22)],
         ssh_shell_integration: Some(false),
         session_log: Some("never".into()),
@@ -381,7 +381,9 @@ fn app_services_ssh_through_jump_hosts_uses_prompts_and_round_trips() {
         .expect("write SSH command");
     assert!(
         sink.output_contains(b"P1-12-SSH-JUMP-OK"),
-        "SSH command output"
+        "SSH command output; prompts={:?}; events={:?}",
+        prompt_count.lock().expect("prompt count"),
+        app.events.events()
     );
     let (host_keys, auth_prompts) = *prompt_count.lock().expect("prompt count");
     assert!(host_keys >= 3, "each hop and target key is confirmed");

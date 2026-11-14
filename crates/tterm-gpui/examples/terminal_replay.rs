@@ -117,12 +117,12 @@ impl Player {
         let Some(frames) = self.frames.take() else {
             return;
         };
-        let (sender, receiver) = async_channel::bounded(16);
-        let (acknowledge, acknowledged) = async_channel::bounded(1);
+        let (sender, mut receiver) = tokio::sync::mpsc::channel(16);
+        let (acknowledge, mut acknowledged) = tokio::sync::mpsc::channel(1);
         let terminal = Arc::clone(&self.terminal);
         let original = self.original;
         std::thread::spawn(move || {
-            if acknowledged.recv_blocking().is_err() {
+            if acknowledged.blocking_recv().is_none() {
                 return;
             }
             let start = Instant::now();
@@ -137,10 +137,10 @@ impl Player {
                     recording::Action::Resize(grid) => Some(grid),
                     recording::Action::Output(_) => None,
                 };
-                if sender.send_blocking(grid).is_err() {
+                if sender.blocking_send(grid).is_err() {
                     return;
                 }
-                if acknowledged.recv_blocking().is_err() {
+                if acknowledged.blocking_recv().is_none() {
                     return;
                 }
             }
@@ -156,7 +156,7 @@ impl Player {
                 .timer(Duration::from_millis(50))
                 .await;
             let _ = acknowledge.send(()).await;
-            while let Ok(grid) = receiver.recv().await {
+            while let Some(grid) = receiver.recv().await {
                 if handle
                     .update(cx, |_, window, cx| {
                         let _ = weak.update(cx, |player, cx| {

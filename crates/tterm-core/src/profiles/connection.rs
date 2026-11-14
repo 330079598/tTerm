@@ -44,12 +44,17 @@ pub fn connection_options_for_profile(
         host: profile.host.clone(),
         port: profile.port,
         username: profile.username.clone(),
+        ignore_saved_password: profile.ignore_saved_password,
         keepalive_interval_secs: Some(profile.keepalive_interval_secs.min(u16::MAX as u32) as u16),
         keepalive_count_max: Some(profile.keepalive_count_max.min(u16::MAX as u32) as u16),
         private_key_path: uses_key.then(|| profile.private_key_path.clone()).flatten(),
         certificate_path: uses_key.then(|| profile.certificate_path.clone()).flatten(),
         auth_method: profile.auth_method.clone(),
+        agent_forward: profile.agent_forward,
         jump_hosts,
+        encoding: profile.encoding.clone(),
+        ssh_shell_integration: profile.ssh_shell_integration,
+        session_log: profile.session_log.clone(),
         proxy: profile.proxy.clone(),
         ..PtyConnectionOptions::default()
     })
@@ -100,5 +105,22 @@ mod tests {
             "id": "p1", "name": "local", "connection_type": "terminal"
         }));
         assert!(connection_options_for_profile(&profile).is_err());
+    }
+
+    #[test]
+    fn options_keep_the_profiles_connection_and_session_choices() {
+        let profile = profile(serde_json::json!({
+            "id": "p1", "name": "prod", "connection_type": "ssh",
+            "host": "h", "username": "u", "auth_method": "agent",
+            "agent_forward": true, "encoding": "gbk",
+            "ssh_shell_integration": false, "session_log": "always"
+        }));
+
+        let options = connection_options_for_profile(&profile).expect("connection options");
+
+        assert!(options.agent_forward);
+        assert_eq!(options.encoding.as_deref(), Some("gbk"));
+        assert_eq!(options.ssh_shell_integration, Some(false));
+        assert_eq!(options.session_log.as_deref(), Some("always"));
     }
 }

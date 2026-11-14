@@ -9,11 +9,12 @@ use std::fs::{self, OpenOptions};
 use std::io::{Read, Write};
 use std::net::{TcpListener, TcpStream};
 use std::path::PathBuf;
-use std::sync::mpsc::{self, Sender};
+use std::sync::mpsc;
 use std::thread;
 use std::time::Duration;
 
 use gpui_kit::{AnyWindowHandle, App, Entity, EntityId, Keystroke};
+use tokio::sync::mpsc::{Sender, channel};
 
 use super::window::Prototype;
 
@@ -42,7 +43,7 @@ impl AutomationResponse {
 
 struct Request {
     command: Command,
-    reply: Sender<AutomationResponse>,
+    reply: mpsc::Sender<AutomationResponse>,
 }
 
 /// Starts the loopback listener and the app-thread request pump.
@@ -86,11 +87,11 @@ pub(super) fn start(handle: AnyWindowHandle, prototype: Entity<Prototype>, cx: &
     })
     .detach();
     let os = cx.platform_info().os;
-    let (requests, receiver) = async_channel::bounded::<Request>(1);
+    let (requests, mut receiver) = channel::<Request>(1);
     thread::spawn(move || accept_requests(listener, token, os, requests));
     let prototype = prototype.downgrade();
     cx.spawn(async move |cx| {
-        while let Ok(request) = receiver.recv().await {
+        while let Some(request) = receiver.recv().await {
             let reply = request.reply;
             let response = cx.update(|app| match prototype.upgrade() {
                 Some(prototype) => handle_request(request.command, handle, &prototype, app),
@@ -106,7 +107,7 @@ fn accept_requests(
     listener: TcpListener,
     token: String,
     os: gpui_kit::OperatingSystem,
-    requests: async_channel::Sender<Request>,
+    requests: Sender<Request>,
 ) {
     // One worker bounds memory/thread use even when unauthenticated users connect.
     for stream in listener.incoming().flatten() {
@@ -118,7 +119,7 @@ fn serve(
     mut stream: TcpStream,
     token: &str,
     os: gpui_kit::OperatingSystem,
-    requests: &async_channel::Sender<Request>,
+    requests: &Sender<Request>,
 ) {
     let timeout = Some(Duration::from_secs(5));
     if stream.set_read_timeout(timeout).is_err() || stream.set_write_timeout(timeout).is_err() {

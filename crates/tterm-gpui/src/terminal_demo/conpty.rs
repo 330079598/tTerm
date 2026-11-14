@@ -6,8 +6,7 @@
 //! TUIs send at startup. Loading the bundled DLL by its full path first makes
 //! that lookup return it, and the DLL starts the `OpenConsole.exe` next to it.
 //! An installed build leaves a complete pair beside the executable for
-//! portable-pty to load; source builds preload the source tree's copy. P1-12
-//! replaces this with the core session service.
+//! portable-pty to load; source builds preload the source tree's copy.
 
 /// A complete installed runtime takes precedence over the source tree.
 #[cfg(any(windows, test))]
