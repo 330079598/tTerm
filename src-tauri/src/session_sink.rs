@@ -64,6 +64,8 @@ impl<R: Runtime> SessionSink for TauriSessionSink<R> {
     }
 }
 
+#[cfg(all(test, unix))]
+mod benchmark;
 #[cfg(test)]
 mod contracts;
 #[cfg(test)]

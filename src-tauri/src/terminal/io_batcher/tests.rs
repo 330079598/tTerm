@@ -473,3 +473,19 @@ fn reader_thread_delivers_batched_utf8_stream_in_order() {
     let text = String::from_utf8(received).expect("delivered stream is valid UTF-8");
     assert_eq!(text, expected);
 }
+
+#[test]
+fn flow_waits_at_the_watermark_then_allows_one_chunk_overshoot() {
+    let flow = Arc::new(OutputFlow::with_stall_timeout(Duration::from_secs(60)));
+    flow.reserve(HIGH_WATERMARK_BYTES - 1);
+    flow.reserve(MAX_CHUNK_BYTES);
+    assert_eq!(
+        flow.state.lock().unwrap().unacked,
+        HIGH_WATERMARK_BYTES - 1 + MAX_CHUNK_BYTES
+    );
+    flow.ack(usize::MAX);
+    assert_eq!(flow.state.lock().unwrap().unacked, 0);
+    assert_eq!(ACK_STALL_TIMEOUT, Duration::from_secs(5));
+    assert_eq!(BATCH_INTERVAL, Duration::from_millis(8));
+    assert_eq!(QUEUE_CAPACITY_MESSAGES, 16);
+}

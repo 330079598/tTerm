@@ -237,9 +237,11 @@ async fn reset_pty_console_service(
     };
     #[cfg(target_os = "windows")]
     if pid != 0 {
-        return tokio::task::spawn_blocking(move || tterm_core::terminal::console_reset::reset_console(pid))
-            .await
-            .map_err(|err| format!("Console reset task failed: {err}"))?;
+        return tokio::task::spawn_blocking(move || {
+            tterm_core::terminal::console_reset::reset_console(pid)
+        })
+        .await
+        .map_err(|err| format!("Console reset task failed: {err}"))?;
     }
     let _ = pid;
     Ok(())

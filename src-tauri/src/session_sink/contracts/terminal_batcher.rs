@@ -1,5 +1,6 @@
-//! Raw-channel contracts captured before changing the output endpoint.
-use super::*;
+//! The raw binary channel contract captured before the output endpoint moved.
+use crate::terminal::io_batcher::{OutputFlow, TerminalOutputSender, test_sink};
+use std::sync::{Arc, Mutex};
 use tauri::ipc::{Channel, InvokeResponseBody};
 
 #[test]
@@ -20,7 +21,7 @@ fn binary_channel_keeps_nul_non_utf8_and_capped_messages() {
         flow,
     );
     let mut sender = TerminalOutputSender::spawn("contract", test_sink(output));
-    let mut expected = vec![b'x'; MAX_CHUNK_BYTES + 1];
+    let mut expected = vec![b'x'; 512 * 1024 + 1];
     expected.extend_from_slice(b"\0\xff\x1b[31m\r\n");
     expected.extend_from_slice("中文😀".as_bytes());
     sender.send(Vec::new());
@@ -30,20 +31,4 @@ fn binary_channel_keeps_nul_non_utf8_and_capped_messages() {
     assert!(chunks.len() >= 2);
     assert!(chunks.iter().all(|bytes| bytes.len() <= 512 * 1024));
     assert_eq!(chunks.concat(), expected);
-}
-
-#[test]
-fn flow_waits_at_existing_watermark_then_allows_one_chunk_overshoot() {
-    let flow = Arc::new(OutputFlow::with_stall_timeout(Duration::from_secs(60)));
-    flow.reserve(HIGH_WATERMARK_BYTES - 1);
-    flow.reserve(MAX_CHUNK_BYTES);
-    assert_eq!(
-        flow.state.lock().unwrap().unacked,
-        HIGH_WATERMARK_BYTES - 1 + MAX_CHUNK_BYTES
-    );
-    flow.ack(usize::MAX);
-    assert_eq!(flow.state.lock().unwrap().unacked, 0);
-    assert_eq!(ACK_STALL_TIMEOUT, Duration::from_secs(5));
-    assert_eq!(BATCH_INTERVAL, Duration::from_millis(8));
-    assert_eq!(QUEUE_CAPACITY_MESSAGES, 16);
 }

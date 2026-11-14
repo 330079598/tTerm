@@ -362,11 +362,6 @@ fn flush_final(pending: &mut Vec<u8>, channel: &dyn SessionSink) {
 #[cfg(test)]
 mod tests;
 
-#[cfg(test)]
-mod contracts;
-
-#[cfg(all(test, unix))]
-mod benchmark;
 #[cfg(all(test, unix))]
 mod real_pty_tests;
 
@@ -386,7 +381,7 @@ fn recording_output(
 }
 
 #[cfg(test)]
-fn test_sink(output: TerminalOutput) -> Arc<dyn SessionSink> {
+pub(crate) fn test_sink(output: TerminalOutput) -> Arc<dyn SessionSink> {
     Arc::new(RecordingOutputSink {
         records: tterm_core::session::recording::RecordingSessionSink::default(),
         output,

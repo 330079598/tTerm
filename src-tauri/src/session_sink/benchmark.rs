@@ -1,6 +1,10 @@
 //! Run explicitly in release mode after checking that the machine is idle.
-use super::*;
+use crate::terminal::io_batcher::{OutputFlow, TerminalOutputSender, test_sink};
+use crate::terminal::reader::run_pty_reader;
 use std::path::PathBuf;
+use std::sync::mpsc::RecvTimeoutError;
+use std::sync::{Arc, Mutex};
+use std::time::{Duration, Instant};
 use tauri::ipc::{Channel, InvokeResponseBody};
 use tterm_core::terminal::io_batcher::pty_fixture::PtyFixture;
 
@@ -150,7 +154,7 @@ fn p106_real_pty_cat_throughput() {
         directory.display()
     );
     let mut fixture = PtyFixture::spawn(&command);
-    let outcome = crate::terminal::reader::run_pty_reader(
+    let outcome = run_pty_reader(
         fixture.reader(),
         |_| {},
         |bytes| sender.send(bytes.to_vec()),
