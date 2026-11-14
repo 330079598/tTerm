@@ -517,10 +517,10 @@ impl Device {
     fn send(&self, key: &str, text: &str, sent_at: i64) {
         self.database
             .write(|transaction| {
-                crate::serial::history::store::record(
+                tterm_core::serial::history::store::record(
                     transaction,
                     key,
-                    crate::serial::history::SerialSendMode::Text,
+                    tterm_core::serial::history::SerialSendMode::Text,
                     text,
                     sent_at,
                 )
@@ -530,7 +530,7 @@ impl Device {
 
     fn sends(&self, key: &str) -> Vec<(String, i64)> {
         self.database
-            .read(|connection| crate::serial::history::store::list(connection, key))
+            .read(|connection| tterm_core::serial::history::store::list(connection, key))
             .unwrap()
             .into_iter()
             .map(|send| (send.text, send.sent_at))
@@ -563,7 +563,9 @@ fn serial_sends_sync_as_one_history_and_clearing_travels() {
 
     // B clears the history; A loses it too.
     b.database
-        .write(|transaction| crate::serial::history::store::clear(transaction, "profile:board"))
+        .write(|transaction| {
+            tterm_core::serial::history::store::clear(transaction, "profile:board")
+        })
         .unwrap();
     b.sync(&mut remote);
     a.sync(&mut remote);

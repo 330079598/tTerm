@@ -1,10 +1,11 @@
 use crate::serial::xmodem::XmodemProtocol;
-use crate::{
-    serial::xmodem::protocol::Link, serial::xmodem::protocol::OutgoingFile,
-    serial::xmodem::protocol::Received, serial::xmodem::protocol::TransferError,
-    serial::xmodem::protocol::crc16, serial::xmodem::protocol::send_xmodem,
-    serial::xmodem::protocol::send_ymodem,
-};
+use crate::serial::xmodem::protocol::Link;
+use crate::serial::xmodem::protocol::OutgoingFile;
+use crate::serial::xmodem::protocol::Received;
+use crate::serial::xmodem::protocol::TransferError;
+use crate::serial::xmodem::protocol::crc16;
+use crate::serial::xmodem::protocol::send_xmodem;
+use crate::serial::xmodem::protocol::send_ymodem;
 use std::collections::VecDeque;
 use std::io::Cursor;
 use std::time::{Duration, Instant};

@@ -1,13 +1,15 @@
-use crate::{
-    serial::history::HISTORY_LIMIT, serial::history::SerialSendMode, serial::history::validate_key,
-};
-use crate::{
-    serial::history::store::clear, serial::history::store::delete, serial::history::store::list,
-    serial::history::store::list_all, serial::history::store::record,
-    serial::history::store::replace_all, serial::history::store::send_id,
-};
+use crate::db::Database;
+use crate::serial::history::HISTORY_LIMIT;
+use crate::serial::history::SerialSendMode;
+use crate::serial::history::store::clear;
+use crate::serial::history::store::delete;
+use crate::serial::history::store::list;
+use crate::serial::history::store::list_all;
+use crate::serial::history::store::record;
+use crate::serial::history::store::replace_all;
+use crate::serial::history::store::send_id;
+use crate::serial::history::validate_key;
 use serde_json::json;
-use tterm_core::db::Database;
 
 const KEY: &str = "profile:board";
 
@@ -94,10 +96,10 @@ fn deleting_a_profile_deletes_its_history() {
     .unwrap();
     database
         .write(|transaction| {
-            tterm_core::profiles::storage::upsert_profile(transaction, &profile)?;
+            crate::profiles::storage::upsert_profile(transaction, &profile)?;
             record(transaction, KEY, SerialSendMode::Text, "AT", 1)?;
             record(transaction, "port:board", SerialSendMode::Text, "AT", 1)?;
-            tterm_core::profiles::storage::delete_profiles(transaction, &["board".to_string()])
+            crate::profiles::storage::delete_profiles(transaction, &["board".to_string()])
         })
         .unwrap();
     assert!(texts(&database, KEY).is_empty());

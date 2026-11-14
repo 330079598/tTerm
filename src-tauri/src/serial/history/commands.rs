@@ -1,9 +1,11 @@
-use crate::{
-    serial::history::DeleteSerialSendInput, serial::history::RecordSerialSendInput,
-    serial::history::SerialSend, serial::history::SerialSendMode,
-    serial::history::clear_serial_sends_service, serial::history::delete_serial_send_service,
-    serial::history::list_serial_sends_service, serial::history::record_serial_send_service,
-};
+use tterm_core::serial::history::DeleteSerialSendInput;
+use tterm_core::serial::history::RecordSerialSendInput;
+use tterm_core::serial::history::SerialSend;
+use tterm_core::serial::history::SerialSendMode;
+use tterm_core::serial::history::clear_serial_sends_service;
+use tterm_core::serial::history::delete_serial_send_service;
+use tterm_core::serial::history::list_serial_sends_service;
+use tterm_core::serial::history::record_serial_send_service;
 
 /// The connection's sends, newest first.
 #[tauri::command]

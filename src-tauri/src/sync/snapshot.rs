@@ -4,7 +4,6 @@
 //! by a newer tTerm on another device are kept in the remote document.
 
 use crate::sync::document::Collections;
-use crate::{serial::history::SerialSend, serial::history::store as serial_sends};
 use rusqlite::{Connection, Transaction, params};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -13,6 +12,8 @@ use tterm_core::config::AppConfig;
 use tterm_core::db::sql_error;
 use tterm_core::profiles::types::{ProfileGroup, SavedProfile};
 use tterm_core::proxy::ProxyServer;
+use tterm_core::serial::history::SerialSend;
+use tterm_core::serial::history::store as serial_sends;
 use tterm_core::ssh::secret_store::{
     crypto::SecretKey as DataKey, store::delete_secret, store::get_secret, store::put_secret,
 };

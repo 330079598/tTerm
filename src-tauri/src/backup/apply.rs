@@ -8,7 +8,6 @@ use crate::{
     backup::BackupImportOptions, backup::BackupLogFile, backup::BackupPayload,
     backup::BackupSelection, backup::MissingKeyFile,
 };
-use crate::{serial::history::SerialSend, serial::history::store as serial_sends};
 use base64::{Engine, engine::general_purpose::STANDARD as BASE64};
 use serde::Serialize;
 use serde_json::Value;
@@ -25,6 +24,8 @@ use tterm_core::profiles::groups::with_legacy_groups;
 use tterm_core::profiles::storage::normalize_profile;
 use tterm_core::profiles::types::{ProfileGroup, SavedProfile};
 use tterm_core::proxy::ProxyServer;
+use tterm_core::serial::history::SerialSend;
+use tterm_core::serial::history::store as serial_sends;
 use tterm_core::sftp::store::SftpDirectoryStore;
 use tterm_core::ssh::secret_store::{crypto::SecretKey as DataKey, store::put_secret};
 use tterm_core::ssh::store::KnownHostStore;

@@ -1169,7 +1169,8 @@ fn encrypted_archive_round_trips_manifest_and_credentials() {
 
 #[test]
 fn serial_sends_merge_by_their_later_use_or_replace() {
-    use crate::serial::history::{SerialSendMode, store};
+    use tterm_core::serial::history::SerialSendMode;
+    use tterm_core::serial::history::store;
     let sent = |connection: &rusqlite::Connection| {
         store::list_all(connection)
             .unwrap()

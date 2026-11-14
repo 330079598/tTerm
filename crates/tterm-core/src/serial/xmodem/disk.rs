@@ -1,15 +1,17 @@
 //! Where files received from a serial device are written.
 
-use tterm_core::events::zmodem::TransferEmitter;
+use crate::events::zmodem::TransferEmitter;
 
 use crate::serial::xmodem::XmodemProtocol;
-use crate::{serial::xmodem::protocol::Result, serial::xmodem::protocol::TransferError};
-use crate::{serial::xmodem::receive, serial::xmodem::receive::FileSink};
-use crate::{
-    serial::xmodem::transfer::FileInfo, serial::xmodem::transfer::FileRows,
-    serial::xmodem::transfer::PortClaim, serial::xmodem::transfer::TapLink,
-    serial::xmodem::transfer::cancel_on_failure,
-};
+use crate::serial::xmodem::protocol::Result;
+use crate::serial::xmodem::protocol::TransferError;
+use crate::serial::xmodem::receive;
+use crate::serial::xmodem::receive::FileSink;
+use crate::serial::xmodem::transfer::FileInfo;
+use crate::serial::xmodem::transfer::FileRows;
+use crate::serial::xmodem::transfer::PortClaim;
+use crate::serial::xmodem::transfer::TapLink;
+use crate::serial::xmodem::transfer::cancel_on_failure;
 use std::fs::File;
 use std::io::{BufWriter, Write};
 use std::path::{Path, PathBuf};

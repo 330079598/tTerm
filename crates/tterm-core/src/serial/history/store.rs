@@ -1,11 +1,11 @@
 //! The `serial_send_history` table.
 
-use crate::{
-    serial::history::HISTORY_LIMIT, serial::history::SerialSend, serial::history::SerialSendMode,
-};
+use crate::db::sql_error;
+use crate::serial::history::HISTORY_LIMIT;
+use crate::serial::history::SerialSend;
+use crate::serial::history::SerialSendMode;
 use rusqlite::{Connection, Row, params};
 use sha2::{Digest, Sha256};
-use tterm_core::db::sql_error;
 
 /// The id of a send: the same on every device, so syncing two devices that
 /// sent the same thing keeps one record.
@@ -32,10 +32,7 @@ fn from_row(row: &Row<'_>) -> rusqlite::Result<SerialSend> {
 const COLUMNS: &str = "id, connection_key, mode, text, sent_at";
 
 /// A connection's sends, newest first.
-pub(crate) fn list(
-    connection: &Connection,
-    connection_key: &str,
-) -> Result<Vec<SerialSend>, String> {
+pub fn list(connection: &Connection, connection_key: &str) -> Result<Vec<SerialSend>, String> {
     let mut statement = connection
         .prepare(&format!(
             "SELECT {COLUMNS} FROM serial_send_history WHERE connection_key = ?1 \
@@ -49,7 +46,7 @@ pub(crate) fn list(
 }
 
 /// Every connection's sends.
-pub(crate) fn list_all(connection: &Connection) -> Result<Vec<SerialSend>, String> {
+pub fn list_all(connection: &Connection) -> Result<Vec<SerialSend>, String> {
     let mut statement = connection
         .prepare(&format!(
             "SELECT {COLUMNS} FROM serial_send_history ORDER BY connection_key, sent_at DESC, id"
@@ -62,7 +59,7 @@ pub(crate) fn list_all(connection: &Connection) -> Result<Vec<SerialSend>, Strin
 }
 
 /// Saves `send` as it is, over a record with its id.
-pub(crate) fn put(connection: &Connection, send: &SerialSend) -> Result<(), String> {
+pub fn put(connection: &Connection, send: &SerialSend) -> Result<(), String> {
     connection
         .execute(
             "INSERT INTO serial_send_history (id, connection_key, mode, text, sent_at) \
@@ -82,7 +79,7 @@ pub(crate) fn put(connection: &Connection, send: &SerialSend) -> Result<(), Stri
 }
 
 /// Records a send at `sent_at` and drops what falls past the limit.
-pub(crate) fn record(
+pub fn record(
     connection: &Connection,
     connection_key: &str,
     mode: SerialSendMode,
@@ -102,7 +99,7 @@ pub(crate) fn record(
     trim(connection)
 }
 
-pub(crate) fn delete(connection: &Connection, ids: &[String]) -> Result<(), String> {
+pub fn delete(connection: &Connection, ids: &[String]) -> Result<(), String> {
     let mut statement = connection
         .prepare("DELETE FROM serial_send_history WHERE id = ?1")
         .map_err(sql_error("Failed to delete from the serial send history"))?;
@@ -114,7 +111,7 @@ pub(crate) fn delete(connection: &Connection, ids: &[String]) -> Result<(), Stri
     Ok(())
 }
 
-pub(crate) fn clear(connection: &Connection, connection_key: &str) -> Result<(), String> {
+pub fn clear(connection: &Connection, connection_key: &str) -> Result<(), String> {
     connection
         .execute(
             "DELETE FROM serial_send_history WHERE connection_key = ?1",
@@ -125,7 +122,7 @@ pub(crate) fn clear(connection: &Connection, connection_key: &str) -> Result<(),
 }
 
 /// Replaces every connection's sends with `sends`.
-pub(crate) fn replace_all(connection: &Connection, sends: &[SerialSend]) -> Result<(), String> {
+pub fn replace_all(connection: &Connection, sends: &[SerialSend]) -> Result<(), String> {
     connection
         .execute("DELETE FROM serial_send_history", [])
         .map_err(sql_error("Failed to clear the serial send history"))?;
@@ -137,7 +134,7 @@ pub(crate) fn replace_all(connection: &Connection, sends: &[SerialSend]) -> Resu
 
 /// Keeps each connection's newest sends up to the limit. Merging two
 /// devices' histories, by sync or a backup, can leave more.
-pub(crate) fn trim(connection: &Connection) -> Result<(), String> {
+pub fn trim(connection: &Connection) -> Result<(), String> {
     connection
         .execute(
             "DELETE FROM serial_send_history WHERE id IN (\

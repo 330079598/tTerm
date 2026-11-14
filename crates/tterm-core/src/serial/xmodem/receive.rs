@@ -1,16 +1,24 @@
 //! The receiving side of XMODEM, XMODEM-1K and YMODEM, over any [`Link`].
 
-use crate::{
-    serial::xmodem::protocol::ACK, serial::xmodem::protocol::BLOCK_TIMEOUT,
-    serial::xmodem::protocol::CAN, serial::xmodem::protocol::CRC_MODE,
-    serial::xmodem::protocol::Check, serial::xmodem::protocol::EOT, serial::xmodem::protocol::Link,
-    serial::xmodem::protocol::MAX_ATTEMPTS, serial::xmodem::protocol::NAK,
-    serial::xmodem::protocol::Result, serial::xmodem::protocol::SOH,
-    serial::xmodem::protocol::START_TIMEOUT, serial::xmodem::protocol::STX,
-    serial::xmodem::protocol::SUB, serial::xmodem::protocol::TransferError,
-    serial::xmodem::protocol::cancelled_by_device, serial::xmodem::protocol::crc16,
-    serial::xmodem::protocol::read, serial::xmodem::protocol::write,
-};
+use crate::serial::xmodem::protocol::ACK;
+use crate::serial::xmodem::protocol::BLOCK_TIMEOUT;
+use crate::serial::xmodem::protocol::CAN;
+use crate::serial::xmodem::protocol::CRC_MODE;
+use crate::serial::xmodem::protocol::Check;
+use crate::serial::xmodem::protocol::EOT;
+use crate::serial::xmodem::protocol::Link;
+use crate::serial::xmodem::protocol::MAX_ATTEMPTS;
+use crate::serial::xmodem::protocol::NAK;
+use crate::serial::xmodem::protocol::Result;
+use crate::serial::xmodem::protocol::SOH;
+use crate::serial::xmodem::protocol::START_TIMEOUT;
+use crate::serial::xmodem::protocol::STX;
+use crate::serial::xmodem::protocol::SUB;
+use crate::serial::xmodem::protocol::TransferError;
+use crate::serial::xmodem::protocol::cancelled_by_device;
+use crate::serial::xmodem::protocol::crc16;
+use crate::serial::xmodem::protocol::read;
+use crate::serial::xmodem::protocol::write;
 use std::time::Duration;
 
 /// How long to wait for the first block after asking for it, before asking

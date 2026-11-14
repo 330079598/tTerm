@@ -1,18 +1,21 @@
-use tterm_core::events::zmodem::TransferEmitter;
+use crate::events::zmodem::TransferEmitter;
 
 use crate::serial::xmodem::XmodemProtocol;
-use crate::{serial::xmodem::disk::safe_file_name, serial::xmodem::disk::unused_path};
-use crate::{
-    serial::xmodem::protocol::Link, serial::xmodem::protocol::OutgoingFile,
-    serial::xmodem::protocol::Received, serial::xmodem::protocol::Result,
-    serial::xmodem::protocol::TransferError, serial::xmodem::protocol::crc16,
-    serial::xmodem::protocol::send_xmodem, serial::xmodem::protocol::send_ymodem,
-};
-use crate::{
-    serial::xmodem::receive::FileSink, serial::xmodem::receive::receive_xmodem,
-    serial::xmodem::receive::receive_ymodem,
-};
-use crate::{serial::xmodem::transfer::FileInfo, serial::xmodem::transfer::FileRows};
+use crate::serial::xmodem::disk::safe_file_name;
+use crate::serial::xmodem::disk::unused_path;
+use crate::serial::xmodem::protocol::Link;
+use crate::serial::xmodem::protocol::OutgoingFile;
+use crate::serial::xmodem::protocol::Received;
+use crate::serial::xmodem::protocol::Result;
+use crate::serial::xmodem::protocol::TransferError;
+use crate::serial::xmodem::protocol::crc16;
+use crate::serial::xmodem::protocol::send_xmodem;
+use crate::serial::xmodem::protocol::send_ymodem;
+use crate::serial::xmodem::receive::FileSink;
+use crate::serial::xmodem::receive::receive_xmodem;
+use crate::serial::xmodem::receive::receive_ymodem;
+use crate::serial::xmodem::transfer::FileInfo;
+use crate::serial::xmodem::transfer::FileRows;
 use serde_json::json;
 use std::collections::VecDeque;
 use std::io::Cursor;
@@ -285,7 +288,7 @@ fn a_file_without_a_size_says_so_in_the_transfer_list() {
     let emit: TransferEmitter = Box::new(move |event| {
         let name = event.name("").as_string();
         let kind = name.strip_prefix("zmodem-").unwrap().trim_end_matches('-');
-        let payload = tterm_core::zmodem::wire::transfer_wire(&event).unwrap();
+        let payload = crate::zmodem::wire::transfer_wire(&event).unwrap();
         seen.lock().unwrap().push((kind.to_string(), payload));
     });
     let mut rows = FileRows::new(&emit, Vec::new());

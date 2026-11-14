@@ -1,6 +1,7 @@
 //! Serial connections: the settings a serial tab opens its port with, the
 //! ports this machine has, and the commands behind a serial tab's controls.
 
+pub mod history;
 pub mod io;
 mod open;
 mod output;
@@ -9,6 +10,7 @@ pub(crate) mod reconnect;
 pub mod session;
 #[cfg(test)]
 mod tests;
+pub mod xmodem;
 
 use crate::core::blocking::run_blocking;
 use crate::core::state::{ActiveSession, PtyMap, ZmodemMap};

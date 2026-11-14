@@ -3,7 +3,6 @@
 use crate::backup::apply::to_backup_value;
 use crate::backup::automatic::load_automatic_backup_settings;
 use crate::backup::remote;
-use crate::serial::history::store as serial_sends;
 use crate::{
     backup::AutomaticBackupSettings, backup::BackupExportOptions, backup::BackupLogFile,
     backup::BackupPayload, backup::BackupSelection, backup::MigrationSecretRecord,
@@ -16,6 +15,7 @@ use std::fs;
 use std::path::{Component, PathBuf};
 use tterm_core::command_library::repository::CommandRepository;
 use tterm_core::profiles::types::SavedProfile;
+use tterm_core::serial::history::store as serial_sends;
 use tterm_core::ssh::secret_store::store::get_secret;
 use tterm_core::ssh::secret_store::types::SecretStoreState;
 
