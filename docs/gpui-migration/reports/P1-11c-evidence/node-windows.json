@@ -1,0 +1,2863 @@
+{
+  "environment": {
+    "node": "v24.19.0",
+    "platform": "windows",
+    "packageVersion": "0.8.1",
+    "ranAt": "2026-11-14T04:57:41.994Z"
+  },
+  "summary": {
+    "cases": 72,
+    "passed": 72,
+    "failed": 0
+  },
+  "cases": [
+    {
+      "id": "tabSettings.test › normalizeTabSettings › knows only the two width modes",
+      "input": {
+        "tab_width_mode": [
+          "standard",
+          "wide"
+        ]
+      },
+      "expected": [
+        "standard",
+        "adaptive"
+      ],
+      "actual": [
+        "standard",
+        "adaptive"
+      ],
+      "pass": true
+    },
+    {
+      "id": "tabSettings.test › normalizeTabSettings › keeps the standard width in range",
+      "input": [
+        150.4,
+        20,
+        999
+      ],
+      "expected": [
+        150,
+        80,
+        300
+      ],
+      "actual": [
+        150,
+        80,
+        300
+      ],
+      "pass": true
+    },
+    {
+      "id": "tabSettings.test › normalizeTabSettings › shows the hover tooltip only when turned on",
+      "input": [
+        true,
+        "yes"
+      ],
+      "expected": [
+        true,
+        false
+      ],
+      "actual": [
+        true,
+        false
+      ],
+      "pass": true
+    },
+    {
+      "id": "tabSettings.test › normalizeTabSettings › fills in the defaults",
+      "input": {},
+      "expected": {
+        "tab_width_mode": "adaptive",
+        "tab_standard_width": 120,
+        "tab_hover_tooltip": false,
+        "tab_icons": {
+          "enabled": true,
+          "agents": true,
+          "shells": {}
+        },
+        "tab_agent_indicator": {
+          "working": "ring",
+          "waiting": "bars",
+          "working_color": "",
+          "waiting_color": ""
+        },
+        "panes": {
+          "show_headers": true,
+          "dim_inactive_percent": 0,
+          "templates": []
+        }
+      },
+      "actual": {
+        "tab_width_mode": "adaptive",
+        "tab_standard_width": 120,
+        "tab_hover_tooltip": false,
+        "tab_icons": {
+          "enabled": true,
+          "agents": true,
+          "shells": {}
+        },
+        "tab_agent_indicator": {
+          "working": "ring",
+          "waiting": "bars",
+          "working_color": "",
+          "waiting_color": ""
+        },
+        "panes": {
+          "show_headers": true,
+          "dim_inactive_percent": 0,
+          "templates": []
+        }
+      },
+      "pass": true
+    },
+    {
+      "id": "tabSettings.test › pane settings › shows headers unless turned off, and keeps the fade in range",
+      "input": {
+        "show_headers": [
+          false,
+          "no"
+        ],
+        "dim": [
+          30.4,
+          -5,
+          200,
+          "30"
+        ]
+      },
+      "expected": {
+        "show_headers": [
+          false,
+          true
+        ],
+        "dim": [
+          30,
+          0,
+          60,
+          0
+        ]
+      },
+      "actual": {
+        "show_headers": [
+          false,
+          true
+        ],
+        "dim": [
+          30,
+          0,
+          60,
+          0
+        ]
+      },
+      "pass": true
+    },
+    {
+      "id": "tabSettings.test › pane settings › drops saved layouts that are broken",
+      "input": {
+        "panes": {
+          "templates": [
+            {
+              "id": "a",
+              "name": "x",
+              "root": {
+                "type": "pane"
+              }
+            }
+          ]
+        }
+      },
+      "expected": [],
+      "actual": [],
+      "pass": true
+    },
+    {
+      "id": "terminalFont.test › defaultTerminalFontFamily › puts a Nerd Font before each system's monospace font",
+      "input": [
+        "macos",
+        "windows",
+        "linux"
+      ],
+      "expected": [
+        true,
+        true,
+        true
+      ],
+      "actual": [
+        true,
+        true,
+        true
+      ],
+      "pass": true
+    },
+    {
+      "id": "terminalFont.test › defaultTerminalFontFamily › gives an unknown platform Linux's fonts",
+      "input": "freebsd",
+      "expected": true,
+      "actual": true,
+      "pass": true
+    },
+    {
+      "id": "terminalFont.test › firstInstalledFont › names the first font of the chain the system has",
+      "input": {
+        "fonts": [
+          [
+            "Menlo",
+            "jetbrains mono"
+          ],
+          [
+            "Menlo"
+          ]
+        ]
+      },
+      "expected": [
+        "JetBrains Mono",
+        "Menlo"
+      ],
+      "actual": [
+        "JetBrains Mono",
+        "Menlo"
+      ],
+      "pass": true
+    },
+    {
+      "id": "terminalFont.test › firstInstalledFont › keeps the chain when none of it is installed",
+      "input": [],
+      "expected": "\"JetBrains Mono Nerd Font\", \"JetBrains Mono\", Menlo, monospace",
+      "actual": "\"JetBrains Mono Nerd Font\", \"JetBrains Mono\", Menlo, monospace",
+      "pass": true
+    },
+    {
+      "id": "scrollback.test › startingScrollbackLines › starts unlimited scrollback small instead of at the full buffer",
+      "input": 0,
+      "expected": 10000,
+      "actual": 10000,
+      "pass": true
+    },
+    {
+      "id": "scrollback.test › startingScrollbackLines › passes explicit limits through",
+      "input": [
+        5000,
+        "undefined"
+      ],
+      "expected": [
+        5000,
+        10000
+      ],
+      "actual": [
+        5000,
+        10000
+      ],
+      "pass": true
+    },
+    {
+      "id": "scrollback.test › countLineFeeds › counts LF, VT and FF but not CR",
+      "input": [
+        "a\r\nb\nc\u000bd\fe\r",
+        ""
+      ],
+      "expected": [
+        4,
+        0
+      ],
+      "actual": [
+        4,
+        0
+      ],
+      "pass": true
+    },
+    {
+      "id": "scrollback.test › grownScrollbackCapacity › keeps the capacity while half of it is still free",
+      "input": [
+        10000,
+        5000
+      ],
+      "expected": null,
+      "actual": null,
+      "pass": true
+    },
+    {
+      "id": "scrollback.test › grownScrollbackCapacity › doubles until the lines fit twice over",
+      "input": [
+        [
+          10000,
+          5001
+        ],
+        [
+          10000,
+          30000
+        ]
+      ],
+      "expected": [
+        20000,
+        80000
+      ],
+      "actual": [
+        20000,
+        80000
+      ],
+      "pass": true
+    },
+    {
+      "id": "scrollback.test › grownScrollbackCapacity › never grows past the unlimited buffer",
+      "input": [
+        10000,
+        10000000
+      ],
+      "expected": 10000000,
+      "actual": 10000000,
+      "pass": true
+    },
+    {
+      "id": "uiStyle.test › ui style › marks the page for islands and clears the mark for classic",
+      "input": "islands then classic",
+      "expected": [
+        true,
+        false
+      ],
+      "actual": [
+        true,
+        false
+      ],
+      "pass": true
+    },
+    {
+      "id": "uiStyle.test › ui style › starts the next launch in the style last applied",
+      "input": "islands",
+      "expected": true,
+      "actual": true,
+      "pass": true
+    },
+    {
+      "id": "uiStyle.test › ui style › starts the next launch classic when classic was last applied",
+      "input": "classic",
+      "expected": false,
+      "actual": false,
+      "pass": true
+    },
+    {
+      "id": "uiStyle.test › ui style › starts in islands when nothing was remembered",
+      "input": "nothing",
+      "expected": true,
+      "actual": true,
+      "pass": true
+    },
+    {
+      "id": "spinnerStyle.test › spinnerStyle › starts with the default working style",
+      "input": "initial",
+      "expected": "ring",
+      "actual": "ring",
+      "pass": true
+    },
+    {
+      "id": "spinnerStyle.test › spinnerStyle › tells subscribers about a change, and only a change",
+      "input": [
+        "comet",
+        "comet",
+        "dots"
+      ],
+      "expected": {
+        "style": "comet",
+        "calls": 1
+      },
+      "actual": {
+        "style": "comet",
+        "calls": 1
+      },
+      "pass": true
+    },
+    {
+      "id": "shellCommands.test › splitShellCommands › keeps each plain line apart and drops blank ones",
+      "input": [
+        "cd /tmp",
+        "",
+        "  ",
+        "ls -la # list",
+        ""
+      ],
+      "expected": [
+        "cd /tmp",
+        "ls -la # list"
+      ],
+      "actual": [
+        "cd /tmp",
+        "ls -la # list"
+      ],
+      "pass": true
+    },
+    {
+      "id": "shellCommands.test › splitShellCommands › keeps a line ending in a backslash with the next",
+      "input": [
+        "docker run \\",
+        "  -it alpine",
+        "echo done"
+      ],
+      "expected": [
+        "docker run \\\n  -it alpine",
+        "echo done"
+      ],
+      "actual": [
+        "docker run \\\n  -it alpine",
+        "echo done"
+      ],
+      "pass": true
+    },
+    {
+      "id": "shellCommands.test › splitShellCommands › an escaped backslash ends the line",
+      "input": [
+        "echo a\\\\",
+        "pwd"
+      ],
+      "expected": [
+        "echo a\\\\",
+        "pwd"
+      ],
+      "actual": [
+        "echo a\\\\",
+        "pwd"
+      ],
+      "pass": true
+    },
+    {
+      "id": "shellCommands.test › splitShellCommands › keeps an open quote with the lines up to its end",
+      "input": [
+        "echo 'one",
+        "",
+        "two' \"x",
+        "y\"",
+        "pwd"
+      ],
+      "expected": [
+        "echo 'one\n\ntwo' \"x\ny\"",
+        "pwd"
+      ],
+      "actual": [
+        "echo 'one\n\ntwo' \"x\ny\"",
+        "pwd"
+      ],
+      "pass": true
+    },
+    {
+      "id": "shellCommands.test › splitShellCommands › a quote inside a quote",
+      "input": [
+        "echo \"it's\"",
+        "pwd"
+      ],
+      "expected": [
+        "echo \"it's\"",
+        "pwd"
+      ],
+      "actual": [
+        "echo \"it's\"",
+        "pwd"
+      ],
+      "pass": true
+    },
+    {
+      "id": "shellCommands.test › splitShellCommands › keeps a here-document with its body, up to the line that ends it",
+      "input": [
+        "cat <<'EOF' > a.txt",
+        "if then",
+        "",
+        "EOF",
+        "pwd"
+      ],
+      "expected": [
+        "cat <<'EOF' > a.txt\nif then\n\nEOF",
+        "pwd"
+      ],
+      "actual": [
+        "cat <<'EOF' > a.txt\nif then\n\nEOF",
+        "pwd"
+      ],
+      "pass": true
+    },
+    {
+      "id": "shellCommands.test › splitShellCommands › a here-document that strips tabs",
+      "input": [
+        "cat <<-END",
+        "\tx",
+        "\tEND",
+        "pwd"
+      ],
+      "expected": [
+        "cat <<-END\n\tx\n\tEND",
+        "pwd"
+      ],
+      "actual": [
+        "cat <<-END\n\tx\n\tEND",
+        "pwd"
+      ],
+      "pass": true
+    },
+    {
+      "id": "shellCommands.test › splitShellCommands › a here-string",
+      "input": [
+        "grep x <<< 'y'",
+        "pwd"
+      ],
+      "expected": [
+        "grep x <<< 'y'",
+        "pwd"
+      ],
+      "actual": [
+        "grep x <<< 'y'",
+        "pwd"
+      ],
+      "pass": true
+    },
+    {
+      "id": "shellCommands.test › splitShellCommands › keeps a block together, however its lines are laid out",
+      "input": [
+        "for f in *.log",
+        "do",
+        "  gzip $f",
+        "done",
+        "ls"
+      ],
+      "expected": [
+        "for f in *.log\ndo\n  gzip $f\ndone",
+        "ls"
+      ],
+      "actual": [
+        "for f in *.log\ndo\n  gzip $f\ndone",
+        "ls"
+      ],
+      "pass": true
+    },
+    {
+      "id": "shellCommands.test › splitShellCommands › if/elif blocks",
+      "input": [
+        "if [ -f a ]; then",
+        "  echo a",
+        "elif [ -f b ]; then",
+        "  echo b",
+        "fi",
+        "ls"
+      ],
+      "expected": [
+        "if [ -f a ]; then\n  echo a\nelif [ -f b ]; then\n  echo b\nfi",
+        "ls"
+      ],
+      "actual": [
+        "if [ -f a ]; then\n  echo a\nelif [ -f b ]; then\n  echo b\nfi",
+        "ls"
+      ],
+      "pass": true
+    },
+    {
+      "id": "shellCommands.test › splitShellCommands › a one-line while block",
+      "input": [
+        "while read l; do echo $l; done < f",
+        "ls"
+      ],
+      "expected": [
+        "while read l; do echo $l; done < f",
+        "ls"
+      ],
+      "actual": [
+        "while read l; do echo $l; done < f",
+        "ls"
+      ],
+      "pass": true
+    },
+    {
+      "id": "shellCommands.test › splitShellCommands › a case block",
+      "input": [
+        "case \"$1\" in",
+        "  a) echo a ;;",
+        "  *) echo other ;;",
+        "esac",
+        "ls"
+      ],
+      "expected": [
+        "case \"$1\" in\n  a) echo a ;;\n  *) echo other ;;\nesac",
+        "ls"
+      ],
+      "actual": [
+        "case \"$1\" in\n  a) echo a ;;\n  *) echo other ;;\nesac",
+        "ls"
+      ],
+      "pass": true
+    },
+    {
+      "id": "shellCommands.test › splitShellCommands › braces and parentheses that span lines",
+      "input": [
+        "greet() {",
+        "  echo \"hi ${1}\"",
+        "}",
+        "greet"
+      ],
+      "expected": [
+        "greet() {\n  echo \"hi ${1}\"\n}",
+        "greet"
+      ],
+      "actual": [
+        "greet() {\n  echo \"hi ${1}\"\n}",
+        "greet"
+      ],
+      "pass": true
+    },
+    {
+      "id": "shellCommands.test › splitShellCommands › a parenthesised block",
+      "input": [
+        "(cd /tmp &&",
+        "  ls)",
+        "pwd"
+      ],
+      "expected": [
+        "(cd /tmp &&\n  ls)",
+        "pwd"
+      ],
+      "actual": [
+        "(cd /tmp &&\n  ls)",
+        "pwd"
+      ],
+      "pass": true
+    },
+    {
+      "id": "shellCommands.test › splitShellCommands › a PowerShell block",
+      "input": [
+        "if ($x) {",
+        "  'yes'",
+        "}",
+        "Get-Date"
+      ],
+      "expected": [
+        "if ($x) {\n  'yes'\n}",
+        "Get-Date"
+      ],
+      "actual": [
+        "if ($x) {\n  'yes'\n}",
+        "Get-Date"
+      ],
+      "pass": true
+    },
+    {
+      "id": "shellCommands.test › splitShellCommands › a fish block",
+      "input": [
+        "for f in *.txt",
+        "  echo $f",
+        "end",
+        "ls"
+      ],
+      "expected": [
+        "for f in *.txt\n  echo $f\nend",
+        "ls"
+      ],
+      "actual": [
+        "for f in *.txt\n  echo $f\nend",
+        "ls"
+      ],
+      "pass": true
+    },
+    {
+      "id": "shellCommands.test › splitShellCommands › takes no keyword from an argument, a quote or a comment",
+      "input": [
+        "echo if for done",
+        "grep 'while' f",
+        "ls # if",
+        "pwd"
+      ],
+      "expected": [
+        "echo if for done",
+        "grep 'while' f",
+        "ls # if",
+        "pwd"
+      ],
+      "actual": [
+        "echo if for done",
+        "grep 'while' f",
+        "ls # if",
+        "pwd"
+      ],
+      "pass": true
+    },
+    {
+      "id": "shellCommands.test › splitShellCommands › still sends a command left open at the end",
+      "input": [
+        "ls",
+        "echo 'oops"
+      ],
+      "expected": [
+        "ls",
+        "echo 'oops"
+      ],
+      "actual": [
+        "ls",
+        "echo 'oops"
+      ],
+      "pass": true
+    },
+    {
+      "id": "sshShellIntegration.test › shellIntegrationChoice › round-trips through the stored value",
+      "input": [
+        null,
+        true,
+        false
+      ],
+      "expected": [
+        null,
+        true,
+        false
+      ],
+      "actual": [
+        null,
+        true,
+        false
+      ],
+      "pass": true
+    },
+    {
+      "id": "sshShellIntegration.test › sshShellIntegrationEnabled › follows the setting unless the connection chose",
+      "input": [
+        [
+          null,
+          true
+        ],
+        [
+          null,
+          false
+        ],
+        [
+          false,
+          true
+        ],
+        [
+          true,
+          false
+        ]
+      ],
+      "expected": [
+        true,
+        false,
+        false,
+        true
+      ],
+      "actual": [
+        true,
+        false,
+        false,
+        true
+      ],
+      "pass": true
+    },
+    {
+      "id": "sshShellIntegration.test › announcesShellIntegrationFallback › stays quiet about the host's own answers unless the connection turned it on",
+      "input": [
+        {
+          "code": "shell",
+          "shell": "tcsh"
+        },
+        {
+          "code": "noReply"
+        },
+        {
+          "code": "writeFailed"
+        },
+        {
+          "code": "path"
+        }
+      ],
+      "expected": [
+        [
+          false,
+          true
+        ],
+        [
+          false,
+          true
+        ],
+        [
+          false,
+          true
+        ],
+        [
+          false,
+          true
+        ]
+      ],
+      "actual": [
+        [
+          false,
+          true
+        ],
+        [
+          false,
+          true
+        ],
+        [
+          false,
+          true
+        ],
+        [
+          false,
+          true
+        ]
+      ],
+      "pass": true
+    },
+    {
+      "id": "sshShellIntegration.test › announcesShellIntegrationFallback › tells about failures a reconnect may not meet again",
+      "input": [
+        "rejected",
+        "timedOut",
+        "failed"
+      ],
+      "expected": [
+        true,
+        true,
+        true
+      ],
+      "actual": [
+        true,
+        true,
+        true
+      ],
+      "pass": true
+    },
+    {
+      "id": "remoteShellIntegration.test › scripts › report the directory with `%` escaped, as the shell expands it",
+      "input": "counts",
+      "expected": [
+        2,
+        2,
+        true
+      ],
+      "actual": [
+        2,
+        2,
+        true
+      ],
+      "pass": true
+    },
+    {
+      "id": "remoteShellIntegration.test › scripts › name the host, so a shell on a host reached with ssh is told apart",
+      "input": "counts",
+      "expected": [
+        2,
+        true,
+        true,
+        true,
+        true
+      ],
+      "actual": [
+        2,
+        true,
+        true,
+        true,
+        true
+      ],
+      "pass": true
+    },
+    {
+      "id": "localShells.test › buildShellEntries › lists Auto, the shells found here, then the user's own",
+      "input": {
+        "shell": "windows",
+        "hidden": [
+          "cmd"
+        ]
+      },
+      "expected": [
+        [
+          "auto",
+          "auto",
+          false
+        ],
+        [
+          "cmd",
+          "detected",
+          true
+        ],
+        [
+          "pwsh",
+          "detected",
+          false
+        ],
+        [
+          "custom:nu",
+          "custom",
+          false
+        ],
+        [
+          "custom:msys",
+          "custom",
+          false
+        ]
+      ],
+      "actual": [
+        [
+          "auto",
+          "auto",
+          false
+        ],
+        [
+          "cmd",
+          "detected",
+          true
+        ],
+        [
+          "pwsh",
+          "detected",
+          false
+        ],
+        [
+          "custom:nu",
+          "custom",
+          false
+        ],
+        [
+          "custom:msys",
+          "custom",
+          false
+        ]
+      ],
+      "pass": true
+    },
+    {
+      "id": "localShells.test › buildShellEntries › the user's shell carries its path, arguments and id",
+      "input": "MSYS2",
+      "expected": {
+        "label": "MSYS2",
+        "detail": "C:\\msys64\\usr\\bin\\bash.exe --login -i",
+        "choice": {
+          "shell": "custom",
+          "customPath": "C:\\msys64\\usr\\bin\\bash.exe",
+          "customArgs": "--login -i",
+          "shellId": "msys"
+        }
+      },
+      "actual": {
+        "label": "MSYS2",
+        "detail": "C:\\msys64\\usr\\bin\\bash.exe --login -i",
+        "choice": {
+          "shell": "custom",
+          "customPath": "C:\\msys64\\usr\\bin\\bash.exe",
+          "customArgs": "--login -i",
+          "shellId": "msys"
+        }
+      },
+      "pass": true
+    },
+    {
+      "id": "localShells.test › buildShellEntries › lists each WSL distribution under its own key, and WSL's default while that is the default",
+      "input": "wsl",
+      "expected": {
+        "plain": [
+          "auto",
+          "wsl:Ubuntu",
+          "wsl:Debian"
+        ],
+        "wslDefault": [
+          "auto",
+          "wsl",
+          "wsl:Ubuntu",
+          "wsl:Debian"
+        ],
+        "wslDefaultEntry": {
+          "label": "Windows Subsystem for Linux (WSL)",
+          "choice": {
+            "shell": "wsl"
+          }
+        },
+        "defaultKey": "wsl",
+        "unmarked": [
+          "auto",
+          "wsl",
+          "wsl:Ubuntu",
+          "wsl:Debian"
+        ],
+        "whole": [
+          "auto",
+          "wsl"
+        ],
+        "debian": {
+          "label": "Debian",
+          "detail": "C:\\Windows\\System32\\wsl.exe -d Debian",
+          "choice": {
+            "shell": "wsl",
+            "wslDistro": "Debian"
+          }
+        },
+        "copied": {
+          "path": "C:\\Windows\\System32\\wsl.exe",
+          "args": "-d Debian"
+        }
+      },
+      "actual": {
+        "plain": [
+          "auto",
+          "wsl:Ubuntu",
+          "wsl:Debian"
+        ],
+        "wslDefault": [
+          "auto",
+          "wsl",
+          "wsl:Ubuntu",
+          "wsl:Debian"
+        ],
+        "wslDefaultEntry": {
+          "label": "Windows Subsystem for Linux (WSL)",
+          "choice": {
+            "shell": "wsl"
+          }
+        },
+        "defaultKey": "wsl",
+        "unmarked": [
+          "auto",
+          "wsl",
+          "wsl:Ubuntu",
+          "wsl:Debian"
+        ],
+        "whole": [
+          "auto",
+          "wsl"
+        ],
+        "debian": {
+          "label": "Debian",
+          "detail": "C:\\Windows\\System32\\wsl.exe -d Debian",
+          "choice": {
+            "shell": "wsl",
+            "wslDistro": "Debian"
+          }
+        },
+        "copied": {
+          "path": "C:\\Windows\\System32\\wsl.exe",
+          "args": "-d Debian"
+        }
+      },
+      "pass": true
+    },
+    {
+      "id": "localShells.test › buildShellEntries › keys a shell found on PATH by its path and shows one the user added once",
+      "input": "unix",
+      "expected": [
+        [
+          "auto",
+          "Auto (recommended)"
+        ],
+        [
+          "/bin/zsh",
+          "zsh"
+        ],
+        [
+          "custom:f",
+          "fish"
+        ]
+      ],
+      "actual": [
+        [
+          "auto",
+          "Auto (recommended)"
+        ],
+        [
+          "/bin/zsh",
+          "zsh"
+        ],
+        [
+          "custom:f",
+          "fish"
+        ]
+      ],
+      "pass": true
+    },
+    {
+      "id": "localShells.test › the default shell › is found by the id of the user's shell, or else by its kind or path",
+      "input": "defaults",
+      "expected": [
+        "auto",
+        "pwsh",
+        "/bin/zsh",
+        "custom:nu"
+      ],
+      "actual": [
+        "auto",
+        "pwsh",
+        "/bin/zsh",
+        "custom:nu"
+      ],
+      "pass": true
+    },
+    {
+      "id": "localShells.test › the default shell › starts with the current path of the user's shell",
+      "input": "choices",
+      "expected": [
+        {
+          "shell": "custom",
+          "customPath": "C:\\msys64\\usr\\bin\\bash.exe",
+          "customArgs": "--login -i",
+          "shellId": "msys"
+        },
+        {
+          "shell": "cmd"
+        }
+      ],
+      "actual": [
+        {
+          "shell": "custom",
+          "customPath": "C:\\msys64\\usr\\bin\\bash.exe",
+          "customArgs": "--login -i",
+          "shellId": "msys"
+        },
+        {
+          "shell": "cmd"
+        }
+      ],
+      "pass": true
+    },
+    {
+      "id": "localShells.test › the default shell › is set with the path older versions read",
+      "input": "updates",
+      "expected": [
+        {
+          "terminal_shell": "custom",
+          "terminal_shell_custom_path": "nu",
+          "terminal_shell_custom_args": "-l",
+          "terminal_shell_id": "nu",
+          "terminal_shell_wsl_distro": ""
+        },
+        {
+          "terminal_shell": "pwsh",
+          "terminal_shell_custom_path": "",
+          "terminal_shell_custom_args": "",
+          "terminal_shell_id": "",
+          "terminal_shell_wsl_distro": ""
+        }
+      ],
+      "actual": [
+        {
+          "terminal_shell": "custom",
+          "terminal_shell_custom_path": "nu",
+          "terminal_shell_custom_args": "-l",
+          "terminal_shell_id": "nu",
+          "terminal_shell_wsl_distro": ""
+        },
+        {
+          "terminal_shell": "pwsh",
+          "terminal_shell_custom_path": "",
+          "terminal_shell_custom_args": "",
+          "terminal_shell_id": "",
+          "terminal_shell_wsl_distro": ""
+        }
+      ],
+      "pass": true
+    },
+    {
+      "id": "localShells.test › the default shell › can be a WSL distribution, or WSL's own default",
+      "input": "wsl",
+      "expected": {
+        "distro": "Debian",
+        "key": "wsl:Debian",
+        "choice": {
+          "shell": "wsl",
+          "wslDistro": "Debian"
+        },
+        "defaultKey": "wsl",
+        "defaultChoice": {
+          "shell": "wsl"
+        }
+      },
+      "actual": {
+        "distro": "Debian",
+        "key": "wsl:Debian",
+        "choice": {
+          "shell": "wsl",
+          "wslDistro": "Debian"
+        },
+        "defaultKey": "wsl",
+        "defaultChoice": {
+          "shell": "wsl"
+        }
+      },
+      "pass": true
+    },
+    {
+      "id": "localShells.test › the user's shells › keep the default's path in step when the default is edited",
+      "input": "edit",
+      "expected": [
+        {
+          "local_shells": [
+            {
+              "id": "nu",
+              "name": "nu",
+              "path": "D:\\nu.exe",
+              "args": "-l"
+            }
+          ],
+          "terminal_shell_custom_path": "D:\\nu.exe",
+          "terminal_shell_custom_args": "-l"
+        },
+        {
+          "local_shells": [
+            {
+              "id": "nu",
+              "name": "nu",
+              "path": "C:\\nu\\nu.exe",
+              "args": ""
+            },
+            {
+              "id": "msys",
+              "name": "MSYS2",
+              "path": "C:\\msys64\\usr\\bin\\bash.exe",
+              "args": "--login -i"
+            }
+          ]
+        }
+      ],
+      "actual": [
+        {
+          "local_shells": [
+            {
+              "id": "nu",
+              "name": "nu",
+              "path": "D:\\nu.exe",
+              "args": "-l"
+            }
+          ],
+          "terminal_shell_custom_path": "D:\\nu.exe",
+          "terminal_shell_custom_args": "-l"
+        },
+        {
+          "local_shells": [
+            {
+              "id": "nu",
+              "name": "nu",
+              "path": "C:\\nu\\nu.exe",
+              "args": ""
+            },
+            {
+              "id": "msys",
+              "name": "MSYS2",
+              "path": "C:\\msys64\\usr\\bin\\bash.exe",
+              "args": "--login -i"
+            }
+          ]
+        }
+      ],
+      "pass": true
+    },
+    {
+      "id": "localShells.test › the user's shells › leave Auto as the default when the default is removed",
+      "input": "remove",
+      "expected": [
+        {
+          "local_shells": [
+            {
+              "id": "msys",
+              "name": "MSYS2",
+              "path": "C:\\msys64\\usr\\bin\\bash.exe",
+              "args": "--login -i"
+            }
+          ],
+          "terminal_shell": "auto",
+          "terminal_shell_custom_path": "",
+          "terminal_shell_custom_args": "",
+          "terminal_shell_id": "",
+          "terminal_shell_wsl_distro": ""
+        },
+        {
+          "local_shells": [
+            {
+              "id": "nu",
+              "name": "nu",
+              "path": "C:\\nu\\nu.exe",
+              "args": ""
+            }
+          ]
+        }
+      ],
+      "actual": [
+        {
+          "local_shells": [
+            {
+              "id": "msys",
+              "name": "MSYS2",
+              "path": "C:\\msys64\\usr\\bin\\bash.exe",
+              "args": "--login -i"
+            }
+          ],
+          "terminal_shell": "auto",
+          "terminal_shell_custom_path": "",
+          "terminal_shell_custom_args": "",
+          "terminal_shell_id": "",
+          "terminal_shell_wsl_distro": ""
+        },
+        {
+          "local_shells": [
+            {
+              "id": "nu",
+              "name": "nu",
+              "path": "C:\\nu\\nu.exe",
+              "args": ""
+            }
+          ]
+        }
+      ],
+      "pass": true
+    },
+    {
+      "id": "localShells.test › the user's shells › move one place at a time and stop at either end",
+      "input": "move",
+      "expected": [
+        [
+          {
+            "id": "msys",
+            "name": "MSYS2",
+            "path": "C:\\msys64\\usr\\bin\\bash.exe",
+            "args": "--login -i"
+          },
+          {
+            "id": "nu",
+            "name": "nu",
+            "path": "C:\\nu\\nu.exe",
+            "args": ""
+          }
+        ],
+        [
+          {
+            "id": "nu",
+            "name": "nu",
+            "path": "C:\\nu\\nu.exe",
+            "args": ""
+          },
+          {
+            "id": "msys",
+            "name": "MSYS2",
+            "path": "C:\\msys64\\usr\\bin\\bash.exe",
+            "args": "--login -i"
+          }
+        ],
+        [
+          {
+            "id": "nu",
+            "name": "nu",
+            "path": "C:\\nu\\nu.exe",
+            "args": ""
+          },
+          {
+            "id": "msys",
+            "name": "MSYS2",
+            "path": "C:\\msys64\\usr\\bin\\bash.exe",
+            "args": "--login -i"
+          }
+        ]
+      ],
+      "actual": [
+        [
+          {
+            "id": "msys",
+            "name": "MSYS2",
+            "path": "C:\\msys64\\usr\\bin\\bash.exe",
+            "args": "--login -i"
+          },
+          {
+            "id": "nu",
+            "name": "nu",
+            "path": "C:\\nu\\nu.exe",
+            "args": ""
+          }
+        ],
+        [
+          {
+            "id": "nu",
+            "name": "nu",
+            "path": "C:\\nu\\nu.exe",
+            "args": ""
+          },
+          {
+            "id": "msys",
+            "name": "MSYS2",
+            "path": "C:\\msys64\\usr\\bin\\bash.exe",
+            "args": "--login -i"
+          }
+        ],
+        [
+          {
+            "id": "nu",
+            "name": "nu",
+            "path": "C:\\nu\\nu.exe",
+            "args": ""
+          },
+          {
+            "id": "msys",
+            "name": "MSYS2",
+            "path": "C:\\msys64\\usr\\bin\\bash.exe",
+            "args": "--login -i"
+          }
+        ]
+      ],
+      "pass": true
+    },
+    {
+      "id": "localShells.test › the user's shells › hide and show detected shells by key",
+      "input": "hidden",
+      "expected": [
+        [
+          "cmd",
+          "pwsh"
+        ],
+        [
+          "pwsh"
+        ]
+      ],
+      "actual": [
+        [
+          "cmd",
+          "pwsh"
+        ],
+        [
+          "pwsh"
+        ]
+      ],
+      "pass": true
+    },
+    {
+      "id": "localShells.test › local tab connections › carry the user's shell id so a restart follows its edits",
+      "input": "connection",
+      "expected": {
+        "connection": {
+          "type": "terminal",
+          "cwd": "C:\\src",
+          "terminalShell": "custom",
+          "terminalShellCustomPath": "C:\\nu\\nu.exe",
+          "terminalShellId": "nu"
+        },
+        "moved": "D:\\nu.exe",
+        "kept": {
+          "type": "terminal",
+          "cwd": "C:\\src",
+          "terminalShell": "custom",
+          "terminalShellCustomPath": "C:\\nu\\nu.exe",
+          "terminalShellId": "nu"
+        }
+      },
+      "actual": {
+        "connection": {
+          "type": "terminal",
+          "cwd": "C:\\src",
+          "terminalShell": "custom",
+          "terminalShellCustomPath": "C:\\nu\\nu.exe",
+          "terminalShellId": "nu"
+        },
+        "moved": "D:\\nu.exe",
+        "kept": {
+          "type": "terminal",
+          "cwd": "C:\\src",
+          "terminalShell": "custom",
+          "terminalShellCustomPath": "C:\\nu\\nu.exe",
+          "terminalShellId": "nu"
+        }
+      },
+      "pass": true
+    },
+    {
+      "id": "localShells.test › local tab connections › leave out custom fields for a built-in shell",
+      "input": "pwsh",
+      "expected": {
+        "type": "terminal",
+        "terminalShell": "pwsh"
+      },
+      "actual": {
+        "type": "terminal",
+        "terminalShell": "pwsh"
+      },
+      "pass": true
+    },
+    {
+      "id": "localShells.test › programName › names a shell after its program",
+      "input": "names",
+      "expected": [
+        "nu",
+        "fish",
+        "pwsh",
+        ".hidden"
+      ],
+      "actual": [
+        "nu",
+        "fish",
+        "pwsh",
+        ".hidden"
+      ],
+      "pass": true
+    },
+    {
+      "id": "localShells.test › restarting a local tab with another shell › tells whether a tab starts the same shell",
+      "input": "startsShell",
+      "expected": [
+        true,
+        false,
+        true,
+        false,
+        true,
+        false,
+        true
+      ],
+      "actual": [
+        true,
+        false,
+        true,
+        false,
+        true,
+        false,
+        true
+      ],
+      "pass": true
+    },
+    {
+      "id": "localShells.test › restarting a local tab with another shell › keeps the tab's directory and starts a new session",
+      "input": "withLocalShell",
+      "expected": {
+        "connection": {
+          "type": "terminal",
+          "cwd": "/src",
+          "terminalShell": "auto"
+        },
+        "sessionNonce": 4
+      },
+      "actual": {
+        "connection": {
+          "type": "terminal",
+          "cwd": "/src",
+          "terminalShell": "auto"
+        },
+        "sessionNonce": 4
+      },
+      "pass": true
+    },
+    {
+      "id": "localShells.test › restarting a local tab with another shell › tells whether a tab starts the user's shell as it is saved now",
+      "input": "startsAsSaved",
+      "expected": [
+        true,
+        true,
+        false,
+        false
+      ],
+      "actual": [
+        true,
+        true,
+        false,
+        false
+      ],
+      "pass": true
+    },
+    {
+      "id": "localShells.test › restarting a local tab with another shell › offers the default shell, or Auto when the default is the one that failed",
+      "input": "failedShellFallback",
+      "expected": [
+        {
+          "choice": {
+            "shell": "custom",
+            "customPath": "C:\\nu\\nu.exe",
+            "shellId": "nu"
+          },
+          "replacesDefault": false
+        },
+        {
+          "choice": {
+            "shell": "auto"
+          },
+          "replacesDefault": true
+        },
+        {
+          "choice": {
+            "shell": "auto"
+          },
+          "replacesDefault": false
+        },
+        null
+      ],
+      "actual": [
+        {
+          "choice": {
+            "shell": "custom",
+            "customPath": "C:\\nu\\nu.exe",
+            "shellId": "nu"
+          },
+          "replacesDefault": false
+        },
+        {
+          "choice": {
+            "shell": "auto"
+          },
+          "replacesDefault": true
+        },
+        {
+          "choice": {
+            "shell": "auto"
+          },
+          "replacesDefault": false
+        },
+        null
+      ],
+      "pass": true
+    },
+    {
+      "id": "localShells.test › restarting a local tab with another shell › saves a shell and makes it the default in one change",
+      "input": "savedLocalShellUpdates",
+      "expected": [
+        {
+          "local_shells": [
+            {
+              "id": "nu",
+              "name": "nu",
+              "path": "C:\\nu\\nu.exe",
+              "args": ""
+            }
+          ],
+          "terminal_shell": "custom",
+          "terminal_shell_custom_path": "C:\\nu\\nu.exe",
+          "terminal_shell_custom_args": "",
+          "terminal_shell_id": "nu",
+          "terminal_shell_wsl_distro": ""
+        },
+        {
+          "local_shells": [
+            {
+              "id": "nu",
+              "name": "nu",
+              "path": "C:\\nu\\nu.exe",
+              "args": ""
+            }
+          ]
+        }
+      ],
+      "actual": [
+        {
+          "local_shells": [
+            {
+              "id": "nu",
+              "name": "nu",
+              "path": "C:\\nu\\nu.exe",
+              "args": ""
+            }
+          ],
+          "terminal_shell": "custom",
+          "terminal_shell_custom_path": "C:\\nu\\nu.exe",
+          "terminal_shell_custom_args": "",
+          "terminal_shell_id": "nu",
+          "terminal_shell_wsl_distro": ""
+        },
+        {
+          "local_shells": [
+            {
+              "id": "nu",
+              "name": "nu",
+              "path": "C:\\nu\\nu.exe",
+              "args": ""
+            }
+          ]
+        }
+      ],
+      "pass": true
+    },
+    {
+      "id": "appConfigNormalize › normalizeConfig fills in the defaults",
+      "input": {},
+      "expected": {
+        "theme": "default",
+        "theme_follow_system": false,
+        "theme_light": "light",
+        "theme_dark": "default",
+        "favorite_themes": [],
+        "language": "en",
+        "font_family": "\"JetBrains Mono Nerd Font\", \"JetBrainsMono Nerd Font\", \"JetBrains Mono\", \"Cascadia Code\", Consolas, monospace",
+        "font_size": 14,
+        "ui_scale_percent": 100,
+        "cursor_style": "block",
+        "terminal_shell": "auto",
+        "terminal_shell_custom_path": "",
+        "terminal_shell_custom_args": "",
+        "terminal_shell_id": "",
+        "terminal_shell_wsl_distro": "",
+        "local_shells": [],
+        "hidden_shells": [],
+        "secret_vault_enabled": true,
+        "secret_storage_mode": "system",
+        "prompt_unlock_vault_on_startup": false,
+        "scrollback_lines": 10000,
+        "terminal_renderer": "webgl",
+        "hidden_renderer_release_secs": 10,
+        "terminal_padding_left_px": 6,
+        "terminal_padding_right_px": 6,
+        "terminal_padding_bottom_px": 4,
+        "startup_session_restore_mode": "active",
+        "restore_terminal_content": true,
+        "resume_agent_sessions": true,
+        "show_jump_host_connection_info": true,
+        "sftp_paste_upload_enabled": false,
+        "sftp_start_directory": "last",
+        "sftp_external_editor": "",
+        "sftp_external_upload": "ask",
+        "monitor_refresh_interval_secs": 5,
+        "monitor_visible_metrics": [
+          "cpu",
+          "memory",
+          "network",
+          "ip",
+          "latency",
+          "disk"
+        ],
+        "update_channel": "stable",
+        "auto_download_updates": true,
+        "update_check_frequency": "daily",
+        "tab_width_mode": "adaptive",
+        "tab_standard_width": 120,
+        "tab_hover_tooltip": false,
+        "tab_icons": {
+          "enabled": true,
+          "agents": true,
+          "shells": {}
+        },
+        "tab_agent_indicator": {
+          "working": "ring",
+          "waiting": "bars",
+          "working_color": "",
+          "waiting_color": ""
+        },
+        "panes": {
+          "show_headers": true,
+          "dim_inactive_percent": 0,
+          "templates": []
+        },
+        "terminal_log_enabled": false,
+        "terminal_log_directory": "",
+        "terminal_log_format": "both",
+        "terminal_log_name_template": "{year}-{month}-{day}/{profile}-{host}-{time}-{sessionId}",
+        "terminal_log_max_file_size_mb": 50,
+        "terminal_log_compress": false,
+        "terminal_log_plain_timestamps": true,
+        "terminal_log_record_input": false,
+        "terminal_log_retention_days": 0,
+        "terminal_log_max_total_mb": 0,
+        "sftp_transfer_parallelism": 4,
+        "sftp_upload_limit_kib": 0,
+        "sftp_download_limit_kib": 0,
+        "reconnect_enabled": true,
+        "reconnect_max_attempts": 5,
+        "zmodem_auto_detect_enabled": true,
+        "zmodem_download_directory": "",
+        "default_proxy_id": "",
+        "sudo_prompt_patterns": [],
+        "password_feedback": true,
+        "predictive_echo": "auto",
+        "predictive_echo_threshold_ms": 30,
+        "mac_option_is_meta": false,
+        "confirm_multiline_paste": true,
+        "copy_on_select": false,
+        "right_click_paste": true,
+        "osc52_clipboard_write": true,
+        "command_marks": true,
+        "keyword_highlight": {
+          "enabled": true,
+          "default_set": "builtin",
+          "alternate_screen": false,
+          "sets": null
+        },
+        "local_unix_shell_integration": false,
+        "ssh_shell_integration": true,
+        "terminal_line_height": 1,
+        "terminal_letter_spacing": 0,
+        "keymap": {
+          "bindings": {}
+        },
+        "background_throttling": "throttle",
+        "window_blur": false,
+        "window_blur_radius": 20,
+        "window_opacity_percent": 70,
+        "window_blur_material": "acrylic",
+        "ui_style": "classic",
+        "profile_sort": "default",
+        "close_behavior": "ask",
+        "notifications_enabled": true,
+        "notify_command_finished": true,
+        "notify_command_min_secs": 10,
+        "notify_terminal_requests": true,
+        "notify_agent_waiting": true,
+        "notify_agent_done": true,
+        "agent_config_dirs": {},
+        "bell_notify": false,
+        "toast_max_visible": 3,
+        "notify_sound": true,
+        "notify_sound_name": "system",
+        "notify_sound_file": "",
+        "bell_style": "none"
+      },
+      "actual": {
+        "theme": "default",
+        "theme_follow_system": false,
+        "theme_light": "light",
+        "theme_dark": "default",
+        "favorite_themes": [],
+        "language": "en",
+        "font_family": "\"JetBrains Mono Nerd Font\", \"JetBrainsMono Nerd Font\", \"JetBrains Mono\", \"Cascadia Code\", Consolas, monospace",
+        "font_size": 14,
+        "ui_scale_percent": 100,
+        "cursor_style": "block",
+        "terminal_shell": "auto",
+        "terminal_shell_custom_path": "",
+        "terminal_shell_custom_args": "",
+        "terminal_shell_id": "",
+        "terminal_shell_wsl_distro": "",
+        "local_shells": [],
+        "hidden_shells": [],
+        "secret_vault_enabled": true,
+        "secret_storage_mode": "system",
+        "prompt_unlock_vault_on_startup": false,
+        "scrollback_lines": 10000,
+        "terminal_renderer": "webgl",
+        "hidden_renderer_release_secs": 10,
+        "terminal_padding_left_px": 6,
+        "terminal_padding_right_px": 6,
+        "terminal_padding_bottom_px": 4,
+        "startup_session_restore_mode": "active",
+        "restore_terminal_content": true,
+        "resume_agent_sessions": true,
+        "show_jump_host_connection_info": true,
+        "sftp_paste_upload_enabled": false,
+        "sftp_start_directory": "last",
+        "sftp_external_editor": "",
+        "sftp_external_upload": "ask",
+        "monitor_refresh_interval_secs": 5,
+        "monitor_visible_metrics": [
+          "cpu",
+          "memory",
+          "network",
+          "ip",
+          "latency",
+          "disk"
+        ],
+        "update_channel": "stable",
+        "auto_download_updates": true,
+        "update_check_frequency": "daily",
+        "tab_width_mode": "adaptive",
+        "tab_standard_width": 120,
+        "tab_hover_tooltip": false,
+        "tab_icons": {
+          "enabled": true,
+          "agents": true,
+          "shells": {}
+        },
+        "tab_agent_indicator": {
+          "working": "ring",
+          "waiting": "bars",
+          "working_color": "",
+          "waiting_color": ""
+        },
+        "panes": {
+          "show_headers": true,
+          "dim_inactive_percent": 0,
+          "templates": []
+        },
+        "terminal_log_enabled": false,
+        "terminal_log_directory": "",
+        "terminal_log_format": "both",
+        "terminal_log_name_template": "{year}-{month}-{day}/{profile}-{host}-{time}-{sessionId}",
+        "terminal_log_max_file_size_mb": 50,
+        "terminal_log_compress": false,
+        "terminal_log_plain_timestamps": true,
+        "terminal_log_record_input": false,
+        "terminal_log_retention_days": 0,
+        "terminal_log_max_total_mb": 0,
+        "sftp_transfer_parallelism": 4,
+        "sftp_upload_limit_kib": 0,
+        "sftp_download_limit_kib": 0,
+        "reconnect_enabled": true,
+        "reconnect_max_attempts": 5,
+        "zmodem_auto_detect_enabled": true,
+        "zmodem_download_directory": "",
+        "default_proxy_id": "",
+        "sudo_prompt_patterns": [],
+        "password_feedback": true,
+        "predictive_echo": "auto",
+        "predictive_echo_threshold_ms": 30,
+        "mac_option_is_meta": false,
+        "confirm_multiline_paste": true,
+        "copy_on_select": false,
+        "right_click_paste": true,
+        "osc52_clipboard_write": true,
+        "command_marks": true,
+        "keyword_highlight": {
+          "enabled": true,
+          "default_set": "builtin",
+          "alternate_screen": false,
+          "sets": null
+        },
+        "local_unix_shell_integration": false,
+        "ssh_shell_integration": true,
+        "terminal_line_height": 1,
+        "terminal_letter_spacing": 0,
+        "keymap": {
+          "bindings": {}
+        },
+        "background_throttling": "throttle",
+        "window_blur": false,
+        "window_blur_radius": 20,
+        "window_opacity_percent": 70,
+        "window_blur_material": "acrylic",
+        "ui_style": "classic",
+        "profile_sort": "default",
+        "close_behavior": "ask",
+        "notifications_enabled": true,
+        "notify_command_finished": true,
+        "notify_command_min_secs": 10,
+        "notify_terminal_requests": true,
+        "notify_agent_waiting": true,
+        "notify_agent_done": true,
+        "agent_config_dirs": {},
+        "bell_notify": false,
+        "toast_max_visible": 3,
+        "notify_sound": true,
+        "notify_sound_name": "system",
+        "notify_sound_file": "",
+        "bell_style": "none"
+      },
+      "pass": true
+    },
+    {
+      "id": "startup › onAppReady fires once when config, theme and session are all ready",
+      "input": "all ready",
+      "expected": 1,
+      "actual": 1,
+      "pass": true
+    },
+    {
+      "id": "startup › onAppReady does not fire twice for the same boot",
+      "input": "again",
+      "expected": 1,
+      "actual": 1,
+      "pass": true
+    },
+    {
+      "id": "startup › a second subscription after the splash hid never fires",
+      "input": "subscribed again",
+      "expected": 0,
+      "actual": 0,
+      "pass": true
+    },
+    {
+      "id": "defaults parity › the backend default matches the frontend except the documented password storage mode",
+      "input": "windows",
+      "expected": [],
+      "actual": [],
+      "pass": true
+    },
+    {
+      "id": "defaults parity › every default of the backend is parsed",
+      "input": [],
+      "expected": [],
+      "actual": [],
+      "pass": true
+    }
+  ],
+  "values": {
+    "tabSettings.defaults": {
+      "tab_width_mode": "adaptive",
+      "tab_standard_width": 120,
+      "tab_hover_tooltip": false,
+      "tab_icons": {
+        "enabled": true,
+        "agents": true,
+        "shells": {}
+      },
+      "tab_agent_indicator": {
+        "working": "ring",
+        "waiting": "bars",
+        "working_color": "",
+        "waiting_color": ""
+      },
+      "panes": {
+        "show_headers": true,
+        "dim_inactive_percent": 0,
+        "templates": []
+      }
+    },
+    "tabSettings.inactivePaneDimOptions": [
+      0,
+      15,
+      30,
+      45
+    ],
+    "terminalFont.families": {
+      "macos": "\"JetBrains Mono Nerd Font\", \"JetBrainsMono Nerd Font\", \"JetBrains Mono\", Menlo, Monaco, monospace",
+      "windows": "\"JetBrains Mono Nerd Font\", \"JetBrainsMono Nerd Font\", \"JetBrains Mono\", \"Cascadia Code\", Consolas, monospace",
+      "linux": "\"JetBrains Mono Nerd Font\", \"JetBrainsMono Nerd Font\", \"JetBrains Mono\", \"DejaVu Sans Mono\", monospace",
+      "freebsd": "\"JetBrains Mono Nerd Font\", \"JetBrainsMono Nerd Font\", \"JetBrains Mono\", \"DejaVu Sans Mono\", monospace",
+      "detected": "\"JetBrains Mono Nerd Font\", \"JetBrainsMono Nerd Font\", \"JetBrains Mono\", \"Cascadia Code\", Consolas, monospace"
+    },
+    "terminalFont.entries": {
+      "chain": "\"JetBrains Mono Nerd Font\", \"JetBrains Mono\", Menlo, monospace",
+      "entries": [
+        "JetBrains Mono Nerd Font",
+        "JetBrains Mono",
+        "Menlo",
+        "monospace"
+      ],
+      "lookup": [
+        "menlo",
+        "jetbrains mono"
+      ]
+    },
+    "scrollback.constants": {
+      "DEFAULT_SCROLLBACK_LINES": 10000,
+      "MAX_EXPLICIT_SCROLLBACK_LINES": 10000000,
+      "UNLIMITED_SCROLLBACK_BUFFER": 10000000,
+      "UNLIMITED_SCROLLBACK_INITIAL": 10000,
+      "UNLIMITED_SCROLLBACK_SENTINEL": 0
+    },
+    "scrollback.normalize": {
+      "inputs": [
+        null,
+        0,
+        1,
+        5000,
+        10000000,
+        10000001,
+        -3,
+        0.4,
+        0.6
+      ],
+      "stored": [
+        10000,
+        0,
+        1,
+        5000,
+        10000000,
+        10000000,
+        1,
+        0,
+        1
+      ],
+      "resolved": [
+        10000,
+        10000000
+      ],
+      "starting": [
+        10000,
+        10000,
+        5000
+      ],
+      "unlimited": [
+        false,
+        true,
+        false
+      ]
+    },
+    "uiStyle.storageKey": [
+      "tterm-ui-style",
+      "ui-islands"
+    ],
+    "spinnerStyle.calls": [
+      "comet"
+    ],
+    "shellCommands.extra": {
+      "crlf": [
+        "cd /tmp",
+        "ls"
+      ],
+      "gluedKeyword": [
+        "if\"x\""
+      ],
+      "heredocX": [
+        "cat <<X"
+      ]
+    },
+    "sshShellIntegration.choice": {
+      "missing": "default",
+      "on": "on",
+      "off": "off",
+      "payload": [
+        null,
+        true,
+        false
+      ]
+    },
+    "remoteShellIntegration.scripts": {
+      "posix": "# tTerm: mark prompts and commands (OSC 133) to jump between commands and\n# copy their output, and report the directory (OSC 7) for SFTP to follow.\n# Keep at the end, after prompt themes.\nif [ -z \"$__tterm_marks\" ]; then\n  __tterm_marks=1\n  if [ -n \"$ZSH_VERSION\" ]; then\n    __tterm_mark_prompt() { printf '\\033]133;D;%s\\033\\\\\\033]7;file://%s%s\\033\\\\\\033]133;A\\033\\\\' \"$?\" \"$HOST\" \"${PWD//\\%/%25}\"; }\n    __tterm_mark_output() { printf '\\033]133;C\\033\\\\'; }\n    autoload -Uz add-zsh-hook\n    precmd_functions=(__tterm_mark_prompt $precmd_functions)\n    add-zsh-hook preexec __tterm_mark_output\n  elif [ -n \"$BASH_VERSION\" ]; then\n    __tterm_mark_prompt() { local s=$?; printf '\\033]133;D;%s\\033\\\\\\033]7;file://%s%s\\033\\\\\\033]133;A\\033\\\\' \"$s\" \"$HOSTNAME\" \"${PWD//\\%/%25}\"; return $s; }\n    if [ -n \"$PROMPT_COMMAND\" ]; then\n      PROMPT_COMMAND=\"__tterm_mark_prompt;$PROMPT_COMMAND\"\n    else\n      PROMPT_COMMAND=__tterm_mark_prompt\n    fi\n    PS0=\"$PS0\"'\\e]133;C\\e\\\\'\n  fi\nfi\n",
+      "fish": "# tTerm: mark prompts and commands (OSC 133) to jump between commands and\n# copy their output, and report the directory (OSC 7) for SFTP to follow.\nif status is-interactive; and not set -q __tterm_marks\n    set -g __tterm_marks 1\n    function __tterm_mark_prompt --on-event fish_prompt\n        printf '\\e]7;file://%s%s\\e\\\\\\\\' $hostname (string replace --all '%' '%25' -- $PWD)\n        printf '\\e]133;A\\e\\\\\\\\'\n    end\n    function __tterm_mark_output --on-event fish_preexec\n        printf '\\e]133;C\\e\\\\\\\\'\n    end\n    function __tterm_mark_done --on-event fish_postexec\n        printf '\\e]133;D;%s\\e\\\\\\\\' $status\n    end\nend\n"
+    },
+    "terminalShells.labels": {
+      "auto": "connection.terminalShellOptions.auto|auto label",
+      "cmd": "connection.terminalShellOptions.cmd|cmd label",
+      "powershell": "connection.terminalShellOptions.powershell|powershell label",
+      "pwsh": "connection.terminalShellOptions.pwsh|pwsh label",
+      "wsl": "connection.terminalShellOptions.wsl|wsl label",
+      "gitBash": "connection.terminalShellOptions.gitBash|git-bash label",
+      "custom": "connection.terminalShellOptions.custom|custom label",
+      "detectedCustom": "custom label",
+      "wslDistro": "wsl label"
+    },
+    "terminalShells.isDetectedCustomShell": {
+      "manualPath": false,
+      "shellVariable": false,
+      "detected": true,
+      "builtin": false
+    },
+    "localShells.keys": {
+      "AUTO_SHELL_KEY": "auto",
+      "custom": "custom:nu",
+      "wsl": "wsl:Ubuntu"
+    },
+    "localShells.detectedShellKey": {
+      "pwsh": "pwsh",
+      "custom": "/bin/zsh",
+      "wsl": "wsl:Ubuntu"
+    },
+    "localShells.programName": {
+      "quotedWindows": "nu",
+      "unix": "fish",
+      "bare": "pwsh",
+      "dotted": ".hidden"
+    },
+    "localShells.newId": {
+      "looksLikeUuid": true
+    },
+    "localShells.shellChoiceKey": {
+      "nu": "custom:nu",
+      "debian": "wsl:Debian"
+    },
+    "localShells.extra": {
+      "sessionNonceWrap": 0,
+      "programNameTrailingSpace": "nu ",
+      "programNameTwoQuotes": "\"nu"
+    },
+    "appConfig.defaultConfig": {
+      "theme": "default",
+      "theme_follow_system": false,
+      "theme_light": "light",
+      "theme_dark": "default",
+      "favorite_themes": [],
+      "language": "en",
+      "font_family": "\"JetBrains Mono Nerd Font\", \"JetBrainsMono Nerd Font\", \"JetBrains Mono\", \"Cascadia Code\", Consolas, monospace",
+      "font_size": 14,
+      "ui_scale_percent": 100,
+      "cursor_style": "block",
+      "terminal_shell": "auto",
+      "terminal_shell_custom_path": "",
+      "terminal_shell_custom_args": "",
+      "terminal_shell_id": "",
+      "terminal_shell_wsl_distro": "",
+      "local_shells": [],
+      "hidden_shells": [],
+      "secret_vault_enabled": true,
+      "secret_storage_mode": "system",
+      "prompt_unlock_vault_on_startup": false,
+      "scrollback_lines": 10000,
+      "terminal_renderer": "webgl",
+      "hidden_renderer_release_secs": 10,
+      "terminal_padding_left_px": 6,
+      "terminal_padding_right_px": 6,
+      "terminal_padding_bottom_px": 4,
+      "startup_session_restore_mode": "active",
+      "restore_terminal_content": true,
+      "resume_agent_sessions": true,
+      "show_jump_host_connection_info": true,
+      "sftp_paste_upload_enabled": false,
+      "sftp_start_directory": "last",
+      "sftp_external_editor": "",
+      "sftp_external_upload": "ask",
+      "monitor_refresh_interval_secs": 5,
+      "monitor_visible_metrics": [
+        "cpu",
+        "memory",
+        "network",
+        "ip",
+        "latency",
+        "disk"
+      ],
+      "update_channel": "stable",
+      "auto_download_updates": true,
+      "update_check_frequency": "daily",
+      "tab_width_mode": "adaptive",
+      "tab_standard_width": 120,
+      "tab_hover_tooltip": false,
+      "tab_icons": {
+        "enabled": true,
+        "agents": true,
+        "shells": {}
+      },
+      "tab_agent_indicator": {
+        "working": "ring",
+        "waiting": "bars",
+        "working_color": "",
+        "waiting_color": ""
+      },
+      "panes": {
+        "show_headers": true,
+        "dim_inactive_percent": 0,
+        "templates": []
+      },
+      "terminal_log_enabled": false,
+      "terminal_log_directory": "",
+      "terminal_log_format": "both",
+      "terminal_log_name_template": "{year}-{month}-{day}/{profile}-{host}-{time}-{sessionId}",
+      "terminal_log_max_file_size_mb": 50,
+      "terminal_log_compress": false,
+      "terminal_log_plain_timestamps": true,
+      "terminal_log_record_input": false,
+      "terminal_log_retention_days": 0,
+      "terminal_log_max_total_mb": 0,
+      "sftp_transfer_parallelism": 4,
+      "sftp_upload_limit_kib": 0,
+      "sftp_download_limit_kib": 0,
+      "reconnect_enabled": true,
+      "reconnect_max_attempts": 5,
+      "zmodem_auto_detect_enabled": true,
+      "zmodem_download_directory": "",
+      "default_proxy_id": "",
+      "sudo_prompt_patterns": [],
+      "password_feedback": true,
+      "predictive_echo": "auto",
+      "predictive_echo_threshold_ms": 30,
+      "mac_option_is_meta": false,
+      "confirm_multiline_paste": true,
+      "copy_on_select": false,
+      "right_click_paste": true,
+      "osc52_clipboard_write": true,
+      "command_marks": true,
+      "keyword_highlight": {
+        "enabled": true,
+        "default_set": "builtin",
+        "alternate_screen": false,
+        "sets": null
+      },
+      "local_unix_shell_integration": false,
+      "ssh_shell_integration": true,
+      "terminal_line_height": 1,
+      "terminal_letter_spacing": 0,
+      "keymap": {
+        "bindings": {}
+      },
+      "background_throttling": "throttle",
+      "window_blur": false,
+      "window_blur_radius": 20,
+      "window_opacity_percent": 70,
+      "window_blur_material": "acrylic",
+      "ui_style": "islands",
+      "profile_sort": "default",
+      "close_behavior": "ask",
+      "notifications_enabled": true,
+      "notify_command_finished": true,
+      "notify_command_min_secs": 10,
+      "notify_terminal_requests": true,
+      "notify_agent_waiting": true,
+      "notify_agent_done": true,
+      "agent_config_dirs": {},
+      "bell_notify": false,
+      "toast_max_visible": 3,
+      "notify_sound": true,
+      "notify_sound_name": "system",
+      "notify_sound_file": "",
+      "bell_style": "none"
+    },
+    "appConfig.constants": {
+      "DEFAULT_TERMINAL_FONT_SIZE": 14,
+      "DEFAULT_TERMINAL_FONT_FAMILY": "\"JetBrains Mono Nerd Font\", \"JetBrainsMono Nerd Font\", \"JetBrains Mono\", \"Cascadia Code\", Consolas, monospace",
+      "DEFAULT_PREDICTIVE_ECHO_THRESHOLD_MS": 30,
+      "PREDICTIVE_ECHO_THRESHOLD_MIN_MS": 10,
+      "PREDICTIVE_ECHO_THRESHOLD_MAX_MS": 2000,
+      "HIDDEN_RENDERER_RELEASE_SECS_OPTIONS": [
+        0,
+        10,
+        30,
+        60,
+        300
+      ],
+      "DEFAULT_HIDDEN_RENDERER_RELEASE_SECS": 10,
+      "TERMINAL_LOG_MAX_RETENTION_DAYS": 3650,
+      "TERMINAL_LOG_MAX_TOTAL_MB": 1048576,
+      "MAX_BANDWIDTH_LIMIT_KIB": 10485760,
+      "RECONNECT_MAX_ATTEMPTS_MIN": 1,
+      "RECONNECT_MAX_ATTEMPTS_MAX": 99,
+      "TERMINAL_FONT_SIZE_RANGE": {
+        "min": 6,
+        "max": 72
+      },
+      "TERMINAL_LINE_HEIGHT_RANGE": {
+        "min": 1,
+        "max": 2
+      },
+      "TERMINAL_LETTER_SPACING_RANGE": {
+        "min": -5,
+        "max": 10
+      },
+      "WINDOW_OPACITY_PERCENT_RANGE": {
+        "min": 30,
+        "max": 95
+      },
+      "WINDOW_BLUR_RADIUS_RANGE": {
+        "min": 1,
+        "max": 60
+      },
+      "NOTIFY_COMMAND_MIN_SECS_RANGE": {
+        "min": 1,
+        "max": 3600
+      },
+      "TOAST_MAX_VISIBLE_RANGE": {
+        "min": 1,
+        "max": 5
+      },
+      "NOTIFICATION_SOUND_NAMES": [
+        "system",
+        "chime",
+        "ding",
+        "pop",
+        "rise",
+        "custom"
+      ],
+      "defaultRenderer": "webgl",
+      "defaultAppState": {
+        "lastUpdateCheckAt": null,
+        "collapsedProfileGroupKeys": []
+      },
+      "defaultSecretStatus": {
+        "storageMode": "system",
+        "keyringAvailable": false,
+        "unlocked": false,
+        "hasMasterPassword": false,
+        "persistenceAvailable": false,
+        "migrationPending": false,
+        "verificationMethod": "none",
+        "message": null
+      }
+    },
+    "appConfig.platformDefaults": {
+      "platform": "windows",
+      "font_family": "\"JetBrains Mono Nerd Font\", \"JetBrainsMono Nerd Font\", \"JetBrains Mono\", \"Cascadia Code\", Consolas, monospace",
+      "right_click_paste": true,
+      "local_unix_shell_integration": false,
+      "update_channel": "stable",
+      "language": "en"
+    },
+    "appConfig.fieldCount": 100,
+    "appConfigNormalize.defaultVsEmpty": {
+      "keys": 100,
+      "differs": [
+        "ui_style"
+      ]
+    },
+    "appConfigNormalize.extraKeysKept": [
+      "tab_icons",
+      "future_setting"
+    ],
+    "appConfigNormalize.normalize": {
+      "empty": {
+        "theme": "default",
+        "ui_style": "classic",
+        "font_size": 14,
+        "scrollback_lines": 10000,
+        "secret_storage_mode": "system"
+      },
+      "booleans": {
+        "theme_follow_system": false,
+        "restore_terminal_content": false,
+        "resume_agent_sessions": false,
+        "sftp_paste_upload_enabled": true,
+        "auto_download_updates": false,
+        "reconnect_enabled": false,
+        "zmodem_auto_detect_enabled": false,
+        "password_feedback": false,
+        "mac_option_is_meta": true,
+        "confirm_multiline_paste": false,
+        "copy_on_select": true,
+        "osc52_clipboard_write": false,
+        "command_marks": false,
+        "ssh_shell_integration": false,
+        "show_jump_host_connection_info": false
+      },
+      "themes": {
+        "theme_light": "light",
+        "theme_dark": "nord",
+        "favorite_themes": [
+          "a",
+          "b"
+        ]
+      },
+      "startup": {
+        "startup_session_restore_mode": "all"
+      },
+      "sftp": {
+        "sftp_start_directory": "home",
+        "sftp_external_editor": "code",
+        "sftp_external_upload": "auto"
+      },
+      "sftpFallbacks": {
+        "sftp_start_directory": "last",
+        "sftp_external_upload": "ask"
+      },
+      "secret": {
+        "vault": "password",
+        "password": "password",
+        "memory": "memory",
+        "hybrid": "system",
+        "other": "system",
+        "unlock": true
+      },
+      "renderer": {
+        "canvas": "canvas",
+        "unknown": "webgl"
+      },
+      "hiddenRendererRelease": [
+        30,
+        10,
+        10,
+        10
+      ],
+      "monitor": {
+        "refresh": [
+          1,
+          60,
+          6,
+          5,
+          5
+        ],
+        "metrics": [
+          "load"
+        ],
+        "metricsEmpty": [
+          "cpu",
+          "memory",
+          "network",
+          "ip",
+          "latency",
+          "disk"
+        ]
+      },
+      "updates": {
+        "update_channel": "beta-dev",
+        "update_check_frequency": "weekly"
+      },
+      "updatesFallback": {
+        "update_channel": "stable",
+        "update_check_frequency": "daily"
+      },
+      "updateCheckEvery3Days": {
+        "update_check_frequency": "every-3-days"
+      },
+      "updateCheckNever": {
+        "update_check_frequency": "never"
+      },
+      "padding": {
+        "left": [
+          6,
+          0,
+          80,
+          6,
+          6
+        ],
+        "right": 80,
+        "bottom": 4
+      },
+      "logs": {
+        "enabled": true,
+        "directory": "/tmp/logs",
+        "formatRaw": "raw",
+        "formatPlain": "plain",
+        "formatFallback": "both",
+        "templateBlank": "{year}-{month}-{day}/{profile}-{host}-{time}-{sessionId}",
+        "templateTrimmed": " a ",
+        "fileSize": [
+          1,
+          1024,
+          2,
+          50
+        ],
+        "retention": [
+          0,
+          4,
+          3650,
+          0
+        ],
+        "total": [
+          3,
+          0,
+          1048576
+        ],
+        "compress": true,
+        "plainTimestamps": false,
+        "recordInput": true
+      },
+      "sftpTransfer": {
+        "parallelism": [
+          1,
+          16,
+          5,
+          4
+        ],
+        "bandwidth": [
+          10485760,
+          0,
+          3
+        ],
+        "download": 1
+      },
+      "reconnect": [
+        1,
+        99,
+        3,
+        5
+      ],
+      "zmodemDirectory": " /tmp ",
+      "proxy": {
+        "trimmed": "p1",
+        "missing": ""
+      },
+      "sudo": [
+        "a",
+        "b"
+      ],
+      "predictive": {
+        "mode": [
+          "always",
+          "off",
+          "auto",
+          "auto"
+        ],
+        "threshold": [
+          10,
+          2000,
+          31,
+          30
+        ]
+      },
+      "uiScale": [
+        80,
+        90,
+        200,
+        80,
+        100,
+        100
+      ],
+      "lineHeight": [
+        1.23,
+        1,
+        2,
+        1
+      ],
+      "letterSpacing": [
+        -5,
+        10,
+        4,
+        0
+      ],
+      "keymap": {
+        "empty": {
+          "bindings": {}
+        },
+        "garbage": {
+          "bindings": {}
+        },
+        "null": {
+          "bindings": {}
+        }
+      },
+      "background": {
+        "throttling": [
+          "disabled",
+          "suspend",
+          "throttle"
+        ]
+      },
+      "window": {
+        "blur": [
+          true,
+          false
+        ],
+        "radius": [
+          1,
+          60,
+          21
+        ],
+        "opacity": [
+          30,
+          95,
+          70
+        ],
+        "material": [
+          "mica",
+          "acrylic"
+        ]
+      },
+      "style": {
+        "ui_style": [
+          "islands",
+          "classic",
+          "classic"
+        ],
+        "profile_sort": [
+          "recent",
+          "default"
+        ],
+        "close_behavior": [
+          "tray",
+          "quit",
+          "ask"
+        ]
+      },
+      "notifications": {
+        "enabled": false,
+        "finished": false,
+        "minSecs": [
+          1,
+          3600,
+          11
+        ],
+        "terminalRequests": false,
+        "agentWaiting": false,
+        "agentDone": false,
+        "agentConfigDirs": {
+          "a": "1",
+          "d": "2"
+        },
+        "agentConfigDirsBad": {},
+        "bellNotify": true,
+        "toast": [
+          1,
+          5,
+          4
+        ],
+        "sound": false,
+        "soundName": [
+          "chime",
+          "custom",
+          "system"
+        ],
+        "soundFile": "",
+        "bellStyle": [
+          "visual",
+          "sound",
+          "none"
+        ]
+      },
+      "tabs": {
+        "theme": "default",
+        "theme_follow_system": false,
+        "theme_light": "light",
+        "theme_dark": "default",
+        "favorite_themes": [],
+        "language": "en",
+        "font_family": "\"JetBrains Mono Nerd Font\", \"JetBrainsMono Nerd Font\", \"JetBrains Mono\", \"Cascadia Code\", Consolas, monospace",
+        "font_size": 14,
+        "ui_scale_percent": 100,
+        "cursor_style": "block",
+        "terminal_shell": "auto",
+        "terminal_shell_custom_path": "",
+        "terminal_shell_custom_args": "",
+        "terminal_shell_id": "",
+        "terminal_shell_wsl_distro": "",
+        "local_shells": [],
+        "hidden_shells": [],
+        "secret_vault_enabled": true,
+        "secret_storage_mode": "system",
+        "prompt_unlock_vault_on_startup": false,
+        "scrollback_lines": 10000,
+        "terminal_renderer": "webgl",
+        "hidden_renderer_release_secs": 10,
+        "terminal_padding_left_px": 6,
+        "terminal_padding_right_px": 6,
+        "terminal_padding_bottom_px": 4,
+        "startup_session_restore_mode": "active",
+        "restore_terminal_content": true,
+        "resume_agent_sessions": true,
+        "show_jump_host_connection_info": true,
+        "sftp_paste_upload_enabled": false,
+        "sftp_start_directory": "last",
+        "sftp_external_editor": "",
+        "sftp_external_upload": "ask",
+        "monitor_refresh_interval_secs": 5,
+        "monitor_visible_metrics": [
+          "cpu",
+          "memory",
+          "network",
+          "ip",
+          "latency",
+          "disk"
+        ],
+        "update_channel": "stable",
+        "auto_download_updates": true,
+        "update_check_frequency": "daily",
+        "tab_width_mode": "standard",
+        "tab_standard_width": 300,
+        "tab_hover_tooltip": false,
+        "tab_icons": {
+          "enabled": true,
+          "agents": true,
+          "shells": {}
+        },
+        "tab_agent_indicator": {
+          "working": "ring",
+          "waiting": "bars",
+          "working_color": "",
+          "waiting_color": ""
+        },
+        "panes": {
+          "show_headers": true,
+          "dim_inactive_percent": 60,
+          "templates": []
+        },
+        "terminal_log_enabled": false,
+        "terminal_log_directory": "",
+        "terminal_log_format": "both",
+        "terminal_log_name_template": "{year}-{month}-{day}/{profile}-{host}-{time}-{sessionId}",
+        "terminal_log_max_file_size_mb": 50,
+        "terminal_log_compress": false,
+        "terminal_log_plain_timestamps": true,
+        "terminal_log_record_input": false,
+        "terminal_log_retention_days": 0,
+        "terminal_log_max_total_mb": 0,
+        "sftp_transfer_parallelism": 4,
+        "sftp_upload_limit_kib": 0,
+        "sftp_download_limit_kib": 0,
+        "reconnect_enabled": true,
+        "reconnect_max_attempts": 5,
+        "zmodem_auto_detect_enabled": true,
+        "zmodem_download_directory": "",
+        "default_proxy_id": "",
+        "sudo_prompt_patterns": [],
+        "password_feedback": true,
+        "predictive_echo": "auto",
+        "predictive_echo_threshold_ms": 30,
+        "mac_option_is_meta": false,
+        "confirm_multiline_paste": true,
+        "copy_on_select": false,
+        "right_click_paste": true,
+        "osc52_clipboard_write": true,
+        "command_marks": true,
+        "keyword_highlight": {
+          "enabled": true,
+          "default_set": "builtin",
+          "alternate_screen": false,
+          "sets": null
+        },
+        "local_unix_shell_integration": false,
+        "ssh_shell_integration": true,
+        "terminal_line_height": 1,
+        "terminal_letter_spacing": 0,
+        "keymap": {
+          "bindings": {}
+        },
+        "background_throttling": "throttle",
+        "window_blur": false,
+        "window_blur_radius": 20,
+        "window_opacity_percent": 70,
+        "window_blur_material": "acrylic",
+        "ui_style": "classic",
+        "profile_sort": "default",
+        "close_behavior": "ask",
+        "notifications_enabled": true,
+        "notify_command_finished": true,
+        "notify_command_min_secs": 10,
+        "notify_terminal_requests": true,
+        "notify_agent_waiting": true,
+        "notify_agent_done": true,
+        "agent_config_dirs": {},
+        "bell_notify": false,
+        "toast_max_visible": 3,
+        "notify_sound": true,
+        "notify_sound_name": "system",
+        "notify_sound_file": "",
+        "bell_style": "none"
+      },
+      "keywordHighlight": {
+        "missing": {
+          "enabled": true,
+          "default_set": "builtin",
+          "alternate_screen": false,
+          "sets": null
+        },
+        "disabled": {
+          "enabled": false,
+          "default_set": "builtin",
+          "alternate_screen": false,
+          "sets": null
+        }
+      },
+      "rawFields": {
+        "font_size": "14",
+        "scrollback_lines": -1,
+        "terminal_shell": "bogus",
+        "terminal_shell_custom_path": "  nu  ",
+        "local_shells": [
+          {
+            "id": 1
+          }
+        ],
+        "hidden_shells": [
+          "a",
+          1
+        ],
+        "theme": 3,
+        "language": "xx"
+      }
+    },
+    "appConfigNormalize.appState": {
+      "empty": {
+        "lastUpdateCheckAt": null,
+        "collapsedProfileGroupKeys": []
+      },
+      "values": {
+        "lastUpdateCheckAt": 5,
+        "collapsedProfileGroupKeys": [
+          "a",
+          "a"
+        ]
+      },
+      "nan": "NaN",
+      "defaults": {
+        "lastUpdateCheckAt": null,
+        "collapsedProfileGroupKeys": []
+      }
+    },
+    "appConfigNormalize.secretStatus": {
+      "empty": {
+        "storageMode": "system",
+        "keyringAvailable": false,
+        "unlocked": false,
+        "hasMasterPassword": false,
+        "persistenceAvailable": false,
+        "migrationPending": false,
+        "verificationMethod": "none",
+        "message": null
+      },
+      "partial": {
+        "storageMode": "password",
+        "keyringAvailable": false,
+        "unlocked": false,
+        "hasMasterPassword": false,
+        "persistenceAvailable": false,
+        "migrationPending": false,
+        "verificationMethod": "none",
+        "message": "hi"
+      },
+      "unknownVerification": {
+        "storageMode": "system",
+        "keyringAvailable": false,
+        "unlocked": false,
+        "hasMasterPassword": false,
+        "persistenceAvailable": false,
+        "migrationPending": false,
+        "verificationMethod": "none",
+        "message": null
+      },
+      "defaults": {
+        "storageMode": "system",
+        "keyringAvailable": false,
+        "unlocked": false,
+        "hasMasterPassword": false,
+        "persistenceAvailable": false,
+        "migrationPending": false,
+        "verificationMethod": "none",
+        "message": null
+      }
+    },
+    "appConfigNormalize.prereleaseChannel": {
+      "defaultConfig": "stable",
+      "normalized": "stable"
+    },
+    "defaultsParity": {
+      "source": "src-tauri/src/config/defaults.rs",
+      "fields": 100,
+      "unparsed": [],
+      "diffs": []
+    }
+  }
+}
