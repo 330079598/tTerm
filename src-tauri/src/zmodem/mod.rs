@@ -101,7 +101,7 @@ pub fn arm_send(channel: &ChannelContext, trigger_bytes: Vec<u8>) -> Sender<Vec<
     tx
 }
 
-#[cfg(test)]
+#[cfg(all(test, unix))]
 mod container_tests;
 
 #[cfg(test)]

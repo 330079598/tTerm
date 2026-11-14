@@ -54,11 +54,11 @@ pub struct TokioRuntimeState {
 }
 
 /// Runs one of tTerm's helpers instead of the app when started as one (see
-/// `terminal::console_reset`, `agent_integration::console_report` and
+/// `tterm_core::terminal::console_reset`, `agent_integration::console_report` and
 /// `system_integration`); returns its exit code.
 #[cfg(target_os = "windows")]
 pub fn run_console_helper() -> Option<i32> {
-    terminal::console_reset::run_helper_if_requested()
+    tterm_core::terminal::console_reset::run_helper_if_requested()
         .or_else(agent_integration::console_report::run_helper_if_requested)
         .or_else(system_integration::run_installer_request)
 }
