@@ -64,6 +64,8 @@ pub mod prompts;
 pub mod proxy;
 /// Per-tab directories and hosts reported by remote shells.
 pub mod remote_cwd;
+/// Command-mark and directory-report scripts for remote shells.
+pub mod remote_shell_integration;
 /// Saved-password offers at SSH sudo prompts.
 pub mod saved_password_prompts;
 /// Serial connections: their settings, ports and line controls.
