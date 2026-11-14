@@ -345,6 +345,7 @@ pub fn spawn_local_pty(
     rows: u16,
     cols: u16,
     shell_config: Option<crate::core::session::types::TerminalShellConfig>,
+    tasks: crate::core::state::SessionTasks,
 ) -> Result<(u32, ActivePty), String> {
     let pty_system = portable_pty::native_pty_system();
     let pair = pty_system
@@ -372,7 +373,7 @@ pub fn spawn_local_pty(
         .take_writer()
         .map_err(|e| format!("Failed to take writer: {}", e))?;
 
-    let active = ActivePty::new(writer, pair.master, child);
+    let active = ActivePty::new(writer, pair.master, child, tasks);
 
     Ok((pid, active))
 }

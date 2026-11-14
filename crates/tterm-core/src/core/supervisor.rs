@@ -70,7 +70,8 @@ pub fn spawn_ssh_attempt(
     let (resize_tx, resize_rx) = mpsc::unbounded_channel::<(u16, u16)>();
     let output_tail = Arc::new(crate::terminal::output_tail::OutputTail::default());
     let encoding = plan.encoding;
-    let input = crate::terminal::types::PtyInput::over_channel(input_tx.clone());
+    let input =
+        crate::terminal::types::PtyInput::over_channel_in(input_tx.clone(), channel.tasks.clone());
     let sender = crate::terminal::io_batcher::TerminalOutputSender::spawn(
         &channel.tab_id,
         channel.sink.clone(),
@@ -78,7 +79,9 @@ pub fn spawn_ssh_attempt(
     .with_output_tail(output_tail.clone())
     .with_output_counter(input.output_counter());
 
+    let task_guard = channel.tasks.begin();
     let task = runtime_handle.spawn(async move {
+        let _task_guard = task_guard;
         let result = crate::ssh::client::run_single_ssh_connection(
             crate::ssh::client::SshAttemptContext {
                 channel,
@@ -263,7 +266,9 @@ pub fn spawn_supervisor(
     mut exit_rx: mpsc::UnboundedReceiver<SessionExitSignal>,
     size: Arc<super::state::AtomicTerminalSize>,
 ) -> tokio::task::JoinHandle<()> {
+    let task_guard = tab.channel.tasks.begin();
     tab.runtime_handle.clone().spawn(async move {
+        let _task_guard = task_guard;
         let channel = tab.channel.clone();
         let app = &tab.app;
         let plan = &tab.plan;

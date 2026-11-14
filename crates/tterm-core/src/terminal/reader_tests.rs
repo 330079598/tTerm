@@ -27,6 +27,7 @@ fn context(sink: Arc<RecordingSessionSink>) -> ChannelContext {
             armed_send_map: Default::default(),
             manual_override: Default::default(),
         },
+        tasks: Default::default(),
     }
 }
 

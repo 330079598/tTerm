@@ -18,6 +18,8 @@ use crate::{
     sftp::internal::types::SftpConnectionPool, sftp::internal::types::TransferCancelMap,
 };
 use std::sync::Arc;
+
+mod session;
 #[test]
 fn app_services_arc_ptr_eq_matches_legacy_states() {
     let ptys: PtyMap = Arc::new(Default::default());

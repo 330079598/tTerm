@@ -21,6 +21,7 @@ fn session(session_nonce: u32, runtime: &tokio::runtime::Runtime) -> PtySession 
         size: Arc::new(AtomicTerminalSize::new(24, 80)),
         output: output(),
         sink: Arc::new(crate::session::recording::RecordingSessionSink::default()),
+        tasks: Default::default(),
         serial_view: None,
     }
 }
@@ -179,6 +180,7 @@ async fn ack_ignores_stale_nonce_and_missing_tabs() {
             size: Arc::new(AtomicTerminalSize::new(24, 80)),
             output: output(),
             sink: sink.clone(),
+            tasks: Default::default(),
             serial_view: None,
         },
     )])));

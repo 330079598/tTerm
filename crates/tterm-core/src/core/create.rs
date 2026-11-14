@@ -2,7 +2,7 @@ use crate::core::session::stop::StopPtyContext;
 use crate::core::session::stop::stop_pty_session;
 use crate::core::state::{
     ActiveSession, AtomicTerminalSize, ChannelContext, PtyMap, PtySession, SessionExitSignal,
-    TabZmodem, ZmodemArmedSendMap, ZmodemManualDetectMap, ZmodemMap,
+    SessionTasks, TabZmodem, ZmodemArmedSendMap, ZmodemManualDetectMap, ZmodemMap,
 };
 use crate::core::supervisor::{TabConnection, spawn_ssh_attempt, spawn_supervisor};
 use crate::ssh::context::ConnectionContext;
@@ -83,6 +83,7 @@ pub fn create_pty_blocking(
     let active = Arc::new(TokioMutex::new(None));
     let (stop_tx, stop_rx) = watch::channel(false);
     let size = Arc::new(AtomicTerminalSize::new(rows, cols));
+    let tasks = SessionTasks::default();
     // Lives for the tab's whole lifetime (unlike `ZmodemMap`, only present
     // while a transfer is in flight) so the manual "Send/Receive Files via
     // ZMODEM" keymap actions can force detection on later, even across a
@@ -105,6 +106,7 @@ pub fn create_pty_blocking(
                 armed_send_map: zmodem_armed_send_state.clone(),
                 manual_override: zmodem_manual_override,
             },
+            tasks: tasks.clone(),
         },
         plan: plan.clone(),
         prompt_state,
@@ -137,6 +139,7 @@ pub fn create_pty_blocking(
         size,
         output: output_channel,
         sink,
+        tasks,
         serial_view: plan.serial.as_ref().map(|serial| serial.view.clone()),
     };
 
@@ -155,13 +158,23 @@ fn spawn_initial_session(
     let channel = &tab.channel;
     match tab.plan.kind {
         crate::core::state::SessionKind::Terminal => {
-            let (pid, pty) =
-                crate::terminal::pty::spawn_local_pty(rows, cols, tab.plan.terminal_shell.clone())?;
+            let (pid, pty) = crate::terminal::pty::spawn_local_pty(
+                rows,
+                cols,
+                tab.plan.terminal_shell.clone(),
+                tab.channel.tasks.clone(),
+            )?;
 
             let reader = pty.input.track_output(
                 pty.master
                     .try_clone_reader()
                     .map_err(|e| format!("Failed to clone reader: {}", e))?,
+            );
+            spawn_local_exit_monitor(
+                pty.child.clone(),
+                tab.exit_tx.clone(),
+                tab.stop_rx.clone(),
+                channel.tasks.clone(),
             );
 
             let sender = crate::terminal::io_batcher::TerminalOutputSender::spawn(
@@ -200,4 +213,33 @@ fn spawn_initial_session(
             Ok((0, ActiveSession::Serial(serial)))
         }
     }
+}
+
+/// Reports when a local shell exits. ConPTY may keep its output handle open
+/// after the process ends, so waiting only for the reader to reach EOF can
+/// leave the session stuck as running.
+fn spawn_local_exit_monitor(
+    child: Arc<std::sync::Mutex<Box<dyn portable_pty::Child + Send>>>,
+    exit_tx: mpsc::UnboundedSender<SessionExitSignal>,
+    stop_rx: watch::Receiver<bool>,
+    tasks: SessionTasks,
+) {
+    let task = tasks.begin();
+    std::thread::spawn(move || {
+        let _task = task;
+        loop {
+            if *stop_rx.borrow() {
+                return;
+            }
+            let ended = match child.lock() {
+                Ok(mut child) => !matches!(child.try_wait(), Ok(None)),
+                Err(_) => true,
+            };
+            if ended {
+                let _ = exit_tx.send(SessionExitSignal::Terminated);
+                return;
+            }
+            std::thread::sleep(std::time::Duration::from_millis(50));
+        }
+    });
 }

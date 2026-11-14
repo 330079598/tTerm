@@ -13,5 +13,6 @@ pub(crate) fn channel(sink: Arc<dyn SessionSink>) -> ChannelContext {
             armed_send_map: Default::default(),
             manual_override: Default::default(),
         },
+        tasks: Default::default(),
     }
 }

@@ -4,6 +4,8 @@ use std::sync::{Arc, Mutex, mpsc};
 use std::thread;
 use std::time::{Duration, Instant};
 
+use crate::core::state::SessionTasks;
+
 /// Input is written in pieces of this size, so a Ctrl+C stops a paste
 /// between them.
 const INPUT_CHUNK_BYTES: usize = 1024;
@@ -27,7 +29,9 @@ pub struct ActivePty {
     /// Typed and pasted input, written in order on a thread of its own.
     pub input: PtyInput,
     pub master: Box<dyn portable_pty::MasterPty + Send>,
-    pub child: Box<dyn portable_pty::Child + Send>,
+    /// Shared with the process-exit monitor so completion does not depend on
+    /// the PTY reader observing end-of-file.
+    pub child: Arc<Mutex<Box<dyn portable_pty::Child + Send>>>,
 }
 
 impl ActivePty {
@@ -35,13 +39,14 @@ impl ActivePty {
         writer: Box<dyn Write + Send>,
         master: Box<dyn portable_pty::MasterPty + Send>,
         child: Box<dyn portable_pty::Child + Send>,
+        tasks: SessionTasks,
     ) -> Self {
         let writer = PtyWriter(Arc::new(Mutex::new(writer)));
         Self {
-            input: PtyInput::spawn(writer.clone(), child.process_id().unwrap_or(0)),
+            input: PtyInput::spawn_in(writer.clone(), child.process_id().unwrap_or(0), tasks),
             writer,
             master,
-            child,
+            child: Arc::new(Mutex::new(child)),
         }
     }
 }
@@ -102,14 +107,20 @@ pub struct PtyInput {
 }
 
 impl PtyInput {
-    fn spawn(mut writer: PtyWriter, pid: u32) -> Self {
+    fn spawn(writer: PtyWriter, pid: u32) -> Self {
+        Self::spawn_in(writer, pid, SessionTasks::default())
+    }
+
+    fn spawn_in(mut writer: PtyWriter, pid: u32, tasks: SessionTasks) -> Self {
         let (tx, rx) = mpsc::channel::<(u64, Vec<u8>)>();
         let interrupts = Arc::new(AtomicU64::new(0));
         let output = Arc::new(AtomicU64::new(0));
         let current = interrupts.clone();
         let shell_output = output.clone();
         // Ends once the session drops its sender, or the PTY stops taking input.
+        let task = tasks.begin();
         thread::spawn(move || {
+            let _task = task;
             let mut pasted = false;
             // A bracketed paste a Ctrl+C cut short, whose program would take
             // everything after it for more of the paste until it is ended.
@@ -162,9 +173,19 @@ impl PtyInput {
     /// Input for a shell reached through a channel, an SSH session's, whose
     /// output is counted with [`PtyInput::output_counter`].
     pub fn over_channel(tx: tokio::sync::mpsc::UnboundedSender<Vec<u8>>) -> Self {
-        Self::spawn(
+        Self::over_channel_in(tx, SessionTasks::default())
+    }
+
+    /// Input for a shell reached through a channel, counted in its session's
+    /// task tracker.
+    pub(crate) fn over_channel_in(
+        tx: tokio::sync::mpsc::UnboundedSender<Vec<u8>>,
+        tasks: SessionTasks,
+    ) -> Self {
+        Self::spawn_in(
             PtyWriter(Arc::new(Mutex::new(Box::new(ChannelWriter(tx))))),
             0,
+            tasks,
         )
     }
 
