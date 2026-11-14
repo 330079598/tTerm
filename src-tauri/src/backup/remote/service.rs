@@ -1,19 +1,26 @@
 //! Domain operations behind the IPC entry points.
-use super::files::{device_name, remote_backups, user_agent, validate_file_name};
-use super::{
-    BACKUP_PASSWORD_KEY, DOWNLOAD_DIRECTORY, PASSWORD_KEY, RemoteBackupEntry, UPLOADING,
-    WebDavBackupSettings, WebDavBackupStatus, WebDavDeleteResult, WebDavUploadResult,
-    clear_downloads, clear_settings, connect, load_settings, non_empty, normalized_settings,
-    run_webdav_backup_locked, same_account, save_keeping_history, saved_secret, status,
+use crate::{backup::MAX_BACKUP_SIZE, backup::normalized_backup_path};
+use crate::{
+    backup::remote::BACKUP_PASSWORD_KEY, backup::remote::DOWNLOAD_DIRECTORY,
+    backup::remote::PASSWORD_KEY, backup::remote::RemoteBackupEntry, backup::remote::UPLOADING,
+    backup::remote::WebDavBackupSettings, backup::remote::WebDavBackupStatus,
+    backup::remote::WebDavDeleteResult, backup::remote::WebDavUploadResult,
+    backup::remote::clear_downloads, backup::remote::clear_settings, backup::remote::connect,
+    backup::remote::load_settings, backup::remote::non_empty, backup::remote::normalized_settings,
+    backup::remote::run_webdav_backup_locked, backup::remote::same_account,
+    backup::remote::save_keeping_history, backup::remote::saved_secret, backup::remote::status,
 };
-use crate::backup::{MAX_BACKUP_SIZE, normalized_backup_path};
-use crate::ssh::secret_store::{
-    store::put_secret, types::SecretStoreState, verification::VerificationPurpose,
+use crate::{
+    backup::remote::files::device_name, backup::remote::files::remote_backups,
+    backup::remote::files::user_agent, backup::remote::files::validate_file_name,
 };
 use serde_json::Value;
 use std::{fs, sync::atomic::Ordering};
 use tterm_core::backup::webdav::{WebDavClient, split_remote_directory};
 use tterm_core::core::blocking::run_blocking;
+use tterm_core::ssh::secret_store::{
+    store::put_secret, types::SecretStoreState, verification::VerificationPurpose,
+};
 use zeroize::Zeroizing;
 
 pub(in crate::backup) async fn get_webdav_backup_status(

@@ -13,6 +13,9 @@ workspace = true
 test-support = []
 
 [dependencies]
+aes-gcm = "=0.11.1"
+argon2 = "=0.6.0"
+async-trait = "=0.1.92"
 dirs = "=7.0.0"
 serde = { version = "1", features = ["derive"] }
 serde_json = { version = "1", features = ["float_roundtrip", "preserve_order", "raw_value"] }
@@ -20,10 +23,12 @@ indexmap = { version = "=2.14.2", features = ["serde"] }
 base64 = "=0.23.1"
 chrono = { version = "=0.4.45", default-features = false, features = ["clock"] }
 crc32fast = "=1.5.2"
+encoding_rs = "=0.8.42"
 flate2 = "=1.1.10"
 # RSA key files are signed with ring instead of the `rsa` crate; russh and
 # rustls already link both.
 hmac = "=0.13.0"
+keyring = "=4.2.0"
 num-bigint = "=0.5.1"
 percent-encoding = "=2.3.2"
 portable-pty = "=0.9.0"
@@ -35,6 +40,7 @@ rustls = { version = "=0.23.45", default-features = false, features = ["ring", "
 russh = { version = "=0.63.3", default-features = false, features = ["ring", "rsa"] }
 russh-sftp = "=3.0.1"
 sha1 = "=0.11.0"
+serialport = "=4.10.1"
 sha2 = "=0.11.0"
 unicode-width = "=0.2.2"
 vte = "=0.15.0"
@@ -46,8 +52,15 @@ tterm-platform = { path = "../tterm-platform" }
 tterm-terminal = { path = "../tterm-terminal" }
 uuid = { version = "=1.26.1", features = ["v4"] }
 # Reuses the locked runtime used by the Tauri backend.
-tokio = { version = "=1.53.1", features = ["fs", "sync", "time"] }
+tokio = { version = "=1.53.1", features = ["fs", "io-util", "net", "process", "sync", "time"] }
+sys-locale = "=0.3.2"
 ttf-parser = "=0.25.1"
+
+[target.'cfg(target_os = "macos")'.dependencies]
+security-framework = "=3.7.0"
+
+[target.'cfg(target_os = "windows")'.dependencies]
+windows = { version = "=0.62.2", features = ["Win32_Foundation", "Win32_Graphics_Gdi", "Win32_System_Console", "Win32_System_LibraryLoader", "Win32_System_Registry", "Win32_System_SystemInformation"] }
 
 [dev-dependencies]
 tokio = { version = "=1.53.1", features = ["rt", "macros", "test-util"] }

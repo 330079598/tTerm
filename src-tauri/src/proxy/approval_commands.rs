@@ -1,8 +1,9 @@
-use super::approval::{
-    RespondProxyCommandPromptInput, pending_proxy_command_prompts_service,
-    respond_proxy_command_prompt_service,
-};
 use tterm_core::events::proxy::ProxyCommandPrompt;
+use tterm_core::{
+    proxy::approval::RespondProxyCommandPromptInput,
+    proxy::approval::pending_proxy_command_prompts_service,
+    proxy::approval::respond_proxy_command_prompt_service,
+};
 
 /// The questions still waiting, for a window that opens after they were asked.
 #[tauri::command]

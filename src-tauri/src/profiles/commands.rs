@@ -1,11 +1,12 @@
-use super::service;
-use super::types::{
-    SavedProfile, SshConfigImportHost, SshConfigImportOptions, SshConfigImportPreview,
-    SshConfigImportResult, TestConnectionResult,
-};
+use crate::profiles::service;
 use crate::services::AppServices;
 use std::sync::Arc;
 use tterm_core::config::tab_icons::TabIconStyle;
+use tterm_core::{
+    profiles::types::SavedProfile, profiles::types::SshConfigImportHost,
+    profiles::types::SshConfigImportOptions, profiles::types::SshConfigImportPreview,
+    profiles::types::SshConfigImportResult, profiles::types::TestConnectionResult,
+};
 
 pub(super) mod connection_check;
 pub(crate) mod groups;

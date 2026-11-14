@@ -1,4 +1,6 @@
-use super::auth::{RespondSshAuthPromptInput, respond_ssh_auth_prompt_service};
+use tterm_core::{
+    ssh::auth::RespondSshAuthPromptInput, ssh::auth::respond_ssh_auth_prompt_service,
+};
 
 /// Delivers the user's answers to a waiting prompt; `responses: None` cancels.
 #[tauri::command]

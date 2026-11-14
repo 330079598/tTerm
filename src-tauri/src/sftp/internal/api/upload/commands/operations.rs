@@ -1,18 +1,19 @@
-use crate::core::session::types::PtyConnectionOptions;
 use crate::sftp::internal::api::conflict::ConflictReport;
 use crate::sftp::internal::api::prepare_transfer;
 use crate::sftp::internal::api::upload::targets::collect_upload_conflicts;
-use crate::sftp::internal::api::upload::{
-    UploadBatchResult, UploadFilePlanItem, collect_upload_plan, file_name_from_path,
-    inspect_upload_roots, next_transfer_id, upload_single_file_with_progress,
+use crate::{
+    sftp::internal::api::upload::UploadBatchResult,
+    sftp::internal::api::upload::UploadFilePlanItem,
+    sftp::internal::api::upload::collect_upload_plan,
+    sftp::internal::api::upload::file_name_from_path,
+    sftp::internal::api::upload::inspect_upload_roots,
+    sftp::internal::api::upload::next_transfer_id,
+    sftp::internal::api::upload::upload_single_file_with_progress,
 };
-use crate::sftp::internal::connection::{SftpContext, ensure_ssh_plan};
-use crate::sftp::internal::types::SftpConnectionPool;
-use crate::sftp::internal::types::TransferCancelMap;
-use crate::ssh::secret_store::types::SecretStoreState;
 use std::path::Path;
 use std::sync::Arc;
 use tokio::{fs, sync::watch};
+use tterm_core::core::session::types::PtyConnectionOptions;
 use tterm_core::events::sftp::{
     SftpEvent,
     upload::{UploadBatchCompleteEvent, UploadBatchStartEvent},
@@ -20,6 +21,10 @@ use tterm_core::events::sftp::{
 use tterm_core::events::{AppEvent, EventSink};
 use tterm_core::prompts::PromptBroker;
 use tterm_core::sftp::conflict::ConflictPolicy;
+use tterm_core::sftp::internal::connection::{SftpContext, ensure_ssh_plan};
+use tterm_core::sftp::internal::types::SftpConnectionPool;
+use tterm_core::sftp::internal::types::TransferCancelMap;
+use tterm_core::ssh::secret_store::types::SecretStoreState;
 
 pub(super) struct SftpCheckUploadConflictsInput {
     pub(super) tab_id: String,

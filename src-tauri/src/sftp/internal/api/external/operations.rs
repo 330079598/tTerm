@@ -1,23 +1,29 @@
 #[cfg(target_os = "macos")]
-use super::{AppChoice, png_data_url};
-use super::{
-    ExternalEditState, Host, OpenIn, OpenWithChoices, UploadOutcome, emit, end_sessions,
-    file_name_of, fingerprint, launch, start_session,
+use crate::{
+    sftp::internal::api::external::AppChoice, sftp::internal::api::external::png_data_url,
 };
-use crate::core::session::types::PtyConnectionOptions;
-use crate::sftp::internal::connection::{SftpContext, ensure_ssh_plan};
-use crate::sftp::internal::types::SftpConnectionPool;
-use crate::sftp::internal::types::TransferCancelMap;
-use crate::ssh::secret_store::types::SecretStoreState;
+use crate::{
+    sftp::internal::api::external::ExternalEditState, sftp::internal::api::external::Host,
+    sftp::internal::api::external::OpenIn, sftp::internal::api::external::OpenWithChoices,
+    sftp::internal::api::external::UploadOutcome, sftp::internal::api::external::emit,
+    sftp::internal::api::external::end_sessions, sftp::internal::api::external::file_name_of,
+    sftp::internal::api::external::fingerprint, sftp::internal::api::external::launch,
+    sftp::internal::api::external::start_session,
+};
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::Arc;
 use tterm_core::core::blocking::run_blocking;
+use tterm_core::core::session::types::PtyConnectionOptions;
 use tterm_core::events::EventSink;
 use tterm_core::events::sftp::external::{EditStatus, ExternalEdit};
 use tterm_core::paths::AppPaths;
 use tterm_core::prompts::PromptBroker;
+use tterm_core::sftp::internal::connection::{SftpContext, ensure_ssh_plan};
 use tterm_core::sftp::internal::paths::normalize_remote_path;
+use tterm_core::sftp::internal::types::SftpConnectionPool;
+use tterm_core::sftp::internal::types::TransferCancelMap;
+use tterm_core::ssh::secret_store::types::SecretStoreState;
 use tterm_platform::open::OpenTargets;
 
 pub(super) struct SftpExternalEditOpenInput {

@@ -1,8 +1,10 @@
-use super::{
-    PulseSerialLineInput, SendSerialBreakInput, SerialLine, SerialPortEntry, SetSerialSignalsInput,
-    SetSerialViewInput, WriteSerialBytesInput, list_serial_ports_service,
-    pulse_serial_line_service, send_serial_break_service, set_serial_signals_service,
-    set_serial_view_service, write_serial_bytes_service,
+use tterm_core::{
+    serial::PulseSerialLineInput, serial::SendSerialBreakInput, serial::SerialLine,
+    serial::SerialPortEntry, serial::SetSerialSignalsInput, serial::SetSerialViewInput,
+    serial::WriteSerialBytesInput, serial::list_serial_ports_service,
+    serial::pulse_serial_line_service, serial::send_serial_break_service,
+    serial::set_serial_signals_service, serial::set_serial_view_service,
+    serial::write_serial_bytes_service,
 };
 
 #[tauri::command]

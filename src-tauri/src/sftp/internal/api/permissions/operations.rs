@@ -1,10 +1,10 @@
-use super::set_permissions;
-use crate::core::session::types::PtyConnectionOptions;
-use crate::sftp::internal::connection::{SftpContext, ensure_ssh_plan};
-use crate::sftp::internal::types::SftpConnectionPool;
-use crate::ssh::secret_store::types::SecretStoreState;
+use crate::sftp::internal::api::permissions::set_permissions;
 use std::sync::Arc;
+use tterm_core::core::session::types::PtyConnectionOptions;
 use tterm_core::prompts::PromptBroker;
+use tterm_core::sftp::internal::connection::{SftpContext, ensure_ssh_plan};
+use tterm_core::sftp::internal::types::SftpConnectionPool;
+use tterm_core::ssh::secret_store::types::SecretStoreState;
 
 pub(crate) struct SftpSetPermissionsInput {
     pub(crate) tab_id: String,

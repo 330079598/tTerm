@@ -1,19 +1,8 @@
-pub mod agent;
-pub mod auth;
+//! The Tauri SSH commands; the connection itself lives in
+//! [`tterm_core::ssh`].
+
 pub(crate) mod auth_commands;
-pub(crate) mod client;
-pub(crate) mod context;
-pub(crate) mod host_key_prompt;
-pub mod jump;
-pub(crate) mod key_file;
 pub(crate) mod key_vault;
 pub mod known_host_commands;
-pub(crate) mod openssh_known_hosts;
-pub(crate) mod remote_os;
 pub mod secret_commands;
-pub(crate) mod secret_store;
-pub(crate) mod shell_integration;
-#[cfg(all(test, unix))]
-pub(crate) mod test_sshd;
 pub(crate) mod typed_passwords_commands;
-pub(crate) mod types;

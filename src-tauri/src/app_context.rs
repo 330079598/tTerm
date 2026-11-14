@@ -1,8 +1,7 @@
 //! Entry adapters assemble concrete dependencies before handing work to services.
 use crate::{
-    background::{BackgroundContext, quit::QuitContext, tray::TrayContext},
-    services::AppServices,
-    tunnel::manager::TunnelContext,
+    background::BackgroundContext, background::quit::QuitContext, background::tray::TrayContext,
+    services::AppServices, tunnel::manager::TunnelContext,
 };
 use std::sync::Arc;
 

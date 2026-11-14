@@ -3,7 +3,7 @@
 //! ways (in place, or by writing another file and renaming it over the
 //! copy), and a look at the file itself sees every one of them the same way.
 
-use super::ExternalEditState;
+use crate::sftp::internal::api::external::ExternalEditState;
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::sync::atomic::Ordering;

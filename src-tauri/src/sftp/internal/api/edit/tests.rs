@@ -1,4 +1,4 @@
-use super::*;
+use crate::sftp::internal::api::edit::*;
 use std::sync::{Arc, Mutex};
 use tterm_core::sftp::internal::transfer::test_server::{ServerOptions, TestServer};
 

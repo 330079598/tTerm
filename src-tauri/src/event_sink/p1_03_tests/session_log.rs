@@ -1,4 +1,4 @@
-use super::*;
+use crate::event_sink::p1_03_tests::*;
 
 #[test]
 fn log_errors_keep_null_tabs_and_absent_phase_distinct() {

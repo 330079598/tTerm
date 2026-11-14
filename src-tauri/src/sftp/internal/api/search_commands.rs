@@ -1,12 +1,16 @@
-use super::search::operations::{
-    SftpSearchEntriesDependencies, SftpSearchEntriesInput, sftp_search_entries_service,
-};
-use super::search::{SearchRequest, SearchSummary};
-use crate::core::session::types::PtyConnectionOptions;
 use crate::event_sink::search::TauriSearchResultSink;
+use crate::{
+    sftp::internal::api::search::SearchRequest, sftp::internal::api::search::SearchSummary,
+};
+use crate::{
+    sftp::internal::api::search::operations::SftpSearchEntriesDependencies,
+    sftp::internal::api::search::operations::SftpSearchEntriesInput,
+    sftp::internal::api::search::operations::sftp_search_entries_service,
+};
 use std::sync::Arc;
 use tauri::State;
 use tauri::ipc::Channel;
+use tterm_core::core::session::types::PtyConnectionOptions;
 use tterm_core::sftp::search::SearchEvent;
 
 /// Searches `request.root` and the folders under it for names matching the

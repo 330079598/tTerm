@@ -1,4 +1,4 @@
-use super::*;
+use crate::event_sink::p1_03_tests::*;
 
 #[test]
 fn ssh_wire_contracts_match_pre_migration_fixtures() {

@@ -1,5 +1,3 @@
-use crate::sftp::internal::connection::map_sftp_error;
-use crate::sftp::internal::exec::shell_quote;
 use russh_sftp::client::SftpSession;
 use serde::{Deserialize, Serialize};
 use std::future::Future;
@@ -10,6 +8,8 @@ use tterm_core::events::sftp::delete::{
     DeleteBatchCompleteEvent, DeleteMethod, DeleteProgressEvent,
 };
 use tterm_core::events::{AppEvent, EventSink};
+use tterm_core::sftp::internal::connection::map_sftp_error;
+use tterm_core::sftp::internal::exec::shell_quote;
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct DeleteEntryRequest {

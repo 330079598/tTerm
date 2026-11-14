@@ -1,4 +1,4 @@
-use super::*;
+use crate::sftp::internal::api::upload::*;
 use crate::sftp::internal::test_support;
 use tterm_core::events::recording::RecordingEventSink;
 use tterm_core::events::sftp::SftpEvent;
@@ -67,7 +67,7 @@ async fn container_upload_download_and_cancel_record_events() {
     .unwrap_err();
     assert!(error.contains("cancelled"));
     assert!(cancels.read().await.is_empty());
-    crate::sftp::internal::launcher::ChannelLauncher::default()
+    tterm_core::sftp::internal::launcher::ChannelLauncher::default()
         .start_script(&ssh, &format!("rm -rf -- '{root}'"))
         .await
         .unwrap()

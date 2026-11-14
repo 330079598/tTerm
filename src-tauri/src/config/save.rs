@@ -1,7 +1,7 @@
 //! Applies saved settings to the services that cache configuration.
-use super::{AppConfig, load_config_file, save_config_file};
-use crate::session_log::SessionLogState;
 use std::sync::Arc;
+use tterm_core::session_log::SessionLogState;
+use tterm_core::{config::AppConfig, config::load_config_file, config::save_config_file};
 
 pub(super) fn save_config(
     log_state: Arc<SessionLogState>,

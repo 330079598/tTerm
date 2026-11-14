@@ -1,8 +1,8 @@
 //! Explicit opt-in connection to this card's disposable Docker host.
-use crate::sftp::internal::launcher::ChannelLauncher;
 use russh::client::{self, Handle};
 use russh_sftp::client::SftpSession;
 use std::sync::Arc;
+use tterm_core::sftp::internal::launcher::ChannelLauncher;
 use tterm_core::sftp::internal::transfer::RemoteChannels;
 
 pub(crate) struct Client;

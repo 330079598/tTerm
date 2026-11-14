@@ -1,14 +1,17 @@
-use super::{
-    DELETE_COMMAND_PROMPT_THRESHOLD, DELETE_STATS_LIMIT, DeleteEntryRequest, DeleteMethod,
-    DeleteOptions, DeletePlan, DeletePreviewResult, DeleteProgress, DeleteStats,
-    build_delete_complete_event, collect_delete_stats, command_delete_script, emit_delete_progress,
-    is_dangerous_delete_path, should_emit_delete_progress,
+use crate::{
+    sftp::internal::api::delete::DELETE_COMMAND_PROMPT_THRESHOLD,
+    sftp::internal::api::delete::DELETE_STATS_LIMIT,
+    sftp::internal::api::delete::DeleteEntryRequest, sftp::internal::api::delete::DeleteMethod,
+    sftp::internal::api::delete::DeleteOptions, sftp::internal::api::delete::DeletePlan,
+    sftp::internal::api::delete::DeletePreviewResult, sftp::internal::api::delete::DeleteProgress,
+    sftp::internal::api::delete::DeleteStats,
+    sftp::internal::api::delete::build_delete_complete_event,
+    sftp::internal::api::delete::collect_delete_stats,
+    sftp::internal::api::delete::command_delete_script,
+    sftp::internal::api::delete::emit_delete_progress,
+    sftp::internal::api::delete::is_dangerous_delete_path,
+    sftp::internal::api::delete::should_emit_delete_progress,
 };
-use crate::sftp::internal::connection::SftpContext;
-use crate::sftp::internal::connection::{
-    connect_authenticated_ssh, get_or_create_sftp_connection, map_sftp_error, pooled_handles,
-};
-use crate::sftp::internal::types::{SftpConnectionKey, SftpConnectionPool};
 use russh::ChannelMsg;
 use russh_sftp::client::SftpSession;
 use std::future::Future;
@@ -17,10 +20,15 @@ use std::sync::Arc;
 use tterm_core::events::sftp::SftpEvent;
 use tterm_core::events::sftp::delete::DeleteBatchStartEvent;
 use tterm_core::events::{AppEvent, EventSink};
+use tterm_core::sftp::internal::connection::SftpContext;
+use tterm_core::sftp::internal::connection::{
+    connect_authenticated_ssh, get_or_create_sftp_connection, map_sftp_error, pooled_handles,
+};
+use tterm_core::sftp::internal::types::{SftpConnectionKey, SftpConnectionPool};
 pub(super) async fn preview_delete_entries(
     app: &SftpContext,
     tab_id: &str,
-    plan: &crate::core::session::types::SessionPlan,
+    plan: &tterm_core::core::session::types::SessionPlan,
     prompts: std::sync::Arc<tterm_core::prompts::PromptBroker>,
     pool: &SftpConnectionPool,
     entries: &[DeleteEntryRequest],
@@ -325,7 +333,7 @@ pub(super) struct DeleteBatch {
     pub(super) app: SftpContext,
     pub(super) events: Arc<dyn EventSink>,
     pub(super) tab_id: String,
-    pub(super) plan: crate::core::session::types::SessionPlan,
+    pub(super) plan: tterm_core::core::session::types::SessionPlan,
     pub(super) prompts: std::sync::Arc<tterm_core::prompts::PromptBroker>,
     pub(super) pool: SftpConnectionPool,
     pub(super) batch_id: String,
@@ -436,7 +444,7 @@ async fn run_delete_command_as_root(
 async fn get_or_create_delete_sftp(
     app: &SftpContext,
     tab_id: &str,
-    plan: &crate::core::session::types::SessionPlan,
+    plan: &tterm_core::core::session::types::SessionPlan,
     prompts: std::sync::Arc<tterm_core::prompts::PromptBroker>,
     pool: &SftpConnectionPool,
 ) -> Result<Arc<SftpSession>, String> {

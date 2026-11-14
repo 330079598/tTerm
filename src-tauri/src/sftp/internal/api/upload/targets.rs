@@ -1,6 +1,10 @@
-use super::{UploadFilePlanItem, UploadPlan};
-use crate::sftp::internal::api::conflict::{
-    self, CandidateDecision, ConflictReport, SourceStat, TransferConflict,
+use crate::{
+    sftp::internal::api::conflict, sftp::internal::api::conflict::CandidateDecision,
+    sftp::internal::api::conflict::ConflictReport, sftp::internal::api::conflict::SourceStat,
+    sftp::internal::api::conflict::TransferConflict,
+};
+use crate::{
+    sftp::internal::api::upload::UploadFilePlanItem, sftp::internal::api::upload::UploadPlan,
 };
 use russh_sftp::client::SftpSession;
 use std::collections::HashMap;

@@ -1,0 +1,2253 @@
+{
+ "adapters": [
+  "agent_integration/commands.rs",
+  "agent_integration/remote_commands.rs",
+  "app_identity.rs",
+  "app_paths.rs",
+  "app_state/commands.rs",
+  "background/commands.rs",
+  "background/exit_guard_commands.rs",
+  "background/quit_commands.rs",
+  "background/tray/commands.rs",
+  "backup/commands.rs",
+  "backup/remote_commands.rs",
+  "clipboard_files.rs",
+  "command_library/commands.rs",
+  "config/commands.rs",
+  "config/window_background_commands.rs",
+  "core/agent_resume_commands.rs",
+  "core/commands/mod.rs",
+  "drag_out/mod.rs",
+  "event_sink.rs",
+  "event_sink/contracts/sftp_search.rs",
+  "event_sink/contracts/terminal_legacy_output.rs",
+  "event_sink/search.rs",
+  "fonts/commands.rs",
+  "ime_focus.rs",
+  "launch_dir/commands.rs",
+  "lib.rs",
+  "main_window.rs",
+  "migrate.rs",
+  "monitor/commands.rs",
+  "notification/badge_commands.rs",
+  "notification/commands.rs",
+  "platform/badge.rs",
+  "platform/clipboard.rs",
+  "platform/mod.rs",
+  "platform/open.rs",
+  "platform/tray.rs",
+  "platform/tray_native.rs",
+  "platform/updates.rs",
+  "platform/verification.rs",
+  "platform/window.rs",
+  "profiles/commands.rs",
+  "profiles/commands/groups.rs",
+  "proxy/approval_commands.rs",
+  "proxy/commands.rs",
+  "serial/commands.rs",
+  "serial/history/commands.rs",
+  "serial/xmodem/commands.rs",
+  "session/commands.rs",
+  "session/scrollback_commands.rs",
+  "session_log/commands.rs",
+  "session_sink.rs",
+  "session_sink/contracts/terminal_legacy_exit.rs",
+  "session_sink/output.rs",
+  "sftp/internal/api/archive_commands.rs",
+  "sftp/internal/api/base_commands.rs",
+  "sftp/internal/api/delete/commands/mod.rs",
+  "sftp/internal/api/download_commands.rs",
+  "sftp/internal/api/edit_commands.rs",
+  "sftp/internal/api/external/commands.rs",
+  "sftp/internal/api/permissions_commands.rs",
+  "sftp/internal/api/search_commands.rs",
+  "sftp/internal/api/upload/commands/mod.rs",
+  "ssh/auth_commands.rs",
+  "ssh/key_vault/commands.rs",
+  "ssh/known_host_commands.rs",
+  "ssh/secret_commands.rs",
+  "ssh/typed_passwords_commands.rs",
+  "sync/commands.rs",
+  "system_integration/commands.rs",
+  "terminal/foreground_commands.rs",
+  "terminal/io_batcher/benchmark.rs",
+  "terminal/io_batcher/contracts.rs",
+  "terminal/pty_commands.rs",
+  "themes/commands.rs",
+  "tunnel/commands.rs",
+  "updater/commands.rs",
+  "window_blur.rs",
+  "window_state/mod.rs",
+  "zmodem/commands.rs"
+ ],
+ "movable": [
+  "agent_integration/claude_code.rs",
+  "agent_integration/codex.rs",
+  "agent_integration/console_report.rs",
+  "agent_integration/hook_input.rs",
+  "agent_integration/hooks.rs",
+  "agent_integration/json.rs",
+  "agent_integration/mod.rs",
+  "agent_integration/plugin_file.rs",
+  "agent_integration/remote.rs",
+  "app_context.rs",
+  "app_state/mod.rs",
+  "background/exit_guard.rs",
+  "background/mod.rs",
+  "background/quit.rs",
+  "background/tray/mod.rs",
+  "backup/apply.rs",
+  "backup/archive.rs",
+  "backup/automatic.rs",
+  "backup/diff.rs",
+  "backup/export.rs",
+  "backup/mod.rs",
+  "backup/remote.rs",
+  "backup/remote/files.rs",
+  "backup/remote/service.rs",
+  "backup/service.rs",
+  "backup/snapshot.rs",
+  "command_library/mod.rs",
+  "config/defaults.rs",
+  "config/deserialize.rs",
+  "config/local_shells.rs",
+  "config/mod.rs",
+  "config/reconnect.rs",
+  "config/save.rs",
+  "config/window_background.rs",
+  "connection_context.rs",
+  "core/channel_test_support.rs",
+  "core/commands/arguments.rs",
+  "core/commands/batch_write.rs",
+  "core/commands/create.rs",
+  "core/mod.rs",
+  "core/session/mod.rs",
+  "core/session/saved_hops.rs",
+  "core/session/stop.rs",
+  "core/session/types.rs",
+  "core/state.rs",
+  "core/supervisor.rs",
+  "db/legacy_import.rs",
+  "db/mod.rs",
+  "fonts/mod.rs",
+  "launch_dir/mod.rs",
+  "monitor/metrics/bsd.rs",
+  "monitor/metrics/darwin.rs",
+  "monitor/metrics/freebsd.rs",
+  "monitor/metrics/linux.rs",
+  "monitor/metrics/mod.rs",
+  "monitor/mod.rs",
+  "monitor/prompts.rs",
+  "monitor/session.rs",
+  "monitor/types.rs",
+  "notification/badge.rs",
+  "notification/mod.rs",
+  "notification/sound.rs",
+  "profiles/commands/connection_check.rs",
+  "profiles/commands/import.rs",
+  "profiles/commands/import/proxy.rs",
+  "profiles/group_service.rs",
+  "profiles/groups.rs",
+  "profiles/mod.rs",
+  "profiles/parser/host.rs",
+  "profiles/parser/include.rs",
+  "profiles/parser/jump.rs",
+  "profiles/parser/known_hosts.rs",
+  "profiles/parser/mod.rs",
+  "profiles/parser/parse.rs",
+  "profiles/parser/proxy_command.rs",
+  "profiles/parser/resolve.rs",
+  "profiles/parser/tokens.rs",
+  "profiles/service.rs",
+  "profiles/storage.rs",
+  "profiles/types.rs",
+  "prompt_scope.rs",
+  "proxy/approval.rs",
+  "proxy/command.rs",
+  "proxy/connect.rs",
+  "proxy/http_connect.rs",
+  "proxy/mod.rs",
+  "proxy/resolve.rs",
+  "proxy/socks5.rs",
+  "proxy/storage.rs",
+  "serial/history/mod.rs",
+  "serial/history/store.rs",
+  "serial/io.rs",
+  "serial/mod.rs",
+  "serial/open.rs",
+  "serial/output.rs",
+  "serial/ports.rs",
+  "serial/reconnect.rs",
+  "serial/session.rs",
+  "serial/xmodem/disk.rs",
+  "serial/xmodem/mod.rs",
+  "serial/xmodem/protocol.rs",
+  "serial/xmodem/receive.rs",
+  "serial/xmodem/transfer.rs",
+  "services/app.rs",
+  "services/mod.rs",
+  "services/session.rs",
+  "services/sftp.rs",
+  "services/shared.rs",
+  "session/mod.rs",
+  "session_log/maintenance.rs",
+  "session_log/manager.rs",
+  "session_log/mod.rs",
+  "session_log/naming.rs",
+  "session_log/plain.rs",
+  "session_log/retention.rs",
+  "session_log/rotating.rs",
+  "session_log/worker.rs",
+  "session_log/writer.rs",
+  "sftp/internal/api.rs",
+  "sftp/internal/api/archive.rs",
+  "sftp/internal/api/archive/operations.rs",
+  "sftp/internal/api/archive/script.rs",
+  "sftp/internal/api/base.rs",
+  "sftp/internal/api/base/operations.rs",
+  "sftp/internal/api/conflict.rs",
+  "sftp/internal/api/delete.rs",
+  "sftp/internal/api/delete/batch.rs",
+  "sftp/internal/api/delete/commands/operations.rs",
+  "sftp/internal/api/delete/recursive.rs",
+  "sftp/internal/api/download.rs",
+  "sftp/internal/api/download/directory.rs",
+  "sftp/internal/api/download/items.rs",
+  "sftp/internal/api/download/operations.rs",
+  "sftp/internal/api/edit.rs",
+  "sftp/internal/api/edit/operations.rs",
+  "sftp/internal/api/external/mod.rs",
+  "sftp/internal/api/external/operations.rs",
+  "sftp/internal/api/external/remote.rs",
+  "sftp/internal/api/external/sessions.rs",
+  "sftp/internal/api/external/watch.rs",
+  "sftp/internal/api/permissions.rs",
+  "sftp/internal/api/permissions/operations.rs",
+  "sftp/internal/api/search.rs",
+  "sftp/internal/api/search/find.rs",
+  "sftp/internal/api/search/matcher.rs",
+  "sftp/internal/api/search/operations.rs",
+  "sftp/internal/api/search/walk.rs",
+  "sftp/internal/api/upload.rs",
+  "sftp/internal/api/upload/batch.rs",
+  "sftp/internal/api/upload/commands/operations.rs",
+  "sftp/internal/api/upload/items.rs",
+  "sftp/internal/api/upload/targets.rs",
+  "sftp/internal/connection.rs",
+  "sftp/internal/exec.rs",
+  "sftp/internal/launcher.rs",
+  "sftp/internal/mod.rs",
+  "sftp/internal/sudo/command.rs",
+  "sftp/internal/sudo/errors.rs",
+  "sftp/internal/sudo/handshake.rs",
+  "sftp/internal/sudo/mod.rs",
+  "sftp/internal/test_support/mod.rs",
+  "sftp/internal/types.rs",
+  "sftp/mod.rs",
+  "ssh/agent.rs",
+  "ssh/auth.rs",
+  "ssh/auth/auto.rs",
+  "ssh/auth/methods.rs",
+  "ssh/auth/prompter.rs",
+  "ssh/client.rs",
+  "ssh/client/output.rs",
+  "ssh/client/reader.rs",
+  "ssh/client/setup.rs",
+  "ssh/context.rs",
+  "ssh/host_key_prompt.rs",
+  "ssh/jump/config.rs",
+  "ssh/jump/connect.rs",
+  "ssh/jump/handler.rs",
+  "ssh/jump/hop.rs",
+  "ssh/jump/mod.rs",
+  "ssh/jump/pool.rs",
+  "ssh/key_file.rs",
+  "ssh/key_vault/entry.rs",
+  "ssh/key_vault/export.rs",
+  "ssh/key_vault/import.rs",
+  "ssh/key_vault/mod.rs",
+  "ssh/key_vault/store.rs",
+  "ssh/mod.rs",
+  "ssh/openssh_known_hosts/mod.rs",
+  "ssh/openssh_known_hosts/verify.rs",
+  "ssh/remote_os.rs",
+  "ssh/secret_store/crypto.rs",
+  "ssh/secret_store/keyring_backend.rs",
+  "ssh/secret_store/legacy.rs",
+  "ssh/secret_store/migration.rs",
+  "ssh/secret_store/mod.rs",
+  "ssh/secret_store/store.rs",
+  "ssh/secret_store/types.rs",
+  "ssh/secret_store/verification.rs",
+  "ssh/shell_integration.rs",
+  "ssh/test_sshd.rs",
+  "ssh/types.rs",
+  "sync/document.rs",
+  "sync/mod.rs",
+  "sync/service.rs",
+  "sync/snapshot.rs",
+  "sync/state.rs",
+  "system_integration/mod.rs",
+  "terminal/cwd_watch.rs",
+  "terminal/encoding.rs",
+  "terminal/foreground.rs",
+  "terminal/io_batcher.rs",
+  "terminal/local_integration.rs",
+  "terminal/mod.rs",
+  "terminal/output.rs",
+  "terminal/output_tail.rs",
+  "terminal/pty.rs",
+  "terminal/reader.rs",
+  "terminal/shell_args.rs",
+  "terminal/shell_integration.rs",
+  "terminal/ssh_query_handler.rs",
+  "terminal/types.rs",
+  "terminal/unix_shell.rs",
+  "terminal/windows_shell.rs",
+  "terminal/wsl_distros.rs",
+  "themes/mod.rs",
+  "tunnel/credentials.rs",
+  "tunnel/hub.rs",
+  "tunnel/manager.rs",
+  "tunnel/mod.rs",
+  "tunnel/runtime.rs",
+  "tunnel/runtime/connections.rs",
+  "tunnel/runtime/reporter.rs",
+  "updater/mod.rs",
+  "zmodem/detect.rs",
+  "zmodem/mod.rs",
+  "zmodem/send.rs",
+  "zmodem/session.rs"
+ ],
+ "edges": {
+  "agent_integration/claude_code.rs": [
+   "agent_integration/hook_input.rs",
+   "agent_integration/hooks.rs",
+   "agent_integration/mod.rs"
+  ],
+  "agent_integration/codex.rs": [
+   "agent_integration/hook_input.rs",
+   "agent_integration/hooks.rs",
+   "agent_integration/mod.rs"
+  ],
+  "agent_integration/commands.rs": [
+   "agent_integration/mod.rs"
+  ],
+  "agent_integration/console_report.rs": [
+   "agent_integration/mod.rs"
+  ],
+  "agent_integration/hook_input.rs": [
+   "agent_integration/claude_code.rs",
+   "agent_integration/codex.rs"
+  ],
+  "agent_integration/hooks.rs": [
+   "agent_integration/codex.rs",
+   "agent_integration/json.rs",
+   "agent_integration/mod.rs"
+  ],
+  "agent_integration/json.rs": [
+   "agent_integration/mod.rs"
+  ],
+  "agent_integration/mod.rs": [
+   "agent_integration/claude_code.rs",
+   "agent_integration/codex.rs",
+   "agent_integration/hooks.rs",
+   "agent_integration/json.rs",
+   "agent_integration/plugin_file.rs",
+   "config/mod.rs"
+  ],
+  "agent_integration/plugin_file.rs": [
+   "agent_integration/mod.rs"
+  ],
+  "agent_integration/remote.rs": [
+   "agent_integration/json.rs",
+   "agent_integration/mod.rs",
+   "sftp/internal/exec.rs",
+   "sftp/internal/types.rs",
+   "ssh/test_sshd.rs"
+  ],
+  "agent_integration/remote_commands.rs": [
+   "agent_integration/mod.rs",
+   "agent_integration/remote.rs",
+   "connection_context.rs",
+   "core/session/types.rs",
+   "services/mod.rs",
+   "sftp/internal/api.rs"
+  ],
+  "app_context.rs": [
+   "background/mod.rs",
+   "background/quit.rs",
+   "background/tray/mod.rs",
+   "connection_context.rs",
+   "services/mod.rs",
+   "tunnel/manager.rs"
+  ],
+  "app_identity.rs": [
+   "services/mod.rs"
+  ],
+  "app_paths.rs": [
+   "services/mod.rs"
+  ],
+  "background/commands.rs": [
+   "app_context.rs",
+   "background/mod.rs",
+   "services/mod.rs",
+   "sftp/internal/api/external/mod.rs"
+  ],
+  "background/exit_guard.rs": [
+   "background/mod.rs",
+   "background/quit.rs",
+   "tunnel/manager.rs"
+  ],
+  "background/exit_guard_commands.rs": [
+   "app_context.rs",
+   "background/exit_guard.rs",
+   "services/mod.rs"
+  ],
+  "background/mod.rs": [
+   "background/exit_guard.rs",
+   "background/quit.rs",
+   "background/tray/mod.rs",
+   "config/mod.rs",
+   "notification/badge.rs",
+   "tunnel/manager.rs"
+  ],
+  "background/quit.rs": [
+   "background/mod.rs"
+  ],
+  "background/quit_commands.rs": [
+   "services/mod.rs"
+  ],
+  "background/tray/commands.rs": [
+   "services/mod.rs"
+  ],
+  "background/tray/mod.rs": [
+   "background/mod.rs",
+   "core/state.rs",
+   "tunnel/manager.rs"
+  ],
+  "backup/apply.rs": [
+   "backup/archive.rs",
+   "backup/automatic.rs",
+   "backup/export.rs",
+   "backup/mod.rs",
+   "backup/remote.rs",
+   "config/local_shells.rs",
+   "config/mod.rs",
+   "notification/sound.rs",
+   "profiles/groups.rs",
+   "profiles/storage.rs",
+   "profiles/types.rs",
+   "proxy/mod.rs",
+   "proxy/storage.rs",
+   "serial/history/mod.rs",
+   "serial/history/store.rs",
+   "ssh/key_file.rs",
+   "ssh/secret_store/crypto.rs",
+   "ssh/secret_store/mod.rs",
+   "ssh/secret_store/store.rs",
+   "sync/mod.rs",
+   "terminal/pty.rs"
+  ],
+  "backup/archive.rs": [
+   "backup/mod.rs",
+   "backup/remote.rs",
+   "config/mod.rs",
+   "profiles/types.rs",
+   "proxy/mod.rs",
+   "ssh/secret_store/types.rs"
+  ],
+  "backup/automatic.rs": [
+   "backup/apply.rs",
+   "backup/archive.rs",
+   "backup/diff.rs",
+   "backup/export.rs",
+   "backup/mod.rs",
+   "backup/remote.rs",
+   "ssh/secret_store/types.rs"
+  ],
+  "backup/commands.rs": [
+   "backup/mod.rs",
+   "backup/service.rs",
+   "services/mod.rs"
+  ],
+  "backup/diff.rs": [
+   "backup/apply.rs",
+   "backup/mod.rs",
+   "backup/remote.rs",
+   "profiles/storage.rs"
+  ],
+  "backup/export.rs": [
+   "backup/apply.rs",
+   "backup/archive.rs",
+   "backup/automatic.rs",
+   "backup/mod.rs",
+   "backup/remote.rs",
+   "config/mod.rs",
+   "notification/sound.rs",
+   "profiles/groups.rs",
+   "profiles/storage.rs",
+   "profiles/types.rs",
+   "proxy/storage.rs",
+   "serial/history/store.rs",
+   "ssh/secret_store/store.rs",
+   "ssh/secret_store/types.rs",
+   "sync/mod.rs",
+   "sync/snapshot.rs"
+  ],
+  "backup/mod.rs": [
+   "backup/apply.rs",
+   "backup/archive.rs",
+   "backup/automatic.rs",
+   "backup/export.rs",
+   "backup/remote.rs",
+   "backup/snapshot.rs",
+   "config/local_shells.rs",
+   "config/mod.rs",
+   "profiles/groups.rs",
+   "profiles/storage.rs",
+   "profiles/types.rs",
+   "proxy/storage.rs",
+   "serial/history/mod.rs",
+   "serial/history/store.rs",
+   "ssh/mod.rs",
+   "ssh/secret_store/crypto.rs",
+   "ssh/secret_store/mod.rs",
+   "ssh/secret_store/store.rs",
+   "ssh/secret_store/types.rs",
+   "ssh/secret_store/verification.rs",
+   "sync/mod.rs"
+  ],
+  "backup/remote.rs": [
+   "backup/archive.rs",
+   "backup/diff.rs",
+   "backup/export.rs",
+   "backup/mod.rs",
+   "backup/remote/files.rs",
+   "ssh/secret_store/store.rs",
+   "ssh/secret_store/types.rs"
+  ],
+  "backup/remote/files.rs": [
+   "backup/remote.rs"
+  ],
+  "backup/remote/service.rs": [
+   "backup/mod.rs",
+   "backup/remote.rs",
+   "backup/remote/files.rs",
+   "ssh/secret_store/mod.rs",
+   "ssh/secret_store/store.rs",
+   "ssh/secret_store/types.rs",
+   "ssh/secret_store/verification.rs"
+  ],
+  "backup/remote_commands.rs": [
+   "backup/remote.rs",
+   "backup/remote/service.rs",
+   "services/mod.rs"
+  ],
+  "backup/service.rs": [
+   "backup/automatic.rs",
+   "backup/mod.rs",
+   "ssh/secret_store/types.rs"
+  ],
+  "backup/snapshot.rs": [
+   "backup/apply.rs",
+   "backup/archive.rs",
+   "backup/mod.rs",
+   "backup/remote.rs",
+   "notification/sound.rs",
+   "profiles/groups.rs",
+   "profiles/storage.rs",
+   "profiles/types.rs",
+   "proxy/mod.rs",
+   "proxy/storage.rs",
+   "serial/history/mod.rs",
+   "serial/history/store.rs",
+   "ssh/secret_store/mod.rs",
+   "ssh/secret_store/store.rs",
+   "sync/mod.rs"
+  ],
+  "clipboard_files.rs": [
+   "services/mod.rs"
+  ],
+  "config/commands.rs": [
+   "app_context.rs",
+   "background/mod.rs",
+   "background/tray/mod.rs",
+   "config/mod.rs",
+   "config/save.rs",
+   "connection_context.rs",
+   "services/mod.rs",
+   "session_log/mod.rs",
+   "system_integration/mod.rs",
+   "tunnel/manager.rs"
+  ],
+  "config/defaults.rs": [
+   "config/mod.rs"
+  ],
+  "config/deserialize.rs": [
+   "config/defaults.rs"
+  ],
+  "config/local_shells.rs": [
+   "config/mod.rs"
+  ],
+  "config/mod.rs": [
+   "config/defaults.rs",
+   "config/deserialize.rs",
+   "config/local_shells.rs",
+   "terminal/pty.rs"
+  ],
+  "config/reconnect.rs": [
+   "config/defaults.rs",
+   "config/mod.rs"
+  ],
+  "config/save.rs": [
+   "config/mod.rs",
+   "session_log/mod.rs",
+   "sftp/internal/api.rs"
+  ],
+  "config/window_background.rs": [
+   "config/mod.rs"
+  ],
+  "config/window_background_commands.rs": [
+   "config/window_background.rs"
+  ],
+  "connection_context.rs": [
+   "services/mod.rs",
+   "session_log/mod.rs",
+   "sftp/internal/connection.rs",
+   "ssh/context.rs"
+  ],
+  "core/channel_test_support.rs": [
+   "core/state.rs"
+  ],
+  "core/commands/arguments.rs": [
+   "core/commands/batch_write.rs",
+   "ssh/context.rs",
+   "ssh/secret_store/types.rs"
+  ],
+  "core/commands/batch_write.rs": [
+   "core/state.rs",
+   "terminal/io_batcher.rs",
+   "terminal/output.rs",
+   "terminal/types.rs"
+  ],
+  "core/commands/create.rs": [
+   "core/session/mod.rs",
+   "core/session/stop.rs",
+   "core/session/types.rs",
+   "core/state.rs",
+   "core/supervisor.rs",
+   "serial/session.rs",
+   "session_log/mod.rs",
+   "ssh/context.rs",
+   "ssh/secret_store/types.rs",
+   "terminal/cwd_watch.rs",
+   "terminal/io_batcher.rs",
+   "terminal/mod.rs",
+   "terminal/output.rs",
+   "terminal/pty.rs",
+   "terminal/reader.rs",
+   "zmodem/session.rs"
+  ],
+  "core/commands/mod.rs": [
+   "connection_context.rs",
+   "core/session/mod.rs",
+   "core/session/stop.rs",
+   "core/session/types.rs",
+   "core/state.rs",
+   "services/mod.rs",
+   "session_log/mod.rs",
+   "session_sink.rs",
+   "session_sink/output.rs",
+   "ssh/context.rs",
+   "ssh/secret_store/types.rs",
+   "terminal/mod.rs",
+   "zmodem/session.rs"
+  ],
+  "core/session/mod.rs": [
+   "config/mod.rs",
+   "config/reconnect.rs",
+   "core/mod.rs",
+   "core/session/saved_hops.rs",
+   "core/state.rs",
+   "profiles/storage.rs",
+   "proxy/resolve.rs",
+   "serial/mod.rs",
+   "session_log/mod.rs",
+   "ssh/secret_store/types.rs",
+   "terminal/encoding.rs"
+  ],
+  "core/session/saved_hops.rs": [
+   "core/session/mod.rs",
+   "core/session/types.rs",
+   "profiles/storage.rs",
+   "profiles/types.rs",
+   "ssh/secret_store/types.rs"
+  ],
+  "core/session/stop.rs": [
+   "core/state.rs"
+  ],
+  "core/session/types.rs": [
+   "core/state.rs",
+   "proxy/mod.rs",
+   "serial/mod.rs",
+   "session_log/mod.rs",
+   "ssh/auth.rs",
+   "terminal/encoding.rs"
+  ],
+  "core/state.rs": [
+   "serial/mod.rs",
+   "serial/session.rs",
+   "terminal/encoding.rs",
+   "terminal/output.rs",
+   "terminal/output_tail.rs",
+   "terminal/types.rs"
+  ],
+  "core/supervisor.rs": [
+   "core/mod.rs",
+   "core/session/types.rs",
+   "core/state.rs",
+   "serial/reconnect.rs",
+   "session_log/mod.rs",
+   "ssh/client.rs",
+   "ssh/context.rs",
+   "terminal/io_batcher.rs",
+   "terminal/output_tail.rs",
+   "terminal/types.rs",
+   "zmodem/session.rs"
+  ],
+  "db/legacy_import.rs": [
+   "backup/automatic.rs",
+   "backup/remote.rs",
+   "config/window_background.rs",
+   "profiles/groups.rs",
+   "profiles/storage.rs",
+   "profiles/types.rs",
+   "sync/mod.rs"
+  ],
+  "drag_out/mod.rs": [
+   "platform/mod.rs",
+   "services/mod.rs"
+  ],
+  "event_sink.rs": [
+   "event_sink/background.rs",
+   "event_sink/launch_dir.rs",
+   "event_sink/notification.rs",
+   "event_sink/proxy.rs",
+   "event_sink/serial.rs",
+   "event_sink/session_log.rs",
+   "event_sink/sftp.rs",
+   "event_sink/ssh.rs",
+   "event_sink/terminal.rs",
+   "event_sink/tunnel.rs",
+   "event_sink/zmodem.rs"
+  ],
+  "event_sink/contracts/sftp_delete.rs": [
+   "event_sink.rs"
+  ],
+  "event_sink/contracts/sftp_download.rs": [
+   "event_sink.rs"
+  ],
+  "event_sink/contracts/sftp_external.rs": [
+   "event_sink.rs"
+  ],
+  "event_sink/contracts/sftp_search.rs": [
+   "event_sink/search.rs",
+   "sftp/internal/api/search.rs"
+  ],
+  "event_sink/contracts/sftp_upload.rs": [
+   "event_sink.rs"
+  ],
+  "event_sink/contracts/terminal_legacy_output.rs": [
+   "event_sink.rs"
+  ],
+  "event_sink/p1_03_tests/background.rs": [
+   "event_sink.rs"
+  ],
+  "event_sink/p1_03_tests/other.rs": [
+   "event_sink.rs"
+  ],
+  "event_sink/p1_03_tests/session_log.rs": [
+   "event_sink.rs"
+  ],
+  "event_sink/p1_03_tests/ssh.rs": [
+   "event_sink.rs"
+  ],
+  "event_sink/p1_03_tests/transfer.rs": [
+   "event_sink.rs"
+  ],
+  "event_sink/tunnel.rs": [
+   "event_sink.rs"
+  ],
+  "launch_dir/commands.rs": [
+   "services/mod.rs"
+  ],
+  "lib.rs": [
+   "agent_integration/commands.rs",
+   "agent_integration/console_report.rs",
+   "agent_integration/remote_commands.rs",
+   "app_context.rs",
+   "app_identity.rs",
+   "app_paths.rs",
+   "app_state/commands.rs",
+   "background/commands.rs",
+   "background/exit_guard.rs",
+   "background/exit_guard_commands.rs",
+   "background/mod.rs",
+   "background/quit.rs",
+   "background/quit_commands.rs",
+   "background/tray/commands.rs",
+   "background/tray/mod.rs",
+   "backup/commands.rs",
+   "backup/remote.rs",
+   "backup/remote_commands.rs",
+   "clipboard_files.rs",
+   "command_library/commands.rs",
+   "config/commands.rs",
+   "config/mod.rs",
+   "config/window_background_commands.rs",
+   "connection_context.rs",
+   "core/agent_resume_commands.rs",
+   "core/commands/mod.rs",
+   "core/state.rs",
+   "db/legacy_import.rs",
+   "drag_out/mod.rs",
+   "event_sink.rs",
+   "fonts/commands.rs",
+   "ime_focus.rs",
+   "launch_dir/commands.rs",
+   "main_window.rs",
+   "migrate.rs",
+   "monitor/commands.rs",
+   "monitor/prompts.rs",
+   "monitor/types.rs",
+   "notification/badge_commands.rs",
+   "notification/commands.rs",
+   "notification/mod.rs",
+   "platform/mod.rs",
+   "profiles/commands.rs",
+   "profiles/commands/groups.rs",
+   "proxy/approval_commands.rs",
+   "proxy/commands.rs",
+   "serial/commands.rs",
+   "serial/history/commands.rs",
+   "serial/xmodem/commands.rs",
+   "services/app.rs",
+   "services/mod.rs",
+   "services/session.rs",
+   "services/sftp.rs",
+   "services/shared.rs",
+   "session/commands.rs",
+   "session/scrollback_commands.rs",
+   "session_log/commands.rs",
+   "session_log/mod.rs",
+   "sftp/internal/api.rs",
+   "sftp/internal/api/archive_commands.rs",
+   "sftp/internal/api/base_commands.rs",
+   "sftp/internal/api/delete/commands/mod.rs",
+   "sftp/internal/api/download_commands.rs",
+   "sftp/internal/api/edit_commands.rs",
+   "sftp/internal/api/external/commands.rs",
+   "sftp/internal/api/external/mod.rs",
+   "sftp/internal/api/permissions_commands.rs",
+   "sftp/internal/api/search_commands.rs",
+   "sftp/internal/api/upload/commands/mod.rs",
+   "sftp/internal/connection.rs",
+   "sftp/internal/types.rs",
+   "ssh/auth_commands.rs",
+   "ssh/key_vault/commands.rs",
+   "ssh/key_vault/mod.rs",
+   "ssh/known_host_commands.rs",
+   "ssh/secret_commands.rs",
+   "ssh/secret_store/types.rs",
+   "ssh/typed_passwords_commands.rs",
+   "sync/commands.rs",
+   "system_integration/commands.rs",
+   "system_integration/mod.rs",
+   "terminal/foreground_commands.rs",
+   "terminal/mod.rs",
+   "terminal/pty.rs",
+   "terminal/pty_commands.rs",
+   "themes/commands.rs",
+   "tunnel/commands.rs",
+   "tunnel/manager.rs",
+   "updater/commands.rs",
+   "window_blur.rs",
+   "window_state/mod.rs",
+   "zmodem/commands.rs"
+  ],
+  "main_window.rs": [
+   "config/mod.rs",
+   "config/window_background.rs",
+   "window_blur.rs",
+   "window_state/mod.rs"
+  ],
+  "migrate.rs": [
+   "app_paths.rs",
+   "db/legacy_import.rs",
+   "profiles/mod.rs",
+   "profiles/types.rs",
+   "ssh/mod.rs",
+   "ssh/secret_store/legacy.rs",
+   "ssh/secret_store/store.rs"
+  ],
+  "monitor/commands.rs": [
+   "connection_context.rs",
+   "core/session/types.rs",
+   "monitor/mod.rs",
+   "monitor/types.rs",
+   "services/mod.rs"
+  ],
+  "monitor/metrics/bsd.rs": [
+   "monitor/metrics/mod.rs",
+   "monitor/types.rs"
+  ],
+  "monitor/metrics/darwin.rs": [
+   "monitor/metrics/bsd.rs",
+   "monitor/metrics/mod.rs",
+   "monitor/types.rs"
+  ],
+  "monitor/metrics/freebsd.rs": [
+   "monitor/metrics/bsd.rs",
+   "monitor/metrics/mod.rs",
+   "monitor/types.rs"
+  ],
+  "monitor/metrics/linux.rs": [
+   "monitor/metrics/mod.rs",
+   "monitor/types.rs"
+  ],
+  "monitor/metrics/mod.rs": [
+   "monitor/metrics/bsd.rs",
+   "monitor/metrics/darwin.rs",
+   "monitor/metrics/freebsd.rs",
+   "monitor/metrics/linux.rs",
+   "monitor/types.rs",
+   "sftp/internal/exec.rs",
+   "ssh/test_sshd.rs"
+  ],
+  "monitor/mod.rs": [
+   "core/session/mod.rs",
+   "core/session/types.rs",
+   "core/state.rs",
+   "monitor/prompts.rs",
+   "monitor/session.rs",
+   "monitor/types.rs",
+   "ssh/context.rs",
+   "ssh/secret_store/types.rs"
+  ],
+  "monitor/prompts.rs": [
+   "monitor/mod.rs",
+   "prompt_scope.rs"
+  ],
+  "monitor/session.rs": [
+   "core/session/types.rs",
+   "monitor/metrics/mod.rs",
+   "monitor/mod.rs",
+   "monitor/prompts.rs",
+   "monitor/types.rs",
+   "prompt_scope.rs",
+   "sftp/internal/exec.rs",
+   "ssh/auth.rs",
+   "ssh/context.rs",
+   "ssh/host_key_prompt.rs",
+   "ssh/jump/connect.rs",
+   "ssh/mod.rs",
+   "ssh/types.rs"
+  ],
+  "monitor/types.rs": [
+   "monitor/metrics/mod.rs",
+   "ssh/jump/connect.rs",
+   "ssh/types.rs"
+  ],
+  "notification/badge.rs": [
+   "notification/mod.rs"
+  ],
+  "notification/badge_commands.rs": [
+   "notification/badge.rs",
+   "services/mod.rs"
+  ],
+  "notification/commands.rs": [
+   "notification/mod.rs",
+   "notification/sound.rs",
+   "services/mod.rs"
+  ],
+  "notification/mod.rs": [
+   "background/mod.rs"
+  ],
+  "notification/sound.rs": [
+   "notification/mod.rs"
+  ],
+  "platform/badge.rs": [
+   "app_identity.rs"
+  ],
+  "platform/mod.rs": [
+   "platform/badge.rs",
+   "platform/clipboard.rs",
+   "platform/open.rs",
+   "platform/tray.rs",
+   "platform/updates.rs",
+   "platform/verification.rs",
+   "platform/window.rs",
+   "services/shared.rs"
+  ],
+  "platform/tray.rs": [
+   "background/tray/mod.rs",
+   "platform/mod.rs",
+   "platform/tray_native.rs"
+  ],
+  "platform/tray_native.rs": [
+   "app_context.rs",
+   "background/mod.rs",
+   "background/tray/mod.rs",
+   "platform/mod.rs",
+   "services/mod.rs",
+   "sftp/internal/api/external/mod.rs"
+  ],
+  "platform/updates.rs": [
+   "platform/mod.rs"
+  ],
+  "platform/window.rs": [
+   "notification/badge.rs",
+   "platform/tray_native.rs",
+   "services/mod.rs",
+   "window_state/mod.rs"
+  ],
+  "profiles/commands.rs": [
+   "connection_context.rs",
+   "profiles/service.rs",
+   "profiles/types.rs",
+   "services/mod.rs"
+  ],
+  "profiles/commands/connection_check.rs": [
+   "core/session/types.rs",
+   "core/state.rs",
+   "profiles/storage.rs",
+   "profiles/types.rs",
+   "ssh/auth.rs",
+   "ssh/context.rs",
+   "ssh/mod.rs",
+   "ssh/types.rs"
+  ],
+  "profiles/commands/groups.rs": [
+   "profiles/group_service.rs",
+   "profiles/mod.rs",
+   "profiles/types.rs"
+  ],
+  "profiles/commands/import.rs": [
+   "profiles/commands/import/proxy.rs",
+   "profiles/groups.rs",
+   "profiles/parser/mod.rs",
+   "profiles/storage.rs",
+   "profiles/types.rs"
+  ],
+  "profiles/commands/import/proxy.rs": [
+   "profiles/commands/import.rs",
+   "profiles/types.rs",
+   "proxy/mod.rs",
+   "proxy/storage.rs"
+  ],
+  "profiles/group_service.rs": [
+   "profiles/groups.rs",
+   "profiles/storage.rs",
+   "profiles/types.rs"
+  ],
+  "profiles/groups.rs": [
+   "profiles/storage.rs",
+   "profiles/types.rs"
+  ],
+  "profiles/parser/host.rs": [
+   "profiles/parser/jump.rs",
+   "profiles/parser/parse.rs",
+   "profiles/parser/proxy_command.rs",
+   "profiles/parser/tokens.rs",
+   "profiles/types.rs",
+   "proxy/command.rs"
+  ],
+  "profiles/parser/include.rs": [
+   "profiles/parser/parse.rs"
+  ],
+  "profiles/parser/jump.rs": [
+   "profiles/parser/host.rs",
+   "profiles/parser/parse.rs",
+   "profiles/parser/resolve.rs",
+   "profiles/parser/tokens.rs",
+   "profiles/types.rs"
+  ],
+  "profiles/parser/known_hosts.rs": [
+   "profiles/parser/host.rs",
+   "profiles/parser/jump.rs",
+   "profiles/parser/parse.rs",
+   "profiles/parser/resolve.rs",
+   "profiles/parser/tokens.rs"
+  ],
+  "profiles/parser/mod.rs": [
+   "profiles/parser/host.rs",
+   "profiles/parser/include.rs",
+   "profiles/parser/known_hosts.rs",
+   "profiles/parser/parse.rs",
+   "profiles/parser/resolve.rs",
+   "profiles/storage.rs",
+   "profiles/types.rs",
+   "proxy/mod.rs"
+  ],
+  "profiles/parser/parse.rs": [
+   "profiles/parser/include.rs",
+   "profiles/parser/tokens.rs"
+  ],
+  "profiles/parser/proxy_command.rs": [
+   "profiles/parser/mod.rs",
+   "proxy/mod.rs"
+  ],
+  "profiles/parser/resolve.rs": [
+   "profiles/parser/parse.rs",
+   "profiles/types.rs"
+  ],
+  "profiles/parser/tokens.rs": [
+   "profiles/parser/mod.rs"
+  ],
+  "profiles/service.rs": [
+   "core/session/mod.rs",
+   "core/session/saved_hops.rs",
+   "core/session/types.rs",
+   "profiles/commands/connection_check.rs",
+   "profiles/commands/import.rs",
+   "profiles/groups.rs",
+   "profiles/mod.rs",
+   "profiles/parser/mod.rs",
+   "profiles/storage.rs",
+   "profiles/types.rs",
+   "prompt_scope.rs",
+   "proxy/command.rs",
+   "ssh/auth.rs",
+   "ssh/client.rs",
+   "ssh/context.rs",
+   "ssh/jump/config.rs",
+   "ssh/jump/connect.rs",
+   "ssh/mod.rs",
+   "ssh/secret_store/types.rs",
+   "ssh/types.rs",
+   "tunnel/manager.rs"
+  ],
+  "profiles/storage.rs": [
+   "core/session/types.rs",
+   "profiles/mod.rs",
+   "profiles/types.rs",
+   "proxy/mod.rs",
+   "proxy/storage.rs",
+   "ssh/secret_store/types.rs"
+  ],
+  "profiles/types.rs": [
+   "profiles/mod.rs",
+   "proxy/mod.rs",
+   "serial/mod.rs"
+  ],
+  "prompt_contract_tests.rs": [
+   "event_sink.rs"
+  ],
+  "prompt_scope.rs": [
+   "core/state.rs",
+   "ssh/types.rs"
+  ],
+  "proxy/approval.rs": [
+   "prompt_scope.rs",
+   "proxy/mod.rs",
+   "ssh/types.rs"
+  ],
+  "proxy/approval_commands.rs": [
+   "proxy/approval.rs",
+   "services/mod.rs"
+  ],
+  "proxy/command.rs": [
+   "ssh/types.rs"
+  ],
+  "proxy/commands.rs": [
+   "proxy/mod.rs",
+   "services/mod.rs"
+  ],
+  "proxy/connect.rs": [
+   "proxy/approval.rs",
+   "proxy/command.rs",
+   "proxy/http_connect.rs",
+   "proxy/mod.rs",
+   "proxy/socks5.rs",
+   "ssh/types.rs"
+  ],
+  "proxy/http_connect.rs": [
+   "proxy/connect.rs",
+   "proxy/mod.rs"
+  ],
+  "proxy/mod.rs": [
+   "proxy/approval.rs",
+   "proxy/command.rs",
+   "proxy/connect.rs",
+   "proxy/storage.rs",
+   "ssh/auth.rs",
+   "ssh/jump/config.rs",
+   "ssh/secret_store/types.rs",
+   "ssh/test_sshd.rs",
+   "ssh/types.rs"
+  ],
+  "proxy/resolve.rs": [
+   "config/mod.rs",
+   "proxy/mod.rs",
+   "proxy/storage.rs",
+   "ssh/secret_store/types.rs"
+  ],
+  "proxy/socks5.rs": [
+   "proxy/connect.rs",
+   "proxy/mod.rs"
+  ],
+  "proxy/storage.rs": [
+   "proxy/mod.rs"
+  ],
+  "serial/commands.rs": [
+   "connection_context.rs",
+   "serial/mod.rs",
+   "services/mod.rs"
+  ],
+  "serial/history/commands.rs": [
+   "serial/history/mod.rs"
+  ],
+  "serial/history/mod.rs": [
+   "profiles/storage.rs",
+   "serial/history/store.rs"
+  ],
+  "serial/history/store.rs": [
+   "serial/history/mod.rs"
+  ],
+  "serial/io.rs": [
+   "serial/open.rs"
+  ],
+  "serial/mod.rs": [
+   "core/session/mod.rs",
+   "core/session/types.rs",
+   "core/state.rs",
+   "profiles/types.rs",
+   "serial/io.rs",
+   "serial/open.rs",
+   "serial/output.rs",
+   "serial/ports.rs",
+   "serial/session.rs",
+   "session_log/mod.rs",
+   "terminal/encoding.rs",
+   "terminal/reader.rs"
+  ],
+  "serial/open.rs": [
+   "serial/mod.rs",
+   "serial/ports.rs"
+  ],
+  "serial/output.rs": [
+   "serial/mod.rs",
+   "terminal/encoding.rs",
+   "terminal/reader.rs"
+  ],
+  "serial/ports.rs": [
+   "serial/mod.rs"
+  ],
+  "serial/reconnect.rs": [
+   "core/supervisor.rs",
+   "serial/ports.rs",
+   "serial/session.rs"
+  ],
+  "serial/session.rs": [
+   "core/supervisor.rs",
+   "serial/io.rs",
+   "serial/mod.rs",
+   "serial/open.rs",
+   "serial/output.rs",
+   "serial/ports.rs",
+   "terminal/encoding.rs",
+   "terminal/io_batcher.rs",
+   "terminal/reader.rs",
+   "terminal/types.rs",
+   "zmodem/session.rs"
+  ],
+  "serial/xmodem/commands.rs": [
+   "serial/xmodem/mod.rs",
+   "services/mod.rs"
+  ],
+  "serial/xmodem/disk.rs": [
+   "serial/xmodem/mod.rs",
+   "serial/xmodem/protocol.rs",
+   "serial/xmodem/receive.rs",
+   "serial/xmodem/transfer.rs"
+  ],
+  "serial/xmodem/mod.rs": [
+   "core/state.rs",
+   "serial/mod.rs",
+   "serial/xmodem/disk.rs",
+   "serial/xmodem/protocol.rs",
+   "serial/xmodem/receive.rs",
+   "serial/xmodem/transfer.rs"
+  ],
+  "serial/xmodem/protocol.rs": [
+   "serial/xmodem/mod.rs"
+  ],
+  "serial/xmodem/receive.rs": [
+   "serial/xmodem/protocol.rs"
+  ],
+  "serial/xmodem/transfer.rs": [
+   "core/state.rs",
+   "serial/io.rs",
+   "serial/xmodem/mod.rs",
+   "serial/xmodem/protocol.rs",
+   "terminal/types.rs"
+  ],
+  "services/app.rs": [
+   "background/exit_guard.rs",
+   "background/mod.rs",
+   "background/quit.rs",
+   "background/tray/mod.rs",
+   "session_log/mod.rs",
+   "tunnel/manager.rs"
+  ],
+  "services/mod.rs": [
+   "background/exit_guard.rs",
+   "background/mod.rs",
+   "background/quit.rs",
+   "background/tray/mod.rs",
+   "core/state.rs",
+   "monitor/prompts.rs",
+   "monitor/types.rs",
+   "services/app.rs",
+   "services/session.rs",
+   "services/sftp.rs",
+   "services/shared.rs",
+   "session_log/mod.rs",
+   "sftp/internal/api/external/mod.rs",
+   "sftp/internal/types.rs",
+   "ssh/secret_store/types.rs",
+   "tunnel/manager.rs"
+  ],
+  "services/session.rs": [
+   "core/state.rs",
+   "monitor/prompts.rs",
+   "monitor/types.rs"
+  ],
+  "services/sftp.rs": [
+   "sftp/internal/api/external/mod.rs",
+   "sftp/internal/mod.rs",
+   "sftp/internal/types.rs"
+  ],
+  "services/shared.rs": [
+   "ssh/secret_store/types.rs"
+  ],
+  "session_log/commands.rs": [
+   "connection_context.rs",
+   "services/mod.rs",
+   "session_log/mod.rs"
+  ],
+  "session_log/maintenance.rs": [
+   "session_log/mod.rs",
+   "session_log/retention.rs",
+   "session_log/rotating.rs"
+  ],
+  "session_log/manager.rs": [
+   "config/mod.rs",
+   "core/session/types.rs",
+   "session_log/mod.rs",
+   "session_log/retention.rs",
+   "session_log/rotating.rs",
+   "session_log/worker.rs",
+   "session_log/writer.rs"
+  ],
+  "session_log/mod.rs": [
+   "config/mod.rs",
+   "core/session/mod.rs",
+   "core/session/types.rs",
+   "core/state.rs",
+   "session_log/manager.rs",
+   "session_log/naming.rs",
+   "session_log/plain.rs",
+   "session_log/retention.rs",
+   "session_log/rotating.rs"
+  ],
+  "session_log/naming.rs": [
+   "session_log/mod.rs"
+  ],
+  "session_log/plain.rs": [
+   "session_log/mod.rs"
+  ],
+  "session_log/retention.rs": [
+   "session_log/mod.rs"
+  ],
+  "session_log/rotating.rs": [
+   "session_log/mod.rs",
+   "session_log/naming.rs"
+  ],
+  "session_log/worker.rs": [
+   "session_log/mod.rs",
+   "session_log/writer.rs"
+  ],
+  "session_log/writer.rs": [
+   "session_log/mod.rs",
+   "session_log/naming.rs",
+   "session_log/plain.rs",
+   "session_log/rotating.rs"
+  ],
+  "session_sink.rs": [
+   "event_sink.rs",
+   "session_sink/output.rs",
+   "terminal/output.rs"
+  ],
+  "session_sink/contracts/terminal_legacy_exit.rs": [
+   "session_sink.rs",
+   "session_sink/output.rs"
+  ],
+  "session_sink/output.rs": [
+   "terminal/io_batcher.rs",
+   "terminal/output.rs"
+  ],
+  "sftp/internal/api.rs": [
+   "config/mod.rs",
+   "core/session/types.rs",
+   "sftp/internal/connection.rs",
+   "sftp/internal/mod.rs",
+   "sftp/internal/types.rs",
+   "ssh/secret_store/types.rs"
+  ],
+  "sftp/internal/api/archive.rs": [
+   "sftp/internal/api.rs",
+   "sftp/internal/api/archive/script.rs",
+   "sftp/internal/exec.rs",
+   "sftp/internal/launcher.rs",
+   "ssh/test_sshd.rs"
+  ],
+  "sftp/internal/api/archive/operations.rs": [
+   "core/session/types.rs",
+   "sftp/internal/api.rs",
+   "sftp/internal/api/archive.rs",
+   "sftp/internal/connection.rs",
+   "sftp/internal/types.rs",
+   "ssh/secret_store/types.rs"
+  ],
+  "sftp/internal/api/archive/script.rs": [
+   "sftp/internal/api/archive.rs",
+   "sftp/internal/exec.rs"
+  ],
+  "sftp/internal/api/archive_commands.rs": [
+   "connection_context.rs",
+   "core/session/types.rs",
+   "services/mod.rs",
+   "sftp/internal/api/archive.rs",
+   "sftp/internal/api/archive/operations.rs"
+  ],
+  "sftp/internal/api/base.rs": [
+   "core/session/types.rs",
+   "sftp/internal/api/permissions.rs",
+   "sftp/internal/connection.rs"
+  ],
+  "sftp/internal/api/base/operations.rs": [
+   "core/session/types.rs",
+   "sftp/internal/api/base.rs",
+   "sftp/internal/connection.rs",
+   "sftp/internal/types.rs",
+   "ssh/secret_store/types.rs"
+  ],
+  "sftp/internal/api/base_commands.rs": [
+   "connection_context.rs",
+   "core/session/types.rs",
+   "services/mod.rs",
+   "sftp/internal/api/base/operations.rs",
+   "sftp/internal/types.rs"
+  ],
+  "sftp/internal/api/conflict.rs": [
+   "sftp/internal/api.rs"
+  ],
+  "sftp/internal/api/delete.rs": [
+   "sftp/internal/connection.rs",
+   "sftp/internal/exec.rs",
+   "sftp/internal/launcher.rs",
+   "sftp/internal/test_support/mod.rs"
+  ],
+  "sftp/internal/api/delete/batch.rs": [
+   "core/session/types.rs",
+   "sftp/internal/api/delete.rs",
+   "sftp/internal/connection.rs",
+   "sftp/internal/types.rs"
+  ],
+  "sftp/internal/api/delete/commands/mod.rs": [
+   "connection_context.rs",
+   "core/session/types.rs",
+   "services/mod.rs",
+   "sftp/internal/api/delete.rs"
+  ],
+  "sftp/internal/api/delete/commands/operations.rs": [
+   "core/session/types.rs",
+   "sftp/internal/api/delete.rs",
+   "sftp/internal/api/delete/batch.rs",
+   "sftp/internal/api/delete/recursive.rs",
+   "sftp/internal/connection.rs",
+   "sftp/internal/types.rs",
+   "ssh/secret_store/types.rs"
+  ],
+  "sftp/internal/api/delete/recursive.rs": [
+   "sftp/internal/connection.rs"
+  ],
+  "sftp/internal/api/download.rs": [
+   "sftp/internal/api.rs",
+   "sftp/internal/types.rs"
+  ],
+  "sftp/internal/api/download/directory.rs": [
+   "sftp/internal/api/conflict.rs",
+   "sftp/internal/api/download.rs",
+   "sftp/internal/api/download/items.rs",
+   "sftp/internal/connection.rs",
+   "sftp/internal/types.rs",
+   "ssh/auth.rs",
+   "ssh/test_sshd.rs"
+  ],
+  "sftp/internal/api/download/items.rs": [
+   "sftp/internal/api/download.rs",
+   "sftp/internal/api/download/directory.rs"
+  ],
+  "sftp/internal/api/download/operations.rs": [
+   "core/session/types.rs",
+   "sftp/internal/api.rs",
+   "sftp/internal/api/conflict.rs",
+   "sftp/internal/api/download.rs",
+   "sftp/internal/api/download/directory.rs",
+   "sftp/internal/connection.rs",
+   "sftp/internal/types.rs",
+   "ssh/secret_store/types.rs"
+  ],
+  "sftp/internal/api/download_commands.rs": [
+   "connection_context.rs",
+   "core/session/types.rs",
+   "services/mod.rs",
+   "sftp/internal/api/conflict.rs",
+   "sftp/internal/api/download/operations.rs"
+  ],
+  "sftp/internal/api/edit.rs": [
+   "sftp/internal/api/permissions.rs",
+   "sftp/internal/connection.rs"
+  ],
+  "sftp/internal/api/edit/operations.rs": [
+   "core/session/types.rs",
+   "sftp/internal/api/edit.rs",
+   "sftp/internal/connection.rs",
+   "sftp/internal/types.rs",
+   "ssh/secret_store/types.rs"
+  ],
+  "sftp/internal/api/edit_commands.rs": [
+   "connection_context.rs",
+   "core/session/types.rs",
+   "services/mod.rs",
+   "sftp/internal/api/edit.rs",
+   "sftp/internal/api/edit/operations.rs"
+  ],
+  "sftp/internal/api/external/commands.rs": [
+   "connection_context.rs",
+   "core/session/types.rs",
+   "services/mod.rs",
+   "sftp/internal/api/external/mod.rs",
+   "sftp/internal/api/external/operations.rs"
+  ],
+  "sftp/internal/api/external/mod.rs": [
+   "core/session/types.rs",
+   "sftp/internal/api.rs",
+   "sftp/internal/api/download.rs",
+   "sftp/internal/api/external/operations.rs",
+   "sftp/internal/api/external/remote.rs",
+   "sftp/internal/api/external/sessions.rs",
+   "sftp/internal/api/external/watch.rs",
+   "sftp/internal/connection.rs",
+   "sftp/internal/launcher.rs",
+   "sftp/internal/test_support/mod.rs",
+   "sftp/internal/types.rs",
+   "ssh/test_sshd.rs"
+  ],
+  "sftp/internal/api/external/operations.rs": [
+   "core/session/types.rs",
+   "sftp/internal/api/external/mod.rs",
+   "sftp/internal/connection.rs",
+   "sftp/internal/types.rs",
+   "ssh/secret_store/types.rs"
+  ],
+  "sftp/internal/api/external/remote.rs": [
+   "sftp/internal/connection.rs"
+  ],
+  "sftp/internal/api/external/sessions.rs": [
+   "sftp/internal/api/external/mod.rs",
+   "sftp/internal/api/external/remote.rs",
+   "sftp/internal/api/external/watch.rs"
+  ],
+  "sftp/internal/api/external/watch.rs": [
+   "sftp/internal/api/external/mod.rs"
+  ],
+  "sftp/internal/api/permissions.rs": [
+   "sftp/internal/api.rs",
+   "sftp/internal/connection.rs",
+   "ssh/auth.rs",
+   "ssh/test_sshd.rs"
+  ],
+  "sftp/internal/api/permissions/operations.rs": [
+   "core/session/types.rs",
+   "sftp/internal/api/permissions.rs",
+   "sftp/internal/connection.rs",
+   "sftp/internal/types.rs",
+   "ssh/secret_store/types.rs"
+  ],
+  "sftp/internal/api/permissions_commands.rs": [
+   "connection_context.rs",
+   "core/session/types.rs",
+   "services/mod.rs",
+   "sftp/internal/api/permissions/operations.rs"
+  ],
+  "sftp/internal/api/search.rs": [
+   "sftp/internal/api.rs",
+   "sftp/internal/api/search/find.rs",
+   "sftp/internal/api/search/matcher.rs",
+   "sftp/internal/api/search/walk.rs",
+   "sftp/internal/connection.rs",
+   "sftp/internal/launcher.rs",
+   "sftp/internal/test_support/mod.rs",
+   "sftp/internal/types.rs",
+   "ssh/test_sshd.rs"
+  ],
+  "sftp/internal/api/search/find.rs": [
+   "sftp/internal/api/base.rs",
+   "sftp/internal/api/search.rs",
+   "sftp/internal/api/search/matcher.rs",
+   "sftp/internal/exec.rs",
+   "sftp/internal/launcher.rs"
+  ],
+  "sftp/internal/api/search/matcher.rs": [
+   "sftp/internal/api/search.rs"
+  ],
+  "sftp/internal/api/search/operations.rs": [
+   "core/session/types.rs",
+   "sftp/internal/api.rs",
+   "sftp/internal/api/search.rs",
+   "sftp/internal/connection.rs",
+   "sftp/internal/types.rs",
+   "ssh/secret_store/types.rs"
+  ],
+  "sftp/internal/api/search/walk.rs": [
+   "sftp/internal/api/base.rs",
+   "sftp/internal/api/search.rs",
+   "sftp/internal/api/search/matcher.rs",
+   "sftp/internal/connection.rs",
+   "sftp/internal/exec.rs"
+  ],
+  "sftp/internal/api/search_commands.rs": [
+   "connection_context.rs",
+   "core/session/types.rs",
+   "event_sink/search.rs",
+   "services/mod.rs",
+   "sftp/internal/api/search.rs",
+   "sftp/internal/api/search/operations.rs"
+  ],
+  "sftp/internal/api/upload.rs": [
+   "sftp/internal/api.rs",
+   "sftp/internal/api/download.rs",
+   "sftp/internal/launcher.rs",
+   "sftp/internal/test_support/mod.rs",
+   "sftp/internal/types.rs"
+  ],
+  "sftp/internal/api/upload/batch.rs": [
+   "sftp/internal/api/upload.rs",
+   "sftp/internal/api/upload/items.rs",
+   "sftp/internal/types.rs"
+  ],
+  "sftp/internal/api/upload/commands/mod.rs": [
+   "connection_context.rs",
+   "core/session/types.rs",
+   "services/mod.rs",
+   "sftp/internal/api/conflict.rs",
+   "sftp/internal/api/upload.rs"
+  ],
+  "sftp/internal/api/upload/commands/operations.rs": [
+   "core/session/types.rs",
+   "sftp/internal/api.rs",
+   "sftp/internal/api/conflict.rs",
+   "sftp/internal/api/upload.rs",
+   "sftp/internal/api/upload/batch.rs",
+   "sftp/internal/api/upload/targets.rs",
+   "sftp/internal/connection.rs",
+   "sftp/internal/types.rs",
+   "ssh/secret_store/types.rs"
+  ],
+  "sftp/internal/api/upload/items.rs": [
+   "sftp/internal/api/upload.rs",
+   "sftp/internal/api/upload/targets.rs",
+   "sftp/internal/types.rs"
+  ],
+  "sftp/internal/api/upload/targets.rs": [
+   "sftp/internal/api.rs",
+   "sftp/internal/api/conflict.rs",
+   "sftp/internal/api/upload.rs"
+  ],
+  "sftp/internal/connection.rs": [
+   "core/session/mod.rs",
+   "core/session/types.rs",
+   "core/state.rs",
+   "sftp/internal/launcher.rs",
+   "sftp/internal/mod.rs",
+   "sftp/internal/sudo/handshake.rs",
+   "sftp/internal/types.rs",
+   "ssh/auth.rs",
+   "ssh/context.rs",
+   "ssh/jump/connect.rs",
+   "ssh/mod.rs",
+   "ssh/secret_store/types.rs",
+   "ssh/types.rs"
+  ],
+  "sftp/internal/exec.rs": [
+   "sftp/internal/launcher.rs",
+   "sftp/internal/mod.rs"
+  ],
+  "sftp/internal/launcher.rs": [
+   "sftp/internal/connection.rs",
+   "sftp/internal/exec.rs",
+   "sftp/internal/sudo/command.rs",
+   "sftp/internal/sudo/handshake.rs",
+   "sftp/internal/sudo/mod.rs"
+  ],
+  "sftp/internal/sudo/command.rs": [
+   "sftp/internal/sudo/mod.rs"
+  ],
+  "sftp/internal/sudo/errors.rs": [
+   "sftp/internal/sudo/command.rs"
+  ],
+  "sftp/internal/sudo/handshake.rs": [
+   "sftp/internal/exec.rs",
+   "sftp/internal/launcher.rs",
+   "sftp/internal/sudo/command.rs",
+   "sftp/internal/sudo/errors.rs",
+   "sftp/internal/sudo/mod.rs"
+  ],
+  "sftp/internal/sudo/mod.rs": [
+   "sftp/internal/launcher.rs",
+   "sftp/internal/sudo/command.rs",
+   "sftp/internal/sudo/errors.rs",
+   "sftp/internal/sudo/handshake.rs",
+   "ssh/jump/config.rs"
+  ],
+  "sftp/internal/test_support/mod.rs": [
+   "sftp/internal/launcher.rs"
+  ],
+  "sftp/internal/types.rs": [
+   "core/session/types.rs",
+   "sftp/internal/launcher.rs",
+   "ssh/jump/connect.rs",
+   "ssh/mod.rs",
+   "ssh/types.rs"
+  ],
+  "ssh/agent.rs": [
+   "ssh/types.rs"
+  ],
+  "ssh/auth.rs": [
+   "prompt_scope.rs",
+   "ssh/agent.rs",
+   "ssh/auth/auto.rs",
+   "ssh/auth/methods.rs",
+   "ssh/context.rs",
+   "ssh/test_sshd.rs",
+   "ssh/types.rs"
+  ],
+  "ssh/auth/auto.rs": [
+   "ssh/agent.rs",
+   "ssh/auth.rs",
+   "ssh/auth/methods.rs",
+   "ssh/key_file.rs",
+   "ssh/types.rs"
+  ],
+  "ssh/auth/methods.rs": [
+   "ssh/agent.rs",
+   "ssh/auth.rs",
+   "ssh/key_file.rs",
+   "ssh/key_vault/mod.rs",
+   "ssh/types.rs"
+  ],
+  "ssh/auth/prompter.rs": [
+   "ssh/auth.rs",
+   "ssh/auth/methods.rs",
+   "ssh/context.rs",
+   "ssh/types.rs"
+  ],
+  "ssh/auth_commands.rs": [
+   "services/mod.rs",
+   "ssh/auth.rs"
+  ],
+  "ssh/client.rs": [
+   "config/mod.rs",
+   "core/session/types.rs",
+   "core/state.rs",
+   "prompt_scope.rs",
+   "ssh/auth.rs",
+   "ssh/client/output.rs",
+   "ssh/client/setup.rs",
+   "ssh/context.rs",
+   "ssh/jump/connect.rs",
+   "ssh/jump/pool.rs",
+   "ssh/remote_os.rs",
+   "ssh/types.rs",
+   "terminal/io_batcher.rs",
+   "zmodem/session.rs"
+  ],
+  "ssh/client/output.rs": [
+   "session_log/mod.rs",
+   "terminal/encoding.rs",
+   "terminal/io_batcher.rs"
+  ],
+  "ssh/client/reader.rs": [
+   "core/session/types.rs",
+   "core/state.rs",
+   "session_log/mod.rs",
+   "ssh/client.rs",
+   "ssh/client/output.rs",
+   "ssh/jump/pool.rs",
+   "ssh/types.rs",
+   "terminal/encoding.rs",
+   "terminal/io_batcher.rs",
+   "terminal/ssh_query_handler.rs",
+   "zmodem/mod.rs",
+   "zmodem/session.rs"
+  ],
+  "ssh/client/setup.rs": [
+   "config/mod.rs",
+   "core/session/types.rs",
+   "ssh/client.rs",
+   "ssh/jump/pool.rs",
+   "ssh/shell_integration.rs",
+   "ssh/types.rs",
+   "terminal/io_batcher.rs"
+  ],
+  "ssh/context.rs": [
+   "core/state.rs",
+   "prompt_scope.rs",
+   "session_log/mod.rs"
+  ],
+  "ssh/host_key_prompt.rs": [
+   "ssh/mod.rs",
+   "ssh/types.rs"
+  ],
+  "ssh/jump/config.rs": [
+   "ssh/jump/mod.rs",
+   "ssh/types.rs"
+  ],
+  "ssh/jump/connect.rs": [
+   "core/session/mod.rs",
+   "core/session/types.rs",
+   "proxy/approval.rs",
+   "proxy/command.rs",
+   "proxy/connect.rs",
+   "proxy/mod.rs",
+   "session_log/mod.rs",
+   "ssh/auth.rs",
+   "ssh/context.rs",
+   "ssh/host_key_prompt.rs",
+   "ssh/jump/config.rs",
+   "ssh/jump/hop.rs",
+   "ssh/jump/pool.rs",
+   "ssh/openssh_known_hosts/mod.rs",
+   "ssh/types.rs"
+  ],
+  "ssh/jump/handler.rs": [
+   "prompt_scope.rs",
+   "session_log/mod.rs",
+   "ssh/context.rs",
+   "ssh/host_key_prompt.rs",
+   "ssh/openssh_known_hosts/mod.rs",
+   "ssh/openssh_known_hosts/verify.rs",
+   "ssh/types.rs"
+  ],
+  "ssh/jump/hop.rs": [
+   "core/session/types.rs",
+   "proxy/command.rs",
+   "proxy/mod.rs",
+   "ssh/auth.rs",
+   "ssh/host_key_prompt.rs",
+   "ssh/jump/config.rs",
+   "ssh/jump/connect.rs",
+   "ssh/jump/handler.rs",
+   "ssh/jump/pool.rs",
+   "ssh/openssh_known_hosts/mod.rs",
+   "ssh/types.rs"
+  ],
+  "ssh/jump/mod.rs": [
+   "ssh/auth.rs",
+   "ssh/jump/config.rs",
+   "ssh/jump/pool.rs",
+   "ssh/test_sshd.rs"
+  ],
+  "ssh/jump/pool.rs": [
+   "proxy/mod.rs",
+   "ssh/jump/mod.rs"
+  ],
+  "ssh/key_file.rs": [
+   "ssh/key_vault/mod.rs",
+   "ssh/key_vault/store.rs",
+   "ssh/mod.rs"
+  ],
+  "ssh/key_vault/commands.rs": [
+   "services/mod.rs",
+   "ssh/key_vault/mod.rs"
+  ],
+  "ssh/key_vault/entry.rs": [
+   "ssh/key_vault/mod.rs"
+  ],
+  "ssh/key_vault/export.rs": [
+   "ssh/key_vault/entry.rs"
+  ],
+  "ssh/key_vault/import.rs": [
+   "ssh/key_file.rs",
+   "ssh/key_vault/entry.rs",
+   "ssh/key_vault/mod.rs",
+   "ssh/key_vault/store.rs",
+   "ssh/secret_store/crypto.rs"
+  ],
+  "ssh/key_vault/mod.rs": [
+   "profiles/storage.rs",
+   "profiles/types.rs",
+   "ssh/key_vault/entry.rs",
+   "ssh/key_vault/export.rs",
+   "ssh/key_vault/import.rs",
+   "ssh/key_vault/store.rs",
+   "ssh/secret_store/crypto.rs",
+   "ssh/secret_store/store.rs",
+   "ssh/secret_store/types.rs",
+   "ssh/secret_store/verification.rs"
+  ],
+  "ssh/key_vault/store.rs": [
+   "profiles/types.rs",
+   "ssh/key_vault/entry.rs",
+   "ssh/key_vault/mod.rs",
+   "ssh/secret_store/crypto.rs",
+   "ssh/secret_store/store.rs"
+  ],
+  "ssh/openssh_known_hosts/mod.rs": [
+   "profiles/parser/mod.rs",
+   "ssh/jump/config.rs",
+   "ssh/openssh_known_hosts/verify.rs"
+  ],
+  "ssh/openssh_known_hosts/verify.rs": [
+   "ssh/openssh_known_hosts/mod.rs"
+  ],
+  "ssh/remote_os.rs": [
+   "monitor/metrics/mod.rs",
+   "sftp/internal/exec.rs",
+   "ssh/mod.rs",
+   "ssh/test_sshd.rs"
+  ],
+  "ssh/secret_commands.rs": [
+   "app_paths.rs",
+   "profiles/storage.rs",
+   "services/mod.rs",
+   "ssh/secret_store/mod.rs",
+   "ssh/secret_store/types.rs",
+   "ssh/secret_store/verification.rs"
+  ],
+  "ssh/secret_store/crypto.rs": [
+   "ssh/secret_store/mod.rs"
+  ],
+  "ssh/secret_store/keyring_backend.rs": [
+   "ssh/secret_store/mod.rs"
+  ],
+  "ssh/secret_store/legacy.rs": [
+   "ssh/secret_store/crypto.rs",
+   "ssh/secret_store/mod.rs"
+  ],
+  "ssh/secret_store/migration.rs": [
+   "ssh/secret_store/crypto.rs",
+   "ssh/secret_store/keyring_backend.rs",
+   "ssh/secret_store/legacy.rs",
+   "ssh/secret_store/mod.rs",
+   "ssh/secret_store/store.rs",
+   "ssh/secret_store/types.rs"
+  ],
+  "ssh/secret_store/mod.rs": [
+   "config/mod.rs",
+   "profiles/storage.rs",
+   "ssh/secret_store/crypto.rs",
+   "ssh/secret_store/keyring_backend.rs",
+   "ssh/secret_store/legacy.rs",
+   "ssh/secret_store/migration.rs",
+   "ssh/secret_store/store.rs",
+   "ssh/secret_store/verification.rs"
+  ],
+  "ssh/secret_store/store.rs": [
+   "ssh/secret_store/crypto.rs",
+   "ssh/secret_store/mod.rs"
+  ],
+  "ssh/secret_store/types.rs": [
+   "ssh/secret_store/crypto.rs",
+   "ssh/secret_store/mod.rs"
+  ],
+  "ssh/secret_store/verification.rs": [
+   "config/mod.rs",
+   "ssh/secret_store/mod.rs",
+   "ssh/secret_store/store.rs",
+   "ssh/secret_store/types.rs"
+  ],
+  "ssh/shell_integration.rs": [
+   "ssh/auth.rs",
+   "ssh/test_sshd.rs"
+  ],
+  "ssh/test_sshd.rs": [
+   "ssh/auth.rs",
+   "ssh/jump/config.rs"
+  ],
+  "ssh/types.rs": [
+   "prompt_scope.rs",
+   "session_log/mod.rs",
+   "ssh/agent.rs",
+   "ssh/auth.rs",
+   "ssh/context.rs",
+   "ssh/host_key_prompt.rs",
+   "ssh/mod.rs",
+   "ssh/openssh_known_hosts/mod.rs",
+   "ssh/openssh_known_hosts/verify.rs"
+  ],
+  "sync/commands.rs": [
+   "services/mod.rs",
+   "sync/mod.rs",
+   "sync/service.rs"
+  ],
+  "sync/document.rs": [
+   "backup/archive.rs",
+   "sync/mod.rs"
+  ],
+  "sync/mod.rs": [
+   "backup/automatic.rs",
+   "backup/remote.rs",
+   "profiles/groups.rs",
+   "profiles/storage.rs",
+   "profiles/types.rs",
+   "proxy/mod.rs",
+   "proxy/storage.rs",
+   "serial/history/mod.rs",
+   "serial/history/store.rs",
+   "ssh/secret_store/crypto.rs",
+   "ssh/secret_store/mod.rs",
+   "ssh/secret_store/store.rs",
+   "ssh/secret_store/types.rs",
+   "sync/document.rs",
+   "sync/snapshot.rs",
+   "sync/state.rs",
+   "tunnel/manager.rs"
+  ],
+  "sync/service.rs": [
+   "ssh/secret_store/types.rs",
+   "sync/mod.rs",
+   "sync/state.rs",
+   "tunnel/manager.rs"
+  ],
+  "sync/snapshot.rs": [
+   "config/mod.rs",
+   "notification/sound.rs",
+   "profiles/groups.rs",
+   "profiles/storage.rs",
+   "profiles/types.rs",
+   "proxy/mod.rs",
+   "proxy/storage.rs",
+   "serial/history/mod.rs",
+   "serial/history/store.rs",
+   "ssh/secret_store/crypto.rs",
+   "ssh/secret_store/mod.rs",
+   "ssh/secret_store/store.rs",
+   "sync/document.rs",
+   "sync/mod.rs"
+  ],
+  "sync/state.rs": [
+   "ssh/secret_store/crypto.rs",
+   "ssh/secret_store/mod.rs",
+   "sync/document.rs"
+  ],
+  "system_integration/commands.rs": [
+   "services/mod.rs",
+   "system_integration/mod.rs"
+  ],
+  "system_integration/mod.rs": [
+   "config/mod.rs"
+  ],
+  "terminal/cwd_watch.rs": [
+   "terminal/mod.rs"
+  ],
+  "terminal/encoding.rs": [
+   "terminal/mod.rs"
+  ],
+  "terminal/foreground.rs": [
+   "core/state.rs",
+   "terminal/mod.rs"
+  ],
+  "terminal/foreground_commands.rs": [
+   "services/mod.rs",
+   "terminal/foreground.rs"
+  ],
+  "terminal/io_batcher.rs": [
+   "terminal/output.rs",
+   "terminal/output_tail.rs",
+   "terminal/reader.rs"
+  ],
+  "terminal/io_batcher/benchmark.rs": [
+   "session_sink/output.rs",
+   "terminal/io_batcher.rs",
+   "terminal/reader.rs"
+  ],
+  "terminal/io_batcher/contracts.rs": [
+   "session_sink/output.rs",
+   "terminal/io_batcher.rs"
+  ],
+  "terminal/local_integration.rs": [
+   "config/mod.rs",
+   "terminal/mod.rs"
+  ],
+  "terminal/mod.rs": [
+   "core/state.rs",
+   "terminal/io_batcher.rs",
+   "terminal/reader.rs",
+   "zmodem/session.rs"
+  ],
+  "terminal/output.rs": [
+   "terminal/io_batcher.rs"
+  ],
+  "terminal/output_tail.rs": [
+   "terminal/mod.rs"
+  ],
+  "terminal/pty.rs": [
+   "core/session/types.rs",
+   "system_integration/mod.rs",
+   "terminal/local_integration.rs",
+   "terminal/mod.rs",
+   "terminal/shell_integration.rs",
+   "terminal/types.rs",
+   "terminal/unix_shell.rs",
+   "terminal/windows_shell.rs",
+   "terminal/wsl_distros.rs"
+  ],
+  "terminal/pty_commands.rs": [
+   "terminal/pty.rs"
+  ],
+  "terminal/reader.rs": [
+   "core/state.rs",
+   "session_log/mod.rs",
+   "terminal/io_batcher.rs",
+   "zmodem/mod.rs",
+   "zmodem/session.rs"
+  ],
+  "terminal/shell_args.rs": [
+   "terminal/mod.rs"
+  ],
+  "terminal/shell_integration.rs": [
+   "terminal/mod.rs"
+  ],
+  "terminal/ssh_query_handler.rs": [
+   "terminal/mod.rs"
+  ],
+  "terminal/types.rs": [
+   "terminal/mod.rs"
+  ],
+  "terminal/unix_shell.rs": [
+   "core/session/types.rs",
+   "terminal/mod.rs",
+   "terminal/pty.rs",
+   "terminal/shell_args.rs"
+  ],
+  "terminal/windows_shell.rs": [
+   "config/mod.rs",
+   "core/session/types.rs",
+   "terminal/mod.rs",
+   "terminal/pty.rs",
+   "terminal/shell_args.rs",
+   "terminal/shell_integration.rs",
+   "terminal/wsl_distros.rs"
+  ],
+  "terminal/wsl_distros.rs": [
+   "terminal/mod.rs"
+  ],
+  "tunnel/commands.rs": [
+   "app_context.rs",
+   "services/mod.rs",
+   "tunnel/credentials.rs",
+   "tunnel/manager.rs"
+  ],
+  "tunnel/credentials.rs": [
+   "core/session/mod.rs",
+   "core/session/types.rs",
+   "ssh/key_file.rs"
+  ],
+  "tunnel/hub.rs": [
+   "core/session/types.rs",
+   "core/state.rs",
+   "ssh/jump/connect.rs",
+   "ssh/mod.rs",
+   "ssh/types.rs"
+  ],
+  "tunnel/manager.rs": [
+   "background/tray/mod.rs",
+   "core/session/mod.rs",
+   "core/session/saved_hops.rs",
+   "core/session/types.rs",
+   "profiles/storage.rs",
+   "profiles/types.rs",
+   "ssh/context.rs",
+   "ssh/secret_store/types.rs",
+   "tunnel/credentials.rs",
+   "tunnel/hub.rs",
+   "tunnel/mod.rs",
+   "tunnel/runtime.rs",
+   "tunnel/runtime/reporter.rs"
+  ],
+  "tunnel/runtime.rs": [
+   "core/session/types.rs",
+   "prompt_scope.rs",
+   "ssh/auth.rs",
+   "ssh/context.rs",
+   "ssh/jump/connect.rs",
+   "ssh/mod.rs",
+   "ssh/types.rs",
+   "tunnel/hub.rs",
+   "tunnel/runtime/connections.rs",
+   "tunnel/runtime/reporter.rs"
+  ],
+  "tunnel/runtime/connections.rs": [
+   "ssh/types.rs",
+   "tunnel/hub.rs",
+   "tunnel/runtime.rs"
+  ],
+  "tunnel/runtime/reporter.rs": [
+   "background/tray/mod.rs",
+   "tunnel/manager.rs",
+   "tunnel/runtime.rs"
+  ],
+  "updater/commands.rs": [
+   "app_paths.rs",
+   "services/mod.rs"
+  ],
+  "window_blur.rs": [
+   "config/mod.rs"
+  ],
+  "zmodem/commands.rs": [
+   "core/mod.rs",
+   "core/state.rs",
+   "services/mod.rs",
+   "zmodem/send.rs",
+   "zmodem/session.rs"
+  ],
+  "zmodem/detect.rs": [
+   "zmodem/mod.rs"
+  ],
+  "zmodem/mod.rs": [
+   "core/channel_test_support.rs",
+   "core/mod.rs",
+   "core/state.rs",
+   "ssh/test_sshd.rs",
+   "terminal/types.rs",
+   "zmodem/detect.rs",
+   "zmodem/send.rs",
+   "zmodem/session.rs"
+  ],
+  "zmodem/send.rs": [
+   "core/state.rs"
+  ],
+  "zmodem/session.rs": [
+   "config/mod.rs",
+   "core/mod.rs",
+   "core/state.rs",
+   "zmodem/detect.rs",
+   "zmodem/mod.rs"
+  ]
+ }
+}

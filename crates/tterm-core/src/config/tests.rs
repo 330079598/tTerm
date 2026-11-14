@@ -1,0 +1,417 @@
+use super::defaults::default_font_family;
+use super::{AppConfig, keyword_highlight, panes};
+
+#[test]
+fn legacy_config_shows_its_one_theme() {
+    let config: AppConfig = serde_json::from_str(r#"{"theme":"catalog:Nord"}"#).unwrap();
+
+    assert_eq!(config.theme, "catalog:Nord");
+    assert!(!config.theme_follow_system);
+    assert_eq!(config.theme_light, "light");
+    assert_eq!(config.theme_dark, "default");
+    assert!(config.favorite_themes.is_empty());
+}
+
+#[test]
+fn legacy_config_uses_adaptive_tab_width_defaults() {
+    let config: AppConfig = serde_json::from_str(r#"{"theme":"default"}"#).unwrap();
+
+    assert_eq!(config.tab_width_mode, "adaptive");
+    assert_eq!(config.tab_standard_width, 120);
+    assert!(!config.tab_hover_tooltip);
+    assert_eq!(config.ui_scale_percent, 100);
+    assert!(!config.terminal_log_enabled);
+    assert_eq!(config.terminal_log_format, "both");
+    assert_eq!(config.terminal_log_max_file_size_mb, 50);
+    assert!(config.terminal_log_plain_timestamps);
+    assert_eq!(
+        config.monitor_visible_metrics,
+        ["cpu", "memory", "network", "ip", "latency", "disk"]
+    );
+    assert_eq!(config.sftp_transfer_parallelism, 4);
+    assert!(config.reconnect_enabled);
+    assert_eq!(config.reconnect_max_attempts, 5);
+}
+
+#[test]
+fn explicit_sftp_transfer_parallelism_round_trips() {
+    let config: AppConfig =
+        serde_json::from_str(r#"{"theme":"default","sftp_transfer_parallelism":6}"#).unwrap();
+
+    assert_eq!(config.sftp_transfer_parallelism, 6);
+}
+
+#[test]
+fn sftp_bandwidth_limits_default_to_unlimited_and_round_trip() {
+    let legacy: AppConfig = serde_json::from_str(r#"{"theme":"default"}"#).unwrap();
+    assert_eq!(legacy.sftp_upload_limit_kib, 0);
+    assert_eq!(legacy.sftp_download_limit_kib, 0);
+
+    let config: AppConfig = serde_json::from_str(
+        r#"{"theme":"default","sftp_upload_limit_kib":512,"sftp_download_limit_kib":2048}"#,
+    )
+    .unwrap();
+    assert_eq!(config.sftp_upload_limit_kib, 512);
+    assert_eq!(config.sftp_download_limit_kib, 2048);
+}
+
+#[test]
+fn reconnect_enabled_round_trips() {
+    let disabled: AppConfig =
+        serde_json::from_str(r#"{"theme":"default","reconnect_enabled":false}"#).unwrap();
+    assert!(!disabled.reconnect_enabled);
+
+    let enabled: AppConfig =
+        serde_json::from_str(r#"{"theme":"default","reconnect_enabled":true}"#).unwrap();
+    assert!(enabled.reconnect_enabled);
+
+    let serialized = serde_json::to_string(&disabled).unwrap();
+    let reparsed: AppConfig = serde_json::from_str(&serialized).unwrap();
+    assert!(!reparsed.reconnect_enabled);
+}
+
+#[test]
+fn reconnect_max_attempts_round_trips() {
+    let custom: AppConfig =
+        serde_json::from_str(r#"{"theme":"default","reconnect_max_attempts":12}"#).unwrap();
+    assert_eq!(custom.reconnect_max_attempts, 12);
+
+    let legacy: AppConfig = serde_json::from_str(r#"{"theme":"default"}"#).unwrap();
+    assert_eq!(legacy.reconnect_max_attempts, 5);
+}
+
+#[test]
+fn legacy_config_gets_default_keymap() {
+    let config: AppConfig = serde_json::from_str(r#"{"theme":"default"}"#).unwrap();
+
+    assert!(config.keymap.bindings.is_empty());
+}
+
+#[test]
+fn keymap_config_round_trips() {
+    let config: AppConfig = serde_json::from_str(
+        r#"{"theme":"default","keymap":{"bindings":{"terminal.find":["mod+j"],"terminal.clear":null}}}"#,
+    )
+    .unwrap();
+
+    assert_eq!(
+        config.keymap.bindings.get("terminal.find"),
+        Some(&Some(vec!["mod+j".to_string()]))
+    );
+    assert_eq!(config.keymap.bindings.get("terminal.clear"), Some(&None));
+
+    let serialized = serde_json::to_string(&config).unwrap();
+    let reparsed: AppConfig = serde_json::from_str(&serialized).unwrap();
+    assert_eq!(
+        reparsed.keymap.bindings.get("terminal.find"),
+        config.keymap.bindings.get("terminal.find")
+    );
+}
+
+#[test]
+fn keymap_config_ignores_removed_preset_field() {
+    let config: AppConfig =
+        serde_json::from_str(r#"{"theme":"default","keymap":{"preset":"vscode","bindings":{}}}"#)
+            .unwrap();
+
+    assert!(config.keymap.bindings.is_empty());
+    assert!(!serde_json::to_string(&config).unwrap().contains("preset"));
+}
+
+#[test]
+fn keymap_config_accepts_legacy_single_chord_values() {
+    let config: AppConfig = serde_json::from_str(
+        r#"{"theme":"default","keymap":{"bindings":{"terminal.find":"mod+j","editor.save":null}}}"#,
+    )
+    .unwrap();
+
+    assert_eq!(
+        config.keymap.bindings.get("terminal.find"),
+        Some(&Some(vec!["mod+j".to_string()]))
+    );
+    assert_eq!(config.keymap.bindings.get("editor.save"), Some(&None));
+}
+
+#[test]
+fn explicit_tab_width_config_is_deserialized() {
+    let config: AppConfig = serde_json::from_str(
+        r#"{"theme":"default","tab_width_mode":"standard","tab_standard_width":180}"#,
+    )
+    .unwrap();
+
+    assert_eq!(config.tab_width_mode, "standard");
+    assert_eq!(config.tab_standard_width, 180);
+}
+
+#[test]
+fn invalid_tab_width_config_is_normalized() {
+    let config: AppConfig = serde_json::from_str(
+        r#"{"theme":"default","tab_width_mode":"wide","tab_standard_width":79.6}"#,
+    )
+    .unwrap();
+
+    assert_eq!(config.tab_width_mode, "adaptive");
+    assert_eq!(config.tab_standard_width, 80);
+}
+
+#[test]
+fn predictive_echo_settings_are_brought_into_range() {
+    let parse = |json: &str| serde_json::from_str::<AppConfig>(json).unwrap();
+
+    let config = parse(
+        r#"{"theme":"default","predictive_echo":"always","predictive_echo_threshold_ms":30.5}"#,
+    );
+    assert_eq!(config.predictive_echo, "always");
+    assert_eq!(config.predictive_echo_threshold_ms, 31);
+
+    let config = parse(
+        r#"{"theme":"default","predictive_echo":"sometimes","predictive_echo_threshold_ms":70000}"#,
+    );
+    assert_eq!(config.predictive_echo, "auto");
+    assert_eq!(config.predictive_echo_threshold_ms, 2000);
+
+    let config = parse(r#"{"theme":"default","predictive_echo_threshold_ms":-1}"#);
+    assert_eq!(config.predictive_echo_threshold_ms, 10);
+}
+
+#[test]
+fn profile_sort_falls_back_to_the_grouped_list() {
+    let parse = |json: &str| {
+        serde_json::from_str::<AppConfig>(json)
+            .unwrap()
+            .profile_sort
+    };
+
+    assert_eq!(parse(r#"{"theme":"default"}"#), "default");
+    assert_eq!(
+        parse(r#"{"theme":"default","profile_sort":"recent"}"#),
+        "recent"
+    );
+    assert_eq!(
+        parse(r#"{"theme":"default","profile_sort":"sideways"}"#),
+        "default"
+    );
+}
+
+#[test]
+fn sftp_external_upload_falls_back_to_asking() {
+    let parse = |json: &str| {
+        serde_json::from_str::<AppConfig>(json)
+            .unwrap()
+            .sftp_external_upload
+    };
+
+    assert_eq!(parse(r#"{"theme":"default"}"#), "ask");
+    assert_eq!(
+        parse(r#"{"theme":"default","sftp_external_upload":"auto"}"#),
+        "auto"
+    );
+    assert_eq!(
+        parse(r#"{"theme":"default","sftp_external_upload":"never"}"#),
+        "ask"
+    );
+}
+
+#[test]
+fn terminal_line_height_and_letter_spacing_are_clamped() {
+    let config: AppConfig = serde_json::from_str(
+        r#"{"theme":"default","terminal_line_height":1.234,"terminal_letter_spacing":-1.6}"#,
+    )
+    .unwrap();
+    assert_eq!(config.terminal_line_height, 1.23);
+    assert_eq!(config.terminal_letter_spacing, -2);
+
+    let config: AppConfig = serde_json::from_str(
+        r#"{"theme":"default","terminal_line_height":0.5,"terminal_letter_spacing":40}"#,
+    )
+    .unwrap();
+    assert_eq!(config.terminal_line_height, 1.0);
+    assert_eq!(config.terminal_letter_spacing, 10);
+}
+
+#[test]
+fn ui_scale_config_is_rounded_and_clamped() {
+    let rounded: AppConfig =
+        serde_json::from_str(r#"{"theme":"default","ui_scale_percent":146}"#).unwrap();
+    let minimum: AppConfig =
+        serde_json::from_str(r#"{"theme":"default","ui_scale_percent":40}"#).unwrap();
+    let maximum: AppConfig =
+        serde_json::from_str(r#"{"theme":"default","ui_scale_percent":260}"#).unwrap();
+
+    assert_eq!(rounded.ui_scale_percent, 150);
+    assert_eq!(minimum.ui_scale_percent, 80);
+    assert_eq!(maximum.ui_scale_percent, 200);
+}
+
+#[test]
+fn window_blur_config_is_clamped() {
+    let parse = |field: &str, value: &str| -> AppConfig {
+        serde_json::from_str(&format!(r#"{{"theme":"default","{field}":{value}}}"#)).unwrap()
+    };
+
+    assert_eq!(
+        parse("window_opacity_percent", "62.4").window_opacity_percent,
+        62
+    );
+    assert_eq!(
+        parse("window_opacity_percent", "10").window_opacity_percent,
+        30
+    );
+    assert_eq!(
+        parse("window_opacity_percent", "100").window_opacity_percent,
+        95
+    );
+    assert_eq!(parse("window_blur_radius", "0").window_blur_radius, 1);
+    assert_eq!(parse("window_blur_radius", "200").window_blur_radius, 60);
+    let missing: AppConfig = serde_json::from_str(r#"{"theme":"default"}"#).unwrap();
+    assert!(!missing.window_blur);
+    assert_eq!(missing.window_blur_radius, 20);
+    assert_eq!(missing.window_opacity_percent, 70);
+    assert_eq!(missing.window_blur_material, "acrylic");
+}
+
+#[test]
+fn tab_icons_default_to_shown_with_built_in_looks() {
+    let config: AppConfig = serde_json::from_str(r#"{"theme":"default"}"#).unwrap();
+
+    assert!(config.tab_icons.enabled);
+    assert!(config.tab_icons.shells.is_empty());
+}
+
+#[test]
+fn tab_icons_keep_each_shells_choice() {
+    let config: AppConfig = serde_json::from_str(
+        r##"{"theme":"default","tab_icons":{"enabled":false,"shells":{"pwsh":{"color":"#ff0000"}}}}"##,
+    )
+    .unwrap();
+
+    assert!(!config.tab_icons.enabled);
+    let pwsh = &config.tab_icons.shells["pwsh"];
+    assert_eq!(pwsh.icon, None);
+    assert_eq!(pwsh.color.as_deref(), Some("#ff0000"));
+    let saved = serde_json::to_string(&config.tab_icons).unwrap();
+    assert!(saved.contains(r##""pwsh":{"color":"#ff0000"}"##));
+}
+
+#[test]
+fn tab_agent_indicator_defaults_to_the_ring_and_pause_bars() {
+    let config: AppConfig = serde_json::from_str(r#"{"theme":"default"}"#).unwrap();
+
+    assert_eq!(config.tab_agent_indicator.working, "ring");
+    assert_eq!(config.tab_agent_indicator.waiting, "bars");
+    assert!(config.tab_agent_indicator.working_color.is_empty());
+}
+
+#[test]
+fn tab_agent_indicator_keeps_a_partial_choice() {
+    let config: AppConfig = serde_json::from_str(
+        r##"{"theme":"default","tab_agent_indicator":{"working":"braille","waiting_color":"#ff0000"}}"##,
+    )
+    .unwrap();
+
+    assert_eq!(config.tab_agent_indicator.working, "braille");
+    assert_eq!(config.tab_agent_indicator.waiting, "bars");
+    assert_eq!(config.tab_agent_indicator.waiting_color, "#ff0000");
+}
+
+#[test]
+fn keyword_highlight_defaults_to_the_built_in_set() {
+    let config: AppConfig = serde_json::from_str(r#"{"theme":"default"}"#).unwrap();
+
+    assert!(config.keyword_highlight.enabled);
+    assert_eq!(config.keyword_highlight.default_set, "builtin");
+    assert!(!config.keyword_highlight.alternate_screen);
+    assert!(config.keyword_highlight.sets.is_none());
+}
+
+#[test]
+fn keyword_highlight_keeps_the_users_sets() {
+    let config: AppConfig = serde_json::from_str(
+        r##"{"theme":"default","keyword_highlight":{"default_set":"net","sets":[{"id":"net","name":"Network","rules":[{"id":"r1","pattern":"down","foreground":"#ff0000"}]}]}}"##,
+    )
+    .unwrap();
+
+    let sets = config.keyword_highlight.sets.as_ref().unwrap();
+    let rule = &sets[0].rules[0];
+    assert_eq!(sets[0].name, "Network");
+    assert!(rule.enabled);
+    assert_eq!(rule.kind, "keyword");
+    assert_eq!(rule.foreground.as_deref(), Some("#ff0000"));
+    assert_eq!(rule.background, None);
+    let saved = serde_json::to_string(&config.keyword_highlight).unwrap();
+    let reread: keyword_highlight::KeywordHighlightConfig = serde_json::from_str(&saved).unwrap();
+    assert_eq!(reread, config.keyword_highlight);
+}
+
+#[test]
+fn panes_default_to_headers_shown_and_no_dimming() {
+    let config: AppConfig = serde_json::from_str(r#"{"theme":"default"}"#).unwrap();
+
+    assert!(config.panes.show_headers);
+    assert_eq!(config.panes.dim_inactive_percent, 0);
+    assert!(config.panes.templates.is_empty());
+}
+
+#[test]
+fn panes_keep_saved_templates_as_written() {
+    let config: AppConfig = serde_json::from_str(
+        r#"{"theme":"default","panes":{"show_headers":false,"templates":[{"id":"t1","name":"Ops","root":{"type":"split","orientation":"horizontal","children":[{"type":"pane"},{"type":"pane"}],"sizes":[0.3,0.7]}}]}}"#,
+    )
+    .unwrap();
+
+    assert!(!config.panes.show_headers);
+    assert_eq!(config.panes.dim_inactive_percent, 0);
+    let template = &config.panes.templates[0];
+    assert_eq!(template.name, "Ops");
+    assert_eq!(template.root["sizes"][1], 0.7);
+    let saved = serde_json::to_string(&config.panes).unwrap();
+    let reread: panes::PaneConfig = serde_json::from_str(&saved).unwrap();
+    assert_eq!(reread, config.panes);
+}
+
+#[test]
+fn ui_style_starts_islands_but_keeps_older_files_classic() {
+    assert_eq!(AppConfig::default().ui_style, "islands");
+
+    let config: AppConfig = serde_json::from_str(r#"{"theme":"default"}"#).unwrap();
+    assert_eq!(config.ui_style, "classic");
+
+    let config: AppConfig =
+        serde_json::from_str(r#"{"theme":"default","ui_style":"islands"}"#).unwrap();
+    assert_eq!(config.ui_style, "islands");
+}
+
+#[test]
+fn default_font_matches_the_frontend_default() {
+    let frontend = include_str!("../../../../src/lib/terminalFont.ts");
+
+    assert!(
+        frontend.contains(&format!("'{}'", default_font_family())),
+        "src/lib/terminalFont.ts lacks this platform's default font chain"
+    );
+}
+
+#[test]
+fn only_local_shell_integration_turned_on_carries_over_from_older_configs() {
+    let read = |json: &str| {
+        let mut config = serde_json::from_str::<AppConfig>(json).unwrap();
+        super::migrate_local_shell_integration(&mut config);
+        config.local_unix_shell_integration
+    };
+    let device_default = cfg!(target_os = "macos");
+
+    assert!(read(
+        r#"{"theme":"default","local_shell_integration":true}"#
+    ));
+    assert_eq!(
+        read(r#"{"theme":"default","local_shell_integration":false}"#),
+        device_default
+    );
+    assert_eq!(read(r#"{"theme":"default"}"#), device_default);
+    assert!(!read(
+        r#"{"theme":"default","local_unix_shell_integration":false}"#
+    ));
+
+    let saved = serde_json::to_value(AppConfig::default()).unwrap();
+    assert!(saved.get("local_shell_integration").is_none());
+}

@@ -1,12 +1,12 @@
-use super::*;
-use crate::core::state::AtomicTerminalSize;
-use crate::terminal::output::TerminalOutput;
+use crate::core::commands::batch_write::*;
 use tokio::sync::{mpsc, watch};
+use tterm_core::core::state::AtomicTerminalSize;
+use tterm_core::terminal::output::TerminalOutput;
 
 fn output() -> TerminalOutput {
     TerminalOutput::new(
         Arc::new(|_bytes: Vec<u8>| Ok(())),
-        Arc::new(crate::terminal::io_batcher::OutputFlow::default()),
+        Arc::new(tterm_core::terminal::io_batcher::OutputFlow::default()),
     )
 }
 
@@ -36,8 +36,8 @@ fn writable_ssh_target(runtime: &tokio::runtime::Runtime) -> WritableTarget {
     let (input_tx, input_rx) = mpsc::unbounded_channel();
     let (resize_tx, _) = mpsc::unbounded_channel();
     let active = Arc::new(TokioMutex::new(Some(ActiveSession::Ssh(
-        crate::core::state::ActiveSsh {
-            input: crate::terminal::types::PtyInput::over_channel(input_tx.clone()),
+        tterm_core::core::state::ActiveSsh {
+            input: tterm_core::terminal::types::PtyInput::over_channel(input_tx.clone()),
             input_tx,
             resize_tx,
             task: runtime.spawn(async {}),
@@ -168,20 +168,21 @@ async fn ack_ignores_stale_nonce_and_missing_tabs() {
     let runtime = tokio::runtime::Handle::current();
     let (stop_tx, _) = watch::channel(false);
     let sink = Arc::new(tterm_core::session::recording::RecordingSessionSink::default());
-    let map: crate::core::state::PtyMap = Arc::new(tokio::sync::RwLock::new(HashMap::from([(
-        "ack-tab".into(),
-        PtySession {
-            pid: 0,
-            session_nonce: 7,
-            active: Default::default(),
-            stop_tx,
-            supervisor: runtime.spawn(async {}),
-            size: Arc::new(AtomicTerminalSize::new(24, 80)),
-            output: output(),
-            sink: sink.clone(),
-            serial_view: None,
-        },
-    )])));
+    let map: tterm_core::core::state::PtyMap =
+        Arc::new(tokio::sync::RwLock::new(HashMap::from([(
+            "ack-tab".into(),
+            PtySession {
+                pid: 0,
+                session_nonce: 7,
+                active: Default::default(),
+                stop_tx,
+                supervisor: runtime.spawn(async {}),
+                size: Arc::new(AtomicTerminalSize::new(24, 80)),
+                output: output(),
+                sink: sink.clone(),
+                serial_view: None,
+            },
+        )])));
     super::ack_pty_output_service(
         map.clone(),
         AckPtyOutputInput {

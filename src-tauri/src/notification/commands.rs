@@ -1,6 +1,6 @@
 //! The Tauri commands for system notifications and their sound.
 
-use super::{NotificationPermission, NotificationRequest};
+use crate::{notification::NotificationPermission, notification::NotificationRequest};
 use std::sync::Arc;
 use tauri::ipc::Response;
 

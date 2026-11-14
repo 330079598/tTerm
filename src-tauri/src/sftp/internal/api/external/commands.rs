@@ -1,21 +1,35 @@
-use super::operations::{
-    SftpExternalAppIconsInput, SftpExternalEditListDependencies, SftpExternalEditListInput,
-    SftpExternalEditOpenDependencies, SftpExternalEditOpenInput,
-    SftpExternalEditReleaseTabDependencies, SftpExternalEditReleaseTabInput,
-    SftpExternalEditRevealInput, SftpExternalEditStopDependencies, SftpExternalEditStopInput,
-    SftpExternalEditUploadDependencies, SftpExternalEditUploadInput,
-    SftpExternalOpenWithChoicesInput, sftp_external_app_icons_service,
-    sftp_external_edit_list_service, sftp_external_edit_open_service,
-    sftp_external_edit_release_tab_service, sftp_external_edit_reveal_service,
-    sftp_external_edit_stop_service, sftp_external_edit_upload_service,
-    sftp_external_open_with_choices_service,
-};
-use super::{OpenIn, OpenWithChoices, UploadOutcome};
-use crate::core::session::types::PtyConnectionOptions;
 use crate::services::AppServices;
+use crate::{
+    sftp::internal::api::external::OpenIn, sftp::internal::api::external::OpenWithChoices,
+    sftp::internal::api::external::UploadOutcome,
+};
+use crate::{
+    sftp::internal::api::external::operations::SftpExternalAppIconsInput,
+    sftp::internal::api::external::operations::SftpExternalEditListDependencies,
+    sftp::internal::api::external::operations::SftpExternalEditListInput,
+    sftp::internal::api::external::operations::SftpExternalEditOpenDependencies,
+    sftp::internal::api::external::operations::SftpExternalEditOpenInput,
+    sftp::internal::api::external::operations::SftpExternalEditReleaseTabDependencies,
+    sftp::internal::api::external::operations::SftpExternalEditReleaseTabInput,
+    sftp::internal::api::external::operations::SftpExternalEditRevealInput,
+    sftp::internal::api::external::operations::SftpExternalEditStopDependencies,
+    sftp::internal::api::external::operations::SftpExternalEditStopInput,
+    sftp::internal::api::external::operations::SftpExternalEditUploadDependencies,
+    sftp::internal::api::external::operations::SftpExternalEditUploadInput,
+    sftp::internal::api::external::operations::SftpExternalOpenWithChoicesInput,
+    sftp::internal::api::external::operations::sftp_external_app_icons_service,
+    sftp::internal::api::external::operations::sftp_external_edit_list_service,
+    sftp::internal::api::external::operations::sftp_external_edit_open_service,
+    sftp::internal::api::external::operations::sftp_external_edit_release_tab_service,
+    sftp::internal::api::external::operations::sftp_external_edit_reveal_service,
+    sftp::internal::api::external::operations::sftp_external_edit_stop_service,
+    sftp::internal::api::external::operations::sftp_external_edit_upload_service,
+    sftp::internal::api::external::operations::sftp_external_open_with_choices_service,
+};
 use std::collections::HashMap;
 use std::sync::Arc;
 use tauri::{AppHandle, Manager, State};
+use tterm_core::core::session::types::PtyConnectionOptions;
 use tterm_core::events::sftp::external::ExternalEdit;
 
 /// Opens the remote file at `path` as `open_in` says. A file already open

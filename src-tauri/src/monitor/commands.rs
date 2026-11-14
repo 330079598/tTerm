@@ -1,9 +1,9 @@
-use super::{
-    GetServerMetricsSnapshotInput, ReleaseServerMonitorSessionInput,
-    get_server_metrics_snapshot_service, release_server_monitor_session_service,
+use crate::{
+    monitor::GetServerMetricsSnapshotInput, monitor::ReleaseServerMonitorSessionInput,
+    monitor::get_server_metrics_snapshot_service, monitor::release_server_monitor_session_service,
 };
-use crate::core::session::types::PtyConnectionOptions;
-use crate::monitor::types::ServerMetricsSnapshot;
+use tterm_core::core::session::types::PtyConnectionOptions;
+use tterm_core::monitor::types::ServerMetricsSnapshot;
 
 #[tauri::command]
 pub async fn get_server_metrics_snapshot(

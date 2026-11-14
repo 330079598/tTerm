@@ -1,9 +1,11 @@
-use super::secret_store::{
-    types::ChangeVaultPasswordInput, types::SecretBackendStatus, types::SecretStoreState,
-    types::VaultPasswordInput, verification::VerificationPurpose,
-};
 use serde::{Deserialize, Serialize};
 use tterm_core::core::blocking::run_blocking;
+use tterm_core::{
+    ssh::secret_store::types::ChangeVaultPasswordInput,
+    ssh::secret_store::types::SecretBackendStatus, ssh::secret_store::types::SecretStoreState,
+    ssh::secret_store::types::VaultPasswordInput,
+    ssh::secret_store::verification::VerificationPurpose,
+};
 use zeroize::Zeroizing;
 
 #[derive(Debug, Clone, Deserialize)]
@@ -250,7 +252,7 @@ async fn list_saved_secrets_service(
             .into_iter()
             .collect::<std::collections::HashSet<_>>();
         let mut entries = Vec::new();
-        for summary in crate::profiles::storage::saved_secret_summaries()? {
+        for summary in tterm_core::profiles::storage::saved_secret_summaries()? {
             if saved.contains(&summary.key) {
                 entries.push(SavedSecretEntry {
                     key: summary.key,
@@ -294,7 +296,7 @@ async fn get_saved_secret_service(
             return Err("Secret key is required".to_string());
         }
 
-        let allowed = crate::profiles::storage::saved_secret_keys()?
+        let allowed = tterm_core::profiles::storage::saved_secret_keys()?
             .into_iter()
             .any(|candidate| candidate == key);
         if !allowed {
@@ -331,7 +333,7 @@ async fn delete_saved_secret_service(
             return Err("Secret key is required".to_string());
         }
 
-        let allowed = crate::profiles::storage::saved_secret_keys()?
+        let allowed = tterm_core::profiles::storage::saved_secret_keys()?
             .into_iter()
             .any(|candidate| candidate == key);
         if !allowed {

@@ -1,20 +1,26 @@
-use super::download_file_with_progress;
-use crate::core::session::types::PtyConnectionOptions;
-use crate::sftp::internal::api::conflict::{self, ConflictReport, TransferConflict};
-use crate::sftp::internal::api::download::directory::{
-    DirectoryDownloadRequest, DownloadTarget, collect_download_plan,
-    download_directory_with_progress, remote_basename,
-};
+use crate::sftp::internal::api::download::download_file_with_progress;
 use crate::sftp::internal::api::prepare_transfer;
-use crate::sftp::internal::connection::{SftpContext, ensure_ssh_plan};
-use crate::sftp::internal::types::SftpConnectionPool;
-use crate::sftp::internal::types::TransferCancelMap;
-use crate::ssh::secret_store::types::SecretStoreState;
+use crate::{
+    sftp::internal::api::conflict, sftp::internal::api::conflict::ConflictReport,
+    sftp::internal::api::conflict::TransferConflict,
+};
+use crate::{
+    sftp::internal::api::download::directory::DirectoryDownloadRequest,
+    sftp::internal::api::download::directory::DownloadTarget,
+    sftp::internal::api::download::directory::collect_download_plan,
+    sftp::internal::api::download::directory::download_directory_with_progress,
+    sftp::internal::api::download::directory::remote_basename,
+};
 use std::path::PathBuf;
 use std::sync::Arc;
+use tterm_core::core::session::types::PtyConnectionOptions;
 use tterm_core::events::EventSink;
 use tterm_core::prompts::PromptBroker;
 use tterm_core::sftp::conflict::ConflictPolicy;
+use tterm_core::sftp::internal::connection::{SftpContext, ensure_ssh_plan};
+use tterm_core::sftp::internal::types::SftpConnectionPool;
+use tterm_core::sftp::internal::types::TransferCancelMap;
+use tterm_core::ssh::secret_store::types::SecretStoreState;
 
 pub(crate) struct SftpDownloadFileInput {
     pub(crate) tab_id: String,

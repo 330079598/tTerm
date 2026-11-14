@@ -1,19 +1,19 @@
-use crate::core::session::stop::{StopPtyContext, stop_pty_session};
-use crate::core::session::{normalize_connection, resolve_ssh_password};
-use crate::core::state::{
+use crate::{core::session::stop::StopPtyContext, core::session::stop::stop_pty_session};
+use std::sync::{Arc, PoisonError, atomic::AtomicBool};
+use tokio::sync::{Mutex as TokioMutex, mpsc, watch};
+use tterm_core::core::state::{
     ActiveSession, AtomicTerminalSize, ChannelContext, PtyMap, PtySession, SessionExitSignal,
     TabZmodem, ZmodemArmedSendMap, ZmodemManualDetectMap, ZmodemMap,
 };
-use crate::core::supervisor::{TabConnection, spawn_ssh_attempt, spawn_supervisor};
-use crate::ssh::context::ConnectionContext;
-use crate::{terminal, zmodem::session::ZmodemSettings};
-use std::sync::{Arc, PoisonError, atomic::AtomicBool};
-use tokio::sync::{Mutex as TokioMutex, mpsc, watch};
+use tterm_core::core::supervisor::{TabConnection, spawn_ssh_attempt, spawn_supervisor};
+use tterm_core::ssh::context::ConnectionContext;
+use tterm_core::zmodem::session::ZmodemSettings;
+use tterm_core::{core::session::normalize_connection, core::session::resolve_ssh_password};
 
 pub(super) struct CreateContext {
     pub(super) connection: ConnectionContext,
     pub(super) ptys: PtyMap,
-    pub(super) secrets: crate::ssh::secret_store::types::SecretStoreState,
+    pub(super) secrets: tterm_core::ssh::secret_store::types::SecretStoreState,
     pub(super) runtime: tokio::runtime::Handle,
     pub(super) zmodem: ZmodemMap,
     pub(super) armed: ZmodemArmedSendMap,
@@ -30,8 +30,8 @@ pub(super) struct PtyIdentity {
 pub(super) fn create_pty_blocking(
     context: CreateContext,
     identity: PtyIdentity,
-    connection: Option<crate::core::session::types::PtyConnectionOptions>,
-    output_channel: crate::terminal::output::TerminalOutput,
+    connection: Option<tterm_core::core::session::types::PtyConnectionOptions>,
+    output_channel: tterm_core::terminal::output::TerminalOutput,
     sink: Arc<dyn tterm_core::session::sink::SessionSink>,
 ) -> Result<u32, String> {
     let PtyIdentity {
@@ -76,7 +76,7 @@ pub(super) fn create_pty_blocking(
         tab_id: tab_id.clone(),
         session_nonce,
     });
-    crate::session_log::start_session(&app.log, &tab_id, session_nonce, &plan, rows, cols);
+    tterm_core::session_log::start_session(&app.log, &tab_id, session_nonce, &plan, rows, cols);
 
     let (exit_tx, exit_rx) = mpsc::unbounded_channel::<SessionExitSignal>();
     let active = Arc::new(TokioMutex::new(None));
@@ -153,9 +153,12 @@ fn spawn_initial_session(
 ) -> Result<(u32, ActiveSession), String> {
     let channel = &tab.channel;
     match tab.plan.kind {
-        crate::core::state::SessionKind::Terminal => {
-            let (pid, pty) =
-                terminal::pty::spawn_local_pty(rows, cols, tab.plan.terminal_shell.clone())?;
+        tterm_core::core::state::SessionKind::Terminal => {
+            let (pid, pty) = tterm_core::terminal::pty::spawn_local_pty(
+                rows,
+                cols,
+                tab.plan.terminal_shell.clone(),
+            )?;
 
             let reader = pty.input.track_output(
                 pty.master
@@ -163,18 +166,18 @@ fn spawn_initial_session(
                     .map_err(|e| format!("Failed to clone reader: {}", e))?,
             );
 
-            let sender = crate::terminal::io_batcher::TerminalOutputSender::spawn(
+            let sender = tterm_core::terminal::io_batcher::TerminalOutputSender::spawn(
                 &channel.tab_id,
                 channel.sink.clone(),
             );
-            terminal::reader::spawn_reader_thread(
+            tterm_core::terminal::reader::spawn_reader_thread(
                 reader,
                 channel.clone(),
                 tab.exit_tx.clone(),
                 Some(sender),
                 ZmodemSettings::load(),
                 None,
-                crate::terminal::reader::reader_log(&tab.app.log, &channel.tab_id),
+                tterm_core::terminal::reader::reader_log(&tab.app.log, &channel.tab_id),
             );
 
             #[cfg(unix)]
@@ -188,13 +191,13 @@ fn spawn_initial_session(
 
             Ok((pid, ActiveSession::Local(pty)))
         }
-        crate::core::state::SessionKind::Ssh => {
+        tterm_core::core::state::SessionKind::Ssh => {
             let ssh = spawn_ssh_attempt(tab.clone(), rows, cols, ZmodemSettings::load());
 
             Ok((0, ActiveSession::Ssh(ssh)))
         }
-        crate::core::state::SessionKind::Serial => {
-            let serial = crate::serial::session::spawn_first_serial_attempt(tab)?;
+        tterm_core::core::state::SessionKind::Serial => {
+            let serial = tterm_core::serial::session::spawn_first_serial_attempt(tab)?;
 
             Ok((0, ActiveSession::Serial(serial)))
         }

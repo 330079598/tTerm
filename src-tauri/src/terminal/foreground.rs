@@ -3,7 +3,7 @@
 //! a program killed before it could turn reporting off leaves the terminal
 //! sending every mouse move to the shell's line editor as text.
 
-use crate::core::state::{ActiveSession, PtyMap};
+use tterm_core::core::state::{ActiveSession, PtyMap};
 
 /// Programs that are shells, so a session leader running one again is at its
 /// prompt. A login shell that `exec`ed into something else (tmux, an editor)

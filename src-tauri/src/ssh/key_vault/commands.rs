@@ -1,8 +1,10 @@
-use super::{
-    ExportVaultKeyInput, ImportVaultKeyInput, RenameVaultKeyInput, SetVaultKeyCertificateInput,
-    VaultKeyIdInput, VaultKeySummary, delete_vault_key_service, export_vault_key_service,
-    import_vault_key_service, list_vault_keys_service, rename_vault_key_service,
-    set_vault_key_certificate_service,
+use tterm_core::{
+    ssh::key_vault::ExportVaultKeyInput, ssh::key_vault::ImportVaultKeyInput,
+    ssh::key_vault::RenameVaultKeyInput, ssh::key_vault::SetVaultKeyCertificateInput,
+    ssh::key_vault::VaultKeyIdInput, ssh::key_vault::VaultKeySummary,
+    ssh::key_vault::delete_vault_key_service, ssh::key_vault::export_vault_key_service,
+    ssh::key_vault::import_vault_key_service, ssh::key_vault::list_vault_keys_service,
+    ssh::key_vault::rename_vault_key_service, ssh::key_vault::set_vault_key_certificate_service,
 };
 
 #[tauri::command]

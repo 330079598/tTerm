@@ -15,7 +15,7 @@ pub(crate) mod tray;
 
 use std::sync::atomic::{AtomicBool, AtomicU8, Ordering};
 
-use crate::config::AppConfig;
+use tterm_core::config::AppConfig;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum CloseBehavior {

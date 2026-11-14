@@ -1,10 +1,6 @@
-//! The SFTP connection, its transfers and the commands that drive them.
+//! The Tauri SFTP API surface; the connection itself lives in
+//! [`tterm_core::sftp::internal`].
 
 pub mod api;
-pub mod connection;
-pub mod exec;
-pub mod launcher;
-pub mod sudo;
 #[cfg(test)]
 pub(crate) mod test_support;
-pub mod types;

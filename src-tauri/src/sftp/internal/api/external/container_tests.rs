@@ -1,11 +1,11 @@
-use super::*;
+use crate::sftp::internal::api::external::*;
 use crate::sftp::internal::test_support;
 
 #[tokio::test]
 #[ignore = "requires the P1-04 disposable Docker host on port 22404"]
 async fn container_external_edit_upload_and_remote_change() {
     let (ssh, sftp) = test_support::connect().await;
-    let launcher = crate::sftp::internal::launcher::ChannelLauncher::default();
+    let launcher = tterm_core::sftp::internal::launcher::ChannelLauncher::default();
     let path = format!("/home/alice/p104-edit-{}.txt", uuid::Uuid::new_v4());
     launcher
         .start_script(&ssh, &format!("printf old > '{path}'"))

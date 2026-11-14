@@ -1,8 +1,9 @@
 use std::sync::Arc;
 
-use crate::{
-    core::state::{PtyMap, ZmodemArmedSendMap, ZmodemManualDetectMap, ZmodemMap},
-    monitor::{prompts::PendingMonitorPrompts, types::MonitorSessionMap},
+use crate::monitor::prompts::PendingMonitorPrompts;
+use tterm_core::{
+    core::state::PtyMap, core::state::ZmodemArmedSendMap, core::state::ZmodemManualDetectMap,
+    core::state::ZmodemMap, monitor::types::MonitorSessionMap,
 };
 
 pub struct SessionServices {

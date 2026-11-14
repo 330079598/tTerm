@@ -3,8 +3,8 @@
 //! adds one group per event and recognizes its handlers by the report they
 //! write, leaving every other hook as it is.
 
-use super::json::{Json, Object};
-use super::{IntegrationState, REPORT_MARKER};
+use crate::{agent_integration::IntegrationState, agent_integration::REPORT_MARKER};
+use crate::{agent_integration::json::Json, agent_integration::json::Object};
 
 /// The hooks tTerm installs into one agent.
 pub(super) struct HookSet {

@@ -10,8 +10,8 @@ use tterm_core::events::{AppEvent, EventSink};
 use std::sync::Mutex;
 use std::sync::atomic::{AtomicBool, Ordering};
 
-use crate::core::state::PtyMap;
 use crate::tunnel::manager::TunnelManager;
+use tterm_core::core::state::PtyMap;
 
 pub(crate) mod commands;
 

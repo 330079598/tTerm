@@ -1,18 +1,18 @@
 //! Writing an imported backup's data into this device's settings and database.
 
-use super::archive::validate_relative_path;
-use super::automatic::restore_automatic_backup_settings;
-use super::export::secret_travels;
-use super::remote;
-use super::{BackupImportOptions, BackupLogFile, BackupPayload, BackupSelection, MissingKeyFile};
-use crate::config::local_shells::LocalShell;
-use crate::config::{self, AppConfig};
-use crate::profiles::groups::{list_groups, repair, replace_groups, with_legacy_groups};
-use crate::profiles::storage::normalize_profile;
-use crate::profiles::types::{ProfileGroup, SavedProfile};
-use crate::proxy::ProxyServer;
-use crate::serial::history::{SerialSend, store as serial_sends};
-use crate::ssh::secret_store::{crypto::SecretKey as DataKey, store::put_secret};
+use crate::backup::archive::validate_relative_path;
+use crate::backup::automatic::restore_automatic_backup_settings;
+use crate::backup::export::secret_travels;
+use crate::backup::remote;
+use crate::{
+    backup::BackupImportOptions, backup::BackupLogFile, backup::BackupPayload,
+    backup::BackupSelection, backup::MissingKeyFile,
+};
+use crate::{
+    profiles::groups::list_groups, profiles::groups::repair, profiles::groups::replace_groups,
+    profiles::groups::with_legacy_groups,
+};
+use crate::{serial::history::SerialSend, serial::history::store as serial_sends};
 use base64::{Engine, engine::general_purpose::STANDARD as BASE64};
 use serde::Serialize;
 use serde_json::Value;
@@ -20,7 +20,13 @@ use std::collections::{BTreeMap, HashMap};
 use std::fs;
 use std::path::{Path, PathBuf};
 use tterm_core::command_library::{models::SavedCommand, repository::CommandRepository};
+use tterm_core::config::AppConfig;
+use tterm_core::config::local_shells::LocalShell;
+use tterm_core::profiles::storage::normalize_profile;
+use tterm_core::profiles::types::{ProfileGroup, SavedProfile};
+use tterm_core::proxy::ProxyServer;
 use tterm_core::sftp::store::SftpDirectoryStore;
+use tterm_core::ssh::secret_store::{crypto::SecretKey as DataKey, store::put_secret};
 use tterm_core::ssh::store::KnownHostStore;
 use tterm_core::tunnel::types::TunnelRule;
 
@@ -83,7 +89,7 @@ pub(super) fn missing_key_files(profiles: &[SavedProfile]) -> Vec<MissingKeyFile
             .flat_map(|jump| [&jump.private_key_path, &jump.certificate_path])
             .filter_map(Option::as_deref);
         for path in own.chain(jumps).map(str::trim) {
-            if path.is_empty() || crate::ssh::key_file::key_exists(path) {
+            if path.is_empty() || tterm_core::ssh::key_file::key_exists(path) {
                 continue;
             }
             let users = missing.entry(path).or_default();
@@ -176,8 +182,8 @@ fn keep_device_shells(imported: &mut AppConfig, current: &AppConfig) {
     let distro = imported.terminal_shell_wsl_distro.trim();
     let missing_distro = imported.terminal_shell == "wsl"
         && !distro.is_empty()
-        && !crate::terminal::pty::wsl_distro_installed(distro);
-    if missing_distro || !crate::terminal::pty::has_terminal_shell(&imported.terminal_shell) {
+        && !tterm_core::terminal::pty::wsl_distro_installed(distro);
+    if missing_distro || !tterm_core::terminal::pty::has_terminal_shell(&imported.terminal_shell) {
         imported.terminal_shell.clone_from(&current.terminal_shell);
         imported
             .terminal_shell_custom_path
@@ -229,9 +235,9 @@ pub(super) fn apply_payload(
         if let Some(value) = payload.config.as_ref() {
             let mut imported = serde_json::from_value::<AppConfig>(value.clone())
                 .map_err(|error| format!("Invalid settings: {error}"))?;
-            config::migrate_local_shell_integration(&mut imported);
-            keep_device_settings(&mut imported, config::load_config_file()?);
-            config::save_config_file(&imported)?;
+            tterm_core::config::migrate_local_shell_integration(&mut imported);
+            keep_device_settings(&mut imported, tterm_core::config::load_config_file()?);
+            tterm_core::config::save_config_file(&imported)?;
         }
         // A backup made before sounds travelled keeps this device's sound.
         if let Some(sound) = payload.notification_sound.as_deref() {
@@ -344,13 +350,14 @@ pub(super) fn apply_database_payload(
             }
             let profiles = if merge {
                 let safe_incoming = to_backup_value(&incoming_profiles)?;
-                let existing =
-                    to_backup_value(&crate::profiles::storage::list_saved_profiles(transaction)?)?;
+                let existing = to_backup_value(
+                    &tterm_core::profiles::storage::list_saved_profiles(transaction)?,
+                )?;
                 from_backup_value(merge_arrays_by_keys(existing, safe_incoming, &["id"])?)?
             } else {
                 incoming_profiles
             };
-            crate::profiles::storage::replace_profiles(transaction, &profiles)?;
+            tterm_core::profiles::storage::replace_profiles(transaction, &profiles)?;
         }
         if payload.profile_groups.is_some() || !legacy_groups.is_empty() {
             let incoming = match payload.profile_groups.as_ref() {
@@ -389,12 +396,13 @@ pub(super) fn apply_database_payload(
         // Backups made before proxies existed carry none; keep the current servers then.
         if let Some(incoming) = payload.proxies.as_ref() {
             let proxies = if merge {
-                let existing = to_backup_value(&crate::proxy::storage::list_proxies(transaction)?)?;
+                let existing =
+                    to_backup_value(&tterm_core::proxy::storage::list_proxies(transaction)?)?;
                 merge_arrays_by_keys(existing, incoming.clone(), &["id"])?
             } else {
                 incoming.clone()
             };
-            crate::proxy::storage::replace_proxies(
+            tterm_core::proxy::storage::replace_proxies(
                 transaction,
                 &from_backup_value::<Vec<ProxyServer>>(proxies)?,
             )?;

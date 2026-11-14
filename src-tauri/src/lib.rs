@@ -23,7 +23,6 @@ mod monitor;
 mod notification;
 mod platform;
 mod profiles;
-mod prompt_scope;
 mod proxy;
 mod serial;
 mod services;
@@ -42,25 +41,25 @@ mod window_blur;
 mod window_state;
 mod zmodem;
 
-use core::state::PtyMap;
 use std::sync::Arc;
 use tauri::Manager;
 #[cfg(any(target_os = "windows", target_os = "macos"))]
 use tauri_plugin_frame::FramePluginBuilder;
 use tokio::sync::RwLock;
+use tterm_core::core::state::PtyMap;
 
 pub struct TokioRuntimeState {
     pub runtime: tokio::runtime::Runtime,
 }
 
 /// Runs one of tTerm's helpers instead of the app when started as one (see
-/// `terminal::console_reset`, `agent_integration::console_report` and
+/// `tterm_core::terminal::console_reset`, `agent_integration::console_report` and
 /// `system_integration`); returns its exit code.
 #[cfg(target_os = "windows")]
 pub fn run_console_helper() -> Option<i32> {
-    terminal::console_reset::run_helper_if_requested()
+    tterm_core::terminal::console_reset::run_helper_if_requested()
         .or_else(agent_integration::console_report::run_helper_if_requested)
-        .or_else(system_integration::run_installer_request)
+        .or_else(tterm_core::system_integration::run_installer_request)
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -71,17 +70,17 @@ pub fn run_console_helper() -> Option<i32> {
 pub fn run() {
     tterm_core::identity::install_app_version(env!("CARGO_PKG_VERSION"));
     let pty_map: PtyMap = Arc::new(RwLock::new(std::collections::HashMap::new()));
-    let sftp_pool: sftp::internal::types::SftpConnectionPool =
+    let sftp_pool: tterm_core::sftp::internal::types::SftpConnectionPool =
         Arc::new(RwLock::new(std::collections::HashMap::new()));
-    let monitor_sessions: monitor::types::MonitorSessionMap =
+    let monitor_sessions: tterm_core::monitor::types::MonitorSessionMap =
         Arc::new(tokio::sync::Mutex::new(std::collections::HashMap::new()));
-    let transfer_cancel_map: sftp::internal::types::TransferCancelMap =
+    let transfer_cancel_map: tterm_core::sftp::internal::types::TransferCancelMap =
         Arc::new(RwLock::new(std::collections::HashMap::new()));
-    let zmodem_map: core::state::ZmodemMap =
+    let zmodem_map: tterm_core::core::state::ZmodemMap =
         Arc::new(std::sync::RwLock::new(std::collections::HashMap::new()));
-    let zmodem_armed_send_map: core::state::ZmodemArmedSendMap =
+    let zmodem_armed_send_map: tterm_core::core::state::ZmodemArmedSendMap =
         Arc::new(std::sync::Mutex::new(std::collections::HashMap::new()));
-    let zmodem_manual_detect_map: core::state::ZmodemManualDetectMap =
+    let zmodem_manual_detect_map: tterm_core::core::state::ZmodemManualDetectMap =
         Arc::new(std::sync::Mutex::new(std::collections::HashMap::new()));
     let runtime = tokio::runtime::Builder::new_multi_thread()
         .worker_threads(tterm_core::core::runtime::tokio_worker_threads())
@@ -92,9 +91,9 @@ pub fn run() {
     let external_edit_state = Arc::new(sftp::internal::api::external::ExternalEditState::default());
     let monitor_prompts = Arc::new(monitor::prompts::PendingMonitorPrompts::default());
     let pending_updates = Arc::new(tterm_core::updater::PendingUpdateDownloads::default());
-    let secret_store = ssh::secret_store::types::SecretStoreState::new();
-    ssh::key_vault::install(secret_store.clone());
-    let session_log_state = Arc::new(session_log::SessionLogState::default());
+    let secret_store = tterm_core::ssh::secret_store::types::SecretStoreState::new();
+    tterm_core::ssh::key_vault::install(secret_store.clone());
+    let session_log_state = Arc::new(tterm_core::session_log::SessionLogState::default());
     let tunnel_manager = Arc::new(tunnel::manager::TunnelManager::default());
     let close_behavior = Arc::new(background::CloseBehaviorState::default());
     let quit_state = Arc::new(background::quit::QuitState::default());
@@ -399,7 +398,7 @@ pub fn run() {
                 prompts = Some(Arc::new(tterm_core::prompts::PromptBroker::new(
                     events.clone(),
                 )));
-                let integration = system_integration::initialize((|| {
+                let integration = tterm_core::system_integration::initialize((|| {
                     Ok(tterm_platform::native::integration::IntegrationContext {
                         local_data_dir: paths.local_data_dir.clone(),
                         identifier: identity.identifier.clone(),
@@ -494,7 +493,7 @@ pub fn run() {
                 eprintln!("Failed to remove retired files: {error}");
             }
 
-            let cfg = config::load_config_file().ok();
+            let cfg = tterm_core::config::load_config_file().ok();
             if let Some(cfg) = &cfg {
                 sftp::internal::api::apply_bandwidth_limits(cfg);
                 let log_state = &services.app.session_log;
@@ -511,13 +510,13 @@ pub fn run() {
                     &services.shared.runtime,
                 );
             }
-            sftp::internal::connection::spawn_idle_reaper(
+            tterm_core::sftp::internal::connection::spawn_idle_reaper(
                 &services.shared.runtime,
                 services.sftp.pool.clone(),
             );
             notification::init(services.shared.platform.notifications.as_ref());
             #[cfg(target_os = "macos")]
-            terminal::pty::preload_login_shell_env();
+            tterm_core::terminal::pty::preload_login_shell_env();
             main_window::create_main_window(app, cfg.as_ref())?;
             let cfg = cfg.unwrap_or_default();
             background::apply_config(
@@ -525,7 +524,7 @@ pub fn run() {
                 &app_context::tray(&services),
                 &cfg,
             );
-            runtime_handle.block_on(system_integration::apply_config(
+            runtime_handle.block_on(tterm_core::system_integration::apply_config(
                 &services.shared.platform.integration,
                 &cfg,
             ));
@@ -567,7 +566,7 @@ pub fn run() {
                     // Tunnels may still be running; keep what they carried.
                     services.app.tunnels.save_traffic();
                     // Logs keep what they have not written out yet.
-                    session_log::shutdown(&services.app.session_log);
+                    tterm_core::session_log::shutdown(&services.app.session_log);
                     sftp::internal::api::external::shutdown(&services.sftp.external_edit);
                 }
                 // Clicking the Dock icon brings back a window closed to the

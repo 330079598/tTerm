@@ -1,10 +1,12 @@
 //! Downloading and uploading opened files against a real OpenSSH server
-//! (see [`crate::ssh::test_sshd`]).
+//! (see [`tterm_core::ssh::test_sshd`]).
 
-use super::remote::{self, RemoteStamp};
-use crate::ssh::test_sshd::{TempDir, TestSshd};
+use crate::{
+    sftp::internal::api::external::remote, sftp::internal::api::external::remote::RemoteStamp,
+};
 use std::os::unix::fs::PermissionsExt;
 use std::path::Path;
+use tterm_core::ssh::test_sshd::{TempDir, TestSshd};
 
 const SFTP: &str = "Subsystem sftp internal-sftp\n";
 

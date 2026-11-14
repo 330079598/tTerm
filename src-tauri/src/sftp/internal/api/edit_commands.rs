@@ -1,11 +1,18 @@
-use super::edit::operations::{
-    SftpOpenFileForEditDependencies, SftpOpenFileForEditInput, SftpSaveEditedFileDependencies,
-    SftpSaveEditedFileInput, sftp_open_file_for_edit_service, sftp_save_edited_file_service,
-};
-use super::edit::{SftpEditBaseline, SftpEditableFile, SftpSaveEditedFileResult};
-use crate::core::session::types::PtyConnectionOptions;
 use crate::services::AppServices;
+use crate::{
+    sftp::internal::api::edit::SftpEditBaseline, sftp::internal::api::edit::SftpEditableFile,
+    sftp::internal::api::edit::SftpSaveEditedFileResult,
+};
+use crate::{
+    sftp::internal::api::edit::operations::SftpOpenFileForEditDependencies,
+    sftp::internal::api::edit::operations::SftpOpenFileForEditInput,
+    sftp::internal::api::edit::operations::SftpSaveEditedFileDependencies,
+    sftp::internal::api::edit::operations::SftpSaveEditedFileInput,
+    sftp::internal::api::edit::operations::sftp_open_file_for_edit_service,
+    sftp::internal::api::edit::operations::sftp_save_edited_file_service,
+};
 use tauri::State;
+use tterm_core::core::session::types::PtyConnectionOptions;
 
 #[tauri::command]
 pub async fn sftp_open_file_for_edit(

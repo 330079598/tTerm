@@ -1,6 +1,6 @@
 //! The Tauri commands for syncing data between devices.
 
-use super::{SyncOutcome, SyncSettings, SyncStatus};
+use crate::{sync::SyncOutcome, sync::SyncSettings, sync::SyncStatus};
 use serde_json::Value;
 
 #[tauri::command]

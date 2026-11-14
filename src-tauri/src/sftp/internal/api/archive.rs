@@ -9,10 +9,10 @@ mod real_sshd_tests;
 mod script;
 
 use crate::sftp::internal::api::SftpHost;
-use crate::sftp::internal::exec::{ScriptOutcome, run_to_end};
 use script::{ArchiveScript, MISSING_TOOL_STATUS, compress_script, extract_script};
 use serde::{Deserialize, Serialize};
 use tokio::sync::watch;
+use tterm_core::sftp::internal::exec::{ScriptOutcome, run_to_end};
 use tterm_core::sftp::internal::paths::join_remote_path;
 
 #[derive(Deserialize, Clone, Copy, Debug, PartialEq, Eq)]

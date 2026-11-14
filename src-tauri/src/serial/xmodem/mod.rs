@@ -16,11 +16,11 @@ mod receive_tests;
 mod tests;
 mod transfer;
 
-use crate::core::state::{PtyMap, ZmodemMap, ZmodemTabHandle};
 use serde::Deserialize;
 use std::sync::atomic::AtomicBool;
 use std::sync::{Arc, PoisonError, mpsc};
 use tterm_core::core::blocking::run_blocking;
+use tterm_core::core::state::{PtyMap, ZmodemMap, ZmodemTabHandle};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
 #[serde(rename_all = "lowercase")]
@@ -42,7 +42,7 @@ async fn claim_port(
     tab_id: String,
     session_nonce: u32,
 ) -> Result<(TransferEmitter, transfer::PortClaim, transfer::TapLink), String> {
-    let (writer, tap) = super::with_serial(state, &tab_id, session_nonce, |serial| {
+    let (writer, tap) = tterm_core::serial::with_serial(state, &tab_id, session_nonce, |serial| {
         (serial.writer.clone(), serial.tap.clone())
     })
     .await?;

@@ -1,8 +1,15 @@
 //! The receiving side of XMODEM, XMODEM-1K and YMODEM, over any [`Link`].
 
-use super::protocol::{
-    ACK, BLOCK_TIMEOUT, CAN, CRC_MODE, Check, EOT, Link, MAX_ATTEMPTS, NAK, Result, SOH,
-    START_TIMEOUT, STX, SUB, TransferError, cancelled_by_device, crc16, read, write,
+use crate::{
+    serial::xmodem::protocol::ACK, serial::xmodem::protocol::BLOCK_TIMEOUT,
+    serial::xmodem::protocol::CAN, serial::xmodem::protocol::CRC_MODE,
+    serial::xmodem::protocol::Check, serial::xmodem::protocol::EOT, serial::xmodem::protocol::Link,
+    serial::xmodem::protocol::MAX_ATTEMPTS, serial::xmodem::protocol::NAK,
+    serial::xmodem::protocol::Result, serial::xmodem::protocol::SOH,
+    serial::xmodem::protocol::START_TIMEOUT, serial::xmodem::protocol::STX,
+    serial::xmodem::protocol::SUB, serial::xmodem::protocol::TransferError,
+    serial::xmodem::protocol::cancelled_by_device, serial::xmodem::protocol::crc16,
+    serial::xmodem::protocol::read, serial::xmodem::protocol::write,
 };
 use std::time::Duration;
 

@@ -1,4 +1,5 @@
-use crate::profiles::{group_service, types::ProfileGroup};
+use crate::profiles::group_service;
+use tterm_core::profiles::types::ProfileGroup;
 
 #[tauri::command]
 pub async fn list_profile_groups() -> Result<Vec<ProfileGroup>, String> {

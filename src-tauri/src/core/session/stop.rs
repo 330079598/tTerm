@@ -1,7 +1,7 @@
-use crate::core::state::{
+use std::sync::PoisonError;
+use tterm_core::core::state::{
     ActiveSession, PtySession, ZmodemArmedSendMap, ZmodemManualDetectMap, ZmodemMap,
 };
-use std::sync::PoisonError;
 
 /// The prompt broker and tab that identify the session being stopped.
 pub(crate) struct StopPtyContext<'a> {

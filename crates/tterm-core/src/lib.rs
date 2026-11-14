@@ -43,6 +43,8 @@ pub mod launch;
 pub mod launch_dir;
 /// Types a login script into a shell one command at a time.
 pub mod login_script;
+/// Local and remote system monitoring: the metric collectors and snapshots.
+pub mod monitor;
 /// Distribution reports from a local WSL launcher.
 pub mod os_reports;
 /// The number of characters a password prompt holds.
@@ -54,12 +56,18 @@ pub mod paths;
 
 /// Saved connection profiles and the OpenSSH config import.
 pub mod profiles;
+/// Prompt lifetimes shared by host keys, authentication and proxies.
+pub mod prompt_scope;
 /// One-shot interactive requests with scoped cancellation.
 pub mod prompts;
+/// Proxies an SSH connection reaches its first host through.
+pub mod proxy;
 /// Per-tab directories and hosts reported by remote shells.
 pub mod remote_cwd;
 /// Saved-password offers at SSH sudo prompts.
 pub mod saved_password_prompts;
+/// Serial connections: their settings, ports and line controls.
+pub mod serial;
 /// Session output endpoints shared by client adapters (P1-06).
 pub mod session;
 /// Terminal session logs and the screen they replay.
@@ -72,6 +80,8 @@ pub mod sftp;
 pub mod ssh;
 /// Merging the records two devices wrote during sync.
 pub mod sync;
+/// Installing the shell-integration helpers on this computer.
+pub mod system_integration;
 /// Local and remote terminal sessions and their output.
 pub mod terminal;
 /// Notification requests and the rules for announcing them.

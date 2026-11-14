@@ -1,8 +1,9 @@
 //! The Tauri commands for local backup files.
 
-use super::{
-    AutomaticBackupSettings, BackupExportOptions, BackupExportResult, BackupHistoryEntry,
-    BackupImportOptions, BackupImportResult, BackupInspectInput, BackupInspectResult,
+use crate::{
+    backup::AutomaticBackupSettings, backup::BackupExportOptions, backup::BackupExportResult,
+    backup::BackupHistoryEntry, backup::BackupImportOptions, backup::BackupImportResult,
+    backup::BackupInspectInput, backup::BackupInspectResult,
 };
 use serde_json::Value;
 

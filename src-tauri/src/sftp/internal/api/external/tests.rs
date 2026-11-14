@@ -1,10 +1,14 @@
-use super::operations::{
-    SftpExternalEditReleaseTabDependencies, SftpExternalEditReleaseTabInput,
-    sftp_external_edit_release_tab_service,
+use crate::sftp::internal::api::external::remote::RemoteStamp;
+use crate::sftp::internal::api::external::*;
+use crate::{
+    sftp::internal::api::external::operations::SftpExternalEditReleaseTabDependencies,
+    sftp::internal::api::external::operations::SftpExternalEditReleaseTabInput,
+    sftp::internal::api::external::operations::sftp_external_edit_release_tab_service,
 };
-use super::remote::RemoteStamp;
-use super::watch::{self, Look, Step, Watched};
-use super::*;
+use crate::{
+    sftp::internal::api::external::watch, sftp::internal::api::external::watch::Look,
+    sftp::internal::api::external::watch::Step, sftp::internal::api::external::watch::Watched,
+};
 use std::time::{Duration, SystemTime};
 use tterm_core::events::sftp::external::{EditStatus, ExternalEdit};
 use tterm_core::sftp::internal::api::external::local::{FileStamp, Fingerprint};

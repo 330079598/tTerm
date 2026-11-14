@@ -200,7 +200,7 @@
         },
         {
           "name": "connection",
-          "type": "Option<super::session::types::PtyConnectionOptions>"
+          "type": "Option<tterm_core::core::session::types::PtyConnectionOptions>"
         },
         {
           "name": "output_channel",
@@ -560,7 +560,7 @@
           "type": "Option<String>"
         }
       ],
-      "returns": "Result<Option<super::session::SudoPasswordSource>, String>"
+      "returns": "Result<Option<tterm_core::core::session::SudoPasswordSource>, String>"
     },
     {
       "name": "get_sync_status",

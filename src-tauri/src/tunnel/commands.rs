@@ -1,9 +1,11 @@
 //! The Tauri commands for port-forwarding rules.
 
-use super::credentials::{StartOutcome, TunnelCredentials};
-use super::manager::{
-    auto_start_tunnels_service, delete_tunnel_service, list_tunnel_statuses_service,
-    list_tunnels_service, reset_tunnel_traffic_totals_service, save_tunnel_service, start_rule,
+use crate::{tunnel::credentials::StartOutcome, tunnel::credentials::TunnelCredentials};
+use crate::{
+    tunnel::manager::auto_start_tunnels_service, tunnel::manager::delete_tunnel_service,
+    tunnel::manager::list_tunnel_statuses_service, tunnel::manager::list_tunnels_service,
+    tunnel::manager::reset_tunnel_traffic_totals_service, tunnel::manager::save_tunnel_service,
+    tunnel::manager::start_rule,
 };
 use std::sync::Arc;
 use tterm_core::events::tunnel::TunnelStatus;

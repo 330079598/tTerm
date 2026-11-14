@@ -2,10 +2,14 @@
 
 use tterm_core::events::zmodem::TransferEmitter;
 
-use super::XmodemProtocol;
-use super::protocol::{Result, TransferError};
-use super::receive::{self, FileSink};
-use super::transfer::{FileInfo, FileRows, PortClaim, TapLink, cancel_on_failure};
+use crate::serial::xmodem::XmodemProtocol;
+use crate::{serial::xmodem::protocol::Result, serial::xmodem::protocol::TransferError};
+use crate::{serial::xmodem::receive, serial::xmodem::receive::FileSink};
+use crate::{
+    serial::xmodem::transfer::FileInfo, serial::xmodem::transfer::FileRows,
+    serial::xmodem::transfer::PortClaim, serial::xmodem::transfer::TapLink,
+    serial::xmodem::transfer::cancel_on_failure,
+};
 use std::fs::File;
 use std::io::{BufWriter, Write};
 use std::path::{Path, PathBuf};

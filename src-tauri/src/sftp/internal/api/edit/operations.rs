@@ -1,13 +1,14 @@
-use super::{
-    SftpEditBaseline, SftpEditableFile, SftpSaveEditedFileResult, load_editable_file,
-    save_editable_file,
+use crate::{
+    sftp::internal::api::edit::SftpEditBaseline, sftp::internal::api::edit::SftpEditableFile,
+    sftp::internal::api::edit::SftpSaveEditedFileResult,
+    sftp::internal::api::edit::load_editable_file, sftp::internal::api::edit::save_editable_file,
 };
-use crate::core::session::types::PtyConnectionOptions;
-use crate::sftp::internal::connection::{SftpContext, ensure_ssh_plan};
-use crate::sftp::internal::types::SftpConnectionPool;
-use crate::ssh::secret_store::types::SecretStoreState;
 use std::sync::Arc;
+use tterm_core::core::session::types::PtyConnectionOptions;
 use tterm_core::prompts::PromptBroker;
+use tterm_core::sftp::internal::connection::{SftpContext, ensure_ssh_plan};
+use tterm_core::sftp::internal::types::SftpConnectionPool;
+use tterm_core::ssh::secret_store::types::SecretStoreState;
 
 pub(crate) struct SftpOpenFileForEditInput {
     pub(crate) tab_id: String,

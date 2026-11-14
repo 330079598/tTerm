@@ -1,6 +1,8 @@
 //! The Tauri commands for agent integration on this computer.
 
-use super::{AGENTS, Agent, AgentIntegrationStatus};
+use crate::{
+    agent_integration::AGENTS, agent_integration::Agent, agent_integration::AgentIntegrationStatus,
+};
 
 /// Off the async runtime: the first lookup may start the user's shell.
 async fn blocking<T: Send + 'static>(

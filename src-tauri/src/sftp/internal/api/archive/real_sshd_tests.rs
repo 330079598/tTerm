@@ -1,15 +1,20 @@
 //! The archive scripts against a real OpenSSH server and the host's own
-//! `tar`, `zip` and `gzip` (see [`crate::ssh::test_sshd`]).
+//! `tar`, `zip` and `gzip` (see [`tterm_core::ssh::test_sshd`]).
 
-use super::ArchiveFormat;
-use super::script::{ArchiveScript, MISSING_TOOL_STATUS, compress_script, extract_script};
-use crate::sftp::internal::exec::{ScriptOutcome, run_to_end};
-use crate::sftp::internal::launcher::ChannelLauncher;
-use crate::ssh::test_sshd::{AcceptAnyServerKey, TempDir, TestSshd};
+use crate::sftp::internal::api::archive::ArchiveFormat;
+use crate::{
+    sftp::internal::api::archive::script::ArchiveScript,
+    sftp::internal::api::archive::script::MISSING_TOOL_STATUS,
+    sftp::internal::api::archive::script::compress_script,
+    sftp::internal::api::archive::script::extract_script,
+};
 use russh::client::Handle;
 use std::path::Path;
 use std::time::Duration;
 use tokio::sync::watch;
+use tterm_core::sftp::internal::exec::{ScriptOutcome, run_to_end};
+use tterm_core::sftp::internal::launcher::ChannelLauncher;
+use tterm_core::ssh::test_sshd::{AcceptAnyServerKey, TempDir, TestSshd};
 
 const SFTP: &str = "Subsystem sftp internal-sftp\n";
 

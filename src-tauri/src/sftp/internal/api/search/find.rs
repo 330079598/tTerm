@@ -2,17 +2,17 @@
 //! instead of one SFTP round trip per folder. `find` lists names only; the
 //! matches are then looked up over SFTP for the details a listing shows.
 
-use super::ResultSink;
-use super::matcher::NameMatcher;
 use crate::sftp::internal::api::base::directory_entry;
-use crate::sftp::internal::exec::{cancelled, shell_path, shell_quote};
-use crate::sftp::internal::launcher::ChannelLauncher;
+use crate::sftp::internal::api::search::ResultSink;
+use crate::sftp::internal::api::search::matcher::NameMatcher;
 use russh::client::{Handle, Handler};
 use russh_sftp::client::SftpSession;
 use std::sync::Arc;
 use tokio::sync::watch;
 use tokio::task::JoinSet;
 use tterm_core::sftp::entry::SftpDirectoryEntry;
+use tterm_core::sftp::internal::exec::{cancelled, shell_path, shell_quote};
+use tterm_core::sftp::internal::launcher::ChannelLauncher;
 use tterm_core::sftp::internal::paths::{join_remote_path, parent_remote_path};
 
 /// Printed as the first record once the script knows `find` works, so

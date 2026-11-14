@@ -1,25 +1,31 @@
-use super::credentials::{StartOutcome, TunnelCredentials, apply_credentials, collect_requests};
-use super::hub::{SessionHub, SshConnection};
-use super::runtime::reporter::TunnelReporter;
-use super::runtime::{RunContext, run_tunnel};
-use crate::core::session::saved_hops::load_saved_hop_password;
-use crate::core::session::{
-    load_saved_ssh_password, normalize_connection, resolve_ssh_password, types::JumpHostOptions,
-    types::PtyConnectionOptions,
+use crate::tunnel::runtime::reporter::TunnelReporter;
+use crate::{
+    tunnel::credentials::StartOutcome, tunnel::credentials::TunnelCredentials,
+    tunnel::credentials::apply_credentials, tunnel::credentials::collect_requests,
 };
-use crate::profiles::types::SavedProfile;
-use crate::ssh::context::ConnectionContext;
-use crate::ssh::secret_store::types::SecretStoreState;
+use crate::{tunnel::hub::SessionHub, tunnel::hub::SshConnection};
+use crate::{tunnel::runtime::RunContext, tunnel::runtime::run_tunnel};
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
 use tterm_core::core::blocking::run_blocking;
+use tterm_core::core::session::saved_hops::load_saved_hop_password;
+use tterm_core::profiles::types::SavedProfile;
+use tterm_core::ssh::context::ConnectionContext;
+use tterm_core::ssh::secret_store::types::SecretStoreState;
 use tterm_core::tunnel::storage::{
     delete_tunnel as delete_tunnel_rule, list_tunnel_traffic, load_tunnels, reset_tunnel_traffic,
     upsert_tunnel,
 };
 use tterm_core::tunnel::types::TunnelRule;
+use tterm_core::{
+    core::session::load_saved_ssh_password, core::session::normalize_connection,
+    core::session::resolve_ssh_password,
+};
+use tterm_core::{
+    core::session::types::JumpHostOptions, core::session::types::PtyConnectionOptions,
+};
 use tterm_platform::tray::Tray;
 
 use tokio::sync::{Mutex, watch};
@@ -218,9 +224,9 @@ fn connection_options_for_profile(profile: &SavedProfile) -> Result<PtyConnectio
 }
 
 fn find_profile(profile_id: &str) -> Result<SavedProfile, String> {
-    let mut profile = crate::profiles::storage::find_profile(profile_id)?
+    let mut profile = tterm_core::profiles::storage::find_profile(profile_id)?
         .ok_or_else(|| "The host for this tunnel no longer exists".to_string())?;
-    crate::profiles::storage::normalize_profile(&mut profile);
+    tterm_core::profiles::storage::normalize_profile(&mut profile);
     Ok(profile)
 }
 

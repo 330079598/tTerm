@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use crate::ssh::secret_store::types::SecretStoreState;
+use tterm_core::ssh::secret_store::types::SecretStoreState;
 use tterm_core::{events::EventSink, prompts::PromptBroker};
 use tterm_platform::{
     clipboard::Clipboard, drag::FileDrag, notifications::AppBadge, open::OpenTargets,

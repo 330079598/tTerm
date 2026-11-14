@@ -1,9 +1,13 @@
 //! The open files' bookkeeping, kept under one lock that is never held
 //! across I/O.
 
-use super::remote::RemoteStamp;
-use super::watch::{Look, Watched};
-use super::{EditSession, ExternalEditState};
+use crate::sftp::internal::api::external::remote::RemoteStamp;
+use crate::{
+    sftp::internal::api::external::EditSession, sftp::internal::api::external::ExternalEditState,
+};
+use crate::{
+    sftp::internal::api::external::watch::Look, sftp::internal::api::external::watch::Watched,
+};
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::atomic::Ordering;

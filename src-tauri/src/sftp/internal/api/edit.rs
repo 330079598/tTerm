@@ -1,10 +1,10 @@
 pub(super) mod operations;
 use crate::sftp::internal::api::permissions::PERMISSION_MASK;
-use crate::sftp::internal::connection::map_sftp_error;
 use russh_sftp::client::SftpSession;
 use russh_sftp::protocol::{FileAttributes, OpenFlags};
 use serde::{Deserialize, Serialize};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
+use tterm_core::sftp::internal::connection::map_sftp_error;
 
 #[cfg(test)]
 mod tests;

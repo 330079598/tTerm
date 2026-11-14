@@ -2,7 +2,6 @@ use tterm_core::events::sftp::SftpEvent;
 use tterm_core::events::{AppEvent, EventSink};
 mod batch;
 mod items;
-use crate::sftp::internal::types::TransferCancelMap;
 use russh_sftp::client::SftpSession;
 use serde::Serialize;
 use std::future::Future;
@@ -12,6 +11,7 @@ use std::sync::Arc;
 use tterm_core::sftp::internal::transfer::{
     self, ProgressSink, RemoteChannels, TransferOptions, TransferProgress,
 };
+use tterm_core::sftp::internal::types::TransferCancelMap;
 
 use tokio::fs;
 use tokio::sync::watch;

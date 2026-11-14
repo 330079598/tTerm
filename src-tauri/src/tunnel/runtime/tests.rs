@@ -1,5 +1,8 @@
-use super::connections::{ChannelFailure, ConnectionGuard, Counted};
-use super::*;
+use crate::tunnel::runtime::*;
+use crate::{
+    tunnel::runtime::connections::ChannelFailure, tunnel::runtime::connections::ConnectionGuard,
+    tunnel::runtime::connections::Counted,
+};
 use std::sync::atomic::Ordering;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::{TcpListener, TcpStream};

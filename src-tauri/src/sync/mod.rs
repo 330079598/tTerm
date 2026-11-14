@@ -14,7 +14,6 @@ mod state;
 pub(crate) mod commands;
 mod service;
 
-use crate::ssh::secret_store::types::SecretStoreState;
 use crate::tunnel::manager::TunnelManager;
 use document::{Collections, MAX_DOCUMENT_SIZE, SYNC_FILE_NAME};
 use serde::{Deserialize, Serialize};
@@ -24,6 +23,7 @@ use std::sync::Mutex;
 use tterm_core::backup::webdav::{Fetched, Stored, WebDavClient};
 use tterm_core::core::blocking::run_blocking;
 use tterm_core::db::meta;
+use tterm_core::ssh::secret_store::types::SecretStoreState;
 use tterm_core::sync::merge::{merge_collection, same_data};
 
 use snapshot::SyncSelection;
@@ -331,7 +331,7 @@ async fn exchange(
 }
 
 struct ApplyInput {
-    data_key: crate::ssh::secret_store::crypto::SecretKey,
+    data_key: tterm_core::ssh::secret_store::crypto::SecretKey,
     target_key: String,
     categories: Vec<&'static str>,
     local: Collections,

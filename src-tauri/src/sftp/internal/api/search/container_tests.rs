@@ -1,4 +1,4 @@
-use super::*;
+use crate::sftp::internal::api::search::*;
 use crate::sftp::internal::test_support;
 use std::sync::Mutex;
 
@@ -15,7 +15,7 @@ impl SearchResultSink for Collected {
 async fn container_recursive_find_walk_and_cancel() {
     let (ssh, sftp) = test_support::connect().await;
     let root = format!("/home/alice/p104-search-{}", uuid::Uuid::new_v4());
-    let launcher = crate::sftp::internal::launcher::ChannelLauncher::default();
+    let launcher = tterm_core::sftp::internal::launcher::ChannelLauncher::default();
     launcher.start_script(&ssh,&format!("mkdir -p '{root}/a/b'; touch '{root}/a/b/中文.log'; i=0; while [ $i -lt 55 ]; do mkdir '{root}/d'$i; i=$((i+1)); done")).await.unwrap().finish().await;
     let matcher = NameMatcher::new("log", false).unwrap();
     let record = Arc::new(Collected::default());

@@ -173,7 +173,7 @@ pub struct AgentIntegrationStatus {
 /// tTerm's environment or the user's shell, else its default. The first two
 /// must be absolute: a relative one depends on where the agent starts.
 fn config_dir(spec: &AgentSpec) -> Option<(PathBuf, ConfigSource)> {
-    let config = crate::config::load_config_file().unwrap_or_default();
+    let config = tterm_core::config::load_config_file().unwrap_or_default();
     let custom = config
         .agent_config_dirs
         .get(spec.key)

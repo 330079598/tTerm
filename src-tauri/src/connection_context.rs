@@ -1,5 +1,7 @@
 //! Tauri entry adapter for assembling concrete session dependencies.
-use crate::{services::AppServices, session_log::LogContext, ssh::context::ConnectionContext};
+use crate::services::AppServices;
+use tterm_core::session_log::LogContext;
+use tterm_core::ssh::context::ConnectionContext;
 
 pub(crate) fn connection(services: &AppServices) -> ConnectionContext {
     ConnectionContext {
@@ -18,8 +20,8 @@ pub(crate) fn log(services: &AppServices) -> LogContext {
 }
 
 /// Assembles the concrete dependencies for an SFTP side connection.
-pub(crate) fn sftp(services: &AppServices) -> crate::sftp::internal::connection::SftpContext {
-    crate::sftp::internal::connection::SftpContext {
+pub(crate) fn sftp(services: &AppServices) -> tterm_core::sftp::internal::connection::SftpContext {
+    tterm_core::sftp::internal::connection::SftpContext {
         ssh: connection(services),
         secrets: services.shared.secrets.clone(),
     }

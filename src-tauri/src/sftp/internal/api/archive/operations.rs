@@ -1,12 +1,16 @@
-use super::{CompressRequest, ExtractRequest, RemoteOperationResult, compress, extract};
-use crate::core::session::types::PtyConnectionOptions;
-use crate::sftp::internal::api::{SftpHost, with_cancel};
-use crate::sftp::internal::connection::SftpContext;
-use crate::sftp::internal::types::SftpConnectionPool;
-use crate::sftp::internal::types::TransferCancelMap;
-use crate::ssh::secret_store::types::SecretStoreState;
+use crate::{sftp::internal::api::SftpHost, sftp::internal::api::with_cancel};
+use crate::{
+    sftp::internal::api::archive::CompressRequest, sftp::internal::api::archive::ExtractRequest,
+    sftp::internal::api::archive::RemoteOperationResult, sftp::internal::api::archive::compress,
+    sftp::internal::api::archive::extract,
+};
 use std::sync::Arc;
+use tterm_core::core::session::types::PtyConnectionOptions;
 use tterm_core::prompts::PromptBroker;
+use tterm_core::sftp::internal::connection::SftpContext;
+use tterm_core::sftp::internal::types::SftpConnectionPool;
+use tterm_core::sftp::internal::types::TransferCancelMap;
+use tterm_core::ssh::secret_store::types::SecretStoreState;
 
 pub(crate) struct SftpCompressEntriesInput {
     pub(crate) tab_id: String,

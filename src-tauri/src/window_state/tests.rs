@@ -1,4 +1,7 @@
-use super::{Bounds, Observation, SavedWindowState, fold};
+use crate::{
+    window_state::Bounds, window_state::Observation, window_state::SavedWindowState,
+    window_state::fold,
+};
 use tterm_core::window_state::placement::{Area, centered, top_edge_on_screen};
 
 const NORMAL: Bounds = Bounds {

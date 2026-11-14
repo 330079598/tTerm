@@ -1,21 +1,23 @@
-use super::{app::AppLevelServices, session::SessionServices, sftp::SftpServices};
+use crate::{
+    services::app::AppLevelServices, services::session::SessionServices,
+    services::sftp::SftpServices,
+};
 use tterm_core::updater::PendingUpdateDownloads;
 
 use crate::{
-    background::{
-        CloseBehaviorState, exit_guard::ExitGuardState, quit::QuitState, tray::TrayState,
-    },
-    core::state::{PtyMap, ZmodemArmedSendMap, ZmodemManualDetectMap, ZmodemMap},
-    monitor::{prompts::PendingMonitorPrompts, types::MonitorSessionMap},
-    session_log::SessionLogState,
-    sftp::internal::{
-        api::external::ExternalEditState,
-        types::{SftpConnectionPool, TransferCancelMap},
-    },
+    background::CloseBehaviorState, background::exit_guard::ExitGuardState,
+    background::quit::QuitState, background::tray::TrayState,
+    monitor::prompts::PendingMonitorPrompts, sftp::internal::api::external::ExternalEditState,
     tunnel::manager::TunnelManager,
 };
 use std::sync::Arc;
 use tterm_core::launch_dir::LaunchDirs;
+use tterm_core::session_log::SessionLogState;
+use tterm_core::{
+    core::state::PtyMap, core::state::ZmodemArmedSendMap, core::state::ZmodemManualDetectMap,
+    core::state::ZmodemMap, monitor::types::MonitorSessionMap,
+    sftp::internal::types::SftpConnectionPool, sftp::internal::types::TransferCancelMap,
+};
 #[test]
 fn app_services_arc_ptr_eq_matches_legacy_states() {
     let ptys: PtyMap = Arc::new(Default::default());
@@ -125,7 +127,7 @@ fn shared_paths_and_identity_keep_the_startup_instances() {
         identity: identity.clone(),
         prompts: Arc::new(tterm_core::prompts::PromptBroker::new(events.clone())),
         events,
-        secrets: crate::ssh::secret_store::types::SecretStoreState::new(),
+        secrets: tterm_core::ssh::secret_store::types::SecretStoreState::new(),
         runtime: runtime.handle().clone(),
         platform: platform_with(notifications, Err("unavailable".into())),
     };

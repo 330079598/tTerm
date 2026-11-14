@@ -1,10 +1,10 @@
 //! Writing the same input to several sessions at once.
 
-use crate::core::state::{ActiveSession, PtyMap, PtySession};
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 use tokio::sync::Mutex as TokioMutex;
+use tterm_core::core::state::{ActiveSession, PtyMap, PtySession};
 use tterm_core::session::sink::SessionSink;
 
 #[derive(Debug, Deserialize)]

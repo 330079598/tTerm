@@ -1,11 +1,11 @@
 //! Importing profiles from an OpenSSH config file.
 
 use crate::profiles::groups::resolve_path;
-use crate::profiles::parser::build_ssh_config_import_preview;
-use crate::profiles::storage::{load_profiles, sanitize_profile, upsert_profile};
-use crate::profiles::types::{SavedProfile, SshConfigImportOptions, SshConfigImportResult};
 use proxy::ImportedProxies;
 use std::collections::HashSet;
+use tterm_core::profiles::parser::build_ssh_config_import_preview;
+use tterm_core::profiles::storage::{load_profiles, sanitize_profile, upsert_profile};
+use tterm_core::profiles::types::{SavedProfile, SshConfigImportOptions, SshConfigImportResult};
 
 mod proxy;
 

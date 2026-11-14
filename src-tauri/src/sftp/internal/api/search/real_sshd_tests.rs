@@ -1,17 +1,19 @@
-//! Searching against a real OpenSSH server (see [`crate::ssh::test_sshd`]),
+//! Searching against a real OpenSSH server (see [`tterm_core::ssh::test_sshd`]),
 //! with the host's own `find`, and over SFTP alone for an account that
 //! cannot run commands.
 
-use super::find::{FindOutcome, FindSearch};
-use super::matcher::NameMatcher;
-use super::walk::walk;
-use super::{MAX_RESULTS, ResultSink};
-use crate::sftp::internal::launcher::ChannelLauncher;
-use crate::ssh::test_sshd::{TempDir, TestSshd};
+use crate::sftp::internal::api::search::matcher::NameMatcher;
+use crate::sftp::internal::api::search::walk::walk;
+use crate::{sftp::internal::api::search::MAX_RESULTS, sftp::internal::api::search::ResultSink};
+use crate::{
+    sftp::internal::api::search::find::FindOutcome, sftp::internal::api::search::find::FindSearch,
+};
 use std::path::Path;
 use std::sync::{Arc, Mutex};
 use tokio::sync::watch;
+use tterm_core::sftp::internal::launcher::ChannelLauncher;
 use tterm_core::sftp::search::SearchResultSink;
+use tterm_core::ssh::test_sshd::{TempDir, TestSshd};
 
 const SFTP: &str = "Subsystem sftp internal-sftp\n";
 

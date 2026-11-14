@@ -1,7 +1,7 @@
 //! The sending side of XMODEM, XMODEM-1K and YMODEM, over any [`Link`].
 //! Kept apart from the serial port so a scripted receiver can drive it.
 
-use super::XmodemProtocol;
+use crate::serial::xmodem::XmodemProtocol;
 use std::io::Read;
 use std::time::{Duration, Instant};
 

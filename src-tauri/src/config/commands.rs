@@ -1,9 +1,9 @@
 //! The Tauri commands for loading and saving the configuration.
 
-use super::{AppConfig, load_config_file};
-use crate::background::{CloseBehaviorState, tray::TrayContext};
-use crate::session_log::LogContext;
+use crate::{background::CloseBehaviorState, background::tray::TrayContext};
 use std::sync::Arc;
+use tterm_core::session_log::LogContext;
+use tterm_core::{config::AppConfig, config::load_config_file};
 use tterm_platform::integration::SystemIntegration;
 
 struct SaveConfigContext {
@@ -18,7 +18,7 @@ fn apply_saved_config(context: &SaveConfigContext, config: &AppConfig) -> Result
     crate::background::apply_config(&context.close, &context.tray, config);
     context
         .runtime
-        .block_on(crate::system_integration::apply_config(
+        .block_on(tterm_core::system_integration::apply_config(
             &context.integration,
             config,
         ));
@@ -53,11 +53,11 @@ pub async fn save_config(
 mod tests {
     use super::*;
     use crate::background::tray::TrayState;
-    use crate::session_log::SessionLogState;
     use crate::tunnel::manager::TunnelManager;
     use std::sync::{Mutex, Weak};
     use std::thread::ThreadId;
     use tterm_core::events::{AppEvent, EventSink};
+    use tterm_core::session_log::SessionLogState;
     use tterm_platform::PlatformFuture;
     use tterm_platform::integration::IntegrationStatus;
     use tterm_platform::tray::{Tray, TrayModel};
