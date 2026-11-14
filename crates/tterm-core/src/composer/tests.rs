@@ -9,7 +9,7 @@ use crate::composer::input::{
 };
 use crate::composer::run::{
     ComposerPromptEvent, ComposerRun, RunLineStatus, continue_run, finish_line, is_run_active,
-    prompt_reached, retry_line, start_run, stop_run,
+    prompt_reached, retry_line, run_lines, start_run, stop_run,
 };
 
 fn statuses(run: &ComposerRun) -> Vec<RunLineStatus> {
@@ -243,4 +243,12 @@ fn stops_with_the_running_line_left_unfinished() {
         vec![RunLineStatus::Unfinished, RunLineStatus::Pending]
     );
     assert_eq!(stop_run(&run), run);
+}
+
+#[test]
+fn run_lines_keeps_each_line_as_typed_and_drops_the_blank_ones() {
+    assert_eq!(
+        run_lines("cd /tmp\r\n\n  \n  ls -la\n"),
+        vec!["cd /tmp", "  ls -la"]
+    );
 }
