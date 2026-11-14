@@ -273,10 +273,10 @@ impl Read for OutputCounter {
 /// kilobytes of it and the rest is still queued here.
 fn discard_unread_input(pid: u32) {
     #[cfg(target_os = "windows")]
-    if pid != 0 {
-        if let Err(err) = crate::terminal::console_reset::flush_console_input(pid) {
-            eprintln!("Failed to discard pasted input: {err}");
-        }
+    if pid != 0
+        && let Err(err) = crate::terminal::console_reset::flush_console_input(pid)
+    {
+        eprintln!("Failed to discard pasted input: {err}");
     }
     #[cfg(not(target_os = "windows"))]
     let _ = pid;

@@ -183,6 +183,12 @@ impl Drop for StartupFinished {
     }
 }
 
+impl Default for SecretStoreState {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl SecretStoreState {
     pub fn new() -> Self {
         Self {
