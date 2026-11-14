@@ -1,0 +1,59 @@
+ 1. config: 1 files {'config': 1}
+      config/mod.rs
+ 2. profiles: 1 files {'profiles': 1}
+      profiles/mod.rs
+ 3. command_library: 1 files {'command_library': 1}
+      command_library/mod.rs
+ 4. ssh: 2 files {'ssh': 2}
+      ssh/key_vault/mod.rs
+      ssh/mod.rs
+ 5. terminal: 1 files {'terminal': 1}
+      terminal/mod.rs
+ 6. serial: 3 files {'serial': 3}
+      serial/history/mod.rs
+      serial/mod.rs
+      serial/xmodem/mod.rs
+ 7. zmodem: 1 files {'zmodem': 1}
+      zmodem/mod.rs
+ 8. sftp: 6 files {'sftp': 6}
+      sftp/internal/api.rs
+      sftp/internal/api/delete/mod.rs
+      sftp/internal/api/external/mod.rs
+      sftp/internal/api/upload/mod.rs
+      sftp/internal/mod.rs
+      sftp/mod.rs
+ 9. tunnel: 1 files {'tunnel': 1}
+      tunnel/mod.rs
+10. proxy: 1 files {'proxy': 1}
+      proxy/mod.rs
+11. monitor: 1 files {'monitor': 1}
+      monitor/mod.rs
+12. session_log: 1 files {'session_log': 1}
+      session_log/mod.rs
+13. backup: 1 files {'backup': 1}
+      backup/mod.rs
+14. sync: 1 files {'sync': 1}
+      sync/mod.rs
+15. agent_integration: 1 files {'agent_integration': 1}
+      agent_integration/mod.rs
+16. app_state: 1 files {'app_state': 1}
+      app_state/mod.rs
+17. background: 2 files {'background': 2}
+      background/mod.rs
+      background/tray/mod.rs
+18. core: 1 files {'core': 1}
+      core/mod.rs
+19. fonts: 1 files {'fonts': 1}
+      fonts/mod.rs
+20. launch_dir: 1 files {'launch_dir': 1}
+      launch_dir/mod.rs
+21. notification: 1 files {'notification': 1}
+      notification/mod.rs
+22. session: 1 files {'session': 1}
+      session/mod.rs
+23. system_integration: 1 files {'system_integration': 1}
+      system_integration/mod.rs
+24. themes: 1 files {'themes': 1}
+      themes/mod.rs
+25. updater: 1 files {'updater': 1}
+      updater/mod.rs

@@ -1,0 +1,26 @@
+$ pnpm lint
+$ eslint src
+
+$ pnpm format:check
+Checking formatting...
+All matched files use Prettier code style!
+
+$ pnpm check:tokens
+$ node scripts/tokens/generate.mjs --check
+
+$ pnpm typecheck
+$ tsc --noEmit
+
+$ pnpm test
+ Test Files  183 passed (183)
+      Tests  1354 passed (1354)
+ℹ tests 2
+ℹ pass 2
+ℹ fail 0
+ℹ tests 8
+ℹ pass 8
+ℹ fail 0
+
+$ pnpm check:size
+$ node scripts/check-file-size.mjs
+file-size: 1348 files within their limits
