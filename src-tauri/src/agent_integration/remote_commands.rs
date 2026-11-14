@@ -1,10 +1,10 @@
 //! The Tauri commands for agent integration on an SSH host.
 
-use crate::sftp::internal::api::SftpHost;
 use crate::{agent_integration::Agent, agent_integration::AgentIntegrationStatus};
 use crate::{agent_integration::remote::remote_change, agent_integration::remote::remote_status};
 use std::sync::Arc;
 use tterm_core::core::session::types::PtyConnectionOptions;
+use tterm_core::sftp::internal::api::SftpHost;
 
 /// Each agent's integration on the tab's SSH host.
 #[tauri::command]

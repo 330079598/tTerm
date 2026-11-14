@@ -1,20 +1,18 @@
 use crate::services::AppServices;
-use crate::{
-    sftp::internal::api::base::operations::SftpCreateDirectoryDependencies,
-    sftp::internal::api::base::operations::SftpCreateDirectoryInput,
-    sftp::internal::api::base::operations::SftpListDirectoryDependencies,
-    sftp::internal::api::base::operations::SftpListDirectoryInput,
-    sftp::internal::api::base::operations::SftpReleaseTabConnectionsDependencies,
-    sftp::internal::api::base::operations::SftpReleaseTabConnectionsInput,
-    sftp::internal::api::base::operations::SftpRenameEntryDependencies,
-    sftp::internal::api::base::operations::SftpRenameEntryInput,
-    sftp::internal::api::base::operations::sftp_create_directory_service,
-    sftp::internal::api::base::operations::sftp_list_directory_service,
-    sftp::internal::api::base::operations::sftp_release_tab_connections_service,
-    sftp::internal::api::base::operations::sftp_rename_entry_service,
-};
 use tauri::State;
 use tterm_core::core::session::types::PtyConnectionOptions;
+use tterm_core::sftp::internal::api::base::operations::SftpCreateDirectoryDependencies;
+use tterm_core::sftp::internal::api::base::operations::SftpCreateDirectoryInput;
+use tterm_core::sftp::internal::api::base::operations::SftpListDirectoryDependencies;
+use tterm_core::sftp::internal::api::base::operations::SftpListDirectoryInput;
+use tterm_core::sftp::internal::api::base::operations::SftpReleaseTabConnectionsDependencies;
+use tterm_core::sftp::internal::api::base::operations::SftpReleaseTabConnectionsInput;
+use tterm_core::sftp::internal::api::base::operations::SftpRenameEntryDependencies;
+use tterm_core::sftp::internal::api::base::operations::SftpRenameEntryInput;
+use tterm_core::sftp::internal::api::base::operations::sftp_create_directory_service;
+use tterm_core::sftp::internal::api::base::operations::sftp_list_directory_service;
+use tterm_core::sftp::internal::api::base::operations::sftp_release_tab_connections_service;
+use tterm_core::sftp::internal::api::base::operations::sftp_rename_entry_service;
 use tterm_core::sftp::internal::types::SftpDirectoryListing;
 
 /// Called when a tab's SFTP drawer unmounts, i.e. the tab has closed.

@@ -1,21 +1,18 @@
 use crate::services::AppServices;
-use crate::{
-    sftp::internal::api::archive::CompressRequest, sftp::internal::api::archive::ExtractRequest,
-    sftp::internal::api::archive::RemoteOperationResult,
-};
-use crate::{
-    sftp::internal::api::archive::operations::SftpCancelRemoteOperationDependencies,
-    sftp::internal::api::archive::operations::SftpCancelRemoteOperationInput,
-    sftp::internal::api::archive::operations::SftpCompressEntriesDependencies,
-    sftp::internal::api::archive::operations::SftpCompressEntriesInput,
-    sftp::internal::api::archive::operations::SftpExtractArchiveDependencies,
-    sftp::internal::api::archive::operations::SftpExtractArchiveInput,
-    sftp::internal::api::archive::operations::sftp_cancel_remote_operation_service,
-    sftp::internal::api::archive::operations::sftp_compress_entries_service,
-    sftp::internal::api::archive::operations::sftp_extract_archive_service,
-};
 use tauri::State;
 use tterm_core::core::session::types::PtyConnectionOptions;
+use tterm_core::sftp::internal::api::archive::CompressRequest;
+use tterm_core::sftp::internal::api::archive::ExtractRequest;
+use tterm_core::sftp::internal::api::archive::RemoteOperationResult;
+use tterm_core::sftp::internal::api::archive::operations::SftpCancelRemoteOperationDependencies;
+use tterm_core::sftp::internal::api::archive::operations::SftpCancelRemoteOperationInput;
+use tterm_core::sftp::internal::api::archive::operations::SftpCompressEntriesDependencies;
+use tterm_core::sftp::internal::api::archive::operations::SftpCompressEntriesInput;
+use tterm_core::sftp::internal::api::archive::operations::SftpExtractArchiveDependencies;
+use tterm_core::sftp::internal::api::archive::operations::SftpExtractArchiveInput;
+use tterm_core::sftp::internal::api::archive::operations::sftp_cancel_remote_operation_service;
+use tterm_core::sftp::internal::api::archive::operations::sftp_compress_entries_service;
+use tterm_core::sftp::internal::api::archive::operations::sftp_extract_archive_service;
 
 /// Packs entries of one folder into a new archive beside them.
 #[tauri::command]

@@ -1,17 +1,19 @@
-mod operations;
 use crate::services::AppServices;
-use crate::{
-    sftp::internal::api::delete::DeleteBatchStartResult,
-    sftp::internal::api::delete::DeleteEntryRequest, sftp::internal::api::delete::DeleteOptions,
-    sftp::internal::api::delete::DeletePreviewResult,
-};
-use operations::{
-    SftpDeleteEntriesDependencies, SftpDeleteEntriesInput, SftpDeleteEntryDependencies,
-    SftpDeleteEntryInput, SftpPreviewDeleteEntriesDependencies, SftpPreviewDeleteEntriesInput,
-    sftp_delete_entries_service, sftp_delete_entry_service, sftp_preview_delete_entries_service,
-};
 use tauri::State;
 use tterm_core::core::session::types::PtyConnectionOptions;
+use tterm_core::sftp::internal::api::delete::DeleteBatchStartResult;
+use tterm_core::sftp::internal::api::delete::DeleteEntryRequest;
+use tterm_core::sftp::internal::api::delete::DeleteOptions;
+use tterm_core::sftp::internal::api::delete::DeletePreviewResult;
+use tterm_core::sftp::internal::api::delete::operations::SftpDeleteEntriesDependencies;
+use tterm_core::sftp::internal::api::delete::operations::SftpDeleteEntriesInput;
+use tterm_core::sftp::internal::api::delete::operations::SftpDeleteEntryDependencies;
+use tterm_core::sftp::internal::api::delete::operations::SftpDeleteEntryInput;
+use tterm_core::sftp::internal::api::delete::operations::SftpPreviewDeleteEntriesDependencies;
+use tterm_core::sftp::internal::api::delete::operations::SftpPreviewDeleteEntriesInput;
+use tterm_core::sftp::internal::api::delete::operations::sftp_delete_entries_service;
+use tterm_core::sftp::internal::api::delete::operations::sftp_delete_entry_service;
+use tterm_core::sftp::internal::api::delete::operations::sftp_preview_delete_entries_service;
 #[tauri::command]
 pub async fn sftp_preview_delete_entries(
     tab_id: String,

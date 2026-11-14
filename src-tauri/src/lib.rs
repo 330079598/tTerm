@@ -88,7 +88,8 @@ pub fn run() {
         .build()
         .expect("failed to build tokio runtime");
     let runtime_handle = runtime.handle().clone();
-    let external_edit_state = Arc::new(sftp::internal::api::external::ExternalEditState::default());
+    let external_edit_state =
+        Arc::new(tterm_core::sftp::internal::api::external::ExternalEditState::default());
     let monitor_prompts = Arc::new(monitor::prompts::PendingMonitorPrompts::default());
     let pending_updates = Arc::new(tterm_core::updater::PendingUpdateDownloads::default());
     let secret_store = tterm_core::ssh::secret_store::types::SecretStoreState::new();
@@ -158,7 +159,7 @@ pub fn run() {
                     .is_some_and(|services| {
                         background::on_close_requested(&app_context::background(
                             &services,
-                            sftp::internal::api::external::unuploaded_files(
+                            tterm_core::sftp::internal::api::external::unuploaded_files(
                                 &services.sftp.external_edit,
                             ),
                         ))
@@ -495,7 +496,7 @@ pub fn run() {
 
             let cfg = tterm_core::config::load_config_file().ok();
             if let Some(cfg) = &cfg {
-                sftp::internal::api::apply_bandwidth_limits(cfg);
+                tterm_core::sftp::internal::api::apply_bandwidth_limits(cfg);
                 let log_state = &services.app.session_log;
                 if let Err(err) =
                     log_state.apply_config(&crate::connection_context::log(&services), cfg)
@@ -505,7 +506,7 @@ pub fn run() {
             }
 
             if let Ok(paths) = crate::app_paths::get(&app_handle) {
-                sftp::internal::api::external::clean_up_on_start(
+                tterm_core::sftp::internal::api::external::clean_up_on_start(
                     paths.as_ref(),
                     &services.shared.runtime,
                 );
@@ -545,7 +546,7 @@ pub fn run() {
                         .is_some_and(|services| {
                             background::on_exit_requested(&app_context::background(
                                 &services,
-                                sftp::internal::api::external::unuploaded_files(
+                                tterm_core::sftp::internal::api::external::unuploaded_files(
                                     &services.sftp.external_edit,
                                 ),
                             ))
@@ -567,7 +568,9 @@ pub fn run() {
                     services.app.tunnels.save_traffic();
                     // Logs keep what they have not written out yet.
                     tterm_core::session_log::shutdown(&services.app.session_log);
-                    sftp::internal::api::external::shutdown(&services.sftp.external_edit);
+                    tterm_core::sftp::internal::api::external::shutdown(
+                        &services.sftp.external_edit,
+                    );
                 }
                 // Clicking the Dock icon brings back a window closed to the
                 // background.

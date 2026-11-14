@@ -11,6 +11,6 @@ pub(super) fn save_config(
     config.secret_storage_mode = load_config_file()?.secret_storage_mode;
     log_state.validate_config(&config)?;
     save_config_file(&config)?;
-    crate::sftp::internal::api::apply_bandwidth_limits(&config);
+    tterm_core::sftp::internal::api::apply_bandwidth_limits(&config);
     Ok(config)
 }

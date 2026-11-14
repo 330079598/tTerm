@@ -11,7 +11,9 @@ pub fn resolve_close_request(
     super::resolve_close(
         &crate::app_context::background(
             &services,
-            crate::sftp::internal::api::external::unuploaded_files(&services.sftp.external_edit),
+            tterm_core::sftp::internal::api::external::unuploaded_files(
+                &services.sftp.external_edit,
+            ),
         ),
         &action,
     );

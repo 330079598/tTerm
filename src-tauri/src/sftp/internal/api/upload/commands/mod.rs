@@ -1,16 +1,21 @@
-mod operations;
 use crate::services::AppServices;
-use crate::sftp::internal::api::conflict::ConflictReport;
-use crate::sftp::internal::api::upload::UploadBatchResult;
-use operations::{
-    SftpCancelUploadDependencies, SftpCancelUploadInput, SftpCheckUploadConflictsDependencies,
-    SftpCheckUploadConflictsInput, SftpUploadFileDependencies, SftpUploadFileInput,
-    SftpUploadPathsDependencies, SftpUploadPathsInput, sftp_cancel_upload_service,
-    sftp_check_upload_conflicts_service, sftp_upload_file_service, sftp_upload_paths_service,
-};
 use tauri::State;
 use tterm_core::core::session::types::PtyConnectionOptions;
 use tterm_core::sftp::conflict::ConflictPolicy;
+use tterm_core::sftp::internal::api::conflict::ConflictReport;
+use tterm_core::sftp::internal::api::upload::UploadBatchResult;
+use tterm_core::sftp::internal::api::upload::operations::SftpCancelUploadDependencies;
+use tterm_core::sftp::internal::api::upload::operations::SftpCancelUploadInput;
+use tterm_core::sftp::internal::api::upload::operations::SftpCheckUploadConflictsDependencies;
+use tterm_core::sftp::internal::api::upload::operations::SftpCheckUploadConflictsInput;
+use tterm_core::sftp::internal::api::upload::operations::SftpUploadFileDependencies;
+use tterm_core::sftp::internal::api::upload::operations::SftpUploadFileInput;
+use tterm_core::sftp::internal::api::upload::operations::SftpUploadPathsDependencies;
+use tterm_core::sftp::internal::api::upload::operations::SftpUploadPathsInput;
+use tterm_core::sftp::internal::api::upload::operations::sftp_cancel_upload_service;
+use tterm_core::sftp::internal::api::upload::operations::sftp_check_upload_conflicts_service;
+use tterm_core::sftp::internal::api::upload::operations::sftp_upload_file_service;
+use tterm_core::sftp::internal::api::upload::operations::sftp_upload_paths_service;
 
 /// Pre-flight for `sftp_upload_paths`: which planned files already exist on
 /// the remote. Each destination directory is listed once rather than every
