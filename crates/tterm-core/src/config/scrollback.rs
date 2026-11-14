@@ -67,7 +67,7 @@ pub fn starting_scrollback_lines(value: Option<f64>) -> u32 {
 /// Line feeds xterm executes for `text` (LF, VT and FF all advance a line).
 pub fn count_line_feeds(text: &str) -> usize {
     text.bytes()
-        .filter(|byte| matches!(byte, 0x0a | 0x0b | 0x0c))
+        .filter(|byte| matches!(byte, 0x0a..=0x0c))
         .count()
 }
 
