@@ -11,9 +11,11 @@ pub mod local_shells;
 pub mod panes;
 pub mod paths;
 pub mod reconnect;
+pub mod save;
 pub mod tab_agent_indicator;
 pub mod tab_icons;
 pub mod update_channel;
+pub mod window_background;
 
 #[cfg(test)]
 mod tests;

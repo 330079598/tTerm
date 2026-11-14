@@ -3,8 +3,8 @@
 //! frontend rewrites that file from its own copy of the config; the database
 //! is open before the window is built.
 
+use crate::db::meta;
 use rusqlite::Connection;
-use tterm_core::db::meta;
 
 const KEY: &str = "window_background";
 /// Where older versions kept it.
@@ -19,12 +19,12 @@ fn parse_hex_color(value: &str) -> Option<(u8, u8, u8)> {
     Some((channel(0..2)?, channel(2..4)?, channel(4..6)?))
 }
 
-pub(crate) fn read(connection: &Connection) -> Result<Option<(u8, u8, u8)>, String> {
+pub fn read(connection: &Connection) -> Result<Option<(u8, u8, u8)>, String> {
     Ok(meta::get::<String>(connection, KEY)?.and_then(|color| parse_hex_color(&color)))
 }
 
 /// Saves `color` (`#rrggbb`) unless it is already saved.
-pub(super) fn write(connection: &Connection, color: &str) -> Result<(), String> {
+pub fn write(connection: &Connection, color: &str) -> Result<(), String> {
     let (r, g, b) = parse_hex_color(color).ok_or_else(|| format!("Invalid color: {color}"))?;
     if read(connection)? != Some((r, g, b)) {
         meta::set(connection, KEY, &format!("#{r:02x}{g:02x}{b:02x}"))?;
@@ -34,12 +34,12 @@ pub(super) fn write(connection: &Connection, color: &str) -> Result<(), String> 
 
 /// `None` when none is saved or the database is unavailable.
 pub fn load_window_background() -> Option<(u8, u8, u8)> {
-    tterm_core::db::read(read).ok().flatten()
+    crate::db::read(read).ok().flatten()
 }
 
 /// Moves the file older versions kept into the database.
-pub(crate) fn import_file(
-    database: &tterm_core::db::Database,
+pub fn import_file(
+    database: &crate::db::Database,
     config_dir: &std::path::Path,
 ) -> Result<(), String> {
     meta::import_file(
@@ -59,7 +59,7 @@ pub(crate) fn import_file(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use tterm_core::db::Database;
+    use crate::db::Database;
 
     #[test]
     fn colors_round_trip_normalized() {

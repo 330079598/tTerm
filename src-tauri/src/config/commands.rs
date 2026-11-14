@@ -43,7 +43,7 @@ pub async fn save_config(
         runtime: services.shared.runtime.clone(),
     };
     tterm_core::core::blocking::run_blocking(move || {
-        let config = super::save::save_config(context.log.state.clone(), config)?;
+        let config = tterm_core::config::save::save_config(context.log.state.clone(), config)?;
         apply_saved_config(&context, &config)
     })
     .await

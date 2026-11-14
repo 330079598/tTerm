@@ -1,9 +1,9 @@
 //! Applies saved settings to the services that cache configuration.
+use crate::session_log::SessionLogState;
+use crate::{config::AppConfig, config::load_config_file, config::save_config_file};
 use std::sync::Arc;
-use tterm_core::session_log::SessionLogState;
-use tterm_core::{config::AppConfig, config::load_config_file, config::save_config_file};
 
-pub(super) fn save_config(
+pub fn save_config(
     log_state: Arc<SessionLogState>,
     mut config: AppConfig,
 ) -> Result<AppConfig, String> {
@@ -11,6 +11,6 @@ pub(super) fn save_config(
     config.secret_storage_mode = load_config_file()?.secret_storage_mode;
     log_state.validate_config(&config)?;
     save_config_file(&config)?;
-    tterm_core::sftp::internal::api::apply_bandwidth_limits(&config);
+    crate::sftp::internal::api::apply_bandwidth_limits(&config);
     Ok(config)
 }

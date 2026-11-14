@@ -234,7 +234,7 @@ fn settings_files_move_into_the_database_leaving_only_config_json() {
             assert!(session.tabs[0]["connection"].get("password").is_none());
 
             assert_eq!(
-                crate::config::window_background::read(connection)?,
+                tterm_core::config::window_background::read(connection)?,
                 Some((0x11, 0x22, 0x33))
             );
 
@@ -291,7 +291,7 @@ fn files_written_again_by_an_older_version_do_not_overwrite_the_database() {
             let session = tterm_core::session_restore::read_session(connection)?.unwrap();
             assert_eq!(session.active_tab_id.as_deref(), Some("newer"));
             assert_eq!(
-                crate::config::window_background::read(connection)?,
+                tterm_core::config::window_background::read(connection)?,
                 Some((0x11, 0x22, 0x33))
             );
             Ok(())
