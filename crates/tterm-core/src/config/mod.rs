@@ -14,6 +14,7 @@ pub mod reconnect;
 pub mod scrollback;
 pub mod tab_agent_indicator;
 pub mod tab_icons;
+pub mod terminal_font;
 pub mod update_channel;
 
 #[cfg(test)]
