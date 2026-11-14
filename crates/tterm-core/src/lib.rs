@@ -70,6 +70,8 @@ pub mod remote_cwd;
 pub mod saved_password_prompts;
 /// Serial connections: their settings, ports and line controls.
 pub mod serial;
+/// The services both clients build once and hand to their commands.
+pub mod services;
 /// Session output endpoints shared by client adapters (P1-06).
 pub mod session;
 /// Terminal session logs and the screen they replay.

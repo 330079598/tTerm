@@ -1,15 +1,12 @@
 pub mod app;
-pub mod session;
-pub mod sftp;
-pub mod shared;
 
 /// Every service the commands and background tasks use. Built once in
 /// `setup()` and handed out as `Arc<AppServices>`; it holds no client types so
 /// P1-09 can move it into `tterm_core` unchanged.
 pub struct AppServices {
-    pub shared: shared::SharedServices,
-    pub session: session::SessionServices,
-    pub sftp: sftp::SftpServices,
+    pub shared: tterm_core::services::shared::SharedServices,
+    pub session: tterm_core::services::session::SessionServices,
+    pub sftp: tterm_core::services::sftp::SftpServices,
     pub app: app::AppLevelServices,
 }
 

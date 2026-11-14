@@ -412,7 +412,7 @@ pub fn run() {
                 (notifications, integration)
             });
             let services = Arc::new(services::AppServices {
-                shared: services::shared::SharedServices {
+                shared: tterm_core::services::shared::SharedServices {
                     paths,
                     identity,
                     events,
@@ -421,7 +421,7 @@ pub fn run() {
                     runtime: runtime_handle.clone(),
                     platform: platform_services,
                 },
-                session: services::session::SessionServices {
+                session: tterm_core::services::session::SessionServices {
                     ptys: pty_map.clone(),
                     zmodem: zmodem_map.clone(),
                     zmodem_armed_send: zmodem_armed_send_map.clone(),
@@ -429,7 +429,7 @@ pub fn run() {
                     monitors: monitor_sessions.clone(),
                     monitor_prompts: monitor_prompts.clone(),
                 },
-                sftp: services::sftp::SftpServices {
+                sftp: tterm_core::services::sftp::SftpServices {
                     pool: sftp_pool.clone(),
                     transfer_cancel: transfer_cancel_map.clone(),
                     external_edit: external_edit_state.clone(),

@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
-use tterm_core::ssh::secret_store::types::SecretStoreState;
-use tterm_core::{events::EventSink, prompts::PromptBroker};
+use crate::ssh::secret_store::types::SecretStoreState;
+use crate::{events::EventSink, prompts::PromptBroker};
 use tterm_platform::{
     clipboard::Clipboard, drag::FileDrag, notifications::AppBadge, open::OpenTargets,
     process::ProcessControl, tray::Tray, updates::Updates, verification::UserVerification,
@@ -9,8 +9,8 @@ use tterm_platform::{
 };
 
 pub struct SharedServices {
-    pub paths: Arc<tterm_core::paths::AppPaths>,
-    pub identity: Arc<tterm_core::identity::AppIdentity>,
+    pub paths: Arc<crate::paths::AppPaths>,
+    pub identity: Arc<crate::identity::AppIdentity>,
     pub events: Arc<dyn EventSink>,
     pub prompts: Arc<PromptBroker>,
     pub secrets: SecretStoreState,

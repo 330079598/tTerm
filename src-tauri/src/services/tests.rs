@@ -1,7 +1,6 @@
-use crate::{
-    services::app::AppLevelServices, services::session::SessionServices,
-    services::sftp::SftpServices,
-};
+use crate::services::app::AppLevelServices;
+use tterm_core::services::session::SessionServices;
+use tterm_core::services::sftp::SftpServices;
 use tterm_core::updater::PendingUpdateDownloads;
 
 use crate::background::CloseBehaviorState;
@@ -123,7 +122,7 @@ fn shared_paths_and_identity_keep_the_startup_instances() {
         identifier: identity.identifier.clone(),
         activated: Arc::new(|_| {}),
     });
-    let shared = super::shared::SharedServices {
+    let shared = tterm_core::services::shared::SharedServices {
         paths: paths.clone(),
         identity: identity.clone(),
         prompts: Arc::new(tterm_core::prompts::PromptBroker::new(events.clone())),
@@ -139,9 +138,9 @@ fn shared_paths_and_identity_keep_the_startup_instances() {
 fn platform_with(
     notifications: Arc<dyn tterm_platform::notifications::Notifications>,
     integration: Result<Arc<dyn tterm_platform::integration::SystemIntegration>, String>,
-) -> super::shared::PlatformServices {
+) -> tterm_core::services::shared::PlatformServices {
     let capability = Arc::new(UnusedCapability);
-    super::shared::PlatformServices {
+    tterm_core::services::shared::PlatformServices {
         notifications,
         integration,
         badge: capability.clone(),

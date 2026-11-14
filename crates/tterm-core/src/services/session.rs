@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
-use tterm_core::monitor::prompts::PendingMonitorPrompts;
-use tterm_core::{
+use crate::monitor::prompts::PendingMonitorPrompts;
+use crate::{
     core::state::PtyMap, core::state::ZmodemArmedSendMap, core::state::ZmodemManualDetectMap,
     core::state::ZmodemMap, monitor::types::MonitorSessionMap,
 };
