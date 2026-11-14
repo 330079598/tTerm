@@ -5,6 +5,7 @@
 //! preferences; [`sort::normalize_sftp_view_preferences`] validates the stored
 //! text.
 
+pub mod archive;
 pub mod format;
 pub mod history;
 pub mod paths;
