@@ -1,4 +1,4 @@
-use crate::profiles::group_service;
+use tterm_core::profiles::group_service;
 use tterm_core::profiles::types::ProfileGroup;
 
 #[tauri::command]

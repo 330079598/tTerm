@@ -37,6 +37,10 @@ rand = "=0.10.3"
 reqwest = { version = "=0.13.5", default-features = false, features = ["rustls-no-provider"] }
 ring = "=0.17.14"
 rustls = { version = "=0.23.45", default-features = false, features = ["ring", "std", "tls12"] }
+# `rsa` lets russh verify RSA host keys. It brings in the RustCrypto `rsa`
+# crate, whose RUSTSEC-2023-0071 leaks a private key through the timing of
+# private-key operations; verifying a server's signature uses only its public
+# key, and tTerm still signs with RSA keys through ring (ssh/rsa_signer.rs).
 russh = { version = "=0.63.3", default-features = false, features = ["ring", "rsa"] }
 russh-sftp = "=3.0.1"
 sha1 = "=0.11.0"
@@ -47,6 +51,7 @@ vte = "=0.15.0"
 zeroize = "=1.9.0"
 rusqlite = { version = "=0.40.2", features = ["bundled"] }
 gethostname = "=1.1.0"
+regex = "=1.13.1"
 regress = { version = "=0.12.0", features = ["utf16"] }
 tterm-platform = { path = "../tterm-platform" }
 tterm-terminal = { path = "../tterm-terminal" }
@@ -55,6 +60,7 @@ uuid = { version = "=1.26.1", features = ["v4"] }
 tokio = { version = "=1.53.1", features = ["fs", "io-util", "net", "process", "sync", "time"] }
 sys-locale = "=0.3.2"
 ttf-parser = "=0.25.1"
+zip = { version = "=8.6.0", default-features = false, features = ["deflate-flate2-zlib-rs"] }
 
 [target.'cfg(target_os = "macos")'.dependencies]
 security-framework = "=3.7.0"

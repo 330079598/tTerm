@@ -5,6 +5,9 @@ pub mod api;
 pub mod paths;
 pub mod transfer;
 
+#[cfg(any(test, feature = "test-support"))]
+pub mod test_support;
+
 pub mod connection;
 pub mod exec;
 pub mod launcher;

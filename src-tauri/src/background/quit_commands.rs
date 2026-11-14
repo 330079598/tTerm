@@ -6,14 +6,14 @@ use std::sync::Arc;
 #[tauri::command]
 pub fn set_save_before_quit(
     enabled: bool,
-    services: tauri::State<'_, Arc<crate::services::AppServices>>,
+    services: tauri::State<'_, Arc<tterm_core::services::AppServices>>,
 ) {
     services.app.quit.set_save_before_quit(enabled);
 }
 
 /// The UI's answer to `app-will-quit`: it has saved, and the app may quit.
 #[tauri::command]
-pub fn ready_to_quit(services: tauri::State<'_, Arc<crate::services::AppServices>>) {
+pub fn ready_to_quit(services: tauri::State<'_, Arc<tterm_core::services::AppServices>>) {
     // A permit is kept when the quit is not waiting yet, so an answer that
     // comes first is not lost.
     services.app.quit.ready();

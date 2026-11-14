@@ -13,14 +13,14 @@ use tterm_core::updater::{
 #[tauri::command]
 pub async fn check_app_update(
     channel: String,
-    services: tauri::State<'_, Arc<crate::services::AppServices>>,
+    services: tauri::State<'_, Arc<tterm_core::services::AppServices>>,
 ) -> Result<Option<AppUpdateMetadata>, String> {
     check_app_update_service(services.shared.platform.updates.as_ref(), channel).await
 }
 
 #[tauri::command]
 pub async fn download_app_update(
-    services: tauri::State<'_, Arc<crate::services::AppServices>>,
+    services: tauri::State<'_, Arc<tterm_core::services::AppServices>>,
     app: tauri::AppHandle,
     channel: String,
     on_event: Channel<AppUpdateDownloadEvent>,
@@ -40,7 +40,7 @@ pub async fn download_app_update(
 
 #[tauri::command]
 pub async fn install_downloaded_app_update(
-    services: tauri::State<'_, Arc<crate::services::AppServices>>,
+    services: tauri::State<'_, Arc<tterm_core::services::AppServices>>,
     channel: String,
 ) -> Result<bool, String> {
     install_downloaded_app_update_service(
@@ -53,7 +53,7 @@ pub async fn install_downloaded_app_update(
 
 #[tauri::command]
 pub async fn download_install_app_update(
-    services: tauri::State<'_, Arc<crate::services::AppServices>>,
+    services: tauri::State<'_, Arc<tterm_core::services::AppServices>>,
     channel: String,
     on_event: Channel<AppUpdateDownloadEvent>,
 ) -> Result<bool, String> {

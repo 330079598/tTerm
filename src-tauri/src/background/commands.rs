@@ -6,12 +6,14 @@ use std::sync::Arc;
 #[tauri::command]
 pub fn resolve_close_request(
     action: String,
-    services: tauri::State<'_, Arc<crate::services::AppServices>>,
+    services: tauri::State<'_, Arc<tterm_core::services::AppServices>>,
 ) {
-    super::resolve_close(
-        &crate::app_context::background(
+    tterm_core::background::resolve_close(
+        &tterm_core::app_context::background(
             &services,
-            crate::sftp::internal::api::external::unuploaded_files(&services.sftp.external_edit),
+            tterm_core::sftp::internal::api::external::unuploaded_files(
+                &services.sftp.external_edit,
+            ),
         ),
         &action,
     );

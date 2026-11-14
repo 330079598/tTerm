@@ -22,10 +22,10 @@ pub fn migrate_legacy_config_files(app: &tauri::AppHandle) -> Result<(), String>
 
     // Once the database holds this data, copying the old files over would only
     // leave files nothing reads.
-    let database_holds_data = crate::db::legacy_import::legacy_json_imported();
+    let database_holds_data = tterm_core::db::legacy_import::legacy_json_imported();
     let database_holds_session = tterm_core::session_restore::file_imported();
     for name in MIGRATED_CONFIG_FILES {
-        if database_holds_data && crate::db::legacy_import::IMPORTED_FILES.contains(name) {
+        if database_holds_data && tterm_core::db::legacy_import::IMPORTED_FILES.contains(name) {
             continue;
         }
         if database_holds_session && *name == "session.json" {
@@ -78,8 +78,8 @@ pub fn remove_retired_files(app: &tauri::AppHandle) -> Result<(), String> {
     let now = chrono::Utc::now().timestamp_millis();
     let mut errors = remove_retired(
         &tterm_core::config::paths::get_config_path()?,
-        crate::db::legacy_import::IMPORTED_FILES,
-        crate::db::legacy_import::legacy_json_imported_at(),
+        tterm_core::db::legacy_import::IMPORTED_FILES,
+        tterm_core::db::legacy_import::legacy_json_imported_at(),
         now,
     );
     let secrets_dir = secrets_dir(app)?;

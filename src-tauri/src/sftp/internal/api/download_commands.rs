@@ -1,19 +1,17 @@
-use crate::sftp::internal::api::conflict::ConflictReport;
-use crate::{
-    sftp::internal::api::download::operations::SftpCheckDownloadConflictsDependencies,
-    sftp::internal::api::download::operations::SftpCheckDownloadConflictsInput,
-    sftp::internal::api::download::operations::SftpDownloadFileDependencies,
-    sftp::internal::api::download::operations::SftpDownloadFileInput,
-    sftp::internal::api::download::operations::SftpDownloadPathsDependencies,
-    sftp::internal::api::download::operations::SftpDownloadPathsInput,
-    sftp::internal::api::download::operations::get_file_size_service,
-    sftp::internal::api::download::operations::sftp_check_download_conflicts_service,
-    sftp::internal::api::download::operations::sftp_download_file_service,
-    sftp::internal::api::download::operations::sftp_download_paths_service,
-};
 use tauri::State;
 use tterm_core::core::session::types::PtyConnectionOptions;
 use tterm_core::sftp::conflict::ConflictPolicy;
+use tterm_core::sftp::internal::api::conflict::ConflictReport;
+use tterm_core::sftp::internal::api::download::operations::SftpCheckDownloadConflictsDependencies;
+use tterm_core::sftp::internal::api::download::operations::SftpCheckDownloadConflictsInput;
+use tterm_core::sftp::internal::api::download::operations::SftpDownloadFileDependencies;
+use tterm_core::sftp::internal::api::download::operations::SftpDownloadFileInput;
+use tterm_core::sftp::internal::api::download::operations::SftpDownloadPathsDependencies;
+use tterm_core::sftp::internal::api::download::operations::SftpDownloadPathsInput;
+use tterm_core::sftp::internal::api::download::operations::get_file_size_service;
+use tterm_core::sftp::internal::api::download::operations::sftp_check_download_conflicts_service;
+use tterm_core::sftp::internal::api::download::operations::sftp_download_file_service;
+use tterm_core::sftp::internal::api::download::operations::sftp_download_paths_service;
 
 #[tauri::command]
 pub async fn sftp_download_file(
@@ -22,11 +20,11 @@ pub async fn sftp_download_file(
     transfer_id: String,
     remote_path: String,
     local_path: String,
-    services: State<'_, std::sync::Arc<crate::services::AppServices>>,
+    services: State<'_, std::sync::Arc<tterm_core::services::AppServices>>,
 ) -> Result<(), String> {
     sftp_download_file_service(
         SftpDownloadFileDependencies {
-            context: crate::connection_context::sftp(&services),
+            context: tterm_core::connection_context::sftp(&services),
             prompts: services.shared.prompts.clone(),
             secrets: services.shared.secrets.clone(),
             pool: services.sftp.pool.clone(),
@@ -59,11 +57,11 @@ pub async fn sftp_download_paths(
     local_parent_path: String,
     skip_existing: Option<bool>,
     conflict_policy: Option<ConflictPolicy>,
-    services: State<'_, std::sync::Arc<crate::services::AppServices>>,
+    services: State<'_, std::sync::Arc<tterm_core::services::AppServices>>,
 ) -> Result<(), String> {
     sftp_download_paths_service(
         SftpDownloadPathsDependencies {
-            context: crate::connection_context::sftp(&services),
+            context: tterm_core::connection_context::sftp(&services),
             prompts: services.shared.prompts.clone(),
             secrets: services.shared.secrets.clone(),
             pool: services.sftp.pool.clone(),
@@ -92,11 +90,11 @@ pub async fn sftp_check_download_conflicts(
     connection: Option<PtyConnectionOptions>,
     remote_paths: Vec<String>,
     local_parent_path: String,
-    services: State<'_, std::sync::Arc<crate::services::AppServices>>,
+    services: State<'_, std::sync::Arc<tterm_core::services::AppServices>>,
 ) -> Result<ConflictReport, String> {
     sftp_check_download_conflicts_service(
         SftpCheckDownloadConflictsDependencies {
-            context: crate::connection_context::sftp(&services),
+            context: tterm_core::connection_context::sftp(&services),
             prompts: services.shared.prompts.clone(),
             secrets: services.shared.secrets.clone(),
             pool: services.sftp.pool.clone(),

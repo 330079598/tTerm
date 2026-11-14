@@ -21,7 +21,7 @@ pub fn initialize(
         Arc<dyn tterm_platform::window::MainWindow>,
         Arc<dyn tterm_platform::notifications::AppBadge>,
     ) -> (Notifications, Integration),
-) -> crate::services::shared::PlatformServices {
+) -> tterm_core::services::shared::PlatformServices {
     let main_window: Arc<dyn tterm_platform::window::MainWindow> =
         Arc::new(window::TauriWindow(app.clone()));
     let window_host: Arc<dyn WindowHost> = Arc::new(window::TauriWindow(app.clone()));
@@ -40,7 +40,7 @@ pub fn initialize(
     let clipboard: Arc<dyn tterm_platform::clipboard::Clipboard> =
         Arc::new(clipboard::TauriClipboard(app.clone()));
     let (notifications, integration) = complete(main_window.clone(), badge.clone());
-    crate::services::shared::PlatformServices {
+    tterm_core::services::shared::PlatformServices {
         notifications,
         integration,
         badge,

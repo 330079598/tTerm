@@ -2,7 +2,10 @@
 
 #[cfg(target_os = "windows")]
 pub mod console_reset;
+#[cfg(unix)]
+pub mod cwd_watch;
 pub mod encoding;
+pub mod foreground;
 pub mod io_batcher;
 pub mod legacy_events;
 #[cfg(unix)]

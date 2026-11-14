@@ -1,5 +1,4 @@
-pub(crate) mod commands;
-pub(crate) mod groups;
+//! The Tauri profile commands; the profiles themselves live in
+//! [`tterm_core::profiles`].
 
-mod group_service;
-mod service;
+pub(crate) mod commands;

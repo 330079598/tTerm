@@ -1,0 +1,2 @@
+128 movable files, 0 adapter or stay files still needed, 0 movable files with Tauri tests
+adapters exit=0

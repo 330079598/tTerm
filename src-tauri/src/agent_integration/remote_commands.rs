@@ -1,19 +1,21 @@
 //! The Tauri commands for agent integration on an SSH host.
 
-use crate::sftp::internal::api::SftpHost;
-use crate::{agent_integration::Agent, agent_integration::AgentIntegrationStatus};
-use crate::{agent_integration::remote::remote_change, agent_integration::remote::remote_status};
 use std::sync::Arc;
+use tterm_core::agent_integration::Agent;
+use tterm_core::agent_integration::AgentIntegrationStatus;
+use tterm_core::agent_integration::remote::remote_change;
+use tterm_core::agent_integration::remote::remote_status;
 use tterm_core::core::session::types::PtyConnectionOptions;
+use tterm_core::sftp::internal::api::SftpHost;
 
 /// Each agent's integration on the tab's SSH host.
 #[tauri::command]
 pub async fn remote_agent_integration_status(
     tab_id: String,
     connection: Option<PtyConnectionOptions>,
-    services: tauri::State<'_, Arc<crate::services::AppServices>>,
+    services: tauri::State<'_, Arc<tterm_core::services::AppServices>>,
 ) -> Result<Vec<AgentIntegrationStatus>, String> {
-    let app = crate::connection_context::sftp(&services);
+    let app = tterm_core::connection_context::sftp(&services);
     let handles = SftpHost {
         app: &app,
         tab_id: &tab_id,
@@ -34,9 +36,9 @@ pub async fn change_remote_agent_integration(
     connection: Option<PtyConnectionOptions>,
     agent: Agent,
     install: bool,
-    services: tauri::State<'_, Arc<crate::services::AppServices>>,
+    services: tauri::State<'_, Arc<tterm_core::services::AppServices>>,
 ) -> Result<AgentIntegrationStatus, String> {
-    let app = crate::connection_context::sftp(&services);
+    let app = tterm_core::connection_context::sftp(&services);
     let handles = SftpHost {
         app: &app,
         tab_id: &tab_id,

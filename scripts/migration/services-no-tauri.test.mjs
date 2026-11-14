@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 
-const servicesRoot = path.resolve('src-tauri/src/services');
+const servicesRoot = path.resolve('crates/tterm-core/src/services');
 function rustFiles(directory) {
   return fs.readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
     const file = path.join(directory, entry.name);

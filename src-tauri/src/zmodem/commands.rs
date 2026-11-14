@@ -27,7 +27,7 @@ use tterm_core::{
 pub fn zmodem_cancel(
     tab_id: String,
     session_nonce: u32,
-    services: tauri::State<'_, std::sync::Arc<crate::services::AppServices>>,
+    services: tauri::State<'_, std::sync::Arc<tterm_core::services::AppServices>>,
 ) -> Result<(), String> {
     let pty_state = services.session.ptys.clone();
     let zmodem_state = services.session.zmodem.clone();
@@ -122,7 +122,7 @@ pub fn zmodem_start_send(
     tab_id: String,
     session_nonce: u32,
     local_paths: Vec<String>,
-    services: tauri::State<'_, std::sync::Arc<crate::services::AppServices>>,
+    services: tauri::State<'_, std::sync::Arc<tterm_core::services::AppServices>>,
 ) -> Result<(), String> {
     let events = services.shared.events.clone();
     let zmodem_state = services.session.zmodem.clone();
@@ -214,7 +214,7 @@ fn zmodem_start_send_service(
 pub fn zmodem_arm_manual_detect(
     tab_id: String,
     session_nonce: u32,
-    services: tauri::State<'_, std::sync::Arc<crate::services::AppServices>>,
+    services: tauri::State<'_, std::sync::Arc<tterm_core::services::AppServices>>,
 ) -> Result<(), String> {
     let pty_state = services.session.ptys.clone();
     let manual_detect_state = services.session.zmodem_manual_detect.clone();

@@ -1,10 +1,10 @@
 //! Channel contracts captured before introducing the core search sink.
 use crate::event_sink::search::TauriSearchResultSink;
-use crate::sftp::internal::api::search::ResultSink;
 use std::sync::{Arc, Mutex};
 use tauri::ipc::Channel;
 use tauri::ipc::InvokeResponseBody;
 use tterm_core::sftp::entry::SftpDirectoryEntry;
+use tterm_core::sftp::internal::api::search::ResultSink;
 
 #[test]
 fn legacy_search_channel_json_and_limit() {

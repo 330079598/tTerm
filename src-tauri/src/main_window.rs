@@ -52,7 +52,7 @@ pub fn create_main_window(
     let mut builder = WebviewWindowBuilder::from_config(app.handle(), &window_config)?
         .visible(false)
         .background_throttling(background_throttling_policy(background_throttling));
-    let background = crate::config::window_background::load_window_background();
+    let background = tterm_core::config::window_background::load_window_background();
     let blur_cfg = cfg.filter(|cfg| cfg!(any(target_os = "macos", windows)) && cfg.window_blur);
     let blur = blur_cfg.map(|cfg| {
         let dark = background.is_none_or(crate::window_blur::is_dark_background);

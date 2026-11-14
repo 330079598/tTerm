@@ -1,7 +1,5 @@
 //! Tauri's startup adapter for the shared application identity.
 
-#[cfg(any(all(unix, not(target_os = "macos")), test))]
-use crate::services::AppServices;
 use std::sync::Arc;
 use tauri::AppHandle;
 #[cfg(any(all(unix, not(target_os = "macos")), test))]
@@ -9,6 +7,8 @@ use tauri::Manager;
 #[cfg(any(all(unix, not(target_os = "macos")), test))]
 use tauri::Runtime;
 use tterm_core::identity::AppIdentity;
+#[cfg(any(all(unix, not(target_os = "macos")), test))]
+use tterm_core::services::AppServices;
 
 /// Captures Tauri identity at startup without changing storage or keyring naming.
 pub fn initialize(app: &AppHandle) -> Arc<AppIdentity> {

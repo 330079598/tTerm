@@ -1,18 +1,15 @@
-use crate::services::AppServices;
-use crate::{
-    sftp::internal::api::edit::SftpEditBaseline, sftp::internal::api::edit::SftpEditableFile,
-    sftp::internal::api::edit::SftpSaveEditedFileResult,
-};
-use crate::{
-    sftp::internal::api::edit::operations::SftpOpenFileForEditDependencies,
-    sftp::internal::api::edit::operations::SftpOpenFileForEditInput,
-    sftp::internal::api::edit::operations::SftpSaveEditedFileDependencies,
-    sftp::internal::api::edit::operations::SftpSaveEditedFileInput,
-    sftp::internal::api::edit::operations::sftp_open_file_for_edit_service,
-    sftp::internal::api::edit::operations::sftp_save_edited_file_service,
-};
 use tauri::State;
 use tterm_core::core::session::types::PtyConnectionOptions;
+use tterm_core::services::AppServices;
+use tterm_core::sftp::internal::api::edit::SftpEditBaseline;
+use tterm_core::sftp::internal::api::edit::SftpEditableFile;
+use tterm_core::sftp::internal::api::edit::SftpSaveEditedFileResult;
+use tterm_core::sftp::internal::api::edit::operations::SftpOpenFileForEditDependencies;
+use tterm_core::sftp::internal::api::edit::operations::SftpOpenFileForEditInput;
+use tterm_core::sftp::internal::api::edit::operations::SftpSaveEditedFileDependencies;
+use tterm_core::sftp::internal::api::edit::operations::SftpSaveEditedFileInput;
+use tterm_core::sftp::internal::api::edit::operations::sftp_open_file_for_edit_service;
+use tterm_core::sftp::internal::api::edit::operations::sftp_save_edited_file_service;
 
 #[tauri::command]
 pub async fn sftp_open_file_for_edit(
@@ -23,7 +20,7 @@ pub async fn sftp_open_file_for_edit(
 ) -> Result<SftpEditableFile, String> {
     sftp_open_file_for_edit_service(
         SftpOpenFileForEditDependencies {
-            context: crate::connection_context::sftp(&services),
+            context: tterm_core::connection_context::sftp(&services),
             prompts: services.shared.prompts.clone(),
             secrets: services.shared.secrets.clone(),
             pool: services.sftp.pool.clone(),
@@ -44,11 +41,11 @@ pub async fn sftp_save_edited_file(
     path: String,
     content: String,
     baseline: SftpEditBaseline,
-    services: State<'_, std::sync::Arc<crate::services::AppServices>>,
+    services: State<'_, std::sync::Arc<tterm_core::services::AppServices>>,
 ) -> Result<SftpSaveEditedFileResult, String> {
     sftp_save_edited_file_service(
         SftpSaveEditedFileDependencies {
-            context: crate::connection_context::sftp(&services),
+            context: tterm_core::connection_context::sftp(&services),
             prompts: services.shared.prompts.clone(),
             secrets: services.shared.secrets.clone(),
             pool: services.sftp.pool.clone(),

@@ -4,6 +4,7 @@
 //! functions that take a `&Connection` so tests can run them against an
 //! in-memory database, and reach the app database through [`get`].
 
+pub mod legacy_import;
 pub mod meta;
 mod migrations;
 

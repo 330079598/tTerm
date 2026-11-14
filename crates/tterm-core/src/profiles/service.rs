@@ -1,0 +1,521 @@
+use crate::events::ssh::SshConnectionProgressPayload;
+use crate::profiles::types::TestConnectionResult;
+
+use crate::config::tab_icons::TabIconStyle;
+use crate::core::blocking::run_blocking;
+use crate::profiles::groups::group_paths;
+use crate::profiles::groups::list_groups;
+use crate::profiles::groups::resolve_path;
+use crate::proxy::command::CommandTarget;
+use crate::ssh::jump::connect::{
+    ConnectContext, connect_first_hop, connect_via_jump_chain, open_proxy_stream,
+};
+use crate::{
+    profiles::parser::build_ssh_config_import_preview, profiles::parser::resolve_config_host,
+};
+use crate::{
+    profiles::storage::delete_profile_secrets, profiles::storage::get_profile,
+    profiles::storage::list_saved_profiles, profiles::storage::load_profiles,
+    profiles::storage::normalize_profile, profiles::storage::sanitize_profile,
+    profiles::storage::upsert_profile,
+};
+use crate::{
+    profiles::types::SavedProfile, profiles::types::SshConfigImportHost,
+    profiles::types::SshConfigImportOptions, profiles::types::SshConfigImportPreview,
+    profiles::types::SshConfigImportResult,
+};
+
+use crate::profiles::connection_check::authenticate_test_connection;
+use crate::profiles::connection_check::test_connection_handler;
+use crate::profiles::connection_check::test_session_plan;
+use crate::profiles::import::import_ssh_config_profiles_blocking;
+use crate::ssh::context::ConnectionContext;
+use crate::ssh::secret_store::types::SecretStoreState;
+use crate::tunnel::manager::TunnelManager;
+use crate::{
+    ssh::secret_store::types::SecretLocation, ssh::types::ConnectionStatusOptions,
+    ssh::types::HostKeyVerificationMode,
+};
+use std::collections::HashSet;
+
+pub async fn list_profiles() -> Result<Vec<SavedProfile>, String> {
+    run_blocking(|| {
+        let (mut profiles, groups) = crate::db::read(|connection| {
+            Ok((list_saved_profiles(connection)?, list_groups(connection)?))
+        })?;
+        let paths = group_paths(&groups);
+        for profile in &mut profiles {
+            sanitize_profile(profile);
+            profile.group_path = profile
+                .group_id
+                .as_ref()
+                .and_then(|id| paths.get(id))
+                .cloned();
+        }
+        Ok(profiles)
+    })
+    .await
+}
+
+pub async fn preview_ssh_config_import(
+    source_path: Option<String>,
+) -> Result<SshConfigImportPreview, String> {
+    // Reads the config and every file it includes; keep that off the main thread.
+    crate::core::blocking::run_blocking(move || build_ssh_config_import_preview(source_path)).await
+}
+
+/// What `~/.ssh/config` sets for a host typed into the launcher by a name it
+/// does not list, which its wildcard and `Match` blocks may still reach.
+pub async fn resolve_ssh_config_host(name: String) -> Result<Option<SshConfigImportHost>, String> {
+    run_blocking(move || resolve_config_host(&name)).await
+}
+
+pub async fn import_ssh_config_profiles(
+    options: SshConfigImportOptions,
+) -> Result<SshConfigImportResult, String> {
+    crate::core::blocking::run_blocking(move || import_ssh_config_profiles_blocking(options)).await
+}
+
+pub async fn save_profile(
+    secret_state: &SecretStoreState,
+    mut profile: SavedProfile,
+    typed_password_tab_id: Option<String>,
+) -> Result<(), String> {
+    if let Some(tab_id) = typed_password_tab_id.as_deref()
+        && profile.remember_password
+    {
+        fill_typed_passwords(&mut profile, tab_id);
+    }
+    // Saving its passwords waits for startup to unlock saved passwords, which
+    // may sit on a credential store prompt; keep that off the main thread.
+    let secret_state = secret_state.clone();
+    crate::core::blocking::run_blocking(move || store_profile(secret_state, profile)).await
+}
+
+/// A profile saved (or tested) from a quick connection tab uses the
+/// passwords typed there, unless new ones were entered in the dialog.
+fn fill_typed_passwords(profile: &mut SavedProfile, tab_id: &str) {
+    let typed = |host: &str, port: u16, username: &str| {
+        crate::ssh::typed_passwords::get(tab_id, host, port, username)
+            .map(|password| password.to_string())
+    };
+    let uses_password = !matches!(
+        profile.auth_method.as_deref(),
+        Some("key" | "agent" | "interactive")
+    );
+    if uses_password
+        && profile.password.as_deref().is_none_or(str::is_empty)
+        && let (Some(host), Some(username)) = (profile.host.as_deref(), profile.username.as_deref())
+    {
+        profile.password = typed(host, profile.port.unwrap_or(22), username);
+    }
+    for jump in &mut profile.jump_hosts {
+        if jump.auth_method == "password" && jump.password.as_deref().is_none_or(str::is_empty) {
+            jump.password = typed(&jump.host, jump.port, &jump.username);
+        }
+    }
+}
+
+fn store_profile(
+    secret_state: crate::ssh::secret_store::types::SecretStoreState,
+    mut profile: SavedProfile,
+) -> Result<(), String> {
+    let group_path = profile.group_path.take();
+    normalize_profile(&mut profile);
+
+    if profile.auth_method.as_deref() != Some("key")
+        && profile.remember_password
+        && let Some(password) = profile
+            .password
+            .as_deref()
+            .filter(|value| !value.is_empty())
+    {
+        let location = secret_state.save_password(profile.id.as_str(), password)?;
+        if matches!(location, SecretLocation::Memory) {
+            return Err(
+                    "Password persistence is unavailable. Enable the app vault or use a supported system credential store."
+                        .to_string(),
+                );
+        }
+    }
+
+    if !profile.remember_password || profile.auth_method.as_deref() == Some("key") {
+        let _ = secret_state.delete_password(profile.id.as_str());
+        if !profile.name.trim().is_empty() {
+            let _ = secret_state.delete_password(profile.name.as_str());
+        }
+    }
+
+    for jump in &profile.jump_hosts {
+        if profile.remember_password && jump.auth_method != "key" {
+            if let Some(password) = jump.password.as_deref().filter(|value| !value.is_empty()) {
+                let secret_key = crate::core::session::types::jump_host_identity_secret_key(
+                    Some(profile.id.as_str()),
+                    profile.name.as_str(),
+                    &jump.host,
+                    jump.port,
+                    &jump.username,
+                );
+                let location = secret_state.save_password(&secret_key, password)?;
+                if matches!(location, SecretLocation::Memory) {
+                    return Err(
+                        "Jump host password persistence is unavailable. Enable the app vault or use a supported system credential store."
+                            .to_string(),
+                    );
+                }
+            }
+        } else {
+            let secret_key = crate::core::session::types::jump_host_identity_secret_key(
+                Some(profile.id.as_str()),
+                profile.name.as_str(),
+                &jump.host,
+                jump.port,
+                &jump.username,
+            );
+            let _ = secret_state.delete_password(&secret_key);
+            if !profile.name.trim().is_empty() {
+                let name_key = crate::core::session::types::jump_host_identity_secret_key(
+                    None,
+                    profile.name.as_str(),
+                    &jump.host,
+                    jump.port,
+                    &jump.username,
+                );
+                let _ = secret_state.delete_password(&name_key);
+            }
+        }
+    }
+
+    if profile.connection_type == "ssh" {
+        let sudo_key = crate::core::session::types::sudo_secret_key(&profile.id);
+        if profile.clear_sudo_password {
+            let _ = secret_state.delete_password(&sudo_key);
+        } else if let Some(password) = profile
+            .sudo_password
+            .as_deref()
+            .filter(|value| !value.is_empty())
+        {
+            let location = secret_state.save_password(&sudo_key, password)?;
+            if matches!(location, SecretLocation::Memory) {
+                return Err(
+                    "Sudo password persistence is unavailable. Enable the app vault or use a supported system credential store."
+                        .to_string(),
+                );
+            }
+        }
+    }
+
+    sanitize_profile(&mut profile);
+
+    let previous = crate::db::read(|connection| get_profile(connection, &profile.id))?;
+    profile.distro = previous
+        .as_ref()
+        .and_then(|previous| previous.distro_at(profile.host.as_deref(), profile.port));
+    if let Some(mut previous) = previous {
+        normalize_profile(&mut previous);
+        for summary in crate::profiles::storage::profile_secret_summaries(&previous) {
+            if !crate::profiles::storage::profile_secret_summaries(&profile)
+                .iter()
+                .any(|current| current.key == summary.key)
+            {
+                let _ = secret_state.delete_password(&summary.key);
+            }
+        }
+    }
+    crate::db::write(|transaction| {
+        if let Some(path) = group_path.as_deref() {
+            profile.group_id = resolve_path(transaction, path)?;
+        }
+        upsert_profile(transaction, &profile)
+    })
+}
+
+pub async fn delete_profile(
+    secret_state: &SecretStoreState,
+    tunnels: &TunnelManager,
+    id: String,
+) -> Result<(), String> {
+    // A running tunnel holds the host's connection settings and would keep
+    // going for a host that no longer exists. Its rule is kept so the user can
+    // point it at another host.
+    tunnels.stop_for_profile(&id).await;
+
+    if let Some(mut profile) = crate::db::read(|connection| get_profile(connection, &id))? {
+        normalize_profile(&mut profile);
+        delete_profile_secrets(secret_state, &profile)?;
+    }
+    crate::db::write(|transaction| crate::profiles::storage::delete_profiles(transaction, &[id]))?;
+    Ok(())
+}
+
+pub async fn delete_profiles(
+    secret_state: &SecretStoreState,
+    tunnels: &TunnelManager,
+    ids: Vec<String>,
+) -> Result<(), String> {
+    let ids: HashSet<String> = ids.into_iter().collect();
+    if ids.is_empty() {
+        return Ok(());
+    }
+
+    let profiles = load_profiles()?;
+    for profile in profiles.iter().filter(|p| ids.contains(&p.id)) {
+        tunnels.stop_for_profile(&profile.id).await;
+        let mut profile = profile.clone();
+        normalize_profile(&mut profile);
+        delete_profile_secrets(secret_state, &profile)?;
+    }
+    let ids = ids.into_iter().collect::<Vec<_>>();
+    crate::db::write(|transaction| crate::profiles::storage::delete_profiles(transaction, &ids))?;
+    Ok(())
+}
+
+pub async fn set_profile_server_monitor_visible(id: String, visible: bool) -> Result<(), String> {
+    update_profile(id, move |profile| profile.server_monitor_visible = visible).await
+}
+
+/// Remembers the Linux distribution a profile's host runs, for its tabs' icon.
+pub async fn set_profile_distro(id: String, distro: Option<String>) -> Result<(), String> {
+    update_profile(id, move |profile| profile.distro = distro).await
+}
+
+/// Sets the icon a profile's tabs show; none shows the host's distribution.
+pub async fn set_profile_tab_icon(id: String, icon: Option<TabIconStyle>) -> Result<(), String> {
+    update_profile(id, move |profile| profile.tab_icon = icon).await
+}
+
+/// Changes one setting of a saved profile; a deleted profile is left alone.
+async fn update_profile(
+    id: String,
+    change: impl FnOnce(&mut SavedProfile) + Send + 'static,
+) -> Result<(), String> {
+    run_blocking(move || {
+        crate::db::write(|transaction| {
+            if let Some(mut profile) = get_profile(transaction, &id)? {
+                change(&mut profile);
+                upsert_profile(transaction, &profile)?;
+            }
+            Ok(())
+        })
+    })
+    .await
+}
+
+pub async fn test_connection(
+    connection_context: ConnectionContext,
+    mut profile: SavedProfile,
+    typed_password_tab_id: Option<String>,
+    secret_state: &SecretStoreState,
+) -> Result<TestConnectionResult, String> {
+    if profile.connection_type != "ssh" {
+        return Err("Only SSH connections can be tested".to_string());
+    }
+    if let Some(tab_id) = typed_password_tab_id.as_deref() {
+        fill_typed_passwords(&mut profile, tab_id);
+    }
+
+    let host = profile.host.clone().ok_or("Host is required")?;
+    let username = profile.username.clone().ok_or("Username is required")?;
+    let port = profile.port.unwrap_or(22);
+    let test_tab_id = format!("test-{}", profile.id);
+    let mut plan = test_session_plan(profile, &host, &username, port);
+    crate::core::session::saved_hops::fill_from_saved_connections(&mut plan.jump_hosts)?;
+
+    // The connection dialog listens on the test tab id while the test runs.
+    let prompt_scope =
+        crate::prompt_scope::PromptScope::new(connection_context.prompts.clone(), None)?;
+    let auth_prompter = crate::ssh::auth::AuthPrompter::tab(&connection_context, &test_tab_id)
+        .with_owner(&prompt_scope.owner);
+    crate::core::session::resolve_ssh_password(secret_state, &mut plan)?;
+
+    crate::ssh::types::emit_connection_progress(
+        connection_context.events.as_ref(),
+        &test_tab_id,
+        ConnectionStatusOptions::SILENT,
+        SshConnectionProgressPayload::new(
+            "resolving_credentials",
+            "Resolved saved credentials for test connection",
+        ),
+    );
+
+    let ctx = ConnectContext {
+        app: &connection_context,
+        tab_id: &test_tab_id,
+        prompts: &connection_context.prompts,
+        status_options: ConnectionStatusOptions::SILENT,
+        host_key_verification_mode: HostKeyVerificationMode::TrustUnknownForSession,
+        prompt_owner: Some(&prompt_scope.owner),
+        auth_prompter: &auth_prompter,
+    };
+    let handler = test_connection_handler(
+        &connection_context,
+        &test_tab_id,
+        &plan,
+        &host,
+        port,
+        connection_context.prompts.clone(),
+        crate::profiles::connection_check::TestVerification {
+            mode: HostKeyVerificationMode::TrustUnknownForSession,
+            owner: prompt_scope.owner.clone(),
+        },
+    );
+    let config = std::sync::Arc::new(crate::ssh::jump::config::compatibility_client_config(
+        plan.keepalive_interval_secs as u64,
+        plan.keepalive_count_max as usize,
+    ));
+
+    let (jump_chain, mut session) = if plan.jump_hosts.is_empty() {
+        crate::ssh::types::emit_connection_progress(
+            connection_context.events.as_ref(),
+            &test_tab_id,
+            ConnectionStatusOptions::SILENT,
+            SshConnectionProgressPayload::new(
+                "target_connecting",
+                format!("Connecting to target {}:{}", host, port),
+            )
+            .host(host.clone(), port)
+            .username(username.clone()),
+        );
+        let target = CommandTarget {
+            host: &host,
+            port,
+            username: &username,
+        };
+        let stream = open_proxy_stream(ctx, plan.proxy.as_ref(), &target).await?;
+        let session = tokio::time::timeout(
+            std::time::Duration::from_secs(10),
+            connect_first_hop(config, &host, port, stream, handler),
+        )
+        .await
+        .map_err(|_| "Connection timeout".to_string())?
+        .map_err(
+            |e| match crate::ssh::jump::config::unverifiable_host_key_error(&e) {
+                Some(unverifiable) => unverifiable.to_string(),
+                None => format!("Connection failed: {}", e),
+            },
+        )?;
+        (None, session)
+    } else {
+        let (chain, session) = connect_via_jump_chain(
+            ctx,
+            &plan.jump_hosts,
+            &host,
+            port,
+            handler,
+            config,
+            plan.proxy.as_ref(),
+        )
+        .await?;
+        (Some(chain), session)
+    };
+
+    crate::ssh::types::emit_connection_progress(
+        connection_context.events.as_ref(),
+        &test_tab_id,
+        ConnectionStatusOptions::SILENT,
+        SshConnectionProgressPayload::new(
+            "target_authenticating",
+            format!("Authenticating target as {}", username),
+        )
+        .host(host.clone(), port)
+        .username(username.clone()),
+    );
+
+    authenticate_test_connection(&mut session, &host, port, &username, &plan, &auth_prompter)
+        .await?;
+    let network_latency_ms = crate::ssh::client::measure_ssh_latency(&session).await.ok();
+    crate::ssh::types::emit_connection_progress(
+        connection_context.events.as_ref(),
+        &test_tab_id,
+        ConnectionStatusOptions::SILENT,
+        SshConnectionProgressPayload::new(
+            "ready",
+            format!("Successfully connected to {}@{}:{}", username, host, port),
+        )
+        .host(host.clone(), port)
+        .username(username.clone())
+        .network_latency(network_latency_ms),
+    );
+
+    let _ = session
+        .disconnect(russh::Disconnect::ByApplication, "", "")
+        .await;
+    drop(jump_chain);
+
+    Ok(TestConnectionResult {
+        message: format!("Successfully connected to {}@{}:{}", username, host, port),
+        network_latency_ms,
+    })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn quick_profile() -> SavedProfile {
+        serde_json::from_value(serde_json::json!({
+            "id": "",
+            "name": "root@db",
+            "connection_type": "ssh",
+            "host": "db",
+            "port": 22,
+            "username": "root",
+            "auth_method": "password",
+            "remember_password": true,
+            "keepalive_interval_secs": 15,
+            "keepalive_count_max": 3,
+            "jump_hosts": [
+                { "host": "bastion", "port": 22, "username": "ops", "auth_method": "password" }
+            ]
+        }))
+        .expect("profile fixture")
+    }
+
+    #[test]
+    fn saving_a_quick_connection_fills_in_the_passwords_typed_in_its_tab() {
+        const TAB: &str = "profile-test-typed";
+        crate::ssh::typed_passwords::remember(TAB, "db", 22, "root", "target-secret");
+        crate::ssh::typed_passwords::remember(TAB, "bastion", 22, "ops", "jump-secret");
+
+        let mut profile = quick_profile();
+        fill_typed_passwords(&mut profile, TAB);
+        assert_eq!(profile.password.as_deref(), Some("target-secret"));
+        assert_eq!(
+            profile.jump_hosts[0].password.as_deref(),
+            Some("jump-secret")
+        );
+
+        // One typed in the dialog wins.
+        let mut profile = quick_profile();
+        profile.password = Some("new-secret".to_string());
+        fill_typed_passwords(&mut profile, TAB);
+        assert_eq!(profile.password.as_deref(), Some("new-secret"));
+
+        crate::ssh::typed_passwords::forget_typed_passwords(TAB.to_string());
+    }
+
+    #[test]
+    fn a_profile_keeps_its_hosts_distribution_only_while_the_host_stays() {
+        let mut profile = quick_profile();
+        profile.distro = Some("debian".to_string());
+        assert_eq!(
+            profile.distro_at(Some("db"), Some(22)).as_deref(),
+            Some("debian")
+        );
+        assert_eq!(profile.distro_at(Some("db2"), Some(22)), None);
+        assert_eq!(profile.distro_at(Some("db"), Some(2222)), None);
+    }
+
+    #[test]
+    fn a_profile_reads_back_its_tab_icon_and_distribution() {
+        let mut json = serde_json::to_value(quick_profile()).expect("serialize");
+        json["tab_icon"] = serde_json::json!({ "icon": "distro:arch" });
+        json["distro"] = serde_json::json!("ubuntu");
+        let profile: SavedProfile = serde_json::from_value(json).expect("deserialize");
+        assert_eq!(
+            profile.tab_icon.and_then(|icon| icon.icon).as_deref(),
+            Some("distro:arch")
+        );
+        assert_eq!(profile.distro.as_deref(), Some("ubuntu"));
+    }
+}

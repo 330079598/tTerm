@@ -1,21 +1,18 @@
-use crate::services::AppServices;
-use crate::{
-    sftp::internal::api::archive::CompressRequest, sftp::internal::api::archive::ExtractRequest,
-    sftp::internal::api::archive::RemoteOperationResult,
-};
-use crate::{
-    sftp::internal::api::archive::operations::SftpCancelRemoteOperationDependencies,
-    sftp::internal::api::archive::operations::SftpCancelRemoteOperationInput,
-    sftp::internal::api::archive::operations::SftpCompressEntriesDependencies,
-    sftp::internal::api::archive::operations::SftpCompressEntriesInput,
-    sftp::internal::api::archive::operations::SftpExtractArchiveDependencies,
-    sftp::internal::api::archive::operations::SftpExtractArchiveInput,
-    sftp::internal::api::archive::operations::sftp_cancel_remote_operation_service,
-    sftp::internal::api::archive::operations::sftp_compress_entries_service,
-    sftp::internal::api::archive::operations::sftp_extract_archive_service,
-};
 use tauri::State;
 use tterm_core::core::session::types::PtyConnectionOptions;
+use tterm_core::services::AppServices;
+use tterm_core::sftp::internal::api::archive::CompressRequest;
+use tterm_core::sftp::internal::api::archive::ExtractRequest;
+use tterm_core::sftp::internal::api::archive::RemoteOperationResult;
+use tterm_core::sftp::internal::api::archive::operations::SftpCancelRemoteOperationDependencies;
+use tterm_core::sftp::internal::api::archive::operations::SftpCancelRemoteOperationInput;
+use tterm_core::sftp::internal::api::archive::operations::SftpCompressEntriesDependencies;
+use tterm_core::sftp::internal::api::archive::operations::SftpCompressEntriesInput;
+use tterm_core::sftp::internal::api::archive::operations::SftpExtractArchiveDependencies;
+use tterm_core::sftp::internal::api::archive::operations::SftpExtractArchiveInput;
+use tterm_core::sftp::internal::api::archive::operations::sftp_cancel_remote_operation_service;
+use tterm_core::sftp::internal::api::archive::operations::sftp_compress_entries_service;
+use tterm_core::sftp::internal::api::archive::operations::sftp_extract_archive_service;
 
 /// Packs entries of one folder into a new archive beside them.
 #[tauri::command]
@@ -24,11 +21,11 @@ pub async fn sftp_compress_entries(
     connection: Option<PtyConnectionOptions>,
     operation_id: String,
     request: CompressRequest,
-    services: State<'_, std::sync::Arc<crate::services::AppServices>>,
+    services: State<'_, std::sync::Arc<tterm_core::services::AppServices>>,
 ) -> Result<RemoteOperationResult, String> {
     sftp_compress_entries_service(
         SftpCompressEntriesDependencies {
-            context: crate::connection_context::sftp(&services),
+            context: tterm_core::connection_context::sftp(&services),
             prompts: services.shared.prompts.clone(),
             secrets: services.shared.secrets.clone(),
             pool: services.sftp.pool.clone(),
@@ -51,11 +48,11 @@ pub async fn sftp_extract_archive(
     connection: Option<PtyConnectionOptions>,
     operation_id: String,
     request: ExtractRequest,
-    services: State<'_, std::sync::Arc<crate::services::AppServices>>,
+    services: State<'_, std::sync::Arc<tterm_core::services::AppServices>>,
 ) -> Result<RemoteOperationResult, String> {
     sftp_extract_archive_service(
         SftpExtractArchiveDependencies {
-            context: crate::connection_context::sftp(&services),
+            context: tterm_core::connection_context::sftp(&services),
             prompts: services.shared.prompts.clone(),
             secrets: services.shared.secrets.clone(),
             pool: services.sftp.pool.clone(),

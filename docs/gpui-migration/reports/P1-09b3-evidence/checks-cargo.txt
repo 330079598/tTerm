@@ -1,0 +1,8 @@
+$ cargo fmt --all --check
+exit 0
+
+$ CARGO_BUILD_JOBS=3 cargo clippy --workspace --all-targets -- -D warnings
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 1.24s
+
+$ cargo tree -p tterm-core -e normal,build | grep -Ec "^\S*(tauri|gpui)"
+0

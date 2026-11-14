@@ -7,7 +7,7 @@ use tterm_core::{
 pub fn respond_ssh_auth_prompt(
     request_id: String,
     responses: Option<Vec<String>>,
-    services: tauri::State<'_, std::sync::Arc<crate::services::AppServices>>,
+    services: tauri::State<'_, std::sync::Arc<tterm_core::services::AppServices>>,
 ) -> Result<(), String> {
     let pending = services.shared.prompts.clone();
     respond_ssh_auth_prompt_service(

@@ -56,7 +56,7 @@ pub struct SavedSecretEntry {
 
 #[tauri::command]
 pub async fn get_secret_backend_status(
-    services: tauri::State<'_, std::sync::Arc<crate::services::AppServices>>,
+    services: tauri::State<'_, std::sync::Arc<tterm_core::services::AppServices>>,
 ) -> Result<SecretBackendStatus, String> {
     let secret_state = services.shared.secrets.clone();
     get_secret_backend_status_service(secret_state).await
@@ -74,7 +74,7 @@ async fn get_secret_backend_status_service(
 pub async fn unlock_secret_vault(
     app: tauri::AppHandle,
     input: VaultPasswordInput,
-    services: tauri::State<'_, std::sync::Arc<crate::services::AppServices>>,
+    services: tauri::State<'_, std::sync::Arc<tterm_core::services::AppServices>>,
 ) -> Result<SecretBackendStatus, String> {
     let secret_state = services.shared.secrets.clone();
     let data_dir = crate::app_paths::get(&app)?.data_dir.clone();
@@ -92,7 +92,7 @@ async fn unlock_secret_vault_service(
 
 #[tauri::command]
 pub async fn lock_secret_vault(
-    services: tauri::State<'_, std::sync::Arc<crate::services::AppServices>>,
+    services: tauri::State<'_, std::sync::Arc<tterm_core::services::AppServices>>,
 ) -> Result<SecretBackendStatus, String> {
     let secret_state = services.shared.secrets.clone();
     lock_secret_vault_service(secret_state).await
@@ -107,7 +107,7 @@ async fn lock_secret_vault_service(
 
 #[tauri::command]
 pub async fn retry_system_unlock(
-    services: tauri::State<'_, std::sync::Arc<crate::services::AppServices>>,
+    services: tauri::State<'_, std::sync::Arc<tterm_core::services::AppServices>>,
 ) -> Result<SecretBackendStatus, String> {
     let secret_state = services.shared.secrets.clone();
     retry_system_unlock_service(secret_state).await
@@ -122,7 +122,7 @@ async fn retry_system_unlock_service(
 
 #[tauri::command]
 pub async fn reset_saved_passwords(
-    services: tauri::State<'_, std::sync::Arc<crate::services::AppServices>>,
+    services: tauri::State<'_, std::sync::Arc<tterm_core::services::AppServices>>,
 ) -> Result<SecretBackendStatus, String> {
     let secret_state = services.shared.secrets.clone();
     reset_saved_passwords_service(secret_state).await
@@ -137,7 +137,7 @@ async fn reset_saved_passwords_service(
 #[tauri::command]
 pub async fn change_vault_password(
     input: ChangeVaultPasswordInput,
-    services: tauri::State<'_, std::sync::Arc<crate::services::AppServices>>,
+    services: tauri::State<'_, std::sync::Arc<tterm_core::services::AppServices>>,
 ) -> Result<SecretBackendStatus, String> {
     let secret_state = services.shared.secrets.clone();
     change_vault_password_service(secret_state, input).await
@@ -153,7 +153,7 @@ async fn change_vault_password_service(
 #[tauri::command]
 pub async fn set_master_password(
     input: MasterPasswordInput,
-    services: tauri::State<'_, std::sync::Arc<crate::services::AppServices>>,
+    services: tauri::State<'_, std::sync::Arc<tterm_core::services::AppServices>>,
 ) -> Result<SecretBackendStatus, String> {
     let secret_state = services.shared.secrets.clone();
     set_master_password_service(secret_state, input).await
@@ -172,7 +172,7 @@ async fn set_master_password_service(
 
 #[tauri::command]
 pub async fn remove_master_password(
-    services: tauri::State<'_, std::sync::Arc<crate::services::AppServices>>,
+    services: tauri::State<'_, std::sync::Arc<tterm_core::services::AppServices>>,
 ) -> Result<SecretBackendStatus, String> {
     let secret_state = services.shared.secrets.clone();
     remove_master_password_service(secret_state).await
@@ -188,7 +188,7 @@ async fn remove_master_password_service(
 #[tauri::command]
 pub async fn set_secret_storage_mode(
     input: SecretStorageModeInput,
-    services: tauri::State<'_, std::sync::Arc<crate::services::AppServices>>,
+    services: tauri::State<'_, std::sync::Arc<tterm_core::services::AppServices>>,
 ) -> Result<SecretBackendStatus, String> {
     let secret_state = services.shared.secrets.clone();
     set_secret_storage_mode_service(secret_state, input).await
@@ -210,7 +210,7 @@ async fn set_secret_storage_mode_service(
 #[tauri::command]
 pub async fn verify_user(
     input: VerifyUserInput,
-    services: tauri::State<'_, std::sync::Arc<crate::services::AppServices>>,
+    services: tauri::State<'_, std::sync::Arc<tterm_core::services::AppServices>>,
 ) -> Result<(), String> {
     let secret_state = services.shared.secrets.clone();
     let verifier = services.shared.platform.verification.clone();
@@ -237,7 +237,7 @@ async fn verify_user_service(
 
 #[tauri::command]
 pub async fn list_saved_secrets(
-    services: tauri::State<'_, std::sync::Arc<crate::services::AppServices>>,
+    services: tauri::State<'_, std::sync::Arc<tterm_core::services::AppServices>>,
 ) -> Result<Vec<SavedSecretEntry>, String> {
     let secret_state = services.shared.secrets.clone();
     list_saved_secrets_service(secret_state).await
@@ -280,7 +280,7 @@ async fn list_saved_secrets_service(
 #[tauri::command]
 pub async fn get_saved_secret(
     input: GetSavedSecretInput,
-    services: tauri::State<'_, std::sync::Arc<crate::services::AppServices>>,
+    services: tauri::State<'_, std::sync::Arc<tterm_core::services::AppServices>>,
 ) -> Result<String, String> {
     let secret_state = services.shared.secrets.clone();
     get_saved_secret_service(secret_state, input).await
@@ -317,7 +317,7 @@ async fn get_saved_secret_service(
 #[tauri::command]
 pub async fn delete_saved_secret(
     input: DeleteSavedSecretInput,
-    services: tauri::State<'_, std::sync::Arc<crate::services::AppServices>>,
+    services: tauri::State<'_, std::sync::Arc<tterm_core::services::AppServices>>,
 ) -> Result<bool, String> {
     let secret_state = services.shared.secrets.clone();
     delete_saved_secret_service(secret_state, input).await

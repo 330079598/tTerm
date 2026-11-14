@@ -1,10 +1,8 @@
-use crate::{
-    sftp::internal::api::permissions::operations::SftpSetPermissionsDependencies,
-    sftp::internal::api::permissions::operations::SftpSetPermissionsInput,
-    sftp::internal::api::permissions::operations::sftp_set_permissions_service,
-};
 use tauri::State;
 use tterm_core::core::session::types::PtyConnectionOptions;
+use tterm_core::sftp::internal::api::permissions::operations::SftpSetPermissionsDependencies;
+use tterm_core::sftp::internal::api::permissions::operations::SftpSetPermissionsInput;
+use tterm_core::sftp::internal::api::permissions::operations::sftp_set_permissions_service;
 
 #[tauri::command]
 pub async fn sftp_set_permissions(
@@ -12,11 +10,11 @@ pub async fn sftp_set_permissions(
     connection: Option<PtyConnectionOptions>,
     paths: Vec<String>,
     mode: u32,
-    services: State<'_, std::sync::Arc<crate::services::AppServices>>,
+    services: State<'_, std::sync::Arc<tterm_core::services::AppServices>>,
 ) -> Result<(), String> {
     sftp_set_permissions_service(
         SftpSetPermissionsDependencies {
-            context: crate::connection_context::sftp(&services),
+            context: tterm_core::connection_context::sftp(&services),
             prompts: services.shared.prompts.clone(),
             secrets: services.shared.secrets.clone(),
             pool: services.sftp.pool.clone(),

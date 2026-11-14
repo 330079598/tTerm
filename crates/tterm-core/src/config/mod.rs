@@ -12,12 +12,15 @@ pub mod monitor_metrics;
 pub mod panes;
 pub mod paths;
 pub mod reconnect;
+pub mod save;
 pub mod scrollback;
 pub mod sftp_start_directory;
+
 pub mod tab_agent_indicator;
 pub mod tab_icons;
 pub mod terminal_font;
 pub mod update_channel;
+pub mod window_background;
 
 #[cfg(test)]
 mod tests;

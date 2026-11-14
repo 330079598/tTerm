@@ -1,17 +1,19 @@
-mod operations;
-use crate::services::AppServices;
-use crate::{
-    sftp::internal::api::delete::DeleteBatchStartResult,
-    sftp::internal::api::delete::DeleteEntryRequest, sftp::internal::api::delete::DeleteOptions,
-    sftp::internal::api::delete::DeletePreviewResult,
-};
-use operations::{
-    SftpDeleteEntriesDependencies, SftpDeleteEntriesInput, SftpDeleteEntryDependencies,
-    SftpDeleteEntryInput, SftpPreviewDeleteEntriesDependencies, SftpPreviewDeleteEntriesInput,
-    sftp_delete_entries_service, sftp_delete_entry_service, sftp_preview_delete_entries_service,
-};
 use tauri::State;
 use tterm_core::core::session::types::PtyConnectionOptions;
+use tterm_core::services::AppServices;
+use tterm_core::sftp::internal::api::delete::DeleteBatchStartResult;
+use tterm_core::sftp::internal::api::delete::DeleteEntryRequest;
+use tterm_core::sftp::internal::api::delete::DeleteOptions;
+use tterm_core::sftp::internal::api::delete::DeletePreviewResult;
+use tterm_core::sftp::internal::api::delete::operations::SftpDeleteEntriesDependencies;
+use tterm_core::sftp::internal::api::delete::operations::SftpDeleteEntriesInput;
+use tterm_core::sftp::internal::api::delete::operations::SftpDeleteEntryDependencies;
+use tterm_core::sftp::internal::api::delete::operations::SftpDeleteEntryInput;
+use tterm_core::sftp::internal::api::delete::operations::SftpPreviewDeleteEntriesDependencies;
+use tterm_core::sftp::internal::api::delete::operations::SftpPreviewDeleteEntriesInput;
+use tterm_core::sftp::internal::api::delete::operations::sftp_delete_entries_service;
+use tterm_core::sftp::internal::api::delete::operations::sftp_delete_entry_service;
+use tterm_core::sftp::internal::api::delete::operations::sftp_preview_delete_entries_service;
 #[tauri::command]
 pub async fn sftp_preview_delete_entries(
     tab_id: String,
@@ -21,7 +23,7 @@ pub async fn sftp_preview_delete_entries(
 ) -> Result<DeletePreviewResult, String> {
     sftp_preview_delete_entries_service(
         SftpPreviewDeleteEntriesDependencies {
-            context: crate::connection_context::sftp(&services),
+            context: tterm_core::connection_context::sftp(&services),
             prompts: services.shared.prompts.clone(),
             secrets: services.shared.secrets.clone(),
             pool: services.sftp.pool.clone(),
@@ -41,11 +43,11 @@ pub async fn sftp_delete_entries(
     connection: Option<PtyConnectionOptions>,
     entries: Vec<DeleteEntryRequest>,
     options: DeleteOptions,
-    services: State<'_, std::sync::Arc<crate::services::AppServices>>,
+    services: State<'_, std::sync::Arc<tterm_core::services::AppServices>>,
 ) -> Result<DeleteBatchStartResult, String> {
     sftp_delete_entries_service(
         SftpDeleteEntriesDependencies {
-            context: crate::connection_context::sftp(&services),
+            context: tterm_core::connection_context::sftp(&services),
             prompts: services.shared.prompts.clone(),
             secrets: services.shared.secrets.clone(),
             pool: services.sftp.pool.clone(),
@@ -67,11 +69,11 @@ pub async fn sftp_delete_entry(
     connection: Option<PtyConnectionOptions>,
     path: String,
     is_dir: bool,
-    services: State<'_, std::sync::Arc<crate::services::AppServices>>,
+    services: State<'_, std::sync::Arc<tterm_core::services::AppServices>>,
 ) -> Result<(), String> {
     sftp_delete_entry_service(
         SftpDeleteEntryDependencies {
-            context: crate::connection_context::sftp(&services),
+            context: tterm_core::connection_context::sftp(&services),
             prompts: services.shared.prompts.clone(),
             secrets: services.shared.secrets.clone(),
             pool: services.sftp.pool.clone(),

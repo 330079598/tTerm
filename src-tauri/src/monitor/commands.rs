@@ -1,8 +1,8 @@
-use crate::{
-    monitor::GetServerMetricsSnapshotInput, monitor::ReleaseServerMonitorSessionInput,
-    monitor::get_server_metrics_snapshot_service, monitor::release_server_monitor_session_service,
-};
 use tterm_core::core::session::types::PtyConnectionOptions;
+use tterm_core::monitor::GetServerMetricsSnapshotInput;
+use tterm_core::monitor::ReleaseServerMonitorSessionInput;
+use tterm_core::monitor::get_server_metrics_snapshot_service;
+use tterm_core::monitor::release_server_monitor_session_service;
 use tterm_core::monitor::types::ServerMetricsSnapshot;
 
 #[tauri::command]
@@ -10,9 +10,9 @@ pub async fn get_server_metrics_snapshot(
     tab_id: String,
     session_nonce: u32,
     connection: Option<PtyConnectionOptions>,
-    services: tauri::State<'_, std::sync::Arc<crate::services::AppServices>>,
+    services: tauri::State<'_, std::sync::Arc<tterm_core::services::AppServices>>,
 ) -> Result<ServerMetricsSnapshot, String> {
-    let app = crate::connection_context::connection(&services);
+    let app = tterm_core::connection_context::connection(&services);
     let prompt_state = services.shared.prompts.clone();
     let secret_state = services.shared.secrets.clone();
     let monitor_sessions = services.session.monitors.clone();
@@ -36,9 +36,9 @@ pub async fn get_server_metrics_snapshot(
 pub async fn release_server_monitor_session(
     tab_id: String,
     session_nonce: Option<u32>,
-    services: tauri::State<'_, std::sync::Arc<crate::services::AppServices>>,
+    services: tauri::State<'_, std::sync::Arc<tterm_core::services::AppServices>>,
 ) -> Result<(), String> {
-    let app = crate::connection_context::connection(&services);
+    let app = tterm_core::connection_context::connection(&services);
     let monitor_sessions = services.session.monitors.clone();
     let registry = services.session.monitor_prompts.clone();
     release_server_monitor_session_service(

@@ -7,10 +7,11 @@ comments, and maps each path to the file of its longest module prefix. It does
 not see macros or glob re-exports. Use it to plan and to check, and let the
 compiler have the last word.
 
-    python3 -I scripts/migration/core-move-graph.py adapters   # logic files that still need an adapter file
-    python3 -I scripts/migration/core-move-graph.py cycles     # strongly connected groups among movable files
-    python3 -I scripts/migration/core-move-graph.py batches    # move batches, leaves first, per domain
-    python3 -I scripts/migration/core-move-graph.py json OUT   # the whole graph
+    python3 -I scripts/migration/core-move-graph.py adapters    # logic files that still need an adapter file
+    python3 -I scripts/migration/core-move-graph.py cycles      # strongly connected groups among movable files
+    python3 -I scripts/migration/core-move-graph.py batches     # move batches, leaves first, per domain
+    python3 -I scripts/migration/core-move-graph.py constraints # the `mod` and `impl` edges the graph adds
+    python3 -I scripts/migration/core-move-graph.py json OUT    # the whole graph
     add --no-tests to any command to leave test code out of the graph
 
 A file is an *adapter* when its non-test code touches Tauri (see TAURI); it
@@ -21,6 +22,17 @@ child modules (`legacy_import::x`) and through `use`-imported module names
 count as dependencies. A file in STAY stays as well. Every other non-test file is
 *movable*. `adapters` exits with status 1 while a movable file depends on an
 adapter or a STAY file, which is the condition P1-09a must clear.
+
+Two edges follow the module tree rather than a path in the code:
+
+- A `mod name;` declaration in a movable file binds the parent to the child it
+declares. Both live in one crate, so a batch that moves the parent must move
+the child with it, or the parent keeps a declaration with nothing behind it.
+- An `impl Type` block must live in the crate that defines `Type` (an inherent
+impl may not be written outside it, and a trait impl hits the orphan rule), so
+a file and the file defining the type it implements move together. Both are
+read from the header of each `impl`; a type defined in exactly one file is
+attributed there, and ambiguous names are left alone.
 """
 
 import json
@@ -139,6 +151,47 @@ def expand_use_tree(prefix, tree):
     return [(prefix + [name], alias)]
 
 
+def type_definitions(body):
+    """The names of the types `body` defines; the first path segment of an
+    `impl` header is matched against these."""
+    return re.findall(r"\b(?:struct|enum|union)\s+([A-Z][A-Za-z0-9_]*)", body) + re.findall(
+        r"\btype\s+([A-Z][A-Za-z0-9_]*)\s*=", body
+    )
+
+
+def impl_types(body):
+    """The type each `impl` block in `body` is written for.
+
+    Reads the header up to the body brace: it drops the generics of the impl,
+    the `where` clause and a trait in `impl Trait for Type`, then takes the last
+    name of the self type before its own generics. `dyn Trait` has no single
+    owner and is skipped.
+    """
+    found = []
+    for match in re.finditer(r"\bimpl\b", body):
+        rest = re.sub(r"->", "  ", body[match.end() :]).lstrip()
+        if rest.startswith("<"):
+            depth = 0
+            for index, char in enumerate(rest):
+                if char == "<":
+                    depth += 1
+                elif char == ">":
+                    depth -= 1
+                    if depth == 0:
+                        rest = rest[index + 1 :].lstrip()
+                        break
+            else:
+                continue
+        header = rest.split("{", 1)[0].split(" where ", 1)[0]
+        self_type = header.rsplit(" for ", 1)[-1]
+        if "dyn " in self_type or "[" in self_type or "(" in self_type:
+            continue
+        tokens = re.findall(r"[A-Za-z_][A-Za-z0-9_]*", self_type.split("<", 1)[0])
+        if tokens and tokens[-1][0].isupper():
+            found.append(tokens[-1])
+    return found
+
+
 def test_blocks(source):
     """The bodies of `#[cfg(test)] mod … { … }` blocks."""
     blocks = []
@@ -230,6 +283,7 @@ def load(include_tests=True):
     items = defaultdict(set)
     adapters = set()
     test_adapters = defaultdict(set)
+    plain_bodies = {}
     for rel, source in files.items():
         plain = strip_comments(source)
         here = list(module_path(rel))
@@ -239,6 +293,7 @@ def load(include_tests=True):
             bodies = [plain]
         else:
             body = strip_tests(plain)
+            plain_bodies[rel] = body
             if TAURI.search(body):
                 adapters.add(rel)
             bodies = [body] + (test_blocks(plain) if include_tests else [])
@@ -258,7 +313,33 @@ def load(include_tests=True):
     movable = {
         rel for rel in files if rel not in adapters and not is_test(rel) and not is_stay(rel)
     }
-    return files, edges, items, adapters, movable, test_adapters
+    constraints = {"modules": [], "impls": []}
+    definitions = defaultdict(set)
+    for rel, body in plain_bodies.items():
+        for name in type_definitions(body):
+            definitions[name].add(rel)
+    for rel, body in plain_bodies.items():
+        here = list(module_path(rel))
+        for name in re.findall(r"\bmod\s+([a-z_][a-z0-9_]*)\s*;", body):
+            target = resolve(here + [name])
+            # An adapter child, such as a `commands` module, may stay behind
+            # while the parent moves: the parent then drops the declaration.
+            if target and target != rel and target in movable:
+                edges[rel].add(target)
+                items[(rel, target)].add(name)
+                constraints["modules"].append((rel, name, target))
+        for name in impl_types(body):
+            owners = definitions.get(name, ())
+            if len(owners) != 1:
+                continue
+            target = next(iter(owners))
+            if target == rel:
+                continue
+            edges[rel].add(target)
+            edges[target].add(rel)
+            items[(rel, target)].add(name)
+            constraints["impls"].append((rel, name, target))
+    return files, edges, items, adapters, movable, test_adapters, constraints
 
 
 def domain(rel):
@@ -344,7 +425,9 @@ def batches(movable, edges):
 def main():
     arguments = [argument for argument in sys.argv[1:] if argument != "--no-tests"]
     command = arguments[0] if arguments else "adapters"
-    files, edges, items, adapters, movable, test_adapters = load("--no-tests" not in sys.argv)
+    files, edges, items, adapters, movable, test_adapters, constraints = load(
+        "--no-tests" not in sys.argv
+    )
     blocked = {rel for rel in files if (rel in adapters or is_stay(rel)) and not is_test(rel)}
     if command == "adapters":
         needed = defaultdict(lambda: defaultdict(set))
@@ -363,6 +446,15 @@ def main():
             f"{len(blocked_tests)} movable files with Tauri tests"
         )
         sys.exit(1 if needed or blocked_tests else 0)
+    if command == "constraints":
+        for parent, name, child in constraints["modules"]:
+            print(f"mod   {parent} -> {child}  ({name})")
+        for rel, name, target in constraints["impls"]:
+            print(f"impl  {rel} -> {target}  ({name})")
+        print(
+            f"{len(constraints['modules'])} mod edges, {len(constraints['impls'])} impl edges"
+        )
+        return
     if command == "cycles":
         for group in strongly_connected(movable, edges):
             if len(group) > 1:

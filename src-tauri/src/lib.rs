@@ -1,5 +1,4 @@
 mod agent_integration;
-mod app_context;
 mod app_identity;
 mod app_paths;
 mod app_state;
@@ -8,9 +7,7 @@ mod backup;
 mod clipboard_files;
 pub mod command_library;
 mod config;
-mod connection_context;
 mod core;
-mod db;
 #[cfg(any(target_os = "windows", target_os = "macos"))]
 mod drag_out;
 mod event_sink;
@@ -25,7 +22,6 @@ mod platform;
 mod profiles;
 mod proxy;
 mod serial;
-mod services;
 mod session;
 mod session_log;
 mod session_sink;
@@ -58,7 +54,7 @@ pub struct TokioRuntimeState {
 #[cfg(target_os = "windows")]
 pub fn run_console_helper() -> Option<i32> {
     tterm_core::terminal::console_reset::run_helper_if_requested()
-        .or_else(agent_integration::console_report::run_helper_if_requested)
+        .or_else(tterm_core::agent_integration::console_report::run_helper_if_requested)
         .or_else(tterm_core::system_integration::run_installer_request)
 }
 
@@ -88,18 +84,19 @@ pub fn run() {
         .build()
         .expect("failed to build tokio runtime");
     let runtime_handle = runtime.handle().clone();
-    let external_edit_state = Arc::new(sftp::internal::api::external::ExternalEditState::default());
-    let monitor_prompts = Arc::new(monitor::prompts::PendingMonitorPrompts::default());
+    let external_edit_state =
+        Arc::new(tterm_core::sftp::internal::api::external::ExternalEditState::default());
+    let monitor_prompts = Arc::new(tterm_core::monitor::prompts::PendingMonitorPrompts::default());
     let pending_updates = Arc::new(tterm_core::updater::PendingUpdateDownloads::default());
     let secret_store = tterm_core::ssh::secret_store::types::SecretStoreState::new();
     tterm_core::ssh::key_vault::install(secret_store.clone());
     let session_log_state = Arc::new(tterm_core::session_log::SessionLogState::default());
-    let tunnel_manager = Arc::new(tunnel::manager::TunnelManager::default());
-    let close_behavior = Arc::new(background::CloseBehaviorState::default());
-    let quit_state = Arc::new(background::quit::QuitState::default());
-    let exit_guard = Arc::new(background::exit_guard::ExitGuardState::default());
+    let tunnel_manager = Arc::new(tterm_core::tunnel::manager::TunnelManager::default());
+    let close_behavior = Arc::new(tterm_core::background::CloseBehaviorState::default());
+    let quit_state = Arc::new(tterm_core::background::quit::QuitState::default());
+    let exit_guard = Arc::new(tterm_core::background::exit_guard::ExitGuardState::default());
     let launch_dirs = Arc::new(tterm_core::launch_dir::LaunchDirs::default());
-    let tray_state = Arc::new(background::tray::TrayState::default());
+    let tray_state = Arc::new(tterm_core::background::tray::TrayState::default());
 
     let builder = tauri::Builder::default()
         // Registered first so a second launch exits before touching the
@@ -111,7 +108,9 @@ pub fn run() {
                     cwd: cwd.into(),
                 },
                 |args, cwd| {
-                    if let Some(services) = app.try_state::<Arc<services::AppServices>>() {
+                    if let Some(services) =
+                        app.try_state::<Arc<tterm_core::services::AppServices>>()
+                    {
                         tterm_core::launch_dir::open_from_second_launch(
                             &services.app.launch_dirs,
                             services.shared.events.as_ref(),
@@ -121,8 +120,8 @@ pub fn run() {
                     }
                 },
             );
-            if let Some(services) = app.try_state::<Arc<services::AppServices>>() {
-                background::show_main_window(
+            if let Some(services) = app.try_state::<Arc<tterm_core::services::AppServices>>() {
+                tterm_core::background::show_main_window(
                     services.shared.platform.main_window.as_ref(),
                     services.shared.platform.badge.as_ref(),
                 );
@@ -154,14 +153,16 @@ pub fn run() {
             if let tauri::WindowEvent::CloseRequested { api, .. } = event
                 && window
                     .app_handle()
-                    .try_state::<Arc<services::AppServices>>()
+                    .try_state::<Arc<tterm_core::services::AppServices>>()
                     .is_some_and(|services| {
-                        background::on_close_requested(&app_context::background(
-                            &services,
-                            sftp::internal::api::external::unuploaded_files(
-                                &services.sftp.external_edit,
+                        tterm_core::background::on_close_requested(
+                            &tterm_core::app_context::background(
+                                &services,
+                                tterm_core::sftp::internal::api::external::unuploaded_files(
+                                    &services.sftp.external_edit,
+                                ),
                             ),
-                        ))
+                        )
                     })
             {
                 api.prevent_close();
@@ -389,7 +390,7 @@ pub fn run() {
                 Arc::new(event_sink::TauriEventSink::new(app_handle.clone()));
             let mut prompts = None;
             let platform_services = platform::initialize(&app_handle, |main_window, badge| {
-                let notifications = notification::create(
+                let notifications = tterm_core::notification::create(
                     identity.identifier.clone(),
                     main_window,
                     badge,
@@ -410,8 +411,8 @@ pub fn run() {
                 })());
                 (notifications, integration)
             });
-            let services = Arc::new(services::AppServices {
-                shared: services::shared::SharedServices {
+            let services = Arc::new(tterm_core::services::AppServices {
+                shared: tterm_core::services::shared::SharedServices {
                     paths,
                     identity,
                     events,
@@ -420,7 +421,7 @@ pub fn run() {
                     runtime: runtime_handle.clone(),
                     platform: platform_services,
                 },
-                session: services::session::SessionServices {
+                session: tterm_core::services::session::SessionServices {
                     ptys: pty_map.clone(),
                     zmodem: zmodem_map.clone(),
                     zmodem_armed_send: zmodem_armed_send_map.clone(),
@@ -428,12 +429,12 @@ pub fn run() {
                     monitors: monitor_sessions.clone(),
                     monitor_prompts: monitor_prompts.clone(),
                 },
-                sftp: services::sftp::SftpServices {
+                sftp: tterm_core::services::sftp::SftpServices {
                     pool: sftp_pool.clone(),
                     transfer_cancel: transfer_cancel_map.clone(),
                     external_edit: external_edit_state.clone(),
                 },
-                app: services::app::AppLevelServices {
+                app: tterm_core::services::app::AppLevelServices {
                     tunnels: tunnel_manager.clone(),
                     session_log: session_log_state.clone(),
                     close_behavior: close_behavior.clone(),
@@ -458,7 +459,7 @@ pub fn run() {
                 eprintln!("Failed to clean stale update cache files: {}", err);
             }
 
-            if let Err(error) = backup::remote::clear_downloads() {
+            if let Err(error) = tterm_core::backup::remote::clear_downloads() {
                 eprintln!("Failed to clear WebDAV downloads: {error}");
             }
 
@@ -472,12 +473,12 @@ pub fn run() {
 
             // After the legacy config merge so data from the old config
             // directory is imported along with everything else.
-            if let Err(error) = db::legacy_import::import_legacy_json_files() {
+            if let Err(error) = tterm_core::db::legacy_import::import_legacy_json_files() {
                 eprintln!("Failed to import JSON data into the database: {error}");
             }
 
             // Settings files and state older versions kept beside config.json.
-            if let Err(error) = db::legacy_import::import_settings_files() {
+            if let Err(error) = tterm_core::db::legacy_import::import_settings_files() {
                 eprintln!("Failed to move settings files into the database: {error}");
             }
 
@@ -495,17 +496,17 @@ pub fn run() {
 
             let cfg = tterm_core::config::load_config_file().ok();
             if let Some(cfg) = &cfg {
-                sftp::internal::api::apply_bandwidth_limits(cfg);
+                tterm_core::sftp::internal::api::apply_bandwidth_limits(cfg);
                 let log_state = &services.app.session_log;
                 if let Err(err) =
-                    log_state.apply_config(&crate::connection_context::log(&services), cfg)
+                    log_state.apply_config(&tterm_core::connection_context::log(&services), cfg)
                 {
                     eprintln!("Failed to initialize terminal logging: {}", err);
                 }
             }
 
             if let Ok(paths) = crate::app_paths::get(&app_handle) {
-                sftp::internal::api::external::clean_up_on_start(
+                tterm_core::sftp::internal::api::external::clean_up_on_start(
                     paths.as_ref(),
                     &services.shared.runtime,
                 );
@@ -514,14 +515,14 @@ pub fn run() {
                 &services.shared.runtime,
                 services.sftp.pool.clone(),
             );
-            notification::init(services.shared.platform.notifications.as_ref());
+            tterm_core::notification::init(services.shared.platform.notifications.as_ref());
             #[cfg(target_os = "macos")]
             tterm_core::terminal::pty::preload_login_shell_env();
             main_window::create_main_window(app, cfg.as_ref())?;
             let cfg = cfg.unwrap_or_default();
-            background::apply_config(
+            tterm_core::background::apply_config(
                 &services.app.close_behavior,
-                &app_context::tray(&services),
+                &tterm_core::app_context::tray(&services),
                 &cfg,
             );
             runtime_handle.block_on(tterm_core::system_integration::apply_config(
@@ -541,21 +542,24 @@ pub fn run() {
                     api, code: None, ..
                 } => {
                     if app
-                        .try_state::<Arc<services::AppServices>>()
+                        .try_state::<Arc<tterm_core::services::AppServices>>()
                         .is_some_and(|services| {
-                            background::on_exit_requested(&app_context::background(
-                                &services,
-                                sftp::internal::api::external::unuploaded_files(
-                                    &services.sftp.external_edit,
+                            tterm_core::background::on_exit_requested(
+                                &tterm_core::app_context::background(
+                                    &services,
+                                    tterm_core::sftp::internal::api::external::unuploaded_files(
+                                        &services.sftp.external_edit,
+                                    ),
                                 ),
-                            ))
+                            )
                         })
                     {
                         api.prevent_exit();
                     }
                 }
                 tauri::RunEvent::Exit => {
-                    let Some(services) = app.try_state::<Arc<services::AppServices>>() else {
+                    let Some(services) = app.try_state::<Arc<tterm_core::services::AppServices>>()
+                    else {
                         return;
                     };
                     services.shared.prompts.shutdown();
@@ -567,7 +571,9 @@ pub fn run() {
                     services.app.tunnels.save_traffic();
                     // Logs keep what they have not written out yet.
                     tterm_core::session_log::shutdown(&services.app.session_log);
-                    sftp::internal::api::external::shutdown(&services.sftp.external_edit);
+                    tterm_core::sftp::internal::api::external::shutdown(
+                        &services.sftp.external_edit,
+                    );
                 }
                 // Clicking the Dock icon brings back a window closed to the
                 // background.
@@ -576,8 +582,10 @@ pub fn run() {
                     has_visible_windows: false,
                     ..
                 } => {
-                    if let Some(services) = app.try_state::<Arc<services::AppServices>>() {
-                        background::show_main_window(
+                    if let Some(services) =
+                        app.try_state::<Arc<tterm_core::services::AppServices>>()
+                    {
+                        tterm_core::background::show_main_window(
                             services.shared.platform.main_window.as_ref(),
                             services.shared.platform.badge.as_ref(),
                         );

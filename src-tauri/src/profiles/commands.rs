@@ -1,16 +1,14 @@
-use crate::profiles::service;
-use crate::services::AppServices;
 use std::sync::Arc;
 use tterm_core::config::tab_icons::TabIconStyle;
+use tterm_core::profiles::service;
+use tterm_core::services::AppServices;
 use tterm_core::{
     profiles::types::SavedProfile, profiles::types::SshConfigImportHost,
     profiles::types::SshConfigImportOptions, profiles::types::SshConfigImportPreview,
     profiles::types::SshConfigImportResult, profiles::types::TestConnectionResult,
 };
 
-pub(super) mod connection_check;
 pub(crate) mod groups;
-pub(super) mod import;
 
 #[tauri::command]
 pub async fn list_profiles() -> Result<Vec<SavedProfile>, String> {
@@ -83,7 +81,7 @@ pub async fn test_connection(
     typed_password_tab_id: Option<String>,
 ) -> Result<TestConnectionResult, String> {
     service::test_connection(
-        crate::connection_context::connection(&services),
+        tterm_core::connection_context::connection(&services),
         profile,
         typed_password_tab_id,
         &services.shared.secrets,

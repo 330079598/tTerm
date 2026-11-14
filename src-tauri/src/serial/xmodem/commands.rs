@@ -1,8 +1,8 @@
-use crate::{
-    serial::xmodem::SerialReceiveFilesInput, serial::xmodem::SerialSendFilesInput,
-    serial::xmodem::XmodemProtocol, serial::xmodem::serial_receive_files_service,
-    serial::xmodem::serial_send_files_service,
-};
+use tterm_core::serial::xmodem::SerialReceiveFilesInput;
+use tterm_core::serial::xmodem::SerialSendFilesInput;
+use tterm_core::serial::xmodem::XmodemProtocol;
+use tterm_core::serial::xmodem::serial_receive_files_service;
+use tterm_core::serial::xmodem::serial_send_files_service;
 
 /// Sends files to a serial tab's device. Returns once the transfer starts;
 /// its progress shows in the transfer list, like a ZMODEM transfer's.
@@ -12,7 +12,7 @@ pub async fn serial_send_files(
     session_nonce: u32,
     protocol: XmodemProtocol,
     local_paths: Vec<String>,
-    services: tauri::State<'_, std::sync::Arc<crate::services::AppServices>>,
+    services: tauri::State<'_, std::sync::Arc<tterm_core::services::AppServices>>,
 ) -> Result<(), String> {
     let events = services.shared.events.clone();
     let state = services.session.ptys.clone();
@@ -40,7 +40,7 @@ pub async fn serial_receive_files(
     session_nonce: u32,
     protocol: XmodemProtocol,
     destination: String,
-    services: tauri::State<'_, std::sync::Arc<crate::services::AppServices>>,
+    services: tauri::State<'_, std::sync::Arc<tterm_core::services::AppServices>>,
 ) -> Result<(), String> {
     let events = services.shared.events.clone();
     let state = services.session.ptys.clone();

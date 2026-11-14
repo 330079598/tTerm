@@ -1,15 +1,23 @@
 //! Domain services both clients call: SSH sessions, authentication, SFTP,
 //! tunnels, storage, backup and sync.
 //!
-//! The code lives in `src-tauri/src` today and moves here in P1, so this crate
-//! is empty until then.
+//! Everything that is not a Tauri command or a Tauri adapter lives here after
+//! P1-09. `src-tauri` keeps the command functions that convert IPC arguments,
+//! the event and session sinks, the platform implementations and the window
+//! glue.
 
+/// Hooks and plugins installed into AI coding agents so they report what they do.
+pub mod agent_integration;
 /// Agent status reports and the tracker that follows them.
 pub mod agent_status;
+/// Entry adapters that assemble the concrete contexts from `AppServices`.
+pub mod app_context;
 /// The state the app keeps for itself rather than as user settings.
 pub mod app_state;
 /// Notifications and agent reports carried by terminal OSC sequences.
 pub mod attention_reports;
+/// Closing, quitting, the exit guard and the tray the app keeps running in.
+pub mod background;
 /// Backup: the WebDAV client a remote backup drives.
 pub mod backup;
 /// The saved command library every client shares.
@@ -21,8 +29,10 @@ pub mod composer;
 /// Configuration values both clients keep: the config directory, keymap
 /// overrides, keyword highlight sets, split pane layouts and tab icons.
 pub mod config;
+pub mod connection_context;
 /// The connection launcher's client-side models.
 pub mod connections;
+
 /// Cross-cutting services shared by the clients, such as the blocking worker.
 pub mod core;
 /// Follows local and remote shell directory reports.
@@ -55,8 +65,11 @@ pub mod launch_dir;
 pub mod login_script;
 /// Local and remote system monitoring: the metric collectors and snapshots.
 pub mod monitor;
+/// System notifications: their rules, badge and sound.
+pub mod notification;
 /// Filtering searchable option groups.
 pub mod option_search;
+
 /// Distribution reports from a local WSL launcher.
 pub mod os_reports;
 /// The number of characters a password prompt holds.
@@ -84,6 +97,8 @@ pub mod remote_shell_integration;
 pub mod saved_password_prompts;
 /// Serial connections: their settings, ports and line controls.
 pub mod serial;
+/// The services both clients build once and hand to their commands.
+pub mod services;
 /// Session output endpoints shared by client adapters (P1-06).
 pub mod session;
 /// Terminal session logs and the screen they replay.

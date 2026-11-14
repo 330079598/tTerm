@@ -1,16 +1,13 @@
 use crate::event_sink::search::TauriSearchResultSink;
-use crate::{
-    sftp::internal::api::search::SearchRequest, sftp::internal::api::search::SearchSummary,
-};
-use crate::{
-    sftp::internal::api::search::operations::SftpSearchEntriesDependencies,
-    sftp::internal::api::search::operations::SftpSearchEntriesInput,
-    sftp::internal::api::search::operations::sftp_search_entries_service,
-};
 use std::sync::Arc;
 use tauri::State;
 use tauri::ipc::Channel;
 use tterm_core::core::session::types::PtyConnectionOptions;
+use tterm_core::sftp::internal::api::search::SearchRequest;
+use tterm_core::sftp::internal::api::search::SearchSummary;
+use tterm_core::sftp::internal::api::search::operations::SftpSearchEntriesDependencies;
+use tterm_core::sftp::internal::api::search::operations::SftpSearchEntriesInput;
+use tterm_core::sftp::internal::api::search::operations::sftp_search_entries_service;
 use tterm_core::sftp::search::SearchEvent;
 
 /// Searches `request.root` and the folders under it for names matching the
@@ -23,11 +20,11 @@ pub async fn sftp_search_entries(
     search_id: String,
     request: SearchRequest,
     on_event: Channel<SearchEvent>,
-    services: State<'_, std::sync::Arc<crate::services::AppServices>>,
+    services: State<'_, std::sync::Arc<tterm_core::services::AppServices>>,
 ) -> Result<SearchSummary, String> {
     sftp_search_entries_service(
         SftpSearchEntriesDependencies {
-            context: crate::connection_context::sftp(&services),
+            context: tterm_core::connection_context::sftp(&services),
             prompts: services.shared.prompts.clone(),
             secrets: services.shared.secrets.clone(),
             pool: services.sftp.pool.clone(),

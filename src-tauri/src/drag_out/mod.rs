@@ -44,7 +44,7 @@ pub async fn start_drag_out(
     use tauri::Manager;
     let drag = window
         .app_handle()
-        .try_state::<std::sync::Arc<crate::services::AppServices>>()
+        .try_state::<std::sync::Arc<tterm_core::services::AppServices>>()
         .ok_or("Application services are not ready yet")?;
     let result = drag
         .shared
