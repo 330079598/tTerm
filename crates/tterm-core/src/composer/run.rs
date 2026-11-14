@@ -6,6 +6,13 @@
 //! lines stays with the clients; these are the state conversions they drive.
 
 use crate::js::is_js_whitespace;
+use crate::shell_commands::split_shell_commands;
+
+/// The commands in `text`, with blank lines dropped and a multi-line command
+/// kept together.
+pub fn run_lines(text: &str) -> Vec<String> {
+    split_shell_commands(text)
+}
 
 /// `unfinished`: sent, but the run was stopped before it ended.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
