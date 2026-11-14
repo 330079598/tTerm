@@ -7,6 +7,7 @@
 //! upload from another device is merged rather than overwritten, and then
 //! writes the result locally together with the new base.
 
+pub mod categories;
 mod document;
 pub mod merge;
 pub mod service;
