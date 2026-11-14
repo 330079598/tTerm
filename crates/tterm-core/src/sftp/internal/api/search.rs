@@ -7,7 +7,7 @@ use crate::sftp::entry::SftpDirectoryEntry;
 use crate::sftp::search::{SearchEvent, SearchResultSink};
 use std::sync::Arc;
 mod find;
-mod matcher;
+pub(crate) mod matcher;
 #[cfg(all(test, unix))]
 mod real_sshd_tests;
 mod walk;
