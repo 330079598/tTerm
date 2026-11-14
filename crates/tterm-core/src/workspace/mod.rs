@@ -37,6 +37,9 @@ pub mod tab_menu_actions;
 pub mod tab_navigation;
 /// Tab-bar nudge state, from `src/lib/tabNudge.ts`.
 pub mod tab_nudge;
+/// Tab width, hover tooltips, icons, agent indicators and pane settings,
+/// from `src/lib/tabSettings.ts`.
+pub mod tab_settings;
 /// Pure tab-list transitions, from `src/lib/tabsState.ts`.
 pub mod tabs_state;
 

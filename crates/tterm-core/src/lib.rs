@@ -64,6 +64,8 @@ pub mod prompts;
 pub mod proxy;
 /// Per-tab directories and hosts reported by remote shells.
 pub mod remote_cwd;
+/// Command-mark and directory-report scripts for remote shells.
+pub mod remote_shell_integration;
 /// Saved-password offers at SSH sudo prompts.
 pub mod saved_password_prompts;
 /// Serial connections: their settings, ports and line controls.
@@ -76,8 +78,12 @@ pub mod session_log;
 pub mod session_restore;
 /// Shared SFTP value and streaming types (P1-04).
 pub mod sftp;
+/// Splitting the compose bar's text into the commands a shell reads.
+pub mod shell_commands;
 /// SSH connections, their authentication and the stores behind them.
 pub mod ssh;
+/// A connection's shell integration choice and when a fallback is announced.
+pub mod ssh_shell_integration;
 /// Merging the records two devices wrote during sync.
 pub mod sync;
 /// Installing the shell-integration helpers on this computer.
