@@ -1,0 +1,80 @@
+
+## Intl.Collator: sftpView name order vs byte order (sftpView.ts)
+collator: [".env","app","apple","Ärger","File2.log","file9.log","file10.log","logs","zebra","Zebra","档案"]
+bytes: [".env","File2.log","Zebra","app","apple","file10.log","file9.log","logs","zebra","Ärger","档案"]
+collator 'file9' vs 'file10': -1
+byte     'file9' vs 'file10': 1
+sensitivity base 'Ärger' vs 'Arger': 0
+
+## localeCompare default: profileGroups sibling order (profileGroups.ts)
+locale: ["api","Ärger","Web","zebra","Zebra","档案"]
+bytes: ["Web","Zebra","api","zebra","Ärger","档案"]
+'a' vs 'B': -1
+
+## toFixed(1) vs Rust {:.1} (sftpDrawerUtils.formatBytes)
+  bytes=1280 js=1.3 exact=1.25
+  bytes=1382.4 js=1.4 exact=1.35
+  bytes=2560 js=2.5 exact=2.5
+  bytes=1029.12 js=1.0 exact=1.005
+  bytes=10188.8 js=9.9 exact=9.95
+  bytes=1536 js=1.5 exact=1.5
+  bytes=1280 js=1.3 exact=1.25
+  (Rust format!("{:.1}", 1.25) = "1.2"; js = 1.3)
+
+## visibleText on astral characters (serial.ts)
+visibleText('a\u{1F600}b'): "a😀b"
+Array.from length: 3
+UTF-16 length: 4
+
+## localEchoText split('') on astral characters (serial.ts)
+localEchoText('\u{1F600}\r'): "😀\r\n"
+
+## toLocaleLowerCase and NFKC (settingsSearch.ts, sftpSearch.ts)
+'I'.toLocaleLowerCase() default: "i"
+'I'.toLocaleLowerCase('tr'): "ı"
+default locale: "en-US"
+'ﬁ' NFKC: "fi"
+'①' NFKC: "1"
+'Ａ' NFKC: "A"
+'İ'.toLowerCase(): "i̇"
+'İ'.toLowerCase().length: 2
+
+## Number() parsing in validateVariableValues (commandVariables.ts)
+  Number("22") = 22 finite=true
+  Number(" 22 ") = 22 finite=true
+  Number("0x10") = 16 finite=true
+  Number("1e3") = 1000 finite=true
+  Number("Infinity") = Infinity finite=false
+  Number("2_2") = NaN finite=false
+  Number("-0") = 0 finite=true
+  Number("007") = 7 finite=true
+  Number("") = 0 finite=true
+
+## Date formatting in local time (sftpDrawerUtils.formatTimestamp, serial.timestampPrefix)
+TZ: "Asia/Shanghai"
+offset minutes: -480
+formatTimestamp components: [2026,1,1,17,5,7]
+
+## BigUint64 to ms (terminalLogReplay.parseReplayFrames)
+  atUs=1500 atMs=1.5
+  atUs=1000000000000 atMs=1000000000
+  atUs=9007199254740993 atMs=9007199254740.992
+  atUs=18446744073709551615 atMs=18446744073709550
+
+## glob to regex source (sftpSearch.ts)
+  "*.log" -> ^.*\.log$
+  "a?c" -> ^a.c$
+  "[!a]*" -> ^[^a].*$
+  "[a-z]1" -> ^[a-z]1$
+  "x[" -> ^x\[$
+  "[]" -> ^\[\]$
+  "a.b" -> ^a\.b$
+  "a\\b" -> ^a\\b$
+i-flag: /^app$/i.test('APP'): true
+i-flag: /^s$/i.test('ſ'): false
+i-flag: /^k$/i.test('K') (Kelvin sign U+212A): false
+'ß'.toUpperCase(): "SS"
+
+## profileSearch name word separators and scoring (profileSearch.ts)
+'prod-web-01'.split: ["prod","web","01"]
+'web.01'.split: ["web","01"]

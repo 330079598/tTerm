@@ -1,0 +1,188 @@
+
+## quickConnect
+parseQuickConnectInput("root@10.0.0.5"): {"username":"root","host":"10.0.0.5"}
+parseQuickConnectInput("root@10.0.0.5:2222"): {"username":"root","host":"10.0.0.5","port":2222}
+parseQuickConnectInput("admin@[2001:db8::1]:2200"): {"username":"admin","host":"2001:db8::1","port":2200}
+parseQuickConnectInput("fe80::1"): {"host":"fe80::1"}
+parseQuickConnectInput("ssh -p 2222 deploy@web"): {"username":"deploy","host":"web","port":2222}
+parseQuickConnectInput("ssh -l deploy -p2222 web"): {"username":"deploy","host":"web","port":2222}
+parseQuickConnectInput("ssh -J jump@bastion:2200 -i ~/.ssh/k root@db"): {"username":"root","host":"db","jumpHost":{"username":"jump","host":"bastion","port":2200},"privateKeyPath":"~/.ssh/k"}
+parseQuickConnectInput("web."): null
+parseQuickConnectInput("user@@host"): null
+parseQuickConnectInput("root@host:0"): null
+parseQuickConnectInput("root@host:022"): {"username":"root","host":"host","port":22}
+parseQuickConnectInput("ssh -p 22"): null
+parseQuickConnectInput("[::1]"): {"host":"::1"}
+parseQuickConnectInput("a/b"): null
+parseQuickConnectInput(""): null
+formatEndpoint IPv6 default port: "2001:db8::1"
+formatEndpoint IPv6 no port: "2001:db8::1"
+matchesQuery('İSTANBUL', ['istanbul']): false
+matchesQuery('WEB 10.0', ['web-01','10.0.0.5']): true
+resolveQuickConnectTarget alias: {"title":"ops@bastion","username":"ops","host":"203.0.113.10","port":2222,"privateKeyPath":"~/.ssh/bastion","agentForward":false,"keepaliveIntervalSecs":15,"keepaliveCountMax":3}
+resolveQuickConnectTarget alias with port: {"title":"ops@bastion","username":"ops","host":"203.0.113.10","port":22,"privateKeyPath":"~/.ssh/bastion","agentForward":false,"keepaliveIntervalSecs":15,"keepaliveCountMax":3}
+resolveQuickConnectTarget unknown user: null
+resolveQuickConnectTarget jump username default: {"title":"root@db","username":"root","host":"db","port":22,"jumpHosts":[{"host":"bastion","port":22,"username":"root","authMethod":"auto"}]}
+draftProfileFromTab(password): {"id":"","name":"root@db","connection_type":"ssh","host":"db","port":22,"username":"root","remember_password":false,"auth_method":"password","agent_forward":false,"keepalive_interval_secs":15,"keepalive_count_max":3,"use_jump_host":false,"jump_hosts":[]}
+recents after 10 adds: ["h9","h8","h7","h6","h5","h4","h3","h2"]
+recents dedupe key with jump hosts: 2
+
+## profileConnections
+buildConnectionFromProfile: {"title":"web","type":"ssh","isModified":false,"connection":{"type":"ssh","profileId":"p1","profileName":"web","host":"10.0.0.1","port":22,"username":"root","authMethod":"password","agentForward":false,"keepaliveIntervalSecs":15,"keepaliveCountMax":3,"serverMonitorVisible":false}}
+normalizeSshAuthMethod('publickey'): "password"
+applyProfileToTab rename of a copy: "api-2"
+profileTabIcon unknown distro: {}
+
+## profileGroups
+tree roots order: ["api","prod","Web","Zebra"]
+normalizeGroupPath(' prod /web// '): "prod / web"
+normalizeGroupPath('/'): ""
+
+## profileSearch
+profileSearchFields: ["web",null,"10.0.0.1","root",null,null]
+profileMatchScore({name:"web"}, "WEB"): 4
+profileMatchScore({name:"web-01"}, "web"): 3
+profileMatchScore({name:"prod-web-01"}, "web"): 3
+profileMatchScore({name:"webhook-web"}, "hook web"): 2
+profileMatchScore({name:"gateway"}, "10.0"): 2
+profileMatchScore({name:"gateway"}, "root"): 1
+rankProfiles order: ["exact","newer","older","unused","user"]
+
+## profileRecents
+profile recents length and first: [50,"p51"]
+profileLastUsed size: 50
+
+## recentCommands
+suggestCommandName long: "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx..."
+suggestCommandName multiline: "docker ps"
+addRecentCommand dedupe: [{"id":"10:one\u0000git status","commandText":"git status","profileId":"one","lastUsedAt":20,"useCount":2}]
+createCommandDraft without profile: {"name":"docker ps","commandText":"docker ps","description":"","tags":[],"scopeType":"global","isFavorite":true}
+
+## commandVariables
+extractPlaceholderNames: ["user","host","port"]
+parseChoiceOptionsText: ["dev","prod","staging"]
+initialVariableValues: {"token":"","env":"dev","zone":""}
+validateVariableValues('0x10'): {}
+validateVariableValues(' 22 '): {}
+renderCommandText masking: "login •••••••• a.io"
+
+## composerRun
+runLines heredoc: ["cat <<EOF\nline\nEOF","echo done"]
+runLines continuation: ["echo a \\\nb","echo c"]
+runLines if block: ["if true; then\n  echo hi\nfi","echo after"]
+finishLine success advances: {"lines":[{"text":"a","status":"succeeded","exitCode":0},{"text":"b","status":"running"}],"phase":"running","current":1}
+finishLine failure holds: {"lines":[{"text":"a","status":"failed","exitCode":2},{"text":"b","status":"pending"}],"phase":"failed","current":0}
+promptReached unstarted comment: {"lines":[{"text":"# note","status":"succeeded"},{"text":"b","status":"running"}],"phase":"running","current":1}
+promptReached unstarted parse failure: {"lines":[{"text":"fi","status":"failed","exitCode":2},{"text":"b","status":"pending"}],"phase":"failed","current":0}
+
+## proxy
+normalizeProxyChoice server empty id: {"mode":"default"}
+proxyChoiceKey server: "server:a:b"
+parseProxyChoiceKey('server:'): {"mode":"default"}
+hasOnlyKnownProxyTokens: [true,false,false,true]
+validateProxyDraft port 8080.5: "port"
+proxyAddress IPv6: "[::1]:1080"
+proxySummary command: "$ "
+
+## serial
+normalizeSerialSettings string baud: {"port":"COM3","baudRate":9600,"dataBits":8,"parity":"none","stopBits":1,"flowControl":"none","lineEnding":"cr","receiveNewline":"none","localEcho":false,"timestamps":false,"hexView":false}
+normalizeSerialSettings fractional baud: {"port":"","baudRate":115200,"dataBits":8,"parity":"none","stopBits":1,"flowControl":"none","lineEnding":"cr","receiveNewline":"none","localEcho":false,"timestamps":false,"hexView":false}
+normalizeSerialSettings usb: {"port":"","baudRate":115200,"dataBits":8,"parity":"none","stopBits":1,"flowControl":"none","lineEnding":"cr","receiveNewline":"none","localEcho":false,"timestamps":false,"hexView":false,"usb":{"vid":1,"pid":2}}
+serialSummary: "921600 8E1"
+formatUsbId: "1A86:7523"
+localEchoText: ["ls\r\n","a\r\nb","\b \b","","😀\r\n"]
+timestamper chunks: ["\u001b[2m[09:05:07.042]\u001b[22m boot","ing\r\n\u001b[2m[09:05:07.042]\u001b[22m ready\r\n","\u001b[2m[09:05:07.042]\u001b[22m > "]
+sentEchoLine text: "\u001b[36m→ AT\\r\\x00\u001b[39m"
+sentEchoLine bytes: "\u001b[2m[09:05:07.042]\u001b[22m \u001b[36m→ AA 05 0D\u001b[39m"
+parseHexBytes: [{"ok":true,"bytes":[72,101,108]},{"ok":true,"bytes":[72,101]},{"ok":true,"bytes":[72,101,108]},{"ok":false,"token":"656"},{"ok":true,"bytes":[]},{"ok":true,"bytes":[72,108]}]
+lineEndingBytes: [[13],[10],[13,10]]
+
+## sftpStartDirectory and monitorMetrics
+sftpStartPath: ["/var/log","/var/log",".",null]
+normalizeMonitorVisibleMetrics: [["uptime","cpu"],["cpu","memory","network","ip","latency","disk"]]
+
+## optionSearch
+filterOptionGroups('night TOMORROW'): [{"label":"Library","options":[{"value":"catalog:Tomorrow Night","label":"Tomorrow Night"}]}]
+filterOptionGroups('  '): [{"label":null,"options":[{"value":"","label":"Same as the app theme"}]},{"label":"Presets","options":[{"value":"default","label":"Default"},{"value":"ocean","label":"Ocean"}]}]
+
+## terminalLogReplay
+parseReplayFrames kinds: ["resize","output","resize"]
+parseReplayFrames truncated by 2: 2
+parseReplayFrames unknown kind: 0
+initialReplaySize no resize: {"cols":80,"rows":24}
+buildReplayTimeline: [[0,200,60200],[0,200,2200]]
+buildReplayTimeline out of order: [0,0]
+framesPlayedBy: [0,1,2,3]
+formatReplayTime: ["0:00","1:05","1:02:05","0:00","0:59"]
+fitReplayFontSize: [24,15,9,48,12]
+replayFontSize: {"fontSize":13.5,"capped":true}
+
+## terminalCd and droppedPaths
+terminalCdCommand: ["cd /var/log\r","cd /srv/my\\ app/\\$HOME\r","cd /tmp/it\\'s\r"]
+dropQuotingFor: ["git-bash","cmd","posix"]
+quoteDroppedPath posix: ["/Users/me/My\\ File\\ \\(1\\).txt","/tmp/a'\n'b","/Users/me/文档/报告.pdf"]
+quoteDroppedPath windows: ["'C:\\Program Files\\app'","'C:\\tmp\\$it''s'","\"C:\\a&b\""]
+quoteDroppedPath unix paths: ["/mnt/d","/c","/","'\\\\server\\share\\it'\\''s'"]
+droppedPathsText: ["/a\\ b /c ","",""]
+
+## externalEditor, notificationBadge, vaultLock, userVerification
+editorDisplayName: ["Visual Studio Code","Sublime Text","notepad++","code","C:","kate",""]
+badgeLabel: ["0","1","9","9+","-1"]
+badgeOverlaySize: [16,16,22,24,32]
+isVaultLocked: [true,true,false]
+vaultUnlockable: [true,true,false]
+verificationRequired: ["system","masterPassword",null,null,null]
+normalizeVerificationMethod: ["system","masterPassword","none","none"]
+
+## settingsSearch
+settings items: 160
+searchSettings('FONT SIZE'): ["Font Size"]
+searchSettings('updates'): ["Updates (page)","Download updates in background"]
+searchSettings('terminal font') has Font Size: true
+searchSettings('   '): 0
+searchSettings('ｆｏｎｔ'): ["Font Family","Font Size"]
+
+## SftpDrawer: sftpView
+sortSftpEntries name asc: ["app","logs",".env","File2.log","file9.log","file10.log","notes.txt"]
+sortSftpEntries name desc: ["logs","app","notes.txt","file10.log","file9.log","File2.log",".env"]
+sortSftpEntries size desc: ["logs","app","notes.txt","File2.log","file10.log","file9.log",".env"]
+sortSftpEntries modified asc: ["app","logs","file10.log",".env","notes.txt","File2.log","file9.log"]
+sortSftpEntries kind asc: ["app","logs",".env","File2.log","file9.log","file10.log","notes.txt"]
+sortSftpEntries owner asc: ["app","logs",".env","File2.log","file9.log","file10.log","notes.txt"]
+sortSftpEntries permissions asc: ["app","logs",".env","File2.log","file9.log","file10.log","notes.txt"]
+parseOctalMode: [420,1517,null,null,null,null]
+formatOctalMode: ["644","007","4755","7777"]
+
+## SftpDrawer: sftpHistory
+history over the limit: [50,"/d5",49]
+landSftpHistory resolved path: {"paths":["/real","/var"],"index":0}
+dropSftpHistoryEntry current: {"paths":["/a","/b"],"index":1}
+
+## SftpDrawer: sftpArchive
+archiveFormatOf: [null,"zip","tarGz","tarGz","tar",null]
+defaultExtractDestination: ["/srv/site","/","/a/b/site"]
+defaultArchiveName: ["logs.tar.gz","archive.tar","srv.zip"]
+withArchiveExtension: ["logs.zip","LOGS.zip","a.tgz"]
+commonParent: ["/srv","/",null]
+
+## SftpDrawer: sftpSearch
+matcher plain: {"hasQuery":true,"error":null,"hits":["README.md","readme.txt"]}
+matcher glob: {"hasQuery":true,"error":null,"hits":["a.log","A.LOG"]}
+matcher negated class: {"hasQuery":true,"error":null,"hits":["README.md","readme.txt","b1","档案.txt"]}
+matcher regex: {"hasQuery":true,"error":null,"hits":["a.log","A.LOG"]}
+matcher invalid regex with glob: {"hasQuery":true,"error":null,"hits":[]}
+matcher invalid regex: {"hasQuery":true,"error":"Invalid regular expression: /a(/i: Unterminated group","hits":[]}
+matcher empty: {"hasQuery":false,"error":null,"hits":["README.md","readme.txt","a.log","A.LOG","b1","档案.txt"]}
+MATCH_ALL: true
+
+## SftpDrawer: sftpDrawerUtils
+joinRemotePath: ["/a","/srv/a","/srv//a"]
+parentRemotePath: ["/a","/","/","/"]
+isPermissionDenied: [true,true,false]
+formatBytes: ["--","0 B","1023 B","1.0 KB","1.3 KB","1.5 KB","10 KB","1024 KB","5.0 MB","1.0 TB"]
+formatTimestamp: ["--","--","2026-01-01 17:05:07"]
+MAX_EDIT_FILE_BYTES: 5242880
+
+## sync
+SYNC events: ["tterm:sync-settings","tterm:sync-applied","tterm:sync-status"]
+intervals: [[30,60,300,900],[5,15,30,60]]
