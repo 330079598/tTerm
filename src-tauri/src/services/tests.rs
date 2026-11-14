@@ -3,16 +3,16 @@ use tterm_core::services::session::SessionServices;
 use tterm_core::services::sftp::SftpServices;
 use tterm_core::updater::PendingUpdateDownloads;
 
-use crate::background::CloseBehaviorState;
-use crate::background::exit_guard::ExitGuardState;
-use crate::background::quit::QuitState;
-use crate::background::tray::TrayState;
-use crate::tunnel::manager::TunnelManager;
 use std::sync::Arc;
+use tterm_core::background::CloseBehaviorState;
+use tterm_core::background::exit_guard::ExitGuardState;
+use tterm_core::background::quit::QuitState;
+use tterm_core::background::tray::TrayState;
 use tterm_core::launch_dir::LaunchDirs;
 use tterm_core::monitor::prompts::PendingMonitorPrompts;
 use tterm_core::session_log::SessionLogState;
 use tterm_core::sftp::internal::api::external::ExternalEditState;
+use tterm_core::tunnel::manager::TunnelManager;
 use tterm_core::{
     core::state::PtyMap, core::state::ZmodemArmedSendMap, core::state::ZmodemManualDetectMap,
     core::state::ZmodemMap, monitor::types::MonitorSessionMap,

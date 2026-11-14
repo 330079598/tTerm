@@ -4,7 +4,7 @@ use std::sync::Arc;
 
 #[tauri::command]
 pub fn confirm_quit_app(services: tauri::State<'_, Arc<crate::services::AppServices>>) {
-    super::exit_guard::confirm(
+    tterm_core::background::exit_guard::confirm(
         &services.app.exit_guard,
         &crate::app_context::quit(&services),
     );

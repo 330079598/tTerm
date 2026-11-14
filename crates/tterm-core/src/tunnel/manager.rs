@@ -1,41 +1,40 @@
+use crate::core::blocking::run_blocking;
+use crate::core::session::saved_hops::load_saved_hop_password;
+use crate::profiles::types::SavedProfile;
+use crate::ssh::context::ConnectionContext;
+use crate::ssh::secret_store::types::SecretStoreState;
+use crate::tunnel::credentials::StartOutcome;
+use crate::tunnel::credentials::TunnelCredentials;
+use crate::tunnel::credentials::apply_credentials;
+use crate::tunnel::credentials::collect_requests;
+use crate::tunnel::hub::SessionHub;
+use crate::tunnel::hub::SshConnection;
+use crate::tunnel::runtime::RunContext;
 use crate::tunnel::runtime::reporter::TunnelReporter;
-use crate::{tunnel::runtime::RunContext, tunnel::runtime::run_tunnel};
+use crate::tunnel::runtime::run_tunnel;
+use crate::tunnel::storage::{
+    delete_tunnel as delete_tunnel_rule, list_tunnel_traffic, load_tunnels, reset_tunnel_traffic,
+    upsert_tunnel,
+};
+use crate::tunnel::types::TunnelRule;
+use crate::{
+    core::session::load_saved_ssh_password, core::session::normalize_connection,
+    core::session::resolve_ssh_password,
+};
+use crate::{core::session::types::JumpHostOptions, core::session::types::PtyConnectionOptions};
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
-use tterm_core::core::blocking::run_blocking;
-use tterm_core::core::session::saved_hops::load_saved_hop_password;
-use tterm_core::profiles::types::SavedProfile;
-use tterm_core::ssh::context::ConnectionContext;
-use tterm_core::ssh::secret_store::types::SecretStoreState;
-use tterm_core::tunnel::credentials::StartOutcome;
-use tterm_core::tunnel::credentials::TunnelCredentials;
-use tterm_core::tunnel::credentials::apply_credentials;
-use tterm_core::tunnel::credentials::collect_requests;
-use tterm_core::tunnel::hub::SessionHub;
-use tterm_core::tunnel::hub::SshConnection;
-use tterm_core::tunnel::storage::{
-    delete_tunnel as delete_tunnel_rule, list_tunnel_traffic, load_tunnels, reset_tunnel_traffic,
-    upsert_tunnel,
-};
-use tterm_core::tunnel::types::TunnelRule;
-use tterm_core::{
-    core::session::load_saved_ssh_password, core::session::normalize_connection,
-    core::session::resolve_ssh_password,
-};
-use tterm_core::{
-    core::session::types::JumpHostOptions, core::session::types::PtyConnectionOptions,
-};
 use tterm_platform::tray::Tray;
 
+use crate::events::tunnel::{TunnelState, TunnelStatus, TunnelTraffic};
 use tokio::sync::{Mutex, watch};
 use tokio::task::JoinHandle;
-use tterm_core::events::tunnel::{TunnelState, TunnelStatus, TunnelTraffic};
 
 /// Concrete dependencies shared by tunnel starts and reconnection tasks.
 #[derive(Clone)]
-pub(crate) struct TunnelContext {
+pub struct TunnelContext {
     pub connection: ConnectionContext,
     pub secrets: SecretStoreState,
     pub tray: Arc<dyn Tray>,
@@ -159,7 +158,7 @@ impl TunnelManager {
             .count()
     }
 
-    pub(crate) async fn stop(&self, id: &str) {
+    pub async fn stop(&self, id: &str) {
         let running = self.running.lock().await.remove(id);
         let Some(running) = running else {
             return;
@@ -225,21 +224,21 @@ fn connection_options_for_profile(profile: &SavedProfile) -> Result<PtyConnectio
 }
 
 fn find_profile(profile_id: &str) -> Result<SavedProfile, String> {
-    let mut profile = tterm_core::profiles::storage::find_profile(profile_id)?
+    let mut profile = crate::profiles::storage::find_profile(profile_id)?
         .ok_or_else(|| "The host for this tunnel no longer exists".to_string())?;
-    tterm_core::profiles::storage::normalize_profile(&mut profile);
+    crate::profiles::storage::normalize_profile(&mut profile);
     Ok(profile)
 }
 
-pub(super) async fn list_tunnels_service() -> Result<Vec<TunnelRule>, String> {
+pub async fn list_tunnels_service() -> Result<Vec<TunnelRule>, String> {
     run_blocking(load_tunnels).await
 }
 
-pub(super) async fn list_tunnel_statuses_service(
+pub async fn list_tunnel_statuses_service(
     manager: &TunnelManager,
 ) -> Result<Vec<TunnelStatus>, String> {
     let (rules, saved) =
-        run_blocking(|| Ok((load_tunnels()?, tterm_core::db::read(list_tunnel_traffic)?))).await?;
+        run_blocking(|| Ok((load_tunnels()?, crate::db::read(list_tunnel_traffic)?))).await?;
     Ok(rules
         .iter()
         .map(|rule| manager.status_of(&rule.id, saved.get(&rule.id).copied().unwrap_or_default()))
@@ -247,7 +246,7 @@ pub(super) async fn list_tunnel_statuses_service(
 }
 
 /// Zeroes a tunnel's lifetime traffic and starts counting again from now.
-pub(super) async fn reset_tunnel_traffic_totals_service(
+pub async fn reset_tunnel_traffic_totals_service(
     id: String,
     manager: &TunnelManager,
 ) -> Result<(), String> {
@@ -255,14 +254,14 @@ pub(super) async fn reset_tunnel_traffic_totals_service(
     run_blocking(move || match reporter {
         Some(reporter) => reporter.reset_traffic(),
         None => {
-            let now = tterm_core::ssh::store::now_unix_ms().max(0) as u64;
-            tterm_core::db::write(|transaction| reset_tunnel_traffic(transaction, &id, now))
+            let now = crate::ssh::store::now_unix_ms().max(0) as u64;
+            crate::db::write(|transaction| reset_tunnel_traffic(transaction, &id, now))
         }
     })
     .await
 }
 
-pub(super) async fn save_tunnel_service(
+pub async fn save_tunnel_service(
     context: &TunnelContext,
     tunnel: &mut TunnelRule,
 ) -> Result<TunnelRule, String> {
@@ -271,7 +270,7 @@ pub(super) async fn save_tunnel_service(
     let tunnel = run_blocking(move || {
         let profile = find_profile(&tunnel.profile_id)?;
         connection_options_for_profile(&profile)?;
-        tterm_core::db::write(|transaction| upsert_tunnel(transaction, &tunnel))?;
+        crate::db::write(|transaction| upsert_tunnel(transaction, &tunnel))?;
         Ok(tunnel)
     })
     .await?;
@@ -279,13 +278,13 @@ pub(super) async fn save_tunnel_service(
     Ok(tunnel)
 }
 
-pub(super) async fn delete_tunnel_service(
+pub async fn delete_tunnel_service(
     context: &TunnelContext,
     id: String,
     manager: &TunnelManager,
 ) -> Result<(), String> {
     manager.discard(&id).await;
-    tterm_core::db::write(|transaction| delete_tunnel_rule(transaction, &id))?;
+    crate::db::write(|transaction| delete_tunnel_rule(transaction, &id))?;
     context.refresh_tray();
     Ok(())
 }
@@ -293,7 +292,7 @@ pub(super) async fn delete_tunnel_service(
 /// Resolves a rule's connection, asking for missing secrets instead of
 /// failing, and spawns its task. `auto` marks an unattended start: missing
 /// secrets are recorded on the tunnel's status rather than prompted for.
-pub(super) async fn start_rule(
+pub async fn start_rule(
     context: &TunnelContext,
     manager: &TunnelManager,
     id: &str,
@@ -393,7 +392,7 @@ pub(crate) async fn start_unattended(
 
 /// Starts every rule flagged `auto_start`. Runs once per app launch so that
 /// reloading the window does not revive tunnels the user stopped.
-pub(super) async fn auto_start_tunnels_service(
+pub async fn auto_start_tunnels_service(
     context: &TunnelContext,
     manager: &TunnelManager,
 ) -> Result<(), String> {

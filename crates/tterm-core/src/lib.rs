@@ -12,6 +12,8 @@ pub mod agent_status;
 pub mod app_state;
 /// Notifications and agent reports carried by terminal OSC sequences.
 pub mod attention_reports;
+/// Closing, quitting, the exit guard and the tray the app keeps running in.
+pub mod background;
 /// Backup: the WebDAV client a remote backup drives.
 pub mod backup;
 /// The saved command library every client shares.
@@ -47,6 +49,8 @@ pub mod launch_dir;
 pub mod login_script;
 /// Local and remote system monitoring: the metric collectors and snapshots.
 pub mod monitor;
+/// System notifications: their rules, badge and sound.
+pub mod notification;
 /// Distribution reports from a local WSL launcher.
 pub mod os_reports;
 /// The number of characters a password prompt holds.

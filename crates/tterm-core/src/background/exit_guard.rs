@@ -3,9 +3,9 @@
 //! The backend holds the exit and tells the UI what is at stake; the answer
 //! comes back as `confirm_quit_app` or `cancel_quit_prompt`.
 
-use tterm_core::events::background::BackgroundEvent;
-use tterm_core::events::background::QuitBlockers;
-use tterm_core::events::{AppEvent, EventSink};
+use crate::events::background::BackgroundEvent;
+use crate::events::background::QuitBlockers;
+use crate::events::{AppEvent, EventSink};
 
 use std::sync::atomic::{AtomicBool, Ordering};
 
@@ -21,7 +21,7 @@ pub struct ExitGuardState {
 }
 
 impl ExitGuardState {
-    pub(crate) fn cancel(&self) {
+    pub fn cancel(&self) {
         self.prompt_open.store(false, Ordering::SeqCst);
     }
     fn should_hold(&self, blockers: &QuitBlockers) -> bool {
@@ -65,7 +65,7 @@ fn emit_confirmation(
     hold
 }
 
-pub(crate) fn confirm(state: &ExitGuardState, context: &super::quit::QuitContext) {
+pub fn confirm(state: &ExitGuardState, context: &super::quit::QuitContext) {
     state.confirmed.store(true, Ordering::SeqCst);
     super::quit::quit(context);
 }

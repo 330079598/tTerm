@@ -4,11 +4,12 @@ use tterm_core::launch_dir::LaunchDirs;
 
 use tterm_core::updater::PendingUpdateDownloads;
 
-use crate::{
-    background::CloseBehaviorState, background::exit_guard::ExitGuardState,
-    background::quit::QuitState, background::tray::TrayState, tunnel::manager::TunnelManager,
-};
+use tterm_core::background::CloseBehaviorState;
+use tterm_core::background::exit_guard::ExitGuardState;
+use tterm_core::background::quit::QuitState;
+use tterm_core::background::tray::TrayState;
 use tterm_core::session_log::SessionLogState;
+use tterm_core::tunnel::manager::TunnelManager;
 
 pub struct AppLevelServices {
     pub tunnels: Arc<TunnelManager>,

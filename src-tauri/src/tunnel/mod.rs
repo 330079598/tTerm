@@ -1,6 +1,4 @@
-//! The Tauri tunnel commands and the manager they drive; the tunnel rules
-//! and transports live in [`tterm_core::tunnel`].
+//! The Tauri tunnel commands; the rules, the manager and the runtime they
+//! drive live in [`tterm_core::tunnel`].
 
 pub(crate) mod commands;
-pub(crate) mod manager;
-mod runtime;

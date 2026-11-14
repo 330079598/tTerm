@@ -1,6 +1,5 @@
 //! Domain operations behind the IPC entry points.
 use crate::sync::state;
-use crate::tunnel::manager::TunnelManager;
 use crate::{
     sync::SYNC_LOCK, sync::SyncOutcome, sync::SyncSettings, sync::SyncStatus, sync::set_last_error,
     sync::status, sync::sync, sync::write_settings,
@@ -8,6 +7,7 @@ use crate::{
 use serde_json::Value;
 use tterm_core::core::blocking::run_blocking;
 use tterm_core::ssh::secret_store::types::SecretStoreState;
+use tterm_core::tunnel::manager::TunnelManager;
 
 pub(super) async fn get_sync_status() -> Result<SyncStatus, String> {
     run_blocking(status).await

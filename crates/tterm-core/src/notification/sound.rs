@@ -7,11 +7,11 @@ use std::path::{Path, PathBuf};
 
 use base64::{Engine, engine::general_purpose::STANDARD as BASE64};
 
-use tterm_core::config::atomic::atomic_write;
-use tterm_core::config::paths::{ensure_config_dir, get_config_path};
+use crate::config::atomic::atomic_write;
+use crate::config::paths::{ensure_config_dir, get_config_path};
 
 /// The copy's name in the config folder.
-pub(crate) const SOUND_FILE: &str = "notification-sound";
+pub const SOUND_FILE: &str = "notification-sound";
 /// Largest sound accepted: a notification sound is a short clip, and every
 /// sync uploads it.
 const MAX_SOUND_FILE_BYTES: usize = 1024 * 1024;
@@ -29,7 +29,7 @@ fn save(bytes: &[u8]) -> Result<(), String> {
 
 /// Copies the file at `path` in as the notification sound and returns its
 /// name, which the settings show.
-pub(super) fn import(path: &Path) -> Result<String, String> {
+pub fn import(path: &Path) -> Result<String, String> {
     let size = fs::metadata(path)
         .map_err(|error| format!("Couldn't open the sound file {}: {error}", path.display()))?
         .len();
@@ -48,7 +48,7 @@ pub(super) fn import(path: &Path) -> Result<String, String> {
         .unwrap_or_default())
 }
 
-pub(super) fn read() -> Result<Vec<u8>, String> {
+pub fn read() -> Result<Vec<u8>, String> {
     fs::read(sound_path()?).map_err(|error| {
         format!("Couldn't read the notification sound; pick the sound file again: {error}")
     })
@@ -56,7 +56,7 @@ pub(super) fn read() -> Result<Vec<u8>, String> {
 
 /// The sound as base64 for a backup or the sync document, `None` when no
 /// file was ever picked.
-pub(crate) fn export() -> Result<Option<String>, String> {
+pub fn export() -> Result<Option<String>, String> {
     let path = sound_path()?;
     if !path.exists() {
         return Ok(None);
@@ -67,7 +67,7 @@ pub(crate) fn export() -> Result<Option<String>, String> {
 }
 
 /// Writes a sound that came from a backup or another device.
-pub(crate) fn restore(encoded: &str) -> Result<(), String> {
+pub fn restore(encoded: &str) -> Result<(), String> {
     let bytes = BASE64
         .decode(encoded)
         .map_err(|error| format!("The notification sound is invalid: {error}"))?;

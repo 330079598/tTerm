@@ -242,7 +242,7 @@ pub(super) fn apply_payload(
         }
         // A backup made before sounds travelled keeps this device's sound.
         if let Some(sound) = payload.notification_sound.as_deref() {
-            crate::notification::sound::restore(sound)?;
+            tterm_core::notification::sound::restore(sound)?;
         }
     }
 

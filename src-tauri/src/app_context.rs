@@ -1,9 +1,10 @@
 //! Entry adapters assemble concrete dependencies before handing work to services.
-use crate::{
-    background::BackgroundContext, background::quit::QuitContext, background::tray::TrayContext,
-    services::AppServices, tunnel::manager::TunnelContext,
-};
+use crate::services::AppServices;
 use std::sync::Arc;
+use tterm_core::background::BackgroundContext;
+use tterm_core::background::quit::QuitContext;
+use tterm_core::background::tray::TrayContext;
+use tterm_core::tunnel::manager::TunnelContext;
 
 pub(crate) fn tray(services: &AppServices) -> TrayContext {
     TrayContext {

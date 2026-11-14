@@ -295,7 +295,7 @@ fn collect_settings() -> Result<Collection, String> {
                 .map(|value| (key.to_string(), SyncRecord::new(value.clone(), None)))
         })
         .collect();
-    if let Some(sound) = crate::notification::sound::export()? {
+    if let Some(sound) = tterm_core::notification::sound::export()? {
         settings.insert(
             NOTIFICATION_SOUND.to_string(),
             SyncRecord::new(Value::String(sound), None),
@@ -662,7 +662,7 @@ pub(crate) fn apply_settings(merged: &Collection) -> Result<(), String> {
                 .data
                 .as_str()
                 .ok_or("The synced notification sound is invalid.")?;
-            crate::notification::sound::restore(sound)?;
+            tterm_core::notification::sound::restore(sound)?;
         }
     }
     let config = serde_json::from_value::<AppConfig>(config)

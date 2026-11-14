@@ -95,12 +95,12 @@ impl Tray for TauriTray {
             .unwrap_or_else(|error| error.into_inner())
             .is_present(
                 self.app
-                    .tray_by_id(crate::background::tray::TRAY_ID)
+                    .tray_by_id(tterm_core::background::tray::TRAY_ID)
                     .is_some(),
             )
     }
     fn set_tooltip(&self, text: String) -> Result<(), String> {
-        if let Some(tray) = self.app.tray_by_id(crate::background::tray::TRAY_ID) {
+        if let Some(tray) = self.app.tray_by_id(tterm_core::background::tray::TRAY_ID) {
             tray.set_tooltip(Some(text)).map_err(|e| e.to_string())?;
         }
         Ok(())

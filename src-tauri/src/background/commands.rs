@@ -8,7 +8,7 @@ pub fn resolve_close_request(
     action: String,
     services: tauri::State<'_, Arc<crate::services::AppServices>>,
 ) {
-    super::resolve_close(
+    tterm_core::background::resolve_close(
         &crate::app_context::background(
             &services,
             tterm_core::sftp::internal::api::external::unuploaded_files(

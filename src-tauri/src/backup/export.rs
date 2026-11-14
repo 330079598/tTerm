@@ -116,7 +116,7 @@ pub(super) fn collect_payload(
         automatic_backup,
         sync,
         notification_sound: if selection.settings {
-            crate::notification::sound::export()?
+            tterm_core::notification::sound::export()?
         } else {
             None
         },

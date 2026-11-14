@@ -1,16 +1,16 @@
 //! A tunnel's status and traffic, reported to the frontend and saved.
 
 use crate::background::tray::TrayState;
+use crate::events::tunnel::TunnelEvent;
+use crate::events::tunnel::{TunnelState, TunnelStatus, TunnelTraffic};
+use crate::events::{AppEvent, EventSink};
 use crate::tunnel::manager::TunnelManager;
 use crate::tunnel::runtime::TRAFFIC_SAVE_INTERVAL;
+use crate::tunnel::storage::{add_tunnel_traffic, reset_tunnel_traffic, tunnel_traffic};
+use crate::tunnel::types::TunnelStats;
 use std::sync::atomic::Ordering;
 use std::sync::{Arc, Mutex};
 use std::time::Instant;
-use tterm_core::events::tunnel::TunnelEvent;
-use tterm_core::events::tunnel::{TunnelState, TunnelStatus, TunnelTraffic};
-use tterm_core::events::{AppEvent, EventSink};
-use tterm_core::tunnel::storage::{add_tunnel_traffic, reset_tunnel_traffic, tunnel_traffic};
-use tterm_core::tunnel::types::TunnelStats;
 
 /// active, total, failed, bytes up, bytes down.
 type Counters = (u64, u64, u64, u64, u64);
@@ -53,8 +53,8 @@ impl TunnelReporter {
         sink: Arc<dyn EventSink>,
         id: String,
     ) -> Arc<Self> {
-        let saved = tterm_core::db::read(|connection| tunnel_traffic(connection, &id))
-            .unwrap_or_else(|error| {
+        let saved =
+            crate::db::read(|connection| tunnel_traffic(connection, &id)).unwrap_or_else(|error| {
                 eprintln!("Failed to load traffic of tunnel {id}: {error}");
                 TunnelTraffic::default()
             });
@@ -117,10 +117,9 @@ impl TunnelReporter {
         if delta == (0, 0, 0) {
             return;
         }
-        let now = tterm_core::ssh::store::now_unix_ms().max(0) as u64;
-        match tterm_core::db::write(|transaction| {
-            add_tunnel_traffic(transaction, &self.id, delta, now)
-        }) {
+        let now = crate::ssh::store::now_unix_ms().max(0) as u64;
+        match crate::db::write(|transaction| add_tunnel_traffic(transaction, &self.id, delta, now))
+        {
             Ok(()) => {
                 ledger.saved = ledger.saved.plus(delta);
                 ledger.saved.since.get_or_insert(now);
@@ -140,8 +139,8 @@ impl TunnelReporter {
     pub fn reset_traffic(&self) -> Result<(), String> {
         {
             let mut ledger = self.ledger();
-            let now = tterm_core::ssh::store::now_unix_ms().max(0) as u64;
-            tterm_core::db::write(|transaction| reset_tunnel_traffic(transaction, &self.id, now))?;
+            let now = crate::ssh::store::now_unix_ms().max(0) as u64;
+            crate::db::write(|transaction| reset_tunnel_traffic(transaction, &self.id, now))?;
             ledger.saved = TunnelTraffic {
                 since: Some(now),
                 ..TunnelTraffic::default()
@@ -243,7 +242,7 @@ impl TunnelReporter {
             let mut inner = self.inner.lock().unwrap_or_else(|e| e.into_inner());
             inner.state = TunnelState::Running;
             inner.message = None;
-            inner.connected_at = Some(tterm_core::ssh::store::now_unix_ms().max(0) as u64);
+            inner.connected_at = Some(crate::ssh::store::now_unix_ms().max(0) as u64);
         }
         self.emit();
     }

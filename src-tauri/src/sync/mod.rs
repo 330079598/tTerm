@@ -14,7 +14,6 @@ mod state;
 pub(crate) mod commands;
 mod service;
 
-use crate::tunnel::manager::TunnelManager;
 use document::{Collections, MAX_DOCUMENT_SIZE, SYNC_FILE_NAME};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -25,6 +24,7 @@ use tterm_core::core::blocking::run_blocking;
 use tterm_core::db::meta;
 use tterm_core::ssh::secret_store::types::SecretStoreState;
 use tterm_core::sync::merge::{merge_collection, same_data};
+use tterm_core::tunnel::manager::TunnelManager;
 
 use snapshot::SyncSelection;
 

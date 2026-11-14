@@ -25,7 +25,6 @@ use tterm_core::{
     profiles::types::SshConfigImportResult,
 };
 
-use crate::tunnel::manager::TunnelManager;
 use std::collections::HashSet;
 use tterm_core::profiles::connection_check::authenticate_test_connection;
 use tterm_core::profiles::connection_check::test_connection_handler;
@@ -33,6 +32,7 @@ use tterm_core::profiles::connection_check::test_session_plan;
 use tterm_core::profiles::import::import_ssh_config_profiles_blocking;
 use tterm_core::ssh::context::ConnectionContext;
 use tterm_core::ssh::secret_store::types::SecretStoreState;
+use tterm_core::tunnel::manager::TunnelManager;
 use tterm_core::{
     ssh::secret_store::types::SecretLocation, ssh::types::ConnectionStatusOptions,
     ssh::types::HostKeyVerificationMode,

@@ -32,7 +32,7 @@ impl OverlayImage {
 
 /// Shows `count` on the app icon, or takes it off at zero. `overlay` is the
 /// count drawn for the Windows taskbar; other systems ignore it.
-pub(super) async fn set_unseen(
+pub async fn set_unseen(
     window: &dyn tterm_platform::window::MainWindow,
     badge: &dyn tterm_platform::notifications::AppBadge,
     count: u32,

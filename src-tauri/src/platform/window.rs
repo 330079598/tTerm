@@ -41,7 +41,7 @@ impl MainWindow for TauriWindow {
                     if let Some(services) =
                         app.try_state::<std::sync::Arc<crate::services::AppServices>>()
                     {
-                        crate::notification::badge::restore(
+                        tterm_core::notification::badge::restore(
                             services.shared.platform.badge.as_ref(),
                         );
                     }

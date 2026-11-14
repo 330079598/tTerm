@@ -1,5 +1,4 @@
 //! Tauri tray icons and callbacks; domain menu policy lives in background::tray.
-use crate::background::tray::TRAY_ID;
 use crate::services::AppServices;
 use std::sync::Arc;
 use std::sync::Once;
@@ -8,6 +7,7 @@ use tauri::image::Image;
 use tauri::menu::{Menu, MenuEvent};
 use tauri::tray::{MouseButton, MouseButtonState, TrayIcon, TrayIconBuilder, TrayIconEvent};
 use tauri::{AppHandle, Manager};
+use tterm_core::background::tray::TRAY_ID;
 const DOT_RGB: [u8; 3] = [0xE8, 0x11, 0x23];
 /// Installs the already-rendered native menu without reading domain state.
 pub(crate) fn present_menu(app: &AppHandle, menu: Menu<tauri::Wry>) -> tauri::Result<()> {
@@ -114,7 +114,7 @@ fn on_menu_event(app: &AppHandle, event: MenuEvent) {
         &services,
         tterm_core::sftp::internal::api::external::unuploaded_files(&services.sftp.external_edit),
     );
-    crate::background::tray::handle_action(
+    tterm_core::background::tray::handle_action(
         context,
         crate::app_context::tunnel(&services),
         event.id().as_ref(),
@@ -135,22 +135,26 @@ fn on_tray_icon_event(tray: &TrayIcon, event: TrayIconEvent) {
             button: MouseButton::Left,
             button_state: MouseButtonState::Up,
             ..
-        } if !cfg!(target_os = "macos") => {
-            crate::background::show_main_window(context.window.as_ref(), context.badge.as_ref())
-        }
+        } if !cfg!(target_os = "macos") => tterm_core::background::show_main_window(
+            context.window.as_ref(),
+            context.badge.as_ref(),
+        ),
         TrayIconEvent::DoubleClick {
             button: MouseButton::Left,
             ..
-        } => crate::background::show_main_window(context.window.as_ref(), context.badge.as_ref()),
+        } => tterm_core::background::show_main_window(
+            context.window.as_ref(),
+            context.badge.as_ref(),
+        ),
         // Hovering comes before the tooltip and the menu; bring both up to
         // date, including tunnels changed by a sync or an import.
         TrayIconEvent::Enter { .. } => {
-            let _ = tray.set_tooltip(Some(crate::background::tray::tooltip(
+            let _ = tray.set_tooltip(Some(tterm_core::background::tray::tooltip(
                 &services.session.ptys,
                 &services.app.tunnels,
                 &services.app.tray,
             )));
-            crate::background::tray::refresh_tunnels(&context.tray);
+            tterm_core::background::tray::refresh_tunnels(&context.tray);
         }
         _ => {}
     }

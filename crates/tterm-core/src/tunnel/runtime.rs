@@ -1,27 +1,29 @@
-use connections::{
-    ConnectionLimiter, Listeners, forward_local_connection, forward_remote_connection,
-    forward_socks_connection, refuse_connections,
-};
-use reporter::TunnelReporter;
-use std::sync::Arc;
-use std::time::Duration;
-use tokio::sync::watch;
-use tokio::task::JoinSet;
-use tterm_core::core::session::types::SessionPlan;
-use tterm_core::events::tunnel::TunnelState;
-use tterm_core::tunnel::hub::Lease;
-use tterm_core::tunnel::hub::RouteGuard;
-use tterm_core::tunnel::hub::SessionHub;
-use tterm_core::tunnel::hub::SessionKey;
-use tterm_core::tunnel::hub::SshConnection;
-use tterm_core::tunnel::hub::SshHandle;
-use tterm_core::tunnel::types::{TunnelKind, TunnelRule};
-use tterm_core::{
+use crate::core::session::types::SessionPlan;
+use crate::events::tunnel::TunnelState;
+use crate::tunnel::hub::Lease;
+use crate::tunnel::hub::RouteGuard;
+use crate::tunnel::hub::SessionHub;
+use crate::tunnel::hub::SessionKey;
+use crate::tunnel::hub::SshConnection;
+use crate::tunnel::hub::SshHandle;
+use crate::tunnel::runtime::connections::ConnectionLimiter;
+use crate::tunnel::runtime::connections::Listeners;
+use crate::tunnel::runtime::connections::forward_local_connection;
+use crate::tunnel::runtime::connections::forward_remote_connection;
+use crate::tunnel::runtime::connections::forward_socks_connection;
+use crate::tunnel::runtime::connections::refuse_connections;
+use crate::tunnel::runtime::reporter::TunnelReporter;
+use crate::tunnel::types::{TunnelKind, TunnelRule};
+use crate::{
     ssh::jump::connect::ConnectContext, ssh::jump::connect::SshTarget,
     ssh::jump::connect::open_target_ssh_session_with_forwarding,
     ssh::types::ConnectionStatusOptions, ssh::types::ForwardedTcpIp,
     ssh::types::HostKeyVerificationMode,
 };
+use std::sync::Arc;
+use std::time::Duration;
+use tokio::sync::watch;
+use tokio::task::JoinSet;
 
 mod connections;
 pub(super) mod reporter;
@@ -251,10 +253,10 @@ async fn run_remote_session(
 }
 
 pub struct RunContext {
-    pub connection: tterm_core::ssh::context::ConnectionContext,
+    pub connection: crate::ssh::context::ConnectionContext,
     pub rule: TunnelRule,
     pub plan: SessionPlan,
-    pub prompts: std::sync::Arc<tterm_core::prompts::PromptBroker>,
+    pub prompts: std::sync::Arc<crate::prompts::PromptBroker>,
     pub reporter: Arc<TunnelReporter>,
     /// Shared with every other tunnel, so those to the same host share a connection.
     pub hub: Arc<SessionHub<SshConnection>>,
@@ -343,8 +345,8 @@ pub async fn run_tunnel(ctx: RunContext, mut stop_rx: watch::Receiver<bool>) {
         // Joins the connection another tunnel to this host already has, or
         // opens it for the others to join.
         let connect = hub.acquire(&session_key, |forwarded_tx| async {
-            let scope = tterm_core::prompt_scope::PromptScope::new(prompts.clone(), None)
-                .map_err(tterm_core::ssh::types::SshConnectError::Cancelled)?;
+            let scope = crate::prompt_scope::PromptScope::new(prompts.clone(), None)
+                .map_err(crate::ssh::types::SshConnectError::Cancelled)?;
             let (jump_chain, handle) = open_target_ssh_session_with_forwarding(
                 ConnectContext {
                     app: &connection,
@@ -355,7 +357,7 @@ pub async fn run_tunnel(ctx: RunContext, mut stop_rx: watch::Receiver<bool>) {
                     // Tunnels reconnect on their own, so there is no moment at
                     // which a prompt is expected.
                     prompt_owner: Some(&scope.owner),
-                    auth_prompter: &tterm_core::ssh::auth::AuthPrompter::Unavailable,
+                    auth_prompter: &crate::ssh::auth::AuthPrompter::Unavailable,
                 },
                 SshTarget {
                     keepalive_interval_secs,

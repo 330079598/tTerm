@@ -95,12 +95,12 @@ pub fn run() {
     let secret_store = tterm_core::ssh::secret_store::types::SecretStoreState::new();
     tterm_core::ssh::key_vault::install(secret_store.clone());
     let session_log_state = Arc::new(tterm_core::session_log::SessionLogState::default());
-    let tunnel_manager = Arc::new(tunnel::manager::TunnelManager::default());
-    let close_behavior = Arc::new(background::CloseBehaviorState::default());
-    let quit_state = Arc::new(background::quit::QuitState::default());
-    let exit_guard = Arc::new(background::exit_guard::ExitGuardState::default());
+    let tunnel_manager = Arc::new(tterm_core::tunnel::manager::TunnelManager::default());
+    let close_behavior = Arc::new(tterm_core::background::CloseBehaviorState::default());
+    let quit_state = Arc::new(tterm_core::background::quit::QuitState::default());
+    let exit_guard = Arc::new(tterm_core::background::exit_guard::ExitGuardState::default());
     let launch_dirs = Arc::new(tterm_core::launch_dir::LaunchDirs::default());
-    let tray_state = Arc::new(background::tray::TrayState::default());
+    let tray_state = Arc::new(tterm_core::background::tray::TrayState::default());
 
     let builder = tauri::Builder::default()
         // Registered first so a second launch exits before touching the
@@ -123,7 +123,7 @@ pub fn run() {
                 },
             );
             if let Some(services) = app.try_state::<Arc<services::AppServices>>() {
-                background::show_main_window(
+                tterm_core::background::show_main_window(
                     services.shared.platform.main_window.as_ref(),
                     services.shared.platform.badge.as_ref(),
                 );
@@ -157,7 +157,7 @@ pub fn run() {
                     .app_handle()
                     .try_state::<Arc<services::AppServices>>()
                     .is_some_and(|services| {
-                        background::on_close_requested(&app_context::background(
+                        tterm_core::background::on_close_requested(&app_context::background(
                             &services,
                             tterm_core::sftp::internal::api::external::unuploaded_files(
                                 &services.sftp.external_edit,
@@ -390,7 +390,7 @@ pub fn run() {
                 Arc::new(event_sink::TauriEventSink::new(app_handle.clone()));
             let mut prompts = None;
             let platform_services = platform::initialize(&app_handle, |main_window, badge| {
-                let notifications = notification::create(
+                let notifications = tterm_core::notification::create(
                     identity.identifier.clone(),
                     main_window,
                     badge,
@@ -515,12 +515,12 @@ pub fn run() {
                 &services.shared.runtime,
                 services.sftp.pool.clone(),
             );
-            notification::init(services.shared.platform.notifications.as_ref());
+            tterm_core::notification::init(services.shared.platform.notifications.as_ref());
             #[cfg(target_os = "macos")]
             tterm_core::terminal::pty::preload_login_shell_env();
             main_window::create_main_window(app, cfg.as_ref())?;
             let cfg = cfg.unwrap_or_default();
-            background::apply_config(
+            tterm_core::background::apply_config(
                 &services.app.close_behavior,
                 &app_context::tray(&services),
                 &cfg,
@@ -544,7 +544,7 @@ pub fn run() {
                     if app
                         .try_state::<Arc<services::AppServices>>()
                         .is_some_and(|services| {
-                            background::on_exit_requested(&app_context::background(
+                            tterm_core::background::on_exit_requested(&app_context::background(
                                 &services,
                                 tterm_core::sftp::internal::api::external::unuploaded_files(
                                     &services.sftp.external_edit,
@@ -580,7 +580,7 @@ pub fn run() {
                     ..
                 } => {
                     if let Some(services) = app.try_state::<Arc<services::AppServices>>() {
-                        background::show_main_window(
+                        tterm_core::background::show_main_window(
                             services.shared.platform.main_window.as_ref(),
                             services.shared.platform.badge.as_ref(),
                         );

@@ -2,9 +2,9 @@
 //! such as the terminals' content, which `app.exit` would otherwise end with
 //! the window.
 
+use crate::events::background::BackgroundEvent;
+use crate::events::{AppEvent, EventSink};
 use std::sync::Arc;
-use tterm_core::events::background::BackgroundEvent;
-use tterm_core::events::{AppEvent, EventSink};
 
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
@@ -26,11 +26,11 @@ pub struct QuitState {
 }
 
 impl QuitState {
-    pub(crate) fn set_save_before_quit(&self, enabled: bool) {
+    pub fn set_save_before_quit(&self, enabled: bool) {
         self.save_before_quit.store(enabled, Ordering::SeqCst);
     }
 
-    pub(crate) fn ready(&self) {
+    pub fn ready(&self) {
         self.saved.notify_one();
     }
 
@@ -43,7 +43,7 @@ impl QuitState {
 
 /// Dependencies retained only until the final exit request.
 #[derive(Clone)]
-pub(crate) struct QuitContext {
+pub struct QuitContext {
     pub state: Arc<QuitState>,
     pub events: Arc<dyn EventSink>,
     pub process: Arc<dyn ProcessControl>,
@@ -108,7 +108,7 @@ mod tests {
             let state = Arc::new(QuitState::default());
             let context = QuitContext {
                 state: state.clone(),
-                events: Arc::new(tterm_core::events::recording::RecordingEventSink::default()),
+                events: Arc::new(crate::events::recording::RecordingEventSink::default()),
                 process: process.clone(),
                 runtime: tokio::runtime::Handle::current(),
             };

@@ -1,13 +1,12 @@
+use crate::tunnel::runtime::connections::ChannelFailure;
+use crate::tunnel::runtime::connections::ConnectionGuard;
+use crate::tunnel::runtime::connections::Counted;
 use crate::tunnel::runtime::*;
-use crate::{
-    tunnel::runtime::connections::ChannelFailure, tunnel::runtime::connections::ConnectionGuard,
-    tunnel::runtime::connections::Counted,
-};
+use crate::tunnel::socks5::ConnectOutcome;
+use crate::tunnel::types::TunnelStats;
 use std::sync::atomic::Ordering;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::{TcpListener, TcpStream};
-use tterm_core::tunnel::socks5::ConnectOutcome;
-use tterm_core::tunnel::types::TunnelStats;
 
 #[test]
 fn backoff_grows_and_is_capped() {
