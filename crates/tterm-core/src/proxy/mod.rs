@@ -9,8 +9,10 @@
 //! the command (`command`) once the user allowed it here (`approval`).
 
 pub mod approval;
+pub mod choices;
 pub mod command;
 pub(crate) mod connect;
+pub mod forms;
 mod http_connect;
 pub(crate) mod resolve;
 mod socks5;
