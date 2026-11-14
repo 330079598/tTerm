@@ -1,6 +1,6 @@
+use crate::db::Database;
 use crate::profiles::groups::*;
-use tterm_core::db::Database;
-use tterm_core::profiles::storage::get_profile;
+use crate::profiles::storage::get_profile;
 
 fn profile(id: &str, group_id: Option<&str>) -> SavedProfile {
     serde_json::from_value(serde_json::json!({

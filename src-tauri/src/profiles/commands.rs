@@ -8,9 +8,7 @@ use tterm_core::{
     profiles::types::SshConfigImportResult, profiles::types::TestConnectionResult,
 };
 
-pub(super) mod connection_check;
 pub(crate) mod groups;
-pub(super) mod import;
 
 #[tauri::command]
 pub async fn list_profiles() -> Result<Vec<SavedProfile>, String> {

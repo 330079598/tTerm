@@ -132,7 +132,7 @@ impl Device {
                     .iter()
                     .any(|category| [PROFILES, PROFILE_GROUPS].contains(category))
                 {
-                    crate::profiles::groups::repair(transaction)?;
+                    tterm_core::profiles::groups::repair(transaction)?;
                 }
                 Ok(())
             })
@@ -417,7 +417,7 @@ fn groups_tunnels_and_known_hosts_sync() {
     .unwrap();
     a.database
         .write(|transaction| {
-            crate::profiles::groups::replace_groups(
+            tterm_core::profiles::groups::replace_groups(
                 transaction,
                 &[ProfileGroup {
                     id: "g1".to_string(),
@@ -445,7 +445,7 @@ fn groups_tunnels_and_known_hosts_sync() {
     b.database
         .read(|connection| {
             assert_eq!(
-                crate::profiles::groups::list_groups(connection)?
+                tterm_core::profiles::groups::list_groups(connection)?
                     .into_iter()
                     .map(|group| group.name)
                     .collect::<Vec<_>>(),
@@ -804,8 +804,8 @@ impl Device {
     fn group_paths(&self) -> std::collections::HashMap<String, String> {
         self.database
             .read(|connection| {
-                Ok(crate::profiles::groups::group_paths(
-                    &crate::profiles::groups::list_groups(connection)?,
+                Ok(tterm_core::profiles::groups::group_paths(
+                    &tterm_core::profiles::groups::list_groups(connection)?,
                 ))
             })
             .unwrap()
@@ -814,7 +814,9 @@ impl Device {
 
 #[test]
 fn nested_groups_sync_and_merge_a_rename_with_a_move() {
-    use crate::profiles::groups::{create_group, move_group, rename_group};
+    use tterm_core::profiles::groups::create_group;
+    use tterm_core::profiles::groups::move_group;
+    use tterm_core::profiles::groups::rename_group;
     let mut remote = None;
     let (mut a, mut b) = (Device::new(), Device::new());
     let (prod, web, dev) = a.edit(|connection| {
@@ -848,7 +850,8 @@ fn nested_groups_sync_and_merge_a_rename_with_a_move() {
 
 #[test]
 fn groups_moved_into_each_other_on_two_devices_settle_on_one_tree() {
-    use crate::profiles::groups::{create_group, move_group};
+    use tterm_core::profiles::groups::create_group;
+    use tterm_core::profiles::groups::move_group;
     let mut remote = None;
     let (mut a, mut b) = (Device::new(), Device::new());
     let (x, y) = a.edit(|connection| {

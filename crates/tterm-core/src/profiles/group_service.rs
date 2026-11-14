@@ -1,25 +1,25 @@
 //! Commands that create, rename, move and delete profile groups, and file
 //! profiles in them. Each returns what the groups page needs to redraw.
 
+use crate::core::blocking::run_blocking;
+use crate::profiles::storage::move_profiles;
+use crate::profiles::types::ProfileGroup;
 use crate::{
     profiles::groups::create_group, profiles::groups::delete_group, profiles::groups::list_groups,
     profiles::groups::move_group, profiles::groups::rename_group,
 };
-use tterm_core::core::blocking::run_blocking;
-use tterm_core::profiles::storage::move_profiles;
-use tterm_core::profiles::types::ProfileGroup;
 
-pub(crate) async fn list_profile_groups() -> Result<Vec<ProfileGroup>, String> {
-    run_blocking(|| tterm_core::db::read(list_groups)).await
+pub async fn list_profile_groups() -> Result<Vec<ProfileGroup>, String> {
+    run_blocking(|| crate::db::read(list_groups)).await
 }
 
 /// Creates a group under `parent_id`, or at the top.
-pub(crate) async fn create_profile_group(
+pub async fn create_profile_group(
     name: String,
     parent_id: Option<String>,
 ) -> Result<Vec<ProfileGroup>, String> {
     run_blocking(move || {
-        tterm_core::db::write(|transaction| {
+        crate::db::write(|transaction| {
             create_group(transaction, &name, parent_id.as_deref())?;
             list_groups(transaction)
         })
@@ -27,12 +27,9 @@ pub(crate) async fn create_profile_group(
     .await
 }
 
-pub(crate) async fn rename_profile_group(
-    id: String,
-    name: String,
-) -> Result<Vec<ProfileGroup>, String> {
+pub async fn rename_profile_group(id: String, name: String) -> Result<Vec<ProfileGroup>, String> {
     run_blocking(move || {
-        tterm_core::db::write(|transaction| {
+        crate::db::write(|transaction| {
             rename_group(transaction, &id, &name)?;
             list_groups(transaction)
         })
@@ -41,12 +38,12 @@ pub(crate) async fn rename_profile_group(
 }
 
 /// Moves a group, with what it holds, under `parent_id` or to the top.
-pub(crate) async fn move_profile_group(
+pub async fn move_profile_group(
     id: String,
     parent_id: Option<String>,
 ) -> Result<Vec<ProfileGroup>, String> {
     run_blocking(move || {
-        tterm_core::db::write(|transaction| {
+        crate::db::write(|transaction| {
             move_group(transaction, &id, parent_id.as_deref())?;
             list_groups(transaction)
         })
@@ -55,9 +52,9 @@ pub(crate) async fn move_profile_group(
 }
 
 /// Deletes a group; its profiles and groups move up to its parent.
-pub(crate) async fn delete_profile_group(id: String) -> Result<Vec<ProfileGroup>, String> {
+pub async fn delete_profile_group(id: String) -> Result<Vec<ProfileGroup>, String> {
     run_blocking(move || {
-        tterm_core::db::write(|transaction| {
+        crate::db::write(|transaction| {
             delete_group(transaction, &id)?;
             list_groups(transaction)
         })
@@ -67,13 +64,13 @@ pub(crate) async fn delete_profile_group(id: String) -> Result<Vec<ProfileGroup>
 
 /// Files profiles in `group_id` (ungrouped for none), before `target_id` or
 /// last, in the order they had among themselves.
-pub(crate) async fn move_profiles_to_group(
+pub async fn move_profiles_to_group(
     ids: Vec<String>,
     group_id: Option<String>,
     target_id: Option<String>,
 ) -> Result<(), String> {
     run_blocking(move || {
-        tterm_core::db::write(|transaction| {
+        crate::db::write(|transaction| {
             if let Some(group_id) = group_id.as_deref()
                 && !list_groups(transaction)?
                     .iter()

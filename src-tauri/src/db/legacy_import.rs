@@ -114,11 +114,11 @@ fn import_files(connection: &Connection, config_dir: &Path) -> Result<(), String
     let groups = read_json::<Vec<ProfileGroup>>(&config_dir.join("profile_groups.json"))?;
     if groups.is_some() || profiles.is_some() {
         // These files name groups; a profile's group name is its group's id.
-        let groups = crate::profiles::groups::with_legacy_groups(
+        let groups = tterm_core::profiles::groups::with_legacy_groups(
             groups.unwrap_or_default(),
             profiles.as_deref().unwrap_or_default(),
         );
-        crate::profiles::groups::replace_groups(connection, &groups)?;
+        tterm_core::profiles::groups::replace_groups(connection, &groups)?;
     }
     if let Some(tunnels) = read_json::<Vec<TunnelRule>>(&config_dir.join("tunnels.json"))? {
         tterm_core::tunnel::storage::replace_tunnels(connection, &tunnels)?;

@@ -73,7 +73,7 @@ pub(super) fn snapshot_database(
         profiles: if selection.profiles {
             Some((
                 tterm_core::profiles::storage::list_saved_profiles(connection)?,
-                crate::profiles::groups::list_groups(connection)?,
+                tterm_core::profiles::groups::list_groups(connection)?,
                 tterm_core::tunnel::storage::list_tunnel_rules(connection)?,
                 tterm_core::proxy::storage::list_proxies(connection)?,
             ))
@@ -122,7 +122,7 @@ pub(super) fn restore_database(
 ) -> Result<(), String> {
     if let Some((profiles, groups, tunnels, proxies)) = snapshot.profiles.as_ref() {
         tterm_core::profiles::storage::replace_profiles(transaction, profiles)?;
-        crate::profiles::groups::replace_groups(transaction, groups)?;
+        tterm_core::profiles::groups::replace_groups(transaction, groups)?;
         tterm_core::tunnel::storage::replace_tunnels(transaction, tunnels)?;
         tterm_core::proxy::storage::replace_proxies(transaction, proxies)?;
     }

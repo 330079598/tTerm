@@ -1,15 +1,15 @@
 //! Importing profiles from an OpenSSH config file.
 
 use crate::profiles::groups::resolve_path;
+use crate::profiles::parser::build_ssh_config_import_preview;
+use crate::profiles::storage::{load_profiles, sanitize_profile, upsert_profile};
+use crate::profiles::types::{SavedProfile, SshConfigImportOptions, SshConfigImportResult};
 use proxy::ImportedProxies;
 use std::collections::HashSet;
-use tterm_core::profiles::parser::build_ssh_config_import_preview;
-use tterm_core::profiles::storage::{load_profiles, sanitize_profile, upsert_profile};
-use tterm_core::profiles::types::{SavedProfile, SshConfigImportOptions, SshConfigImportResult};
 
 mod proxy;
 
-pub(crate) fn import_ssh_config_profiles_blocking(
+pub fn import_ssh_config_profiles_blocking(
     options: SshConfigImportOptions,
 ) -> Result<SshConfigImportResult, String> {
     let preview = build_ssh_config_import_preview(options.source_path)?;
@@ -22,18 +22,15 @@ pub(crate) fn import_ssh_config_profiles_blocking(
         .group
         .as_deref()
         .unwrap_or("Imported from SSH config");
-    let group_id = tterm_core::db::write(|transaction| resolve_path(transaction, group_path))?;
+    let group_id = crate::db::write(|transaction| resolve_path(transaction, group_path))?;
     let mut profiles = load_profiles()?;
     let mut proxies = ImportedProxies::load()?;
     let mut imported = 0;
     let mut updated = 0;
     let mut skipped = 0;
     // (profile id, profile name, forwards) for hosts whose forwards to import.
-    let mut forward_sources: Vec<(
-        String,
-        String,
-        Vec<tterm_core::tunnel::forwards::ForwardSpec>,
-    )> = Vec::new();
+    let mut forward_sources: Vec<(String, String, Vec<crate::tunnel::forwards::ForwardSpec>)> =
+        Vec::new();
     let mut changed_profiles = Vec::new();
 
     for host in preview.hosts {
@@ -133,7 +130,7 @@ pub(crate) fn import_ssh_config_profiles_blocking(
         changed_profiles.push(profile);
     }
 
-    tterm_core::db::write(|transaction| {
+    crate::db::write(|transaction| {
         proxies.save(transaction)?;
         for profile in &changed_profiles {
             upsert_profile(transaction, profile)?;
@@ -146,11 +143,11 @@ pub(crate) fn import_ssh_config_profiles_blocking(
             .iter()
             .flat_map(|(profile_id, profile_name, specs)| {
                 specs.iter().map(|spec| {
-                    tterm_core::tunnel::forwards::rule_from_spec(profile_id, profile_name, spec)
+                    crate::tunnel::forwards::rule_from_spec(profile_id, profile_name, spec)
                 })
             })
             .collect();
-        tterm_core::tunnel::forwards::add_rules(rules)?
+        crate::tunnel::forwards::add_rules(rules)?
     } else {
         (0, 0)
     };

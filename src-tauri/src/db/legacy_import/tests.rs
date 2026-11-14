@@ -96,7 +96,7 @@ fn imports_every_file_once_and_renames_them() {
                 "secrets never reach the database"
             );
 
-            let groups = crate::profiles::groups::list_groups(connection)?
+            let groups = tterm_core::profiles::groups::list_groups(connection)?
                 .into_iter()
                 .map(|group| (group.id, group.name))
                 .collect::<Vec<_>>();
@@ -338,7 +338,7 @@ fn corrupt_file_aborts_the_whole_import() {
     assert!(!db_records_import(&database).unwrap());
     assert!(
         database
-            .read(crate::profiles::groups::list_groups)
+            .read(tterm_core::profiles::groups::list_groups)
             .unwrap()
             .is_empty()
     );
@@ -410,7 +410,7 @@ fn imports_a_real_config_directory_copy() {
                 serde_json::to_value(&profiles).unwrap(),
                 serde_json::to_value(&expected_profiles).unwrap()
             );
-            let mut groups = crate::profiles::groups::list_groups(connection)?
+            let mut groups = tterm_core::profiles::groups::list_groups(connection)?
                 .into_iter()
                 .map(|group| group.id)
                 .collect::<Vec<_>>();

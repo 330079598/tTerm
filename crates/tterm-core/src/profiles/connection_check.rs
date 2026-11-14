@@ -1,26 +1,26 @@
 //! The SSH session behind the profile dialog's connection test.
 
-use std::sync::Arc;
-use tterm_core::core::session::types::SessionPlan;
-use tterm_core::profiles::storage::normalize_profile;
-use tterm_core::profiles::types::SavedProfile;
-use tterm_core::{
+use crate::core::session::types::SessionPlan;
+use crate::profiles::storage::normalize_profile;
+use crate::profiles::types::SavedProfile;
+use crate::{
     ssh::types::ConnectionStatusOptions, ssh::types::HostKeyVerificationMode,
     ssh::types::SshClientHandler,
 };
+use std::sync::Arc;
 
-pub(crate) struct TestVerification {
+pub struct TestVerification {
     pub mode: HostKeyVerificationMode,
-    pub owner: tterm_core::prompts::PromptOwner,
+    pub owner: crate::prompts::PromptOwner,
 }
 
-pub(crate) fn test_connection_handler(
-    app: &tterm_core::ssh::context::ConnectionContext,
+pub fn test_connection_handler(
+    app: &crate::ssh::context::ConnectionContext,
     tab_id: &str,
-    plan: &tterm_core::core::session::types::SessionPlan,
+    plan: &crate::core::session::types::SessionPlan,
     host: &str,
     port: u16,
-    prompts: std::sync::Arc<tterm_core::prompts::PromptBroker>,
+    prompts: std::sync::Arc<crate::prompts::PromptBroker>,
     verification: TestVerification,
 ) -> SshClientHandler {
     SshClientHandler {
@@ -42,17 +42,17 @@ pub(crate) fn test_connection_handler(
     }
 }
 
-pub(crate) async fn authenticate_test_connection<H: russh::client::Handler>(
+pub async fn authenticate_test_connection<H: russh::client::Handler>(
     session: &mut russh::client::Handle<H>,
     host: &str,
     port: u16,
     username: &str,
-    plan: &tterm_core::core::session::types::SessionPlan,
-    auth_prompter: &tterm_core::ssh::auth::AuthPrompter,
+    plan: &crate::core::session::types::SessionPlan,
+    auth_prompter: &crate::ssh::auth::AuthPrompter,
 ) -> Result<(), String> {
-    tterm_core::ssh::auth::authenticate(
+    crate::ssh::auth::authenticate(
         session,
-        &tterm_core::ssh::auth::AuthTarget {
+        &crate::ssh::auth::AuthTarget {
             host,
             port,
             username,
@@ -68,7 +68,7 @@ pub(crate) async fn authenticate_test_connection<H: russh::client::Handler>(
 
 /// The plan a connection test of `profile` runs, before its saved passwords
 /// are filled in.
-pub(crate) fn test_session_plan(
+pub fn test_session_plan(
     mut profile: SavedProfile,
     host: &str,
     username: &str,
@@ -80,7 +80,7 @@ pub(crate) fn test_session_plan(
         profile
             .jump_hosts
             .into_iter()
-            .map(|j| tterm_core::core::session::types::JumpHostPlan {
+            .map(|j| crate::core::session::types::JumpHostPlan {
                 host: j.host,
                 port: j.port,
                 username: j.username,
@@ -115,7 +115,7 @@ pub(crate) fn test_session_plan(
     };
 
     SessionPlan {
-        kind: tterm_core::core::state::SessionKind::Ssh,
+        kind: crate::core::state::SessionKind::Ssh,
         profile_id: Some(profile.id.clone()),
         profile_name: profile.name.clone(),
         host: Some(host.to_string()),

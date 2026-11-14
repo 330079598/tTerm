@@ -8,10 +8,6 @@ use crate::{
     backup::BackupImportOptions, backup::BackupLogFile, backup::BackupPayload,
     backup::BackupSelection, backup::MissingKeyFile,
 };
-use crate::{
-    profiles::groups::list_groups, profiles::groups::repair, profiles::groups::replace_groups,
-    profiles::groups::with_legacy_groups,
-};
 use crate::{serial::history::SerialSend, serial::history::store as serial_sends};
 use base64::{Engine, engine::general_purpose::STANDARD as BASE64};
 use serde::Serialize;
@@ -22,6 +18,10 @@ use std::path::{Path, PathBuf};
 use tterm_core::command_library::{models::SavedCommand, repository::CommandRepository};
 use tterm_core::config::AppConfig;
 use tterm_core::config::local_shells::LocalShell;
+use tterm_core::profiles::groups::list_groups;
+use tterm_core::profiles::groups::repair;
+use tterm_core::profiles::groups::replace_groups;
+use tterm_core::profiles::groups::with_legacy_groups;
 use tterm_core::profiles::storage::normalize_profile;
 use tterm_core::profiles::types::{ProfileGroup, SavedProfile};
 use tterm_core::proxy::ProxyServer;

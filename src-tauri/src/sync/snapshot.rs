@@ -167,7 +167,7 @@ pub(crate) fn collect(
             PROFILES => collect_rows(connection, "profiles", normalize_profile)?,
             TUNNELS => collect_rows(connection, "tunnels", normalize_tunnel)?,
             PROXIES => collect_rows(connection, "proxies", normalize_proxy)?,
-            PROFILE_GROUPS => crate::profiles::groups::group_rows(connection)?
+            PROFILE_GROUPS => tterm_core::profiles::groups::group_rows(connection)?
                 .into_iter()
                 .map(|(group, updated_at)| {
                     let data = profile_group_data(&group);
@@ -563,10 +563,10 @@ pub(crate) fn apply_database(
         }
         PROFILE_GROUPS => {
             for id in &removed {
-                crate::profiles::groups::delete_group_row(transaction, id)?;
+                tterm_core::profiles::groups::delete_group_row(transaction, id)?;
             }
             for (id, record) in changed(local, merged) {
-                crate::profiles::groups::put_group(
+                tterm_core::profiles::groups::put_group(
                     transaction,
                     &profile_group_from(id, &record.data)?,
                 )?;

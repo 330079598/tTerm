@@ -119,7 +119,7 @@ fn profile_summary(connection: &rusqlite::Connection) -> Vec<(String, String, St
 
 /// The ids of the groups, which for groups named in older backups are their names.
 fn group_ids(connection: &rusqlite::Connection) -> Result<Vec<String>, String> {
-    Ok(crate::profiles::groups::list_groups(connection)?
+    Ok(tterm_core::profiles::groups::list_groups(connection)?
         .into_iter()
         .map(|group| group.id)
         .collect())
@@ -560,7 +560,7 @@ fn exported_data_imports_back_unchanged() {
                     &tterm_core::profiles::storage::list_saved_profiles(connection)?,
                 )?);
                 payload.profile_groups = Some(to_backup_value(
-                    &crate::profiles::groups::list_groups(connection)?,
+                    &tterm_core::profiles::groups::list_groups(connection)?,
                 )?);
                 payload.tunnels = Some(to_backup_value(
                     &tterm_core::tunnel::storage::list_tunnel_rules(connection)?,

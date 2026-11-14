@@ -2,10 +2,10 @@
 //! command already in the saved list is reused; a new one is added. Added
 //! commands are not allowed on this device, so each asks before it first runs.
 
+use crate::profiles::types::SshConfigImportProxy;
+use crate::proxy::storage::{list_proxies, upsert_proxy};
+use crate::{proxy::ProxyChoice, proxy::ProxyKind, proxy::ProxyServer};
 use rusqlite::Connection;
-use tterm_core::profiles::types::SshConfigImportProxy;
-use tterm_core::proxy::storage::{list_proxies, upsert_proxy};
-use tterm_core::{proxy::ProxyChoice, proxy::ProxyKind, proxy::ProxyServer};
 
 pub(super) struct ImportedProxies {
     saved: Vec<ProxyServer>,
@@ -15,7 +15,7 @@ pub(super) struct ImportedProxies {
 impl ImportedProxies {
     pub(super) fn load() -> Result<Self, String> {
         Ok(Self {
-            saved: tterm_core::db::read(list_proxies)?,
+            saved: crate::db::read(list_proxies)?,
             added: Vec::new(),
         })
     }

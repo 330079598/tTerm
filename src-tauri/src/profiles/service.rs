@@ -1,11 +1,11 @@
 use tterm_core::events::ssh::SshConnectionProgressPayload;
 use tterm_core::profiles::types::TestConnectionResult;
 
-use crate::{
-    profiles::groups::group_paths, profiles::groups::list_groups, profiles::groups::resolve_path,
-};
 use tterm_core::config::tab_icons::TabIconStyle;
 use tterm_core::core::blocking::run_blocking;
+use tterm_core::profiles::groups::group_paths;
+use tterm_core::profiles::groups::list_groups;
+use tterm_core::profiles::groups::resolve_path;
 use tterm_core::proxy::command::CommandTarget;
 use tterm_core::ssh::jump::connect::{
     ConnectContext, connect_first_hop, connect_via_jump_chain, open_proxy_stream,
@@ -25,14 +25,12 @@ use tterm_core::{
     profiles::types::SshConfigImportResult,
 };
 
-use crate::profiles::commands::import::import_ssh_config_profiles_blocking;
 use crate::tunnel::manager::TunnelManager;
-use crate::{
-    profiles::commands::connection_check::authenticate_test_connection,
-    profiles::commands::connection_check::test_connection_handler,
-    profiles::commands::connection_check::test_session_plan,
-};
 use std::collections::HashSet;
+use tterm_core::profiles::connection_check::authenticate_test_connection;
+use tterm_core::profiles::connection_check::test_connection_handler;
+use tterm_core::profiles::connection_check::test_session_plan;
+use tterm_core::profiles::import::import_ssh_config_profiles_blocking;
 use tterm_core::ssh::context::ConnectionContext;
 use tterm_core::ssh::secret_store::types::SecretStoreState;
 use tterm_core::{
@@ -370,7 +368,7 @@ pub(super) async fn test_connection(
         &host,
         port,
         connection_context.prompts.clone(),
-        super::commands::connection_check::TestVerification {
+        tterm_core::profiles::connection_check::TestVerification {
             mode: HostKeyVerificationMode::TrustUnknownForSession,
             owner: prompt_scope.owner.clone(),
         },

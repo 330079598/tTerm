@@ -4,11 +4,11 @@
 //! distinct. Sync and backups write groups as they come, so [`repair`] mends
 //! what they can leave behind.
 
+use crate::db::sql_error;
+use crate::{profiles::storage::list_saved_profiles, profiles::storage::upsert_profile};
+use crate::{profiles::types::ProfileGroup, profiles::types::SavedProfile};
 use rusqlite::{Connection, params};
 use std::collections::{HashMap, HashSet};
-use tterm_core::db::sql_error;
-use tterm_core::{profiles::storage::list_saved_profiles, profiles::storage::upsert_profile};
-use tterm_core::{profiles::types::ProfileGroup, profiles::types::SavedProfile};
 
 /// Separates the names in a group path.
 const PATH_SEPARATOR: char = '/';
@@ -16,9 +16,7 @@ const PATH_SEPARATOR: char = '/';
 const PATH_JOINER: &str = " / ";
 
 /// Every group with when it last changed, siblings by name.
-pub(crate) fn group_rows(
-    connection: &Connection,
-) -> Result<Vec<(ProfileGroup, Option<i64>)>, String> {
+pub fn group_rows(connection: &Connection) -> Result<Vec<(ProfileGroup, Option<i64>)>, String> {
     let mut statement = connection
         .prepare(
             "SELECT id, name, parent_id, updated_at FROM profile_groups \
@@ -42,7 +40,7 @@ pub(crate) fn group_rows(
 }
 
 /// Every group, siblings by name.
-pub(crate) fn list_groups(connection: &Connection) -> Result<Vec<ProfileGroup>, String> {
+pub fn list_groups(connection: &Connection) -> Result<Vec<ProfileGroup>, String> {
     Ok(group_rows(connection)?
         .into_iter()
         .map(|(group, _)| group)
@@ -50,7 +48,7 @@ pub(crate) fn list_groups(connection: &Connection) -> Result<Vec<ProfileGroup>, 
 }
 
 /// Saves a group as given, over the one with its id.
-pub(crate) fn put_group(connection: &Connection, group: &ProfileGroup) -> Result<(), String> {
+pub fn put_group(connection: &Connection, group: &ProfileGroup) -> Result<(), String> {
     connection
         .execute(
             "INSERT INTO profile_groups (id, name, parent_id) VALUES (?1, ?2, ?3) \
@@ -62,7 +60,7 @@ pub(crate) fn put_group(connection: &Connection, group: &ProfileGroup) -> Result
 }
 
 /// Removes the group row only; see [`delete_group`] for what the user deletes.
-pub(crate) fn delete_group_row(connection: &Connection, id: &str) -> Result<(), String> {
+pub fn delete_group_row(connection: &Connection, id: &str) -> Result<(), String> {
     connection
         .execute("DELETE FROM profile_groups WHERE id = ?1", [id])
         .map_err(sql_error("Failed to delete profile group"))?;
@@ -72,10 +70,7 @@ pub(crate) fn delete_group_row(connection: &Connection, id: &str) -> Result<(), 
 /// Replaces every group as given, leaving out any without an id or a name.
 /// Callers run [`repair`] once the profiles that travel with the groups are
 /// written too.
-pub(crate) fn replace_groups(
-    connection: &Connection,
-    groups: &[ProfileGroup],
-) -> Result<(), String> {
+pub fn replace_groups(connection: &Connection, groups: &[ProfileGroup]) -> Result<(), String> {
     connection
         .execute("DELETE FROM profile_groups", [])
         .map_err(sql_error("Failed to clear profile groups"))?;
@@ -91,7 +86,7 @@ pub(crate) fn replace_groups(
 /// `groups` and a top-level group for every name an older profile was filed
 /// under that they lack: older versions made a group of every name a
 /// profile carried.
-pub(crate) fn with_legacy_groups(
+pub fn with_legacy_groups(
     mut groups: Vec<ProfileGroup>,
     profiles: &[SavedProfile],
 ) -> Vec<ProfileGroup> {
@@ -173,7 +168,7 @@ fn lineage<'a>(parents: &HashMap<&'a str, Option<&'a str>>, id: &'a str) -> Vec<
 }
 
 /// Each group's path from the top, joined for display.
-pub(crate) fn group_paths(groups: &[ProfileGroup]) -> HashMap<String, String> {
+pub fn group_paths(groups: &[ProfileGroup]) -> HashMap<String, String> {
     let parents = parent_map(groups);
     let names: HashMap<&str, &str> = groups
         .iter()
@@ -192,7 +187,7 @@ pub(crate) fn group_paths(groups: &[ProfileGroup]) -> HashMap<String, String> {
         .collect()
 }
 
-pub(crate) fn create_group(
+pub fn create_group(
     connection: &Connection,
     name: &str,
     parent_id: Option<&str>,
@@ -212,7 +207,7 @@ pub(crate) fn create_group(
     Ok(group)
 }
 
-pub(crate) fn rename_group(connection: &Connection, id: &str, name: &str) -> Result<(), String> {
+pub fn rename_group(connection: &Connection, id: &str, name: &str) -> Result<(), String> {
     let name = group_name(name)?;
     let groups = list_groups(connection)?;
     let group = find_group(&groups, id)?;
@@ -227,7 +222,7 @@ pub(crate) fn rename_group(connection: &Connection, id: &str, name: &str) -> Res
 }
 
 /// Moves a group, with everything in it, under `parent_id` or to the top.
-pub(crate) fn move_group(
+pub fn move_group(
     connection: &Connection,
     id: &str,
     parent_id: Option<&str>,
@@ -252,7 +247,7 @@ pub(crate) fn move_group(
 
 /// Deletes a group. Its profiles and the groups in it move up to its parent,
 /// so deleting a group never deletes a profile.
-pub(crate) fn delete_group(connection: &Connection, id: &str) -> Result<(), String> {
+pub fn delete_group(connection: &Connection, id: &str) -> Result<(), String> {
     let groups = list_groups(connection)?;
     let parent_id = find_group(&groups, id)?.parent_id.clone();
     for child in groups
@@ -278,7 +273,7 @@ pub(crate) fn delete_group(connection: &Connection, id: &str) -> Result<(), Stri
 
 /// The group a path such as `prod / web` names, creating the groups along it
 /// that are missing; `None` for an empty path.
-pub(crate) fn resolve_path(connection: &Connection, path: &str) -> Result<Option<String>, String> {
+pub fn resolve_path(connection: &Connection, path: &str) -> Result<Option<String>, String> {
     let mut groups = list_groups(connection)?;
     let mut parent_id: Option<String> = None;
     for name in path
@@ -309,7 +304,7 @@ pub(crate) fn resolve_path(connection: &Connection, path: &str) -> Result<Option
 /// groups into each other, is cut at its group with the smallest id, so
 /// every device cuts it the same way. A profile filed in a group that is
 /// gone becomes ungrouped.
-pub(crate) fn repair(connection: &Connection) -> Result<(), String> {
+pub fn repair(connection: &Connection) -> Result<(), String> {
     let groups = list_groups(connection)?;
     let ids: HashSet<&str> = groups.iter().map(|group| group.id.as_str()).collect();
     let mut parents: HashMap<&str, Option<&str>> = groups

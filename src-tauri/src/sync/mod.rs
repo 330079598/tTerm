@@ -434,7 +434,7 @@ async fn apply(
                 .iter()
                 .any(|category| [PROFILES, PROFILE_GROUPS].contains(category))
             {
-                crate::profiles::groups::repair(transaction)?;
+                tterm_core::profiles::groups::repair(transaction)?;
             }
             state::save(
                 transaction,
