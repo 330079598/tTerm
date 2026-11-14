@@ -110,6 +110,8 @@ pub mod theme;
 pub mod themes;
 /// SSH tunnel rules, forwarding specs and the SOCKS5 handshake.
 pub mod tunnel;
+/// The updater's state machine, independent of the platform's IPC.
+pub mod update_state;
 /// The pending update downloads and the services that drive them.
 pub mod updater;
 /// Update routing and cache policy.
