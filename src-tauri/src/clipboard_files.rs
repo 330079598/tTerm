@@ -1,6 +1,6 @@
 //! Clipboard IPC preserves the existing string path response.
-use crate::services::AppServices;
 use std::sync::Arc;
+use tterm_core::services::AppServices;
 
 #[tauri::command]
 pub async fn read_clipboard_file_paths(

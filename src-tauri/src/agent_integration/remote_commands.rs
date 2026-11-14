@@ -13,7 +13,7 @@ use tterm_core::sftp::internal::api::SftpHost;
 pub async fn remote_agent_integration_status(
     tab_id: String,
     connection: Option<PtyConnectionOptions>,
-    services: tauri::State<'_, Arc<crate::services::AppServices>>,
+    services: tauri::State<'_, Arc<tterm_core::services::AppServices>>,
 ) -> Result<Vec<AgentIntegrationStatus>, String> {
     let app = crate::connection_context::sftp(&services);
     let handles = SftpHost {
@@ -36,7 +36,7 @@ pub async fn change_remote_agent_integration(
     connection: Option<PtyConnectionOptions>,
     agent: Agent,
     install: bool,
-    services: tauri::State<'_, Arc<crate::services::AppServices>>,
+    services: tauri::State<'_, Arc<tterm_core::services::AppServices>>,
 ) -> Result<AgentIntegrationStatus, String> {
     let app = crate::connection_context::sftp(&services);
     let handles = SftpHost {

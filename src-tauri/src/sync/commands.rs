@@ -27,7 +27,7 @@ pub async fn reset_sync() -> Result<SyncStatus, String> {
 pub async fn run_sync(
     frontend_state: Option<Value>,
     check_remote: bool,
-    services: tauri::State<'_, std::sync::Arc<crate::services::AppServices>>,
+    services: tauri::State<'_, std::sync::Arc<tterm_core::services::AppServices>>,
 ) -> Result<SyncOutcome, String> {
     let app_version = services.shared.identity.version.clone();
     super::service::run_sync(

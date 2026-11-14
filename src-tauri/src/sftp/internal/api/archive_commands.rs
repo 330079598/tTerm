@@ -1,6 +1,6 @@
-use crate::services::AppServices;
 use tauri::State;
 use tterm_core::core::session::types::PtyConnectionOptions;
+use tterm_core::services::AppServices;
 use tterm_core::sftp::internal::api::archive::CompressRequest;
 use tterm_core::sftp::internal::api::archive::ExtractRequest;
 use tterm_core::sftp::internal::api::archive::RemoteOperationResult;
@@ -21,7 +21,7 @@ pub async fn sftp_compress_entries(
     connection: Option<PtyConnectionOptions>,
     operation_id: String,
     request: CompressRequest,
-    services: State<'_, std::sync::Arc<crate::services::AppServices>>,
+    services: State<'_, std::sync::Arc<tterm_core::services::AppServices>>,
 ) -> Result<RemoteOperationResult, String> {
     sftp_compress_entries_service(
         SftpCompressEntriesDependencies {
@@ -48,7 +48,7 @@ pub async fn sftp_extract_archive(
     connection: Option<PtyConnectionOptions>,
     operation_id: String,
     request: ExtractRequest,
-    services: State<'_, std::sync::Arc<crate::services::AppServices>>,
+    services: State<'_, std::sync::Arc<tterm_core::services::AppServices>>,
 ) -> Result<RemoteOperationResult, String> {
     sftp_extract_archive_service(
         SftpExtractArchiveDependencies {

@@ -12,7 +12,7 @@ pub async fn serial_send_files(
     session_nonce: u32,
     protocol: XmodemProtocol,
     local_paths: Vec<String>,
-    services: tauri::State<'_, std::sync::Arc<crate::services::AppServices>>,
+    services: tauri::State<'_, std::sync::Arc<tterm_core::services::AppServices>>,
 ) -> Result<(), String> {
     let events = services.shared.events.clone();
     let state = services.session.ptys.clone();
@@ -40,7 +40,7 @@ pub async fn serial_receive_files(
     session_nonce: u32,
     protocol: XmodemProtocol,
     destination: String,
-    services: tauri::State<'_, std::sync::Arc<crate::services::AppServices>>,
+    services: tauri::State<'_, std::sync::Arc<tterm_core::services::AppServices>>,
 ) -> Result<(), String> {
     let events = services.shared.events.clone();
     let state = services.session.ptys.clone();

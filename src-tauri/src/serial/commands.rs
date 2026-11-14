@@ -19,7 +19,7 @@ pub async fn set_serial_signals(
     session_nonce: u32,
     dtr: Option<bool>,
     rts: Option<bool>,
-    services: tauri::State<'_, std::sync::Arc<crate::services::AppServices>>,
+    services: tauri::State<'_, std::sync::Arc<tterm_core::services::AppServices>>,
 ) -> Result<(), String> {
     let state = services.session.ptys.clone();
     set_serial_signals_service(
@@ -42,7 +42,7 @@ pub async fn pulse_serial_line(
     session_nonce: u32,
     line: SerialLine,
     duration_ms: Option<u64>,
-    services: tauri::State<'_, std::sync::Arc<crate::services::AppServices>>,
+    services: tauri::State<'_, std::sync::Arc<tterm_core::services::AppServices>>,
 ) -> Result<(), String> {
     let state = services.session.ptys.clone();
     pulse_serial_line_service(
@@ -64,7 +64,7 @@ pub async fn write_serial_bytes(
     tab_id: String,
     session_nonce: u32,
     data: Vec<u8>,
-    services: tauri::State<'_, std::sync::Arc<crate::services::AppServices>>,
+    services: tauri::State<'_, std::sync::Arc<tterm_core::services::AppServices>>,
 ) -> Result<(), String> {
     let log = crate::connection_context::log(&services);
     let state = services.session.ptys.clone();
@@ -89,7 +89,7 @@ pub async fn set_serial_view(
     tab_id: String,
     session_nonce: u32,
     hex: bool,
-    services: tauri::State<'_, std::sync::Arc<crate::services::AppServices>>,
+    services: tauri::State<'_, std::sync::Arc<tterm_core::services::AppServices>>,
 ) -> Result<(), String> {
     let state = services.session.ptys.clone();
     set_serial_view_service(
@@ -108,7 +108,7 @@ pub async fn send_serial_break(
     tab_id: String,
     session_nonce: u32,
     duration_ms: Option<u64>,
-    services: tauri::State<'_, std::sync::Arc<crate::services::AppServices>>,
+    services: tauri::State<'_, std::sync::Arc<tterm_core::services::AppServices>>,
 ) -> Result<(), String> {
     let state = services.session.ptys.clone();
     send_serial_break_service(

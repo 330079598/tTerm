@@ -8,7 +8,7 @@ use tterm_core::{
 /// The questions still waiting, for a window that opens after they were asked.
 #[tauri::command]
 pub fn pending_proxy_command_prompts(
-    services: tauri::State<'_, std::sync::Arc<crate::services::AppServices>>,
+    services: tauri::State<'_, std::sync::Arc<tterm_core::services::AppServices>>,
 ) -> Vec<ProxyCommandPrompt> {
     let prompts = services.shared.prompts.clone();
     pending_proxy_command_prompts_service(prompts)
@@ -19,7 +19,7 @@ pub fn pending_proxy_command_prompts(
 pub async fn respond_proxy_command_prompt(
     request_id: String,
     allow: bool,
-    services: tauri::State<'_, std::sync::Arc<crate::services::AppServices>>,
+    services: tauri::State<'_, std::sync::Arc<tterm_core::services::AppServices>>,
 ) -> Result<(), String> {
     let prompts = services.shared.prompts.clone();
     respond_proxy_command_prompt_service(

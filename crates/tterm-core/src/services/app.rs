@@ -1,15 +1,15 @@
 use std::sync::Arc;
 
-use tterm_core::launch_dir::LaunchDirs;
+use crate::launch_dir::LaunchDirs;
 
-use tterm_core::updater::PendingUpdateDownloads;
+use crate::updater::PendingUpdateDownloads;
 
-use tterm_core::background::CloseBehaviorState;
-use tterm_core::background::exit_guard::ExitGuardState;
-use tterm_core::background::quit::QuitState;
-use tterm_core::background::tray::TrayState;
-use tterm_core::session_log::SessionLogState;
-use tterm_core::tunnel::manager::TunnelManager;
+use crate::background::CloseBehaviorState;
+use crate::background::exit_guard::ExitGuardState;
+use crate::background::quit::QuitState;
+use crate::background::tray::TrayState;
+use crate::session_log::SessionLogState;
+use crate::tunnel::manager::TunnelManager;
 
 pub struct AppLevelServices {
     pub tunnels: Arc<TunnelManager>,

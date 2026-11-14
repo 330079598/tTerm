@@ -1,4 +1,3 @@
-use crate::services::AppServices;
 use std::io::Write;
 use std::sync::Arc;
 use std::sync::PoisonError;
@@ -24,6 +23,7 @@ use tterm_core::core::batch_write::write_guarded_batch;
 use tterm_core::core::blocking::run_blocking;
 use tterm_core::core::session::stop::StopPtyContext;
 use tterm_core::core::session::stop::stop_pty_session;
+use tterm_core::services::AppServices;
 use tterm_core::ssh::context::ConnectionContext;
 use tterm_core::ssh::secret_store::types::SecretStoreState;
 use tterm_core::{
@@ -137,7 +137,7 @@ pub fn write_pty(
     tab_id: String,
     session_nonce: u32,
     data: String,
-    services: tauri::State<'_, std::sync::Arc<crate::services::AppServices>>,
+    services: tauri::State<'_, std::sync::Arc<tterm_core::services::AppServices>>,
 ) -> Result<(), String> {
     let app = crate::connection_context::connection(&services);
     let state = services.session.ptys.clone();
@@ -217,7 +217,7 @@ fn write_pty_service(
 pub async fn reset_pty_console(
     tab_id: String,
     session_nonce: u32,
-    services: tauri::State<'_, std::sync::Arc<crate::services::AppServices>>,
+    services: tauri::State<'_, std::sync::Arc<tterm_core::services::AppServices>>,
 ) -> Result<(), String> {
     let state = services.session.ptys.clone();
     reset_pty_console_service(
@@ -267,7 +267,7 @@ pub async fn ack_pty_output(
     tab_id: String,
     session_nonce: u32,
     bytes: usize,
-    services: tauri::State<'_, std::sync::Arc<crate::services::AppServices>>,
+    services: tauri::State<'_, std::sync::Arc<tterm_core::services::AppServices>>,
 ) -> Result<(), String> {
     let state = services.session.ptys.clone();
     ack_pty_output_service(
@@ -285,7 +285,7 @@ pub fn write_pty_batch(
     mut targets: Vec<PtyWriteTarget>,
     guard_target: Option<PtyWriteTarget>,
     data: String,
-    services: tauri::State<'_, std::sync::Arc<crate::services::AppServices>>,
+    services: tauri::State<'_, std::sync::Arc<tterm_core::services::AppServices>>,
 ) -> Vec<PtyWriteResult> {
     let targets = std::mem::take(&mut targets);
     let app = crate::connection_context::connection(&services);
@@ -342,7 +342,7 @@ pub fn resize_pty(
     session_nonce: u32,
     rows: u16,
     cols: u16,
-    services: tauri::State<'_, std::sync::Arc<crate::services::AppServices>>,
+    services: tauri::State<'_, std::sync::Arc<tterm_core::services::AppServices>>,
 ) -> Result<(), String> {
     let app = crate::connection_context::connection(&services);
     let state = services.session.ptys.clone();
@@ -412,7 +412,7 @@ fn resize_pty_service(
 pub fn kill_pty(
     tab_id: String,
     session_nonce: u32,
-    services: tauri::State<'_, std::sync::Arc<crate::services::AppServices>>,
+    services: tauri::State<'_, std::sync::Arc<tterm_core::services::AppServices>>,
 ) -> Result<(), String> {
     let app = crate::connection_context::connection(&services);
     let state = services.session.ptys.clone();
@@ -475,7 +475,7 @@ fn kill_pty_service(
 pub fn respond_ssh_host_key_prompt(
     request_id: String,
     trust: bool,
-    services: tauri::State<'_, std::sync::Arc<crate::services::AppServices>>,
+    services: tauri::State<'_, std::sync::Arc<tterm_core::services::AppServices>>,
 ) -> Result<(), String> {
     let prompt_state = services.shared.prompts.clone();
     respond_ssh_host_key_prompt_service(
@@ -496,7 +496,7 @@ fn respond_ssh_host_key_prompt_service(
 pub async fn has_saved_password(
     profile_id: Option<String>,
     profile_name: Option<String>,
-    services: tauri::State<'_, std::sync::Arc<crate::services::AppServices>>,
+    services: tauri::State<'_, std::sync::Arc<tterm_core::services::AppServices>>,
 ) -> Result<bool, String> {
     let secret_state = services.shared.secrets.clone();
     has_saved_password_service(
@@ -537,7 +537,7 @@ pub async fn has_saved_jump_host_password(
     port: Option<u16>,
     username: Option<String>,
     allow_legacy_fallback: Option<bool>,
-    services: tauri::State<'_, std::sync::Arc<crate::services::AppServices>>,
+    services: tauri::State<'_, std::sync::Arc<tterm_core::services::AppServices>>,
 ) -> Result<bool, String> {
     let secret_state = services.shared.secrets.clone();
     has_saved_jump_host_password_service(
@@ -583,7 +583,7 @@ async fn has_saved_jump_host_password_service(
 pub async fn get_sudo_password_source(
     profile_id: Option<String>,
     profile_name: Option<String>,
-    services: tauri::State<'_, std::sync::Arc<crate::services::AppServices>>,
+    services: tauri::State<'_, std::sync::Arc<tterm_core::services::AppServices>>,
 ) -> Result<Option<tterm_core::core::session::SudoPasswordSource>, String> {
     let secret_state = services.shared.secrets.clone();
     get_sudo_password_source_service(
@@ -619,7 +619,7 @@ async fn get_sudo_password_source_service(
 #[tauri::command]
 pub async fn has_saved_sudo_password(
     profile_id: String,
-    services: tauri::State<'_, std::sync::Arc<crate::services::AppServices>>,
+    services: tauri::State<'_, std::sync::Arc<tterm_core::services::AppServices>>,
 ) -> Result<bool, String> {
     let secret_state = services.shared.secrets.clone();
     has_saved_sudo_password_service(secret_state, profile_id).await
@@ -653,7 +653,7 @@ pub async fn write_saved_password_for_sudo(
     profile_id: Option<String>,
     profile_name: Option<String>,
     prompt: String,
-    services: tauri::State<'_, std::sync::Arc<crate::services::AppServices>>,
+    services: tauri::State<'_, std::sync::Arc<tterm_core::services::AppServices>>,
 ) -> Result<bool, String> {
     let app = crate::connection_context::connection(&services);
     let secret_state = services.shared.secrets.clone();

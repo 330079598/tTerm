@@ -6,7 +6,7 @@ use std::sync::Arc;
 #[tauri::command]
 pub fn resolve_close_request(
     action: String,
-    services: tauri::State<'_, Arc<crate::services::AppServices>>,
+    services: tauri::State<'_, Arc<tterm_core::services::AppServices>>,
 ) {
     tterm_core::background::resolve_close(
         &crate::app_context::background(

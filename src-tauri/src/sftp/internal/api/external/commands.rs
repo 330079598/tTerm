@@ -1,9 +1,9 @@
-use crate::services::AppServices;
 use std::collections::HashMap;
 use std::sync::Arc;
 use tauri::{AppHandle, Manager, State};
 use tterm_core::core::session::types::PtyConnectionOptions;
 use tterm_core::events::sftp::external::ExternalEdit;
+use tterm_core::services::AppServices;
 use tterm_core::sftp::internal::api::external::OpenIn;
 use tterm_core::sftp::internal::api::external::OpenWithChoices;
 use tterm_core::sftp::internal::api::external::UploadOutcome;
@@ -40,7 +40,7 @@ pub async fn sftp_external_edit_open(
     path: String,
     open_in: OpenIn,
     transfer_id: Option<String>,
-    services: State<'_, std::sync::Arc<crate::services::AppServices>>,
+    services: State<'_, std::sync::Arc<tterm_core::services::AppServices>>,
 ) -> Result<Option<ExternalEdit>, String> {
     sftp_external_edit_open_service(
         SftpExternalEditOpenDependencies {
@@ -85,7 +85,7 @@ pub async fn sftp_external_edit_upload(
     connection: Option<PtyConnectionOptions>,
     id: String,
     overwrite: bool,
-    services: State<'_, std::sync::Arc<crate::services::AppServices>>,
+    services: State<'_, std::sync::Arc<tterm_core::services::AppServices>>,
 ) -> Result<UploadOutcome, String> {
     sftp_external_edit_upload_service(
         SftpExternalEditUploadDependencies {

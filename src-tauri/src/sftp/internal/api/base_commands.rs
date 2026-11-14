@@ -1,6 +1,6 @@
-use crate::services::AppServices;
 use tauri::State;
 use tterm_core::core::session::types::PtyConnectionOptions;
+use tterm_core::services::AppServices;
 use tterm_core::sftp::internal::api::base::operations::SftpCreateDirectoryDependencies;
 use tterm_core::sftp::internal::api::base::operations::SftpCreateDirectoryInput;
 use tterm_core::sftp::internal::api::base::operations::SftpListDirectoryDependencies;
@@ -82,7 +82,7 @@ pub async fn sftp_rename_entry(
     connection: Option<PtyConnectionOptions>,
     old_path: String,
     new_path: String,
-    services: State<'_, std::sync::Arc<crate::services::AppServices>>,
+    services: State<'_, std::sync::Arc<tterm_core::services::AppServices>>,
 ) -> Result<(), String> {
     sftp_rename_entry_service(
         SftpRenameEntryDependencies {

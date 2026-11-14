@@ -20,7 +20,7 @@ pub async fn sftp_download_file(
     transfer_id: String,
     remote_path: String,
     local_path: String,
-    services: State<'_, std::sync::Arc<crate::services::AppServices>>,
+    services: State<'_, std::sync::Arc<tterm_core::services::AppServices>>,
 ) -> Result<(), String> {
     sftp_download_file_service(
         SftpDownloadFileDependencies {
@@ -57,7 +57,7 @@ pub async fn sftp_download_paths(
     local_parent_path: String,
     skip_existing: Option<bool>,
     conflict_policy: Option<ConflictPolicy>,
-    services: State<'_, std::sync::Arc<crate::services::AppServices>>,
+    services: State<'_, std::sync::Arc<tterm_core::services::AppServices>>,
 ) -> Result<(), String> {
     sftp_download_paths_service(
         SftpDownloadPathsDependencies {
@@ -90,7 +90,7 @@ pub async fn sftp_check_download_conflicts(
     connection: Option<PtyConnectionOptions>,
     remote_paths: Vec<String>,
     local_parent_path: String,
-    services: State<'_, std::sync::Arc<crate::services::AppServices>>,
+    services: State<'_, std::sync::Arc<tterm_core::services::AppServices>>,
 ) -> Result<ConflictReport, String> {
     sftp_check_download_conflicts_service(
         SftpCheckDownloadConflictsDependencies {

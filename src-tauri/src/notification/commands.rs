@@ -10,7 +10,7 @@ use tterm_core::notification::NotificationRequest;
 #[tauri::command]
 pub async fn show_notification(
     request: NotificationRequest,
-    services: tauri::State<'_, Arc<crate::services::AppServices>>,
+    services: tauri::State<'_, Arc<tterm_core::services::AppServices>>,
 ) -> Result<(), String> {
     tterm_core::notification::show(services.shared.platform.notifications.as_ref(), request).await
 }
@@ -18,7 +18,7 @@ pub async fn show_notification(
 #[tauri::command]
 pub async fn notification_permission(app: tauri::AppHandle) -> NotificationPermission {
     use tauri::Manager;
-    let Some(services) = app.try_state::<Arc<crate::services::AppServices>>() else {
+    let Some(services) = app.try_state::<Arc<tterm_core::services::AppServices>>() else {
         return NotificationPermission::NotDetermined;
     };
     let notifications = services.shared.platform.notifications.clone();

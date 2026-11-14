@@ -20,7 +20,7 @@ pub async fn sftp_search_entries(
     search_id: String,
     request: SearchRequest,
     on_event: Channel<SearchEvent>,
-    services: State<'_, std::sync::Arc<crate::services::AppServices>>,
+    services: State<'_, std::sync::Arc<tterm_core::services::AppServices>>,
 ) -> Result<SearchSummary, String> {
     sftp_search_entries_service(
         SftpSearchEntriesDependencies {

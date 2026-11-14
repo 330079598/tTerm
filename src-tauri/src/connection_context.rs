@@ -1,5 +1,5 @@
 //! Tauri entry adapter for assembling concrete session dependencies.
-use crate::services::AppServices;
+use tterm_core::services::AppServices;
 use tterm_core::session_log::LogContext;
 use tterm_core::ssh::context::ConnectionContext;
 

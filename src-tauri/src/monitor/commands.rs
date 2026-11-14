@@ -10,7 +10,7 @@ pub async fn get_server_metrics_snapshot(
     tab_id: String,
     session_nonce: u32,
     connection: Option<PtyConnectionOptions>,
-    services: tauri::State<'_, std::sync::Arc<crate::services::AppServices>>,
+    services: tauri::State<'_, std::sync::Arc<tterm_core::services::AppServices>>,
 ) -> Result<ServerMetricsSnapshot, String> {
     let app = crate::connection_context::connection(&services);
     let prompt_state = services.shared.prompts.clone();
@@ -36,7 +36,7 @@ pub async fn get_server_metrics_snapshot(
 pub async fn release_server_monitor_session(
     tab_id: String,
     session_nonce: Option<u32>,
-    services: tauri::State<'_, std::sync::Arc<crate::services::AppServices>>,
+    services: tauri::State<'_, std::sync::Arc<tterm_core::services::AppServices>>,
 ) -> Result<(), String> {
     let app = crate::connection_context::connection(&services);
     let monitor_sessions = services.session.monitors.clone();

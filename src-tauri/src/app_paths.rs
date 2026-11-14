@@ -1,9 +1,9 @@
 //! Tauri's startup adapter for the paths consumed by domain services.
 
-use crate::services::AppServices;
 use std::sync::Arc;
 use tauri::{AppHandle, Manager, Runtime};
 use tterm_core::paths::AppPaths;
+use tterm_core::services::AppServices;
 
 /// Resolves paths with Tauri, including any application directory overrides.
 /// The identifier must match the handle, whose resolver owns that identity.

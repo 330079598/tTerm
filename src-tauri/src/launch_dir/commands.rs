@@ -8,7 +8,7 @@ use tterm_core::launch_dir::LaunchDir;
 /// has restored the session and again on every `launch-dirs`.
 #[tauri::command]
 pub fn take_launch_dirs(
-    services: tauri::State<'_, Arc<crate::services::AppServices>>,
+    services: tauri::State<'_, Arc<tterm_core::services::AppServices>>,
 ) -> Vec<LaunchDir> {
     services.app.launch_dirs.take()
 }

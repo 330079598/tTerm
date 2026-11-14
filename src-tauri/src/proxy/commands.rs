@@ -5,7 +5,7 @@ use tterm_core::{
 
 #[tauri::command]
 pub async fn list_proxies(
-    services: tauri::State<'_, std::sync::Arc<crate::services::AppServices>>,
+    services: tauri::State<'_, std::sync::Arc<tterm_core::services::AppServices>>,
 ) -> Result<Vec<ProxyServerEntry>, String> {
     let secret_state = services.shared.secrets.clone();
     list_proxies_service(secret_state).await
@@ -18,7 +18,7 @@ pub async fn save_proxy(
     server: ProxyServer,
     password: Option<String>,
     clear_password: bool,
-    services: tauri::State<'_, std::sync::Arc<crate::services::AppServices>>,
+    services: tauri::State<'_, std::sync::Arc<tterm_core::services::AppServices>>,
 ) -> Result<Vec<ProxyServerEntry>, String> {
     let secret_state = services.shared.secrets.clone();
     save_proxy_service(
@@ -37,7 +37,7 @@ pub async fn save_proxy(
 #[tauri::command]
 pub async fn delete_proxy(
     id: String,
-    services: tauri::State<'_, std::sync::Arc<crate::services::AppServices>>,
+    services: tauri::State<'_, std::sync::Arc<tterm_core::services::AppServices>>,
 ) -> Result<Vec<ProxyServerEntry>, String> {
     let secret_state = services.shared.secrets.clone();
     delete_proxy_service(secret_state, id).await

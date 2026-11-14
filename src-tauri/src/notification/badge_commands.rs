@@ -9,7 +9,7 @@ use tterm_core::notification::badge::OverlayImage;
 pub async fn set_unseen_notifications(
     count: u32,
     overlay: Option<OverlayImage>,
-    services: tauri::State<'_, Arc<crate::services::AppServices>>,
+    services: tauri::State<'_, Arc<tterm_core::services::AppServices>>,
 ) -> Result<(), String> {
     tterm_core::notification::badge::set_unseen(
         services.shared.platform.main_window.as_ref(),

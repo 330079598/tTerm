@@ -1,5 +1,4 @@
 //! Tauri tray icons and callbacks; domain menu policy lives in background::tray.
-use crate::services::AppServices;
 use std::sync::Arc;
 use std::sync::Once;
 use std::sync::atomic::Ordering;
@@ -8,6 +7,7 @@ use tauri::menu::{Menu, MenuEvent};
 use tauri::tray::{MouseButton, MouseButtonState, TrayIcon, TrayIconBuilder, TrayIconEvent};
 use tauri::{AppHandle, Manager};
 use tterm_core::background::tray::TRAY_ID;
+use tterm_core::services::AppServices;
 const DOT_RGB: [u8; 3] = [0xE8, 0x11, 0x23];
 /// Installs the already-rendered native menu without reading domain state.
 pub(crate) fn present_menu(app: &AppHandle, menu: Menu<tauri::Wry>) -> tauri::Result<()> {

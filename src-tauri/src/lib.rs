@@ -25,7 +25,6 @@ mod platform;
 mod profiles;
 mod proxy;
 mod serial;
-mod services;
 mod session;
 mod session_log;
 mod session_sink;
@@ -112,7 +111,9 @@ pub fn run() {
                     cwd: cwd.into(),
                 },
                 |args, cwd| {
-                    if let Some(services) = app.try_state::<Arc<services::AppServices>>() {
+                    if let Some(services) =
+                        app.try_state::<Arc<tterm_core::services::AppServices>>()
+                    {
                         tterm_core::launch_dir::open_from_second_launch(
                             &services.app.launch_dirs,
                             services.shared.events.as_ref(),
@@ -122,7 +123,7 @@ pub fn run() {
                     }
                 },
             );
-            if let Some(services) = app.try_state::<Arc<services::AppServices>>() {
+            if let Some(services) = app.try_state::<Arc<tterm_core::services::AppServices>>() {
                 tterm_core::background::show_main_window(
                     services.shared.platform.main_window.as_ref(),
                     services.shared.platform.badge.as_ref(),
@@ -155,7 +156,7 @@ pub fn run() {
             if let tauri::WindowEvent::CloseRequested { api, .. } = event
                 && window
                     .app_handle()
-                    .try_state::<Arc<services::AppServices>>()
+                    .try_state::<Arc<tterm_core::services::AppServices>>()
                     .is_some_and(|services| {
                         tterm_core::background::on_close_requested(&app_context::background(
                             &services,
@@ -411,7 +412,7 @@ pub fn run() {
                 })());
                 (notifications, integration)
             });
-            let services = Arc::new(services::AppServices {
+            let services = Arc::new(tterm_core::services::AppServices {
                 shared: tterm_core::services::shared::SharedServices {
                     paths,
                     identity,
@@ -434,7 +435,7 @@ pub fn run() {
                     transfer_cancel: transfer_cancel_map.clone(),
                     external_edit: external_edit_state.clone(),
                 },
-                app: services::app::AppLevelServices {
+                app: tterm_core::services::app::AppLevelServices {
                     tunnels: tunnel_manager.clone(),
                     session_log: session_log_state.clone(),
                     close_behavior: close_behavior.clone(),
@@ -542,7 +543,7 @@ pub fn run() {
                     api, code: None, ..
                 } => {
                     if app
-                        .try_state::<Arc<services::AppServices>>()
+                        .try_state::<Arc<tterm_core::services::AppServices>>()
                         .is_some_and(|services| {
                             tterm_core::background::on_exit_requested(&app_context::background(
                                 &services,
@@ -556,7 +557,8 @@ pub fn run() {
                     }
                 }
                 tauri::RunEvent::Exit => {
-                    let Some(services) = app.try_state::<Arc<services::AppServices>>() else {
+                    let Some(services) = app.try_state::<Arc<tterm_core::services::AppServices>>()
+                    else {
                         return;
                     };
                     services.shared.prompts.shutdown();
@@ -579,7 +581,9 @@ pub fn run() {
                     has_visible_windows: false,
                     ..
                 } => {
-                    if let Some(services) = app.try_state::<Arc<services::AppServices>>() {
+                    if let Some(services) =
+                        app.try_state::<Arc<tterm_core::services::AppServices>>()
+                    {
                         tterm_core::background::show_main_window(
                             services.shared.platform.main_window.as_ref(),
                             services.shared.platform.badge.as_ref(),

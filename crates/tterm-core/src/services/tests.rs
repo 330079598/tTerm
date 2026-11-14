@@ -1,23 +1,23 @@
 use crate::services::app::AppLevelServices;
-use tterm_core::services::session::SessionServices;
-use tterm_core::services::sftp::SftpServices;
-use tterm_core::updater::PendingUpdateDownloads;
+use crate::services::session::SessionServices;
+use crate::services::sftp::SftpServices;
+use crate::updater::PendingUpdateDownloads;
 
-use std::sync::Arc;
-use tterm_core::background::CloseBehaviorState;
-use tterm_core::background::exit_guard::ExitGuardState;
-use tterm_core::background::quit::QuitState;
-use tterm_core::background::tray::TrayState;
-use tterm_core::launch_dir::LaunchDirs;
-use tterm_core::monitor::prompts::PendingMonitorPrompts;
-use tterm_core::session_log::SessionLogState;
-use tterm_core::sftp::internal::api::external::ExternalEditState;
-use tterm_core::tunnel::manager::TunnelManager;
-use tterm_core::{
+use crate::background::CloseBehaviorState;
+use crate::background::exit_guard::ExitGuardState;
+use crate::background::quit::QuitState;
+use crate::background::tray::TrayState;
+use crate::launch_dir::LaunchDirs;
+use crate::monitor::prompts::PendingMonitorPrompts;
+use crate::session_log::SessionLogState;
+use crate::sftp::internal::api::external::ExternalEditState;
+use crate::tunnel::manager::TunnelManager;
+use crate::{
     core::state::PtyMap, core::state::ZmodemArmedSendMap, core::state::ZmodemManualDetectMap,
     core::state::ZmodemMap, monitor::types::MonitorSessionMap,
     sftp::internal::types::SftpConnectionPool, sftp::internal::types::TransferCancelMap,
 };
+use std::sync::Arc;
 #[test]
 fn app_services_arc_ptr_eq_matches_legacy_states() {
     let ptys: PtyMap = Arc::new(Default::default());
@@ -107,8 +107,8 @@ fn added_platform_capabilities_keep_the_same_instances_and_error() {
 
 #[test]
 fn shared_paths_and_identity_keep_the_startup_instances() {
-    let paths = Arc::new(tterm_core::paths::AppPaths::native("test.p1-07e").unwrap());
-    let identity = Arc::new(tterm_core::identity::AppIdentity {
+    let paths = Arc::new(crate::paths::AppPaths::native("test.p1-07e").unwrap());
+    let identity = Arc::new(crate::identity::AppIdentity {
         identifier: "test.p1-07e".into(),
         name: "tTerm".into(),
         version: "0.0.0".into(),
@@ -116,18 +116,18 @@ fn shared_paths_and_identity_keep_the_startup_instances() {
     let runtime = tokio::runtime::Builder::new_current_thread()
         .build()
         .unwrap();
-    let events: Arc<dyn tterm_core::events::EventSink> =
-        Arc::new(tterm_core::events::recording::RecordingEventSink::default());
+    let events: Arc<dyn crate::events::EventSink> =
+        Arc::new(crate::events::recording::RecordingEventSink::default());
     let notifications = Arc::new(tterm_platform::native::notification::NativeNotifications {
         identifier: identity.identifier.clone(),
         activated: Arc::new(|_| {}),
     });
-    let shared = tterm_core::services::shared::SharedServices {
+    let shared = crate::services::shared::SharedServices {
         paths: paths.clone(),
         identity: identity.clone(),
-        prompts: Arc::new(tterm_core::prompts::PromptBroker::new(events.clone())),
+        prompts: Arc::new(crate::prompts::PromptBroker::new(events.clone())),
         events,
-        secrets: tterm_core::ssh::secret_store::types::SecretStoreState::new(),
+        secrets: crate::ssh::secret_store::types::SecretStoreState::new(),
         runtime: runtime.handle().clone(),
         platform: platform_with(notifications, Err("unavailable".into())),
     };
@@ -138,9 +138,9 @@ fn shared_paths_and_identity_keep_the_startup_instances() {
 fn platform_with(
     notifications: Arc<dyn tterm_platform::notifications::Notifications>,
     integration: Result<Arc<dyn tterm_platform::integration::SystemIntegration>, String>,
-) -> tterm_core::services::shared::PlatformServices {
+) -> crate::services::shared::PlatformServices {
     let capability = Arc::new(UnusedCapability);
-    tterm_core::services::shared::PlatformServices {
+    crate::services::shared::PlatformServices {
         notifications,
         integration,
         badge: capability.clone(),

@@ -1,6 +1,6 @@
-use crate::services::AppServices;
 use tauri::State;
 use tterm_core::core::session::types::PtyConnectionOptions;
+use tterm_core::services::AppServices;
 use tterm_core::sftp::internal::api::delete::DeleteBatchStartResult;
 use tterm_core::sftp::internal::api::delete::DeleteEntryRequest;
 use tterm_core::sftp::internal::api::delete::DeleteOptions;
@@ -43,7 +43,7 @@ pub async fn sftp_delete_entries(
     connection: Option<PtyConnectionOptions>,
     entries: Vec<DeleteEntryRequest>,
     options: DeleteOptions,
-    services: State<'_, std::sync::Arc<crate::services::AppServices>>,
+    services: State<'_, std::sync::Arc<tterm_core::services::AppServices>>,
 ) -> Result<DeleteBatchStartResult, String> {
     sftp_delete_entries_service(
         SftpDeleteEntriesDependencies {
@@ -69,7 +69,7 @@ pub async fn sftp_delete_entry(
     connection: Option<PtyConnectionOptions>,
     path: String,
     is_dir: bool,
-    services: State<'_, std::sync::Arc<crate::services::AppServices>>,
+    services: State<'_, std::sync::Arc<tterm_core::services::AppServices>>,
 ) -> Result<(), String> {
     sftp_delete_entry_service(
         SftpDeleteEntryDependencies {

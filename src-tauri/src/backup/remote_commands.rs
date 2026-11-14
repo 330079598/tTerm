@@ -9,7 +9,7 @@ use serde_json::Value;
 
 #[tauri::command]
 pub async fn get_webdav_backup_status(
-    services: tauri::State<'_, std::sync::Arc<crate::services::AppServices>>,
+    services: tauri::State<'_, std::sync::Arc<tterm_core::services::AppServices>>,
 ) -> Result<WebDavBackupStatus, String> {
     super::remote::service::get_webdav_backup_status(&services.shared.secrets).await
 }
@@ -20,7 +20,7 @@ pub async fn save_webdav_backup_settings(
     settings: WebDavBackupSettings,
     password: Option<String>,
     backup_password: Option<String>,
-    services: tauri::State<'_, std::sync::Arc<crate::services::AppServices>>,
+    services: tauri::State<'_, std::sync::Arc<tterm_core::services::AppServices>>,
 ) -> Result<WebDavBackupStatus, String> {
     super::remote::service::save_webdav_backup_settings(
         settings,
@@ -34,7 +34,7 @@ pub async fn save_webdav_backup_settings(
 /// Forgets the server, its password and the backup password. Remote files stay.
 #[tauri::command]
 pub async fn clear_webdav_backup_settings(
-    services: tauri::State<'_, std::sync::Arc<crate::services::AppServices>>,
+    services: tauri::State<'_, std::sync::Arc<tterm_core::services::AppServices>>,
 ) -> Result<WebDavBackupStatus, String> {
     super::remote::service::clear_webdav_backup_settings(&services.shared.secrets).await
 }
@@ -45,7 +45,7 @@ pub async fn clear_webdav_backup_settings(
 pub async fn test_webdav_connection(
     settings: WebDavBackupSettings,
     password: Option<String>,
-    services: tauri::State<'_, std::sync::Arc<crate::services::AppServices>>,
+    services: tauri::State<'_, std::sync::Arc<tterm_core::services::AppServices>>,
 ) -> Result<(), String> {
     let app_version = services.shared.identity.version.clone();
     super::remote::service::test_webdav_connection(
@@ -64,7 +64,7 @@ pub async fn test_webdav_connection(
 pub async fn run_webdav_backup(
     frontend_state: Option<Value>,
     force: bool,
-    services: tauri::State<'_, std::sync::Arc<crate::services::AppServices>>,
+    services: tauri::State<'_, std::sync::Arc<tterm_core::services::AppServices>>,
 ) -> Result<Option<WebDavUploadResult>, String> {
     let app_version = services.shared.identity.version.clone();
     super::remote::service::run_webdav_backup(
@@ -78,7 +78,7 @@ pub async fn run_webdav_backup(
 
 #[tauri::command]
 pub async fn list_webdav_backups(
-    services: tauri::State<'_, std::sync::Arc<crate::services::AppServices>>,
+    services: tauri::State<'_, std::sync::Arc<tterm_core::services::AppServices>>,
 ) -> Result<Vec<RemoteBackupEntry>, String> {
     let app_version = services.shared.identity.version.clone();
     super::remote::service::list_webdav_backups(app_version, &services.shared.secrets).await
@@ -89,7 +89,7 @@ pub async fn list_webdav_backups(
 #[tauri::command]
 pub async fn download_webdav_backup(
     file_name: String,
-    services: tauri::State<'_, std::sync::Arc<crate::services::AppServices>>,
+    services: tauri::State<'_, std::sync::Arc<tterm_core::services::AppServices>>,
 ) -> Result<String, String> {
     let app_version = services.shared.identity.version.clone();
     super::remote::service::download_webdav_backup(app_version, file_name, &services.shared.secrets)
@@ -105,7 +105,7 @@ pub async fn discard_webdav_download() -> Result<(), String> {
 #[tauri::command]
 pub async fn delete_webdav_backup(
     file_name: String,
-    services: tauri::State<'_, std::sync::Arc<crate::services::AppServices>>,
+    services: tauri::State<'_, std::sync::Arc<tterm_core::services::AppServices>>,
 ) -> Result<(), String> {
     let app_version = services.shared.identity.version.clone();
     super::remote::service::delete_webdav_backup(app_version, file_name, &services.shared.secrets)
@@ -116,7 +116,7 @@ pub async fn delete_webdav_backup(
 #[tauri::command]
 pub async fn delete_webdav_backups(
     file_names: Vec<String>,
-    services: tauri::State<'_, std::sync::Arc<crate::services::AppServices>>,
+    services: tauri::State<'_, std::sync::Arc<tterm_core::services::AppServices>>,
 ) -> Result<WebDavDeleteResult, String> {
     let app_version = services.shared.identity.version.clone();
     super::remote::service::delete_webdav_backups(app_version, file_names, &services.shared.secrets)
@@ -128,7 +128,7 @@ pub async fn delete_webdav_backups(
 pub async fn save_webdav_backup(
     file_name: String,
     output_path: String,
-    services: tauri::State<'_, std::sync::Arc<crate::services::AppServices>>,
+    services: tauri::State<'_, std::sync::Arc<tterm_core::services::AppServices>>,
 ) -> Result<String, String> {
     let app_version = services.shared.identity.version.clone();
     super::remote::service::save_webdav_backup(

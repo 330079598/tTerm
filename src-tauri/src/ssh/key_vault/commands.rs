@@ -9,7 +9,7 @@ use tterm_core::{
 
 #[tauri::command]
 pub async fn list_vault_keys(
-    services: tauri::State<'_, std::sync::Arc<crate::services::AppServices>>,
+    services: tauri::State<'_, std::sync::Arc<tterm_core::services::AppServices>>,
 ) -> Result<Vec<VaultKeySummary>, String> {
     let secret_state = services.shared.secrets.clone();
     list_vault_keys_service(secret_state).await
@@ -19,7 +19,7 @@ pub async fn list_vault_keys(
 #[tauri::command]
 pub async fn import_vault_key(
     input: ImportVaultKeyInput,
-    services: tauri::State<'_, std::sync::Arc<crate::services::AppServices>>,
+    services: tauri::State<'_, std::sync::Arc<tterm_core::services::AppServices>>,
 ) -> Result<VaultKeySummary, String> {
     let secret_state = services.shared.secrets.clone();
     import_vault_key_service(secret_state, input).await
@@ -28,7 +28,7 @@ pub async fn import_vault_key(
 #[tauri::command]
 pub async fn rename_vault_key(
     input: RenameVaultKeyInput,
-    services: tauri::State<'_, std::sync::Arc<crate::services::AppServices>>,
+    services: tauri::State<'_, std::sync::Arc<tterm_core::services::AppServices>>,
 ) -> Result<VaultKeySummary, String> {
     let secret_state = services.shared.secrets.clone();
     rename_vault_key_service(secret_state, input).await
@@ -37,7 +37,7 @@ pub async fn rename_vault_key(
 #[tauri::command]
 pub async fn set_vault_key_certificate(
     input: SetVaultKeyCertificateInput,
-    services: tauri::State<'_, std::sync::Arc<crate::services::AppServices>>,
+    services: tauri::State<'_, std::sync::Arc<tterm_core::services::AppServices>>,
 ) -> Result<VaultKeySummary, String> {
     let secret_state = services.shared.secrets.clone();
     set_vault_key_certificate_service(secret_state, input).await
@@ -46,7 +46,7 @@ pub async fn set_vault_key_certificate(
 #[tauri::command]
 pub async fn delete_vault_key(
     input: VaultKeyIdInput,
-    services: tauri::State<'_, std::sync::Arc<crate::services::AppServices>>,
+    services: tauri::State<'_, std::sync::Arc<tterm_core::services::AppServices>>,
 ) -> Result<bool, String> {
     let secret_state = services.shared.secrets.clone();
     delete_vault_key_service(secret_state, input).await
@@ -57,7 +57,7 @@ pub async fn delete_vault_key(
 #[tauri::command]
 pub async fn export_vault_key(
     input: ExportVaultKeyInput,
-    services: tauri::State<'_, std::sync::Arc<crate::services::AppServices>>,
+    services: tauri::State<'_, std::sync::Arc<tterm_core::services::AppServices>>,
 ) -> Result<(), String> {
     let secret_state = services.shared.secrets.clone();
     export_vault_key_service(secret_state, input).await

@@ -10,7 +10,7 @@ pub async fn sftp_set_permissions(
     connection: Option<PtyConnectionOptions>,
     paths: Vec<String>,
     mode: u32,
-    services: State<'_, std::sync::Arc<crate::services::AppServices>>,
+    services: State<'_, std::sync::Arc<tterm_core::services::AppServices>>,
 ) -> Result<(), String> {
     sftp_set_permissions_service(
         SftpSetPermissionsDependencies {

@@ -6,7 +6,7 @@ use tterm_core::system_integration::IntegrationStatus;
 
 #[tauri::command]
 pub async fn shell_command_status(
-    services: tauri::State<'_, Arc<crate::services::AppServices>>,
+    services: tauri::State<'_, Arc<tterm_core::services::AppServices>>,
 ) -> Result<IntegrationStatus, String> {
     tterm_core::system_integration::integration(&services.shared.platform.integration)?
         .shell_status()
@@ -18,7 +18,7 @@ pub async fn shell_command_status(
 pub async fn set_shell_command(
     installed: bool,
     admin_prompt: String,
-    services: tauri::State<'_, Arc<crate::services::AppServices>>,
+    services: tauri::State<'_, Arc<tterm_core::services::AppServices>>,
 ) -> Result<IntegrationStatus, String> {
     tterm_core::system_integration::integration(&services.shared.platform.integration)?
         .set_shell(installed, admin_prompt)
@@ -28,7 +28,7 @@ pub async fn set_shell_command(
 
 #[tauri::command]
 pub async fn folder_menu_status(
-    services: tauri::State<'_, Arc<crate::services::AppServices>>,
+    services: tauri::State<'_, Arc<tterm_core::services::AppServices>>,
 ) -> Result<IntegrationStatus, String> {
     tterm_core::system_integration::integration(&services.shared.platform.integration)?
         .folder_status()
@@ -39,7 +39,7 @@ pub async fn folder_menu_status(
 #[tauri::command]
 pub async fn set_folder_menu(
     installed: bool,
-    services: tauri::State<'_, Arc<crate::services::AppServices>>,
+    services: tauri::State<'_, Arc<tterm_core::services::AppServices>>,
 ) -> Result<IntegrationStatus, String> {
     tterm_core::system_integration::set_folder_menu_service(
         tterm_core::system_integration::integration(&services.shared.platform.integration)?,

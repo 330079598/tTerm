@@ -1,6 +1,6 @@
-use crate::services::AppServices;
 use tauri::State;
 use tterm_core::core::session::types::PtyConnectionOptions;
+use tterm_core::services::AppServices;
 use tterm_core::sftp::conflict::ConflictPolicy;
 use tterm_core::sftp::internal::api::conflict::ConflictReport;
 use tterm_core::sftp::internal::api::upload::UploadBatchResult;
@@ -27,7 +27,7 @@ pub async fn sftp_check_upload_conflicts(
     connection: Option<PtyConnectionOptions>,
     local_paths: Vec<String>,
     remote_base_path: String,
-    services: State<'_, std::sync::Arc<crate::services::AppServices>>,
+    services: State<'_, std::sync::Arc<tterm_core::services::AppServices>>,
 ) -> Result<ConflictReport, String> {
     sftp_check_upload_conflicts_service(
         SftpCheckUploadConflictsDependencies {
@@ -53,7 +53,7 @@ pub async fn sftp_upload_file(
     local_path: String,
     remote_path: String,
     transfer_id: String,
-    services: State<'_, std::sync::Arc<crate::services::AppServices>>,
+    services: State<'_, std::sync::Arc<tterm_core::services::AppServices>>,
 ) -> Result<(), String> {
     sftp_upload_file_service(
         SftpUploadFileDependencies {
@@ -83,7 +83,7 @@ pub async fn sftp_upload_paths(
     remote_base_path: String,
     skip_existing: Option<bool>,
     conflict_policy: Option<ConflictPolicy>,
-    services: State<'_, std::sync::Arc<crate::services::AppServices>>,
+    services: State<'_, std::sync::Arc<tterm_core::services::AppServices>>,
 ) -> Result<UploadBatchResult, String> {
     sftp_upload_paths_service(
         SftpUploadPathsDependencies {

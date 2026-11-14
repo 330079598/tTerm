@@ -33,7 +33,7 @@ pub async fn load_config() -> Result<AppConfig, String> {
 
 #[tauri::command]
 pub async fn save_config(
-    services: tauri::State<'_, Arc<crate::services::AppServices>>,
+    services: tauri::State<'_, Arc<tterm_core::services::AppServices>>,
     config: AppConfig,
 ) -> Result<(), String> {
     let context = SaveConfigContext {
