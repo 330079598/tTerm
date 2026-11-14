@@ -2,8 +2,9 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import process from 'node:process';
+import { fileURLToPath } from 'node:url';
 
-const root = path.resolve(path.dirname(new URL(import.meta.url).pathname), '../..');
+const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const sourceRoot = path.join(root, 'src-tauri', 'src');
 const baselinePath = path.join(root, 'scripts', 'migration', 'command-signatures.json');
 
@@ -183,4 +184,4 @@ function main() {
   console.log(`Wrote ${path.relative(root, baselinePath)} (${signatures.commands.length} commands)`);
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) main();
+if (process.argv[1] && fileURLToPath(import.meta.url) === path.resolve(process.argv[1])) main();
