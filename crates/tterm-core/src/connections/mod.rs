@@ -3,4 +3,5 @@
 
 pub mod profile_connections;
 pub mod profile_recents;
+pub mod profile_search;
 pub mod quick_connect;
