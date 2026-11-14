@@ -148,7 +148,16 @@ pub(super) fn emit_terminal_status(ctx: ConnectContext<'_>, status: &str) {
     }
     let status_msg = crate::terminal::legacy_events::status_line("33", status);
     crate::session_log::record_output(&ctx.app.log, ctx.tab_id, status_msg.as_bytes());
-    crate::terminal::legacy_events::emit_output(ctx.app.events.as_ref(), ctx.tab_id, status_msg);
+    let session_nonce = ctx
+        .prompt_owner
+        .and_then(crate::prompts::PromptOwner::session_nonce)
+        .unwrap_or(0);
+    crate::terminal::legacy_events::emit_output(
+        ctx.app.events.as_ref(),
+        ctx.tab_id,
+        session_nonce,
+        status_msg,
+    );
 }
 
 /// Open an ordered ProxyJump-style chain, then establish the target SSH session

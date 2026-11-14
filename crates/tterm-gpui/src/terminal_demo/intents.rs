@@ -109,6 +109,8 @@ mod tests {
                 },
             })),
             title: Arc::new(Mutex::new(None)),
+            session_nonce: 1,
+            alive: Arc::new(std::sync::atomic::AtomicBool::new(true)),
         };
         (model, state)
     }

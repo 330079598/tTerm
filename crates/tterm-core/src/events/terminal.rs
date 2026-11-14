@@ -16,7 +16,12 @@ pub enum TerminalEvent {
     /// Reports the local shell's working directory for a tab and session nonce.
     Cwd { tab_id: String, payload: CwdPayload },
     /// P1-06: cold-path terminal text, excluded from binary acknowledgements.
-    Output { tab_id: String, text: String },
+    Output {
+        tab_id: String,
+        /// The generation that produced this text; zero means unknown.
+        session_nonce: u32,
+        text: String,
+    },
     /// P1-06: final optional reason, preserving string or null payloads.
     Exit {
         tab_id: String,

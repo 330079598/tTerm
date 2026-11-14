@@ -51,6 +51,14 @@ impl PromptOwner {
     pub fn is_closed(&self) -> bool {
         self.inner.closed.load(Ordering::SeqCst)
     }
+
+    /// The terminal generation this operation belongs to, when it has one.
+    pub fn session_nonce(&self) -> Option<u32> {
+        self.inner
+            .session
+            .as_ref()
+            .map(|session| session.session_nonce)
+    }
 }
 
 /// A domain-created request; only proxy requests share an existing wire ID.

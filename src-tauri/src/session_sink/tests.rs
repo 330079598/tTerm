@@ -66,6 +66,7 @@ fn typed_output_emit_reaches_listener_with_frozen_json() {
     for (text, _) in cases {
         sink.emit(AppEvent::Terminal(TerminalEvent::Output {
             tab_id: "tab-with-hyphens".into(),
+            session_nonce: 1,
             text: text.into(),
         }))
         .unwrap();
@@ -90,6 +91,7 @@ fn typed_terminal_wire_matches_frozen_legacy_literals() {
     ] {
         let event = AppEvent::Terminal(TerminalEvent::Output {
             tab_id: "tab-with-hyphens".into(),
+            session_nonce: 1,
             text: text.into(),
         });
         let (name, target, value) = TauriEventSink::wire(&event).unwrap();

@@ -2,6 +2,7 @@
 
 use std::sync::{Arc, Mutex};
 
+use tokio::sync::watch;
 use tterm_core::events::ssh::{AuthPromptField, AuthPromptPayload, SshHostKeyPromptPayload};
 use tterm_core::prompts::PromptBroker;
 use tterm_terminal::terminal::Terminal;
@@ -11,7 +12,7 @@ pub(super) struct PromptControl {
     state: Mutex<PromptState>,
     model: Arc<Terminal>,
     prompts: Arc<PromptBroker>,
-    wake: tokio::sync::mpsc::Sender<()>,
+    wake: watch::Sender<u64>,
 }
 
 enum PromptState {
@@ -48,7 +49,7 @@ impl PromptControl {
     pub(super) fn new(
         model: Arc<Terminal>,
         prompts: Arc<PromptBroker>,
-        wake: tokio::sync::mpsc::Sender<()>,
+        wake: watch::Sender<u64>,
     ) -> Arc<Self> {
         Arc::new(Self {
             state: Mutex::new(PromptState::Idle),
@@ -212,7 +213,8 @@ impl PromptControl {
     }
 
     fn notify(&self) {
-        let _ = self.wake.try_send(());
+        self.wake
+            .send_modify(|generation| *generation = generation.wrapping_add(1));
     }
 }
 
@@ -327,6 +329,7 @@ fn cancel(state: &mut PromptState, model: &Terminal) -> Option<Submission> {
 mod tests {
     use super::{PromptControl, PromptState};
     use std::sync::Arc;
+    use tokio::sync::watch;
     use tterm_core::events::{AppEvent, EventSink};
     use tterm_core::prompts::PromptBroker;
     use tterm_terminal::grid::{CellSize, GridSize};
@@ -346,7 +349,7 @@ mod tests {
         ));
         let events = Arc::new(NoopEvents);
         let prompts = Arc::new(PromptBroker::new(events));
-        let (wake, _receiver) = tokio::sync::mpsc::channel(1);
+        let (wake, _receiver) = watch::channel(0);
         Arc::try_unwrap(PromptControl::new(model, prompts, wake))
             .unwrap_or_else(|_| panic!("single prompt control"))
     }

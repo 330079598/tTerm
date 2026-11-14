@@ -131,20 +131,68 @@ pub fn kill_pty(
     };
 
     if let Some(session) = session {
-        stop_pty_session(
-            StopPtyContext {
-                prompts: &app.prompts,
-                tab_id: &key.tab_id,
-            },
-            session,
+        stop_session(
+            app,
             zmodem_state,
             zmodem_armed_send_state,
             zmodem_manual_detect_state,
+            &key.tab_id,
+            session,
         );
-        crate::session_log::end_session(&app.log, &key.tab_id);
     }
 
     Ok(())
+}
+
+/// Releases every backend state item scoped to a closed tab.
+///
+/// Unlike [`kill_pty`], this is not generation-checked: closing the tab wins
+/// even when a stale page still names an older nonce. It also forgets the
+/// passwords typed during a connection and cancels every prompt owner for
+/// the tab, not only the current session's.
+pub fn close_tab(
+    app: &ConnectionContext,
+    state: &PtyMap,
+    zmodem_state: &ZmodemMap,
+    zmodem_armed_send_state: &ZmodemArmedSendMap,
+    zmodem_manual_detect_state: &ZmodemManualDetectMap,
+    tab_id: &str,
+) -> Result<(), String> {
+    let session = state.blocking_write().remove(tab_id);
+    if let Some(session) = session {
+        stop_session(
+            app,
+            zmodem_state,
+            zmodem_armed_send_state,
+            zmodem_manual_detect_state,
+            tab_id,
+            session,
+        );
+    }
+    app.prompts.cancel_tab(tab_id);
+    crate::ssh::typed_passwords::forget_typed_passwords(tab_id.to_string());
+    Ok(())
+}
+
+fn stop_session(
+    app: &ConnectionContext,
+    zmodem_state: &ZmodemMap,
+    zmodem_armed_send_state: &ZmodemArmedSendMap,
+    zmodem_manual_detect_state: &ZmodemManualDetectMap,
+    tab_id: &str,
+    session: crate::core::state::PtySession,
+) {
+    stop_pty_session(
+        StopPtyContext {
+            prompts: &app.prompts,
+            tab_id,
+        },
+        session,
+        zmodem_state,
+        zmodem_armed_send_state,
+        zmodem_manual_detect_state,
+    );
+    crate::session_log::end_session(&app.log, tab_id);
 }
 
 /// While a ZMODEM transfer occupies the channel, suppresses ordinary input.

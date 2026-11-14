@@ -109,6 +109,21 @@ impl AppServices {
             key,
         )
     }
+
+    /// Releases every backend item scoped to a closed tab.
+    ///
+    /// This includes its session, prompt owners and the SSH passwords typed
+    /// during a connection, regardless of the generation a stale client names.
+    pub fn close_tab(&self, tab_id: &str) -> Result<(), String> {
+        crate::core::session::operations::close_tab(
+            &crate::connection_context::connection(self),
+            &self.session.ptys,
+            &self.session.zmodem,
+            &self.session.zmodem_armed_send,
+            &self.session.zmodem_manual_detect,
+            tab_id,
+        )
+    }
 }
 
 #[cfg(test)]

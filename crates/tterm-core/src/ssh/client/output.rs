@@ -24,6 +24,7 @@ pub(super) struct OutputEndpoint<'a> {
 pub(super) fn deliver_output(
     app: &LogContext,
     tab_id: &str,
+    session_nonce: u32,
     endpoint: OutputEndpoint<'_>,
     decoder: Option<&mut crate::terminal::encoding::OutputDecoder>,
     payload: Vec<u8>,
@@ -47,6 +48,7 @@ pub(super) fn deliver_output(
             let _ = sink.emit(crate::events::AppEvent::Terminal(
                 crate::events::terminal::TerminalEvent::Output {
                     tab_id: tab_id.to_string(),
+                    session_nonce,
                     text: String::from_utf8_lossy(&payload).into_owned(),
                 },
             ));

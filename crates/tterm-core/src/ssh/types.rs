@@ -411,6 +411,7 @@ impl SshClientHandler {
         crate::terminal::legacy_events::emit_output(
             self.app.events.as_ref(),
             &self.tab_id,
+            self.prompt_owner.session_nonce().unwrap_or(0),
             payload,
         );
     }

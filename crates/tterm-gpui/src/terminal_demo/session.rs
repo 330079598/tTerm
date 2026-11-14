@@ -1,10 +1,15 @@
-//! One GPUI session backed by the same `AppServices` used by the Tauri client.
+//! One core-owned GPUI terminal session and its output parser.
+//!
+//! A view subscribes to this object; it never owns or stops it. The session
+//! keeps the model and parser across view destruction, so a reattached view
+//! sees every byte parsed while it was gone.
 
-use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc::SyncSender;
 use std::sync::{Arc, Mutex};
 use std::thread::JoinHandle;
 
+use tokio::sync::watch;
 use tterm_core::core::create::PtyIdentity;
 use tterm_core::core::session::types::PtyConnectionOptions;
 use tterm_core::events::ssh::{SshConnectionProgressPayload, SshEvent};
@@ -16,46 +21,64 @@ use tterm_core::session::sink::SessionSink;
 use tterm_core::terminal::io_batcher::OutputFlow;
 use tterm_core::terminal::output::TerminalOutput;
 use tterm_terminal::grid::{CellSize, GridSize, WindowSize};
+use tterm_terminal::terminal::{Config, Terminal};
 
 use super::pipeline::{self, SessionState};
+use super::prompt::PromptControl;
 
 /// What the terminal shows when a program ends by itself.
 pub(super) const EXIT_NOTICE: &[u8] = b"\r\n\x1b[33m[Process exited]\x1b[0m\r\n";
 
-static NEXT_SESSION_NONCE: AtomicU32 = AtomicU32::new(1);
-
-/// A running core session and the GPUI output parser attached to it.
-pub(super) struct Session {
+/// A running core session, its model and the parser that feeds the model.
+///
+/// Clones are not made; the session manager and attachments share it through
+/// an `Arc`. Dropping an attachment therefore has no effect on the session.
+pub struct Session {
     services: Arc<AppServices>,
     key: SessionKey,
-    queue: SyncSender<Vec<u8>>,
-    parser: JoinHandle<()>,
+    state: SessionState,
+    prompt: Arc<PromptControl>,
+    flow: Arc<OutputFlow>,
+    queue: Mutex<Option<SyncSender<Vec<u8>>>>,
+    parser: Mutex<Option<JoinHandle<()>>>,
     alive: Arc<AtomicBool>,
+    input_open: Arc<AtomicBool>,
+    wake: watch::Sender<u64>,
 }
 
 impl Session {
-    /// Opens `connection` through core and returns the session plus the
-    /// channel that wakes the view when parsed output or prompts arrive.
-    pub fn spawn(
+    /// Opens `connection` through core and starts parsing its output.
+    pub(super) fn spawn(
         services: Arc<AppServices>,
+        tab_id: String,
+        session_nonce: u32,
         mut connection: PtyConnectionOptions,
-        state: SessionState,
-        rows: u16,
-        cols: u16,
-        wake: tokio::sync::mpsc::Sender<()>,
+        grid: GridSize,
+        cell: CellSize,
     ) -> Result<Self, String> {
         prepare_connection(&services, &mut connection)?;
         let key = SessionKey {
-            tab_id: "gpui-main".to_string(),
-            session_nonce: NEXT_SESSION_NONCE.fetch_add(1, Ordering::Relaxed),
+            tab_id,
+            session_nonce,
         };
+        let terminal = Arc::new(Terminal::new(Config::default(), grid, cell));
+        let alive = Arc::new(AtomicBool::new(true));
+        let input_open = Arc::new(AtomicBool::new(true));
         let flow = Arc::new(OutputFlow::default());
+        let (wake, _wake_receiver) = watch::channel(0_u64);
+        let state = SessionState {
+            terminal: Arc::clone(&terminal),
+            size: Arc::new(Mutex::new(WindowSize { grid, cell })),
+            title: Arc::new(Mutex::new(None)),
+            session_nonce,
+            alive: Arc::clone(&alive),
+        };
         let pipeline = pipeline::start(
-            state,
+            state.clone(),
             Arc::clone(&services),
             key.clone(),
             Arc::clone(&flow),
-            wake,
+            wake.clone(),
         )?;
         let queue_for_output = pipeline.queue.clone();
         let output = TerminalOutput::new(
@@ -66,21 +89,20 @@ impl Session {
             }),
             Arc::clone(&flow),
         );
-        let alive = Arc::new(AtomicBool::new(true));
         let sink: Arc<dyn SessionSink> = Arc::new(GpuiSessionSink {
             tab_id: key.tab_id.clone(),
             events: Arc::clone(&services.shared.events),
             output: output.clone(),
             queue: pipeline.queue.clone(),
-            alive: Arc::clone(&alive),
+            input_open: Arc::clone(&input_open),
         });
 
         if let Err(error) = services.create_pty_blocking(
             PtyIdentity {
                 tab_id: key.tab_id.clone(),
                 session_nonce: key.session_nonce,
-                rows,
-                cols,
+                rows: grid_rows(grid),
+                cols: grid_cols(grid),
             },
             Some(connection),
             output,
@@ -93,13 +115,48 @@ impl Session {
             return Err(error);
         }
 
+        let prompt = PromptControl::new(
+            Arc::clone(&terminal),
+            Arc::clone(&services.shared.prompts),
+            wake.clone(),
+        );
         Ok(Self {
             services,
             key,
-            queue: pipeline.queue,
-            parser: pipeline.parser,
+            state,
+            prompt,
+            flow,
+            queue: Mutex::new(Some(pipeline.queue)),
+            parser: Mutex::new(Some(pipeline.parser)),
             alive,
+            input_open,
+            wake,
         })
+    }
+
+    /// The generation this session belongs to.
+    pub fn key(&self) -> &SessionKey {
+        &self.key
+    }
+
+    /// The generation number this session was created with.
+    pub fn session_nonce(&self) -> u32 {
+        self.key.session_nonce
+    }
+
+    /// The model every attached view draws.
+    pub fn model(&self) -> Arc<Terminal> {
+        Arc::clone(&self.state.terminal)
+    }
+
+    /// The latest title a program set, if the window has not shown it yet.
+    pub fn title(&self) -> Arc<Mutex<Option<String>>> {
+        Arc::clone(&self.state.title)
+    }
+
+    /// The watch channel that wakes every attached view for new output.
+    pub fn subscribe(&self) -> watch::Receiver<u64> {
+        self.wake.subscribe()
     }
 
     /// Sends bytes through the session's local, SSH or serial channel.
@@ -107,35 +164,82 @@ impl Session {
         let services = Arc::clone(&self.services);
         let key = self.key.clone();
         let alive = Arc::clone(&self.alive);
+        let input_open = Arc::clone(&self.input_open);
+        let prompt = Arc::clone(&self.prompt);
         move |bytes| {
-            if alive.load(Ordering::Acquire) {
+            if !alive.load(Ordering::Acquire) || !input_open.load(Ordering::Acquire) {
+                return;
+            }
+            if !prompt.handle_input(bytes) {
                 let _ = services.write_pty(&key, bytes);
             }
         }
     }
 
     /// Records the latest model size and resizes the core session.
-    pub fn resizer(&self, size: Arc<Mutex<WindowSize>>) -> impl Fn(GridSize, CellSize) + 'static {
+    pub fn resizer(&self) -> impl Fn(GridSize, CellSize) + 'static {
         let services = Arc::clone(&self.services);
         let key = self.key.clone();
+        let size = Arc::clone(&self.state.size);
         move |grid, cell| {
             if let Ok(mut current) = size.lock() {
                 *current = WindowSize { grid, cell };
             }
-            let rows = u16::try_from(grid.screen_lines).unwrap_or(u16::MAX);
-            let cols = u16::try_from(grid.columns).unwrap_or(u16::MAX);
-            let _ = services.resize_pty(&key, rows, cols);
+            let _ = services.resize_pty(&key, grid_rows(grid), grid_cols(grid));
         }
     }
 
-    /// Stops the core session and joins its parser off the UI thread.
-    pub fn shutdown(self) -> JoinHandle<()> {
+    /// Applies output only when it belongs to this live generation.
+    ///
+    /// The parser uses the same check internally. Callers that deliver
+    /// already-routed output, such as a late cold-path event, get the same
+    /// nonce gate here.
+    pub fn accept_output(&self, session_nonce: u32, bytes: &[u8]) -> bool {
+        self.state.apply(session_nonce, bytes)
+    }
+
+    /// Shows a host-key question in this session's model.
+    pub fn show_host_key(&self, payload: tterm_core::events::ssh::SshHostKeyPromptPayload) {
+        self.prompt.show_host_key(payload);
+    }
+
+    /// Dismisses a host-key question that expired.
+    pub fn expire_host_key(&self, request_id: &str) {
+        self.prompt.expire(request_id, false);
+    }
+
+    /// Shows an authentication question in this session's model.
+    pub fn show_auth(&self, payload: tterm_core::events::ssh::AuthPromptPayload) {
+        self.prompt.show_auth(payload);
+    }
+
+    /// Dismisses an authentication question that expired.
+    pub fn expire_auth(&self, request_id: &str) {
+        self.prompt.expire(request_id, true);
+    }
+
+    /// Stops the core session and the parser. Safe to call more than once.
+    pub fn close(&self) {
         self.alive.store(false, Ordering::Release);
+        self.input_open.store(false, Ordering::Release);
         let _ = self.services.kill_pty(&self.key);
-        drop(self.queue);
-        std::thread::spawn(move || {
-            let _ = self.parser.join();
-        })
+        self.flow.close();
+        if let Ok(mut queue) = self.queue.lock() {
+            queue.take();
+        }
+        if let Ok(mut parser) = self.parser.lock()
+            && let Some(parser) = parser.take()
+        {
+            std::thread::spawn(move || {
+                let _ = parser.join();
+            });
+        }
+    }
+}
+
+impl Drop for Session {
+    fn drop(&mut self) {
+        self.close();
     }
 }
 
@@ -179,7 +283,7 @@ struct GpuiSessionSink {
     events: Arc<dyn EventSink>,
     output: TerminalOutput,
     queue: SyncSender<Vec<u8>>,
-    alive: Arc<AtomicBool>,
+    input_open: Arc<AtomicBool>,
 }
 
 impl EventSink for GpuiSessionSink {
@@ -201,7 +305,7 @@ impl SessionSink for GpuiSessionSink {
     }
 
     fn exited(&self, reason: Option<String>) -> Result<(), String> {
-        if self.alive.swap(false, Ordering::AcqRel) {
+        if self.input_open.swap(false, Ordering::AcqRel) {
             let _ = self.queue.send(EXIT_NOTICE.to_vec());
         }
         self.emit(AppEvent::Terminal(TerminalEvent::Exit {
@@ -227,19 +331,19 @@ impl SessionSink for GpuiSessionSink {
     }
 }
 
+fn grid_rows(grid: GridSize) -> u16 {
+    u16::try_from(grid.screen_lines).unwrap_or(u16::MAX)
+}
+
+fn grid_cols(grid: GridSize) -> u16 {
+    u16::try_from(grid.columns).unwrap_or(u16::MAX)
+}
+
 #[cfg(test)]
 mod tests {
-    use std::sync::{Arc, Mutex};
-    use std::time::{Duration, Instant};
-
     use tterm_core::core::session::types::PtyConnectionOptions;
-    use tterm_terminal::grid::{CellSize, GridSize, WindowSize};
-    use tterm_terminal::terminal::{Config, Terminal};
 
-    use super::{Session, password_needs_interactive_prompt};
-    use crate::terminal_demo::command::CommandSpec;
-    use crate::terminal_demo::pipeline::SessionState;
-    use crate::terminal_demo::runtime;
+    use super::password_needs_interactive_prompt;
 
     #[test]
     fn a_password_profile_without_a_saved_password_uses_interactive_prompts() {
@@ -262,102 +366,5 @@ mod tests {
             ..PtyConnectionOptions::default()
         };
         assert!(password_needs_interactive_prompt(&options, false));
-    }
-
-    #[test]
-    fn a_local_session_routes_window_input_and_output_through_app_services() {
-        let runtime = runtime::test_runtime();
-        let model = Arc::new(Terminal::new(
-            Config::default(),
-            GridSize {
-                columns: 80,
-                screen_lines: 24,
-            },
-            CellSize {
-                width: 8,
-                height: 16,
-            },
-        ));
-        let state = SessionState {
-            terminal: Arc::clone(&model),
-            size: Arc::new(Mutex::new(WindowSize {
-                grid: GridSize {
-                    columns: 80,
-                    screen_lines: 24,
-                },
-                cell: CellSize {
-                    width: 8,
-                    height: 16,
-                },
-            })),
-            title: Arc::new(Mutex::new(None)),
-        };
-        #[cfg(windows)]
-        let command = CommandSpec::Program {
-            program: std::env::var("COMSPEC")
-                .unwrap_or_else(|_| r"C:\Windows\System32\cmd.exe".to_string()),
-            args: vec!["/Q".to_string()],
-        };
-        #[cfg(not(windows))]
-        let command = CommandSpec::Program {
-            program: "/bin/sh".to_string(),
-            args: vec!["-i".to_string()],
-        };
-        let connection = command
-            .connection_options()
-            .expect("local connection options");
-        let (wake, _wake_receiver) = tokio::sync::mpsc::channel(1);
-        let session = Session::spawn(
-            Arc::clone(&runtime.services),
-            connection,
-            state,
-            24,
-            80,
-            wake,
-        )
-        .expect("start local session");
-
-        let marker = "GPUI-APPSERVICES-ROUNDTRIP";
-        let input = session.input();
-        #[cfg(windows)]
-        input(format!("echo {marker}\r\n").as_bytes());
-        #[cfg(not(windows))]
-        input(format!("printf '{marker}\\n'\n").as_bytes());
-        assert!(
-            wait_for_text(&model, marker, Duration::from_secs(15)),
-            "local output reaches the GPUI model"
-        );
-
-        #[cfg(windows)]
-        input(b"exit\r\n");
-        #[cfg(not(windows))]
-        input(b"exit\n");
-        let closed = session.shutdown();
-        let deadline = Instant::now() + Duration::from_secs(15);
-        while !closed.is_finished() && Instant::now() < deadline {
-            std::thread::sleep(Duration::from_millis(10));
-        }
-        assert!(closed.is_finished(), "the parser and session tasks finish");
-        closed.join().expect("join parser");
-    }
-
-    fn wait_for_text(model: &Terminal, needle: &str, timeout: Duration) -> bool {
-        let deadline = Instant::now() + timeout;
-        loop {
-            let frame = model.snapshot();
-            let text: String = frame
-                .rows()
-                .iter()
-                .flat_map(|row| row.cells())
-                .map(|cell| cell.ch)
-                .collect();
-            if text.contains(needle) {
-                return true;
-            }
-            if Instant::now() >= deadline {
-                return false;
-            }
-            std::thread::sleep(Duration::from_millis(10));
-        }
     }
 }

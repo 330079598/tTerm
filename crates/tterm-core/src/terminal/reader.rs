@@ -173,6 +173,7 @@ pub fn spawn_reader_thread(
                     None => {
                         let _ = channel.sink.emit(AppEvent::Terminal(TerminalEvent::Output {
                             tab_id: channel.tab_id.clone(),
+                            session_nonce: channel.session_nonce,
                             text: String::from_utf8_lossy(&display).into_owned(),
                         }));
                     }

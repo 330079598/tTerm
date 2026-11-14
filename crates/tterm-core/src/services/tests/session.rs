@@ -268,6 +268,50 @@ fn app_services_local_pty_manual_close_releases_a_running_session() {
     );
 }
 
+#[test]
+fn app_services_closing_a_tab_releases_typed_passwords_and_prompt_state() {
+    let app = test_support::app();
+    let (output, sink) = sink_and_output();
+    let typed_sink: Arc<dyn SessionSink> = sink.clone();
+    let (_, key) = start(&app, typed_sink, output, "p2-01-close-tab");
+    let tasks = app.services.session.ptys.blocking_read()[&key.tab_id]
+        .tasks
+        .clone();
+    crate::ssh::typed_passwords::remember(&key.tab_id, "db.example", 22, "root", "secret");
+    assert!(
+        app.services
+            .shared
+            .prompts
+            .register_owner(Some(key.clone()))
+            .is_ok(),
+        "the open tab owns a prompt generation"
+    );
+
+    app.services.close_tab(&key.tab_id).expect("close the tab");
+
+    assert!(
+        crate::ssh::typed_passwords::get(&key.tab_id, "db.example", 22, "root").is_none(),
+        "the password typed while connecting is forgotten"
+    );
+    assert!(
+        app.services
+            .shared
+            .prompts
+            .register_owner(Some(key.clone()))
+            .is_err(),
+        "the tab's prompt session is closed"
+    );
+    assert!(
+        !app.services
+            .session
+            .ptys
+            .blocking_read()
+            .contains_key(&key.tab_id)
+    );
+    assert!(sink.wait_for(|state| state.closed));
+    assert!(tasks.wait_idle(WAIT), "all session tasks finish");
+}
+
 /// Runs against this card's disposable OrbStack containers. It never reads a
 /// saved tTerm profile or the user's known_hosts store.
 #[test]
