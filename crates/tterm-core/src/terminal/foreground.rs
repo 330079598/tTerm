@@ -3,7 +3,7 @@
 //! a program killed before it could turn reporting off leaves the terminal
 //! sending every mouse move to the shell's line editor as text.
 
-use tterm_core::core::state::{ActiveSession, PtyMap};
+use crate::core::state::{ActiveSession, PtyMap};
 
 /// Programs that are shells, so a session leader running one again is at its
 /// prompt. A login shell that `exec`ed into something else (tmux, an editor)
@@ -17,12 +17,12 @@ const SHELLS: &[&str] = &[
 /// True when the foreground process group of the tab's local terminal is
 /// its shell's own, so no program is running in it. False for SSH sessions,
 /// stale sessions and on Windows, where it cannot be told.
-pub(super) struct PtyShellInForegroundInput {
-    pub(super) tab_id: String,
-    pub(super) session_nonce: u32,
+pub struct PtyShellInForegroundInput {
+    pub tab_id: String,
+    pub session_nonce: u32,
 }
 
-pub(super) async fn pty_shell_in_foreground_service(
+pub async fn pty_shell_in_foreground_service(
     state: PtyMap,
     arguments: PtyShellInForegroundInput,
 ) -> Result<bool, String> {

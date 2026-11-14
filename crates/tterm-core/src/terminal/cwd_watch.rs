@@ -3,9 +3,9 @@
 //! A shell started inside the first one (a nested shell, tmux, ssh) is not
 //! followed: the outer shell's directory is what gets restored.
 
-use tterm_core::events::terminal::CwdPayload;
-use tterm_core::events::terminal::TerminalEvent;
-use tterm_core::events::{AppEvent, EventSink};
+use crate::events::terminal::CwdPayload;
+use crate::events::terminal::TerminalEvent;
+use crate::events::{AppEvent, EventSink};
 
 use std::sync::Arc;
 use std::time::Duration;
