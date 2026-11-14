@@ -5,6 +5,8 @@
 //! frames, an idle unfocused view schedules none, and the blink timer stops
 //! when the window loses focus.
 
+use std::cell::RefCell;
+use std::rc::Rc;
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -229,6 +231,61 @@ fn a_full_scrollback_generation_rebuilds_every_visible_row(cx: &mut TestAppConte
             "a generation change never publishes a blank or partial frame"
         );
     });
+}
+
+#[gpui_kit::test]
+fn activating_a_view_focuses_it_and_reports_its_grid_again(cx: &mut TestAppContext) {
+    cx.update(gpui_kit::init);
+    let resizes = Rc::new(RefCell::new(Vec::new()));
+    let resize_sink = Rc::clone(&resizes);
+    let (handle, view) = cx.update(|cx| {
+        let bounds = Bounds {
+            origin: point(px(0.0), px(0.0)),
+            size: size(px(800.0), px(600.0)),
+        };
+        gpui_kit::open_window(
+            WindowOptions {
+                window_bounds: Some(WindowBounds::Windowed(bounds)),
+                ..WindowOptions::default()
+            },
+            cx,
+            |_, cx| {
+                let sink = Rc::clone(&resize_sink);
+                cx.new(|cx| {
+                    TerminalView::new(
+                        cx,
+                        terminal(),
+                        TerminalViewConfig {
+                            resize: Some(Rc::new(move |grid, cell| {
+                                sink.borrow_mut().push((grid, cell));
+                            })),
+                            ..TerminalViewConfig::default()
+                        },
+                    )
+                })
+            },
+        )
+        .expect("open the terminal test window")
+    });
+    cx.update_window(handle, |_, window, cx| window.render_frame(cx))
+        .expect("render the first frame");
+    let before = resizes.borrow().len();
+    assert!(before >= 1, "the first frame measured the grid");
+
+    view.update(cx, |view, cx| view.deactivate(cx));
+    assert!(!view.read_with(cx, |view, _| view.is_visible()));
+
+    cx.update_window(handle, |_, window, cx| {
+        view.update(cx, |view, cx| view.activate(window, cx));
+        let focus = view.read(cx).focus_handle();
+        assert_eq!(window.focused(cx), Some(focus));
+    })
+    .expect("activate the view");
+    assert!(view.read_with(cx, |view, _| view.is_visible()));
+    assert!(
+        resizes.borrow().len() > before,
+        "activation reports the current grid to the session again"
+    );
 }
 
 #[test]

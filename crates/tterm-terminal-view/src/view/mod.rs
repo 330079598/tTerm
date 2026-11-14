@@ -311,6 +311,35 @@ impl TerminalView {
         self.invalidate(cx);
     }
 
+    /// Enters the view: shows it, focuses it and reports its current grid.
+    ///
+    /// The tab may have been hidden in another layout, so the session gets the
+    /// last measured size again even when the view itself did not resize.
+    pub fn activate(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        self.set_visible(true, cx);
+        window.focus(&self.focus_handle, cx);
+        self.resend_resize();
+        self.request_redraw(cx);
+    }
+
+    /// Leaves the view: hides it, which stops blinking and drops IME state.
+    pub fn deactivate(&mut self, cx: &mut Context<Self>) {
+        self.set_visible(false, cx);
+    }
+
+    fn resend_resize(&mut self) {
+        let (Some(grid), Some(geometry)) = (self.last_grid, self.geometry) else {
+            return;
+        };
+        let cell = geometry.model_cell_size();
+        self.terminal.resize(grid, cell);
+        if let Some(resize) = &self.resize {
+            resize(grid, cell);
+        }
+        self.stats.resizes = self.stats.resizes.saturating_add(1);
+        self.last_frame = None;
+    }
+
     fn request_redraw(&mut self, cx: &mut Context<Self>) {
         self.stats.redraw_requests = self.stats.redraw_requests.saturating_add(1);
         cx.notify();

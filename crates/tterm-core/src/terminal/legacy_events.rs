@@ -3,9 +3,10 @@
 use crate::events::terminal::TerminalEvent;
 use crate::events::{AppEvent, EventSink};
 
-pub fn emit_output(events: &dyn EventSink, tab_id: &str, text: String) {
+pub fn emit_output(events: &dyn EventSink, tab_id: &str, session_nonce: u32, text: String) {
     let _ = events.emit(AppEvent::Terminal(TerminalEvent::Output {
         tab_id: tab_id.to_string(),
+        session_nonce,
         text,
     }));
 }

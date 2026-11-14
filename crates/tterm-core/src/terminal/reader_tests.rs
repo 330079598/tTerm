@@ -89,6 +89,7 @@ fn reader_without_sender_preserves_lossy_string_fallback() {
         [SessionRecord::Event(crate::events::AppEvent::Terminal(
             crate::events::terminal::TerminalEvent::Output {
                 tab_id: "reader-test".into(),
+                session_nonce: 7,
                 text: "bad:�".into()
             }
         ))]

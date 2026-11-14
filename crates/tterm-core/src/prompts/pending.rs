@@ -173,6 +173,20 @@ impl PromptBroker {
         );
     }
 
+    /// A closed tab owns no prompts anymore, including ones from an older nonce.
+    pub fn cancel_tab(&self, tab_id: &str) {
+        self.shared.lock().sessions.remove(tab_id);
+        self.cancel_matching(
+            |owner| {
+                owner
+                    .session
+                    .as_ref()
+                    .is_some_and(|session| session.tab_id == tab_id)
+            },
+            None,
+        );
+    }
+
     /// Called only at committed application shutdown, not when asking to quit.
     pub fn shutdown(&self) {
         {

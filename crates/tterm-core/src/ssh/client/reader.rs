@@ -68,6 +68,7 @@ impl IncomingOutput<'_> {
                 deliver_output(
                     self.app,
                     &self.tab.tab_id,
+                    self.tab.session_nonce,
                     super::output::OutputEndpoint {
                         sender: self.sender.as_ref(),
                         sink: self.tab.sink.as_ref(),
@@ -134,6 +135,7 @@ pub(super) async fn read_connection(connection: ConnectedSession) -> SshExitSign
         deliver_output(
             &app,
             &tab_id,
+            tab.session_nonce,
             super::output::OutputEndpoint {
                 sender: sender.as_ref(),
                 sink: tab.sink.as_ref(),
@@ -207,6 +209,7 @@ pub(super) async fn read_connection(connection: ConnectedSession) -> SshExitSign
                         deliver_output(
                             &app,
                             &tab_id,
+                            tab.session_nonce,
                             super::output::OutputEndpoint { sender: sender.as_ref(), sink: tab.sink.as_ref() },
                             output_decoder.as_mut(),
                             data.as_ref().to_vec(),

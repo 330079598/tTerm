@@ -27,6 +27,7 @@ fn legacy_output_name_target_and_json_are_frozen_before_migration() {
         emit_output(
             &TauriEventSink::new(app.handle().clone()),
             "tab-with-hyphens",
+            7,
             text.to_string(),
         );
     }

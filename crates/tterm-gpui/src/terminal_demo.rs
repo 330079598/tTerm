@@ -5,13 +5,14 @@
 //! and `--exec <program> [args...]` runs a local workload through the same
 //! service path as the Tauri client.
 
+pub mod binding;
 mod command;
 mod conpty;
 mod intents;
 mod pipeline;
 mod prompt;
 mod runtime;
-mod session;
+pub mod session;
 mod window;
 
 #[cfg(all(feature = "automation", debug_assertions))]

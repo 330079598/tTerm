@@ -185,6 +185,7 @@ fn report_exit(app: &ConnectionContext, channel: &ChannelContext, signal: &Sessi
             let _ = channel.sink.emit(crate::events::AppEvent::Terminal(
                 crate::events::terminal::TerminalEvent::Output {
                     tab_id: channel.tab_id.clone(),
+                    session_nonce: channel.session_nonce,
                     text,
                 },
             ));
