@@ -8,6 +8,8 @@
 pub mod agent_integration;
 /// Agent status reports and the tracker that follows them.
 pub mod agent_status;
+/// Entry adapters that assemble the concrete contexts from `AppServices`.
+pub mod app_context;
 /// The state the app keeps for itself rather than as user settings.
 pub mod app_state;
 /// Notifications and agent reports carried by terminal OSC sequences.
@@ -23,6 +25,7 @@ pub mod command_tracking;
 /// Configuration values both clients keep: the config directory, keymap
 /// overrides, keyword highlight sets, split pane layouts and tab icons.
 pub mod config;
+pub mod connection_context;
 /// Cross-cutting services shared by the clients, such as the blocking worker.
 pub mod core;
 /// Follows local and remote shell directory reports.

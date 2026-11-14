@@ -66,7 +66,7 @@ pub async fn write_serial_bytes(
     data: Vec<u8>,
     services: tauri::State<'_, std::sync::Arc<tterm_core::services::AppServices>>,
 ) -> Result<(), String> {
-    let log = crate::connection_context::log(&services);
+    let log = tterm_core::connection_context::log(&services);
     let state = services.session.ptys.clone();
     let zmodem_state = services.session.zmodem.clone();
     write_serial_bytes_service(

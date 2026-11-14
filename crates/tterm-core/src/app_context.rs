@@ -1,12 +1,12 @@
 //! Entry adapters assemble concrete dependencies before handing work to services.
+use crate::background::BackgroundContext;
+use crate::background::quit::QuitContext;
+use crate::background::tray::TrayContext;
+use crate::services::AppServices;
+use crate::tunnel::manager::TunnelContext;
 use std::sync::Arc;
-use tterm_core::background::BackgroundContext;
-use tterm_core::background::quit::QuitContext;
-use tterm_core::background::tray::TrayContext;
-use tterm_core::services::AppServices;
-use tterm_core::tunnel::manager::TunnelContext;
 
-pub(crate) fn tray(services: &AppServices) -> TrayContext {
+pub fn tray(services: &AppServices) -> TrayContext {
     TrayContext {
         state: services.app.tray.clone(),
         native: services.shared.platform.tray.clone(),
@@ -14,7 +14,7 @@ pub(crate) fn tray(services: &AppServices) -> TrayContext {
     }
 }
 
-pub(crate) fn quit(services: &AppServices) -> QuitContext {
+pub fn quit(services: &AppServices) -> QuitContext {
     QuitContext {
         state: services.app.quit.clone(),
         events: services.shared.events.clone(),
@@ -23,10 +23,7 @@ pub(crate) fn quit(services: &AppServices) -> QuitContext {
     }
 }
 
-pub(crate) fn background(
-    services: &AppServices,
-    unuploaded_files: Vec<String>,
-) -> BackgroundContext {
+pub fn background(services: &AppServices, unuploaded_files: Vec<String>) -> BackgroundContext {
     BackgroundContext {
         close: services.app.close_behavior.clone(),
         guard: services.app.exit_guard.clone(),
@@ -40,7 +37,7 @@ pub(crate) fn background(
     }
 }
 
-pub(crate) fn tunnel(services: &AppServices) -> TunnelContext {
+pub fn tunnel(services: &AppServices) -> TunnelContext {
     TunnelContext {
         connection: crate::connection_context::connection(services),
         secrets: services.shared.secrets.clone(),

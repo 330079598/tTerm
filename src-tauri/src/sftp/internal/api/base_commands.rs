@@ -39,7 +39,7 @@ pub async fn sftp_list_directory(
 ) -> Result<SftpDirectoryListing, String> {
     sftp_list_directory_service(
         SftpListDirectoryDependencies {
-            context: crate::connection_context::sftp(&services),
+            context: tterm_core::connection_context::sftp(&services),
             prompts: services.shared.prompts.clone(),
             secrets: services.shared.secrets.clone(),
             pool: services.sftp.pool.clone(),
@@ -62,7 +62,7 @@ pub async fn sftp_create_directory(
 ) -> Result<(), String> {
     sftp_create_directory_service(
         SftpCreateDirectoryDependencies {
-            context: crate::connection_context::sftp(&services),
+            context: tterm_core::connection_context::sftp(&services),
             prompts: services.shared.prompts.clone(),
             secrets: services.shared.secrets.clone(),
             pool: services.sftp.pool.clone(),
@@ -86,7 +86,7 @@ pub async fn sftp_rename_entry(
 ) -> Result<(), String> {
     sftp_rename_entry_service(
         SftpRenameEntryDependencies {
-            context: crate::connection_context::sftp(&services),
+            context: tterm_core::connection_context::sftp(&services),
             prompts: services.shared.prompts.clone(),
             secrets: services.shared.secrets.clone(),
             pool: services.sftp.pool.clone(),

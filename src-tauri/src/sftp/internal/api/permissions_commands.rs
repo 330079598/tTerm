@@ -14,7 +14,7 @@ pub async fn sftp_set_permissions(
 ) -> Result<(), String> {
     sftp_set_permissions_service(
         SftpSetPermissionsDependencies {
-            context: crate::connection_context::sftp(&services),
+            context: tterm_core::connection_context::sftp(&services),
             prompts: services.shared.prompts.clone(),
             secrets: services.shared.secrets.clone(),
             pool: services.sftp.pool.clone(),

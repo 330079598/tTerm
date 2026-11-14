@@ -25,7 +25,7 @@ pub async fn sftp_compress_entries(
 ) -> Result<RemoteOperationResult, String> {
     sftp_compress_entries_service(
         SftpCompressEntriesDependencies {
-            context: crate::connection_context::sftp(&services),
+            context: tterm_core::connection_context::sftp(&services),
             prompts: services.shared.prompts.clone(),
             secrets: services.shared.secrets.clone(),
             pool: services.sftp.pool.clone(),
@@ -52,7 +52,7 @@ pub async fn sftp_extract_archive(
 ) -> Result<RemoteOperationResult, String> {
     sftp_extract_archive_service(
         SftpExtractArchiveDependencies {
-            context: crate::connection_context::sftp(&services),
+            context: tterm_core::connection_context::sftp(&services),
             prompts: services.shared.prompts.clone(),
             secrets: services.shared.secrets.clone(),
             pool: services.sftp.pool.clone(),

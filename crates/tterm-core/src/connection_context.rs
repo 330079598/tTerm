@@ -1,9 +1,9 @@
 //! Tauri entry adapter for assembling concrete session dependencies.
-use tterm_core::services::AppServices;
-use tterm_core::session_log::LogContext;
-use tterm_core::ssh::context::ConnectionContext;
+use crate::services::AppServices;
+use crate::session_log::LogContext;
+use crate::ssh::context::ConnectionContext;
 
-pub(crate) fn connection(services: &AppServices) -> ConnectionContext {
+pub fn connection(services: &AppServices) -> ConnectionContext {
     ConnectionContext {
         events: services.shared.events.clone(),
         prompts: services.shared.prompts.clone(),
@@ -12,7 +12,7 @@ pub(crate) fn connection(services: &AppServices) -> ConnectionContext {
         log: log(services),
     }
 }
-pub(crate) fn log(services: &AppServices) -> LogContext {
+pub fn log(services: &AppServices) -> LogContext {
     LogContext {
         state: services.app.session_log.clone(),
         events: services.shared.events.clone(),
@@ -20,8 +20,8 @@ pub(crate) fn log(services: &AppServices) -> LogContext {
 }
 
 /// Assembles the concrete dependencies for an SFTP side connection.
-pub(crate) fn sftp(services: &AppServices) -> tterm_core::sftp::internal::connection::SftpContext {
-    tterm_core::sftp::internal::connection::SftpContext {
+pub fn sftp(services: &AppServices) -> crate::sftp::internal::connection::SftpContext {
+    crate::sftp::internal::connection::SftpContext {
         ssh: connection(services),
         secrets: services.shared.secrets.clone(),
     }

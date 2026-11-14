@@ -31,7 +31,7 @@ pub async fn sftp_check_upload_conflicts(
 ) -> Result<ConflictReport, String> {
     sftp_check_upload_conflicts_service(
         SftpCheckUploadConflictsDependencies {
-            context: crate::connection_context::sftp(&services),
+            context: tterm_core::connection_context::sftp(&services),
             prompts: services.shared.prompts.clone(),
             secrets: services.shared.secrets.clone(),
             pool: services.sftp.pool.clone(),
@@ -57,7 +57,7 @@ pub async fn sftp_upload_file(
 ) -> Result<(), String> {
     sftp_upload_file_service(
         SftpUploadFileDependencies {
-            context: crate::connection_context::sftp(&services),
+            context: tterm_core::connection_context::sftp(&services),
             prompts: services.shared.prompts.clone(),
             secrets: services.shared.secrets.clone(),
             pool: services.sftp.pool.clone(),
@@ -87,7 +87,7 @@ pub async fn sftp_upload_paths(
 ) -> Result<UploadBatchResult, String> {
     sftp_upload_paths_service(
         SftpUploadPathsDependencies {
-            context: crate::connection_context::sftp(&services),
+            context: tterm_core::connection_context::sftp(&services),
             prompts: services.shared.prompts.clone(),
             secrets: services.shared.secrets.clone(),
             pool: services.sftp.pool.clone(),

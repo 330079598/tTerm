@@ -24,7 +24,7 @@ pub async fn sftp_search_entries(
 ) -> Result<SearchSummary, String> {
     sftp_search_entries_service(
         SftpSearchEntriesDependencies {
-            context: crate::connection_context::sftp(&services),
+            context: tterm_core::connection_context::sftp(&services),
             prompts: services.shared.prompts.clone(),
             secrets: services.shared.secrets.clone(),
             pool: services.sftp.pool.clone(),

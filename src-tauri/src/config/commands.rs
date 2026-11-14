@@ -37,9 +37,9 @@ pub async fn save_config(
     config: AppConfig,
 ) -> Result<(), String> {
     let context = SaveConfigContext {
-        log: crate::connection_context::log(&services),
+        log: tterm_core::connection_context::log(&services),
         close: services.app.close_behavior.clone(),
-        tray: crate::app_context::tray(&services),
+        tray: tterm_core::app_context::tray(&services),
         integration: services.shared.platform.integration.clone(),
         runtime: services.shared.runtime.clone(),
     };

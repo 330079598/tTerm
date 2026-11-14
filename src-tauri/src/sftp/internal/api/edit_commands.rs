@@ -20,7 +20,7 @@ pub async fn sftp_open_file_for_edit(
 ) -> Result<SftpEditableFile, String> {
     sftp_open_file_for_edit_service(
         SftpOpenFileForEditDependencies {
-            context: crate::connection_context::sftp(&services),
+            context: tterm_core::connection_context::sftp(&services),
             prompts: services.shared.prompts.clone(),
             secrets: services.shared.secrets.clone(),
             pool: services.sftp.pool.clone(),
@@ -45,7 +45,7 @@ pub async fn sftp_save_edited_file(
 ) -> Result<SftpSaveEditedFileResult, String> {
     sftp_save_edited_file_service(
         SftpSaveEditedFileDependencies {
-            context: crate::connection_context::sftp(&services),
+            context: tterm_core::connection_context::sftp(&services),
             prompts: services.shared.prompts.clone(),
             secrets: services.shared.secrets.clone(),
             pool: services.sftp.pool.clone(),

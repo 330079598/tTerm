@@ -9,7 +9,7 @@ pub fn resolve_close_request(
     services: tauri::State<'_, Arc<tterm_core::services::AppServices>>,
 ) {
     tterm_core::background::resolve_close(
-        &crate::app_context::background(
+        &tterm_core::app_context::background(
             &services,
             tterm_core::sftp::internal::api::external::unuploaded_files(
                 &services.sftp.external_edit,

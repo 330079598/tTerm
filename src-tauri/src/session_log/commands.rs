@@ -18,7 +18,7 @@ use tterm_core::{
 pub fn get_terminal_log_status(
     services: tauri::State<'_, std::sync::Arc<tterm_core::services::AppServices>>,
 ) -> Result<TerminalLogStatus, String> {
-    let app = crate::connection_context::log(&services);
+    let app = tterm_core::connection_context::log(&services);
     let state = services.app.session_log.clone();
     get_terminal_log_status_service(app, state)
 }
@@ -41,7 +41,7 @@ pub async fn set_terminal_log_recording(
     recording: bool,
     services: tauri::State<'_, std::sync::Arc<tterm_core::services::AppServices>>,
 ) -> Result<TerminalLogStatus, String> {
-    let app = crate::connection_context::log(&services);
+    let app = tterm_core::connection_context::log(&services);
     set_terminal_log_recording_service(app, SetTerminalLogRecordingInput { tab_id, recording })
         .await
 }
@@ -51,7 +51,7 @@ pub async fn set_terminal_log_recording(
 pub async fn list_terminal_logs(
     services: tauri::State<'_, std::sync::Arc<tterm_core::services::AppServices>>,
 ) -> Result<Vec<library::LogSession>, String> {
-    let app = crate::connection_context::log(&services);
+    let app = tterm_core::connection_context::log(&services);
     list_terminal_logs_service(app).await
 }
 
@@ -61,7 +61,7 @@ pub async fn load_terminal_log_recording(
     id: String,
     services: tauri::State<'_, std::sync::Arc<tterm_core::services::AppServices>>,
 ) -> Result<Response, String> {
-    let app = crate::connection_context::log(&services);
+    let app = tterm_core::connection_context::log(&services);
     load_terminal_log_recording_service(app, id)
         .await
         .map(Response::new)
@@ -73,7 +73,7 @@ pub async fn load_terminal_log_text(
     id: String,
     services: tauri::State<'_, std::sync::Arc<tterm_core::services::AppServices>>,
 ) -> Result<Response, String> {
-    let app = crate::connection_context::log(&services);
+    let app = tterm_core::connection_context::log(&services);
     load_terminal_log_text_service(app, id)
         .await
         .map(Response::new)
@@ -85,7 +85,7 @@ pub async fn export_terminal_log_asciicast(
     path: String,
     services: tauri::State<'_, std::sync::Arc<tterm_core::services::AppServices>>,
 ) -> Result<(), String> {
-    let app = crate::connection_context::log(&services);
+    let app = tterm_core::connection_context::log(&services);
     export_terminal_log_asciicast_service(app, ExportTerminalLogAsciicastInput { id, path }).await
 }
 
@@ -94,7 +94,7 @@ pub async fn delete_terminal_log(
     id: String,
     services: tauri::State<'_, std::sync::Arc<tterm_core::services::AppServices>>,
 ) -> Result<(), String> {
-    let app = crate::connection_context::log(&services);
+    let app = tterm_core::connection_context::log(&services);
     delete_terminal_log_service(app, id).await
 }
 
@@ -105,7 +105,7 @@ pub async fn delete_terminal_logs(
     ids: Vec<String>,
     services: tauri::State<'_, std::sync::Arc<tterm_core::services::AppServices>>,
 ) -> Result<library::DeleteReport, String> {
-    let app = crate::connection_context::log(&services);
+    let app = tterm_core::connection_context::log(&services);
     delete_terminal_logs_service(app, ids).await
 }
 
@@ -114,7 +114,7 @@ pub async fn reveal_terminal_log(
     id: String,
     services: tauri::State<'_, std::sync::Arc<tterm_core::services::AppServices>>,
 ) -> Result<(), String> {
-    let app = crate::connection_context::log(&services);
+    let app = tterm_core::connection_context::log(&services);
     let open = services.shared.platform.open.clone();
     reveal_terminal_log_service(app, open, id).await
 }
@@ -129,7 +129,7 @@ pub async fn save_terminal_contents(path: String, contents: String) -> Result<()
 pub async fn open_terminal_log_directory(
     services: tauri::State<'_, std::sync::Arc<tterm_core::services::AppServices>>,
 ) -> Result<(), String> {
-    let app = crate::connection_context::log(&services);
+    let app = tterm_core::connection_context::log(&services);
     let open = services.shared.platform.open.clone();
     open_terminal_log_directory_service(app, open).await
 }
@@ -138,6 +138,6 @@ pub async fn open_terminal_log_directory(
 pub async fn retry_terminal_logging(
     services: tauri::State<'_, std::sync::Arc<tterm_core::services::AppServices>>,
 ) -> Result<TerminalLogStatus, String> {
-    let app = crate::connection_context::log(&services);
+    let app = tterm_core::connection_context::log(&services);
     retry_terminal_logging_service(app).await
 }

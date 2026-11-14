@@ -24,7 +24,7 @@ pub async fn sftp_download_file(
 ) -> Result<(), String> {
     sftp_download_file_service(
         SftpDownloadFileDependencies {
-            context: crate::connection_context::sftp(&services),
+            context: tterm_core::connection_context::sftp(&services),
             prompts: services.shared.prompts.clone(),
             secrets: services.shared.secrets.clone(),
             pool: services.sftp.pool.clone(),
@@ -61,7 +61,7 @@ pub async fn sftp_download_paths(
 ) -> Result<(), String> {
     sftp_download_paths_service(
         SftpDownloadPathsDependencies {
-            context: crate::connection_context::sftp(&services),
+            context: tterm_core::connection_context::sftp(&services),
             prompts: services.shared.prompts.clone(),
             secrets: services.shared.secrets.clone(),
             pool: services.sftp.pool.clone(),
@@ -94,7 +94,7 @@ pub async fn sftp_check_download_conflicts(
 ) -> Result<ConflictReport, String> {
     sftp_check_download_conflicts_service(
         SftpCheckDownloadConflictsDependencies {
-            context: crate::connection_context::sftp(&services),
+            context: tterm_core::connection_context::sftp(&services),
             prompts: services.shared.prompts.clone(),
             secrets: services.shared.secrets.clone(),
             pool: services.sftp.pool.clone(),

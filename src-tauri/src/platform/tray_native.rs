@@ -110,13 +110,13 @@ fn on_menu_event(app: &AppHandle, event: MenuEvent) {
     let Some(services) = app.try_state::<Arc<AppServices>>() else {
         return;
     };
-    let context = crate::app_context::background(
+    let context = tterm_core::app_context::background(
         &services,
         tterm_core::sftp::internal::api::external::unuploaded_files(&services.sftp.external_edit),
     );
     tterm_core::background::tray::handle_action(
         context,
-        crate::app_context::tunnel(&services),
+        tterm_core::app_context::tunnel(&services),
         event.id().as_ref(),
     );
 }
@@ -126,7 +126,7 @@ fn on_tray_icon_event(tray: &TrayIcon, event: TrayIconEvent) {
     let Some(services) = app.try_state::<Arc<AppServices>>() else {
         return;
     };
-    let context = crate::app_context::background(
+    let context = tterm_core::app_context::background(
         &services,
         tterm_core::sftp::internal::api::external::unuploaded_files(&services.sftp.external_edit),
     );

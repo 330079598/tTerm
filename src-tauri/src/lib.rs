@@ -1,5 +1,4 @@
 mod agent_integration;
-mod app_context;
 mod app_identity;
 mod app_paths;
 mod app_state;
@@ -8,7 +7,6 @@ mod backup;
 mod clipboard_files;
 pub mod command_library;
 mod config;
-mod connection_context;
 mod core;
 mod db;
 #[cfg(any(target_os = "windows", target_os = "macos"))]
@@ -158,12 +156,14 @@ pub fn run() {
                     .app_handle()
                     .try_state::<Arc<tterm_core::services::AppServices>>()
                     .is_some_and(|services| {
-                        tterm_core::background::on_close_requested(&app_context::background(
-                            &services,
-                            tterm_core::sftp::internal::api::external::unuploaded_files(
-                                &services.sftp.external_edit,
+                        tterm_core::background::on_close_requested(
+                            &tterm_core::app_context::background(
+                                &services,
+                                tterm_core::sftp::internal::api::external::unuploaded_files(
+                                    &services.sftp.external_edit,
+                                ),
                             ),
-                        ))
+                        )
                     })
             {
                 api.prevent_close();
@@ -500,7 +500,7 @@ pub fn run() {
                 tterm_core::sftp::internal::api::apply_bandwidth_limits(cfg);
                 let log_state = &services.app.session_log;
                 if let Err(err) =
-                    log_state.apply_config(&crate::connection_context::log(&services), cfg)
+                    log_state.apply_config(&tterm_core::connection_context::log(&services), cfg)
                 {
                     eprintln!("Failed to initialize terminal logging: {}", err);
                 }
@@ -523,7 +523,7 @@ pub fn run() {
             let cfg = cfg.unwrap_or_default();
             tterm_core::background::apply_config(
                 &services.app.close_behavior,
-                &app_context::tray(&services),
+                &tterm_core::app_context::tray(&services),
                 &cfg,
             );
             runtime_handle.block_on(tterm_core::system_integration::apply_config(
@@ -545,12 +545,14 @@ pub fn run() {
                     if app
                         .try_state::<Arc<tterm_core::services::AppServices>>()
                         .is_some_and(|services| {
-                            tterm_core::background::on_exit_requested(&app_context::background(
-                                &services,
-                                tterm_core::sftp::internal::api::external::unuploaded_files(
-                                    &services.sftp.external_edit,
+                            tterm_core::background::on_exit_requested(
+                                &tterm_core::app_context::background(
+                                    &services,
+                                    tterm_core::sftp::internal::api::external::unuploaded_files(
+                                        &services.sftp.external_edit,
+                                    ),
                                 ),
-                            ))
+                            )
                         })
                     {
                         api.prevent_exit();

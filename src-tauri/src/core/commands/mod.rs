@@ -56,7 +56,7 @@ pub async fn create_pty(
 ) -> Result<u32, String> {
     let output_channel = crate::session_sink::output::new(output_channel.channel_on(webview));
     let context = CreateContext {
-        connection: crate::connection_context::connection(&services),
+        connection: tterm_core::connection_context::connection(&services),
         ptys: services.session.ptys.clone(),
         secrets: services.shared.secrets.clone(),
         runtime: services.shared.runtime.clone(),
@@ -139,7 +139,7 @@ pub fn write_pty(
     data: String,
     services: tauri::State<'_, std::sync::Arc<tterm_core::services::AppServices>>,
 ) -> Result<(), String> {
-    let app = crate::connection_context::connection(&services);
+    let app = tterm_core::connection_context::connection(&services);
     let state = services.session.ptys.clone();
     let zmodem_state = services.session.zmodem.clone();
     write_pty_service(
@@ -288,7 +288,7 @@ pub fn write_pty_batch(
     services: tauri::State<'_, std::sync::Arc<tterm_core::services::AppServices>>,
 ) -> Vec<PtyWriteResult> {
     let targets = std::mem::take(&mut targets);
-    let app = crate::connection_context::connection(&services);
+    let app = tterm_core::connection_context::connection(&services);
     let state = services.session.ptys.clone();
     write_pty_batch_service(
         app,
@@ -344,7 +344,7 @@ pub fn resize_pty(
     cols: u16,
     services: tauri::State<'_, std::sync::Arc<tterm_core::services::AppServices>>,
 ) -> Result<(), String> {
-    let app = crate::connection_context::connection(&services);
+    let app = tterm_core::connection_context::connection(&services);
     let state = services.session.ptys.clone();
     resize_pty_service(
         app,
@@ -414,7 +414,7 @@ pub fn kill_pty(
     session_nonce: u32,
     services: tauri::State<'_, std::sync::Arc<tterm_core::services::AppServices>>,
 ) -> Result<(), String> {
-    let app = crate::connection_context::connection(&services);
+    let app = tterm_core::connection_context::connection(&services);
     let state = services.session.ptys.clone();
     let zmodem_state = services.session.zmodem.clone();
     let zmodem_armed_send_state = services.session.zmodem_armed_send.clone();
@@ -655,7 +655,7 @@ pub async fn write_saved_password_for_sudo(
     prompt: String,
     services: tauri::State<'_, std::sync::Arc<tterm_core::services::AppServices>>,
 ) -> Result<bool, String> {
-    let app = crate::connection_context::connection(&services);
+    let app = tterm_core::connection_context::connection(&services);
     let secret_state = services.shared.secrets.clone();
     write_saved_password_for_sudo_service(
         app,

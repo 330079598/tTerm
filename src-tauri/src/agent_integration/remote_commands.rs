@@ -15,7 +15,7 @@ pub async fn remote_agent_integration_status(
     connection: Option<PtyConnectionOptions>,
     services: tauri::State<'_, Arc<tterm_core::services::AppServices>>,
 ) -> Result<Vec<AgentIntegrationStatus>, String> {
-    let app = crate::connection_context::sftp(&services);
+    let app = tterm_core::connection_context::sftp(&services);
     let handles = SftpHost {
         app: &app,
         tab_id: &tab_id,
@@ -38,7 +38,7 @@ pub async fn change_remote_agent_integration(
     install: bool,
     services: tauri::State<'_, Arc<tterm_core::services::AppServices>>,
 ) -> Result<AgentIntegrationStatus, String> {
-    let app = crate::connection_context::sftp(&services);
+    let app = tterm_core::connection_context::sftp(&services);
     let handles = SftpHost {
         app: &app,
         tab_id: &tab_id,

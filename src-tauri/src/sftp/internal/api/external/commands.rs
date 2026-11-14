@@ -44,7 +44,7 @@ pub async fn sftp_external_edit_open(
 ) -> Result<Option<ExternalEdit>, String> {
     sftp_external_edit_open_service(
         SftpExternalEditOpenDependencies {
-            context: crate::connection_context::sftp(&services),
+            context: tterm_core::connection_context::sftp(&services),
             prompts: services.shared.prompts.clone(),
             secrets: services.shared.secrets.clone(),
             pool: services.sftp.pool.clone(),
@@ -89,7 +89,7 @@ pub async fn sftp_external_edit_upload(
 ) -> Result<UploadOutcome, String> {
     sftp_external_edit_upload_service(
         SftpExternalEditUploadDependencies {
-            context: crate::connection_context::sftp(&services),
+            context: tterm_core::connection_context::sftp(&services),
             prompts: services.shared.prompts.clone(),
             secrets: services.shared.secrets.clone(),
             pool: services.sftp.pool.clone(),

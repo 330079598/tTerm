@@ -23,7 +23,7 @@ pub async fn sftp_preview_delete_entries(
 ) -> Result<DeletePreviewResult, String> {
     sftp_preview_delete_entries_service(
         SftpPreviewDeleteEntriesDependencies {
-            context: crate::connection_context::sftp(&services),
+            context: tterm_core::connection_context::sftp(&services),
             prompts: services.shared.prompts.clone(),
             secrets: services.shared.secrets.clone(),
             pool: services.sftp.pool.clone(),
@@ -47,7 +47,7 @@ pub async fn sftp_delete_entries(
 ) -> Result<DeleteBatchStartResult, String> {
     sftp_delete_entries_service(
         SftpDeleteEntriesDependencies {
-            context: crate::connection_context::sftp(&services),
+            context: tterm_core::connection_context::sftp(&services),
             prompts: services.shared.prompts.clone(),
             secrets: services.shared.secrets.clone(),
             pool: services.sftp.pool.clone(),
@@ -73,7 +73,7 @@ pub async fn sftp_delete_entry(
 ) -> Result<(), String> {
     sftp_delete_entry_service(
         SftpDeleteEntryDependencies {
-            context: crate::connection_context::sftp(&services),
+            context: tterm_core::connection_context::sftp(&services),
             prompts: services.shared.prompts.clone(),
             secrets: services.shared.secrets.clone(),
             pool: services.sftp.pool.clone(),

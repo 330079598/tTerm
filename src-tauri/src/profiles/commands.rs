@@ -81,7 +81,7 @@ pub async fn test_connection(
     typed_password_tab_id: Option<String>,
 ) -> Result<TestConnectionResult, String> {
     service::test_connection(
-        crate::connection_context::connection(&services),
+        tterm_core::connection_context::connection(&services),
         profile,
         typed_password_tab_id,
         &services.shared.secrets,
