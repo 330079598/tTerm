@@ -27,12 +27,18 @@ pub mod cwd_reports;
 pub mod db;
 /// Distribution identity for the server monitor's icons.
 pub mod distro;
+/// Quoting for paths dropped onto a terminal, and the shell's `cd` line.
+pub mod dropped_paths;
 /// Typed events and delivery interfaces shared by client adapters.
 pub mod events;
+/// The name shown for the external editor.
+pub mod external_editor;
 /// The fonts installed on this computer, and their families.
 pub mod fonts;
 /// Application identity supplied by the client.
 pub mod identity;
+/// ECMAScript string behaviour the ported frontend modules rely on.
+mod js;
 /// Keyboard shortcut parsing, display, conflicts and dispatch.
 pub mod keymap;
 /// Keyword highlight configuration and editing.
@@ -45,6 +51,8 @@ pub mod launch_dir;
 pub mod login_script;
 /// Local and remote system monitoring: the metric collectors and snapshots.
 pub mod monitor;
+/// Filtering searchable option groups.
+pub mod option_search;
 /// Distribution reports from a local WSL launcher.
 pub mod os_reports;
 /// The number of characters a password prompt holds.
@@ -54,6 +62,8 @@ pub mod paste_guard;
 /// Application directories resolved by the client at startup.
 pub mod paths;
 
+/// The unseen-notification label and overlay size.
+pub mod notification_badge;
 /// Saved connection profiles and the OpenSSH config import.
 pub mod profiles;
 /// Prompt lifetimes shared by host keys, authentication and proxies.
@@ -74,6 +84,8 @@ pub mod session;
 pub mod session_log;
 /// The tabs and layout to restore on the next launch.
 pub mod session_restore;
+/// The settings search ranking.
+pub mod settings;
 /// Shared SFTP value and streaming types (P1-04).
 pub mod sftp;
 /// SSH connections, their authentication and the stores behind them.
@@ -86,6 +98,8 @@ pub mod system_integration;
 pub mod terminal;
 /// Notification requests and the rules for announcing them.
 pub mod terminal_notifications;
+/// The word search quick connect and the option lists share.
+pub mod text_search;
 /// Theme definitions, the bundled catalog, imports and custom themes.
 pub mod theme;
 /// The custom themes the user saved as rows in the database.
