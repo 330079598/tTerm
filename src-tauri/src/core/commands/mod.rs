@@ -1,17 +1,11 @@
-use std::io::Write;
 use std::sync::Arc;
-use std::sync::PoisonError;
 use tauri::{AppHandle, State};
-use tokio::sync::Mutex as TokioMutex;
 use tterm_core::core::arguments::GetSudoPasswordSourceInput;
 use tterm_core::core::arguments::HasSavedPasswordInput;
-use tterm_core::core::arguments::KillPtyInput;
 use tterm_core::core::arguments::ResetPtyConsoleInput;
-use tterm_core::core::arguments::ResizePtyInput;
 use tterm_core::core::arguments::RespondSshHostKeyPromptInput;
 use tterm_core::core::arguments::SudoPasswordContext;
 use tterm_core::core::arguments::WritePtyBatchInput;
-use tterm_core::core::arguments::WritePtyInput;
 use tterm_core::core::arguments::WriteSavedPasswordForSudoInput;
 use tterm_core::core::batch_write::AckPtyOutputInput;
 use tterm_core::core::batch_write::PtyWriteResult;
@@ -21,19 +15,12 @@ use tterm_core::core::batch_write::ack_pty_output_service;
 use tterm_core::core::batch_write::snapshot_batch_targets;
 use tterm_core::core::batch_write::write_guarded_batch;
 use tterm_core::core::blocking::run_blocking;
-use tterm_core::core::session::stop::StopPtyContext;
-use tterm_core::core::session::stop::stop_pty_session;
 use tterm_core::services::AppServices;
 use tterm_core::ssh::context::ConnectionContext;
 use tterm_core::ssh::secret_store::types::SecretStoreState;
-use tterm_core::{
-    core::state::ActiveSession, core::state::PtyMap, core::state::ZmodemArmedSendMap,
-    core::state::ZmodemManualDetectMap, core::state::ZmodemMap,
-};
+use tterm_core::{core::state::ActiveSession, core::state::PtyMap};
 
-use tterm_core::core::create::CreateContext;
 use tterm_core::core::create::PtyIdentity;
-use tterm_core::core::create::create_pty_blocking;
 
 /// Async so the work below runs off the main thread: reading saved passwords,
 /// waiting for the session map, and starting the shell (ConPTY, or the login
@@ -55,21 +42,12 @@ pub async fn create_pty(
     services: State<'_, Arc<AppServices>>,
 ) -> Result<u32, String> {
     let output_channel = crate::session_sink::output::new(output_channel.channel_on(webview));
-    let context = CreateContext {
-        connection: tterm_core::connection_context::connection(&services),
-        ptys: services.session.ptys.clone(),
-        secrets: services.shared.secrets.clone(),
-        runtime: services.shared.runtime.clone(),
-        zmodem: services.session.zmodem.clone(),
-        armed: services.session.zmodem_armed_send.clone(),
-        manual: services.session.zmodem_manual_detect.clone(),
-    };
     let sink: Arc<dyn tterm_core::session::sink::SessionSink> = Arc::new(
         crate::session_sink::TauriSessionSink::new(tab_id.clone(), app, output_channel.clone()),
     );
+    let services = Arc::clone(&services);
     run_blocking(move || {
-        create_pty_blocking(
-            context,
+        services.create_pty_blocking(
             PtyIdentity {
                 tab_id,
                 session_nonce,
@@ -84,54 +62,6 @@ pub async fn create_pty(
     .await
 }
 
-/// While a ZMODEM transfer occupies `tab_id`'s channel, ordinary keystrokes
-/// must not reach it (they'd corrupt the binary stream) — except Ctrl-C,
-/// which this treats as "cancel" the same way it would abort any other
-/// foreground program: flags the transfer so the reader thread/task cleans
-/// up on its next read, and best-effort writes the standard abort sequence
-/// straight to the peer. Returns `true` if the input was handled here (the
-/// caller's normal write must be skipped either way).
-fn intercept_zmodem_input(
-    zmodem_state: &ZmodemMap,
-    tab_id: &str,
-    session_nonce: u32,
-    data: &[u8],
-    active: &Arc<TokioMutex<Option<ActiveSession>>>,
-) -> bool {
-    let cancel_requested = {
-        let map = zmodem_state.read().unwrap_or_else(PoisonError::into_inner);
-        let handle = match map.get(tab_id) {
-            Some(handle) if handle.session_nonce == session_nonce => handle,
-            _ => return false,
-        };
-        data.contains(&0x03)
-            .then(|| handle.cancel_requested.clone())
-    };
-    if let Some(cancel_requested) = cancel_requested {
-        cancel_requested.store(true, std::sync::atomic::Ordering::Relaxed);
-        let mut guard = active.blocking_lock();
-        match guard.as_mut() {
-            Some(ActiveSession::Local(local)) => {
-                let _ = local
-                    .writer
-                    .write_all(&tterm_core::zmodem::session::abort_sequence());
-            }
-            Some(ActiveSession::Ssh(ssh)) => {
-                let _ = ssh
-                    .input_tx
-                    .send(tterm_core::zmodem::session::abort_sequence());
-            }
-            Some(ActiveSession::Serial(serial)) => {
-                let _ = serial
-                    .writer
-                    .write_all(&tterm_core::zmodem::session::abort_sequence());
-            }
-            None => {}
-        }
-    }
-    true
-}
-
 #[tauri::command]
 pub fn write_pty(
     tab_id: String,
@@ -139,75 +69,13 @@ pub fn write_pty(
     data: String,
     services: tauri::State<'_, std::sync::Arc<tterm_core::services::AppServices>>,
 ) -> Result<(), String> {
-    let app = tterm_core::connection_context::connection(&services);
-    let state = services.session.ptys.clone();
-    let zmodem_state = services.session.zmodem.clone();
-    write_pty_service(
-        app,
-        state,
-        zmodem_state,
-        WritePtyInput {
+    services.write_pty(
+        &tterm_core::prompts::SessionKey {
             tab_id,
             session_nonce,
-            data,
         },
+        data.as_bytes(),
     )
-}
-fn write_pty_service(
-    app: ConnectionContext,
-    state: PtyMap,
-    zmodem_state: ZmodemMap,
-    arguments: WritePtyInput,
-) -> Result<(), String> {
-    let WritePtyInput {
-        tab_id,
-        session_nonce,
-        data,
-    } = arguments;
-
-    let map = state.blocking_read();
-    let session = map
-        .get(&tab_id)
-        .ok_or_else(|| format!("PTY session {} not found", tab_id))?;
-    if session.session_nonce != session_nonce {
-        return Ok(());
-    }
-
-    let input = data.into_bytes();
-    if intercept_zmodem_input(
-        &zmodem_state,
-        &tab_id,
-        session_nonce,
-        &input,
-        &session.active,
-    ) {
-        return Ok(());
-    }
-
-    let mut active_guard = session.active.blocking_lock();
-    let active = active_guard
-        .as_mut()
-        .ok_or_else(|| format!("PTY session {} is reconnecting", tab_id))?;
-
-    let result = match active {
-        ActiveSession::Local(local) => local
-            .input
-            .send(input.clone())
-            .map_err(|e| format!("Failed to write to PTY: {}", e)),
-        ActiveSession::Ssh(ssh) => ssh
-            .input
-            .send(ssh.encoding.encode_input(&input).into_owned())
-            .map_err(|_| format!("PTY session {} is not writable", tab_id)),
-        ActiveSession::Serial(serial) => serial
-            .input
-            .send(serial.encode_input(&input).into_owned())
-            .map_err(|e| format!("Failed to write to the serial port: {}", e)),
-    };
-    if result.is_ok() {
-        session.sink.note_input();
-        tterm_core::session_log::record_input(&app.log, &tab_id, &input);
-    }
-    result
 }
 
 /// Soft-resets the console behind a local Windows session, which interprets
@@ -344,68 +212,14 @@ pub fn resize_pty(
     cols: u16,
     services: tauri::State<'_, std::sync::Arc<tterm_core::services::AppServices>>,
 ) -> Result<(), String> {
-    let app = tterm_core::connection_context::connection(&services);
-    let state = services.session.ptys.clone();
-    resize_pty_service(
-        app,
-        state,
-        ResizePtyInput {
+    services.resize_pty(
+        &tterm_core::prompts::SessionKey {
             tab_id,
             session_nonce,
-            rows,
-            cols,
         },
-    )
-}
-fn resize_pty_service(
-    app: ConnectionContext,
-    state: PtyMap,
-    arguments: ResizePtyInput,
-) -> Result<(), String> {
-    let ResizePtyInput {
-        tab_id,
-        session_nonce,
         rows,
         cols,
-    } = arguments;
-
-    let map = state.blocking_read();
-    let session = map
-        .get(&tab_id)
-        .ok_or_else(|| format!("PTY session {} not found", tab_id))?;
-    if session.session_nonce != session_nonce {
-        return Ok(());
-    }
-
-    // Record the size even while reconnecting so the next attempt adopts it.
-    session.size.store(rows, cols);
-
-    let mut active_guard = session.active.blocking_lock();
-    let active = active_guard
-        .as_mut()
-        .ok_or_else(|| format!("PTY session {} is reconnecting", tab_id))?;
-
-    let result = match active {
-        ActiveSession::Local(local) => local
-            .master
-            .resize(portable_pty::PtySize {
-                rows,
-                cols,
-                pixel_width: 0,
-                pixel_height: 0,
-            })
-            .map_err(|e| format!("Failed to resize PTY: {}", e)),
-        ActiveSession::Ssh(ssh) => ssh
-            .resize_tx
-            .send((rows, cols))
-            .map_err(|_| format!("PTY session {} is not resizable", tab_id)),
-        // A serial line has no terminal size; the size is still logged.
-        ActiveSession::Serial(_) => Ok(()),
-    };
-    if result.is_ok() {
-        tterm_core::session_log::record_resize(&app.log, &tab_id, rows, cols);
-    }
-    result
+    )
 }
 
 #[tauri::command]
@@ -414,61 +228,10 @@ pub fn kill_pty(
     session_nonce: u32,
     services: tauri::State<'_, std::sync::Arc<tterm_core::services::AppServices>>,
 ) -> Result<(), String> {
-    let app = tterm_core::connection_context::connection(&services);
-    let state = services.session.ptys.clone();
-    let zmodem_state = services.session.zmodem.clone();
-    let zmodem_armed_send_state = services.session.zmodem_armed_send.clone();
-    let zmodem_manual_detect_state = services.session.zmodem_manual_detect.clone();
-    kill_pty_service(
-        app,
-        state,
-        zmodem_state,
-        zmodem_armed_send_state,
-        zmodem_manual_detect_state,
-        KillPtyInput {
-            tab_id,
-            session_nonce,
-        },
-    )
-}
-fn kill_pty_service(
-    app: ConnectionContext,
-    state: PtyMap,
-    zmodem_state: ZmodemMap,
-    zmodem_armed_send_state: ZmodemArmedSendMap,
-    zmodem_manual_detect_state: ZmodemManualDetectMap,
-    KillPtyInput {
+    services.kill_pty(&tterm_core::prompts::SessionKey {
         tab_id,
         session_nonce,
-    }: KillPtyInput,
-) -> Result<(), String> {
-    let session = {
-        let mut sessions = state.blocking_write();
-        if sessions
-            .get(&tab_id)
-            .is_some_and(|session| session.session_nonce == session_nonce)
-        {
-            sessions.remove(&tab_id)
-        } else {
-            None
-        }
-    };
-
-    if let Some(session) = session {
-        stop_pty_session(
-            StopPtyContext {
-                prompts: &app.prompts,
-                tab_id: &tab_id,
-            },
-            session,
-            &zmodem_state,
-            &zmodem_armed_send_state,
-            &zmodem_manual_detect_state,
-        );
-        tterm_core::session_log::end_session(&app.log, &tab_id);
-    }
-
-    Ok(())
+    })
 }
 
 #[tauri::command]

@@ -103,6 +103,7 @@ pub fn spawn_reader_thread(
     log_output: ReaderLog,
 ) {
     thread::spawn(move || {
+        let _task = channel.tasks.begin();
         // Shared between the deliver closure and the final flush: the sender
         // must outlive both, so route it through interior mutability.
         let sender = std::sync::Mutex::new(sender);

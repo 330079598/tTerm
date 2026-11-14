@@ -1,3 +1,4 @@
+pub mod operations;
 pub mod saved_hops;
 pub mod stop;
 pub mod types;

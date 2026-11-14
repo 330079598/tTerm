@@ -31,8 +31,10 @@ pub fn stop_pty_session(
 
     if let Some(active) = session.active.blocking_lock().take() {
         match active {
-            ActiveSession::Local(mut local) => {
-                let _ = local.child.kill();
+            ActiveSession::Local(local) => {
+                if let Ok(mut child) = local.child.lock() {
+                    let _ = child.kill();
+                }
             }
             ActiveSession::Ssh(ssh) => {
                 ssh.task.abort();

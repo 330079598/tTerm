@@ -70,6 +70,7 @@ pub fn arm_send(channel: &ChannelContext, trigger_bytes: Vec<u8>) -> Sender<Vec<
         session_nonce,
         active,
         zmodem,
+        ..
     } = channel;
     let session_nonce = *session_nonce;
     let (tx, rx) = std::sync::mpsc::channel();

@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
-use std::sync::{Arc, Mutex as StdMutex, RwLock as StdRwLock};
+use std::sync::{Arc, Condvar, Mutex as StdMutex, RwLock as StdRwLock};
 use tokio::sync::{Mutex as TokioMutex, RwLock, mpsc, watch};
 
 pub type PtyMap = Arc<RwLock<HashMap<String, PtySession>>>;
@@ -54,6 +54,88 @@ pub type ZmodemArmedSendMap = Arc<StdMutex<HashMap<String, ZmodemArmedSend>>>;
 /// way to reach it is through shared state like this).
 pub type ZmodemManualDetectMap = Arc<StdMutex<HashMap<String, Arc<AtomicBool>>>>;
 
+/// Tracks every thread and task that belongs to one terminal session.
+///
+/// Closing a session only requests that its work stops. This tracker lets a
+/// caller wait until that request has actually completed before dropping the
+/// client or test runtime.
+#[derive(Clone, Default)]
+pub struct SessionTasks {
+    inner: Arc<SessionTaskState>,
+}
+
+#[derive(Default)]
+struct SessionTaskState {
+    pending: StdMutex<usize>,
+    idle: Condvar,
+}
+
+impl SessionTasks {
+    /// Counts one newly spawned session thread or task.
+    pub fn begin(&self) -> SessionTaskGuard {
+        *self
+            .inner
+            .pending
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner()) += 1;
+        SessionTaskGuard {
+            tasks: self.clone(),
+        }
+    }
+
+    /// Returns how many session threads and tasks are still running.
+    pub fn pending(&self) -> usize {
+        *self
+            .inner
+            .pending
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
+    }
+
+    /// Waits until every counted thread and task has finished.
+    pub fn wait_idle(&self, timeout: std::time::Duration) -> bool {
+        let deadline = std::time::Instant::now() + timeout;
+        let mut pending = self
+            .inner
+            .pending
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        while *pending != 0 {
+            let remaining = deadline.saturating_duration_since(std::time::Instant::now());
+            if remaining.is_zero() {
+                return false;
+            }
+            let (next, _) = self
+                .inner
+                .idle
+                .wait_timeout(pending, remaining)
+                .unwrap_or_else(|poisoned| poisoned.into_inner());
+            pending = next;
+        }
+        true
+    }
+}
+
+/// Keeps one session thread or task counted until it is dropped.
+pub struct SessionTaskGuard {
+    tasks: SessionTasks,
+}
+
+impl Drop for SessionTaskGuard {
+    fn drop(&mut self) {
+        let mut pending = self
+            .tasks
+            .inner
+            .pending
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        *pending = pending.saturating_sub(1);
+        if *pending == 0 {
+            self.tasks.inner.idle.notify_all();
+        }
+    }
+}
+
 /// One tab's ZMODEM state, shared by every reader of its channel.
 #[derive(Clone)]
 pub struct TabZmodem {
@@ -72,6 +154,7 @@ pub struct ChannelContext {
     pub session_nonce: u32,
     pub active: Arc<TokioMutex<Option<ActiveSession>>>,
     pub zmodem: TabZmodem,
+    pub tasks: SessionTasks,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -135,6 +218,8 @@ pub struct PtySession {
     pub output: crate::terminal::output::TerminalOutput,
     /// Shares output flow and lifecycle delivery across this tab's attempts.
     pub sink: Arc<dyn crate::session::sink::SessionSink>,
+    /// Threads and tasks that must finish after this session closes.
+    pub tasks: SessionTasks,
     /// Serial: how the tab shows what it receives, which its bar can change
     /// while the device is away too.
     pub serial_view: Option<Arc<crate::serial::SerialView>>,
