@@ -1,19 +1,19 @@
-use std::sync::PoisonError;
-use tterm_core::core::state::{
+use crate::core::state::{
     ActiveSession, PtySession, ZmodemArmedSendMap, ZmodemManualDetectMap, ZmodemMap,
 };
+use std::sync::PoisonError;
 
 /// The prompt broker and tab that identify the session being stopped.
-pub(crate) struct StopPtyContext<'a> {
+pub struct StopPtyContext<'a> {
     /// Broker used to cancel prompts owned by the session.
-    pub(crate) prompts: &'a tterm_core::prompts::PromptBroker,
+    pub prompts: &'a crate::prompts::PromptBroker,
     /// Tab that owns the session.
-    pub(crate) tab_id: &'a str,
+    pub tab_id: &'a str,
 }
 
 /// Stops a PTY session, cancels its prompts, closes its output, and removes
 /// its ZMODEM and supervisor state.
-pub(crate) fn stop_pty_session(
+pub fn stop_pty_session(
     context: StopPtyContext<'_>,
     session: PtySession,
     zmodem_state: &ZmodemMap,
@@ -21,7 +21,7 @@ pub(crate) fn stop_pty_session(
     zmodem_manual_detect_state: &ZmodemManualDetectMap,
 ) {
     let StopPtyContext { prompts, tab_id } = context;
-    prompts.cancel_session(&tterm_core::prompts::SessionKey {
+    prompts.cancel_session(&crate::prompts::SessionKey {
         tab_id: tab_id.to_string(),
         session_nonce: session.session_nonce,
     });

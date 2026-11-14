@@ -2,9 +2,12 @@
 //! the tokio runtime and resuming agents where they left off.
 
 pub mod agent_resume;
+pub mod arguments;
+pub mod batch_write;
 pub mod blocking;
 #[cfg(test)]
 pub mod channel_test_support;
+pub mod create;
 pub mod login_shell;
 pub mod runtime;
 pub mod session;

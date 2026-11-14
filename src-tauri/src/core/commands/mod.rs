@@ -1,21 +1,29 @@
-mod arguments;
 use crate::services::AppServices;
-use crate::{core::session::stop::StopPtyContext, core::session::stop::stop_pty_session};
-use arguments::{
-    GetSudoPasswordSourceInput, HasSavedPasswordInput, KillPtyInput, ResetPtyConsoleInput,
-    ResizePtyInput, RespondSshHostKeyPromptInput, SudoPasswordContext, WritePtyBatchInput,
-    WritePtyInput, WriteSavedPasswordForSudoInput,
-};
-use batch_write::{
-    AckPtyOutputInput, PtyWriteResult, PtyWriteStatus, PtyWriteTarget, ack_pty_output_service,
-    snapshot_batch_targets, write_guarded_batch,
-};
 use std::io::Write;
 use std::sync::Arc;
 use std::sync::PoisonError;
 use tauri::{AppHandle, State};
 use tokio::sync::Mutex as TokioMutex;
+use tterm_core::core::arguments::GetSudoPasswordSourceInput;
+use tterm_core::core::arguments::HasSavedPasswordInput;
+use tterm_core::core::arguments::KillPtyInput;
+use tterm_core::core::arguments::ResetPtyConsoleInput;
+use tterm_core::core::arguments::ResizePtyInput;
+use tterm_core::core::arguments::RespondSshHostKeyPromptInput;
+use tterm_core::core::arguments::SudoPasswordContext;
+use tterm_core::core::arguments::WritePtyBatchInput;
+use tterm_core::core::arguments::WritePtyInput;
+use tterm_core::core::arguments::WriteSavedPasswordForSudoInput;
+use tterm_core::core::batch_write::AckPtyOutputInput;
+use tterm_core::core::batch_write::PtyWriteResult;
+use tterm_core::core::batch_write::PtyWriteStatus;
+use tterm_core::core::batch_write::PtyWriteTarget;
+use tterm_core::core::batch_write::ack_pty_output_service;
+use tterm_core::core::batch_write::snapshot_batch_targets;
+use tterm_core::core::batch_write::write_guarded_batch;
 use tterm_core::core::blocking::run_blocking;
+use tterm_core::core::session::stop::StopPtyContext;
+use tterm_core::core::session::stop::stop_pty_session;
 use tterm_core::ssh::context::ConnectionContext;
 use tterm_core::ssh::secret_store::types::SecretStoreState;
 use tterm_core::{
@@ -23,9 +31,9 @@ use tterm_core::{
     core::state::ZmodemManualDetectMap, core::state::ZmodemMap,
 };
 
-mod batch_write;
-mod create;
-use create::{CreateContext, PtyIdentity, create_pty_blocking};
+use tterm_core::core::create::CreateContext;
+use tterm_core::core::create::PtyIdentity;
+use tterm_core::core::create::create_pty_blocking;
 
 /// Async so the work below runs off the main thread: reading saved passwords,
 /// waiting for the session map, and starting the shell (ConPTY, or the login

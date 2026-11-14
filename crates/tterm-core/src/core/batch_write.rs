@@ -1,11 +1,11 @@
 //! Writing the same input to several sessions at once.
 
+use crate::core::state::{ActiveSession, PtyMap, PtySession};
+use crate::session::sink::SessionSink;
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 use tokio::sync::Mutex as TokioMutex;
-use tterm_core::core::state::{ActiveSession, PtyMap, PtySession};
-use tterm_core::session::sink::SessionSink;
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -52,14 +52,14 @@ impl PtyWriteResult {
 }
 
 /// Parsed-output bytes the webview reports as handled.
-pub(super) struct AckPtyOutputInput {
-    pub(super) tab_id: String,
-    pub(super) session_nonce: u32,
-    pub(super) bytes: usize,
+pub struct AckPtyOutputInput {
+    pub tab_id: String,
+    pub session_nonce: u32,
+    pub bytes: usize,
 }
 
 /// Lets a paused output sender continue once the webview has parsed `bytes`.
-pub(super) async fn ack_pty_output_service(
+pub async fn ack_pty_output_service(
     state: PtyMap,
     arguments: AckPtyOutputInput,
 ) -> Result<(), String> {
@@ -78,7 +78,7 @@ pub(super) async fn ack_pty_output_service(
     Ok(())
 }
 
-pub(super) enum BatchTarget {
+pub enum BatchTarget {
     Ready {
         tab_id: String,
         active: Arc<TokioMutex<Option<ActiveSession>>>,
@@ -87,7 +87,7 @@ pub(super) enum BatchTarget {
     Result(PtyWriteResult),
 }
 
-pub(super) fn snapshot_batch_targets(
+pub fn snapshot_batch_targets(
     sessions: &HashMap<String, PtySession>,
     targets: Vec<PtyWriteTarget>,
 ) -> Vec<BatchTarget> {
@@ -155,7 +155,7 @@ fn write_targets(targets: Vec<BatchTarget>, data: &[u8]) -> Vec<PtyWriteResult> 
         .collect()
 }
 
-pub(super) fn write_guarded_batch(
+pub fn write_guarded_batch(
     guard_target: Option<BatchTarget>,
     targets: Vec<BatchTarget>,
     data: &[u8],
