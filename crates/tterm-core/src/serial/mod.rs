@@ -9,6 +9,7 @@ pub(crate) mod ports;
 pub(crate) mod reconnect;
 pub mod send_store;
 pub mod session;
+pub mod settings;
 #[cfg(test)]
 mod tests;
 pub mod xmodem;
