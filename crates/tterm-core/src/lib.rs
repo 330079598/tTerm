@@ -82,6 +82,8 @@ pub mod sftp;
 pub mod shell_commands;
 /// SSH connections, their authentication and the stores behind them.
 pub mod ssh;
+/// A connection's shell integration choice and when a fallback is announced.
+pub mod ssh_shell_integration;
 /// Merging the records two devices wrote during sync.
 pub mod sync;
 /// Installing the shell-integration helpers on this computer.
