@@ -8,6 +8,7 @@
 pub mod archive;
 pub mod format;
 pub mod history;
+pub mod matcher;
 pub mod paths;
 pub mod sort;
 #[cfg(test)]
