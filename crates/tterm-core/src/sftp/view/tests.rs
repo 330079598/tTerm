@@ -6,10 +6,14 @@
 //! pass the stored text to the validator instead of a `Storage`.
 
 use crate::sftp::entry::SftpDirectoryEntry;
+use crate::sftp::view::format::{
+    MAX_EDIT_FILE_BYTES, format_bytes, format_timestamp, format_timestamp_at,
+};
 use crate::sftp::view::history::{
     EMPTY_SFTP_HISTORY, SFTP_HISTORY_LIMIT, SftpHistory, drop_sftp_history_entry,
     land_sftp_history, record_sftp_visit, sftp_history_target,
 };
+use crate::sftp::view::paths::{is_permission_denied, join_remote_path, parent_remote_path};
 use crate::sftp::view::sort::{
     DEFAULT_SFTP_VIEW_PREFERENCES, SftpSort, SftpSortColumn, SftpSortDirection, apply_sftp_view,
     format_octal_mode, next_sftp_sort, normalize_sftp_view_preferences, parse_octal_mode,
@@ -360,4 +364,53 @@ fn removes_an_entry_ahead_of_the_current_one() {
 fn never_removes_the_directory_on_screen() {
     let history = visit(&["/a", "/b"]);
     assert_eq!(drop_sftp_history_entry(&history, 1), history);
+}
+
+#[test]
+fn joins_and_goes_up_from_remote_paths_without_normalizing_the_text() {
+    assert_eq!(join_remote_path("/", "a"), "/a");
+    assert_eq!(join_remote_path("/srv", "a"), "/srv/a");
+    assert_eq!(join_remote_path("/srv/", "a"), "/srv//a");
+
+    assert_eq!(parent_remote_path("/a/b"), "/a");
+    assert_eq!(parent_remote_path("/a"), "/");
+    assert_eq!(parent_remote_path("/"), "/");
+    assert_eq!(parent_remote_path(""), "/");
+}
+
+#[test]
+fn recognizes_permission_denied_errors_without_case() {
+    assert!(is_permission_denied(Some("Permission denied")));
+    assert!(is_permission_denied(Some(
+        "permission denied (SSH_FX_PERMISSION_DENIED)"
+    )));
+    assert!(!is_permission_denied(None));
+}
+
+#[test]
+fn formats_sizes_with_the_drawers_units_and_precision() {
+    assert_eq!(format_bytes(None), "--");
+    assert_eq!(format_bytes(Some(0)), "0 B");
+    assert_eq!(format_bytes(Some(1023)), "1023 B");
+    assert_eq!(format_bytes(Some(1024)), "1.0 KB");
+    assert_eq!(format_bytes(Some(1280)), "1.3 KB");
+    assert_eq!(format_bytes(Some(1536)), "1.5 KB");
+    assert_eq!(format_bytes(Some(10_240)), "10 KB");
+    assert_eq!(format_bytes(Some(1024 * 1024 - 1)), "1024 KB");
+    assert_eq!(format_bytes(Some(5 * 1024 * 1024)), "5.0 MB");
+    assert_eq!(format_bytes(Some(1024_u64.pow(4))), "1.0 TB");
+    assert_eq!(MAX_EDIT_FILE_BYTES, 5_242_880);
+}
+
+#[test]
+fn formats_timestamps_in_local_time_and_leaves_zero_empty() {
+    use chrono::{Local, TimeZone};
+
+    assert_eq!(format_timestamp(None), "--");
+    assert_eq!(format_timestamp(Some(0)), "--");
+    let local = Local
+        .with_ymd_and_hms(2026, 1, 1, 9, 5, 7)
+        .single()
+        .expect("a local test time");
+    assert_eq!(format_timestamp_at(local), "2026-01-01 09:05:07");
 }

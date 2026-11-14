@@ -1,6 +1,7 @@
 pub mod operations;
 use crate::sftp::internal::api::permissions::PERMISSION_MASK;
 use crate::sftp::internal::connection::map_sftp_error;
+use crate::sftp::view::format::MAX_EDIT_FILE_BYTES;
 use russh_sftp::client::SftpSession;
 use russh_sftp::protocol::{FileAttributes, OpenFlags};
 use serde::{Deserialize, Serialize};
@@ -8,8 +9,6 @@ use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
 #[cfg(test)]
 mod tests;
-
-const MAX_EDIT_FILE_BYTES: u64 = 5 * 1024 * 1024;
 
 #[derive(Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
