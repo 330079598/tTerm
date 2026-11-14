@@ -76,6 +76,8 @@ pub mod session_log;
 pub mod session_restore;
 /// Shared SFTP value and streaming types (P1-04).
 pub mod sftp;
+/// Splitting the compose bar's text into the commands a shell reads.
+pub mod shell_commands;
 /// SSH connections, their authentication and the stores behind them.
 pub mod ssh;
 /// Merging the records two devices wrote during sync.
