@@ -1,5 +1,6 @@
 use crate::core::blocking::run_blocking;
 use crate::core::session::saved_hops::load_saved_hop_password;
+use crate::profiles::connection::connection_options_for_profile;
 use crate::profiles::types::SavedProfile;
 use crate::ssh::context::ConnectionContext;
 use crate::ssh::secret_store::types::SecretStoreState;
@@ -21,7 +22,6 @@ use crate::{
     core::session::load_saved_ssh_password, core::session::normalize_connection,
     core::session::resolve_ssh_password,
 };
-use crate::{core::session::types::JumpHostOptions, core::session::types::PtyConnectionOptions};
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -172,55 +172,6 @@ impl TunnelManager {
             }
         }
     }
-}
-
-/// Builds the connection a tunnel dials from the saved profile it points at.
-/// Secrets are left unset; `resolve_ssh_password` fills them from the store.
-fn connection_options_for_profile(profile: &SavedProfile) -> Result<PtyConnectionOptions, String> {
-    if profile.connection_type != "ssh" {
-        return Err(format!("'{}' is not an SSH connection", profile.name));
-    }
-    let uses_key = profile.auth_method.as_deref() == Some("key");
-    let jump_hosts = if profile.uses_jump_host() {
-        profile
-            .jump_hosts
-            .iter()
-            .map(|jump| JumpHostOptions {
-                host: Some(jump.host.clone()),
-                port: Some(jump.port),
-                username: Some(jump.username.clone()),
-                password: None,
-                auth_method: Some(jump.auth_method.clone()),
-                private_key_path: (jump.auth_method == "key")
-                    .then(|| jump.private_key_path.clone())
-                    .flatten(),
-                private_key_passphrase: None,
-                certificate_path: (jump.auth_method == "key")
-                    .then(|| jump.certificate_path.clone())
-                    .flatten(),
-                profile_id: jump.profile_id.clone(),
-            })
-            .collect()
-    } else {
-        Vec::new()
-    };
-
-    Ok(PtyConnectionOptions {
-        connection_type: Some("ssh".to_string()),
-        profile_id: Some(profile.id.clone()),
-        profile_name: Some(profile.name.clone()),
-        host: profile.host.clone(),
-        port: profile.port,
-        username: profile.username.clone(),
-        keepalive_interval_secs: Some(profile.keepalive_interval_secs.min(u16::MAX as u32) as u16),
-        keepalive_count_max: Some(profile.keepalive_count_max.min(u16::MAX as u32) as u16),
-        private_key_path: uses_key.then(|| profile.private_key_path.clone()).flatten(),
-        certificate_path: uses_key.then(|| profile.certificate_path.clone()).flatten(),
-        auth_method: profile.auth_method.clone(),
-        jump_hosts,
-        proxy: profile.proxy.clone(),
-        ..PtyConnectionOptions::default()
-    })
 }
 
 fn find_profile(profile_id: &str) -> Result<SavedProfile, String> {
@@ -403,52 +354,4 @@ pub async fn auto_start_tunnels_service(
         start_unattended(context, manager, &rule.id).await;
     }
     Ok(())
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    fn profile(json: serde_json::Value) -> SavedProfile {
-        serde_json::from_value(json).expect("profile should deserialize")
-    }
-
-    #[test]
-    fn options_carry_key_auth_and_enabled_jump_hosts() {
-        let profile = profile(serde_json::json!({
-            "id": "p1", "name": "prod", "connection_type": "ssh",
-            "host": "10.0.0.5", "port": 2222, "username": "deploy",
-            "auth_method": "key", "private_key_path": "/keys/id",
-            "use_jump_host": true,
-            "jump_hosts": [{"host": "bastion", "port": 22, "username": "ops", "auth_method": "password"}]
-        }));
-        let options = connection_options_for_profile(&profile).unwrap();
-        assert_eq!(options.host.as_deref(), Some("10.0.0.5"));
-        assert_eq!(options.port, Some(2222));
-        assert_eq!(options.private_key_path.as_deref(), Some("/keys/id"));
-        assert_eq!(options.jump_hosts.len(), 1);
-        assert_eq!(options.jump_hosts[0].host.as_deref(), Some("bastion"));
-    }
-
-    #[test]
-    fn options_skip_a_disabled_jump_chain_and_password_profiles_carry_no_key() {
-        let profile = profile(serde_json::json!({
-            "id": "p1", "name": "prod", "connection_type": "ssh",
-            "host": "h", "username": "u", "auth_method": "password",
-            "private_key_path": "/stale/key",
-            "use_jump_host": false,
-            "jump_hosts": [{"host": "bastion", "port": 22, "username": "ops"}]
-        }));
-        let options = connection_options_for_profile(&profile).unwrap();
-        assert!(options.jump_hosts.is_empty());
-        assert!(options.private_key_path.is_none());
-    }
-
-    #[test]
-    fn non_ssh_profiles_are_rejected() {
-        let profile = profile(serde_json::json!({
-            "id": "p1", "name": "local", "connection_type": "terminal"
-        }));
-        assert!(connection_options_for_profile(&profile).is_err());
-    }
 }

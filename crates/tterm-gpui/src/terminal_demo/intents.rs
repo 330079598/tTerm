@@ -1,15 +1,13 @@
 //! What the prototype does with the model's intents (terminal-design.md 3.3).
 //!
-//! Replies are built on the parser thread in intent order and go to the same
-//! ordered write channel as user input, so two answers can never swap places.
-
-use std::sync::mpsc::Sender;
+//! Replies are built on the parser thread in intent order and are sent through
+//! `AppServices`, so they use the same ordered path as user input.
 
 use tterm_terminal::color::Rgb;
 use tterm_terminal::event::Intent;
 use tterm_terminal::palette::TerminalPalette;
 
-use super::pipeline::{SessionState, WriteMessage};
+use super::pipeline::SessionState;
 
 /// The window title before a program sets one, and after it resets it.
 pub(super) const DEFAULT_TITLE: &str = "tTerm GPUI Dev";
@@ -20,17 +18,17 @@ pub(super) const DEFAULT_TITLE: &str = "tTerm GPUI Dev";
 /// answered from the default palette rather than a copy the view keeps in
 /// sync. Clipboard reads get no answer and clipboard stores and the bell are
 /// ignored; P2 decides how the product handles them.
-pub(super) fn handle_intent(intent: Intent, state: &SessionState, writes: &Sender<WriteMessage>) {
+pub(super) fn handle_intent(intent: Intent, state: &SessionState, mut write: impl FnMut(Vec<u8>)) {
     match intent {
-        Intent::WriteToPty(bytes) => send(writes, bytes),
+        Intent::WriteToPty(bytes) => write(bytes),
         Intent::ColorRequest { index, format } => {
             if let Some(color) = palette_color(&TerminalPalette::default(), index) {
-                send(writes, format.format(color));
+                write(format.format(color));
             }
         }
         Intent::WindowSizeRequest { format } => {
             if let Ok(size) = state.size.lock() {
-                send(writes, format.format(*size));
+                write(format.format(*size));
             }
         }
         Intent::Title(title) => set_title(state, title),
@@ -41,11 +39,6 @@ pub(super) fn handle_intent(intent: Intent, state: &SessionState, writes: &Sende
         | Intent::ClipboardStore { .. }
         | Intent::Bell => {}
     }
-}
-
-fn send(writes: &Sender<WriteMessage>, bytes: Vec<u8>) {
-    // The writer is gone only while the session closes.
-    let _ = writes.send(WriteMessage::Bytes(bytes));
 }
 
 /// Keeps only the latest title, so a program that sets many titles quickly
@@ -79,4 +72,73 @@ fn palette_color(palette: &TerminalPalette, index: usize) -> Option<Rgb> {
         g: color.g,
         b: color.b,
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use std::sync::{Arc, Mutex};
+
+    use tterm_terminal::grid::{CellSize, GridSize, WindowSize};
+    use tterm_terminal::terminal::{Config, Terminal};
+
+    use super::{DEFAULT_TITLE, handle_intent};
+    use crate::terminal_demo::pipeline::SessionState;
+
+    fn state() -> (Arc<Terminal>, SessionState) {
+        let model = Arc::new(Terminal::new(
+            Config::default(),
+            GridSize {
+                columns: 80,
+                screen_lines: 24,
+            },
+            CellSize {
+                width: 8,
+                height: 16,
+            },
+        ));
+        let state = SessionState {
+            terminal: Arc::clone(&model),
+            size: Arc::new(Mutex::new(WindowSize {
+                grid: GridSize {
+                    columns: 80,
+                    screen_lines: 24,
+                },
+                cell: CellSize {
+                    width: 8,
+                    height: 16,
+                },
+            })),
+            title: Arc::new(Mutex::new(None)),
+        };
+        (model, state)
+    }
+
+    #[test]
+    fn query_replies_are_written_in_the_order_the_program_asked() {
+        let (model, state) = state();
+        model.write(b"\x1b]11;?\x07\x1b[14t");
+        let mut replies = Vec::new();
+        for intent in model.drain_intents() {
+            handle_intent(intent, &state, |bytes| replies.push(bytes));
+        }
+
+        assert_eq!(replies.len(), 2);
+        assert!(replies[0].starts_with(b"\x1b]11;rgb:"));
+        assert!(replies[0].ends_with(b"\x07"));
+        assert_eq!(replies[1], b"\x1b[4;384;640t");
+    }
+
+    #[test]
+    fn a_title_reset_returns_the_window_to_its_default() {
+        let (model, state) = state();
+        model.set_scrollback(500);
+        for intent in model.drain_intents() {
+            handle_intent(intent, &state, |_| {});
+        }
+
+        assert_eq!(
+            state.title.lock().expect("title").as_deref(),
+            Some(DEFAULT_TITLE)
+        );
+    }
 }

@@ -1,35 +1,46 @@
-//! P0-14's local PTY terminal prototype.
+//! The GPUI terminal runtime prototype.
 //!
-//! With no arguments it opens a window running the platform's default shell
-//! in a real PTY. `--ssh <target> [args...]` runs the system `ssh` there
-//! instead, and `--exec <program> [args...]` any program, which is how the
-//! P0 cards run fixed workloads in it. These are prototype shortcuts: P1-12
-//! opens local and SSH sessions through `AppServices` and removes the direct
-//! portable-pty and `ssh` calls.
+//! With no arguments it opens the configured local shell through
+//! `AppServices`. `--ssh <saved-profile-id-or-name>` opens a saved connection,
+//! and `--exec <program> [args...]` runs a local workload through the same
+//! service path as the Tauri client.
 
 mod command;
 mod conpty;
 mod intents;
 mod pipeline;
+mod prompt;
+mod runtime;
 mod session;
 mod window;
 
 #[cfg(all(feature = "automation", debug_assertions))]
 mod automation;
 
-#[cfg(test)]
-mod tests;
-
 use command::CommandSpec;
+use runtime::GpuiRuntime;
 
 /// Opens the prototype window and runs until it closes.
 pub fn run() {
     let arguments: Vec<String> = std::env::args().skip(1).collect();
-    match CommandSpec::from_args(&arguments) {
-        Ok(command) => window::run_window(command),
+    let command = match CommandSpec::from_args(&arguments) {
+        Ok(command) => command,
         Err(error) => {
             eprintln!("tterm-gpui: {error}");
             std::process::exit(2);
         }
-    }
+    };
+    let GpuiRuntime {
+        services,
+        events,
+        _runtime,
+    } = match runtime::start() {
+        Ok(runtime) => runtime,
+        Err(error) => {
+            eprintln!("tterm-gpui: {error}");
+            std::process::exit(1);
+        }
+    };
+    window::run_window(command, services, events);
+    drop(_runtime);
 }

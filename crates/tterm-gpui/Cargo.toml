@@ -2,7 +2,7 @@
 name = "tterm-gpui"
 version = "0.1.0"
 edition = "2024"
-description = "The GPUI client of tTerm; for now the P0-14 local PTY prototype"
+description = "The GPUI client of tTerm; currently a runtime prototype"
 license = "MIT"
 publish = false
 
@@ -30,13 +30,11 @@ workspace = true
 # Do not add a version here and do not select the `gpui-fast` feature: the
 # workspace pins the source and decision 007 keeps the official GPUI only.
 gpui-kit.workspace = true
+tterm-core = { path = "../tterm-core" }
+tterm-platform = { path = "../tterm-platform" }
 tterm-terminal-view = { path = "../tterm-terminal-view" }
 tterm-terminal = { path = "../tterm-terminal" }
-# The prototype's PTY and its wake channel. Both were already in Cargo.lock
-# through the Tauri application, so no new package or version is introduced.
-# P1-12 replaces the direct portable-pty use with AppServices.
-portable-pty = "0.9"
-async-channel = "2"
+tokio = { version = "=1.53.1", features = ["rt-multi-thread", "sync"] }
 image = { version = "=0.25.10", default-features = false, features = ["png"], optional = true }
 
 [dev-dependencies]
@@ -44,6 +42,7 @@ image = { version = "=0.25.10", default-features = false, features = ["png"], op
 # its screenshot; `profiler` enables GPUI's frame timings for the P0-10
 # drawing benchmark.
 gpui-kit = { workspace = true, features = ["test-support", "profiler"] }
+serde_json = "1"
 
 [target.'cfg(windows)'.dependencies]
 # Loads the bundled conpty.dll by full path; the version is the one pins.md
