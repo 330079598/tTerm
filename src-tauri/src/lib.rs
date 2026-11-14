@@ -58,7 +58,7 @@ pub struct TokioRuntimeState {
 #[cfg(target_os = "windows")]
 pub fn run_console_helper() -> Option<i32> {
     tterm_core::terminal::console_reset::run_helper_if_requested()
-        .or_else(agent_integration::console_report::run_helper_if_requested)
+        .or_else(tterm_core::agent_integration::console_report::run_helper_if_requested)
         .or_else(tterm_core::system_integration::run_installer_request)
 }
 

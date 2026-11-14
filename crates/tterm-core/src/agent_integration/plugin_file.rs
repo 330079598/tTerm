@@ -6,7 +6,8 @@
 use std::fs;
 use std::path::Path;
 
-use crate::{agent_integration::IntegrationState, agent_integration::REPORT_MARKER};
+use crate::agent_integration::IntegrationState;
+use crate::agent_integration::REPORT_MARKER;
 
 pub(super) struct PluginFile {
     /// Where the agent looks for it, under its config directory.
@@ -38,7 +39,7 @@ impl PluginFile {
 
     pub(super) fn install(&self, path: &Path) -> Result<(), String> {
         self.state(path)?;
-        tterm_core::config::atomic::atomic_write(path, self.content)
+        crate::config::atomic::atomic_write(path, self.content)
     }
 
     /// Also removes the folder it had to itself, when that is left empty.

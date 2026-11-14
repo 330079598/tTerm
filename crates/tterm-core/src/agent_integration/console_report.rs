@@ -20,7 +20,7 @@ use windows::Win32::System::Diagnostics::ToolHelp::{
 use windows::core::w;
 
 use crate::agent_integration::REPORT_ARG;
-use tterm_core::terminal::console_reset::{with_console, write_sequence};
+use crate::terminal::console_reset::{with_console, write_sequence};
 
 /// The most of the hook's input read for the session's id.
 const MAX_INPUT_BYTES: u64 = 1 << 20;

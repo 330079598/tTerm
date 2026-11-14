@@ -1,7 +1,7 @@
 use std::fs;
 
 use crate::agent_integration::remote::*;
-use tterm_core::sftp::internal::transfer::test_server::{ServerOptions, TestServer};
+use crate::sftp::internal::transfer::test_server::{ServerOptions, TestServer};
 
 fn env(pairs: &[(&str, &str)]) -> HashMap<String, String> {
     pairs
@@ -190,7 +190,7 @@ async fn writes_a_symlinked_settings_file_through_the_link() {
 #[tokio::test]
 #[ignore = "spawns a real sshd; run with --ignored real_sshd"]
 async fn real_sshd_reads_the_home_directory_and_each_agents_place() {
-    use tterm_core::ssh::test_sshd::TestSshd;
+    use crate::ssh::test_sshd::TestSshd;
 
     let sshd = TestSshd::spawn(12358, &["-t", "ed25519"], "Subsystem sftp internal-sftp\n").await;
     let (ssh, sftp) = sshd.sftp_session().await;

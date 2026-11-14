@@ -4,6 +4,8 @@
 //! The code lives in `src-tauri/src` today and moves here in P1, so this crate
 //! is empty until then.
 
+/// Hooks and plugins installed into AI coding agents so they report what they do.
+pub mod agent_integration;
 /// Agent status reports and the tracker that follows them.
 pub mod agent_status;
 /// The state the app keeps for itself rather than as user settings.
