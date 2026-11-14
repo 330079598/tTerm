@@ -1,6 +1,7 @@
 //! Terminal session logs: their files on disk and the screen they replay.
 
 pub mod library;
+pub mod replay;
 pub mod screen;
 use crate::events::session_log::TerminalLogStatus;
 use crate::events::session_log::{LogErrorPayload, LogErrorPhase, SessionLogEvent};

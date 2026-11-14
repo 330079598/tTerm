@@ -4,3 +4,4 @@ pub mod entry;
 pub mod internal;
 pub mod search;
 pub mod store;
+pub mod view;

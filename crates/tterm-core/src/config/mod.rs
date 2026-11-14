@@ -1,6 +1,6 @@
 //! Configuration values both clients keep: the config directory, keymap
-//! overrides, keyword highlight sets, split pane layouts, tab icons and the
-//! update channel.
+//! overrides, keyword highlight sets, split pane layouts, tab icons, the
+//! update channel, the monitor bar and the SFTP drawer's first directory.
 
 pub mod atomic;
 mod defaults;
@@ -8,9 +8,11 @@ mod deserialize;
 pub mod keymap;
 pub mod keyword_highlight;
 pub mod local_shells;
+pub mod monitor_metrics;
 pub mod panes;
 pub mod paths;
 pub mod reconnect;
+pub mod sftp_start_directory;
 pub mod tab_agent_indicator;
 pub mod tab_icons;
 pub mod update_channel;
