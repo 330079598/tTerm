@@ -229,17 +229,17 @@ fn add_wanted() -> i32 {
         return 1;
     };
     let mut code = 0;
-    if choices::wanted(&data, Addition::ShellCommand) {
-        if let Err(error) = shell_command::set_installed(&data.join(BIN), true, "") {
-            eprintln!("Failed to add the tterm command: {error}");
-            code = 1;
-        }
+    if choices::wanted(&data, Addition::ShellCommand)
+        && let Err(error) = shell_command::set_installed(&data.join(BIN), true, "")
+    {
+        eprintln!("Failed to add the tterm command: {error}");
+        code = 1;
     }
-    if choices::wanted(&data, Addition::FolderMenu) {
-        if let Err(error) = FolderMenu.set_installed(true, FOLDER_MENU_LABELS[0].1) {
-            eprintln!("Failed to add the folder menu: {error}");
-            code = 1;
-        }
+    if choices::wanted(&data, Addition::FolderMenu)
+        && let Err(error) = FolderMenu.set_installed(true, FOLDER_MENU_LABELS[0].1)
+    {
+        eprintln!("Failed to add the folder menu: {error}");
+        code = 1;
     }
     code
 }
@@ -247,11 +247,11 @@ fn add_wanted() -> i32 {
 #[cfg(target_os = "windows")]
 fn remove_all() -> i32 {
     let mut code = 0;
-    if let Some(data) = helper_data_dir() {
-        if let Err(error) = shell_command::set_installed(&data.join(BIN), false, "") {
-            eprintln!("Failed to remove the tterm command: {error}");
-            code = 1;
-        }
+    if let Some(data) = helper_data_dir()
+        && let Err(error) = shell_command::set_installed(&data.join(BIN), false, "")
+    {
+        eprintln!("Failed to remove the tterm command: {error}");
+        code = 1;
     }
     if let Err(error) = FolderMenu.set_installed(false, "") {
         eprintln!("Failed to remove the folder menu: {error}");
