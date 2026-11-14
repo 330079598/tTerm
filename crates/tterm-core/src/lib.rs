@@ -16,9 +16,13 @@ pub mod backup;
 pub mod command_library;
 /// Command lines, timing and shell-integration marks for one terminal.
 pub mod command_tracking;
+/// The compose bar's input and line-by-line run rules.
+pub mod composer;
 /// Configuration values both clients keep: the config directory, keymap
 /// overrides, keyword highlight sets, split pane layouts and tab icons.
 pub mod config;
+/// The connection launcher's client-side models.
+pub mod connections;
 /// Cross-cutting services shared by the clients, such as the blocking worker.
 pub mod core;
 /// Follows local and remote shell directory reports.
