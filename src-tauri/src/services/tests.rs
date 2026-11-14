@@ -8,10 +8,10 @@ use crate::background::CloseBehaviorState;
 use crate::background::exit_guard::ExitGuardState;
 use crate::background::quit::QuitState;
 use crate::background::tray::TrayState;
-use crate::monitor::prompts::PendingMonitorPrompts;
 use crate::tunnel::manager::TunnelManager;
 use std::sync::Arc;
 use tterm_core::launch_dir::LaunchDirs;
+use tterm_core::monitor::prompts::PendingMonitorPrompts;
 use tterm_core::session_log::SessionLogState;
 use tterm_core::sftp::internal::api::external::ExternalEditState;
 use tterm_core::{

@@ -1,19 +1,19 @@
+use crate::core::session::types::SessionPlan;
+use crate::sftp::internal::exec::RemoteScript;
+use crate::ssh::context::ConnectionContext;
+use crate::{monitor::metrics::METRICS_SCRIPT, monitor::metrics::parse_metrics_output};
+use crate::{
+    monitor::types::MONITOR_SESSION_IDLE_TIMEOUT, monitor::types::MonitorSession,
+    monitor::types::MonitorSessionMap,
+};
+use crate::{
+    ssh::jump::connect::ConnectContext, ssh::jump::connect::SshTarget,
+    ssh::jump::connect::open_target_ssh_session, ssh::types::ConnectionStatusOptions,
+};
 use std::collections::HashMap;
 use std::sync::{Arc, LazyLock};
 use tokio::sync::Mutex;
 use tokio::time::Instant;
-use tterm_core::core::session::types::SessionPlan;
-use tterm_core::sftp::internal::exec::RemoteScript;
-use tterm_core::ssh::context::ConnectionContext;
-use tterm_core::{monitor::metrics::METRICS_SCRIPT, monitor::metrics::parse_metrics_output};
-use tterm_core::{
-    monitor::types::MONITOR_SESSION_IDLE_TIMEOUT, monitor::types::MonitorSession,
-    monitor::types::MonitorSessionMap,
-};
-use tterm_core::{
-    ssh::jump::connect::ConnectContext, ssh::jump::connect::SshTarget,
-    ssh::jump::connect::open_target_ssh_session, ssh::types::ConnectionStatusOptions,
-};
 
 /// A monitor connection that was refused for a reason retrying cannot fix:
 /// rejected credentials, a prompt nobody can answer, a rejected host key.
@@ -58,15 +58,15 @@ fn record_connect_failure(
     tab_id: &str,
     nonce: u32,
     fingerprint: &str,
-    owner: &tterm_core::prompts::PromptOwner,
-    error: &tterm_core::ssh::types::SshConnectError,
+    owner: &crate::prompts::PromptOwner,
+    error: &crate::ssh::types::SshConnectError,
 ) {
     // Release cancels first, then clears this cache. Check under the cache lock
     // so a late completion cannot insert between that check and the clear.
     let mut cache = refused();
     if !owner.is_closed()
         && !error.is_retryable()
-        && !matches!(error, tterm_core::ssh::types::SshConnectError::Cancelled(_))
+        && !matches!(error, crate::ssh::types::SshConnectError::Cancelled(_))
     {
         cache.insert(
             tab_id.to_string(),
@@ -130,7 +130,7 @@ pub(crate) async fn get_or_open_monitor_session(
     session_nonce: u32,
     plan: &SessionPlan,
     fingerprint: &str,
-    prompts: std::sync::Arc<tterm_core::prompts::PromptBroker>,
+    prompts: std::sync::Arc<crate::prompts::PromptBroker>,
     monitor_sessions: MonitorSessionMap,
 ) -> Result<Arc<Mutex<MonitorSession>>, String> {
     let MonitorContext {
@@ -188,10 +188,10 @@ pub(crate) async fn get_or_open_monitor_session(
             prompts: &prompts,
             status_options: ConnectionStatusOptions::QUIET,
             host_key_verification_mode:
-                tterm_core::ssh::types::HostKeyVerificationMode::PromptAndPersist,
+                crate::ssh::types::HostKeyVerificationMode::PromptAndPersist,
             // Monitoring starts on its own; a prompt would appear out of nowhere.
             prompt_owner: Some(&prompt_scope.scope.owner),
-            auth_prompter: &tterm_core::ssh::auth::AuthPrompter::Unavailable,
+            auth_prompter: &crate::ssh::auth::AuthPrompter::Unavailable,
         },
         SshTarget::from_plan(plan, &host, &username),
     )
@@ -231,7 +231,7 @@ pub(crate) async fn get_or_open_monitor_session(
 
 pub(crate) async fn collect_metrics_snapshot(
     monitor_session: Arc<Mutex<MonitorSession>>,
-) -> Result<tterm_core::monitor::types::ServerMetricsSnapshot, String> {
+) -> Result<crate::monitor::types::ServerMetricsSnapshot, String> {
     let mut session = monitor_session.lock().await;
     session.last_used_at = Instant::now();
     let channel_open_started_at = Instant::now();
@@ -393,14 +393,14 @@ mod tests {
 
     #[tokio::test]
     async fn cancelled_monitor_can_reopen_same_session_and_ask_again() {
+        use crate::events::{recording::RecordingEventSink, ssh::SshHostKeyPromptPayload};
+        use crate::prompts::{PromptBroker, PromptOutcome, PromptReply};
         use std::sync::{Arc, Mutex};
-        use tterm_core::events::{recording::RecordingEventSink, ssh::SshHostKeyPromptPayload};
-        use tterm_core::prompts::{PromptBroker, PromptOutcome, PromptReply};
         let tab = "p1-05-cancel-reopen";
         let sink = Arc::new(RecordingEventSink::default());
         let broker = Arc::new(PromptBroker::new(sink.clone()));
         let registry = crate::monitor::prompts::PendingMonitorPrompts::default();
-        broker.open_session(&tterm_core::prompts::SessionKey {
+        broker.open_session(&crate::prompts::SessionKey {
             tab_id: tab.into(),
             session_nonce: 1,
         });
@@ -416,12 +416,12 @@ mod tests {
             known_fingerprint: None,
         };
         let first =
-            tterm_core::prompt_scope::host_key(&broker, &scope.scope.owner, tab, payload("first"));
+            crate::prompt_scope::host_key(&broker, &scope.scope.owner, tab, payload("first"));
         registry.cancel(&broker, tab, Some(1));
         refused().remove(tab);
         // The connect task finishes only after release has cleared REFUSED.
         let slot = Mutex::new(None);
-        let error = tterm_core::ssh::host_key_prompt::resolve(first, &slot)
+        let error = crate::ssh::host_key_prompt::resolve(first, &slot)
             .await
             .unwrap_err();
         super::record_connect_failure(tab, 1, "fp", &scope.scope.owner, &error);
@@ -431,21 +431,17 @@ mod tests {
             1,
             "fp",
             &scope.scope.owner,
-            &tterm_core::ssh::types::SshConnectError::Permanent("late failure".into()),
+            &crate::ssh::types::SshConnectError::Permanent("late failure".into()),
         );
         assert!(remembered_refusal(tab, 1, "fp").is_none());
         assert!(matches!(
-            tterm_core::ssh::host_key_prompt::failure(&slot),
-            Some(tterm_core::ssh::types::SshConnectError::Cancelled(_))
+            crate::ssh::host_key_prompt::failure(&slot),
+            Some(crate::ssh::types::SshConnectError::Cancelled(_))
         ));
         let reopened = registry.begin(broker.clone(), tab, 1).unwrap();
-        let second = tterm_core::prompt_scope::host_key(
-            &broker,
-            &reopened.scope.owner,
-            tab,
-            payload("second"),
-        )
-        .unwrap();
+        let second =
+            crate::prompt_scope::host_key(&broker, &reopened.scope.owner, tab, payload("second"))
+                .unwrap();
         broker.reply_host_key("second", true).unwrap();
         assert_eq!(
             second.wait().await.unwrap(),
@@ -456,8 +452,8 @@ mod tests {
                 .iter()
                 .filter(|event| matches!(
                     event,
-                    tterm_core::events::AppEvent::Ssh(
-                        tterm_core::events::ssh::SshEvent::HostKeyPrompt { .. }
+                    crate::events::AppEvent::Ssh(
+                        crate::events::ssh::SshEvent::HostKeyPrompt { .. }
                     )
                 ))
                 .count(),

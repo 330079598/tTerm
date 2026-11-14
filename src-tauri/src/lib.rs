@@ -90,7 +90,7 @@ pub fn run() {
     let runtime_handle = runtime.handle().clone();
     let external_edit_state =
         Arc::new(tterm_core::sftp::internal::api::external::ExternalEditState::default());
-    let monitor_prompts = Arc::new(monitor::prompts::PendingMonitorPrompts::default());
+    let monitor_prompts = Arc::new(tterm_core::monitor::prompts::PendingMonitorPrompts::default());
     let pending_updates = Arc::new(tterm_core::updater::PendingUpdateDownloads::default());
     let secret_store = tterm_core::ssh::secret_store::types::SecretStoreState::new();
     tterm_core::ssh::key_vault::install(secret_store.clone());

@@ -1,8 +1,8 @@
-use crate::{
-    monitor::GetServerMetricsSnapshotInput, monitor::ReleaseServerMonitorSessionInput,
-    monitor::get_server_metrics_snapshot_service, monitor::release_server_monitor_session_service,
-};
 use tterm_core::core::session::types::PtyConnectionOptions;
+use tterm_core::monitor::GetServerMetricsSnapshotInput;
+use tterm_core::monitor::ReleaseServerMonitorSessionInput;
+use tterm_core::monitor::get_server_metrics_snapshot_service;
+use tterm_core::monitor::release_server_monitor_session_service;
 use tterm_core::monitor::types::ServerMetricsSnapshot;
 
 #[tauri::command]

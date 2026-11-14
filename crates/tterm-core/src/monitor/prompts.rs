@@ -1,17 +1,17 @@
 //! Pending monitor connections are distinct from the terminal sharing their tab.
+use crate::prompts::{PromptBroker, PromptOwner, SessionKey};
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
-use tterm_core::prompts::{PromptBroker, PromptOwner, SessionKey};
 
 type Owners = HashMap<String, Vec<(u32, PromptOwner)>>;
 #[derive(Default)]
-pub(crate) struct PendingMonitorPrompts(Mutex<Owners>);
+pub struct PendingMonitorPrompts(Mutex<Owners>);
 
 pub(super) struct MonitorPromptScope<'a> {
     registry: &'a PendingMonitorPrompts,
     tab_id: String,
     nonce: u32,
-    pub scope: tterm_core::prompt_scope::PromptScope,
+    pub scope: crate::prompt_scope::PromptScope,
 }
 
 impl PendingMonitorPrompts {
@@ -22,7 +22,7 @@ impl PendingMonitorPrompts {
         nonce: u32,
     ) -> Result<MonitorPromptScope<'_>, String> {
         let mut entries = self.0.lock().unwrap_or_else(|p| p.into_inner());
-        let scope = tterm_core::prompt_scope::PromptScope::new(
+        let scope = crate::prompt_scope::PromptScope::new(
             broker,
             Some(SessionKey {
                 tab_id: tab_id.to_string(),
@@ -76,7 +76,7 @@ mod tests {
     #[test]
     fn monitor_release_cancels_only_matching_monitor_owners() {
         let broker = Arc::new(PromptBroker::new(Arc::new(
-            tterm_core::events::recording::RecordingEventSink::default(),
+            crate::events::recording::RecordingEventSink::default(),
         )));
         let registry = PendingMonitorPrompts::default();
         broker.open_session(&SessionKey {
