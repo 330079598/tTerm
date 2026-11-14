@@ -1,6 +1,8 @@
 //! Serial connections: the settings a serial tab opens its port with, the
 //! ports this machine has, and the commands behind a serial tab's controls.
 
+pub mod echo;
+pub mod hex;
 pub mod history;
 pub mod io;
 mod open;
