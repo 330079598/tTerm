@@ -6,5 +6,6 @@ pub mod group_service;
 pub mod groups;
 pub mod import;
 pub mod parser;
+pub mod service;
 pub mod storage;
 pub mod types;

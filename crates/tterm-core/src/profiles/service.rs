@@ -1,46 +1,46 @@
-use tterm_core::events::ssh::SshConnectionProgressPayload;
-use tterm_core::profiles::types::TestConnectionResult;
+use crate::events::ssh::SshConnectionProgressPayload;
+use crate::profiles::types::TestConnectionResult;
 
-use tterm_core::config::tab_icons::TabIconStyle;
-use tterm_core::core::blocking::run_blocking;
-use tterm_core::profiles::groups::group_paths;
-use tterm_core::profiles::groups::list_groups;
-use tterm_core::profiles::groups::resolve_path;
-use tterm_core::proxy::command::CommandTarget;
-use tterm_core::ssh::jump::connect::{
+use crate::config::tab_icons::TabIconStyle;
+use crate::core::blocking::run_blocking;
+use crate::profiles::groups::group_paths;
+use crate::profiles::groups::list_groups;
+use crate::profiles::groups::resolve_path;
+use crate::proxy::command::CommandTarget;
+use crate::ssh::jump::connect::{
     ConnectContext, connect_first_hop, connect_via_jump_chain, open_proxy_stream,
 };
-use tterm_core::{
+use crate::{
     profiles::parser::build_ssh_config_import_preview, profiles::parser::resolve_config_host,
 };
-use tterm_core::{
+use crate::{
     profiles::storage::delete_profile_secrets, profiles::storage::get_profile,
     profiles::storage::list_saved_profiles, profiles::storage::load_profiles,
     profiles::storage::normalize_profile, profiles::storage::sanitize_profile,
     profiles::storage::upsert_profile,
 };
-use tterm_core::{
+use crate::{
     profiles::types::SavedProfile, profiles::types::SshConfigImportHost,
     profiles::types::SshConfigImportOptions, profiles::types::SshConfigImportPreview,
     profiles::types::SshConfigImportResult,
 };
 
-use std::collections::HashSet;
-use tterm_core::profiles::connection_check::authenticate_test_connection;
-use tterm_core::profiles::connection_check::test_connection_handler;
-use tterm_core::profiles::connection_check::test_session_plan;
-use tterm_core::profiles::import::import_ssh_config_profiles_blocking;
-use tterm_core::ssh::context::ConnectionContext;
-use tterm_core::ssh::secret_store::types::SecretStoreState;
-use tterm_core::tunnel::manager::TunnelManager;
-use tterm_core::{
+use crate::profiles::connection_check::authenticate_test_connection;
+use crate::profiles::connection_check::test_connection_handler;
+use crate::profiles::connection_check::test_session_plan;
+use crate::profiles::import::import_ssh_config_profiles_blocking;
+use crate::ssh::context::ConnectionContext;
+use crate::ssh::secret_store::types::SecretStoreState;
+use crate::tunnel::manager::TunnelManager;
+use crate::{
     ssh::secret_store::types::SecretLocation, ssh::types::ConnectionStatusOptions,
     ssh::types::HostKeyVerificationMode,
 };
+use std::collections::HashSet;
 
-pub(super) async fn list_profiles() -> Result<Vec<SavedProfile>, String> {
+pub async fn list_profiles() -> Result<Vec<SavedProfile>, String> {
     run_blocking(|| {
-        let (mut profiles, groups) = tterm_core::db::read(|connection| {
+        let (mut profiles, groups) = crate::db::read(|connection| {
             Ok((list_saved_profiles(connection)?, list_groups(connection)?))
         })?;
         let paths = group_paths(&groups);
@@ -57,30 +57,26 @@ pub(super) async fn list_profiles() -> Result<Vec<SavedProfile>, String> {
     .await
 }
 
-pub(super) async fn preview_ssh_config_import(
+pub async fn preview_ssh_config_import(
     source_path: Option<String>,
 ) -> Result<SshConfigImportPreview, String> {
     // Reads the config and every file it includes; keep that off the main thread.
-    tterm_core::core::blocking::run_blocking(move || build_ssh_config_import_preview(source_path))
-        .await
+    crate::core::blocking::run_blocking(move || build_ssh_config_import_preview(source_path)).await
 }
 
 /// What `~/.ssh/config` sets for a host typed into the launcher by a name it
 /// does not list, which its wildcard and `Match` blocks may still reach.
-pub(super) async fn resolve_ssh_config_host(
-    name: String,
-) -> Result<Option<SshConfigImportHost>, String> {
+pub async fn resolve_ssh_config_host(name: String) -> Result<Option<SshConfigImportHost>, String> {
     run_blocking(move || resolve_config_host(&name)).await
 }
 
-pub(super) async fn import_ssh_config_profiles(
+pub async fn import_ssh_config_profiles(
     options: SshConfigImportOptions,
 ) -> Result<SshConfigImportResult, String> {
-    tterm_core::core::blocking::run_blocking(move || import_ssh_config_profiles_blocking(options))
-        .await
+    crate::core::blocking::run_blocking(move || import_ssh_config_profiles_blocking(options)).await
 }
 
-pub(super) async fn save_profile(
+pub async fn save_profile(
     secret_state: &SecretStoreState,
     mut profile: SavedProfile,
     typed_password_tab_id: Option<String>,
@@ -93,14 +89,14 @@ pub(super) async fn save_profile(
     // Saving its passwords waits for startup to unlock saved passwords, which
     // may sit on a credential store prompt; keep that off the main thread.
     let secret_state = secret_state.clone();
-    tterm_core::core::blocking::run_blocking(move || store_profile(secret_state, profile)).await
+    crate::core::blocking::run_blocking(move || store_profile(secret_state, profile)).await
 }
 
 /// A profile saved (or tested) from a quick connection tab uses the
 /// passwords typed there, unless new ones were entered in the dialog.
 fn fill_typed_passwords(profile: &mut SavedProfile, tab_id: &str) {
     let typed = |host: &str, port: u16, username: &str| {
-        tterm_core::ssh::typed_passwords::get(tab_id, host, port, username)
+        crate::ssh::typed_passwords::get(tab_id, host, port, username)
             .map(|password| password.to_string())
     };
     let uses_password = !matches!(
@@ -121,7 +117,7 @@ fn fill_typed_passwords(profile: &mut SavedProfile, tab_id: &str) {
 }
 
 fn store_profile(
-    secret_state: tterm_core::ssh::secret_store::types::SecretStoreState,
+    secret_state: crate::ssh::secret_store::types::SecretStoreState,
     mut profile: SavedProfile,
 ) -> Result<(), String> {
     let group_path = profile.group_path.take();
@@ -153,7 +149,7 @@ fn store_profile(
     for jump in &profile.jump_hosts {
         if profile.remember_password && jump.auth_method != "key" {
             if let Some(password) = jump.password.as_deref().filter(|value| !value.is_empty()) {
-                let secret_key = tterm_core::core::session::types::jump_host_identity_secret_key(
+                let secret_key = crate::core::session::types::jump_host_identity_secret_key(
                     Some(profile.id.as_str()),
                     profile.name.as_str(),
                     &jump.host,
@@ -169,7 +165,7 @@ fn store_profile(
                 }
             }
         } else {
-            let secret_key = tterm_core::core::session::types::jump_host_identity_secret_key(
+            let secret_key = crate::core::session::types::jump_host_identity_secret_key(
                 Some(profile.id.as_str()),
                 profile.name.as_str(),
                 &jump.host,
@@ -178,7 +174,7 @@ fn store_profile(
             );
             let _ = secret_state.delete_password(&secret_key);
             if !profile.name.trim().is_empty() {
-                let name_key = tterm_core::core::session::types::jump_host_identity_secret_key(
+                let name_key = crate::core::session::types::jump_host_identity_secret_key(
                     None,
                     profile.name.as_str(),
                     &jump.host,
@@ -191,7 +187,7 @@ fn store_profile(
     }
 
     if profile.connection_type == "ssh" {
-        let sudo_key = tterm_core::core::session::types::sudo_secret_key(&profile.id);
+        let sudo_key = crate::core::session::types::sudo_secret_key(&profile.id);
         if profile.clear_sudo_password {
             let _ = secret_state.delete_password(&sudo_key);
         } else if let Some(password) = profile
@@ -211,14 +207,14 @@ fn store_profile(
 
     sanitize_profile(&mut profile);
 
-    let previous = tterm_core::db::read(|connection| get_profile(connection, &profile.id))?;
+    let previous = crate::db::read(|connection| get_profile(connection, &profile.id))?;
     profile.distro = previous
         .as_ref()
         .and_then(|previous| previous.distro_at(profile.host.as_deref(), profile.port));
     if let Some(mut previous) = previous {
         normalize_profile(&mut previous);
-        for summary in tterm_core::profiles::storage::profile_secret_summaries(&previous) {
-            if !tterm_core::profiles::storage::profile_secret_summaries(&profile)
+        for summary in crate::profiles::storage::profile_secret_summaries(&previous) {
+            if !crate::profiles::storage::profile_secret_summaries(&profile)
                 .iter()
                 .any(|current| current.key == summary.key)
             {
@@ -226,7 +222,7 @@ fn store_profile(
             }
         }
     }
-    tterm_core::db::write(|transaction| {
+    crate::db::write(|transaction| {
         if let Some(path) = group_path.as_deref() {
             profile.group_id = resolve_path(transaction, path)?;
         }
@@ -234,7 +230,7 @@ fn store_profile(
     })
 }
 
-pub(super) async fn delete_profile(
+pub async fn delete_profile(
     secret_state: &SecretStoreState,
     tunnels: &TunnelManager,
     id: String,
@@ -244,17 +240,15 @@ pub(super) async fn delete_profile(
     // point it at another host.
     tunnels.stop_for_profile(&id).await;
 
-    if let Some(mut profile) = tterm_core::db::read(|connection| get_profile(connection, &id))? {
+    if let Some(mut profile) = crate::db::read(|connection| get_profile(connection, &id))? {
         normalize_profile(&mut profile);
         delete_profile_secrets(secret_state, &profile)?;
     }
-    tterm_core::db::write(|transaction| {
-        tterm_core::profiles::storage::delete_profiles(transaction, &[id])
-    })?;
+    crate::db::write(|transaction| crate::profiles::storage::delete_profiles(transaction, &[id]))?;
     Ok(())
 }
 
-pub(super) async fn delete_profiles(
+pub async fn delete_profiles(
     secret_state: &SecretStoreState,
     tunnels: &TunnelManager,
     ids: Vec<String>,
@@ -272,29 +266,21 @@ pub(super) async fn delete_profiles(
         delete_profile_secrets(secret_state, &profile)?;
     }
     let ids = ids.into_iter().collect::<Vec<_>>();
-    tterm_core::db::write(|transaction| {
-        tterm_core::profiles::storage::delete_profiles(transaction, &ids)
-    })?;
+    crate::db::write(|transaction| crate::profiles::storage::delete_profiles(transaction, &ids))?;
     Ok(())
 }
 
-pub(super) async fn set_profile_server_monitor_visible(
-    id: String,
-    visible: bool,
-) -> Result<(), String> {
+pub async fn set_profile_server_monitor_visible(id: String, visible: bool) -> Result<(), String> {
     update_profile(id, move |profile| profile.server_monitor_visible = visible).await
 }
 
 /// Remembers the Linux distribution a profile's host runs, for its tabs' icon.
-pub(super) async fn set_profile_distro(id: String, distro: Option<String>) -> Result<(), String> {
+pub async fn set_profile_distro(id: String, distro: Option<String>) -> Result<(), String> {
     update_profile(id, move |profile| profile.distro = distro).await
 }
 
 /// Sets the icon a profile's tabs show; none shows the host's distribution.
-pub(super) async fn set_profile_tab_icon(
-    id: String,
-    icon: Option<TabIconStyle>,
-) -> Result<(), String> {
+pub async fn set_profile_tab_icon(id: String, icon: Option<TabIconStyle>) -> Result<(), String> {
     update_profile(id, move |profile| profile.tab_icon = icon).await
 }
 
@@ -304,7 +290,7 @@ async fn update_profile(
     change: impl FnOnce(&mut SavedProfile) + Send + 'static,
 ) -> Result<(), String> {
     run_blocking(move || {
-        tterm_core::db::write(|transaction| {
+        crate::db::write(|transaction| {
             if let Some(mut profile) = get_profile(transaction, &id)? {
                 change(&mut profile);
                 upsert_profile(transaction, &profile)?;
@@ -315,7 +301,7 @@ async fn update_profile(
     .await
 }
 
-pub(super) async fn test_connection(
+pub async fn test_connection(
     connection_context: ConnectionContext,
     mut profile: SavedProfile,
     typed_password_tab_id: Option<String>,
@@ -333,16 +319,16 @@ pub(super) async fn test_connection(
     let port = profile.port.unwrap_or(22);
     let test_tab_id = format!("test-{}", profile.id);
     let mut plan = test_session_plan(profile, &host, &username, port);
-    tterm_core::core::session::saved_hops::fill_from_saved_connections(&mut plan.jump_hosts)?;
+    crate::core::session::saved_hops::fill_from_saved_connections(&mut plan.jump_hosts)?;
 
     // The connection dialog listens on the test tab id while the test runs.
     let prompt_scope =
-        tterm_core::prompt_scope::PromptScope::new(connection_context.prompts.clone(), None)?;
-    let auth_prompter = tterm_core::ssh::auth::AuthPrompter::tab(&connection_context, &test_tab_id)
+        crate::prompt_scope::PromptScope::new(connection_context.prompts.clone(), None)?;
+    let auth_prompter = crate::ssh::auth::AuthPrompter::tab(&connection_context, &test_tab_id)
         .with_owner(&prompt_scope.owner);
-    tterm_core::core::session::resolve_ssh_password(secret_state, &mut plan)?;
+    crate::core::session::resolve_ssh_password(secret_state, &mut plan)?;
 
-    tterm_core::ssh::types::emit_connection_progress(
+    crate::ssh::types::emit_connection_progress(
         connection_context.events.as_ref(),
         &test_tab_id,
         ConnectionStatusOptions::SILENT,
@@ -368,18 +354,18 @@ pub(super) async fn test_connection(
         &host,
         port,
         connection_context.prompts.clone(),
-        tterm_core::profiles::connection_check::TestVerification {
+        crate::profiles::connection_check::TestVerification {
             mode: HostKeyVerificationMode::TrustUnknownForSession,
             owner: prompt_scope.owner.clone(),
         },
     );
-    let config = std::sync::Arc::new(tterm_core::ssh::jump::config::compatibility_client_config(
+    let config = std::sync::Arc::new(crate::ssh::jump::config::compatibility_client_config(
         plan.keepalive_interval_secs as u64,
         plan.keepalive_count_max as usize,
     ));
 
     let (jump_chain, mut session) = if plan.jump_hosts.is_empty() {
-        tterm_core::ssh::types::emit_connection_progress(
+        crate::ssh::types::emit_connection_progress(
             connection_context.events.as_ref(),
             &test_tab_id,
             ConnectionStatusOptions::SILENT,
@@ -402,12 +388,12 @@ pub(super) async fn test_connection(
         )
         .await
         .map_err(|_| "Connection timeout".to_string())?
-        .map_err(|e| {
-            match tterm_core::ssh::jump::config::unverifiable_host_key_error(&e) {
+        .map_err(
+            |e| match crate::ssh::jump::config::unverifiable_host_key_error(&e) {
                 Some(unverifiable) => unverifiable.to_string(),
                 None => format!("Connection failed: {}", e),
-            }
-        })?;
+            },
+        )?;
         (None, session)
     } else {
         let (chain, session) = connect_via_jump_chain(
@@ -423,7 +409,7 @@ pub(super) async fn test_connection(
         (Some(chain), session)
     };
 
-    tterm_core::ssh::types::emit_connection_progress(
+    crate::ssh::types::emit_connection_progress(
         connection_context.events.as_ref(),
         &test_tab_id,
         ConnectionStatusOptions::SILENT,
@@ -437,10 +423,8 @@ pub(super) async fn test_connection(
 
     authenticate_test_connection(&mut session, &host, port, &username, &plan, &auth_prompter)
         .await?;
-    let network_latency_ms = tterm_core::ssh::client::measure_ssh_latency(&session)
-        .await
-        .ok();
-    tterm_core::ssh::types::emit_connection_progress(
+    let network_latency_ms = crate::ssh::client::measure_ssh_latency(&session).await.ok();
+    crate::ssh::types::emit_connection_progress(
         connection_context.events.as_ref(),
         &test_tab_id,
         ConnectionStatusOptions::SILENT,
@@ -490,8 +474,8 @@ mod tests {
     #[test]
     fn saving_a_quick_connection_fills_in_the_passwords_typed_in_its_tab() {
         const TAB: &str = "profile-test-typed";
-        tterm_core::ssh::typed_passwords::remember(TAB, "db", 22, "root", "target-secret");
-        tterm_core::ssh::typed_passwords::remember(TAB, "bastion", 22, "ops", "jump-secret");
+        crate::ssh::typed_passwords::remember(TAB, "db", 22, "root", "target-secret");
+        crate::ssh::typed_passwords::remember(TAB, "bastion", 22, "ops", "jump-secret");
 
         let mut profile = quick_profile();
         fill_typed_passwords(&mut profile, TAB);
@@ -507,7 +491,7 @@ mod tests {
         fill_typed_passwords(&mut profile, TAB);
         assert_eq!(profile.password.as_deref(), Some("new-secret"));
 
-        tterm_core::ssh::typed_passwords::forget_typed_passwords(TAB.to_string());
+        crate::ssh::typed_passwords::forget_typed_passwords(TAB.to_string());
     }
 
     #[test]

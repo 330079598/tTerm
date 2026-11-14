@@ -1,7 +1,7 @@
-use crate::profiles::service;
 use crate::services::AppServices;
 use std::sync::Arc;
 use tterm_core::config::tab_icons::TabIconStyle;
+use tterm_core::profiles::service;
 use tterm_core::{
     profiles::types::SavedProfile, profiles::types::SshConfigImportHost,
     profiles::types::SshConfigImportOptions, profiles::types::SshConfigImportPreview,

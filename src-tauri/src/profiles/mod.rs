@@ -1,3 +1,4 @@
-pub(crate) mod commands;
+//! The Tauri profile commands; the profiles themselves live in
+//! [`tterm_core::profiles`].
 
-mod service;
+pub(crate) mod commands;
