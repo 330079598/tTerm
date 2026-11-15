@@ -236,6 +236,77 @@ fn accepted_shortcut_consumes_keydown_and_writes_no_bytes(cx: &mut TestAppContex
 }
 
 #[gpui_kit::test]
+fn default_gpui_arrow_names_route_to_handled_actions(cx: &mut TestAppContext) {
+    let h = Harness::new(cx, &[], false, EncoderConfig::default());
+    let up = Rc::new(Cell::new(0));
+    let down = Rc::new(Cell::new(0));
+    let left = Rc::new(Cell::new(0));
+    let right = Rc::new(Cell::new(0));
+    h.router
+        .register(A::WorkspaceFocusPaneUp, accept(Rc::clone(&up)));
+    h.router
+        .register(A::WorkspaceFocusPaneDown, accept(Rc::clone(&down)));
+    h.router
+        .register(A::WorkspaceFocusPaneLeft, accept(Rc::clone(&left)));
+    h.router
+        .register(A::WorkspaceFocusPaneRight, accept(Rc::clone(&right)));
+
+    for name in ["up", "down", "left", "right"] {
+        assert!(
+            !h.key_down(cx, key(name, None, ctrl_alt()), false),
+            "{name} reached the default application action"
+        );
+        assert!(
+            h.bytes().is_empty(),
+            "the handled {name} arrow wrote no terminal bytes"
+        );
+    }
+    assert_eq!(up.get(), 1);
+    assert_eq!(down.get(), 1);
+    assert_eq!(left.get(), 1);
+    assert_eq!(right.get(), 1);
+}
+
+#[gpui_kit::test]
+fn default_gpui_arrows_without_a_handler_fall_through(cx: &mut TestAppContext) {
+    let h = Harness::new(cx, &[], false, EncoderConfig::default());
+
+    for name in ["up", "down", "left", "right"] {
+        h.clear();
+        h.key_down(cx, key(name, None, ctrl_alt()), false);
+        assert!(
+            !h.bytes().is_empty(),
+            "an unhandled {name} arrow still reaches the terminal encoder"
+        );
+    }
+}
+
+#[gpui_kit::test]
+fn gpui_return_and_escape_aliases_match_core_key_names(cx: &mut TestAppContext) {
+    let h = Harness::new(
+        cx,
+        &[(A::TerminalFind, &["ctrl+enter", "ctrl+escape"])],
+        false,
+        EncoderConfig::default(),
+    );
+    let calls = Rc::new(Cell::new(0));
+    h.router
+        .register(A::TerminalFind, accept(Rc::clone(&calls)));
+
+    for name in ["return", "esc"] {
+        assert!(
+            !h.key_down(cx, key(name, None, ctrl()), false),
+            "the {name} alias reached the core named key"
+        );
+        assert!(
+            h.bytes().is_empty(),
+            "the handled {name} alias wrote no terminal bytes"
+        );
+    }
+    assert_eq!(calls.get(), 2);
+}
+
+#[gpui_kit::test]
 fn unbound_chord_still_reaches_the_terminal_encoder(cx: &mut TestAppContext) {
     let h = Harness::new(cx, &[], false, EncoderConfig::default());
 

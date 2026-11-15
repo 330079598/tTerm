@@ -2,9 +2,9 @@
 //!
 //! The view asks this router once per keydown. A mounted handler must accept
 //! the action for the key to be swallowed; otherwise the chord continues to
-//! the terminal encoder. P3-04 will mount the real action handlers; the
-//! prototype already uses the persisted bindings so the priority is fixed
-//! now.
+//! the terminal encoder. The public router gives later action owners a
+//! production registration point; the prototype already uses the persisted
+//! bindings so the routing priority is fixed now.
 
 use std::cell::RefCell;
 use std::collections::BTreeMap;
@@ -21,7 +21,7 @@ use tterm_core::keymap::dispatcher::{
 use tterm_terminal_view::input::keyboard::EncoderConfig;
 
 /// The mounted keymap of one window.
-pub(crate) struct KeymapRouter {
+pub struct KeymapRouter {
     mac: bool,
     index: BTreeMap<String, KeymapActionId>,
     handlers: RefCell<BTreeMap<KeymapActionId, Vec<KeymapHandler>>>,
@@ -29,7 +29,7 @@ pub(crate) struct KeymapRouter {
 
 impl KeymapRouter {
     /// Builds the router from the persisted overrides and platform defaults.
-    pub(crate) fn new(config: &PersistedKeymapConfig, mac: bool) -> Self {
+    pub fn new(config: &PersistedKeymapConfig, mac: bool) -> Self {
         let bindings = KeymapConfig {
             bindings: config.bindings.clone(),
         };
@@ -43,8 +43,7 @@ impl KeymapRouter {
 
     /// Mounts a handler for an action. Every mounted handler gets the event;
     /// the key is consumed only when at least one accepts it.
-    #[cfg(test)]
-    pub(crate) fn register(&self, action: KeymapActionId, handler: KeymapHandler) {
+    pub fn register(&self, action: KeymapActionId, handler: KeymapHandler) {
         self.handlers
             .borrow_mut()
             .entry(action)
@@ -53,7 +52,7 @@ impl KeymapRouter {
     }
 
     /// Returns the action when a mounted handler accepted the keydown.
-    pub(crate) fn dispatch(&self, event: &KeyDownEvent) -> Option<KeymapActionId> {
+    pub fn dispatch(&self, event: &KeyDownEvent) -> Option<KeymapActionId> {
         if event.prefer_character_input {
             return None;
         }
@@ -79,7 +78,7 @@ impl KeymapRouter {
     }
 
     /// Whether the application keymap consumes this keydown.
-    pub(crate) fn route(&self, event: &KeyDownEvent) -> bool {
+    pub fn route(&self, event: &KeyDownEvent) -> bool {
         self.dispatch(event).is_some()
     }
 }
@@ -106,13 +105,28 @@ pub(crate) const fn encoder_config(mac: bool, mac_option_is_meta: bool) -> Encod
 /// The keydown fields the core chord mapper can use.
 pub(crate) fn key_event_data(keystroke: &Keystroke) -> KeyEventData<'_> {
     KeyEventData {
-        key: keystroke.key.as_str(),
+        key: core_key(&keystroke.key),
         code: None,
         meta: keystroke.modifiers.platform,
         ctrl: keystroke.modifiers.control,
         alt: keystroke.modifiers.alt,
         shift: keystroke.modifiers.shift,
         composing: false,
+    }
+}
+
+/// Converts GPUI's logical key names to the names accepted by the core chord map.
+fn core_key(key: &str) -> &str {
+    match key {
+        "up" => "arrowup",
+        "down" => "arrowdown",
+        "left" => "arrowleft",
+        "right" => "arrowright",
+        "return" => "enter",
+        "esc" => "escape",
+        "del" => "delete",
+        "ins" => "insert",
+        _ => key,
     }
 }
 
