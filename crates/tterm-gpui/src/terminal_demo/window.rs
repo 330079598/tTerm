@@ -11,6 +11,9 @@ use tterm_core::config::{AppConfig, load_config_file};
 use tterm_core::events::AppEvent;
 use tterm_core::events::ssh::{SshConnectionProgressPayload, SshEvent};
 use tterm_core::events::terminal::TerminalEvent;
+use tterm_core::i18n::catalogue::Catalogue;
+use tterm_core::i18n::keys;
+use tterm_core::i18n::language::Language;
 use tterm_core::services::AppServices;
 use tterm_core::workspace::tab_attention::TabAttentionStore;
 use tterm_terminal::grid::{CellSize, GridSize};
@@ -22,6 +25,7 @@ use super::command::CommandSpec;
 use super::conpty::{log_conpty_source, prepare_conpty};
 use super::intents::DEFAULT_TITLE;
 use super::keymap::{KeymapRouter, encoder_config, route_keymap};
+use crate::locale::{Locale, LocaleGlobal};
 
 const TAB_ID: &str = "gpui-main";
 const INITIAL_GRID: GridSize = GridSize {
@@ -32,6 +36,15 @@ const INITIAL_CELL: CellSize = CellSize {
     width: 8,
     height: 16,
 };
+
+struct PrototypeStartup {
+    command: CommandSpec,
+    sessions: Rc<SessionManager>,
+    events: UnboundedReceiver<AppEvent>,
+    keyboard: tterm_terminal_view::input::keyboard::EncoderConfig,
+    keymap: Rc<KeymapRouter>,
+    locale: Entity<Locale>,
+}
 
 /// Runs the application with one prototype window until it closes.
 pub(super) fn run_window(
@@ -44,6 +57,11 @@ pub(super) fn run_window(
         eprintln!("tterm-gpui: failed to load config, using defaults: {error}");
         AppConfig::default()
     });
+    if let Err(error) = Catalogue::embedded() {
+        eprintln!("tterm-gpui: failed to load translations from src/i18n/locales: {error}");
+        return;
+    }
+    let language = Language::from_locale(&app_config.language);
     let mac = cfg!(target_os = "macos");
     let keymap = Rc::new(KeymapRouter::new(&app_config.keymap, mac));
     let keyboard = encoder_config(mac, app_config.mac_option_is_meta);
@@ -51,6 +69,8 @@ pub(super) fn run_window(
     let sessions = Rc::new(SessionManager::new(Arc::clone(&services), attention));
     gpui_kit::application().run(move |cx: &mut App| {
         gpui_kit::init(cx);
+        let locale = cx.new(|_| Locale::new(language));
+        LocaleGlobal::set(cx, locale.clone());
         tterm_terminal_view::view::bind_keys(cx);
         cx.on_window_closed(|cx, _| {
             if cx.windows().is_empty() {
@@ -58,21 +78,22 @@ pub(super) fn run_window(
             }
         })
         .detach();
-        if let Err(error) = open_window(cx, command, sessions, events, keyboard, keymap) {
+        let startup = PrototypeStartup {
+            command,
+            sessions,
+            events,
+            keyboard,
+            keymap,
+            locale,
+        };
+        if let Err(error) = open_window(cx, startup) {
             eprintln!("tterm-gpui: {error}");
             cx.quit();
         }
     });
 }
 
-fn open_window(
-    cx: &mut App,
-    command: CommandSpec,
-    sessions: Rc<SessionManager>,
-    events: UnboundedReceiver<AppEvent>,
-    keyboard: tterm_terminal_view::input::keyboard::EncoderConfig,
-    keymap: Rc<KeymapRouter>,
-) -> Result<(), String> {
+fn open_window(cx: &mut App, startup: PrototypeStartup) -> Result<(), String> {
     let options = WindowOptions {
         window_bounds: Some(WindowBounds::Windowed(Bounds {
             origin: point(px(120.0), px(120.0)),
@@ -81,12 +102,13 @@ fn open_window(
         ..WindowOptions::default()
     };
     let (handle, prototype) = gpui_kit::open_window(options, cx, move |_, cx| {
-        cx.new(|cx| Prototype::new(cx, &command, sessions, events, keyboard, keymap))
+        cx.new(|cx| Prototype::new(cx, startup))
     })
     .map_err(|error| error.to_string())?;
+    let initial_title = prototype.read(cx).default_window_title(cx);
     handle
         .update(cx, |_, window, cx| {
-            window.set_window_title(DEFAULT_TITLE);
+            window.set_window_title(&initial_title);
             let view = prototype.read(cx).view.clone();
             view.update(cx, |view, cx| view.activate(window, cx));
             window.activate_window();
@@ -104,6 +126,8 @@ pub(super) struct Prototype {
     binding: Option<Rc<TabBinding>>,
     title: Arc<Mutex<Option<String>>>,
     current_title: String,
+    title_is_default: bool,
+    locale: Entity<Locale>,
 }
 
 impl Prototype {
@@ -112,14 +136,16 @@ impl Prototype {
         format!("title={}", self.current_title)
     }
 
-    fn new(
-        cx: &mut Context<Self>,
-        command: &CommandSpec,
-        sessions: Rc<SessionManager>,
-        mut events: UnboundedReceiver<AppEvent>,
-        keyboard: tterm_terminal_view::input::keyboard::EncoderConfig,
-        keymap: Rc<KeymapRouter>,
-    ) -> Self {
+    fn new(cx: &mut Context<Self>, startup: PrototypeStartup) -> Self {
+        let PrototypeStartup {
+            command,
+            sessions,
+            mut events,
+            keyboard,
+            keymap,
+            locale,
+        } = startup;
+        cx.observe(&locale, |_, _, cx| cx.notify()).detach();
         let (binding, open_error) = match command.connection_options() {
             Ok(connection) => {
                 let binding = sessions.open(TAB_ID, connection, INITIAL_GRID, INITIAL_CELL);
@@ -134,7 +160,7 @@ impl Prototype {
         let attachment = binding.as_ref().and_then(|binding| binding.attach());
         let Some(attachment) = attachment else {
             let error = open_error.unwrap_or_else(|| "Failed to start terminal".to_string());
-            return failed(cx, binding, error);
+            return failed(cx, binding, error, locale);
         };
         log_conpty_source();
         let model = attachment.model();
@@ -142,7 +168,12 @@ impl Prototype {
         let session_nonce = attachment.session_nonce();
         let binding = binding.or_else(|| sessions.tab(TAB_ID));
         let Some(binding) = binding else {
-            return failed(cx, None, "The terminal tab was not registered".to_string());
+            return failed(
+                cx,
+                None,
+                "The terminal tab was not registered".to_string(),
+                locale,
+            );
         };
         let keymap_route = Rc::clone(&keymap);
         let config = TerminalViewConfig {
@@ -202,6 +233,43 @@ impl Prototype {
             binding: Some(binding),
             title,
             current_title: DEFAULT_TITLE.to_string(),
+            title_is_default: true,
+            locale,
+        }
+    }
+
+    fn default_window_title(&self, cx: &App) -> String {
+        let locale = self.locale.read(cx);
+        let title = match locale.text(keys::APP_TITLE) {
+            Ok(title) => title,
+            Err(error) => {
+                eprintln!("tterm-gpui: failed to translate the window title: {error}");
+                return DEFAULT_TITLE.to_string();
+            }
+        };
+        let subtitle = match locale.text(keys::APP_SUBTITLE) {
+            Ok(subtitle) => subtitle,
+            Err(error) => {
+                eprintln!("tterm-gpui: failed to translate the window subtitle: {error}");
+                return title;
+            }
+        };
+        format!("{title} — {subtitle}")
+    }
+
+    /// Switches the shared locale for this session only. Persisting the
+    /// choice stays with the configuration settings (P3-02).
+    #[cfg(all(feature = "automation", debug_assertions))]
+    pub(super) fn set_language(&mut self, language: Language, cx: &mut Context<Self>) {
+        self.locale
+            .update(cx, |locale, cx| locale.set_language(language, cx));
+        cx.notify();
+    }
+
+    fn apply_window_title(&mut self, window: &mut Window, title: String) {
+        if self.current_title != title {
+            window.set_window_title(&title);
+            self.current_title = title;
         }
     }
 }
@@ -210,6 +278,7 @@ fn failed(
     cx: &mut Context<Prototype>,
     binding: Option<Rc<TabBinding>>,
     error: String,
+    locale: Entity<Locale>,
 ) -> Prototype {
     eprintln!("tterm-gpui: {error}");
     let terminal = Arc::new(Terminal::new(Config::default(), INITIAL_GRID, INITIAL_CELL));
@@ -220,6 +289,8 @@ fn failed(
         binding,
         title: Arc::new(Mutex::new(None)),
         current_title: DEFAULT_TITLE.to_string(),
+        title_is_default: true,
+        locale,
     }
 }
 
@@ -284,6 +355,22 @@ fn connection_state(payload: &SshConnectionProgressPayload) -> ConnectionState {
     }
 }
 
+/// A pending title update: either the parser's default marker, which resolves
+/// in the current language, or a program-supplied title kept verbatim.
+#[derive(Debug, PartialEq, Eq)]
+enum TitleUpdate {
+    Default,
+    Program(String),
+}
+
+fn classify_title_update(pending: Option<String>) -> Option<TitleUpdate> {
+    match pending {
+        Some(title) if title == DEFAULT_TITLE => Some(TitleUpdate::Default),
+        Some(title) => Some(TitleUpdate::Program(title)),
+        None => None,
+    }
+}
+
 impl Drop for Prototype {
     fn drop(&mut self) {
         if let Some(binding) = &self.binding {
@@ -293,12 +380,23 @@ impl Drop for Prototype {
 }
 
 impl Render for Prototype {
-    fn render(&mut self, window: &mut Window, _cx: &mut Context<Self>) -> impl IntoElement {
-        if let Ok(mut title) = self.title.lock()
-            && let Some(title) = title.take()
-        {
-            window.set_window_title(&title);
-            self.current_title = title;
+    fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+        let pending_title = self.title.lock().ok().and_then(|mut title| title.take());
+        match classify_title_update(pending_title) {
+            Some(TitleUpdate::Default) => {
+                self.title_is_default = true;
+                let title = self.default_window_title(cx);
+                self.apply_window_title(window, title);
+            }
+            Some(TitleUpdate::Program(title)) => {
+                self.title_is_default = false;
+                self.apply_window_title(window, title);
+            }
+            None if self.title_is_default => {
+                let title = self.default_window_title(cx);
+                self.apply_window_title(window, title);
+            }
+            None => {}
         }
         div().size_full().child(self.view.clone())
     }
@@ -308,7 +406,9 @@ impl Render for Prototype {
 mod tests {
     use tterm_core::events::ssh::SshConnectionProgressPayload;
 
-    use super::{ConnectionState, connection_state};
+    use super::{
+        ConnectionState, DEFAULT_TITLE, TitleUpdate, classify_title_update, connection_state,
+    };
 
     #[test]
     fn connection_progress_maps_to_the_scoped_connection_state() {
@@ -333,6 +433,23 @@ mod tests {
                 "checking"
             )),
             ConnectionState::Connecting
+        );
+    }
+
+    #[test]
+    fn default_title_marker_resolves_through_the_locale() {
+        assert_eq!(
+            classify_title_update(Some(DEFAULT_TITLE.to_string())),
+            Some(TitleUpdate::Default)
+        );
+        assert_eq!(classify_title_update(None), None);
+    }
+
+    #[test]
+    fn a_program_title_is_preserved_verbatim() {
+        assert_eq!(
+            classify_title_update(Some("cargo test".to_string())),
+            Some(TitleUpdate::Program("cargo test".to_string()))
         );
     }
 }

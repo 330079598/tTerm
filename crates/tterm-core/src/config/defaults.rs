@@ -4,22 +4,10 @@
 use super::keymap::KeymapConfig;
 use super::{AppConfig, keyword_highlight, panes, tab_agent_indicator, tab_icons};
 use crate::config::update_channel::default_update_channel;
-use sys_locale::get_locale;
-
-fn normalize_language(locale: &str) -> String {
-    let normalized_locale = locale.replace('_', "-").to_ascii_lowercase();
-
-    if normalized_locale.starts_with("zh") {
-        return "zh".to_string();
-    }
-
-    "en".to_string()
-}
+use crate::i18n::language::Language;
 
 pub(super) fn default_language() -> String {
-    get_locale()
-        .map(|locale| normalize_language(&locale))
-        .unwrap_or_else(|| "en".to_string())
+    Language::system().code().to_string()
 }
 
 /// A Nerd Font first, so prompts such as starship and powerlevel10k draw
