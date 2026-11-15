@@ -68,6 +68,37 @@ use self::scroll::ScrollAccumulator;
 /// are written.
 pub type InputSink = Rc<dyn Fn(&[u8])>;
 
+/// Reads the platform's primary selection, used by Linux middle-click paste.
+///
+pub type PrimarySelection = Rc<dyn Fn(&gpui_kit::App) -> Option<String>>;
+
+/// Platform pointer rules that are not part of the mouse protocol.
+///
+/// The defaults follow the Tauri client on the running platform. The fields
+/// stay explicit so the behaviour can be tested for another platform without
+/// changing the build target.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct PointerPolicy {
+    /// On macOS, Option is the local-selection escape even while a program
+    /// reports the mouse, as `macOptionClickForcesSelection` does.
+    pub macos_option_forces_selection: bool,
+    /// Outside macOS, Alt starts a rectangular (column) selection, as in
+    /// xterm. On macOS Option is the force-selection key instead.
+    pub alt_selects_block_outside_macos: bool,
+    /// Linux middle-click pastes the primary selection.
+    pub middle_click_pastes: bool,
+}
+
+impl Default for PointerPolicy {
+    fn default() -> Self {
+        Self {
+            macos_option_forces_selection: cfg!(target_os = "macos"),
+            alt_selects_block_outside_macos: !cfg!(target_os = "macos"),
+            middle_click_pastes: cfg!(target_os = "linux"),
+        }
+    }
+}
+
 /// Reports a grid change to the session so it can resize the PTY.
 pub type ResizeSink = Rc<dyn Fn(GridSize, CellSize)>;
 
@@ -103,6 +134,11 @@ pub struct TerminalViewConfig {
     pub keymap: Option<KeymapRouter>,
     /// Reports a grid change to the session so it can resize the PTY.
     pub resize: Option<ResizeSink>,
+    /// Platform rules for forcing a local selection and middle-click paste.
+    pub pointer: PointerPolicy,
+    /// Overrides how primary-selection text is read. `None` uses the platform
+    /// clipboard on Linux and disables middle-click paste elsewhere.
+    pub primary: Option<PrimarySelection>,
 }
 
 /// Counters the element keeps for tests and the drawing benchmark.
@@ -163,6 +199,8 @@ pub struct TerminalView {
     input_observed: bool,
     input_origin: Option<Point<Pixels>>,
     pointer: pointer::PointerState,
+    pointer_policy: PointerPolicy,
+    primary: Option<PrimarySelection>,
     composition: composition::Composition,
     ime_confirm: bool,
     preedit: Option<composition::PreeditPaint>,
@@ -194,6 +232,9 @@ impl TerminalView {
     ) -> Self {
         let fonts = FontSet::new(&config.font);
         let focus_handle = cx.focus_handle();
+        let primary = config
+            .primary
+            .or_else(|| clipboard::platform_primary_selection());
         Self {
             terminal,
             font: config.font,
@@ -208,6 +249,8 @@ impl TerminalView {
             input_observed: false,
             input_origin: None,
             pointer: pointer::PointerState::default(),
+            pointer_policy: config.pointer,
+            primary,
             composition: composition::Composition::default(),
             ime_confirm: false,
             preedit: None,

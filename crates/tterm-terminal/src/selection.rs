@@ -12,6 +12,8 @@ use alacritty_terminal::selection::{
 
 use crate::grid::GridPoint;
 
+pub(crate) mod word;
+
 /// How a selection expands from the point the user clicked.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum SelectionKind {

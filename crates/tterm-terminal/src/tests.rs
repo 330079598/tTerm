@@ -1075,6 +1075,286 @@ fn selecting_a_word_reports_the_range_and_the_text() {
 }
 
 #[test]
+fn words_use_the_tauri_client_word_separators() {
+    let first = terminal(40, 5, 0);
+    first.write(b"foo:bar|baz<qux> tail");
+    first.select(SelectionKind::Semantic, GridPoint::new(0, 0), Side::Left);
+    assert_eq!(first.selection_text().as_deref(), Some("foo:bar|baz<qux>"));
+
+    let second = terminal(40, 5, 0);
+    second.write(b"foo'bar baz");
+    second.select(SelectionKind::Semantic, GridPoint::new(0, 0), Side::Left);
+    assert_eq!(second.selection_text().as_deref(), Some("foo"));
+}
+
+#[test]
+fn a_pipe_stays_inside_a_word() {
+    let terminal = terminal(40, 5, 0);
+    terminal.write(b"foo|bar baz");
+    terminal.select(SelectionKind::Semantic, GridPoint::new(0, 0), Side::Left);
+    assert_eq!(terminal.selection_text().as_deref(), Some("foo|bar"));
+}
+
+#[test]
+fn a_bracket_click_expands_by_separator_not_by_bracket_search() {
+    let terminal = terminal(40, 5, 0);
+    terminal.write(b"(hello) world");
+    terminal.select(SelectionKind::Semantic, GridPoint::new(0, 0), Side::Left);
+    assert_eq!(terminal.selection_text().as_deref(), Some("(hello"));
+    terminal.select(SelectionKind::Semantic, GridPoint::new(0, 1), Side::Left);
+    assert_eq!(terminal.selection_text().as_deref(), Some("hello"));
+}
+
+#[test]
+fn clicking_a_space_selects_only_the_contiguous_spaces() {
+    let terminal = terminal(40, 5, 0);
+    terminal.write(b"foo   bar");
+    terminal.select(SelectionKind::Semantic, GridPoint::new(0, 4), Side::Left);
+    assert_eq!(terminal.selection_text().as_deref(), Some("   "));
+}
+
+#[test]
+fn a_comma_and_a_quote_expand_outward() {
+    let first = terminal(40, 5, 0);
+    first.write(b"foo,bar baz");
+    first.select(SelectionKind::Semantic, GridPoint::new(0, 3), Side::Left);
+    assert_eq!(first.selection_text().as_deref(), Some("foo,bar"));
+
+    let quoted = terminal(40, 5, 0);
+    quoted.write(br#"say "hi""#);
+    quoted.select(SelectionKind::Semantic, GridPoint::new(0, 4), Side::Left);
+    assert_eq!(quoted.selection_text().as_deref(), Some("\"hi"));
+}
+
+fn point_of_text(terminal: &Terminal, text: &str) -> GridPoint {
+    let frame = terminal.snapshot();
+    let wanted: Vec<char> = text.chars().collect();
+    for (row_index, row) in frame.rows().iter().enumerate() {
+        let cells: Vec<char> = row.cells().iter().map(|cell| cell.ch).collect();
+        for start in 0..cells.len() {
+            if cells.get(start..start + wanted.len()) == Some(&wanted[..]) {
+                return GridPoint::new(frame.grid_line(row_index).expect("visible row"), start);
+            }
+        }
+    }
+    panic!("{text:?} is not on screen");
+}
+
+#[test]
+fn a_semantic_selection_follows_output_scroll_then_drag() {
+    let terminal = terminal(20, 6, 100);
+    terminal.write(b"alpha beta");
+    terminal.select(SelectionKind::Semantic, GridPoint::new(0, 0), Side::Left);
+    terminal.write(b"\r\none\r\ntwo\r\nthree\r\nfour\r\nfive");
+    terminal.scroll(Scroll::Top);
+    assert_eq!(terminal.selection_text().as_deref(), Some("alpha"));
+    let beta = point_of_text(&terminal, "beta");
+    terminal.extend_selection(beta, Side::Left);
+    assert_eq!(terminal.selection_text().as_deref(), Some("alpha beta"));
+}
+
+#[test]
+fn a_semantic_selection_follows_resize_then_drag() {
+    let terminal = terminal(20, 6, 10);
+    terminal.write(b"alpha beta");
+    terminal.select(SelectionKind::Semantic, GridPoint::new(0, 0), Side::Left);
+    terminal.resize(GridSize::new(20, 4), CellSize::default());
+    assert_eq!(terminal.selection_text().as_deref(), Some("alpha"));
+    let beta = point_of_text(&terminal, "beta");
+    terminal.extend_selection(beta, Side::Left);
+    assert_eq!(terminal.selection_text().as_deref(), Some("alpha beta"));
+}
+
+#[test]
+fn a_word_selection_stays_anchored_through_output_and_resize() {
+    let terminal = terminal(20, 6, 100);
+    terminal.write(b"alpha beta");
+    terminal.select(SelectionKind::Semantic, GridPoint::new(0, 0), Side::Left);
+    assert_eq!(terminal.selection_text().as_deref(), Some("alpha"));
+
+    terminal.write(b"\r\none\r\ntwo\r\nthree\r\nfour\r\nfive\r\nsix");
+    terminal.resize(GridSize::new(20, 4), CellSize::default());
+    assert_eq!(
+        terminal.selection_text().as_deref(),
+        Some("alpha"),
+        "the word must still be anchored after output scrolls and the grid resizes"
+    );
+    terminal.scroll(Scroll::Top);
+    let beta = point_of_text(&terminal, "beta");
+    terminal.extend_selection(beta, Side::Left);
+    assert_eq!(terminal.selection_text().as_deref(), Some("alpha beta"));
+}
+
+#[test]
+fn shrinking_scrollback_past_the_word_does_not_reuse_a_stale_anchor() {
+    let terminal = terminal(20, 4, 20);
+    terminal.write(b"alpha beta");
+    terminal.select(SelectionKind::Semantic, GridPoint::new(0, 0), Side::Left);
+    assert_eq!(terminal.selection_text().as_deref(), Some("alpha"));
+
+    terminal.write(b"\r\none\r\ntwo\r\nthree\r\nfour\r\nfive\r\nsix");
+    terminal.set_scrollback(0);
+    assert_eq!(terminal.selection_text(), None);
+    assert_eq!(terminal.snapshot().selection(), None);
+
+    let current = point_of_text(&terminal, "six");
+    terminal.extend_selection(current, Side::Left);
+    assert_eq!(
+        terminal.selection_text(),
+        None,
+        "an evicted anchor must not turn into a selection at the pointer"
+    );
+}
+
+#[test]
+fn a_word_selection_survives_scrollback_eviction() {
+    let terminal = terminal(20, 4, 2);
+    terminal.write(b"old\r\nalpha beta");
+    terminal.select(SelectionKind::Semantic, GridPoint::new(1, 0), Side::Left);
+    assert_eq!(terminal.selection_text().as_deref(), Some("alpha"));
+
+    terminal.write(b"\r\none\r\ntwo\r\nthree\r\nfour\r\nfive");
+    terminal.scroll(Scroll::Top);
+    assert_eq!(
+        terminal.selection_text().as_deref(),
+        Some("alpha"),
+        "evicting earlier lines must move the word anchor, not lose it"
+    );
+    let beta = point_of_text(&terminal, "beta");
+    terminal.extend_selection(beta, Side::Left);
+    assert_eq!(terminal.selection_text().as_deref(), Some("alpha beta"));
+}
+
+#[test]
+fn output_during_a_word_drag_returns_display_and_copy_to_the_anchor() {
+    let terminal = terminal(40, 5, 10);
+    terminal.write(b"alpha beta gamma");
+    terminal.select(SelectionKind::Semantic, GridPoint::new(0, 0), Side::Left);
+    terminal.extend_selection(GridPoint::new(0, 11), Side::Left);
+    assert_eq!(
+        terminal.selection_text().as_deref(),
+        Some("alpha beta gamma")
+    );
+    terminal.write(b"\r\nnext");
+    assert_eq!(
+        terminal.selection_text().as_deref(),
+        Some("alpha"),
+        "output drops the stale drag endpoint and keeps the anchor"
+    );
+    terminal.finish_selection();
+    assert_eq!(
+        terminal.selection_text().as_deref(),
+        Some("alpha"),
+        "finishing with no drag must not write a stale endpoint"
+    );
+    let beta = point_of_text(&terminal, "beta");
+
+    terminal.extend_selection(beta, Side::Left);
+    assert_eq!(terminal.selection_text().as_deref(), Some("alpha beta"));
+}
+
+#[test]
+fn resize_during_a_word_drag_returns_display_and_copy_to_the_anchor() {
+    let terminal = terminal(40, 5, 10);
+    terminal.write(b"alpha beta gamma");
+    terminal.select(SelectionKind::Semantic, GridPoint::new(0, 0), Side::Left);
+    terminal.extend_selection(GridPoint::new(0, 11), Side::Left);
+    terminal.resize(GridSize::new(40, 6), CellSize::default());
+    assert_eq!(terminal.selection_text().as_deref(), Some("alpha"));
+    let beta = point_of_text(&terminal, "beta");
+    terminal.extend_selection(beta, Side::Left);
+    assert_eq!(terminal.selection_text().as_deref(), Some("alpha beta"));
+}
+
+#[test]
+fn set_scrollback_during_a_word_drag_returns_display_and_copy_to_the_anchor() {
+    let terminal = terminal(40, 5, 100);
+    terminal.write(b"alpha beta gamma");
+    terminal.select(SelectionKind::Semantic, GridPoint::new(0, 0), Side::Left);
+    terminal.extend_selection(GridPoint::new(0, 11), Side::Left);
+    terminal.set_scrollback(50);
+    assert_eq!(terminal.selection_text().as_deref(), Some("alpha"));
+    let beta = point_of_text(&terminal, "beta");
+    terminal.extend_selection(beta, Side::Left);
+    assert_eq!(terminal.selection_text().as_deref(), Some("alpha beta"));
+}
+
+#[test]
+fn a_word_drag_shrinks_and_reverses_from_its_fixed_anchor() {
+    let terminal = terminal(40, 5, 0);
+    terminal.write(b"alpha beta gamma");
+    terminal.select(SelectionKind::Semantic, GridPoint::new(0, 0), Side::Left);
+    terminal.extend_selection(GridPoint::new(0, 6), Side::Left);
+    assert_eq!(terminal.selection_text().as_deref(), Some("alpha beta"));
+    terminal.extend_selection(GridPoint::new(0, 11), Side::Left);
+    assert_eq!(
+        terminal.selection_text().as_deref(),
+        Some("alpha beta gamma")
+    );
+    terminal.extend_selection(GridPoint::new(0, 6), Side::Left);
+    assert_eq!(
+        terminal.selection_text().as_deref(),
+        Some("alpha beta"),
+        "dragging back must not keep the old longer range"
+    );
+}
+
+#[test]
+fn a_word_drag_rebuilds_from_the_anchor_when_crossing_it() {
+    let terminal = terminal(40, 5, 0);
+    terminal.write(b"alpha beta gamma");
+    terminal.select(SelectionKind::Semantic, GridPoint::new(0, 6), Side::Left);
+    terminal.extend_selection(GridPoint::new(0, 0), Side::Left);
+    assert_eq!(terminal.selection_text().as_deref(), Some("alpha beta"));
+    terminal.extend_selection(GridPoint::new(0, 11), Side::Left);
+    assert_eq!(
+        terminal.selection_text().as_deref(),
+        Some("beta gamma"),
+        "the base stays the initially clicked word, not the earlier left word"
+    );
+}
+
+#[test]
+fn a_wide_character_at_a_line_end_carries_its_word_to_the_next_line() {
+    let terminal = terminal(4, 4, 0);
+    terminal.write("ab\u{4f60}cd".as_bytes());
+    terminal.select(SelectionKind::Semantic, GridPoint::new(0, 0), Side::Left);
+    assert_eq!(terminal.selection_text().as_deref(), Some("ab\u{4f60}cd"));
+}
+
+#[test]
+fn a_comma_at_a_wrap_boundary_does_not_merge_the_next_word() {
+    let terminal = terminal(4, 4, 0);
+    terminal.write(b"abc,def");
+    terminal.select(SelectionKind::Semantic, GridPoint::new(1, 0), Side::Left);
+    assert_eq!(terminal.selection_text().as_deref(), Some("def"));
+}
+
+#[test]
+fn a_selection_exists_from_the_press_until_it_is_cleared() {
+    let terminal = terminal(20, 5, 0);
+    terminal.write(b"hello");
+    assert!(!terminal.has_selection());
+    terminal.select(SelectionKind::Simple, GridPoint::new(0, 0), Side::Left);
+    assert!(terminal.has_selection());
+    terminal.clear_selection();
+    assert!(!terminal.has_selection());
+}
+
+#[test]
+fn mouse_reporting_can_be_cleared_only_while_a_mode_is_on() {
+    let terminal = terminal(20, 5, 0);
+    assert!(!terminal.is_mouse_reporting());
+    assert!(!terminal.clear_mouse_reporting());
+
+    terminal.write(b"\x1b[?1002h\x1b[?1006h");
+    assert!(terminal.is_mouse_reporting());
+    assert!(terminal.clear_mouse_reporting());
+    assert!(!terminal.is_mouse_reporting());
+    assert!(!terminal.clear_mouse_reporting());
+}
+
+#[test]
 fn extending_without_a_selection_does_nothing() {
     let terminal = terminal(20, 5, 0);
     terminal.extend_selection(GridPoint::new(0, 3), Side::Right);

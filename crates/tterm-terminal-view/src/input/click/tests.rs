@@ -87,7 +87,7 @@ fn reset_forgets_the_previous_click() {
 }
 
 #[test]
-fn selection_kinds_follow_alacritty() {
+fn selection_kinds_follow_the_click_and_block_modifier() {
     assert_eq!(
         selection_kind(ClickCount::Single, false),
         Some(SelectionKind::Simple)
@@ -104,9 +104,16 @@ fn selection_kinds_follow_alacritty() {
         selection_kind(ClickCount::Triple, false),
         Some(SelectionKind::Lines)
     );
-    // Control suppresses the word and line selections.
-    assert_eq!(selection_kind(ClickCount::Double, true), None);
-    assert_eq!(selection_kind(ClickCount::Triple, true), None);
+    // The block modifier only applies to the first click; the second and
+    // third still select the word and the line, as in the Tauri client.
+    assert_eq!(
+        selection_kind(ClickCount::Double, true),
+        Some(SelectionKind::Semantic)
+    );
+    assert_eq!(
+        selection_kind(ClickCount::Triple, true),
+        Some(SelectionKind::Lines)
+    );
 }
 
 #[test]
@@ -126,11 +133,13 @@ fn double_click_selects_a_wide_word() {
 }
 
 #[test]
-fn double_click_stops_at_a_separator() {
+fn double_click_stops_at_a_word_separator() {
     let terminal = terminal(20, 5);
-    terminal.write(b"foo|bar baz");
+    terminal.write(b"foo bar'baz");
     terminal.select(SelectionKind::Semantic, point(0, 0), Side::Left);
     assert_eq!(terminal.selection_text().as_deref(), Some("foo"));
+    terminal.select(SelectionKind::Semantic, point(0, 8), Side::Left);
+    assert_eq!(terminal.selection_text().as_deref(), Some("baz"));
 }
 
 #[test]

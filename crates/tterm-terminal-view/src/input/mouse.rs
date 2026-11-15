@@ -128,11 +128,12 @@ pub enum ButtonAction {
 ///
 /// Shift is the local escape: Alacritty's `on_mouse_press` and
 /// `on_mouse_release` report only when Shift is not held, so the view can
-/// extend a selection over a program that owns the mouse. The encoder itself
-/// stays a pure protocol function; the view calls this first and only then
-/// [`encode_button`].
-pub fn button_action(modes: Modes, shift: bool) -> ButtonAction {
-    if !shift && reports_mouse(modes) {
+/// extend a selection over a program that owns the mouse. The caller may also
+/// force a local event with macOS Option, which the Tauri client enables as
+/// `macOptionClickForcesSelection`. The encoder itself stays a pure protocol
+/// function; the view calls this first and only then [`encode_button`].
+pub fn button_action(modes: Modes, force_local: bool) -> ButtonAction {
+    if !force_local && reports_mouse(modes) {
         ButtonAction::Report
     } else {
         ButtonAction::Local
@@ -143,12 +144,11 @@ pub fn button_action(modes: Modes, shift: bool) -> ButtonAction {
 ///
 /// The view calls this only when the cell under the pointer changed, which is
 /// Alacritty's deduplication: the protocol addresses cells, so two motions
-/// inside one cell are one report. Shift with the left or right button held is
-/// the local escape, matching `mouse_moved`: the view extends the selection
-/// instead of reporting the drag. The middle button has no selection branch in
-/// Alacritty, and a hover has no button, so those reports keep their Shift
-/// bit.
-pub fn motion(modes: Modes, held: Option<MouseButton>, shift: bool) -> Option<Motion> {
+/// inside one cell are one report. A left or right drag while the local escape
+/// is held extends the selection instead of reporting the drag, matching
+/// `mouse_moved`. The middle button has no selection branch in Alacritty, and a
+/// hover has no button, so those reports keep their Shift bit.
+pub fn motion(modes: Modes, held: Option<MouseButton>, force_local: bool) -> Option<Motion> {
     if !reports_mouse(modes) {
         return None;
     }
@@ -156,7 +156,7 @@ pub fn motion(modes: Modes, held: Option<MouseButton>, shift: bool) -> Option<Mo
         return None;
     }
     match held {
-        Some(MouseButton::Left | MouseButton::Right) if shift => None,
+        Some(MouseButton::Left | MouseButton::Right) if force_local => None,
         Some(MouseButton::Left) => Some(Motion::Drag(MouseButton::Left)),
         Some(MouseButton::Middle) => Some(Motion::Drag(MouseButton::Middle)),
         Some(MouseButton::Right) => Some(Motion::Drag(MouseButton::Right)),

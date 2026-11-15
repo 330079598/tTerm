@@ -35,13 +35,21 @@ use crate::damage::Damage;
 use crate::event::{self, Intent};
 use crate::grid::{CellSize, GridPoint, GridRange, GridSize};
 use crate::mode::Modes;
+use crate::mouse_reporting::MOUSE_REPORTING_OFF;
 use crate::search::{Search, SearchDirection};
-use crate::selection::{SelectionKind, SelectionRange, Side};
+use crate::selection::{SelectionKind, SelectionRange, Side, word};
 use crate::snapshot::{self, Cursor, CursorShape, Row, Snapshot, SnapshotParts};
 
 /// How many scrollback lines a new model keeps when the caller has no
 /// preference.
 const DEFAULT_SCROLLBACK: usize = 10_000;
+
+/// The characters xterm treats as word separators by default.
+///
+/// The Tauri client leaves `wordSeparator` at xterm's default. Unlike
+/// Alacritty's default `semantic_escape_chars`, this set keeps `|`, `:`, `<`
+/// and `>` inside words. Double-click selection uses these same boundaries.
+pub const WORD_SEPARATORS: &str = " ()[]{}',\"`";
 
 /// What programs may do with the clipboard through OSC 52.
 ///
@@ -161,6 +169,8 @@ pub struct Config {
     pub kitty_keyboard: bool,
     /// What programs may do with the clipboard.
     pub clipboard: ClipboardPolicy,
+    /// Characters that end a word for double-click selection.
+    pub word_separators: String,
 }
 
 impl Default for Config {
@@ -169,6 +179,7 @@ impl Default for Config {
             scrollback: DEFAULT_SCROLLBACK,
             kitty_keyboard: false,
             clipboard: ClipboardPolicy::default(),
+            word_separators: WORD_SEPARATORS.to_string(),
         }
     }
 }
@@ -178,6 +189,7 @@ impl Config {
         TermConfig {
             scrolling_history: self.scrollback,
             kitty_keyboard: self.kitty_keyboard,
+            semantic_escape_chars: self.word_separators.clone(),
             osc52: self.clipboard.into(),
             ..TermConfig::default()
         }
@@ -211,6 +223,8 @@ struct State {
     cell_size: CellSize,
     version: u64,
     scrollback_generation: u64,
+    word_selection: bool,
+    word_drag: Option<SelectionRange>,
 }
 
 /// The terminal of one session.
@@ -244,6 +258,8 @@ impl Terminal {
             cell_size,
             version: 0,
             scrollback_generation: 0,
+            word_selection: false,
+            word_drag: None,
         };
         Self {
             state: FairMutex::new(state),
@@ -262,6 +278,10 @@ impl Terminal {
             return;
         }
         let mut state = self.state.lock();
+        // An active drag endpoint is a screen-coordinate choice. Output can
+        // scroll or reflow the grid under it, so keep the lifecycle-tracked
+        // anchor and drop the endpoint instead of committing a stale range.
+        state.word_drag = None;
         let configured = state.config.scrollback;
         let was_alternate = state.term.mode().contains(TermMode::ALT_SCREEN);
         let State { parser, term, .. } = &mut *state;
@@ -300,6 +320,7 @@ impl Terminal {
     /// zero-row size built from the public fields cannot reach Alacritty.
     pub fn resize(&self, grid: GridSize, cell_size: CellSize) {
         let mut state = self.state.lock();
+        state.word_drag = None;
         state.cell_size = cell_size;
         state.term.resize(grid.clamped());
     }
@@ -317,6 +338,7 @@ impl Terminal {
         if state.config.scrollback == lines {
             return;
         }
+        state.word_drag = None;
         state.config.scrollback = lines;
         let config = state.config.to_alacritty();
         state.term.set_options(config);
@@ -378,6 +400,17 @@ impl Terminal {
     /// The pointer's position inside the cell decides the [`Side`].
     pub fn select(&self, kind: SelectionKind, point: GridPoint, side: Side) {
         let mut state = self.state.lock();
+        if kind == SelectionKind::Semantic {
+            let separators = state.config.word_separators.clone();
+            if let Some(range) = word::word_range(&state.term, point, &separators) {
+                state.word_selection = true;
+                state.word_drag = None;
+                word::set_range(&mut state.term, range);
+                return;
+            }
+        }
+        state.word_selection = false;
+        state.word_drag = None;
         state.term.selection = Some(AnsiSelection::new(kind.into(), point.into(), side.into()));
     }
 
@@ -387,6 +420,20 @@ impl Terminal {
     /// the grid cannot create one.
     pub fn extend_selection(&self, point: GridPoint, side: Side) {
         let mut state = self.state.lock();
+        if state.term.selection.is_none() {
+            return;
+        }
+        if state.word_selection {
+            let separators = state.config.word_separators.clone();
+            if let Some(word) = word::word_range(&state.term, point, &separators) {
+                // The anchor selection stays untouched, so Alacritty rotates it
+                // through output, resize and eviction. Every drag update rebuilds
+                // from that fixed anchor and the word under the pointer, which
+                // lets the range shrink and reverse instead of only growing.
+                state.word_drag = Some(word);
+            }
+            return;
+        }
         if let Some(selection) = state.term.selection.as_mut() {
             selection.update(point.into(), side.into());
         }
@@ -394,7 +441,65 @@ impl Terminal {
 
     /// Drops the selection.
     pub fn clear_selection(&self) {
-        self.state.lock().term.selection = None;
+        let mut state = self.state.lock();
+        state.term.selection = None;
+        state.word_selection = false;
+        state.word_drag = None;
+    }
+
+    /// Commits an active word drag to the ordinary selection.
+    ///
+    /// A word drag keeps the original word as its lifecycle-tracked anchor.
+    /// Once the pointer is released, the combined range becomes the selection
+    /// itself, so later output moves it without needing drag state.
+    pub fn finish_selection(&self) {
+        let mut state = self.state.lock();
+        let Some(drag) = state.word_drag.take() else {
+            return;
+        };
+        let anchor = state
+            .term
+            .selection
+            .as_ref()
+            .and_then(|selection| selection.to_range(&state.term))
+            .map(SelectionRange::from);
+        if let Some(anchor) = anchor {
+            word::set_range(
+                &mut state.term,
+                SelectionRange {
+                    start: anchor.start.min(drag.start),
+                    end: anchor.end.max(drag.end),
+                    block: false,
+                },
+            );
+        }
+        state.word_selection = false;
+    }
+
+    /// Whether a selection exists, even an empty one that a press just made.
+    pub fn has_selection(&self) -> bool {
+        self.state.lock().term.selection.is_some()
+    }
+
+    /// Whether a program asked for mouse reports (1000, 1002 or 1003).
+    pub fn is_mouse_reporting(&self) -> bool {
+        self.state
+            .lock()
+            .term
+            .mode()
+            .intersects(TermMode::MOUSE_MODE)
+    }
+
+    /// Turns mouse reporting off when it is still on, as the Tauri guard does
+    /// after a prompt mark or once a local shell is back in the foreground.
+    ///
+    /// Returns whether the reset was written.
+    pub fn clear_mouse_reporting(&self) -> bool {
+        if !self.is_mouse_reporting() {
+            return false;
+        }
+        self.write(MOUSE_REPORTING_OFF);
+        true
     }
 
     /// The selected text, with trailing blanks trimmed and wrapped lines
@@ -404,7 +509,16 @@ impl Terminal {
     /// whole scrollback would otherwise build a huge string every frame
     /// (design note 6.3).
     pub fn selection_text(&self) -> Option<String> {
-        self.state.lock().term.selection_to_string()
+        let mut state = self.state.lock();
+        let combined = active_selection_range(&state)?;
+        if state.word_selection && state.word_drag.is_some() {
+            let anchor = state.term.selection.clone();
+            word::set_range(&mut state.term, combined);
+            let text = state.term.selection_to_string();
+            state.term.selection = anchor;
+            return text;
+        }
+        state.term.selection_to_string()
     }
 
     /// Finds the next match of `search` from `origin`.
@@ -426,6 +540,7 @@ impl Terminal {
 
 /// Builds the frame while the caller holds the lock.
 fn take_snapshot(state: &mut State, version: u64) -> Snapshot {
+    let selection = active_selection_range(state);
     let State {
         term,
         cell_size,
@@ -438,7 +553,6 @@ fn take_snapshot(state: &mut State, version: u64) -> Snapshot {
     let content = term.renderable_content();
     let display_offset = content.display_offset;
     let modes = Modes::from(content.mode);
-    let selection = content.selection.map(SelectionRange::from);
     let shape = CursorShape::from(content.cursor.shape);
     let point = content.cursor.point;
     let blinking = term.cursor_style().blinking;
@@ -458,6 +572,28 @@ fn take_snapshot(state: &mut State, version: u64) -> Snapshot {
         damage,
         bottom_line_occupied,
     })
+}
+
+/// The selection the view and copy operation should use.
+///
+/// A word drag keeps its original word in Alacritty's selection so that the
+/// anchor follows the grid's lifecycle, while `word_drag` holds the word under
+/// the pointer. The displayed range is always rebuilt from those two.
+fn active_selection_range(state: &State) -> Option<SelectionRange> {
+    let anchor = state
+        .term
+        .selection
+        .as_ref()?
+        .to_range(&state.term)
+        .map(SelectionRange::from)?;
+    match state.word_drag {
+        Some(drag) if state.word_selection => Some(SelectionRange {
+            start: anchor.start.min(drag.start),
+            end: anchor.end.max(drag.end),
+            block: false,
+        }),
+        _ => Some(anchor),
+    }
 }
 
 /// Copies exactly the visible cells, row by row.

@@ -14,6 +14,7 @@ use tterm_terminal::grid::{CellSize, GridSize, WindowSize};
 use tterm_terminal::terminal::{Config, Terminal};
 use tterm_terminal_view::view::{TerminalView, TerminalViewConfig};
 
+use super::mouse_guard::MouseGuard;
 use super::{
     BATCH_LIMIT, MAX_QUEUED_BYTES, Pipeline, QUEUED_CHUNKS, QueueMetrics, RefreshSignal,
     SessionState, start,
@@ -57,7 +58,7 @@ fn start_pipeline(
     state: SessionState,
     acknowledge: impl Fn(usize) + Send + Sync + 'static,
 ) -> Pipeline {
-    start(state, Arc::new(|_| {}), Arc::new(acknowledge)).expect("start the parser")
+    start(state, Arc::new(|_| {}), Arc::new(acknowledge), None).expect("start the parser")
 }
 
 fn text(model: &Terminal) -> String {
@@ -383,6 +384,7 @@ fn acknowledgement_follows_query_replies_and_other_parser_intents() {
                 "the parser acknowledged before answering the terminal query"
             );
         }),
+        None,
     )
     .expect("start the parser");
 
@@ -671,4 +673,27 @@ fn a_visible_session_still_gets_one_refresh_per_acknowledged_frame() {
 
     drop(pipeline.queue);
     pipeline.parser.join().expect("parser exits");
+}
+
+#[test]
+fn a_prompt_mark_closes_mouse_reporting_inside_the_parser() {
+    let (model, state) = state(true, 64);
+    let runtime = tokio::runtime::Builder::new_current_thread()
+        .enable_all()
+        .build()
+        .expect("test runtime");
+    let guard = Arc::new(MouseGuard::new(
+        state.clone(),
+        runtime.handle().clone(),
+        None,
+    ));
+    let pipeline =
+        start(state, Arc::new(|_| {}), Arc::new(|_| {}), Some(guard)).expect("start the parser");
+    pipeline
+        .queue
+        .send(b"\x1b[?1002h\x1b[?1006h$ \x1b]133;A\x07".to_vec())
+        .expect("queue output");
+    drop(pipeline.queue);
+    pipeline.parser.join().expect("parser exits");
+    assert!(!model.is_mouse_reporting());
 }
