@@ -11011,12 +11011,15 @@ version = "0.1.0"
 dependencies = [
  "gpui-kit",
  "image",
+ "rusqlite",
+ "serde",
  "serde_json",
  "tokio",
  "tterm-core",
  "tterm-platform",
  "tterm-terminal",
  "tterm-terminal-view",
+ "tterm-ui",
  "windows 0.62.2",
 ]
 

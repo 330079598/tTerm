@@ -5,7 +5,7 @@ use std::rc::Rc;
 use std::sync::{Arc, Mutex};
 
 use gpui_kit::prelude::*;
-use gpui_kit::{App, Bounds, Entity, Window, WindowBounds, WindowOptions, div, point, px, size};
+use gpui_kit::{App, Entity, Rgba, Window};
 use tokio::sync::mpsc::UnboundedReceiver;
 use tterm_core::config::{AppConfig, load_config_file};
 use tterm_core::events::AppEvent;
@@ -19,12 +19,20 @@ use tterm_core::workspace::tab_attention::TabAttentionStore;
 use tterm_terminal::grid::{CellSize, GridSize};
 use tterm_terminal::terminal::{Config, Terminal};
 use tterm_terminal_view::view::{TerminalView, TerminalViewConfig};
+use tterm_ui::tokens::theme::Theme;
 
 use super::binding::{SessionManager, TabBinding, scoped::ConnectionState};
 use super::command::CommandSpec;
 use super::conpty::{log_conpty_source, prepare_conpty};
 use super::intents::DEFAULT_TITLE;
 use super::keymap::{KeymapRouter, encoder_config, route_keymap};
+use crate::app_window::background;
+use crate::app_window::chrome::shell;
+use crate::app_window::chrome::titlebar::TitleBar;
+use crate::app_window::chrome::{ActionHandler, TitleBarAction};
+use crate::app_window::startup;
+use crate::app_window::state;
+use crate::app_window::state::WindowGeometry;
 use crate::locale::{Locale, LocaleGlobal};
 
 const TAB_ID: &str = "gpui-main";
@@ -44,6 +52,8 @@ struct PrototypeStartup {
     keyboard: tterm_terminal_view::input::keyboard::EncoderConfig,
     keymap: Rc<KeymapRouter>,
     locale: Entity<Locale>,
+    theme: Theme,
+    background: Rgba,
 }
 
 /// Runs the application with one prototype window until it closes.
@@ -67,11 +77,16 @@ pub(super) fn run_window(
     let keyboard = encoder_config(mac, app_config.mac_option_is_meta);
     let attention = Rc::new(RefCell::new(TabAttentionStore::new()));
     let sessions = Rc::new(SessionManager::new(Arc::clone(&services), attention));
+    let lifecycle = state::WindowLifecycle::start(&services.shared.runtime);
+    let theme = background::theme(lifecycle.initial.background);
+    let background = background::content(lifecycle.initial.background);
+    let app_id = services.shared.identity.identifier.clone();
     gpui_kit::application().run(move |cx: &mut App| {
         gpui_kit::init(cx);
         let locale = cx.new(|_| Locale::new(language));
         LocaleGlobal::set(cx, locale.clone());
         tterm_terminal_view::view::bind_keys(cx);
+        lifecycle.install_quit_flush(cx);
         cx.on_window_closed(|cx, _| {
             if cx.windows().is_empty() {
                 cx.quit();
@@ -85,39 +100,40 @@ pub(super) fn run_window(
             keyboard,
             keymap,
             locale,
+            theme,
+            background,
         };
-        if let Err(error) = open_window(cx, startup) {
-            eprintln!("tterm-gpui: {error}");
-            cx.quit();
-        }
-    });
-}
-
-fn open_window(cx: &mut App, startup: PrototypeStartup) -> Result<(), String> {
-    let options = WindowOptions {
-        window_bounds: Some(WindowBounds::Windowed(Bounds {
-            origin: point(px(120.0), px(120.0)),
-            size: size(px(1200.0), px(800.0)),
-        })),
-        ..WindowOptions::default()
-    };
-    let (handle, prototype) = gpui_kit::open_window(options, cx, move |_, cx| {
-        cx.new(|cx| Prototype::new(cx, startup))
-    })
-    .map_err(|error| error.to_string())?;
-    let initial_title = prototype.read(cx).default_window_title(cx);
-    handle
-        .update(cx, |_, window, cx| {
+        let opened = match startup::open(
+            cx,
+            lifecycle.initial,
+            Arc::clone(&lifecycle.geometry),
+            lifecycle.queue(),
+            &app_id,
+            |cx, geometry| cx.new(|cx| Prototype::new(cx, startup, geometry)),
+        ) {
+            Ok(opened) => opened,
+            Err(error) => {
+                eprintln!("tterm-gpui: {error}");
+                cx.quit();
+                return;
+            }
+        };
+        let handle = opened.handle;
+        let prototype = opened.root;
+        let initial_title = prototype.read(cx).default_window_title(cx);
+        if let Err(error) = handle.update(cx, |_, window, cx| {
             window.set_window_title(&initial_title);
             let view = prototype.read(cx).view.clone();
             view.update(cx, |view, cx| view.activate(window, cx));
             window.activate_window();
-        })
-        .map_err(|error| error.to_string())?;
-
-    #[cfg(all(feature = "automation", debug_assertions))]
-    super::automation::start(handle, prototype, cx);
-    Ok(())
+        }) {
+            eprintln!("tterm-gpui: {error}");
+            cx.quit();
+        } else {
+            #[cfg(all(feature = "automation", debug_assertions))]
+            super::automation::start(handle, prototype, cx);
+        }
+    });
 }
 
 /// The window's root view: the attached terminal view.
@@ -128,6 +144,9 @@ pub(super) struct Prototype {
     current_title: String,
     title_is_default: bool,
     locale: Entity<Locale>,
+    geometry: Entity<WindowGeometry>,
+    theme: Theme,
+    background: Rgba,
 }
 
 impl Prototype {
@@ -136,7 +155,19 @@ impl Prototype {
         format!("title={}", self.current_title)
     }
 
-    fn new(cx: &mut Context<Self>, startup: PrototypeStartup) -> Self {
+    /// The automation endpoint's close path. It waits for the final
+    /// background write like the caption and Linux buttons do.
+    #[cfg(all(feature = "automation", debug_assertions))]
+    pub(super) fn request_close(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        let geometry = self.geometry.clone();
+        let _ = geometry.update(cx, |geometry, cx| geometry.request_close(window, cx));
+    }
+
+    fn new(
+        cx: &mut Context<Self>,
+        startup: PrototypeStartup,
+        geometry: Entity<WindowGeometry>,
+    ) -> Self {
         let PrototypeStartup {
             command,
             sessions,
@@ -144,8 +175,11 @@ impl Prototype {
             keyboard,
             keymap,
             locale,
+            theme,
+            background,
         } = startup;
         cx.observe(&locale, |_, _, cx| cx.notify()).detach();
+        cx.observe(&geometry, |_, _, cx| cx.notify()).detach();
         let (binding, open_error) = match command.connection_options() {
             Ok(connection) => {
                 let binding = sessions.open(TAB_ID, connection, INITIAL_GRID, INITIAL_CELL);
@@ -160,7 +194,7 @@ impl Prototype {
         let attachment = binding.as_ref().and_then(|binding| binding.attach());
         let Some(attachment) = attachment else {
             let error = open_error.unwrap_or_else(|| "Failed to start terminal".to_string());
-            return failed(cx, binding, error, locale);
+            return failed(cx, binding, error, locale, geometry, theme, background);
         };
         log_conpty_source();
         let model = attachment.model();
@@ -173,6 +207,9 @@ impl Prototype {
                 None,
                 "The terminal tab was not registered".to_string(),
                 locale,
+                geometry,
+                theme,
+                background,
             );
         };
         let keymap_route = Rc::clone(&keymap);
@@ -235,6 +272,9 @@ impl Prototype {
             current_title: DEFAULT_TITLE.to_string(),
             title_is_default: true,
             locale,
+            geometry,
+            theme,
+            background,
         }
     }
 
@@ -279,6 +319,9 @@ fn failed(
     binding: Option<Rc<TabBinding>>,
     error: String,
     locale: Entity<Locale>,
+    geometry: Entity<WindowGeometry>,
+    theme: Theme,
+    background: Rgba,
 ) -> Prototype {
     eprintln!("tterm-gpui: {error}");
     let terminal = Arc::new(Terminal::new(Config::default(), INITIAL_GRID, INITIAL_CELL));
@@ -291,6 +334,9 @@ fn failed(
         current_title: DEFAULT_TITLE.to_string(),
         title_is_default: true,
         locale,
+        geometry,
+        theme,
+        background,
     }
 }
 
@@ -398,7 +444,20 @@ impl Render for Prototype {
             }
             None => {}
         }
-        div().size_full().child(self.view.clone())
+        let geometry = self.geometry.clone();
+        let on_action: ActionHandler = Rc::new(move |action, window, cx| match action {
+            TitleBarAction::Minimize => window.minimize_window(),
+            TitleBarAction::ToggleMaximize => window.zoom_window(),
+            TitleBarAction::Close => {
+                geometry.update(cx, |geometry, cx| {
+                    geometry.request_close(window, cx);
+                });
+            }
+        });
+        let titlebar = TitleBar::new(self.current_title.clone(), self.theme)
+            .on_action(on_action)
+            .render(window);
+        shell::frame(titlebar, self.view.clone(), self.background)
     }
 }
 

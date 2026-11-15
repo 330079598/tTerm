@@ -170,13 +170,16 @@ fn handle_request(
             type_name::<Prototype>(),
         )),
         Command::State => AutomationResponse::text(prototype.read(cx).automation_state()),
-        Command::Focus | Command::Close => {
-            let result = handle.update(cx, |_, window, _| {
-                if matches!(command, Command::Focus) {
-                    window.activate_window();
-                } else {
-                    window.remove_window();
-                }
+        Command::Focus => {
+            let result = handle.update(cx, |_, window, _| window.activate_window());
+            match result {
+                Ok(()) => AutomationResponse::ok(),
+                Err(error) => AutomationResponse::error(error.to_string()),
+            }
+        }
+        Command::Close => {
+            let result = handle.update(cx, |_, window, app| {
+                prototype.update(app, |prototype, cx| prototype.request_close(window, cx));
             });
             match result {
                 Ok(()) => AutomationResponse::ok(),
