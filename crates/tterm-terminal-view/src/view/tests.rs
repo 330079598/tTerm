@@ -61,6 +61,7 @@ fn a_hidden_view_suppresses_output_frames(cx: &mut TestAppContext) {
         assert_eq!(stats.output_notifications, 100);
         assert_eq!(stats.suppressed_notifications, 100);
         assert_eq!(stats.redraw_requests, 0);
+        assert_eq!(stats.snapshots, 0);
         assert!(!view.is_visible());
     });
 
@@ -148,12 +149,23 @@ fn the_blink_timer_stops_when_the_view_is_hidden(cx: &mut TestAppContext) {
 #[gpui_kit::test]
 fn output_after_resize_prepares_rows_and_hits_the_cache(cx: &mut TestAppContext) {
     let (handle, view) = open_window(cx);
+    let before = view.read_with(cx, |view, _| view.stats());
 
     cx.update_window(handle, |_, window, cx| {
         window.render_frame(cx);
     })
     .expect("render the first frame");
     let first = view.read_with(cx, |view, _| view.stats());
+    assert_eq!(
+        first.frames.saturating_sub(before.frames),
+        1,
+        "one render prepares one frame"
+    );
+    assert_eq!(
+        first.snapshots.saturating_sub(before.snapshots),
+        1,
+        "one frame copies one visible-region snapshot"
+    );
     assert!(
         first.cache_misses > 0,
         "building the first frame shapes rows"

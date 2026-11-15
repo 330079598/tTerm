@@ -15,7 +15,9 @@
 //! job — it owns the bounded queue in front of [`Terminal::write`] — because
 //! this crate cannot know how much CPU time is left in a frame.
 
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex, PoisonError};
+use std::time::{Duration, Instant};
 
 use alacritty_terminal::event::Event as AnsiEvent;
 use alacritty_terminal::event::EventListener;
@@ -98,6 +100,58 @@ impl From<Scroll> for AnsiScroll {
     }
 }
 
+/// How much time snapshot requests spent waiting for and holding the model lock.
+///
+/// The view takes one snapshot per visible frame. The wait includes time a
+/// parser batch owns the lock; the hold is only the visible-row copy plus the
+/// damage reset, never shaping or painting.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct SnapshotTiming {
+    /// Number of snapshots taken since the counters were reset.
+    pub snapshots: u64,
+    /// Total time spent waiting for the lock.
+    pub waited: Duration,
+    /// Total time the lock was held while copying the snapshot.
+    pub held: Duration,
+    /// The longest single lock hold.
+    pub held_max: Duration,
+}
+
+#[derive(Default)]
+struct SnapshotCounters {
+    snapshots: AtomicU64,
+    waited_nanos: AtomicU64,
+    held_nanos: AtomicU64,
+    held_max_nanos: AtomicU64,
+}
+
+impl SnapshotCounters {
+    fn record(&self, waited: Duration, held: Duration) {
+        let waited = u64::try_from(waited.as_nanos()).unwrap_or(u64::MAX);
+        let held = u64::try_from(held.as_nanos()).unwrap_or(u64::MAX);
+        self.snapshots.fetch_add(1, Ordering::Relaxed);
+        self.waited_nanos.fetch_add(waited, Ordering::Relaxed);
+        self.held_nanos.fetch_add(held, Ordering::Relaxed);
+        self.held_max_nanos.fetch_max(held, Ordering::Relaxed);
+    }
+
+    fn reset(&self) {
+        self.snapshots.store(0, Ordering::Relaxed);
+        self.waited_nanos.store(0, Ordering::Relaxed);
+        self.held_nanos.store(0, Ordering::Relaxed);
+        self.held_max_nanos.store(0, Ordering::Relaxed);
+    }
+
+    fn timing(&self) -> SnapshotTiming {
+        SnapshotTiming {
+            snapshots: self.snapshots.load(Ordering::Relaxed),
+            waited: Duration::from_nanos(self.waited_nanos.load(Ordering::Relaxed)),
+            held: Duration::from_nanos(self.held_nanos.load(Ordering::Relaxed)),
+            held_max: Duration::from_nanos(self.held_max_nanos.load(Ordering::Relaxed)),
+        }
+    }
+}
+
 /// The settings of one terminal model.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Config {
@@ -167,6 +221,7 @@ struct State {
 pub struct Terminal {
     state: FairMutex<State>,
     intents: Arc<Mutex<Vec<Intent>>>,
+    snapshot_counters: SnapshotCounters,
 }
 
 impl Terminal {
@@ -193,6 +248,7 @@ impl Terminal {
         Self {
             state: FairMutex::new(state),
             intents,
+            snapshot_counters: SnapshotCounters::default(),
         }
     }
 
@@ -292,10 +348,27 @@ impl Terminal {
     /// only place that holds the lock on the view thread. The copy is exactly
     /// the visible cells; the scrollback is not touched.
     pub fn snapshot(&self) -> Snapshot {
+        let requested = Instant::now();
         let mut state = self.state.lock();
+        let acquired = Instant::now();
         let version = state.version.wrapping_add(1);
         state.version = version;
-        take_snapshot(&mut state, version)
+        let snapshot = take_snapshot(&mut state, version);
+        let held = acquired.elapsed();
+        drop(state);
+        self.snapshot_counters.record(acquired - requested, held);
+        snapshot
+    }
+
+    /// Snapshot lock timing since the counters were last reset.
+    pub fn snapshot_timing(&self) -> SnapshotTiming {
+        self.snapshot_counters.timing()
+    }
+
+    /// Clears the snapshot timing counters, which a benchmark does before a
+    /// measured run.
+    pub fn reset_snapshot_timing(&self) {
+        self.snapshot_counters.reset();
     }
 
     /// Starts a selection at a grid point.

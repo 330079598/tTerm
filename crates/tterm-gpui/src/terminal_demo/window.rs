@@ -139,7 +139,8 @@ impl Prototype {
 
         let mut wake = attachment.subscribe();
         cx.spawn(async move |prototype, cx| {
-            while wake.changed().await.is_ok() {
+            while wake.changed().await {
+                wake.acknowledge();
                 let updated = prototype.update(cx, |prototype, cx| {
                     let current = prototype
                         .binding

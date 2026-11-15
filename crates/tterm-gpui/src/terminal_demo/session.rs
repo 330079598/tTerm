@@ -5,7 +5,6 @@
 //! sees every byte parsed while it was gone.
 
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::mpsc::SyncSender;
 use std::sync::{Arc, Mutex};
 use std::thread::JoinHandle;
 
@@ -23,7 +22,7 @@ use tterm_core::terminal::output::TerminalOutput;
 use tterm_terminal::grid::{CellSize, GridSize, WindowSize};
 use tterm_terminal::terminal::{Config, Terminal};
 
-use super::pipeline::{self, SessionState};
+use super::pipeline::{self, QueueSender, RefreshSignal, SessionState};
 use super::prompt::PromptControl;
 
 /// What the terminal shows when a program ends by itself.
@@ -39,11 +38,12 @@ pub struct Session {
     state: SessionState,
     prompt: Arc<PromptControl>,
     flow: Arc<OutputFlow>,
-    queue: Mutex<Option<SyncSender<Vec<u8>>>>,
+    queue: Mutex<Option<QueueSender>>,
     parser: Mutex<Option<JoinHandle<()>>>,
     alive: Arc<AtomicBool>,
+    visible: Arc<AtomicBool>,
     input_open: Arc<AtomicBool>,
-    wake: watch::Sender<u64>,
+    refresh: Arc<RefreshSignal>,
 }
 
 impl Session {
@@ -63,30 +63,30 @@ impl Session {
         };
         let terminal = Arc::new(Terminal::new(Config::default(), grid, cell));
         let alive = Arc::new(AtomicBool::new(true));
+        let visible = Arc::new(AtomicBool::new(false));
         let input_open = Arc::new(AtomicBool::new(true));
         let flow = Arc::new(OutputFlow::default());
-        let (wake, _wake_receiver) = watch::channel(0_u64);
+        let refresh = Arc::new(RefreshSignal::new());
         let state = SessionState {
             terminal: Arc::clone(&terminal),
             size: Arc::new(Mutex::new(WindowSize { grid, cell })),
             title: Arc::new(Mutex::new(None)),
             session_nonce,
             alive: Arc::clone(&alive),
+            visible: Arc::clone(&visible),
+            refresh: Arc::clone(&refresh),
         };
-        let pipeline = pipeline::start(
-            state.clone(),
-            Arc::clone(&services),
-            key.clone(),
-            Arc::clone(&flow),
-            wake.clone(),
-        )?;
+        let write_services = Arc::clone(&services);
+        let write_key = key.clone();
+        let write = Arc::new(move |bytes: Vec<u8>| {
+            let _ = write_services.write_pty(&write_key, &bytes);
+        });
+        let acknowledge_flow = Arc::clone(&flow);
+        let acknowledge = Arc::new(move |bytes: usize| acknowledge_flow.ack(bytes));
+        let pipeline = pipeline::start(state.clone(), write, acknowledge)?;
         let queue_for_output = pipeline.queue.clone();
         let output = TerminalOutput::new(
-            Arc::new(move |bytes| {
-                queue_for_output
-                    .send(bytes)
-                    .map_err(|_| "The GPUI output parser has closed".to_string())
-            }),
+            Arc::new(move |bytes| queue_for_output.send(bytes)),
             Arc::clone(&flow),
         );
         let sink: Arc<dyn SessionSink> = Arc::new(GpuiSessionSink {
@@ -118,7 +118,7 @@ impl Session {
         let prompt = PromptControl::new(
             Arc::clone(&terminal),
             Arc::clone(&services.shared.prompts),
-            wake.clone(),
+            Arc::clone(&refresh),
         );
         Ok(Self {
             services,
@@ -129,8 +129,9 @@ impl Session {
             queue: Mutex::new(Some(pipeline.queue)),
             parser: Mutex::new(Some(pipeline.parser)),
             alive,
+            visible,
             input_open,
-            wake,
+            refresh,
         })
     }
 
@@ -155,8 +156,31 @@ impl Session {
     }
 
     /// The watch channel that wakes every attached view for new output.
-    pub fn subscribe(&self) -> watch::Receiver<u64> {
-        self.wake.subscribe()
+    pub fn subscribe(&self) -> RefreshWatch {
+        RefreshWatch {
+            receiver: self.refresh.subscribe(),
+            refresh: Arc::clone(&self.refresh),
+        }
+    }
+
+    /// Whether a view currently shows this session.
+    pub fn is_visible(&self) -> bool {
+        self.visible.load(Ordering::Acquire)
+    }
+
+    /// Shows or hides the session.
+    ///
+    /// Hiding only stops frame wake-ups; the parser keeps consuming and
+    /// acknowledging output so the scrollback stays current and the reader is
+    /// never blocked by a hidden tab. Showing requests one frame so the view
+    /// catches up with everything parsed while it was hidden.
+    pub fn set_visible(&self, visible: bool) {
+        if self.visible.swap(visible, Ordering::AcqRel) == visible {
+            return;
+        }
+        if visible && self.alive.load(Ordering::Acquire) {
+            self.refresh.notify();
+        }
     }
 
     /// Sends bytes through the session's local, SSH or serial channel.
@@ -221,6 +245,7 @@ impl Session {
     /// Stops the core session and the parser. Safe to call more than once.
     pub fn close(&self) {
         self.alive.store(false, Ordering::Release);
+        self.visible.store(false, Ordering::Release);
         self.input_open.store(false, Ordering::Release);
         let _ = self.services.kill_pty(&self.key);
         self.flow.close();
@@ -240,6 +265,25 @@ impl Session {
 impl Drop for Session {
     fn drop(&mut self) {
         self.close();
+    }
+}
+
+/// A view's subscription to the session's coalesced frame wake-ups.
+pub struct RefreshWatch {
+    receiver: watch::Receiver<u64>,
+    refresh: Arc<RefreshSignal>,
+}
+
+impl RefreshWatch {
+    /// Waits for the next refresh, returning false once the session is gone.
+    pub async fn changed(&mut self) -> bool {
+        self.receiver.changed().await.is_ok()
+    }
+
+    /// Marks the current refresh as handled, so the next parsed batch can
+    /// request another frame.
+    pub fn acknowledge(&self) {
+        self.refresh.acknowledge();
     }
 }
 
@@ -282,7 +326,7 @@ struct GpuiSessionSink {
     tab_id: String,
     events: Arc<dyn EventSink>,
     output: TerminalOutput,
-    queue: SyncSender<Vec<u8>>,
+    queue: QueueSender,
     input_open: Arc<AtomicBool>,
 }
 

@@ -111,6 +111,8 @@ mod tests {
             title: Arc::new(Mutex::new(None)),
             session_nonce: 1,
             alive: Arc::new(std::sync::atomic::AtomicBool::new(true)),
+            visible: Arc::new(std::sync::atomic::AtomicBool::new(true)),
+            refresh: Arc::new(crate::terminal_demo::pipeline::RefreshSignal::new()),
         };
         (model, state)
     }

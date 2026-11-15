@@ -2,17 +2,18 @@
 
 use std::sync::{Arc, Mutex};
 
-use tokio::sync::watch;
 use tterm_core::events::ssh::{AuthPromptField, AuthPromptPayload, SshHostKeyPromptPayload};
 use tterm_core::prompts::PromptBroker;
 use tterm_terminal::terminal::Terminal;
+
+use super::pipeline::RefreshSignal;
 
 /// Turns keyboard input into prompt replies until the session is connected.
 pub(super) struct PromptControl {
     state: Mutex<PromptState>,
     model: Arc<Terminal>,
     prompts: Arc<PromptBroker>,
-    wake: watch::Sender<u64>,
+    refresh: Arc<RefreshSignal>,
 }
 
 enum PromptState {
@@ -49,13 +50,13 @@ impl PromptControl {
     pub(super) fn new(
         model: Arc<Terminal>,
         prompts: Arc<PromptBroker>,
-        wake: watch::Sender<u64>,
+        refresh: Arc<RefreshSignal>,
     ) -> Arc<Self> {
         Arc::new(Self {
             state: Mutex::new(PromptState::Idle),
             model,
             prompts,
-            wake,
+            refresh,
         })
     }
 
@@ -213,8 +214,7 @@ impl PromptControl {
     }
 
     fn notify(&self) {
-        self.wake
-            .send_modify(|generation| *generation = generation.wrapping_add(1));
+        self.refresh.notify();
     }
 }
 
@@ -329,7 +329,6 @@ fn cancel(state: &mut PromptState, model: &Terminal) -> Option<Submission> {
 mod tests {
     use super::{PromptControl, PromptState};
     use std::sync::Arc;
-    use tokio::sync::watch;
     use tterm_core::events::{AppEvent, EventSink};
     use tterm_core::prompts::PromptBroker;
     use tterm_terminal::grid::{CellSize, GridSize};
@@ -349,8 +348,8 @@ mod tests {
         ));
         let events = Arc::new(NoopEvents);
         let prompts = Arc::new(PromptBroker::new(events));
-        let (wake, _receiver) = watch::channel(0);
-        Arc::try_unwrap(PromptControl::new(model, prompts, wake))
+        let refresh = Arc::new(crate::terminal_demo::pipeline::RefreshSignal::new());
+        Arc::try_unwrap(PromptControl::new(model, prompts, refresh))
             .unwrap_or_else(|_| panic!("single prompt control"))
     }
 
