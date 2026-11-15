@@ -150,6 +150,7 @@ impl TerminalView {
         text_system: &std::rc::Rc<gpui_kit::WindowTextSystem>,
     ) -> Arc<FrameData> {
         let snapshot = self.terminal.snapshot();
+        self.stats.snapshots = self.stats.snapshots.saturating_add(1);
         let style_epoch = self.style_epoch;
         // Alacritty's damage covers the cells only, not a palette or font
         // change, so rows built under another style epoch are never reused.

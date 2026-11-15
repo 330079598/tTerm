@@ -16,7 +16,6 @@ use std::rc::Rc;
 use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
 use std::sync::{Arc, Mutex, PoisonError};
 
-use tokio::sync::watch;
 use tterm_core::core::session::types::PtyConnectionOptions;
 use tterm_core::prompts::SessionKey;
 use tterm_core::services::AppServices;
@@ -25,7 +24,7 @@ use tterm_terminal::grid::{CellSize, GridSize};
 use tterm_terminal::terminal::Terminal;
 
 use self::scoped::{ConnectionState, SessionScopedState};
-use super::session::Session;
+use super::session::{RefreshWatch, Session};
 
 /// The application-owned sessions, one binding per tab.
 pub struct SessionManager {
@@ -180,6 +179,9 @@ impl TabBinding {
         if self.active.swap(true, Ordering::AcqRel) {
             return false;
         }
+        if let Some(session) = self.session() {
+            session.set_visible(true);
+        }
         self.attention
             .borrow_mut()
             .clear_tab_attention(&self.tab_id);
@@ -189,6 +191,9 @@ impl TabBinding {
     /// Leaves the tab's view so it stops view-specific activity.
     pub fn leave(&self) {
         self.active.store(false, Ordering::Release);
+        if let Some(session) = self.session() {
+            session.set_visible(false);
+        }
     }
 
     /// The session-scoped state of the current generation.
@@ -254,6 +259,7 @@ impl TabBinding {
     }
 
     fn set_session(&self, session: Arc<Session>) {
+        session.set_visible(self.active.load(Ordering::Acquire));
         *self.session.lock().unwrap_or_else(PoisonError::into_inner) = Some(session);
     }
 
@@ -311,7 +317,7 @@ impl SessionAttachment {
     }
 
     /// Wake-ups for new output.
-    pub fn subscribe(&self) -> watch::Receiver<u64> {
+    pub fn subscribe(&self) -> RefreshWatch {
         self.session.subscribe()
     }
 

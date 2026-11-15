@@ -47,6 +47,30 @@ fn local_connection() -> PtyConnectionOptions {
         .expect("local connection options")
 }
 
+fn flood_connection() -> PtyConnectionOptions {
+    #[cfg(windows)]
+    let command = CommandSpec::Program {
+        program: std::env::var("COMSPEC")
+            .unwrap_or_else(|_| r"C:\Windows\System32\cmd.exe".to_string()),
+        args: vec![
+            "/Q".to_string(),
+            "/C".to_string(),
+            "for /L %i in (1,1,1000000000) do @echo P2-02-FLOOD-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx".to_string(),
+        ],
+    };
+    #[cfg(not(windows))]
+    let command = CommandSpec::Program {
+        program: "/bin/sh".to_string(),
+        args: vec![
+            "-c".to_string(),
+            "while :; do printf 'P2-02-FLOOD-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\\n'; done".to_string(),
+        ],
+    };
+    command
+        .connection_options()
+        .expect("flood connection options")
+}
+
 fn print_command(marker: &str) -> Vec<u8> {
     #[cfg(windows)]
     return format!("echo {marker}\r\n").into_bytes();
@@ -66,6 +90,24 @@ fn text(model: &Terminal) -> String {
 
 fn wait_for_text(model: &Terminal, needle: &str) -> bool {
     let deadline = Instant::now() + WAIT;
+    loop {
+        if text(model).contains(needle) {
+            return true;
+        }
+        if Instant::now() >= deadline {
+            return false;
+        }
+        std::thread::sleep(Duration::from_millis(10));
+    }
+}
+
+fn wait_for_text_after(
+    model: &Terminal,
+    needle: &str,
+    started: &Instant,
+    timeout: Duration,
+) -> bool {
+    let deadline = *started + timeout;
     loop {
         if text(model).contains(needle) {
             return true;
@@ -318,9 +360,12 @@ fn entering_a_tab_clears_its_attention_state() {
         );
     }
     assert!(!binding.is_active());
+    let session = binding.session().expect("local session");
+    assert!(!session.is_visible());
 
     assert!(binding.enter(), "the first entry changes the active state");
     assert!(binding.is_active());
+    assert!(session.is_visible());
     {
         let store = attention.borrow();
         assert!(store.get_tab_attention(tab_id).is_none());
@@ -330,6 +375,7 @@ fn entering_a_tab_clears_its_attention_state() {
 
     binding.leave();
     assert!(!binding.is_active());
+    assert!(!session.is_visible());
     manager.close_tab(tab_id).expect("close the tab");
 }
 
@@ -350,6 +396,57 @@ fn a_program_that_ends_by_itself_still_writes_its_exit_notice() {
         wait_for_text(&model, "[Process exited]"),
         "queued output and the exit notice are parsed after input closes"
     );
+    manager.close_tab(tab_id).expect("close the tab");
+}
+
+#[test]
+fn input_and_ctrl_c_bypass_a_saturated_output_parser() {
+    const INPUT_BUDGET: Duration = Duration::from_millis(100);
+    const INTERRUPT_BUDGET: Duration = Duration::from_secs(5);
+
+    let runtime = test_runtime();
+    let manager = manager(&runtime);
+    let tab_id = "p2-02-input-under-output";
+    let binding = manager.open(tab_id, flood_connection(), GRID, CELL);
+    let attachment = binding.attach().expect("attach the view");
+    let model = attachment.model();
+    assert!(
+        wait_for_text(&model, "P2-02-FLOOD"),
+        "the output flood reaches the parser"
+    );
+    std::thread::sleep(Duration::from_millis(250));
+
+    let input = attachment.session().input();
+    let input_started = Instant::now();
+    input(b"x");
+    let input_latency = input_started.elapsed();
+    assert!(
+        input_latency < INPUT_BUDGET,
+        "ordinary input waited {input_latency:?} behind terminal output"
+    );
+
+    let interrupt_started = Instant::now();
+    input(&[0x03]);
+    let interrupt_write = interrupt_started.elapsed();
+    assert!(
+        interrupt_write < INPUT_BUDGET,
+        "Ctrl+C waited {interrupt_write:?} behind terminal output before reaching the PTY"
+    );
+    assert!(
+        wait_for_text_after(
+            &model,
+            "[Process exited]",
+            &interrupt_started,
+            INTERRUPT_BUDGET
+        ),
+        "Ctrl+C did not stop the flood within {INTERRUPT_BUDGET:?}"
+    );
+    eprintln!(
+        "P2-02 input latency: input={input_latency:?}, ctrl_c_write={interrupt_write:?}, \
+         ctrl_c_to_exit={:?}",
+        interrupt_started.elapsed()
+    );
+
     manager.close_tab(tab_id).expect("close the tab");
 }
 

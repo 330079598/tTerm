@@ -90,6 +90,8 @@ pub struct TerminalViewConfig {
 pub struct ViewStats {
     /// Frames prepared, including blink-only frames.
     pub frames: u64,
+    /// Model snapshots copied on visible frames.
+    pub snapshots: u64,
     /// Rows that were planned and shaped.
     pub rows_laid_out: u64,
     /// Row cache hits.
