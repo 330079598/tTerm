@@ -149,6 +149,8 @@ pub(super) fn run_window(
 
 /// The window's root view: the attached terminal view.
 pub(super) struct Prototype {
+    // The manager closes every session on drop, so the root owns it until shutdown.
+    _sessions: Option<Rc<SessionManager>>,
     view: Entity<TerminalView>,
     binding: Option<Rc<TabBinding>>,
     title: Arc<Mutex<Option<String>>>,
@@ -295,6 +297,7 @@ impl Prototype {
         .detach();
 
         Self {
+            _sessions: Some(sessions),
             view,
             binding: Some(binding),
             title,
@@ -358,6 +361,7 @@ fn failed(
     terminal.write(format!("\x1b[31m[{error}]\x1b[0m\r\n").as_bytes());
     let view = cx.new(|cx| TerminalView::new(cx, terminal, Default::default()));
     Prototype {
+        _sessions: None,
         view,
         binding,
         title: Arc::new(Mutex::new(None)),
