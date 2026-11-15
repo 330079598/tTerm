@@ -290,3 +290,42 @@ pub(super) fn local_drop_text(connection: &PtyConnectionOptions) -> Option<DropT
     let quoting = drop_quoting_for(std::env::consts::OS, shell_name.as_deref());
     Some(Rc::new(move |paths| dropped_paths_text(paths, quoting)))
 }
+
+/// Binds every view paste to this controller and session generation.
+pub(super) fn view_gate(
+    controller: &Entity<PasteController>,
+    binding: &Rc<TabBinding>,
+    session_nonce: u32,
+) -> tterm_terminal_view::view::paste::PasteGate {
+    let gate_controller = controller.downgrade();
+    let gate_binding = Rc::clone(binding);
+    Rc::new(move |request, window, cx| {
+        let Some(controller) = gate_controller.upgrade() else {
+            return true;
+        };
+        let tterm_terminal_view::view::paste::PasteRequest {
+            text,
+            bracketed,
+            delivery,
+        } = request;
+        let binding = Rc::clone(&gate_binding);
+        let is_current = Rc::new(move |nonce| {
+            binding
+                .session()
+                .is_some_and(|session| session.session_nonce() == nonce && session.is_live())
+        });
+        controller.update(cx, |controller, cx| {
+            controller.request(
+                text,
+                bracketed,
+                PasteTarget {
+                    session_nonce,
+                    is_current,
+                    delivery,
+                },
+                window,
+                cx,
+            )
+        })
+    })
+}

@@ -11011,6 +11011,8 @@ version = "0.1.0"
 dependencies = [
  "gpui-kit",
  "image",
+ "rusqlite",
+ "serde",
  "serde_json",
  "tokio",
  "tterm-core",
