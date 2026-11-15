@@ -42,6 +42,7 @@ mod pointer_tests;
 #[cfg(test)]
 mod tests;
 
+use std::collections::HashSet;
 use std::rc::Rc;
 use std::sync::Arc;
 
@@ -70,6 +71,23 @@ pub type InputSink = Rc<dyn Fn(&[u8])>;
 /// Reports a grid change to the session so it can resize the PTY.
 pub type ResizeSink = Rc<dyn Fn(GridSize, CellSize)>;
 
+/// Decides whether the application keymap consumes a keydown before the
+/// terminal encoder turns it into bytes.
+pub type KeymapRouter = Rc<dyn Fn(&gpui_kit::KeyDownEvent) -> bool>;
+
+/// Keeps Tab and Shift+Tab out of the window root's focus traversal while a
+/// terminal view is focused, so they reach the terminal encoder.
+///
+/// The base `Root` binds both keys to focus actions. A no-action binding in
+/// the deeper terminal context outranks those actions and lets the raw key
+/// handler run. Application keymap routing still happens before encoding.
+pub fn bind_keys(cx: &mut gpui_kit::App) {
+    cx.bind_keys([
+        gpui_kit::KeyBinding::new("tab", gpui_kit::NoAction, Some("Terminal")),
+        gpui_kit::KeyBinding::new("shift-tab", gpui_kit::NoAction, Some("Terminal")),
+    ]);
+}
+
 /// The settings one terminal view starts with.
 #[derive(Clone, Default)]
 pub struct TerminalViewConfig {
@@ -81,6 +99,8 @@ pub struct TerminalViewConfig {
     pub input: Option<InputSink>,
     /// Alt/Option policy passed to the existing keyboard encoder.
     pub keyboard: EncoderConfig,
+    /// Application keymap consulted before the terminal encoder.
+    pub keymap: Option<KeymapRouter>,
     /// Reports a grid change to the session so it can resize the PTY.
     pub resize: Option<ResizeSink>,
 }
@@ -137,6 +157,8 @@ pub struct TerminalView {
     focus_handle: FocusHandle,
     input: Option<InputSink>,
     keyboard: EncoderConfig,
+    keymap: Option<KeymapRouter>,
+    consumed_keys: HashSet<String>,
     input_focused: bool,
     input_observed: bool,
     input_origin: Option<Point<Pixels>>,
@@ -180,6 +202,8 @@ impl TerminalView {
             focus_handle,
             input: config.input,
             keyboard: config.keyboard,
+            keymap: config.keymap,
+            consumed_keys: HashSet::new(),
             input_focused: false,
             input_observed: false,
             input_origin: None,
@@ -267,6 +291,7 @@ impl TerminalView {
             self.ime_confirm = false;
             self.composition.clear();
             self.preedit = None;
+            self.consumed_keys.clear();
             self.ime_hide_task.take();
             self.stop_blink();
             self.blink_only = false;
@@ -310,6 +335,7 @@ impl TerminalView {
         self.ime_confirm = false;
         self.composition.clear();
         self.preedit = None;
+        self.consumed_keys.clear();
         self.invalidate(cx);
     }
 

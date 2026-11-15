@@ -46,6 +46,12 @@ impl TerminalView {
             return;
         }
         self.ime_confirm = false;
+        if self.keymap.as_ref().is_some_and(|route| route(event)) {
+            self.consumed_keys.insert(event.keystroke.key.clone());
+            window.prevent_default();
+            cx.stop_propagation();
+            return;
+        }
         if self.clipboard_key(&event.keystroke, cx)
             || self.encode_key(&event.keystroke, KeyState::Pressed, event.is_held, cx)
         {
@@ -60,6 +66,11 @@ impl TerminalView {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
+        if self.consumed_keys.remove(&event.keystroke.key) {
+            window.prevent_default();
+            cx.stop_propagation();
+            return;
+        }
         if self.composition.active() || (self.ime_confirm && event.keystroke.key == "enter") {
             self.ime_confirm = false;
             window.prevent_default();
@@ -109,6 +120,7 @@ impl TerminalView {
             self.ime_confirm = false;
             self.composition.clear();
             self.preedit = None;
+            self.consumed_keys.clear();
             self.ime_hide_task.take();
             window.notify_text_input_changed(&self.focus_handle);
             self.stop_blink();

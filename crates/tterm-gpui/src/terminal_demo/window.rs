@@ -7,6 +7,7 @@ use std::sync::{Arc, Mutex};
 use gpui_kit::prelude::*;
 use gpui_kit::{App, Bounds, Entity, Window, WindowBounds, WindowOptions, div, point, px, size};
 use tokio::sync::mpsc::UnboundedReceiver;
+use tterm_core::config::{AppConfig, load_config_file};
 use tterm_core::events::AppEvent;
 use tterm_core::events::ssh::{SshConnectionProgressPayload, SshEvent};
 use tterm_core::events::terminal::TerminalEvent;
@@ -20,6 +21,7 @@ use super::binding::{SessionManager, TabBinding, scoped::ConnectionState};
 use super::command::CommandSpec;
 use super::conpty::{log_conpty_source, prepare_conpty};
 use super::intents::DEFAULT_TITLE;
+use super::keymap::{KeymapRouter, encoder_config, route_keymap};
 
 const TAB_ID: &str = "gpui-main";
 const INITIAL_GRID: GridSize = GridSize {
@@ -38,17 +40,25 @@ pub(super) fn run_window(
     events: UnboundedReceiver<AppEvent>,
 ) {
     prepare_conpty();
+    let app_config = load_config_file().unwrap_or_else(|error| {
+        eprintln!("tterm-gpui: failed to load config, using defaults: {error}");
+        AppConfig::default()
+    });
+    let mac = cfg!(target_os = "macos");
+    let keymap = Rc::new(KeymapRouter::new(&app_config.keymap, mac));
+    let keyboard = encoder_config(mac, app_config.mac_option_is_meta);
     let attention = Rc::new(RefCell::new(TabAttentionStore::new()));
     let sessions = Rc::new(SessionManager::new(Arc::clone(&services), attention));
     gpui_kit::application().run(move |cx: &mut App| {
         gpui_kit::init(cx);
+        tterm_terminal_view::view::bind_keys(cx);
         cx.on_window_closed(|cx, _| {
             if cx.windows().is_empty() {
                 cx.quit();
             }
         })
         .detach();
-        if let Err(error) = open_window(cx, command, sessions, events) {
+        if let Err(error) = open_window(cx, command, sessions, events, keyboard, keymap) {
             eprintln!("tterm-gpui: {error}");
             cx.quit();
         }
@@ -60,6 +70,8 @@ fn open_window(
     command: CommandSpec,
     sessions: Rc<SessionManager>,
     events: UnboundedReceiver<AppEvent>,
+    keyboard: tterm_terminal_view::input::keyboard::EncoderConfig,
+    keymap: Rc<KeymapRouter>,
 ) -> Result<(), String> {
     let options = WindowOptions {
         window_bounds: Some(WindowBounds::Windowed(Bounds {
@@ -69,7 +81,7 @@ fn open_window(
         ..WindowOptions::default()
     };
     let (handle, prototype) = gpui_kit::open_window(options, cx, move |_, cx| {
-        cx.new(|cx| Prototype::new(cx, &command, sessions, events))
+        cx.new(|cx| Prototype::new(cx, &command, sessions, events, keyboard, keymap))
     })
     .map_err(|error| error.to_string())?;
     handle
@@ -105,6 +117,8 @@ impl Prototype {
         command: &CommandSpec,
         sessions: Rc<SessionManager>,
         mut events: UnboundedReceiver<AppEvent>,
+        keyboard: tterm_terminal_view::input::keyboard::EncoderConfig,
+        keymap: Rc<KeymapRouter>,
     ) -> Self {
         let (binding, open_error) = match command.connection_options() {
             Ok(connection) => {
@@ -130,9 +144,12 @@ impl Prototype {
         let Some(binding) = binding else {
             return failed(cx, None, "The terminal tab was not registered".to_string());
         };
+        let keymap_route = Rc::clone(&keymap);
         let config = TerminalViewConfig {
             input: Some(Rc::new(attachment.input())),
             resize: Some(Rc::new(attachment.resizer())),
+            keyboard,
+            keymap: Some(Rc::new(move |event| route_keymap(&keymap_route, event))),
             ..TerminalViewConfig::default()
         };
         let view = cx.new(|cx| TerminalView::new(cx, model, config));
