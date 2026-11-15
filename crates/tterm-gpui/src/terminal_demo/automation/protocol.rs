@@ -1,6 +1,7 @@
 //! Pure validation shared by the listener and its security regression tests.
 
 use gpui_kit::{Keystroke, OperatingSystem};
+use tterm_core::i18n::language::Language;
 
 pub(super) const MAX_REQUEST_BYTES: usize = 64 * 1024;
 
@@ -13,6 +14,7 @@ pub(super) enum Command {
     Close,
     Key(Keystroke),
     Text(String),
+    Language(Language),
 }
 
 /// Checks every token byte without an early return on a differing byte.
@@ -56,6 +58,13 @@ pub(super) fn parse_request(
             if let Some(text) = command.strip_prefix("text=") {
                 validate_text(text)?;
                 return Ok(Command::Text(text.to_string()));
+            }
+            if let Some(language) = command.strip_prefix("action=language=") {
+                return match language {
+                    "en" => Ok(Command::Language(Language::En)),
+                    "zh" => Ok(Command::Language(Language::Zh)),
+                    _ => Err("unsupported language"),
+                };
             }
             Err("unknown command")
         }

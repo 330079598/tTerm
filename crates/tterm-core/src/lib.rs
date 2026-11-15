@@ -49,6 +49,8 @@ pub mod events;
 pub mod external_editor;
 /// The fonts installed on this computer, and their families.
 pub mod fonts;
+/// The shared translation catalogue, language rules and interpolation.
+pub mod i18n;
 /// Application identity supplied by the client.
 pub mod identity;
 /// ECMAScript string behaviour the ported frontend modules rely on.

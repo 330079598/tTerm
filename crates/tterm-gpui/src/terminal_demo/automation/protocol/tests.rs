@@ -85,6 +85,22 @@ fn keys_use_gpui_parser_including_letters_and_modifiers() {
 }
 
 #[test]
+fn language_command_accepts_only_supported_codes() {
+    assert!(matches!(
+        parse("token=secret\ncommand=action=language=en\n"),
+        Ok(Command::Language(Language::En))
+    ));
+    assert!(matches!(
+        parse("token=secret\ncommand=action=language=zh\n"),
+        Ok(Command::Language(Language::Zh))
+    ));
+    assert_eq!(
+        parse("token=secret\ncommand=action=language=fr\n").unwrap_err(),
+        "unsupported language"
+    );
+}
+
+#[test]
 fn invalid_utf8_and_removed_toggle_are_rejected() {
     assert!(parse_request(&[0xff], "secret", OperatingSystem::Windows).is_err());
     assert!(parse("token=secret\ncommand=toggle-title\n").is_err());

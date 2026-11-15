@@ -184,6 +184,10 @@ fn handle_request(
             }
         }
         Command::Key(key) => dispatch_keys(handle, prototype.entity_id(), vec![key], cx),
+        Command::Language(language) => {
+            prototype.update(cx, |prototype, cx| prototype.set_language(language, cx));
+            AutomationResponse::ok()
+        }
         Command::Text(text) => {
             let keys = text
                 .chars()

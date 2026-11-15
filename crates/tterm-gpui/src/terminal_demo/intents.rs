@@ -42,8 +42,8 @@ pub(super) fn handle_intent(intent: Intent, state: &SessionState, mut write: imp
 }
 
 /// Keeps only the latest title, so a program that sets many titles quickly
-/// leaves one for the window to show. An empty title shows the default one,
-/// since a window without a title cannot be told apart in the task bar.
+/// leaves one for the window to show. An empty title uses the default marker,
+/// which the window resolves in the current language.
 fn set_title(state: &SessionState, title: String) {
     let title = if title.trim().is_empty() {
         DEFAULT_TITLE.to_string()
@@ -136,6 +136,30 @@ mod tests {
     fn a_title_reset_returns_the_window_to_its_default() {
         let (model, state) = state();
         model.set_scrollback(500);
+        for intent in model.drain_intents() {
+            handle_intent(intent, &state, |_| {});
+        }
+
+        assert_eq!(
+            state.title.lock().expect("title").as_deref(),
+            Some(DEFAULT_TITLE)
+        );
+    }
+
+    #[test]
+    fn a_program_title_is_preserved_until_it_resets() {
+        let (model, state) = state();
+        model.write(b"\x1b]0;cargo test\x07");
+        for intent in model.drain_intents() {
+            handle_intent(intent, &state, |_| {});
+        }
+
+        assert_eq!(
+            state.title.lock().expect("title").as_deref(),
+            Some("cargo test")
+        );
+
+        model.write(b"\x1b]0;\x07");
         for intent in model.drain_intents() {
             handle_intent(intent, &state, |_| {});
         }
