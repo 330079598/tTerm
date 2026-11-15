@@ -8,15 +8,19 @@
 //! the core sender and the parser.
 
 use std::sync::atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering};
-use std::sync::mpsc::{self, Receiver, SyncSender};
+use std::sync::mpsc::{self, Receiver, RecvTimeoutError, SyncSender};
 use std::sync::{Arc, Mutex, PoisonError};
 use std::thread::JoinHandle;
+use std::time::Instant;
 
 use tokio::sync::watch;
 use tterm_terminal::grid::WindowSize;
 use tterm_terminal::terminal::Terminal;
 
 use super::intents::handle_intent;
+
+pub(super) mod mouse_guard;
+use mouse_guard::MouseGuard;
 
 /// How many parser-sized chunks may wait for the parser before core applies
 /// backpressure upstream.
@@ -325,11 +329,19 @@ pub(super) fn start(
     state: SessionState,
     write: WriteBytes,
     acknowledge: AcknowledgeBytes,
+    guard: Option<Arc<MouseGuard>>,
 ) -> Result<Pipeline, String> {
     let metrics = Arc::new(QueueMetrics::default());
     let (sender, queued) = mpsc::sync_channel(QUEUED_CHUNKS);
     let queue = QueueSender::new(sender, Arc::clone(&metrics));
-    let parser = spawn_parser(queued, Arc::clone(&metrics), state, write, acknowledge)?;
+    let parser = spawn_parser(
+        queued,
+        Arc::clone(&metrics),
+        state,
+        write,
+        acknowledge,
+        guard,
+    )?;
     Ok(Pipeline { queue, parser })
 }
 
@@ -339,17 +351,38 @@ fn spawn_parser(
     state: SessionState,
     write: WriteBytes,
     acknowledge: AcknowledgeBytes,
+    guard: Option<Arc<MouseGuard>>,
 ) -> Result<JoinHandle<()>, String> {
     std::thread::Builder::new()
         .name("gpui-pty-parser".to_string())
         .spawn(move || {
-            while let Ok(chunk) = queued.recv() {
+            loop {
+                let chunk = match guard
+                    .as_ref()
+                    .and_then(|guard| guard.timeout_at(Instant::now()))
+                {
+                    Some(timeout) => match queued.recv_timeout(timeout) {
+                        Ok(chunk) => Some(chunk),
+                        Err(RecvTimeoutError::Timeout) => {
+                            if let Some(guard) = &guard {
+                                guard.settle();
+                            }
+                            continue;
+                        }
+                        Err(RecvTimeoutError::Disconnected) => None,
+                    },
+                    None => queued.recv().ok(),
+                };
+                let Some(chunk) = chunk else {
+                    break;
+                };
                 let (mut batch, acknowledge_flow) = chunk.into_batch();
                 apply_and_release(
                     &state,
                     &metrics,
                     &write,
                     &acknowledge,
+                    guard.as_deref(),
                     &mut batch,
                     acknowledge_flow,
                 );
@@ -369,11 +402,16 @@ fn apply_and_release(
     metrics: &QueueMetrics,
     write: &WriteBytes,
     acknowledge: &AcknowledgeBytes,
+    guard: Option<&MouseGuard>,
     batch: &mut Vec<u8>,
     acknowledge_flow: usize,
 ) {
     let length = batch.len();
-    if state.apply(state.session_nonce, batch) {
+    let applied = match guard {
+        Some(guard) => guard.apply_batch(batch),
+        None => state.apply(state.session_nonce, batch),
+    };
+    if applied {
         for intent in state.terminal.drain_intents() {
             handle_intent(intent, state, |bytes| write(bytes));
         }

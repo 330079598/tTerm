@@ -2,16 +2,13 @@
 
 use super::TerminalView;
 use super::scrollbar::ScrollbarGeometry;
+use crate::input::click::{ClickCount, selection_kind};
 use crate::input::mouse::{self, ButtonAction, ButtonState};
 use gpui_kit::{
     Context, Modifiers, MouseButton, MouseDownEvent, MouseMoveEvent, MouseUpEvent, Pixels, Point,
     Window,
 };
-use tterm_terminal::{
-    grid::GridPoint,
-    selection::{SelectionKind, Side},
-    terminal::Scroll,
-};
+use tterm_terminal::{grid::GridPoint, selection::Side, terminal::Scroll};
 
 #[derive(Default)]
 pub(super) struct PointerState {
@@ -84,20 +81,35 @@ impl TerminalView {
         window.focus(&self.focus_handle, cx);
         self.pointer.held = Some(button);
         self.pointer.last_cell = Some(point);
-        let action = mouse::button_action(self.input_modes(), event.modifiers.shift);
+        let option_forces =
+            self.pointer_policy.macos_option_forces_selection && event.modifiers.alt;
+        let force_local = event.modifiers.shift || option_forces;
+        let block = !option_forces
+            && (event.modifiers.control
+                || (self.pointer_policy.alt_selects_block_outside_macos && event.modifiers.alt));
+        let action = mouse::button_action(self.input_modes(), force_local);
         self.pointer.selecting = action == ButtonAction::Local
             && matches!(button, mouse::MouseButton::Left | mouse::MouseButton::Right);
         self.pointer.reported_press = action == ButtonAction::Report;
         if action == ButtonAction::Report {
             self.report_button(point, button, ButtonState::Pressed, event.modifiers, cx);
+        } else if button == mouse::MouseButton::Middle {
+            if self.pointer_policy.middle_click_pastes {
+                self.paste_primary(cx);
+            }
         } else if button == mouse::MouseButton::Left {
-            let kind = match event.click_count {
-                2 => SelectionKind::Semantic,
-                3 => SelectionKind::Lines,
-                _ if event.modifiers.control => SelectionKind::Block,
-                _ => SelectionKind::Simple,
-            };
-            self.terminal.select(kind, point, side);
+            if event.modifiers.shift && self.terminal.has_selection() {
+                self.terminal.extend_selection(point, side);
+            } else {
+                let count = match event.click_count {
+                    2 => ClickCount::Double,
+                    3 => ClickCount::Triple,
+                    _ => ClickCount::Single,
+                };
+                if let Some(kind) = selection_kind(count, block) {
+                    self.terminal.select(kind, point, side);
+                }
+            }
             self.invalidate(cx);
         } else if self.pointer.selecting {
             self.terminal.extend_selection(point, side);
@@ -143,10 +155,13 @@ impl TerminalView {
             return;
         };
         let held = self.pointer.held;
+        let option_forces =
+            self.pointer_policy.macos_option_forces_selection && event.modifiers.alt;
+        let force_local = event.modifiers.shift || option_forces;
         let motion = if self.pointer.selecting {
             None
         } else {
-            mouse::motion(self.input_modes(), held, event.modifiers.shift)
+            mouse::motion(self.input_modes(), held, force_local)
         };
         if let Some(motion) = motion {
             if self.pointer.last_cell != Some(point)
@@ -156,7 +171,7 @@ impl TerminalView {
                 self.send_bytes(&bytes, cx);
             }
         } else if self.pointer.selecting
-            || (event.modifiers.shift
+            || (force_local
                 && matches!(
                     held,
                     Some(mouse::MouseButton::Left | mouse::MouseButton::Right)
@@ -206,6 +221,9 @@ impl TerminalView {
                 self.report_button(point, button, ButtonState::Released, modifiers, cx);
             }
         }
+        if self.pointer.selecting {
+            self.terminal.finish_selection();
+        }
         self.pointer = PointerState::default();
     }
 
@@ -222,6 +240,17 @@ impl TerminalView {
         {
             self.send_bytes(&bytes, cx);
         }
+    }
+
+    /// Pastes the primary selection for a Linux middle click.
+    fn paste_primary(&mut self, cx: &mut Context<Self>) {
+        let Some(primary) = self.primary.clone() else {
+            return;
+        };
+        let Some(text) = primary(cx) else {
+            return;
+        };
+        self.paste_text(&text, cx);
     }
 }
 

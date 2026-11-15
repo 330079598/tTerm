@@ -69,6 +69,8 @@ pub mod js_encoding;
 pub mod js_text;
 pub mod keyword_highlight;
 pub mod mode;
+/// Mouse-reporting modes and the prompt marks that close them.
+pub mod mouse_reporting;
 /// The OSC 52 clipboard request.
 pub mod osc52;
 pub mod palette;

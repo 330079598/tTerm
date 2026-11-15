@@ -115,17 +115,17 @@ impl ClickTracker {
 
 /// The selection a click starts, or `None` when it starts none.
 ///
-/// A single click clears the old selection and starts a simple (or, with
-/// Control, block) selection. Control suppresses the word and line
-/// selections on the second and third click, which is Alacritty's
-/// `on_left_click` behaviour.
-pub fn selection_kind(count: ClickCount, control: bool) -> Option<SelectionKind> {
+/// A single click starts a simple selection, or a block selection when the
+/// block modifier is held. Double and triple clicks select a word and a line;
+/// the block modifier only affects the single click. That matches the Tauri
+/// client, where Alt+drag starts a column selection but a double click still
+/// selects the word under the pointer.
+pub fn selection_kind(count: ClickCount, block: bool) -> Option<SelectionKind> {
     match count {
-        ClickCount::Single if control => Some(SelectionKind::Block),
+        ClickCount::Single if block => Some(SelectionKind::Block),
         ClickCount::Single => Some(SelectionKind::Simple),
-        ClickCount::Double if !control => Some(SelectionKind::Semantic),
-        ClickCount::Triple if !control => Some(SelectionKind::Lines),
-        ClickCount::Double | ClickCount::Triple => None,
+        ClickCount::Double => Some(SelectionKind::Semantic),
+        ClickCount::Triple => Some(SelectionKind::Lines),
     }
 }
 

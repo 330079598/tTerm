@@ -425,3 +425,295 @@ fn returning_without_a_button_recovers_a_missed_native_release(cx: &mut TestAppC
         );
     }
 }
+
+fn press(
+    h: &Harness,
+    cx: &mut TestAppContext,
+    column: f32,
+    row: f32,
+    button: MouseButton,
+    modifiers: Modifiers,
+    click_count: usize,
+) {
+    let position = position(h, cx, column, row);
+    h.event(
+        cx,
+        MouseDownEvent {
+            position,
+            button,
+            modifiers,
+            click_count,
+            ..Default::default()
+        },
+    );
+}
+
+fn release(
+    h: &Harness,
+    cx: &mut TestAppContext,
+    column: f32,
+    row: f32,
+    button: MouseButton,
+    modifiers: Modifiers,
+    click_count: usize,
+) {
+    let position = position(h, cx, column, row);
+    h.event(
+        cx,
+        MouseUpEvent {
+            position,
+            button,
+            modifiers,
+            click_count,
+        },
+    );
+}
+
+fn click(
+    h: &Harness,
+    cx: &mut TestAppContext,
+    column: f32,
+    row: f32,
+    click_count: usize,
+    modifiers: Modifiers,
+) {
+    press(
+        h,
+        cx,
+        column,
+        row,
+        MouseButton::Left,
+        modifiers,
+        click_count,
+    );
+    release(
+        h,
+        cx,
+        column,
+        row,
+        MouseButton::Left,
+        modifiers,
+        click_count,
+    );
+}
+
+#[gpui_kit::test]
+fn double_click_selects_a_word_with_the_tauri_separators(cx: &mut TestAppContext) {
+    let h = Harness::new(cx);
+    h.output(cx, b"foo:bar|baz<qux> tail");
+    click(&h, cx, 1.1, 0.5, 2, Modifiers::default());
+    copy(&h, cx);
+    assert_eq!(
+        cx.update(|cx| cx.read_from_clipboard().and_then(|item| item.text())),
+        Some("foo:bar|baz<qux>".into())
+    );
+    assert!(h.bytes.borrow().is_empty());
+}
+
+#[gpui_kit::test]
+fn triple_click_selects_the_line(cx: &mut TestAppContext) {
+    let h = Harness::new(cx);
+    h.output(cx, b"first line\r\nsecond line");
+    click(&h, cx, 2.1, 1.5, 3, Modifiers::default());
+    copy(&h, cx);
+    assert_eq!(
+        cx.update(|cx| cx.read_from_clipboard().and_then(|item| item.text())),
+        Some("second line\n".into())
+    );
+}
+
+#[gpui_kit::test]
+fn alt_drag_selects_a_rectangle(cx: &mut TestAppContext) {
+    let h = Harness::new(cx);
+    h.update(cx, |view, _, _| {
+        view.pointer_policy.alt_selects_block_outside_macos = true;
+        view.pointer_policy.macos_option_forces_selection = false;
+    });
+    h.output(cx, b"abcd\r\nefgh\r\nijkl");
+    let modifiers = Modifiers {
+        alt: true,
+        ..Default::default()
+    };
+    press(&h, cx, 0.1, 0.5, MouseButton::Left, modifiers, 1);
+    let end = position(&h, cx, 2.9, 1.5);
+    h.event(
+        cx,
+        MouseMoveEvent {
+            position: end,
+            pressed_button: Some(MouseButton::Left),
+            modifiers,
+        },
+    );
+    h.event(
+        cx,
+        MouseUpEvent {
+            button: MouseButton::Left,
+            position: end,
+            modifiers,
+            click_count: 1,
+        },
+    );
+    h.draw(cx);
+    assert_eq!(h.terminal.selection_text().as_deref(), Some("abc\nefg"));
+    assert!(h.bytes.borrow().is_empty());
+}
+
+#[gpui_kit::test]
+fn macos_option_forces_selection_when_the_policy_says_so(cx: &mut TestAppContext) {
+    let h = Harness::new(cx);
+    h.update(cx, |view, _, _| {
+        view.pointer_policy.macos_option_forces_selection = true;
+        view.pointer_policy.alt_selects_block_outside_macos = false;
+    });
+    h.output(cx, b"hello world\x1b[?1002h\x1b[?1006h");
+    let modifiers = Modifiers {
+        alt: true,
+        ..Default::default()
+    };
+    press(&h, cx, 0.1, 0.5, MouseButton::Left, modifiers, 1);
+    let end = position(&h, cx, 4.9, 0.5);
+    h.event(
+        cx,
+        MouseMoveEvent {
+            position: end,
+            pressed_button: Some(MouseButton::Left),
+            modifiers,
+        },
+    );
+    h.event(
+        cx,
+        MouseUpEvent {
+            button: MouseButton::Left,
+            position: end,
+            modifiers,
+            click_count: 1,
+        },
+    );
+    copy(&h, cx);
+    assert_eq!(
+        cx.update(|cx| cx.read_from_clipboard().and_then(|item| item.text())),
+        Some("hello".into())
+    );
+    assert!(h.bytes.borrow().is_empty());
+}
+
+#[gpui_kit::test]
+fn alt_without_the_macos_policy_reports_in_mouse_mode(cx: &mut TestAppContext) {
+    let h = Harness::new(cx);
+    h.output(cx, b"\x1b[?1002h\x1b[?1006h");
+    let modifiers = Modifiers {
+        alt: true,
+        ..Default::default()
+    };
+    click(&h, cx, 1.1, 0.5, 1, modifiers);
+    assert_eq!(&*h.bytes.borrow(), b"\x1b[<8;2;1M\x1b[<8;2;1m");
+}
+
+#[gpui_kit::test]
+fn shift_click_extends_an_existing_selection(cx: &mut TestAppContext) {
+    let h = Harness::new(cx);
+    h.output(cx, b"hello world");
+    drag(&h, cx, Modifiers::default());
+    assert_eq!(h.terminal.selection_text().as_deref(), Some("hello"));
+    click(
+        &h,
+        cx,
+        10.9,
+        0.5,
+        1,
+        Modifiers {
+            shift: true,
+            ..Default::default()
+        },
+    );
+    assert_eq!(h.terminal.selection_text().as_deref(), Some("hello world"));
+}
+
+#[gpui_kit::test]
+fn linux_middle_click_pastes_the_primary_selection(cx: &mut TestAppContext) {
+    let h = Harness::new(cx);
+    h.update(cx, |view, _, _| {
+        view.pointer_policy.middle_click_pastes = true;
+        view.primary = Some(std::rc::Rc::new(|_: &gpui_kit::App| {
+            Some("lane\r\nnext".to_string())
+        }));
+    });
+    press(
+        &h,
+        cx,
+        2.1,
+        0.5,
+        MouseButton::Middle,
+        Modifiers::default(),
+        1,
+    );
+    assert_eq!(&*h.bytes.borrow(), b"lane\rnext");
+}
+
+#[gpui_kit::test]
+fn mode_1000_reports_a_click_in_sgr(cx: &mut TestAppContext) {
+    let h = Harness::new(cx);
+    h.output(cx, b"\x1b[?1000h\x1b[?1006h");
+    click(&h, cx, 2.1, 1.5, 1, Modifiers::default());
+    assert_eq!(&*h.bytes.borrow(), b"\x1b[<0;3;2M\x1b[<0;3;2m");
+}
+
+#[gpui_kit::test]
+fn mode_1002_reports_a_drag_only_while_a_button_is_held(cx: &mut TestAppContext) {
+    let h = Harness::new(cx);
+    h.output(cx, b"\x1b[?1002h\x1b[?1006h");
+    let start = position(&h, cx, 0.1, 0.5);
+    h.event(
+        cx,
+        MouseMoveEvent {
+            position: start,
+            pressed_button: None,
+            modifiers: Modifiers::default(),
+        },
+    );
+    assert!(h.bytes.borrow().is_empty());
+    press(&h, cx, 0.1, 0.5, MouseButton::Left, Modifiers::default(), 1);
+    let end = position(&h, cx, 2.1, 0.5);
+    h.event(
+        cx,
+        MouseMoveEvent {
+            position: end,
+            pressed_button: Some(MouseButton::Left),
+            modifiers: Modifiers::default(),
+        },
+    );
+    release(&h, cx, 2.1, 0.5, MouseButton::Left, Modifiers::default(), 1);
+    assert_eq!(&*h.bytes.borrow(), b"\x1b[<0;1;1M\x1b[<32;3;1M\x1b[<0;3;1m");
+}
+
+#[gpui_kit::test]
+fn mode_1003_reports_hovering(cx: &mut TestAppContext) {
+    let h = Harness::new(cx);
+    h.output(cx, b"\x1b[?1003h\x1b[?1006h");
+    let position = position(&h, cx, 2.1, 1.5);
+    h.event(
+        cx,
+        MouseMoveEvent {
+            position,
+            pressed_button: None,
+            modifiers: Modifiers::default(),
+        },
+    );
+    h.event(
+        cx,
+        MouseMoveEvent {
+            position,
+            pressed_button: None,
+            modifiers: Modifiers::default(),
+        },
+    );
+    assert_eq!(&*h.bytes.borrow(), b"\x1b[<35;3;2M");
+}
+
+#[gpui_kit::test]
+fn mode_1000_without_sgr_uses_the_legacy_encoding(cx: &mut TestAppContext) {
+    let h = Harness::new(cx);
+    h.output(cx, b"\x1b[?1000h");
+    click(&h, cx, 0.1, 0.5, 1, Modifiers::default());
+    assert_eq!(&*h.bytes.borrow(), b"\x1b[M !!\x1b[M#!!");
+}

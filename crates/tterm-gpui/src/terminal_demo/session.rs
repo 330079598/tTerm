@@ -22,6 +22,7 @@ use tterm_core::terminal::output::TerminalOutput;
 use tterm_terminal::grid::{CellSize, GridSize, WindowSize};
 use tterm_terminal::terminal::{Config, Terminal};
 
+use super::pipeline::mouse_guard::{ForegroundProbe, MouseGuard};
 use super::pipeline::{self, QueueSender, RefreshSignal, SessionState};
 use super::prompt::PromptControl;
 
@@ -57,6 +58,12 @@ impl Session {
         cell: CellSize,
     ) -> Result<Self, String> {
         prepare_connection(&services, &mut connection)?;
+        // Only a local term session owns a process this client can inspect.
+        // SSH, serial and unknown kinds must not run a host process check.
+        let local = matches!(
+            connection.connection_type.as_deref(),
+            None | Some("terminal")
+        );
         let key = SessionKey {
             tab_id,
             session_nonce,
@@ -83,7 +90,17 @@ impl Session {
         });
         let acknowledge_flow = Arc::clone(&flow);
         let acknowledge = Arc::new(move |bytes: usize| acknowledge_flow.ack(bytes));
-        let pipeline = pipeline::start(state.clone(), write, acknowledge)?;
+        let foreground = local.then(|| ForegroundProbe::Local {
+            ptys: services.session.ptys.clone(),
+            tab_id: key.tab_id.clone(),
+            session_nonce: key.session_nonce,
+        });
+        let guard = Arc::new(MouseGuard::new(
+            state.clone(),
+            services.shared.runtime.clone(),
+            foreground,
+        ));
+        let pipeline = pipeline::start(state.clone(), write, acknowledge, Some(guard))?;
         let queue_for_output = pipeline.queue.clone();
         let output = TerminalOutput::new(
             Arc::new(move |bytes| queue_for_output.send(bytes)),
@@ -462,6 +479,7 @@ mod tests {
             Arc::new(move |bytes| {
                 acknowledge.fetch_add(bytes, Ordering::Relaxed);
             }),
+            None,
         )
         .expect("start parser");
         let output = TerminalOutput::new(Arc::new(|_| Ok(())), Arc::new(OutputFlow::default()));
