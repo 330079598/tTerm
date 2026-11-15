@@ -9,6 +9,7 @@ pub mod binding;
 mod command;
 mod conpty;
 mod intents;
+pub mod keymap;
 mod pipeline;
 mod prompt;
 mod runtime;
