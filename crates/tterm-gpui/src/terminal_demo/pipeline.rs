@@ -8,8 +8,8 @@
 //! the core sender and the parser.
 
 use std::sync::atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering};
-use std::sync::mpsc::{self, Receiver, SyncSender, TryRecvError};
-use std::sync::{Arc, Mutex};
+use std::sync::mpsc::{self, Receiver, SyncSender};
+use std::sync::{Arc, Mutex, PoisonError};
 use std::thread::JoinHandle;
 
 use tokio::sync::watch;
@@ -20,48 +20,81 @@ use super::intents::handle_intent;
 
 /// How many parser-sized chunks may wait for the parser before core applies
 /// backpressure upstream.
-pub(super) const QUEUED_CHUNKS: usize = 8;
+pub(super) const QUEUED_CHUNKS: usize = 7;
 
 /// About the most bytes the parser applies under one lock. Incoming chunks are
 /// split at this size before they enter the queue, so a 512 KiB core batch
 /// cannot hold the model lock for a whole IPC message.
 pub(super) const BATCH_LIMIT: usize = 64 * 1024;
 
-/// The most bytes that may wait in or immediately in front of the queue.
+/// The most unparsed bytes in the channel, one blocked sender, and the batch
+/// currently being applied.
 ///
-/// One extra chunk covers a sender that has reserved its chunk and is waiting
-/// for a free queue slot; the queued bytes themselves are
-/// [`QUEUED_CHUNKS`] × [`BATCH_LIMIT`].
-pub(super) const MAX_QUEUED_BYTES: usize = (QUEUED_CHUNKS + 1) * BATCH_LIMIT;
+/// Two extra chunks cover the sender waiting for a free slot and the parser's
+/// in-flight batch. Sends are serialized so a second blocked sender cannot
+/// reserve another chunk beyond this bound.
+pub(super) const MAX_QUEUED_BYTES: usize = (QUEUED_CHUNKS + 2) * BATCH_LIMIT;
 
 /// Hands chunks to the parser and records the queue's byte occupancy.
 #[derive(Clone)]
 pub(super) struct QueueSender {
-    sender: SyncSender<Vec<u8>>,
+    sender: SyncSender<QueuedChunk>,
     metrics: Arc<QueueMetrics>,
+    send_lock: Arc<Mutex<()>>,
 }
 
 impl QueueSender {
-    fn new(sender: SyncSender<Vec<u8>>, metrics: Arc<QueueMetrics>) -> Self {
-        Self { sender, metrics }
+    fn new(sender: SyncSender<QueuedChunk>, metrics: Arc<QueueMetrics>) -> Self {
+        Self {
+            sender,
+            metrics,
+            send_lock: Arc::new(Mutex::new(())),
+        }
     }
 
     /// Enqueues `bytes`, blocking once the bounded queue is full.
     ///
     /// A chunk larger than [`BATCH_LIMIT`] is split first. Every piece is
     /// counted before it reaches the channel, so the occupancy includes a
-    /// sender blocked on a full queue.
+    /// sender blocked on a full queue. Clones serialize whole sends so only
+    /// one sender can reserve a blocked piece against this budget.
     pub(super) fn send(&self, bytes: Vec<u8>) -> Result<(), String> {
+        self.send_inner(bytes, true)
+    }
+
+    /// Enqueues bytes synthesized by the client rather than received from the
+    /// PTY. They are parsed with output but do not acknowledge `OutputFlow`.
+    pub(super) fn send_synthetic(&self, bytes: Vec<u8>) -> Result<(), String> {
+        self.send_inner(bytes, false)
+    }
+
+    fn send_inner(&self, bytes: Vec<u8>, acknowledge_flow: bool) -> Result<(), String> {
         if bytes.is_empty() {
             return Ok(());
         }
+        let _send_guard = self
+            .send_lock
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner);
+        #[cfg(test)]
+        let _active_send = ActiveSendGuard::new(&self.metrics);
         for chunk in bytes.chunks(BATCH_LIMIT) {
-            self.metrics.queued(chunk.len());
-            if self.sender.send(chunk.to_vec()).is_err() {
-                self.metrics.released(chunk.len());
+            let length = chunk.len();
+            self.metrics.queued(length);
+            debug_assert!(
+                self.queued_bytes() <= MAX_QUEUED_BYTES,
+                "queued {} bytes exceeds {}",
+                self.queued_bytes(),
+                MAX_QUEUED_BYTES
+            );
+            let chunk = QueuedChunk {
+                bytes: chunk.to_vec(),
+                acknowledge_flow: acknowledge_flow.then_some(length),
+            };
+            if self.sender.send(chunk).is_err() {
+                self.metrics.released(length);
                 return Err("The GPUI output parser has closed".to_string());
             }
-            debug_assert!(self.queued_bytes() <= MAX_QUEUED_BYTES);
         }
         Ok(())
     }
@@ -77,6 +110,32 @@ impl QueueSender {
     }
 }
 
+/// One parser input plus the flow-control bytes it may acknowledge.
+struct QueuedChunk {
+    bytes: Vec<u8>,
+    acknowledge_flow: Option<usize>,
+}
+
+#[cfg(test)]
+struct ActiveSendGuard<'a> {
+    metrics: &'a QueueMetrics,
+}
+
+#[cfg(test)]
+impl<'a> ActiveSendGuard<'a> {
+    fn new(metrics: &'a QueueMetrics) -> Self {
+        metrics.sender_entered();
+        Self { metrics }
+    }
+}
+
+#[cfg(test)]
+impl Drop for ActiveSendGuard<'_> {
+    fn drop(&mut self) {
+        self.metrics.sender_left();
+    }
+}
+
 /// Counters shared by one session's queue and parser.
 #[derive(Default)]
 pub(super) struct QueueMetrics {
@@ -85,6 +144,10 @@ pub(super) struct QueueMetrics {
     sent: AtomicU64,
     acked: AtomicU64,
     batches: AtomicU64,
+    #[cfg(test)]
+    active_sends: AtomicUsize,
+    #[cfg(test)]
+    max_active_sends: AtomicUsize,
 }
 
 impl QueueMetrics {
@@ -105,7 +168,18 @@ impl QueueMetrics {
         self.batches.fetch_add(1, Ordering::Relaxed);
     }
 
-    /// The bytes that were queued and not yet taken by the parser.
+    #[cfg(test)]
+    fn sender_entered(&self) {
+        let now = self.active_sends.fetch_add(1, Ordering::AcqRel) + 1;
+        self.max_active_sends.fetch_max(now, Ordering::AcqRel);
+    }
+
+    #[cfg(test)]
+    fn sender_left(&self) {
+        self.active_sends.fetch_sub(1, Ordering::AcqRel);
+    }
+
+    /// The bytes accepted by the queue but not yet parsed.
     #[cfg(test)]
     pub(super) fn queued_bytes(&self) -> usize {
         self.queued.load(Ordering::Acquire)
@@ -123,7 +197,7 @@ impl QueueMetrics {
         self.sent.load(Ordering::Acquire)
     }
 
-    /// The bytes the parser has processed and acknowledged.
+    /// The bytes the parser has processed, including client-synthesized output.
     #[cfg(test)]
     pub(super) fn acknowledged_bytes(&self) -> u64 {
         self.acked.load(Ordering::Acquire)
@@ -133,6 +207,12 @@ impl QueueMetrics {
     #[cfg(test)]
     pub(super) fn batches(&self) -> u64 {
         self.batches.load(Ordering::Acquire)
+    }
+
+    /// The most senders that were simultaneously inside a reserved send.
+    #[cfg(test)]
+    pub(super) fn max_active_sends(&self) -> usize {
+        self.max_active_sends.load(Ordering::Acquire)
     }
 }
 
@@ -254,7 +334,7 @@ pub(super) fn start(
 }
 
 fn spawn_parser(
-    queued: Receiver<Vec<u8>>,
+    queued: Receiver<QueuedChunk>,
     metrics: Arc<QueueMetrics>,
     state: SessionState,
     write: WriteBytes,
@@ -263,42 +343,25 @@ fn spawn_parser(
     std::thread::Builder::new()
         .name("gpui-pty-parser".to_string())
         .spawn(move || {
-            let mut pending: Option<Vec<u8>> = None;
-            loop {
-                let mut batch = match pending.take() {
-                    Some(batch) => batch,
-                    None => match receive(&queued, &metrics) {
-                        Some(batch) => batch,
-                        None => break,
-                    },
-                };
-                // Small chunks from a trickle are combined up to one batch.
-                // The sender already caps each piece at BATCH_LIMIT, so this
-                // loop never grows a batch beyond that limit.
-                while batch.len() < BATCH_LIMIT {
-                    match queued.try_recv() {
-                        Ok(more) => {
-                            metrics.released(more.len());
-                            if batch.len() + more.len() <= BATCH_LIMIT {
-                                batch.extend_from_slice(&more);
-                            } else {
-                                pending = Some(more);
-                                break;
-                            }
-                        }
-                        Err(TryRecvError::Empty | TryRecvError::Disconnected) => break,
-                    }
-                }
-                apply_and_release(&state, &metrics, &write, &acknowledge, &mut batch);
+            while let Ok(chunk) = queued.recv() {
+                let (mut batch, acknowledge_flow) = chunk.into_batch();
+                apply_and_release(
+                    &state,
+                    &metrics,
+                    &write,
+                    &acknowledge,
+                    &mut batch,
+                    acknowledge_flow,
+                );
             }
         })
         .map_err(|error| format!("Failed to start the GPUI output parser: {error}"))
 }
 
-fn receive(queued: &Receiver<Vec<u8>>, metrics: &QueueMetrics) -> Option<Vec<u8>> {
-    let batch = queued.recv().ok()?;
-    metrics.released(batch.len());
-    Some(batch)
+impl QueuedChunk {
+    fn into_batch(self) -> (Vec<u8>, usize) {
+        (self.bytes, self.acknowledge_flow.unwrap_or_default())
+    }
 }
 
 fn apply_and_release(
@@ -307,6 +370,7 @@ fn apply_and_release(
     write: &WriteBytes,
     acknowledge: &AcknowledgeBytes,
     batch: &mut Vec<u8>,
+    acknowledge_flow: usize,
 ) {
     let length = batch.len();
     if state.apply(state.session_nonce, batch) {
@@ -318,8 +382,11 @@ fn apply_and_release(
     // The acknowledgement follows the model write and its intents. A batch
     // rejected because the generation closed is acknowledged too, because the
     // reader must not stay blocked on bytes that will never be drawn.
-    acknowledge(length);
+    if acknowledge_flow > 0 {
+        acknowledge(acknowledge_flow);
+    }
     metrics.parsed(length);
+    metrics.released(length);
     batch.clear();
 }
 

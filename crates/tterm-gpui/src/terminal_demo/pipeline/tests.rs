@@ -1,7 +1,7 @@
 //! Behaviour tests for the GPUI parser, bounded queue and refresh signal.
 
 use std::sync::atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering};
-use std::sync::{Arc, Condvar, Mutex};
+use std::sync::{Arc, Barrier, Condvar, Mutex};
 use std::time::{Duration, Instant};
 
 use gpui_kit::test::TestWindowExt as _;
@@ -15,7 +15,8 @@ use tterm_terminal::terminal::{Config, Terminal};
 use tterm_terminal_view::view::{TerminalView, TerminalViewConfig};
 
 use super::{
-    BATCH_LIMIT, MAX_QUEUED_BYTES, Pipeline, QueueMetrics, RefreshSignal, SessionState, start,
+    BATCH_LIMIT, MAX_QUEUED_BYTES, Pipeline, QUEUED_CHUNKS, QueueMetrics, RefreshSignal,
+    SessionState, start,
 };
 
 const GRID: GridSize = GridSize {
@@ -88,6 +89,11 @@ fn output_into(pipeline: &Pipeline, flow: Arc<OutputFlow>) -> TerminalOutput {
 }
 
 #[test]
+fn the_parser_stage_byte_ceiling_is_unchanged() {
+    assert_eq!(MAX_QUEUED_BYTES, 589_824);
+}
+
+#[test]
 fn sustained_output_keeps_the_queue_bounded_and_applies_every_byte() {
     let (model, state) = state(true, 64);
     let flow = Arc::new(OutputFlow::default());
@@ -133,10 +139,12 @@ fn sustained_output_keeps_the_queue_bounded_and_applies_every_byte() {
 struct AckGate {
     open: Mutex<bool>,
     changed: Condvar,
+    waits: AtomicUsize,
 }
 
 impl AckGate {
     fn wait_until_open(&self) {
+        self.waits.fetch_add(1, Ordering::AcqRel);
         let mut open = self.open.lock().expect("ack gate");
         while !*open {
             open = self.changed.wait(open).expect("wait for ack gate");
@@ -146,6 +154,10 @@ impl AckGate {
     fn open(&self) {
         *self.open.lock().expect("ack gate") = true;
         self.changed.notify_all();
+    }
+
+    fn waits(&self) -> usize {
+        self.waits.load(Ordering::Acquire)
     }
 }
 
@@ -215,6 +227,114 @@ fn a_blocked_acknowledgement_stops_the_producer_within_the_memory_bound() {
         "P2-02 blocked ACK drained: sent={} bytes, acknowledged={} bytes",
         metrics.sent_bytes(),
         metrics.acknowledged_bytes()
+    );
+}
+
+#[test]
+fn concurrent_producers_share_one_queue_budget() {
+    const PRODUCERS: usize = 16;
+
+    let (_model, state) = state(true, 64);
+    let flow = Arc::new(OutputFlow::default());
+    let gate = Arc::new(AckGate::default());
+    let acknowledge_flow = Arc::clone(&flow);
+    let acknowledge_gate = Arc::clone(&gate);
+    let pipeline = start_pipeline(state, move |bytes| {
+        acknowledge_gate.wait_until_open();
+        acknowledge_flow.ack(bytes);
+    });
+    let metrics = pipeline.queue.metrics_handle();
+    let barrier = Arc::new(Barrier::new(PRODUCERS));
+    let started = Arc::new(AtomicUsize::new(0));
+    let finished = Arc::new(AtomicUsize::new(0));
+    let mut producers = Vec::with_capacity(PRODUCERS);
+
+    for index in 0..PRODUCERS {
+        let queue = pipeline.queue.clone();
+        let barrier = Arc::clone(&barrier);
+        let started = Arc::clone(&started);
+        let finished = Arc::clone(&finished);
+        producers.push(std::thread::spawn(move || {
+            barrier.wait();
+            started.fetch_add(1, Ordering::Release);
+            let result = queue.send(vec![b'a' + index as u8; BATCH_LIMIT]);
+            if result.is_ok() {
+                finished.fetch_add(1, Ordering::Release);
+            }
+            result
+        }));
+    }
+
+    assert!(wait_until(|| started.load(Ordering::Acquire) == PRODUCERS));
+    assert!(
+        wait_until(|| gate.waits() > 0),
+        "the parser reaches the blocked acknowledgement"
+    );
+    assert!(
+        wait_until(|| finished.load(Ordering::Acquire) > QUEUED_CHUNKS),
+        "the parser holds one batch while the queue fills to capacity"
+    );
+
+    gate.open();
+    let results: Vec<_> = producers
+        .into_iter()
+        .map(|producer| producer.join())
+        .collect();
+    drop(pipeline.queue);
+    pipeline.parser.join().expect("parser exits");
+    let max_active_sends = metrics.max_active_sends();
+    let observed_high_water = metrics.max_queued_bytes();
+
+    assert!(
+        results.iter().all(Result::is_ok),
+        "a concurrent producer panicked"
+    );
+    assert_eq!(
+        max_active_sends, 1,
+        "more than one producer entered a reserved send"
+    );
+    assert!(
+        observed_high_water <= MAX_QUEUED_BYTES,
+        "concurrent producers exceeded the shared budget: {observed_high_water} > {MAX_QUEUED_BYTES}"
+    );
+    assert_eq!(
+        metrics.acknowledged_bytes(),
+        (PRODUCERS * BATCH_LIMIT) as u64
+    );
+}
+
+#[test]
+fn synthetic_output_is_parsed_without_acknowledging_flow_bytes() {
+    let (model, state) = state(true, 64);
+    let acknowledged = Arc::new(AtomicUsize::new(0));
+    let acknowledge_counter = Arc::clone(&acknowledged);
+    let pipeline = start_pipeline(state, move |bytes| {
+        acknowledge_counter.fetch_add(bytes, Ordering::Relaxed);
+    });
+    let metrics = pipeline.queue.metrics_handle();
+    let output = b"REAL-OUTPUT\r\n";
+    let synthetic = b"SYNTHETIC-EXIT\r\n";
+
+    pipeline.queue.send(output.to_vec()).expect("queue output");
+    pipeline
+        .queue
+        .send_synthetic(synthetic.to_vec())
+        .expect("queue synthetic output");
+    drop(pipeline.queue);
+    pipeline.parser.join().expect("parser exits");
+
+    let screen = text(&model);
+    assert!(screen.contains("REAL-OUTPUT"));
+    assert!(screen.contains("SYNTHETIC-EXIT"));
+    assert_eq!(
+        acknowledged.load(Ordering::Acquire),
+        output.len(),
+        "synthetic output must not consume PTY flow-control credit"
+    );
+    assert_eq!(
+        metrics.acknowledged_bytes(),
+        (output.len() + synthetic.len()) as u64,
+        "the parser still accounts for every displayed byte"
     );
 }
 

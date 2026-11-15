@@ -350,7 +350,7 @@ impl SessionSink for GpuiSessionSink {
 
     fn exited(&self, reason: Option<String>) -> Result<(), String> {
         if self.input_open.swap(false, Ordering::AcqRel) {
-            let _ = self.queue.send(EXIT_NOTICE.to_vec());
+            let _ = self.queue.send_synthetic(EXIT_NOTICE.to_vec());
         }
         self.emit(AppEvent::Terminal(TerminalEvent::Exit {
             tab_id: self.tab_id.clone(),
@@ -385,9 +385,36 @@ fn grid_cols(grid: GridSize) -> u16 {
 
 #[cfg(test)]
 mod tests {
-    use tterm_core::core::session::types::PtyConnectionOptions;
+    use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
+    use std::sync::{Arc, Mutex};
 
-    use super::password_needs_interactive_prompt;
+    use tterm_core::core::session::types::PtyConnectionOptions;
+    use tterm_core::events::{AppEvent, EventSink};
+    use tterm_core::session::sink::SessionSink;
+    use tterm_core::terminal::io_batcher::OutputFlow;
+    use tterm_core::terminal::output::TerminalOutput;
+    use tterm_terminal::grid::{CellSize, GridSize, WindowSize};
+    use tterm_terminal::terminal::{Config, Terminal};
+
+    use super::pipeline::{self, RefreshSignal, SessionState};
+    use super::{GpuiSessionSink, password_needs_interactive_prompt};
+
+    const GRID: GridSize = GridSize {
+        columns: 80,
+        screen_lines: 24,
+    };
+    const CELL: CellSize = CellSize {
+        width: 8,
+        height: 16,
+    };
+
+    struct NoopEvents;
+
+    impl EventSink for NoopEvents {
+        fn emit(&self, _event: AppEvent) -> Result<(), String> {
+            Ok(())
+        }
+    }
 
     #[test]
     fn a_password_profile_without_a_saved_password_uses_interactive_prompts() {
@@ -410,5 +437,59 @@ mod tests {
             ..PtyConnectionOptions::default()
         };
         assert!(password_needs_interactive_prompt(&options, false));
+    }
+
+    #[test]
+    fn the_exit_notice_does_not_consume_pty_flow_control_credit() {
+        let model = Arc::new(Terminal::new(Config::default(), GRID, CELL));
+        let state = SessionState {
+            terminal: Arc::clone(&model),
+            size: Arc::new(Mutex::new(WindowSize {
+                grid: GRID,
+                cell: CELL,
+            })),
+            title: Arc::new(Mutex::new(None)),
+            session_nonce: 1,
+            alive: Arc::new(AtomicBool::new(true)),
+            visible: Arc::new(AtomicBool::new(false)),
+            refresh: Arc::new(RefreshSignal::new()),
+        };
+        let acknowledged = Arc::new(AtomicUsize::new(0));
+        let acknowledge = Arc::clone(&acknowledged);
+        let pipeline = pipeline::start(
+            state,
+            Arc::new(|_| {}),
+            Arc::new(move |bytes| {
+                acknowledge.fetch_add(bytes, Ordering::Relaxed);
+            }),
+        )
+        .expect("start parser");
+        let output = TerminalOutput::new(Arc::new(|_| Ok(())), Arc::new(OutputFlow::default()));
+        let sink = GpuiSessionSink {
+            tab_id: "p2-02-exit".to_string(),
+            events: Arc::new(NoopEvents),
+            output,
+            queue: pipeline.queue.clone(),
+            input_open: Arc::new(AtomicBool::new(true)),
+        };
+
+        sink.exited(None).expect("emit exit");
+        drop(sink);
+        drop(pipeline.queue);
+        pipeline.parser.join().expect("parser exits");
+
+        assert_eq!(
+            acknowledged.load(Ordering::Acquire),
+            0,
+            "the synthetic exit notice has no PTY reservation to acknowledge"
+        );
+        let screen: String = model
+            .snapshot()
+            .rows()
+            .iter()
+            .flat_map(|row| row.cells())
+            .map(|cell| cell.ch)
+            .collect();
+        assert!(screen.contains("[Process exited]"));
     }
 }
