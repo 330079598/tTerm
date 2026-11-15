@@ -2,16 +2,17 @@
 
 use std::sync::Arc;
 
-use gpui_kit::{Bounds, Context, Pixels, Window};
+use gpui_kit::{Bounds, Context, Pixels, Point, Window};
 use tterm_terminal::damage::Damage;
 use tterm_terminal::grid::GridSize;
+use tterm_terminal::mode::Modes;
 
+use super::TerminalView;
 use super::blink::{BLINK_INTERVAL, BlinkState};
-use super::font::{FontSet, grid_for, measure_cell};
+use super::font::{CellGeometry, FontSet, grid_for, measure_cell};
 use super::frame::{FrameData, PreparedFrame, cursor_for};
 use super::row::{plan_row, row_hash, shape_row};
 use super::scrollbar::ScrollbarGeometry;
-use super::{TerminalView, bottom_anchored, grid_origin};
 
 impl TerminalView {
     /// Prepares one frame from the current model snapshot.
@@ -254,6 +255,32 @@ fn damaged_rows(damage: &Damage, line_count: usize) -> Vec<bool> {
         }
     }
     damaged
+}
+
+/// The grid origin for a viewport.
+pub(crate) fn grid_origin(
+    bounds: Bounds<Pixels>,
+    grid: GridSize,
+    metrics: &CellGeometry,
+    bottom_anchored: bool,
+    scale_factor: f32,
+) -> Point<Pixels> {
+    let snap = |value: f32| (value * scale_factor).round() / scale_factor;
+    let x = snap(bounds.origin.x.as_f32());
+    let extra = if bottom_anchored {
+        (bounds.size.height.as_f32() - grid.screen_lines as f32 * metrics.cell_height).max(0.0)
+    } else {
+        0.0
+    };
+    Point::new(
+        gpui_kit::px(x),
+        gpui_kit::px(snap(bounds.origin.y.as_f32() + extra)),
+    )
+}
+
+/// Whether the viewport should sit at the bottom of the element.
+pub(crate) fn bottom_anchored(snapshot: &tterm_terminal::snapshot::Snapshot) -> bool {
+    snapshot.bottom_line_occupied() || snapshot.modes().contains(Modes::ALT_SCREEN)
 }
 
 #[cfg(test)]

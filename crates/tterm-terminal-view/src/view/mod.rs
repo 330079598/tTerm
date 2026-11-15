@@ -24,7 +24,7 @@ mod ime;
 mod input_handler;
 mod keyboard;
 mod paint;
-mod paste;
+pub mod paste;
 mod pointer;
 mod prepare;
 pub mod row;
@@ -47,11 +47,10 @@ use std::rc::Rc;
 use std::sync::Arc;
 
 use gpui_kit::{
-    Bounds, Context, FocusHandle, InteractiveElement, IntoElement, ParentElement, Pixels, Point,
-    Render, Styled, Task, Window, div,
+    Context, FocusHandle, InteractiveElement, IntoElement, ParentElement, Pixels, Point, Render,
+    Styled, Task, Window, div,
 };
 use tterm_terminal::grid::{CellSize, GridSize};
-use tterm_terminal::mode::Modes;
 use tterm_terminal::palette::TerminalPalette;
 use tterm_terminal::terminal::Terminal;
 
@@ -132,6 +131,16 @@ pub struct TerminalViewConfig {
     pub keyboard: EncoderConfig,
     /// Application keymap consulted before the terminal encoder.
     pub keymap: Option<KeymapRouter>,
+    /// Clipboard policy for text arriving from the clipboard, primary
+    /// selection, right-click paste and file drops.
+    pub paste_gate: Option<paste::PasteGate>,
+    /// Copy a non-empty selection when its mouse button is released.
+    pub copy_on_select: bool,
+    /// Paste on a local right-click, as Windows Terminal does.
+    pub right_click_paste: bool,
+    /// Formats dropped paths for the local tab's shell. `None` ignores drops,
+    /// which keeps remote sessions from receiving local paths.
+    pub drop_text: Option<paste::DropText>,
     /// Reports a grid change to the session so it can resize the PTY.
     pub resize: Option<ResizeSink>,
     /// Platform rules for forcing a local selection and middle-click paste.
@@ -194,6 +203,10 @@ pub struct TerminalView {
     input: Option<InputSink>,
     keyboard: EncoderConfig,
     keymap: Option<KeymapRouter>,
+    paste_gate: Option<paste::PasteGate>,
+    copy_on_select: bool,
+    right_click_paste: bool,
+    drop_text: Option<paste::DropText>,
     consumed_keys: HashSet<String>,
     input_focused: bool,
     input_observed: bool,
@@ -244,6 +257,10 @@ impl TerminalView {
             input: config.input,
             keyboard: config.keyboard,
             keymap: config.keymap,
+            paste_gate: config.paste_gate,
+            copy_on_select: config.copy_on_select,
+            right_click_paste: config.right_click_paste,
+            drop_text: config.drop_text,
             consumed_keys: HashSet::new(),
             input_focused: false,
             input_observed: false,
@@ -468,32 +485,7 @@ impl Render for TerminalView {
                 cx.listener(Self::on_pointer_up),
             )
             .on_scroll(cx.listener(Self::on_wheel))
+            .on_drop(cx.listener(Self::on_file_drop))
             .child(TerminalElement::new(cx.entity()))
     }
-}
-
-/// The grid origin for a viewport.
-pub(crate) fn grid_origin(
-    bounds: Bounds<Pixels>,
-    grid: GridSize,
-    metrics: &CellGeometry,
-    bottom_anchored: bool,
-    scale_factor: f32,
-) -> Point<Pixels> {
-    let snap = |value: f32| (value * scale_factor).round() / scale_factor;
-    let x = snap(bounds.origin.x.as_f32());
-    let extra = if bottom_anchored {
-        (bounds.size.height.as_f32() - grid.screen_lines as f32 * metrics.cell_height).max(0.0)
-    } else {
-        0.0
-    };
-    Point::new(
-        gpui_kit::px(x),
-        gpui_kit::px(snap(bounds.origin.y.as_f32() + extra)),
-    )
-}
-
-/// Whether the viewport should sit at the bottom of the element.
-pub(crate) fn bottom_anchored(snapshot: &tterm_terminal::snapshot::Snapshot) -> bool {
-    snapshot.bottom_line_occupied() || snapshot.modes().contains(Modes::ALT_SCREEN)
 }

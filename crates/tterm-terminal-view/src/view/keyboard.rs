@@ -52,7 +52,7 @@ impl TerminalView {
             cx.stop_propagation();
             return;
         }
-        if self.clipboard_key(&event.keystroke, cx)
+        if self.clipboard_key(&event.keystroke, window, cx)
             || self.encode_key(&event.keystroke, KeyState::Pressed, event.is_held, cx)
         {
             window.prevent_default();

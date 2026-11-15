@@ -20,8 +20,9 @@ use tterm_core::session::sink::SessionSink;
 use tterm_core::terminal::io_batcher::OutputFlow;
 use tterm_core::terminal::output::TerminalOutput;
 use tterm_terminal::grid::{CellSize, GridSize, WindowSize};
-use tterm_terminal::terminal::{Config, Terminal};
+use tterm_terminal::terminal::{ClipboardPolicy, Config, Terminal};
 
+use super::clipboard::store::ClipboardWrites;
 use super::pipeline::mouse_guard::{ForegroundProbe, MouseGuard};
 use super::pipeline::{self, QueueSender, RefreshSignal, SessionState};
 use super::prompt::PromptControl;
@@ -45,6 +46,7 @@ pub struct Session {
     visible: Arc<AtomicBool>,
     input_open: Arc<AtomicBool>,
     refresh: Arc<RefreshSignal>,
+    clipboard: Arc<ClipboardWrites>,
 }
 
 impl Session {
@@ -56,6 +58,7 @@ impl Session {
         mut connection: PtyConnectionOptions,
         grid: GridSize,
         cell: CellSize,
+        clipboard_policy: ClipboardPolicy,
     ) -> Result<Self, String> {
         prepare_connection(&services, &mut connection)?;
         // Only a local term session owns a process this client can inspect.
@@ -68,7 +71,18 @@ impl Session {
             tab_id,
             session_nonce,
         };
-        let terminal = Arc::new(Terminal::new(Config::default(), grid, cell));
+        let clipboard = Arc::new(ClipboardWrites::new(matches!(
+            clipboard_policy,
+            ClipboardPolicy::CopyOnly | ClipboardPolicy::CopyAndPaste
+        )));
+        let terminal = Arc::new(Terminal::new(
+            Config {
+                clipboard: clipboard_policy,
+                ..Config::default()
+            },
+            grid,
+            cell,
+        ));
         let alive = Arc::new(AtomicBool::new(true));
         let visible = Arc::new(AtomicBool::new(false));
         let input_open = Arc::new(AtomicBool::new(true));
@@ -82,6 +96,7 @@ impl Session {
             alive: Arc::clone(&alive),
             visible: Arc::clone(&visible),
             refresh: Arc::clone(&refresh),
+            clipboard: Arc::clone(&clipboard),
         };
         let write_services = Arc::clone(&services);
         let write_key = key.clone();
@@ -149,6 +164,7 @@ impl Session {
             visible,
             input_open,
             refresh,
+            clipboard,
         })
     }
 
@@ -183,6 +199,16 @@ impl Session {
     /// Whether a view currently shows this session.
     pub fn is_visible(&self) -> bool {
         self.visible.load(Ordering::Acquire)
+    }
+
+    /// Whether this generation can still receive input and clipboard work.
+    pub fn is_live(&self) -> bool {
+        self.alive.load(Ordering::Acquire) && self.input_open.load(Ordering::Acquire)
+    }
+
+    /// The bounded OSC 52 write slot for this generation.
+    pub(crate) fn clipboard_writes(&self) -> Arc<ClipboardWrites> {
+        Arc::clone(&self.clipboard)
     }
 
     /// Shows or hides the session.
@@ -466,6 +492,9 @@ mod tests {
                 cell: CELL,
             })),
             title: Arc::new(Mutex::new(None)),
+            clipboard: Arc::new(
+                crate::terminal_demo::clipboard::store::ClipboardWrites::disabled(),
+            ),
             session_nonce: 1,
             alive: Arc::new(AtomicBool::new(true)),
             visible: Arc::new(AtomicBool::new(false)),

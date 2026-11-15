@@ -16,8 +16,8 @@ pub(super) const DEFAULT_TITLE: &str = "tTerm GPUI Dev";
 ///
 /// The prototype never changes the view's palette, so color queries are
 /// answered from the default palette rather than a copy the view keeps in
-/// sync. Clipboard reads get no answer and clipboard stores and the bell are
-/// ignored; P2 decides how the product handles them.
+/// sync. Clipboard writes cross to the UI through the session slot. Clipboard
+/// reads get no answer; the bell is reserved for the later attention work.
 pub(super) fn handle_intent(intent: Intent, state: &SessionState, mut write: impl FnMut(Vec<u8>)) {
     match intent {
         Intent::WriteToPty(bytes) => write(bytes),
@@ -33,11 +33,13 @@ pub(super) fn handle_intent(intent: Intent, state: &SessionState, mut write: imp
         }
         Intent::Title(title) => set_title(state, title),
         Intent::TitleReset => set_title(state, DEFAULT_TITLE.to_string()),
+        // Every OSC 52 target writes the ordinary system clipboard. Reading is
+        // never requested here, so no query reply exists.
+        Intent::ClipboardStore { text, .. } => {
+            state.clipboard.store(text);
+        }
         // The view reads the cursor's blinking from each snapshot.
-        Intent::CursorBlinkingChanged
-        | Intent::ClipboardRead { .. }
-        | Intent::ClipboardStore { .. }
-        | Intent::Bell => {}
+        Intent::CursorBlinkingChanged | Intent::ClipboardRead { .. } | Intent::Bell => {}
     }
 }
 
@@ -109,6 +111,9 @@ mod tests {
                 },
             })),
             title: Arc::new(Mutex::new(None)),
+            clipboard: Arc::new(
+                crate::terminal_demo::clipboard::store::ClipboardWrites::disabled(),
+            ),
             session_nonce: 1,
             alive: Arc::new(std::sync::atomic::AtomicBool::new(true)),
             visible: Arc::new(std::sync::atomic::AtomicBool::new(true)),

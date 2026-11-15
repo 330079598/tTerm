@@ -57,6 +57,7 @@ pub mod color;
 pub mod command_mark;
 /// Prompt and command positions reported by shell integration.
 pub mod command_marks;
+mod control_strings;
 /// Buffering rules for spinner cursor moves.
 pub mod cursor_move_hold;
 pub mod damage;
@@ -73,6 +74,8 @@ pub mod mode;
 pub mod mouse_reporting;
 /// The OSC 52 clipboard request.
 pub mod osc52;
+/// Bounded OSC 52 store recognition on shared control-string framing.
+pub mod osc52_scanner;
 pub mod palette;
 /// Predicts the echo of typing at a slow remote shell.
 pub mod predictive_echo;

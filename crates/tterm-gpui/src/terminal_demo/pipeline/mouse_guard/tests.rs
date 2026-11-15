@@ -40,6 +40,7 @@ fn fixture(local: bool) -> Fixture {
             cell: CELL,
         })),
         title: Arc::new(Mutex::new(None)),
+        clipboard: Arc::new(crate::terminal_demo::clipboard::store::ClipboardWrites::disabled()),
         session_nonce: 1,
         alive: Arc::new(AtomicBool::new(true)),
         visible: Arc::new(AtomicBool::new(true)),

@@ -19,4 +19,9 @@ macro_rules! translation_keys {
 translation_keys! {
     APP_TITLE => "app.title",
     APP_SUBTITLE => "app.subtitle",
+    COMMON_CANCEL => "common.cancel",
+    PASTE_MULTILINE_TITLE => "terminalPaste.multilineTitle",
+    PASTE_MULTILINE_DESCRIPTION => "terminalPaste.multilineDescription",
+    PASTE_TRAILING_LINE_BREAK_DESCRIPTION => "terminalPaste.trailingLineBreakDescription",
+    PASTE_PASTE_ANYWAY => "terminalPaste.pasteAnyway",
 }

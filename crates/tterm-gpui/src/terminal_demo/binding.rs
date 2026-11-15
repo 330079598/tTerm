@@ -21,7 +21,7 @@ use tterm_core::prompts::SessionKey;
 use tterm_core::services::AppServices;
 use tterm_core::workspace::tab_attention::TabAttentionStore;
 use tterm_terminal::grid::{CellSize, GridSize};
-use tterm_terminal::terminal::Terminal;
+use tterm_terminal::terminal::{ClipboardPolicy, Terminal};
 
 use self::scoped::{ConnectionState, SessionScopedState};
 use super::session::{RefreshWatch, Session};
@@ -30,6 +30,7 @@ use super::session::{RefreshWatch, Session};
 pub struct SessionManager {
     services: Arc<AppServices>,
     attention: Rc<RefCell<TabAttentionStore>>,
+    clipboard_policy: ClipboardPolicy,
     next_nonce: AtomicU32,
     tabs: Mutex<HashMap<String, Rc<TabBinding>>>,
 }
@@ -41,9 +42,16 @@ impl SessionManager {
         Self {
             services,
             attention,
+            clipboard_policy: ClipboardPolicy::default(),
             next_nonce: AtomicU32::new(1),
             tabs: Mutex::new(HashMap::new()),
         }
+    }
+
+    /// Sets what programs may do with OSC 52 before any tab opens.
+    pub fn with_clipboard_policy(mut self, clipboard_policy: ClipboardPolicy) -> Self {
+        self.clipboard_policy = clipboard_policy;
+        self
     }
 
     /// Opens a new generation for `tab_id`, replacing its old session.
@@ -73,6 +81,7 @@ impl SessionManager {
             connection,
             grid,
             cell,
+            self.clipboard_policy,
         ) {
             Ok(session) => binding.set_session(Arc::new(session)),
             Err(error) => {

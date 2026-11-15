@@ -121,7 +121,7 @@ impl EntityInputHandler for TerminalView {
     fn paste(&mut self, item: ClipboardItem, window: &mut Window, cx: &mut Context<Self>) {
         self.composition.clear();
         if let Some(text) = item.text() {
-            self.paste_text(&text, cx);
+            self.request_paste(&text, window, cx);
         }
         window.notify_text_input_changed(&self.focus_handle);
     }

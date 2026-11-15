@@ -183,3 +183,38 @@ fn focus_reports_are_emitted_only_when_requested(cx: &mut TestAppContext) {
     h.update(cx, |view, window, cx| view.focus_changed(true, window, cx));
     assert_eq!(&*h.bytes.borrow(), b"\x1b[O\x1b[I");
 }
+
+#[gpui_kit::test]
+fn paste_gate_holds_text_until_the_dialog_delivers_it(cx: &mut TestAppContext) {
+    use std::cell::RefCell;
+    use std::rc::Rc;
+
+    use crate::view::paste::PasteRequest;
+
+    let h = Harness::new(cx);
+    let held = Rc::new(RefCell::new(None));
+    let gate_held = Rc::clone(&held);
+    h.update(cx, |view, _, _| {
+        view.paste_gate = Some(Rc::new(move |request: PasteRequest, _, _| {
+            *gate_held.borrow_mut() = Some(request);
+            true
+        }));
+    });
+    cx.update(|cx| {
+        cx.write_to_clipboard(gpui_kit::ClipboardItem::new_string(
+            "rm -rf build\nnext".into(),
+        ))
+    });
+    let paste = if cfg!(target_os = "macos") {
+        "cmd-v"
+    } else {
+        "ctrl-shift-v"
+    };
+    cx.simulate_keystrokes(h.window, paste);
+    assert!(h.bytes.borrow().is_empty(), "the gate must hold every byte");
+    let request = held.borrow_mut().take().expect("gate received the paste");
+    assert_eq!(request.text, "rm -rf build\nnext");
+    assert!(!request.bracketed);
+    cx.update(|cx| (request.delivery)(cx, "approved\r"));
+    assert_eq!(&*h.bytes.borrow(), b"approved\r");
+}

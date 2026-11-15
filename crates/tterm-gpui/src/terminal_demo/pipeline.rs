@@ -17,6 +17,7 @@ use tokio::sync::watch;
 use tterm_terminal::grid::WindowSize;
 use tterm_terminal::terminal::Terminal;
 
+use super::clipboard::store::ClipboardWrites;
 use super::intents::handle_intent;
 
 pub(super) mod mouse_guard;
@@ -283,6 +284,8 @@ pub(super) struct SessionState {
     pub size: Arc<Mutex<WindowSize>>,
     /// The latest title the program set that the window has not shown yet.
     pub title: Arc<Mutex<Option<String>>>,
+    /// The bounded OSC 52 write slot consumed on the UI thread.
+    pub clipboard: Arc<ClipboardWrites>,
     /// The generation whose output this parser may still apply.
     pub session_nonce: u32,
     /// Cleared when the view or tab releases this session.

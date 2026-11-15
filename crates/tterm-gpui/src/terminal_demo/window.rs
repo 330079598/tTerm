@@ -17,10 +17,11 @@ use tterm_core::i18n::language::Language;
 use tterm_core::services::AppServices;
 use tterm_core::workspace::tab_attention::TabAttentionStore;
 use tterm_terminal::grid::{CellSize, GridSize};
-use tterm_terminal::terminal::{Config, Terminal};
+use tterm_terminal::terminal::{ClipboardPolicy, Config, Terminal};
 use tterm_terminal_view::view::{TerminalView, TerminalViewConfig};
 
 use super::binding::{SessionManager, TabBinding, scoped::ConnectionState};
+use super::clipboard::{PasteController, PasteTarget, local_drop_text};
 use super::command::CommandSpec;
 use super::conpty::{log_conpty_source, prepare_conpty};
 use super::intents::DEFAULT_TITLE;
@@ -44,6 +45,7 @@ struct PrototypeStartup {
     keyboard: tterm_terminal_view::input::keyboard::EncoderConfig,
     keymap: Rc<KeymapRouter>,
     locale: Entity<Locale>,
+    config: AppConfig,
 }
 
 /// Runs the application with one prototype window until it closes.
@@ -66,7 +68,15 @@ pub(super) fn run_window(
     let keymap = Rc::new(KeymapRouter::new(&app_config.keymap, mac));
     let keyboard = encoder_config(mac, app_config.mac_option_is_meta);
     let attention = Rc::new(RefCell::new(TabAttentionStore::new()));
-    let sessions = Rc::new(SessionManager::new(Arc::clone(&services), attention));
+    let clipboard_policy = if app_config.osc52_clipboard_write {
+        ClipboardPolicy::CopyOnly
+    } else {
+        ClipboardPolicy::Disabled
+    };
+    let sessions = Rc::new(
+        SessionManager::new(Arc::clone(&services), attention)
+            .with_clipboard_policy(clipboard_policy),
+    );
     gpui_kit::application().run(move |cx: &mut App| {
         gpui_kit::init(cx);
         let locale = cx.new(|_| Locale::new(language));
@@ -85,6 +95,7 @@ pub(super) fn run_window(
             keyboard,
             keymap,
             locale,
+            config: app_config,
         };
         if let Err(error) = open_window(cx, startup) {
             eprintln!("tterm-gpui: {error}");
@@ -128,6 +139,7 @@ pub(super) struct Prototype {
     current_title: String,
     title_is_default: bool,
     locale: Entity<Locale>,
+    paste_controller: Option<Entity<PasteController>>,
 }
 
 impl Prototype {
@@ -144,9 +156,12 @@ impl Prototype {
             keyboard,
             keymap,
             locale,
+            config,
         } = startup;
         cx.observe(&locale, |_, _, cx| cx.notify()).detach();
-        let (binding, open_error) = match command.connection_options() {
+        let connection = command.connection_options();
+        let drop_text = connection.as_ref().ok().and_then(local_drop_text);
+        let (binding, open_error) = match connection {
             Ok(connection) => {
                 let binding = sessions.open(TAB_ID, connection, INITIAL_GRID, INITIAL_CELL);
                 let error = binding.scoped_state().start_error().map(str::to_string);
@@ -176,11 +191,56 @@ impl Prototype {
             );
         };
         let keymap_route = Rc::clone(&keymap);
+        let paste_controller = cx.new(|cx| {
+            PasteController::new(
+                cx,
+                locale.clone(),
+                &config,
+                Rc::clone(&binding),
+                session_nonce,
+            )
+        });
+        let gate_controller = paste_controller.downgrade();
+        let gate_binding = Rc::clone(&binding);
+        let paste_gate: tterm_terminal_view::view::paste::PasteGate =
+            Rc::new(move |request, window, cx| {
+                let Some(controller) = gate_controller.upgrade() else {
+                    return true;
+                };
+                let tterm_terminal_view::view::paste::PasteRequest {
+                    text,
+                    bracketed,
+                    delivery,
+                } = request;
+                let binding = Rc::clone(&gate_binding);
+                let is_current = Rc::new(move |nonce| {
+                    binding.session().is_some_and(|session| {
+                        session.session_nonce() == nonce && session.is_live()
+                    })
+                });
+                controller.update(cx, |controller, cx| {
+                    controller.request(
+                        text,
+                        bracketed,
+                        PasteTarget {
+                            session_nonce,
+                            is_current,
+                            delivery,
+                        },
+                        window,
+                        cx,
+                    )
+                })
+            });
         let config = TerminalViewConfig {
             input: Some(Rc::new(attachment.input())),
             resize: Some(Rc::new(attachment.resizer())),
             keyboard,
             keymap: Some(Rc::new(move |event| route_keymap(&keymap_route, event))),
+            paste_gate: Some(paste_gate),
+            copy_on_select: config.copy_on_select,
+            right_click_paste: config.right_click_paste,
+            drop_text,
             ..TerminalViewConfig::default()
         };
         let view = cx.new(|cx| TerminalView::new(cx, model, config));
@@ -235,6 +295,7 @@ impl Prototype {
             current_title: DEFAULT_TITLE.to_string(),
             title_is_default: true,
             locale,
+            paste_controller: Some(paste_controller),
         }
     }
 
@@ -291,6 +352,7 @@ fn failed(
         current_title: DEFAULT_TITLE.to_string(),
         title_is_default: true,
         locale,
+        paste_controller: None,
     }
 }
 
@@ -398,7 +460,10 @@ impl Render for Prototype {
             }
             None => {}
         }
-        div().size_full().child(self.view.clone())
+        div()
+            .size_full()
+            .child(self.view.clone())
+            .children(self.paste_controller.clone())
     }
 }
 

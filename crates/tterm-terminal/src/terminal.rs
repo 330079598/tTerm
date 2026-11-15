@@ -32,10 +32,11 @@ use alacritty_terminal::vte::ansi::Processor;
 
 use crate::cell::Cell;
 use crate::damage::Damage;
-use crate::event::{self, Intent};
+use crate::event::{self, Clipboard, Intent};
 use crate::grid::{CellSize, GridPoint, GridRange, GridSize};
 use crate::mode::Modes;
 use crate::mouse_reporting::MOUSE_REPORTING_OFF;
+use crate::osc52_scanner::Osc52Scanner;
 use crate::search::{Search, SearchDirection};
 use crate::selection::{SelectionKind, SelectionRange, Side, word};
 use crate::snapshot::{self, Cursor, CursorShape, Row, Snapshot, SnapshotParts};
@@ -190,7 +191,13 @@ impl Config {
             scrolling_history: self.scrollback,
             kitty_keyboard: self.kitty_keyboard,
             semantic_escape_chars: self.word_separators.clone(),
-            osc52: self.clipboard.into(),
+            // Alacritty is the only clipboard reader. The model's bounded
+            // scanner produces write intents so every OSC 52 store has one
+            // bounded path while queries still use Alacritty's formatter.
+            osc52: match self.clipboard {
+                ClipboardPolicy::Disabled | ClipboardPolicy::CopyOnly => Osc52::Disabled,
+                ClipboardPolicy::PasteOnly | ClipboardPolicy::CopyAndPaste => Osc52::OnlyPaste,
+            },
             ..TermConfig::default()
         }
     }
@@ -219,6 +226,7 @@ impl EventListener for Collector {
 struct State {
     term: Term<Collector>,
     parser: Processor,
+    osc52_scanner: Osc52Scanner,
     config: Config,
     cell_size: CellSize,
     version: u64,
@@ -251,9 +259,14 @@ impl Terminal {
             intents: Arc::clone(&intents),
         };
         let term = Term::new(config.to_alacritty(), &grid.clamped(), collector);
+        let osc52_scanner = Osc52Scanner::new(matches!(
+            config.clipboard,
+            ClipboardPolicy::CopyOnly | ClipboardPolicy::CopyAndPaste
+        ));
         let state = State {
             term,
             parser: Processor::new(),
+            osc52_scanner,
             config,
             cell_size,
             version: 0,
@@ -284,8 +297,24 @@ impl Terminal {
         state.word_drag = None;
         let configured = state.config.scrollback;
         let was_alternate = state.term.mode().contains(TermMode::ALT_SCREEN);
+        let stores = state.osc52_scanner.scan(bytes);
         let State { parser, term, .. } = &mut *state;
-        parser.advance(term, bytes);
+        let mut start = 0;
+        for (end, text) in stores {
+            if end < start || end > bytes.len() {
+                continue;
+            }
+            parser.advance(term, &bytes[start..end]);
+            self.intents
+                .lock()
+                .unwrap_or_else(PoisonError::into_inner)
+                .push(Intent::ClipboardStore {
+                    clipboard: Clipboard::Clipboard,
+                    text,
+                });
+            start = end;
+        }
+        parser.advance(term, &bytes[start..]);
         let is_alternate = term.mode().contains(TermMode::ALT_SCREEN);
         if was_alternate != is_alternate {
             // A switch swaps grids within one write, and the main screen may
@@ -347,6 +376,11 @@ impl Terminal {
     /// The configured scrollback capacity, in lines.
     pub fn scrollback(&self) -> usize {
         self.state.lock().config.scrollback
+    }
+
+    /// The current modes, without copying or consuming the grid's damage.
+    pub fn modes(&self) -> Modes {
+        Modes::from(*self.state.lock().term.mode())
     }
 
     /// The current grid size.
