@@ -143,7 +143,7 @@ fn clipboard_paste_normalizes_lines_and_wraps_only_in_bracketed_mode(cx: &mut Te
     cx.simulate_keystrokes(h.window, paste);
     assert_eq!(
         &*h.bytes.borrow(),
-        "\x1b[200~中文\nnext\t\x1b[201~".as_bytes()
+        "\x1b[200~中文\rnext\t\x1b[201~".as_bytes()
     );
 }
 
@@ -716,4 +716,102 @@ fn mode_1000_without_sgr_uses_the_legacy_encoding(cx: &mut TestAppContext) {
     h.output(cx, b"\x1b[?1000h");
     click(&h, cx, 0.1, 0.5, 1, Modifiers::default());
     assert_eq!(&*h.bytes.borrow(), b"\x1b[M !!\x1b[M#!!");
+}
+
+#[gpui_kit::test]
+fn copy_on_select_writes_once_on_delivered_and_recovered_release(cx: &mut TestAppContext) {
+    let h = Harness::new(cx);
+    h.update(cx, |view, _, _| view.copy_on_select = true);
+    h.output(cx, b"hello world");
+    drag(&h, cx, Modifiers::default());
+    assert_eq!(
+        cx.update(|cx| cx.read_from_clipboard().and_then(|item| item.text())),
+        Some("hello".into())
+    );
+    cx.update(|cx| cx.write_to_clipboard(ClipboardItem::new_string("keep".into())));
+    let end = position(&h, cx, 4.9, 0.5);
+    h.event(
+        cx,
+        MouseUpEvent {
+            position: end,
+            button: MouseButton::Left,
+            click_count: 1,
+            ..Default::default()
+        },
+    );
+    assert_eq!(
+        cx.update(|cx| cx.read_from_clipboard().and_then(|item| item.text())),
+        Some("keep".into()),
+        "a second release must not copy again"
+    );
+
+    let start = position(&h, cx, 0.1, 0.5);
+    h.event(
+        cx,
+        MouseDownEvent {
+            button: MouseButton::Left,
+            position: start,
+            click_count: 1,
+            ..Default::default()
+        },
+    );
+    let returned = position(&h, cx, 4.9, 0.5);
+    h.event(
+        cx,
+        MouseMoveEvent {
+            position: returned,
+            pressed_button: None,
+            ..Default::default()
+        },
+    );
+    assert_eq!(
+        cx.update(|cx| cx.read_from_clipboard().and_then(|item| item.text())),
+        Some("hello".into()),
+        "a recovered release copies the final selection"
+    );
+    cx.update(|cx| cx.write_to_clipboard(ClipboardItem::new_string("keep".into())));
+    let further = position(&h, cx, 5.9, 0.5);
+    h.event(
+        cx,
+        MouseMoveEvent {
+            position: further,
+            pressed_button: None,
+            ..Default::default()
+        },
+    );
+    assert_eq!(
+        cx.update(|cx| cx.read_from_clipboard().and_then(|item| item.text())),
+        Some("keep".into()),
+        "a second recovery must not copy again"
+    );
+}
+
+#[gpui_kit::test]
+fn copy_on_select_does_not_replace_the_clipboard_with_an_empty_selection(cx: &mut TestAppContext) {
+    let h = Harness::new(cx);
+    h.update(cx, |view, _, _| view.copy_on_select = true);
+    cx.update(|cx| cx.write_to_clipboard(ClipboardItem::new_string("keep".into())));
+    h.update(cx, |view, _, cx| view.copy_selection_on_release(cx));
+    assert_eq!(
+        cx.update(|cx| cx.read_from_clipboard().and_then(|item| item.text())),
+        Some("keep".into())
+    );
+}
+
+#[gpui_kit::test]
+fn right_click_pastes_through_the_same_gate_when_enabled(cx: &mut TestAppContext) {
+    let h = Harness::new(cx);
+    h.update(cx, |view, _, _| view.right_click_paste = true);
+    cx.update(|cx| cx.write_to_clipboard(ClipboardItem::new_string("lane\r\nnext".into())));
+    press(
+        &h,
+        cx,
+        2.1,
+        0.5,
+        MouseButton::Right,
+        Modifiers::default(),
+        1,
+    );
+    assert_eq!(&*h.bytes.borrow(), b"lane\rnext");
+    assert!(h.terminal.selection_text().is_none());
 }

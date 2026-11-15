@@ -6,6 +6,7 @@
 //! service path as the Tauri client.
 
 pub mod binding;
+mod clipboard;
 mod command;
 mod conpty;
 mod intents;

@@ -67,7 +67,7 @@ pub(crate) struct CheckToken {
 }
 
 struct Gate {
-    scanner: MousePromptScanner,
+    prompts: MousePromptScanner,
     epoch: u64,
     deadline: Option<Instant>,
 }
@@ -99,7 +99,7 @@ impl MouseGuard {
             runtime,
             foreground,
             gate: Mutex::new(Gate {
-                scanner: MousePromptScanner::default(),
+                prompts: MousePromptScanner::default(),
                 epoch: 0,
                 deadline: None,
             }),
@@ -139,15 +139,12 @@ impl MouseGuard {
             return false;
         }
         gate.epoch = gate.epoch.saturating_add(1);
-        let offsets = gate.scanner.scan(bytes);
+        let prompt_offsets = gate.prompts.scan(bytes);
         let mut start = 0;
-        for end in offsets {
+        for end in prompt_offsets {
             if end < start || end > bytes.len() {
                 continue;
             }
-            // An offset at the start of the batch is a prompt completed by an
-            // ESC from the previous batch; the OFF write still belongs before
-            // these bytes.
             self.state.terminal.write(&bytes[start..end]);
             if self.state.terminal.is_mouse_reporting() {
                 self.state.terminal.write(MOUSE_REPORTING_OFF);

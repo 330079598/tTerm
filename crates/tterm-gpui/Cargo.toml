@@ -34,6 +34,7 @@ tterm-core = { path = "../tterm-core" }
 tterm-platform = { path = "../tterm-platform" }
 tterm-terminal-view = { path = "../tterm-terminal-view" }
 tterm-terminal = { path = "../tterm-terminal" }
+tterm-ui = { path = "../tterm-ui" }
 tokio = { version = "=1.53.1", features = ["rt-multi-thread", "sync"] }
 image = { version = "=0.25.10", default-features = false, features = ["png"], optional = true }
 

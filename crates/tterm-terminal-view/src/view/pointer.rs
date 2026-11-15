@@ -88,6 +88,21 @@ impl TerminalView {
             && (event.modifiers.control
                 || (self.pointer_policy.alt_selects_block_outside_macos && event.modifiers.alt));
         let action = mouse::button_action(self.input_modes(), force_local);
+        if action == ButtonAction::Local
+            && button == mouse::MouseButton::Right
+            && self.right_click_paste
+            && !event.modifiers.shift
+        {
+            // Windows Terminal and similar clients paste on right click. A
+            // reported right click still belongs to the program above, and
+            // Shift keeps the context-menu gesture available for a later menu.
+            self.pointer.held = None;
+            if let Some(text) = cx.read_from_clipboard().and_then(|item| item.text()) {
+                self.request_paste(&text, window, cx);
+            }
+            cx.stop_propagation();
+            return;
+        }
         self.pointer.selecting = action == ButtonAction::Local
             && matches!(button, mouse::MouseButton::Left | mouse::MouseButton::Right);
         self.pointer.reported_press = action == ButtonAction::Report;
@@ -95,7 +110,7 @@ impl TerminalView {
             self.report_button(point, button, ButtonState::Pressed, event.modifiers, cx);
         } else if button == mouse::MouseButton::Middle {
             if self.pointer_policy.middle_click_pastes {
-                self.paste_primary(cx);
+                self.paste_primary(window, cx);
             }
         } else if button == mouse::MouseButton::Left {
             if event.modifiers.shift && self.terminal.has_selection() {
@@ -223,6 +238,9 @@ impl TerminalView {
         }
         if self.pointer.selecting {
             self.terminal.finish_selection();
+            if button == mouse::MouseButton::Left {
+                self.copy_selection_on_release(cx);
+            }
         }
         self.pointer = PointerState::default();
     }
@@ -243,14 +261,14 @@ impl TerminalView {
     }
 
     /// Pastes the primary selection for a Linux middle click.
-    fn paste_primary(&mut self, cx: &mut Context<Self>) {
+    fn paste_primary(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         let Some(primary) = self.primary.clone() else {
             return;
         };
         let Some(text) = primary(cx) else {
             return;
         };
-        self.paste_text(&text, cx);
+        self.request_paste(&text, window, cx);
     }
 }
 

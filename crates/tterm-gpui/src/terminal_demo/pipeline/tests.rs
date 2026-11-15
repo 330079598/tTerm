@@ -46,6 +46,7 @@ fn state(visible: bool, scrollback: usize) -> (Arc<Terminal>, SessionState) {
             cell: CELL,
         })),
         title: Arc::new(Mutex::new(None)),
+        clipboard: Arc::new(crate::terminal_demo::clipboard::store::ClipboardWrites::disabled()),
         session_nonce: 1,
         alive: Arc::new(AtomicBool::new(true)),
         visible: Arc::new(AtomicBool::new(visible)),
@@ -696,4 +697,81 @@ fn a_prompt_mark_closes_mouse_reporting_inside_the_parser() {
     drop(pipeline.queue);
     pipeline.parser.join().expect("parser exits");
     assert!(!model.is_mouse_reporting());
+}
+
+fn wait_for_clipboard(
+    writes: &crate::terminal_demo::clipboard::store::ClipboardWrites,
+) -> Option<String> {
+    let deadline = Instant::now() + WAIT;
+    loop {
+        if let Some(text) = writes.take() {
+            return Some(text);
+        }
+        if Instant::now() >= deadline {
+            return None;
+        }
+        std::thread::sleep(Duration::from_millis(5));
+    }
+}
+
+#[test]
+fn osc52_writes_cross_from_a_hidden_parser_to_one_bounded_slot() {
+    let (_, mut state) = state(false, 64);
+    let clipboard = Arc::new(crate::terminal_demo::clipboard::store::ClipboardWrites::new(true));
+    state.clipboard = Arc::clone(&clipboard);
+    let pipeline = start_pipeline(state, |_| {});
+    let output = output_into(&pipeline, Arc::new(OutputFlow::default()));
+
+    // BEL terminator, ordinary clipboard target.
+    output
+        .send(b"\x1b]52;c;aGVsbG8gd29ybGQ=\x07".to_vec())
+        .expect("queue BEL write");
+    assert_eq!(
+        wait_for_clipboard(&clipboard).as_deref(),
+        Some("hello world")
+    );
+
+    // ST terminator, selection target still writes the ordinary clipboard.
+    output
+        .send(b"\x1b]52;p;5L2g5aW977yMdmltCg==\x1b\\".to_vec())
+        .expect("queue ST write");
+    assert_eq!(
+        wait_for_clipboard(&clipboard).as_deref(),
+        Some("你好，vim\n")
+    );
+
+    // Query, empty payload, invalid target and invalid base64 are not stores;
+    // the next valid write is still delivered.
+    for ignored in [
+        b"\x1b]52;c;?\x07".as_slice(),
+        b"\x1b]52;c;\x07".as_slice(),
+        b"\x1b]52;x;aGVsbG8=\x07".as_slice(),
+        b"\x1b]52;c;not base64!\x07".as_slice(),
+    ] {
+        output.send(ignored.to_vec()).expect("queue ignored write");
+    }
+    output
+        .send(b"\x1b]52;s;bGFzdA==\x07".to_vec())
+        .expect("queue final write");
+    assert_eq!(wait_for_clipboard(&clipboard).as_deref(), Some("last"));
+
+    drop(output);
+    drop(pipeline.queue);
+    pipeline.parser.join().expect("parser exits");
+}
+
+#[test]
+fn a_disabled_clipboard_setting_rejects_osc52_at_the_slot() {
+    let (_, mut state) = state(true, 64);
+    let clipboard = Arc::new(crate::terminal_demo::clipboard::store::ClipboardWrites::new(false));
+    state.clipboard = Arc::clone(&clipboard);
+    let pipeline = start_pipeline(state, |_| {});
+    let output = output_into(&pipeline, Arc::new(OutputFlow::default()));
+    output
+        .send(b"\x1b]52;c;aGVsbG8=\x07\x1b[?25h".to_vec())
+        .expect("queue write");
+    drop(output);
+    drop(pipeline.queue);
+    pipeline.parser.join().expect("parser exits");
+    assert_eq!(clipboard.take(), None);
 }

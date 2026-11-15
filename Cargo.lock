@@ -11017,6 +11017,7 @@ dependencies = [
  "tterm-platform",
  "tterm-terminal",
  "tterm-terminal-view",
+ "tterm-ui",
  "windows 0.62.2",
 ]
 

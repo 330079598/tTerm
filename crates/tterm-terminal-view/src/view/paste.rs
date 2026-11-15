@@ -1,14 +1,41 @@
 //! Clipboard paste normalization, independent of platform clipboard access.
 
+use std::rc::Rc;
+
+use gpui_kit::{App, Context, Window};
+
+use super::TerminalView;
+
+/// Sends already-approved clipboard text to the session input.
+pub type PasteDelivery = Rc<dyn Fn(&mut App, &str)>;
+
+/// One paste request waiting for the view's clipboard policy.
+pub struct PasteRequest {
+    /// The text as the clipboard, primary selection or drop supplied it.
+    pub text: String,
+    /// Whether bracketed paste mode was on when the request was made.
+    pub bracketed: bool,
+    /// Sends the request's text after the gate approves it.
+    pub delivery: PasteDelivery,
+}
+
+/// Decides whether a paste may be sent now, may be confirmed first, or must
+/// be rejected. Returning `false` lets the view deliver immediately.
+pub type PasteGate = Rc<dyn Fn(PasteRequest, &mut Window, &mut Context<TerminalView>) -> bool>;
+
+/// Quotes dropped paths for the local tab's shell.
+pub type DropText = Rc<dyn Fn(&[String]) -> String>;
+
 /// Encodes clipboard text without allowing an embedded bracket terminator.
 ///
 /// Clipboard control characters are not keyboard gestures. Keep tabs and
-/// newlines, remove the other C0/C1 controls, and normalize CRLF once.
+/// carriage returns, remove the other C0/C1 controls, and normalize line
+/// endings to CR before bracketing, as xterm.js does.
 pub(super) fn paste_bytes(text: &str, bracketed: bool) -> Vec<u8> {
-    let normalized = text.replace("\r\n", "\n").replace('\r', "\n");
+    let normalized = text.replace("\r\n", "\r").replace('\n', "\r");
     let filtered: String = normalized
         .chars()
-        .filter(|ch| *ch == '\n' || *ch == '\t' || !ch.is_control())
+        .filter(|ch| *ch == '\r' || *ch == '\t' || !ch.is_control())
         .collect();
     if filtered.is_empty() {
         return Vec::new();
@@ -21,6 +48,6 @@ pub(super) fn paste_bytes(text: &str, bracketed: bool) -> Vec<u8> {
         ]
         .concat()
     } else {
-        filtered.replace('\n', "\r").into_bytes()
+        filtered.into_bytes()
     }
 }
