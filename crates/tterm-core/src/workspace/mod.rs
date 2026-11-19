@@ -6,6 +6,9 @@
 
 /// Requests that open a singleton app page, from `src/lib/appNavigation.ts`.
 pub mod app_navigation;
+/// The shells a local tab can start, the default among them and the lists a
+/// new tab shows, from `src/lib/localShells.ts`.
+pub mod local_shells;
 /// Local tab titles, directories and running commands, from
 /// `src/lib/localTabTitle.ts`.
 pub mod local_tab_title;
