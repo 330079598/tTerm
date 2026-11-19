@@ -8,13 +8,20 @@ param(
 
 $ErrorActionPreference = 'Stop'
 
-function Get-Sha256([string]$Path) {
-    $stream = [IO.File]::OpenRead($Path)
+function Get-StreamSha256([IO.Stream]$stream) {
     $sha = [Security.Cryptography.SHA256]::Create()
     try {
         return [BitConverter]::ToString($sha.ComputeHash($stream)).Replace('-', '').ToLowerInvariant()
     } finally {
         $sha.Dispose()
+    }
+}
+
+function Get-Sha256([string]$Path) {
+    $stream = [IO.File]::OpenRead($Path)
+    try {
+        return Get-StreamSha256 $stream
+    } finally {
         $stream.Dispose()
     }
 }
@@ -28,6 +35,7 @@ $arch = @{ x86_64 = 'x64'; aarch64 = 'arm64'; x86 = 'x86' }[$Architecture]
 $destination = Join-Path $PSScriptRoot '../src-tauri/resources/conpty'
 New-Item -ItemType Directory -Path $destination -Force | Out-Null
 New-Item -ItemType Directory -Path $TestDirectory -Force | Out-Null
+$TestDirectory = (Resolve-Path -LiteralPath $TestDirectory).ProviderPath
 $archive = Join-Path $destination "conpty-$($package.version).zip"
 
 # A pinned archive is reusable offline; never trust an incomplete or changed download.
@@ -55,17 +63,20 @@ try {
     foreach ($name in $entries.Keys) {
         $entry = $zip.GetEntry($entries[$name])
         if ($null -eq $entry) { throw "ConPTY package is missing $($entries[$name])" }
-        $staged = Join-Path $destination "$name.new"
-        [IO.Compression.ZipFileExtensions]::ExtractToFile($entry, $staged, $true)
+        $stream = $entry.Open()
+        try {
+            $expected = Get-StreamSha256 $stream
+        } finally {
+            $stream.Dispose()
+        }
         foreach ($directory in @($destination, $TestDirectory)) {
             $target = Join-Path $directory $name
             # Do not rewrite a loaded DLL when another dev/test process is running.
             if (!(Test-Path -LiteralPath $target) -or
-                (Get-Sha256 $target) -ne (Get-Sha256 $staged)) {
-                Copy-Item -LiteralPath $staged -Destination $target -Force
+                (Get-Sha256 $target) -ne $expected) {
+                [IO.Compression.ZipFileExtensions]::ExtractToFile($entry, $target, $true)
             }
         }
-        Remove-Item -LiteralPath $staged
     }
 } finally {
     $zip.Dispose()
