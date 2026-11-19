@@ -266,10 +266,39 @@ mod tests {
     }
 
     #[test]
-    fn finds_this_process_and_its_parent() {
-        let processes = processes();
-        let (parent, name) = &processes[&std::process::id()];
-        assert!(processes.contains_key(parent));
-        assert!(name.to_ascii_lowercase().ends_with(".exe"));
+    fn finds_a_live_child_and_its_known_parent() {
+        use std::io::{BufRead, BufReader};
+        use std::process::{Command, Stdio};
+
+        let mut child = Command::new("powershell.exe")
+            .args([
+                "-NoProfile",
+                "-NonInteractive",
+                "-Command",
+                "[Console]::WriteLine('ready'); [void][Console]::ReadLine()",
+            ])
+            .stdin(Stdio::piped())
+            .stdout(Stdio::piped())
+            .spawn()
+            .unwrap();
+        let child_id = child.id();
+        let parent_id = std::process::id();
+        let mut ready = String::new();
+        let handshake = BufReader::new(child.stdout.take().unwrap()).read_line(&mut ready);
+        let snapshot = processes();
+        let status = child.wait().unwrap();
+
+        handshake.unwrap();
+        assert_eq!(ready.trim_end(), "ready");
+        assert!(status.success(), "child {child_id} exited with {status}");
+        let (parent, executable) = snapshot
+            .get(&child_id)
+            .unwrap_or_else(|| panic!("missing child {child_id} of {parent_id}"));
+        assert_eq!(*parent, parent_id, "parent of child {child_id}");
+        assert!(executable.eq_ignore_ascii_case("powershell.exe"));
+        assert!(
+            snapshot.contains_key(&parent_id),
+            "missing parent {parent_id}"
+        );
     }
 }
