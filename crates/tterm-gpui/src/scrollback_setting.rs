@@ -243,6 +243,7 @@ impl ScrollbackSetting {
             .border(px(1.0))
             .border_color(hsla(theme.colors.border, 1.0))
             .bg(hsla(theme.colors.background, 1.0))
+            .text_color(hsla(theme.colors.foreground, 1.0))
             .occlude()
             .capture_key_down(cx.listener(Self::handle_key))
             .on_mouse_down(MouseButton::Left, |_, _, cx| cx.stop_propagation())

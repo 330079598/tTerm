@@ -10,7 +10,14 @@ use tterm_ui::tokens::palette::DARK;
 #[gpui_kit::test]
 fn editing_keeps_invalid_input_and_returns_focus_on_cancel_or_save(cx: &mut TestAppContext) {
     cx.update(gpui_kit::init);
-    let runtime = tokio::runtime::Runtime::new().unwrap();
+    // The save finishes on a real Tokio worker, so the test scheduler must be
+    // allowed to park for its cross-thread wake.
+    cx.executor().allow_parking();
+    let runtime = tokio::runtime::Builder::new_multi_thread()
+        .worker_threads(1)
+        .enable_all()
+        .build()
+        .expect("test runtime");
     let config = cx.new(|_| {
         ConfigState::with_writer(AppConfig::default(), runtime.handle(), Arc::new(|_| Ok(())))
     });

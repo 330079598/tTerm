@@ -17,6 +17,22 @@ mod platform;
 /// Keeps the GPUI development data apart from the Tauri application's files.
 pub(super) const IDENTIFIER: &str = "com.stone.tTerm.gpui-dev";
 
+/// A numbered debug instance keeps manual acceptance runs out of the developer's
+/// database, configuration and OS credential namespace, including across restarts.
+#[cfg(debug_assertions)]
+fn debug_identifier(instance: Option<std::ffi::OsString>) -> Result<String, String> {
+    match instance {
+        None => Ok(IDENTIFIER.to_owned()),
+        Some(value) => value
+            .to_str()
+            .and_then(|text| text.parse::<u32>().ok())
+            .map(|number| format!("{IDENTIFIER}.check-{number}"))
+            .ok_or_else(|| {
+                "Set TTERM_GPUI_CHECK_INSTANCE to an unsigned integer or unset it.".into()
+            }),
+    }
+}
+
 /// Services and the runtime that keeps their background work alive.
 pub(super) struct GpuiRuntime {
     pub services: Arc<AppServices>,
@@ -40,12 +56,16 @@ impl EventSink for GpuiEventSink {
 /// Initializes the same service graph as Tauri, with GPUI-native adapters.
 pub(super) fn start() -> Result<GpuiRuntime, String> {
     tterm_core::identity::install_app_version(env!("CARGO_PKG_VERSION"));
-    let paths = Arc::new(AppPaths::native(IDENTIFIER)?);
+    #[cfg(debug_assertions)]
+    let identifier = debug_identifier(std::env::var_os("TTERM_GPUI_CHECK_INSTANCE"))?;
+    #[cfg(not(debug_assertions))]
+    let identifier = IDENTIFIER.to_owned();
+    let paths = Arc::new(runtime_paths(&identifier)?);
     tterm_core::config::paths::init_config_dir(&paths)?;
     tterm_core::db::init()?;
 
     let identity = Arc::new(AppIdentity {
-        identifier: IDENTIFIER.to_string(),
+        identifier,
         name: "tTerm GPUI Dev".to_string(),
         version: env!("CARGO_PKG_VERSION").to_string(),
     });
@@ -70,6 +90,27 @@ pub(super) fn start() -> Result<GpuiRuntime, String> {
         events: event_rx,
         _runtime: runtime,
     })
+}
+
+fn runtime_paths(identifier: &str) -> Result<AppPaths, String> {
+    #[cfg(debug_assertions)]
+    if identifier != IDENTIFIER {
+        return Ok(isolated_paths(std::env::temp_dir().join(identifier)));
+    }
+    AppPaths::native(identifier)
+}
+
+#[cfg(any(test, debug_assertions))]
+fn isolated_paths(root: std::path::PathBuf) -> AppPaths {
+    AppPaths {
+        config_dir: root.join("config"),
+        data_dir: root.join("data"),
+        local_data_dir: root.join("local-data"),
+        cache_dir: root.join("cache"),
+        log_dir: root.join("logs"),
+        download_dir: None,
+        temp_dir: root.join("temp"),
+    }
 }
 
 fn build_services(
@@ -138,15 +179,7 @@ pub(super) fn test_runtime() -> GpuiRuntime {
         std::process::id(),
         NEXT_TEST_DATA.fetch_add(1, Ordering::Relaxed)
     ));
-    let paths = Arc::new(AppPaths {
-        config_dir: root.join("config"),
-        data_dir: root.join("data"),
-        local_data_dir: root.join("local-data"),
-        cache_dir: root.join("cache"),
-        log_dir: root.join("logs"),
-        download_dir: None,
-        temp_dir: root.join("temp"),
-    });
+    let paths = Arc::new(isolated_paths(root));
     let identity = Arc::new(AppIdentity {
         identifier: IDENTIFIER.to_string(),
         name: "tTerm GPUI test".to_string(),
@@ -170,6 +203,21 @@ pub(super) fn test_runtime() -> GpuiRuntime {
 #[cfg(test)]
 mod tests {
     use super::IDENTIFIER;
+
+    #[cfg(debug_assertions)]
+    #[test]
+    fn acceptance_instances_cannot_select_an_existing_product_identity_or_path() {
+        use super::debug_identifier;
+
+        assert_eq!(debug_identifier(None).unwrap(), IDENTIFIER);
+        assert_eq!(
+            debug_identifier(Some("42".into())).unwrap(),
+            format!("{IDENTIFIER}.check-42")
+        );
+        for invalid in ["", "../tterm", IDENTIFIER, "4294967296"] {
+            assert!(debug_identifier(Some(invalid.into())).is_err());
+        }
+    }
 
     #[test]
     fn development_data_has_its_own_application_identifier() {
