@@ -11,6 +11,7 @@ pub mod crypto;
 mod keyring_backend;
 pub mod legacy;
 mod migration;
+pub mod normalize;
 pub mod store;
 pub mod types;
 pub mod verification;

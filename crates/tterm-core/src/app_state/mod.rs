@@ -5,6 +5,8 @@
 use crate::db::meta;
 use serde::{Deserialize, Serialize};
 
+pub mod normalize;
+
 const LAST_UPDATE_CHECK_AT: &str = "state.last_update_check_at";
 pub const COLLAPSED_PROFILE_GROUP_KEYS: &str = "state.collapsed_profile_group_keys";
 
