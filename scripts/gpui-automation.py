@@ -45,16 +45,25 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output", type=pathlib.Path, default=pathlib.Path("target/gpui-automation.png"))
     parser.add_argument("--timeout", type=float, default=120)
+    parser.add_argument("--tabs", action="store_true", help="Verify native new, switch and close after the OSC title check.")
+    parser.add_argument("--overflow", action="store_true", help="Also capture an overflowing strip and its first tab after wraparound.")
+    parser.add_argument("--executable", type=pathlib.Path, help="Use a separate debug build without replacing a running client.")
     args = parser.parse_args()
+    if args.overflow:
+        args.tabs = True
     if args.timeout <= 0:
         parser.error("--timeout must be positive")
     root = pathlib.Path(__file__).resolve().parents[1]
-    executable = root / "target" / "debug" / ("tterm-gpui.exe" if os.name == "nt" else "tterm-gpui")
+    executable = args.executable.resolve() if args.executable else root / "target" / "debug" / ("tterm-gpui.exe" if os.name == "nt" else "tterm-gpui")
     shell = (shutil.which("pwsh") or shutil.which("powershell")) if os.name == "nt" else shutil.which("bash")
     if not shell:
         raise RuntimeError("PowerShell (Windows) or bash (Unix) is required")
     arguments = [shell, "-NoLogo", "-NoProfile"] if os.name == "nt" else [shell, "--noprofile", "--norc"]
     env = os.environ.copy()
+    if args.tabs:
+        # A repeatable test must not inherit the developer's keymap or an existing workspace.
+        import secrets
+        env["TTERM_GPUI_CHECK_INSTANCE"] = str(secrets.randbits(32))
     env.pop("TTERM_GPUI_AUTOMATION_TOKEN_FILE", None)
     deadline = time.monotonic() + args.timeout
     process = subprocess.Popen([str(executable), "--exec", *arguments], cwd=root, env=env,
@@ -127,6 +136,42 @@ def main() -> int:
             raise TimeoutError("the shell never set the expected OSC title")
         assert after != before
         print(f"state-after: {after}", flush=True)
+        if args.tabs:
+            def wait_title(first: bool) -> None:
+                while time.monotonic() < deadline:
+                    state = request(port, token, "state", deadline).decode()
+                    if (state == f"title={expected}") == first:
+                        return
+                    time.sleep(0.05)
+                raise TimeoutError(f"tab selection did not change to first={first}")
+
+            mac = sys.platform == "darwin"
+            request(port, token, "key=cmd-t" if mac else "key=ctrl-shift-t", deadline)
+            wait_title(False)
+            request(port, token, "key=ctrl-tab", deadline)
+            wait_title(True)
+            request(port, token, "key=ctrl-tab", deadline)
+            wait_title(False)
+            both_tabs = args.output.with_name(f"{args.output.stem}-two-tabs.png")
+            both_tabs.parent.mkdir(parents=True, exist_ok=True)
+            both_tabs.write_bytes(request(port, token, "screenshot", deadline))
+            if not mac:
+                request(port, token, "key=ctrl-shift-w", deadline)
+                wait_title(True)
+                request(port, token, "key=ctrl-tab", deadline)
+                wait_title(True)
+            print("workspace: native tab shortcuts selected the expected sessions", flush=True)
+            if args.overflow:
+                if mac:
+                    request(port, token, "key=ctrl-tab", deadline)
+                    wait_title(True)
+                for _ in range(11):
+                    request(port, token, "key=cmd-t" if mac else "key=ctrl-shift-t", deadline)
+                wait_title(False)
+                last = args.output.with_name(f"{args.output.stem}-overflow-end.png")
+                last.write_bytes(request(port, token, "screenshot", deadline))
+                request(port, token, "key=ctrl-tab", deadline)
+                wait_title(True)
         image = request(port, token, "screenshot", deadline)
         if not image.startswith(b"\x89PNG\r\n\x1a\n"):
             raise RuntimeError("screenshot is not PNG")

@@ -1,4 +1,4 @@
-//! The prototype's window: one terminal view attached to a core-owned session.
+//! The native workspace window and its independently owned terminal sessions.
 
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -6,8 +6,13 @@ use std::sync::{Arc, Mutex};
 
 mod events;
 mod history;
+mod overflow;
+mod picker;
+mod strip;
+mod tabs;
 use events::handle_event;
 use history::{history_capacity, subscribe_history};
+use tabs::Tabs;
 
 use gpui_kit::prelude::*;
 use gpui_kit::{App, Entity, Rgba, Window, div};
@@ -43,7 +48,6 @@ use crate::config_state::ConfigState;
 use crate::locale::{Locale, LocaleGlobal};
 use crate::scrollback_setting::ScrollbackSetting;
 
-const TAB_ID: &str = "gpui-main";
 const INITIAL_GRID: GridSize = GridSize {
     columns: 80,
     screen_lines: 24,
@@ -172,7 +176,7 @@ pub(super) fn run_window(
         let initial_title = prototype.read(cx).default_window_title(cx);
         if let Err(error) = handle.update(cx, |_, window, cx| {
             window.set_window_title(&initial_title);
-            let view = prototype.read(cx).view.clone();
+            let view = prototype.read(cx).tabs.active().view.clone();
             view.update(cx, |view, cx| view.activate(window, cx));
             window.activate_window();
         }) {
@@ -185,16 +189,30 @@ pub(super) fn run_window(
     });
 }
 
-/// The window's root view: the attached terminal view.
+/// The root owns the session manager even when the initial tab fails to open.
 pub(super) struct Prototype {
-    // The manager closes every session on drop, so the root owns it until shutdown.
-    _sessions: Option<Rc<SessionManager>>,
+    picker: Option<picker::TabPicker>,
+    overflow: overflow::TabViewport,
+    tabs: Tabs<WindowTab>,
+    factory: TabFactory,
+    current_title: String,
+    ui: WindowUi,
+}
+
+struct TabFactory {
+    sessions: Rc<SessionManager>,
+    config: Entity<ConfigState>,
+    keyboard: tterm_terminal_view::input::keyboard::EncoderConfig,
+    keymap: Rc<KeymapRouter>,
+}
+
+struct WindowTab {
+    search: picker::ConnectionLabel,
+    fallback_key: tterm_core::i18n::translate::TranslationKey,
     view: Entity<TerminalView>,
     binding: Option<Rc<TabBinding>>,
     title: Arc<Mutex<Option<String>>>,
-    current_title: String,
-    title_is_default: bool,
-    ui: WindowUi,
+    program_title: RefCell<Option<String>>,
     paste_controller: Option<Entity<PasteController>>,
 }
 
@@ -240,11 +258,75 @@ impl Prototype {
             background,
             scrollback_setting,
         };
+        let factory = TabFactory {
+            sessions,
+            config,
+            keyboard,
+            keymap,
+        };
+        strip::register_actions(&factory.keymap);
+        let tab = factory.open(1, command, &locale, cx);
+        cx.spawn(async move |prototype, cx| {
+            while let Some(event) = events.recv().await {
+                if prototype
+                    .update(cx, |prototype, cx| {
+                        let tterm_core::events::EventName::TabScoped { tab_id, .. } = event.name()
+                        else {
+                            return;
+                        };
+                        let Some(binding) = prototype.factory.sessions.tab(&tab_id) else {
+                            return;
+                        };
+                        if handle_event(&binding, event) && binding.is_active() {
+                            prototype
+                                .tabs
+                                .active()
+                                .view
+                                .update(cx, |view, cx| view.notify_output(cx));
+                            cx.notify();
+                        }
+                    })
+                    .is_err()
+                {
+                    break;
+                }
+            }
+        })
+        .detach();
+        Self {
+            tabs: Tabs::new(tab),
+            picker: None,
+            overflow: Default::default(),
+            factory,
+            current_title: DEFAULT_TITLE.to_string(),
+            ui,
+        }
+    }
+}
+
+impl TabFactory {
+    fn open(
+        &self,
+        id: usize,
+        command: CommandSpec,
+        locale: &Entity<Locale>,
+        cx: &mut Context<Prototype>,
+    ) -> WindowTab {
+        let fallback_key = match &command {
+            CommandSpec::SshProfile { .. } => keys::TAB_SSH,
+            _ => keys::TAB_TERMINAL,
+        };
         let connection = command.connection_options();
+        let search = picker::ConnectionLabel::new(&command, connection.as_ref().ok());
         let drop_text = connection.as_ref().ok().and_then(local_drop_text);
         let (binding, open_error) = match connection {
             Ok(connection) => {
-                let binding = sessions.open(TAB_ID, connection, INITIAL_GRID, INITIAL_CELL);
+                let binding = self.sessions.open(
+                    format!("gpui-{id}"),
+                    connection,
+                    INITIAL_GRID,
+                    INITIAL_CELL,
+                );
                 let error = binding.scoped_state().start_error().map(str::to_string);
                 (Some(binding), error)
             }
@@ -256,23 +338,23 @@ impl Prototype {
         let attachment = binding.as_ref().and_then(|binding| binding.attach());
         let Some(attachment) = attachment else {
             let error = open_error.unwrap_or_else(|| "Failed to start terminal".to_string());
-            return failed(cx, binding, error, ui);
+            return failed(cx, binding, fallback_key, search, error);
         };
         log_conpty_source();
         let model = attachment.model();
         let title = attachment.title();
         let session_nonce = attachment.session_nonce();
-        let binding = binding.or_else(|| sessions.tab(TAB_ID));
         let Some(binding) = binding else {
             return failed(
                 cx,
                 None,
+                fallback_key,
+                search,
                 "The terminal tab was not registered".to_string(),
-                ui,
             );
         };
-        let keymap_route = Rc::clone(&keymap);
-        let initial = config.read(cx).config().clone();
+        let keymap_route = Rc::clone(&self.keymap);
+        let initial = self.config.read(cx).config().clone();
         let paste_controller = cx.new(|cx| {
             PasteController::new(
                 cx,
@@ -286,7 +368,7 @@ impl Prototype {
         let config = TerminalViewConfig {
             input: Some(Rc::new(attachment.input())),
             resize: Some(Rc::new(attachment.resizer())),
-            keyboard,
+            keyboard: self.keyboard,
             keymap: Some(Rc::new(move |event| route_keymap(&keymap_route, event))),
             paste_gate: Some(paste_gate),
             copy_on_select: initial.copy_on_select,
@@ -297,19 +379,16 @@ impl Prototype {
         let view = cx.new(|cx| TerminalView::new(cx, model, config));
 
         let mut wake = attachment.subscribe();
+        let wake_title = Arc::clone(&title);
         cx.spawn(async move |prototype, cx| {
             while wake.changed().await {
                 wake.acknowledge();
                 let updated = prototype.update(cx, |prototype, cx| {
-                    let current = prototype
-                        .binding
-                        .as_ref()
-                        .and_then(|binding| binding.session())
-                        .is_some_and(|session| session.session_nonce() == session_nonce);
-                    if current {
-                        prototype.view.update(cx, |view, cx| view.notify_output(cx));
+                    if prototype.tabs.active_id() == id {
+                        let tab = prototype.tabs.active();
+                        tab.view.update(cx, |view, cx| view.notify_output(cx));
                     }
-                    if prototype.title.lock().is_ok_and(|title| title.is_some()) {
+                    if wake_title.lock().is_ok_and(|title| title.is_some()) {
                         cx.notify();
                     }
                 });
@@ -320,37 +399,19 @@ impl Prototype {
         })
         .detach();
 
-        let event_binding = Rc::clone(&binding);
-        cx.spawn(async move |prototype, cx| {
-            while let Some(event) = events.recv().await {
-                if !handle_event(&event_binding, event) {
-                    continue;
-                }
-                if prototype
-                    .update(cx, |prototype, cx| {
-                        prototype.view.update(cx, |view, cx| view.notify_output(cx));
-                        cx.notify();
-                    })
-                    .is_err()
-                {
-                    break;
-                }
-            }
-        })
-        .detach();
-
-        Self {
-            _sessions: Some(sessions),
+        WindowTab {
+            search,
+            fallback_key,
             view,
             binding: Some(binding),
             title,
-            current_title: DEFAULT_TITLE.to_string(),
-            title_is_default: true,
-            ui,
+            program_title: RefCell::default(),
             paste_controller: Some(paste_controller),
         }
     }
+}
 
+impl Prototype {
     fn default_window_title(&self, cx: &App) -> String {
         let locale = self.ui.locale.read(cx);
         let title = match locale.text(keys::APP_TITLE) {
@@ -399,21 +460,21 @@ struct WindowUi {
 fn failed(
     cx: &mut Context<Prototype>,
     binding: Option<Rc<TabBinding>>,
+    fallback_key: tterm_core::i18n::translate::TranslationKey,
+    search: picker::ConnectionLabel,
     error: String,
-    ui: WindowUi,
-) -> Prototype {
+) -> WindowTab {
     eprintln!("tterm-gpui: {error}");
     let terminal = Arc::new(Terminal::new(Config::default(), INITIAL_GRID, INITIAL_CELL));
     terminal.write(format!("\x1b[31m[{error}]\x1b[0m\r\n").as_bytes());
     let view = cx.new(|cx| TerminalView::new(cx, terminal, Default::default()));
-    Prototype {
-        _sessions: None,
+    WindowTab {
+        search,
+        fallback_key,
         view,
         binding,
         title: Arc::new(Mutex::new(None)),
-        current_title: DEFAULT_TITLE.to_string(),
-        title_is_default: true,
-        ui,
+        program_title: RefCell::default(),
         paste_controller: None,
     }
 }
@@ -434,33 +495,17 @@ fn classify_title_update(pending: Option<String>) -> Option<TitleUpdate> {
     }
 }
 
-impl Drop for Prototype {
-    fn drop(&mut self) {
-        if let Some(binding) = &self.binding {
-            binding.leave();
-        }
-    }
-}
-
 impl Render for Prototype {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
-        let pending_title = self.title.lock().ok().and_then(|mut title| title.take());
-        match classify_title_update(pending_title) {
-            Some(TitleUpdate::Default) => {
-                self.title_is_default = true;
-                let title = self.default_window_title(cx);
-                self.apply_window_title(window, title);
-            }
-            Some(TitleUpdate::Program(title)) => {
-                self.title_is_default = false;
-                self.apply_window_title(window, title);
-            }
-            None if self.title_is_default => {
-                let title = self.default_window_title(cx);
-                self.apply_window_title(window, title);
-            }
-            None => {}
-        }
+        let strip = self.tab_strip(cx);
+        let title = self
+            .tabs
+            .active()
+            .program_title
+            .borrow()
+            .clone()
+            .unwrap_or_else(|| self.default_window_title(cx));
+        self.apply_window_title(window, title);
         let geometry = self.ui.geometry.clone();
         let on_action: ActionHandler = Rc::new(move |action, window, cx| match action {
             TitleBarAction::Minimize => window.minimize_window(),
@@ -476,19 +521,22 @@ impl Render for Prototype {
             .scrollback_setting
             .update(cx, |setting, cx| setting.button(cx));
         let titlebar = TitleBar::new(self.current_title.clone(), self.ui.theme)
+            .slot(strip)
             .tools(settings_button)
             .on_action(on_action)
             .render(window);
         div()
+            .capture_key_down(cx.listener(Self::workspace_key))
             .size_full()
             .relative()
             .child(shell::frame(
                 titlebar,
-                self.view.clone(),
+                self.tabs.active().view.clone(),
                 self.ui.background,
             ))
-            .children(self.paste_controller.clone())
+            .children(self.tabs.active().paste_controller.clone())
             .child(self.ui.scrollback_setting.clone())
+            .children(self.picker_panel(window, cx))
     }
 }
 

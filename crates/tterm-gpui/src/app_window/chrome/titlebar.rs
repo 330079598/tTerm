@@ -72,6 +72,7 @@ impl TitleBar {
         let layout = layout(platform, server_decorations);
 
         let mut left = div()
+            .min_w_0()
             .h(px(BAR_HEIGHT))
             .flex()
             .items_center()
@@ -94,7 +95,11 @@ impl TitleBar {
             );
         }
 
-        let mut drag = div().id("window-drag-region").h(px(BAR_HEIGHT)).flex_1();
+        let mut drag = div()
+            .id("window-drag-region")
+            .h(px(BAR_HEIGHT))
+            .min_w(px(28.))
+            .flex_1();
         if layout.drag {
             drag = match platform {
                 Platform::Windows => drag.window_control_area(WindowControlArea::Drag),
@@ -119,7 +124,11 @@ impl TitleBar {
             };
         }
 
-        let mut right = div().h(px(BAR_HEIGHT)).flex().items_center();
+        let mut right = div()
+            .h(px(BAR_HEIGHT))
+            .flex()
+            .flex_shrink_0()
+            .items_center();
         if let Some(tools) = tools {
             right = right.child(tools);
         }

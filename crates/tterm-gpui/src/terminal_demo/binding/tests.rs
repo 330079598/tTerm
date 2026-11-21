@@ -143,6 +143,31 @@ fn wait_for_text_after(
 }
 
 #[test]
+fn switching_local_tabs_keeps_background_output_and_closes_only_the_selected_session() {
+    let runtime = test_runtime();
+    let manager = manager(&runtime);
+    let first = manager.open("first", local_connection(), GRID, CELL);
+    first.enter();
+    let original = first.attach().unwrap();
+    first.leave();
+    let second = manager.open("second", local_connection(), GRID, CELL);
+    second.enter();
+    let other = second.attach().unwrap();
+    (original.session().input())(&print_command("BACKGROUND-ONE"));
+    (other.session().input())(&print_command("ACTIVE-TWO"));
+    assert!(wait_for_text(&original.model(), "BACKGROUND-ONE"));
+    assert!(wait_for_text(&other.model(), "ACTIVE-TWO"));
+    assert!(!text(&original.model()).contains("ACTIVE-TWO"));
+    assert!(!text(&other.model()).contains("BACKGROUND-ONE"));
+    second.leave();
+    manager.close_tab("second").unwrap();
+    first.enter();
+    assert!(Arc::ptr_eq(&first.session().unwrap(), &original.session));
+    (original.session().input())(&print_command("SURVIVED-CLOSE"));
+    assert!(wait_for_text(&original.model(), "SURVIVED-CLOSE"));
+}
+
+#[test]
 fn dropping_a_view_attachment_leaves_the_core_session_running() {
     let runtime = test_runtime();
     let manager = manager(&runtime);
