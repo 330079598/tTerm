@@ -84,8 +84,13 @@ pub(super) fn run_window(
         ClipboardPolicy::Disabled
     };
     let sessions = Rc::new(
-        SessionManager::new(Arc::clone(&services), attention)
-            .with_clipboard_policy(clipboard_policy),
+        SessionManager::new(Arc::clone(&services), attention).with_terminal_config(Config {
+            clipboard: clipboard_policy,
+            scrollback: tterm_core::config::scrollback::resolve_scrollback_lines(Some(f64::from(
+                app_config.scrollback_lines,
+            ))) as usize,
+            ..Config::default()
+        }),
     );
     let lifecycle = state::WindowLifecycle::start(&services.shared.runtime);
     let theme = background::theme(lifecycle.initial.background);

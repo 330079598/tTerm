@@ -367,6 +367,13 @@ impl Terminal {
         if state.config.scrollback == lines {
             return;
         }
+        // The alternate grid hides the primary history that set_options trims.
+        if lines < state.config.scrollback
+            && (state.term.mode().contains(TermMode::ALT_SCREEN)
+                || lines < state.term.history_size())
+        {
+            state.scrollback_generation = state.scrollback_generation.wrapping_add(1);
+        }
         state.word_drag = None;
         state.config.scrollback = lines;
         let config = state.config.to_alacritty();

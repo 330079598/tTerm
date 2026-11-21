@@ -58,7 +58,7 @@ impl Session {
         mut connection: PtyConnectionOptions,
         grid: GridSize,
         cell: CellSize,
-        clipboard_policy: ClipboardPolicy,
+        config: Config,
     ) -> Result<Self, String> {
         prepare_connection(&services, &mut connection)?;
         // Only a local term session owns a process this client can inspect.
@@ -72,17 +72,10 @@ impl Session {
             session_nonce,
         };
         let clipboard = Arc::new(ClipboardWrites::new(matches!(
-            clipboard_policy,
+            config.clipboard,
             ClipboardPolicy::CopyOnly | ClipboardPolicy::CopyAndPaste
         )));
-        let terminal = Arc::new(Terminal::new(
-            Config {
-                clipboard: clipboard_policy,
-                ..Config::default()
-            },
-            grid,
-            cell,
-        ));
+        let terminal = Arc::new(Terminal::new(config, grid, cell));
         let alive = Arc::new(AtomicBool::new(true));
         let visible = Arc::new(AtomicBool::new(false));
         let input_open = Arc::new(AtomicBool::new(true));

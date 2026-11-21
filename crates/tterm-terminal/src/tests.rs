@@ -676,6 +676,41 @@ fn changing_the_scrollback_capacity_drops_the_oldest_lines() {
 }
 
 #[test]
+fn changing_capacity_only_invalidates_history_when_rows_can_be_lost() {
+    let model = terminal(20, 3, 50);
+    for index in 0..10 {
+        model.write(format!("line {index}\r\n").as_bytes());
+    }
+    model.scroll(Scroll::Top);
+    let before = model.snapshot();
+    for lines in [100, 100, 8] {
+        model.set_scrollback(lines);
+        let frame = model.snapshot();
+        assert_eq!(
+            frame.scrollback_generation(),
+            before.scrollback_generation()
+        );
+        assert_eq!(trimmed_row_text(&frame, 0), "line 0");
+    }
+    model.set_scrollback(2);
+    let frame = model.snapshot();
+    assert!(frame.scrollback_generation() > before.scrollback_generation());
+    assert_eq!(frame.display_offset(), 2);
+    assert_eq!(trimmed_row_text(&frame, 0), "line 6");
+}
+
+#[test]
+fn shrinking_on_the_alternate_screen_invalidates_hidden_primary_history() {
+    let model = terminal(20, 3, 50);
+    model.write(b"1\r\n2\r\n3\r\n4\r\n5\r\n6\r\n\x1b[?1049h");
+    let before = model.snapshot();
+    model.set_scrollback(2);
+    assert!(model.snapshot().scrollback_generation() > before.scrollback_generation());
+    model.write(b"\x1b[?1049l");
+    assert_eq!(model.snapshot().history_size(), 2);
+}
+
+#[test]
 fn resize_replaces_the_grid_and_damages_everything() {
     let terminal = terminal(10, 3, 0);
     terminal.write(b"hello");
