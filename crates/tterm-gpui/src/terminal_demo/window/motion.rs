@@ -5,6 +5,25 @@ use std::time::{Duration, Instant};
 
 const DURATION: Duration = Duration::from_millis(200);
 
+/// Samples the tab's CSS cubic-bezier(0.2, 0, 0, 1) at a fraction of elapsed time.
+fn tab_easing(progress: f32) -> f32 {
+    if progress <= 0. || progress >= 1. {
+        return progress.clamp(0., 1.);
+    }
+    let (mut low, mut high) = (0., 1.);
+    for _ in 0..24 {
+        let mid = (low + high) * 0.5;
+        let time = mid * (0.6 + mid * (-1.2 + 1.6 * mid));
+        if time < progress {
+            low = mid;
+        } else {
+            high = mid;
+        }
+    }
+    let parameter = (low + high) * 0.5;
+    parameter * parameter * (3. - 2. * parameter)
+}
+
 struct Entry {
     from: f32,
     to: f32,
@@ -17,8 +36,8 @@ impl Entry {
         if elapsed >= DURATION {
             return self.to;
         }
-        let remaining = 1. - elapsed.as_secs_f32() / DURATION.as_secs_f32();
-        self.from + (self.to - self.from) * (1. - remaining.powi(3))
+        let progress = elapsed.as_secs_f32() / DURATION.as_secs_f32();
+        self.from + (self.to - self.from) * tab_easing(progress)
     }
 }
 
@@ -78,6 +97,15 @@ pub(super) fn destination(centres: &[f32], source: usize, left: f32, right: f32)
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn easing_matches_the_css_curve_at_known_bezier_parameters() {
+        assert_eq!(tab_easing(0.), 0.);
+        assert_eq!(tab_easing(1.), 1.);
+        for (elapsed, expected) in [(0.1, 0.15625), (0.2, 0.5), (0.45, 0.84375)] {
+            assert!((tab_easing(elapsed) - expected).abs() < 1e-6);
+        }
+    }
 
     #[test]
     fn wide_tab_can_reach_both_narrow_end_slots() {
