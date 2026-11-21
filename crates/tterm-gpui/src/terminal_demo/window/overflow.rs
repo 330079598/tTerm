@@ -31,7 +31,7 @@ impl Edges {
 
 #[derive(Default)]
 pub(super) struct TabViewport {
-    handle: ScrollHandle,
+    pub(super) handle: ScrollHandle,
     edges: Rc<Cell<Edges>>,
     last: Rc<Cell<Option<(usize, usize, Pixels)>>>,
 }

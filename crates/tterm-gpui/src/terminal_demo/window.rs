@@ -4,6 +4,7 @@ use std::cell::RefCell;
 use std::rc::Rc;
 use std::sync::{Arc, Mutex};
 
+mod drag;
 mod events;
 mod history;
 mod overflow;

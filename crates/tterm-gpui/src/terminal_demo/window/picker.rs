@@ -78,7 +78,6 @@ impl Prototype {
         let query = query.trim().to_lowercase();
         self.tabs
             .ordered()
-            .into_iter()
             .enumerate()
             .filter_map(|(index, (id, tab))| {
                 let number = index + 1;

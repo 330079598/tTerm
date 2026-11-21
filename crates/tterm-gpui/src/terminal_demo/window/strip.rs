@@ -77,6 +77,11 @@ impl Prototype {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
+        if event.keystroke.key == "escape" && cx.stop_active_drag(window) {
+            window.prevent_default();
+            cx.stop_propagation();
+            return;
+        }
         if !self
             .tabs
             .active()
@@ -118,9 +123,9 @@ impl Prototype {
         let new = locale.text(keys::TAB_NEW).unwrap_or_else(|_| "+".into());
         let close = locale.text(keys::TAB_CLOSE).unwrap_or_else(|_| "×".into());
         let tabs = self.tabs.ordered();
-        let index = tabs.partition_point(|(id, _)| *id < self.tabs.active_id());
+        let index = self.tabs.active_index();
         let closable = tabs.len() > 1;
-        for (index, (id, tab)) in tabs.into_iter().enumerate() {
+        for (index, (id, tab)) in tabs.enumerate() {
             let pending = tab.title.lock().ok().and_then(|mut title| title.take());
             if let Some(update) = classify_title_update(pending) {
                 *tab.program_title.borrow_mut() = match update {
@@ -188,10 +193,18 @@ impl Prototype {
                         .flex_1()
                         .truncate()
                         .text_size(px(13.))
-                        .child(label),
+                        .child(label.clone()),
                 )
                 .on_click(cx.listener(move |this, _, window, cx| this.select_tab(id, window, cx)));
             if closable {
+                item = super::drag::reorderable(
+                    item,
+                    id,
+                    label,
+                    self.ui.theme,
+                    self.overflow.handle.clone(),
+                    cx,
+                );
                 item = item.child(
                     div()
                         .id(("close-session-tab", id))
