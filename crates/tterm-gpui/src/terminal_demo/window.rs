@@ -4,13 +4,14 @@ use std::cell::RefCell;
 use std::rc::Rc;
 use std::sync::{Arc, Mutex};
 
+mod events;
+use events::handle_event;
+
 use gpui_kit::prelude::*;
 use gpui_kit::{App, Entity, Rgba, Window, div};
 use tokio::sync::mpsc::UnboundedReceiver;
 use tterm_core::config::{AppConfig, load_config_file};
 use tterm_core::events::AppEvent;
-use tterm_core::events::ssh::{SshConnectionProgressPayload, SshEvent};
-use tterm_core::events::terminal::TerminalEvent;
 use tterm_core::i18n::catalogue::Catalogue;
 use tterm_core::i18n::keys;
 use tterm_core::i18n::language::Language;
@@ -21,7 +22,7 @@ use tterm_terminal::terminal::{ClipboardPolicy, Config, Terminal};
 use tterm_terminal_view::view::{TerminalView, TerminalViewConfig};
 use tterm_ui::tokens::theme::Theme;
 
-use super::binding::{SessionManager, TabBinding, scoped::ConnectionState};
+use super::binding::{SessionManager, TabBinding};
 use super::clipboard::{PasteController, local_drop_text};
 use super::command::CommandSpec;
 use super::conpty::{log_conpty_source, prepare_conpty};
@@ -380,67 +381,6 @@ fn failed(
     }
 }
 
-fn handle_event(binding: &TabBinding, event: AppEvent) -> bool {
-    let Some(session) = binding.session() else {
-        return false;
-    };
-    let session_nonce = session.session_nonce();
-    match event {
-        AppEvent::Ssh(SshEvent::HostKeyPrompt { tab_id, payload }) if tab_id == TAB_ID => {
-            binding.set_host_key_prompt(session_nonce, Some(payload.clone()));
-            session.show_host_key(payload);
-            true
-        }
-        AppEvent::Ssh(SshEvent::HostKeyPromptExpired { tab_id, request_id })
-            if tab_id == TAB_ID =>
-        {
-            let current = binding
-                .scoped_state()
-                .host_key_prompt()
-                .is_some_and(|prompt| prompt.request_id == request_id);
-            if !current {
-                return false;
-            }
-            binding.set_host_key_prompt(session_nonce, None);
-            session.expire_host_key(&request_id);
-            true
-        }
-        AppEvent::Ssh(SshEvent::AuthPrompt { tab_id, payload }) if tab_id == TAB_ID => {
-            session.show_auth(payload);
-            true
-        }
-        AppEvent::Ssh(SshEvent::AuthPromptExpired { tab_id, request_id }) if tab_id == TAB_ID => {
-            session.expire_auth(&request_id);
-            true
-        }
-        AppEvent::Ssh(SshEvent::ConnectionProgress { tab_id, payload }) if tab_id == TAB_ID => {
-            let state = connection_state(&payload);
-            binding.set_connection_progress(session_nonce, Some(payload));
-            binding.set_connection_state(session_nonce, state);
-            true
-        }
-        AppEvent::Terminal(TerminalEvent::Output {
-            tab_id,
-            session_nonce: output_nonce,
-            text,
-        }) if tab_id == TAB_ID => session.accept_output(output_nonce, text.as_bytes()),
-        AppEvent::Terminal(TerminalEvent::Exit { tab_id, .. }) if tab_id == TAB_ID => {
-            binding.set_connection_state(session_nonce, ConnectionState::Disconnected);
-            true
-        }
-        _ => false,
-    }
-}
-
-fn connection_state(payload: &SshConnectionProgressPayload) -> ConnectionState {
-    match payload.phase.as_str() {
-        "ready" => ConnectionState::Connected,
-        "retrying" | "serial_waiting" => ConnectionState::Reconnecting,
-        "failed" | "retry_exhausted" => ConnectionState::Error,
-        _ => ConnectionState::Connecting,
-    }
-}
-
 /// A pending title update: either the parser's default marker, which resolves
 /// in the current language, or a program-supplied title kept verbatim.
 #[derive(Debug, PartialEq, Eq)]
@@ -509,9 +449,9 @@ impl Render for Prototype {
 mod tests {
     use tterm_core::events::ssh::SshConnectionProgressPayload;
 
-    use super::{
-        ConnectionState, DEFAULT_TITLE, TitleUpdate, classify_title_update, connection_state,
-    };
+    use super::events::connection_state;
+    use super::{DEFAULT_TITLE, TitleUpdate, classify_title_update};
+    use crate::terminal_demo::binding::scoped::ConnectionState;
 
     #[test]
     fn connection_progress_maps_to_the_scoped_connection_state() {
