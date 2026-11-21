@@ -1,7 +1,3 @@
-import { useMemo } from "react"
-import { useTranslation } from "react-i18next"
-import { BookMarked, Library, Minus, Plus, Settings, Square, Waypoints, X } from "lucide-react"
-
 import type { BroadcastState } from "@/components/TTermApp/useBroadcastState"
 import type { BroadcastRuntime } from "@/components/TTermApp/useBroadcastRuntime"
 import type { useBroadcastControls } from "@/components/TTermApp/useBroadcastControls"
@@ -12,13 +8,11 @@ import type { useWorkspaceSplits } from "@/components/TTermApp/useWorkspaceSplit
 import type { useTabContextMenu } from "@/hooks/useTabContextMenu"
 import type { useTransferManager } from "@/contexts/TransferContext"
 import type { Tab } from "@/types/tab"
-import { getPaneIds, type TabGroup } from "@/lib/tabGroups"
+import type { TabGroup } from "@/lib/tabGroups"
 import { BroadcastManager } from "@/components/BroadcastManager"
-import { TabBar } from "@/components/TabBar"
 import { TransferManager } from "@/components/TransferManager"
-import { useShortcutLabel } from "@/contexts/KeymapContext"
-import { withShortcut } from "@/lib/keymap/keymap"
-import { keepFocusOnMouseDown } from "@/lib/terminalFocus"
+import { TitleBarActions } from "@/components/TTermApp/TitleBarActions"
+import { TitleBarTabs } from "@/components/TTermApp/TitleBarTabs"
 
 type TransferManager = ReturnType<typeof useTransferManager>
 
@@ -88,157 +82,67 @@ export function AppTitleBar({
   titleBar,
   commandLibrary,
 }: AppTitleBarProps) {
-  const { t } = useTranslation()
-  const shortcutLabel = useShortcutLabel()
-  const newTabLabel = t("tabs.newTab", { defaultValue: "New tab" })
-
-  // The bar shows each group as the pane it had the focus in, with its other panes behind it.
-  const { barTabs, tabPanes } = useMemo(() => {
-    const byId = new Map(tabs.map((tab) => [tab.id, tab]))
-    return {
-      barTabs: groups.flatMap((group) => byId.get(group.activeTabId) ?? []),
-      tabPanes: new Map(
-        groups.map((group) => [
-          group.activeTabId,
-          {
-            tabs: getPaneIds(group.root).flatMap((id) => byId.get(id) ?? []),
-            isZoomed: group.zoomedTabId !== undefined,
-          },
-        ])
-      ),
-    }
-  }, [groups, tabs])
-
   return (
     <div className="title-bar">
-      <div className="title-bar-left">
-        <div className="tab-list-container">
-          <TabBar
-            tabs={barTabs}
-            tabPanes={tabPanes}
-            activeTabId={activeTabId}
-            onTabClick={setActiveTab}
-            onTabClose={handleCloseTab}
-            onNewTab={handleNewTab}
-            onTabMove={moveTab}
-            onTabDragMove={handleTabDragMove}
-            onTabDrop={handleTabDrop}
-            onTabDragCancel={handleTabDragCancel}
-            onContextMenu={handleTabContextMenu}
-          />
-          <div className="tab-add-button">
-            <button
-              className="tab-action"
-              onMouseDown={keepFocusOnMouseDown}
-              onClick={handleNewTab}
-              aria-label={newTabLabel}
-              title={withShortcut(newTabLabel, shortcutLabel("workspace.newTab"))}
-            >
-              <Plus size={16} />
-            </button>
-            <button
-              className="tab-action"
-              onMouseDown={keepFocusOnMouseDown}
-              onClick={() => setShowProfilesPanel(true)}
-              aria-label={t("profiles.title", { defaultValue: "Profiles" })}
-            >
-              <BookMarked size={16} />
-            </button>
-            <button
-              className="tab-action"
-              onMouseDown={keepFocusOnMouseDown}
-              onClick={() => commandLibrary.handleOpenCommandLibrary()}
-              aria-label={t("commandLibrary.title")}
-              title={withShortcut(t("commandLibrary.title"), shortcutLabel("commandLibrary.open"))}
-            >
-              <Library size={16} />
-            </button>
-            <TransferManager
-              transfers={transfers}
-              onCancel={cancelTransfer}
-              onRemove={removeTransfer}
-              onRetry={retryTransfer}
-              onClearCompleted={clearCompletedTransfers}
-            />
-            <BroadcastManager
-              activeTabId={activeTabId}
-              mode={broadcast.broadcastMode}
-              liveState={broadcast.liveBroadcastState}
-              preparing={broadcast.isBroadcastPreparing}
-              latestResults={broadcast.latestBroadcastResults}
-              unavailableTabIds={broadcast.unavailableBroadcastTargetIds}
-              runtimeStates={broadcast.terminalRuntimeStates}
-              selectedTabIds={broadcast.broadcastTargetIds}
-              sourceTabId={broadcast.broadcastSource?.tabId ?? null}
-              tabs={tabs}
-              onClear={controls.clearBroadcastTargets}
-              onModeChange={broadcast.setBroadcastMode}
-              onReconnectTargets={controls.reconnectBroadcastTargets}
-              onSelectAll={controls.selectAllBroadcastTargets}
-              onSelectVisible={controls.selectVisibleBroadcastTargets}
-              onSendCommand={sending.handleSendBroadcastCommand}
-              onStartLive={sending.handleStartLiveBroadcast}
-              onStopLive={runtime.stopLiveBroadcast}
-              onToggleTarget={controls.toggleBroadcastTarget}
-            />
-          </div>
-        </div>
-      </div>
+      <TitleBarTabs
+        tabs={tabs}
+        groups={groups}
+        activeTabId={activeTabId}
+        setActiveTab={setActiveTab}
+        handleCloseTab={handleCloseTab}
+        handleNewTab={handleNewTab}
+        moveTab={moveTab}
+        handleTabDragMove={handleTabDragMove}
+        handleTabDrop={handleTabDrop}
+        handleTabDragCancel={handleTabDragCancel}
+        handleTabContextMenu={handleTabContextMenu}
+        setShowProfilesPanel={setShowProfilesPanel}
+        onOpenCommandLibrary={commandLibrary.handleOpenCommandLibrary}
+      >
+        <TransferManager
+          transfers={transfers}
+          onCancel={cancelTransfer}
+          onRemove={removeTransfer}
+          onRetry={retryTransfer}
+          onClearCompleted={clearCompletedTransfers}
+        />
+        <BroadcastManager
+          activeTabId={activeTabId}
+          mode={broadcast.broadcastMode}
+          liveState={broadcast.liveBroadcastState}
+          preparing={broadcast.isBroadcastPreparing}
+          latestResults={broadcast.latestBroadcastResults}
+          unavailableTabIds={broadcast.unavailableBroadcastTargetIds}
+          runtimeStates={broadcast.terminalRuntimeStates}
+          selectedTabIds={broadcast.broadcastTargetIds}
+          sourceTabId={broadcast.broadcastSource?.tabId ?? null}
+          tabs={tabs}
+          onClear={controls.clearBroadcastTargets}
+          onModeChange={broadcast.setBroadcastMode}
+          onReconnectTargets={controls.reconnectBroadcastTargets}
+          onSelectAll={controls.selectAllBroadcastTargets}
+          onSelectVisible={controls.selectVisibleBroadcastTargets}
+          onSendCommand={sending.handleSendBroadcastCommand}
+          onStartLive={sending.handleStartLiveBroadcast}
+          onStopLive={runtime.stopLiveBroadcast}
+          onToggleTarget={controls.toggleBroadcastTarget}
+        />
+      </TitleBarTabs>
 
       <div className="drag-space" data-tauri-drag-region></div>
 
-      <div className="title-bar-right" style={{ paddingRight: `${nativeControlsReservePx}px` }}>
-        <button
-          className="tab-action settings-button tunnels-trigger"
-          onMouseDown={keepFocusOnMouseDown}
-          onClick={titleBar.handleTunnelsClick}
-          aria-label={titleBar.tunnelsButtonLabel}
-          title={titleBar.tunnelsButtonLabel}
-        >
-          <Waypoints size={16} />
-          {runningTunnelCount > 0 && (
-            <span className="tunnels-running-badge">
-              {runningTunnelCount > 99 ? "99+" : runningTunnelCount}
-            </span>
-          )}
-        </button>
-        <button
-          className="tab-action settings-button"
-          onMouseDown={keepFocusOnMouseDown}
-          onClick={titleBar.handleSettingsClick}
-          aria-label={settingsTabTitle}
-        >
-          <Settings size={16} />
-        </button>
-        {isLinux && (
-          <div
-            className="window-controls"
-            aria-label={t("window.controls", { defaultValue: "Window controls" })}
-          >
-            <button
-              className="window-control-button"
-              onClick={handleMinimizeWindow}
-              aria-label={t("window.minimize", { defaultValue: "Minimize" })}
-            >
-              <Minus size={16} />
-            </button>
-            <button
-              className="window-control-button"
-              onClick={handleToggleMaximizeWindow}
-              aria-label={t("window.maximize", { defaultValue: "Maximize" })}
-            >
-              <Square size={13} />
-            </button>
-            <button
-              className="window-control-button close"
-              onClick={handleCloseWindow}
-              aria-label={t("window.close", { defaultValue: "Close" })}
-            >
-              <X size={16} />
-            </button>
-          </div>
-        )}
-      </div>
+      <TitleBarActions
+        nativeControlsReservePx={nativeControlsReservePx}
+        runningTunnelCount={runningTunnelCount}
+        settingsTabTitle={settingsTabTitle}
+        tunnelsButtonLabel={titleBar.tunnelsButtonLabel}
+        isLinux={isLinux}
+        onTunnelsClick={titleBar.handleTunnelsClick}
+        onSettingsClick={titleBar.handleSettingsClick}
+        onMinimizeWindow={handleMinimizeWindow}
+        onToggleMaximizeWindow={handleToggleMaximizeWindow}
+        onCloseWindow={handleCloseWindow}
+      />
     </div>
   )
 }
