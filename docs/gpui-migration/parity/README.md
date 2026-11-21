@@ -160,6 +160,8 @@ pnpm-lock.yaml vite.config.ts tsconfig.json index.html parity.html
 
    id 规则是 `<功能>.<视图>.<状态>`。当前 `uiScalePercent` 只接受 100、theme 只接受 `dark` 与 `light`；其它组合要在屏幕视图里补对应的字号/主题实现。
 
+   GPUI 视图还没实现时（W0-05 先落参照端的批次），把这一项放在顶级的 `referenceScreens` 数组里，而不是 `screens`。默认的 `capture.mjs` 只截 `screens`，不把参照端独有的屏写进共享的参考清单；用 `--screen <id>` 可以显式截它们。`compare` 不会读 `referenceScreens`；等对应 GPUI 屏实现后，再把它移到 `screens` 并执行第 5、6 步。
+
 2. 在 `parity/fixtures/` 写同名夹具。键是 `commands`，值是该 command 的返回数据。`src/parity/fixtures.ts` 里用真实类型标注：
 
    ```ts

@@ -7,6 +7,7 @@ import passwordFixture from "@fixtures/ui.password.default.json"
 import selectFixture from "@fixtures/ui.select.default.json"
 import switchFixture from "@fixtures/ui.switch.default.json"
 import tabsFixture from "@fixtures/ui.tabs.default.json"
+import { workspaceTitleBarFixture } from "@/parity/screens/workspaceTitleBarFixture"
 
 /** What the mocked `invoke` answers for one screen. */
 export interface ParityFixture {
@@ -47,4 +48,5 @@ export const fixtures: Record<string, ParityFixture> = {
   "ui.context-menu.default": { commands: contextMenu.commands },
   "ui.context-menu.highlighted": { commands: contextMenu.commands },
   "ui.context-menu.wrapped": { commands: contextMenu.commands },
+  "workspace.titlebar.default": { commands: workspaceTitleBarFixture.commands },
 }

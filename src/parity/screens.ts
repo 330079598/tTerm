@@ -20,6 +20,7 @@ import {
 } from "@/parity/screens/DialogPrimitive"
 import type { ComponentType } from "react"
 import { TabsPrimitive, TabsServerMonitor } from "@/parity/screens/TabsPrimitive"
+import { WorkspaceTitleBar } from "@/parity/screens/WorkspaceTitleBar"
 
 /**
  * Every screen the reference capture can open, keyed by the id in
@@ -43,6 +44,7 @@ export const parityScreens: Record<string, ComponentType<ParityScreenProps>> = {
   "ui.context-menu.default": ContextMenuDefault,
   "ui.context-menu.highlighted": ContextMenuHighlighted,
   "ui.context-menu.wrapped": ContextMenuWrapped,
+  "workspace.titlebar.default": WorkspaceTitleBar,
 }
 
 /** The registered ids, for the manifest test. */

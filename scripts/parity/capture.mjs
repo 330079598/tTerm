@@ -22,6 +22,7 @@ import { chromium, webkit } from "playwright"
 import { createServer } from "vite"
 
 import { collectLayout } from "./layout.mjs"
+import { referenceManifest, referenceOnlyManifest, selectScreens } from "./reference-screens.mjs"
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../..")
 const MANIFEST_PATH = join(ROOT, "parity", "screens.json")
@@ -51,16 +52,15 @@ async function main() {
   const dirty = frontendDirty()
   const defaultName = dirty ? `${commit}-dirty` : commit
   const outDir = resolve(options.out ?? join(ROOT, "target", "parity", "reference", defaultName))
+  const platform = selectedPlatform(manifest, options.platform)
+  const viewport = platformViewport(manifest, platform)
   if (dirty) {
     console.log(`reference: the frontend is dirty; capturing into ${outDir}`)
   }
-  const screens = manifest.screens.filter(
-    (screen) => options.screens.length === 0 || options.screens.includes(screen.id)
-  )
+  const selection = selectScreens(manifest, options.screens)
+  const screens = selection.selected
   if (screens.length === 0) {
-    throw new Error(
-      `No screens matched; manifest ids: ${manifest.screens.map((screen) => screen.id).join(", ")}`
-    )
+    throw new Error("parity/screens.json lists no screens to capture")
   }
 
   await mkdir(outDir, { recursive: true })
@@ -75,9 +75,11 @@ async function main() {
   let browser
   try {
     await server.listen()
+    const client = server.environments.client
+    await client.warmupRequest("/src/parity/main.tsx")
+    await client.waitForRequestsIdle()
     const base = server.resolvedUrls?.local?.[0]
     if (!base) throw new Error("Vite started without a local URL")
-    const platform = selectedPlatform(manifest, options.platform)
     browser = await launchBrowser(platform)
     for (const screen of screens) {
       await captureScreen(
@@ -92,20 +94,26 @@ async function main() {
         uiScale
       )
     }
-    const output = {
+    const details = {
       version: 2,
       commit,
       theme,
       uiStyle,
       uiScalePercent: uiScale,
-      viewport: manifest.viewport,
-      screens: screens.map((screen) => ({
-        id: screen.id,
-        image: `${screen.id}.png`,
-        layout: `${screen.id}.layout.json`,
-      })),
+      viewport,
     }
-    await writeFile(join(outDir, "manifest.json"), `${JSON.stringify(output, null, 2)}\n`)
+    if (selection.paired.length > 0) {
+      await writeFile(
+        join(outDir, "manifest.json"),
+        `${JSON.stringify(referenceManifest(selection.paired, details), null, 2)}\n`
+      )
+    }
+    if (selection.reference.length > 0) {
+      await writeFile(
+        join(outDir, "reference-screens.json"),
+        `${JSON.stringify(referenceOnlyManifest(selection.reference, details), null, 2)}\n`
+      )
+    }
     console.log(`reference: ${screens.length} screen(s) in ${outDir}`)
   } finally {
     if (browser) await browser.close()
@@ -124,8 +132,7 @@ async function captureScreen(
   uiStyle,
   uiScale
 ) {
-  const viewport =
-    platform === "windows" ? (manifest.windowsViewport ?? manifest.viewport) : manifest.viewport
+  const viewport = platformViewport(manifest, platform)
   const { width, height, deviceScaleFactor } = viewport
   const context = await browser.newContext({
     viewport: { width, height },
@@ -146,7 +153,12 @@ async function captureScreen(
     url.searchParams.set("uiStyle", uiStyle)
     url.searchParams.set("actionsRequired", String((screen.actions ?? []).length > 0))
     url.searchParams.set("platform", platform)
-    await page.goto(url.href, { waitUntil: "load" })
+    // The screen's own ready barrier waits for fixtures, fonts and two frames.
+    // Waiting for `load` as well can hang on an asset Vite is still serving,
+    // which would fail before the barrier ever gets a chance to settle.
+    await page.goto(url.href, {
+      waitUntil: "domcontentloaded",
+    })
     if ((screen.actions ?? []).length > 0) {
       await runActions(page, screen.actions ?? [], screen.id)
       await page.evaluate(() => {
@@ -187,6 +199,10 @@ async function captureScreen(
   } finally {
     await context.close()
   }
+}
+
+function platformViewport(manifest, platform) {
+  return platform === "windows" ? (manifest.windowsViewport ?? manifest.viewport) : manifest.viewport
 }
 
 async function runActions(page, actions, screenId) {

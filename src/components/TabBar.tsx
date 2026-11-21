@@ -224,7 +224,7 @@ export const TabBar: React.FC<TabBarProps> = ({
   }, [handleTabListWheel])
 
   return (
-    <div className="tab-bar-shell">
+    <div className="tab-bar-shell" data-parity="workspace.titlebar.tab-bar">
       {hasOverflow && (
         <button
           type="button"

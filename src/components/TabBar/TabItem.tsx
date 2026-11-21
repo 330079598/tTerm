@@ -157,6 +157,7 @@ export const TabItem = React.memo(function TabItem({
         tabIndex={0}
         aria-selected={isActive}
         data-tab-id={tab.id}
+        data-parity={`workspace.titlebar.tab-${tab.id}`}
         data-password-prompt={waitingForPassword || undefined}
         data-allow-context-menu
         onClick={() => onTabClick(tab.id)}

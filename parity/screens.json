@@ -196,5 +196,14 @@
         }
       ]
     }
+  ],
+  "referenceScreens": [
+    {
+      "id": "workspace.titlebar.default",
+      "title": "Windows workspace title bar with two local tabs",
+      "fixture": "workspace.titlebar.default.json",
+      "uiStyles": ["classic"],
+      "uiScalePercents": [100]
+    }
   ]
 }
