@@ -3,6 +3,7 @@
 //! update channel, the monitor bar and the SFTP drawer's first directory.
 
 pub mod atomic;
+mod compatible_file;
 mod defaults;
 mod deserialize;
 pub mod keymap;
@@ -25,7 +26,6 @@ pub mod window_background;
 #[cfg(test)]
 mod tests;
 
-use crate::config::atomic::atomic_write;
 use crate::config::paths::{ensure_config_dir, get_config_path};
 use keymap::KeymapConfig;
 
@@ -386,11 +386,14 @@ fn config_file_path() -> Result<std::path::PathBuf, String> {
 }
 
 pub fn load_config_file() -> Result<AppConfig, String> {
-    let config_file = config_file_path()?;
+    load_config_at(&config_file_path()?)
+}
+
+fn load_config_at(config_file: &std::path::Path) -> Result<AppConfig, String> {
     if !config_file.exists() {
         return Ok(AppConfig::default());
     }
-    let content = fs::read_to_string(&config_file)
+    let content = fs::read_to_string(config_file)
         .map_err(|e| format!("Failed to read config file: {}", e))?;
     let mut config: AppConfig =
         serde_json::from_str(&content).map_err(|e| format!("Failed to parse config: {}", e))?;
@@ -409,11 +412,7 @@ pub fn migrate_local_shell_integration(config: &mut AppConfig) {
 }
 
 pub fn save_config_file(config: &AppConfig) -> Result<(), String> {
-    let config_dir = ensure_config_dir()?;
-    let config_file = config_dir.join("config.json");
-    let content = serde_json::to_string_pretty(config)
-        .map_err(|e| format!("Failed to serialize config: {}", e))?;
-    atomic_write(&config_file, content)
+    compatible_file::save_at(&ensure_config_dir()?.join("config.json"), config)
 }
 
 /// Whether shells mark their commands (OSC 133); on when the config file is
