@@ -2,6 +2,11 @@
 //! falls back to.
 
 use super::keymap::KeymapConfig;
+use super::limits::{
+    DEFAULT_HIDDEN_RENDERER_RELEASE_SECS, DEFAULT_PREDICTIVE_ECHO_THRESHOLD_MS,
+    DEFAULT_TERMINAL_FONT_SIZE, DEFAULT_TERMINAL_RENDERER,
+};
+use super::terminal_font::detected_font_family;
 use super::{AppConfig, keyword_highlight, panes, tab_agent_indicator, tab_icons};
 use crate::config::update_channel::default_update_channel;
 use crate::i18n::language::Language;
@@ -14,16 +19,11 @@ pub(super) fn default_language() -> String {
 /// their icons, then the system's monospace font. The frontend's
 /// `defaultTerminalFontFamily` holds the same chains, which a test checks.
 pub(super) fn default_font_family() -> String {
-    #[cfg(target_os = "macos")]
-    return "\"JetBrains Mono Nerd Font\", \"JetBrainsMono Nerd Font\", \"JetBrains Mono\", Menlo, Monaco, monospace".to_string();
-    #[cfg(target_os = "windows")]
-    return "\"JetBrains Mono Nerd Font\", \"JetBrainsMono Nerd Font\", \"JetBrains Mono\", \"Cascadia Code\", Consolas, monospace".to_string();
-    #[cfg(not(any(target_os = "macos", target_os = "windows")))]
-    return "\"JetBrains Mono Nerd Font\", \"JetBrainsMono Nerd Font\", \"JetBrains Mono\", \"DejaVu Sans Mono\", monospace".to_string();
+    detected_font_family().to_owned()
 }
 
 pub(super) fn default_font_size() -> u16 {
-    14
+    DEFAULT_TERMINAL_FONT_SIZE
 }
 
 pub(super) fn default_ui_scale_percent() -> u16 {
@@ -69,11 +69,11 @@ pub(super) fn default_scrollback_lines() -> u32 {
 }
 
 pub(super) fn default_terminal_renderer() -> String {
-    "webgl".to_string()
+    DEFAULT_TERMINAL_RENDERER.to_owned()
 }
 
 pub(super) fn default_hidden_renderer_release_secs() -> u32 {
-    10
+    DEFAULT_HIDDEN_RENDERER_RELEASE_SECS
 }
 
 pub(super) fn default_terminal_padding_left_px() -> u16 {
@@ -105,7 +105,7 @@ pub(super) fn default_predictive_echo() -> String {
 }
 
 pub(super) fn default_predictive_echo_threshold_ms() -> u16 {
-    30
+    DEFAULT_PREDICTIVE_ECHO_THRESHOLD_MS
 }
 
 pub(super) fn default_monitor_refresh_interval_secs() -> u16 {

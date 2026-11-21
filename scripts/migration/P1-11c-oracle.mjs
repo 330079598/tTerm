@@ -92,6 +92,7 @@ const load = (path) => import(pathToFileURL(`${ROOT}/src/${path}`).href)
 
 const cases = []
 const values = {}
+const configReplay = []
 
 /** Drops `undefined` members, the way the tests' `toEqual` ignores them. */
 function clean(value) {
@@ -1107,7 +1108,12 @@ const appConfig = await load("lib/appConfig.ts")
 {
   const normalize = await load("lib/appConfigNormalize.ts")
   const { defaultConfig, defaultAppState, defaultSecretStatus } = appConfig
-  const config = normalize.normalizeConfig
+  const config = (input) => {
+    const result = normalize.normalizeConfig(input)
+    const keys = Object.keys(input).filter((key) => Object.hasOwn(defaultConfig, key))
+    if (keys.length) configReplay.push({ input, expected: subset(result, keys) })
+    return result
+  }
 
   record("appConfigNormalize.defaultVsEmpty", {
     keys: Object.keys(defaultConfig).length,
@@ -1534,7 +1540,11 @@ const output = {
   cases,
   values,
 }
-console.log(JSON.stringify(output, null, 2))
+if (process.env.P11C_CONFIG_REPLAY) {
+  console.log(`[\n${configReplay.map((item) => `  ${JSON.stringify(item)}`).join(",\n")}\n]`)
+} else {
+  console.log(JSON.stringify(output, null, 2))
+}
 if (failed.length > 0) {
   console.error(`${failed.length} case(s) failed`)
   process.exit(1)

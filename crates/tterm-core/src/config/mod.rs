@@ -2,12 +2,14 @@
 //! overrides, keyword highlight sets, split pane layouts, tab icons, the
 //! update channel, the monitor bar and the SFTP drawer's first directory.
 
+pub mod app_config_normalize;
 pub mod atomic;
 mod compatible_file;
 mod defaults;
 mod deserialize;
 pub mod keymap;
 pub mod keyword_highlight;
+pub mod limits;
 pub mod local_shells;
 pub mod monitor_metrics;
 pub mod panes;
