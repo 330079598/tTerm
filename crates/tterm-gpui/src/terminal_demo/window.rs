@@ -8,8 +8,13 @@ mod drag;
 mod events;
 mod history;
 mod motion;
+mod nudge;
 mod overflow;
 mod picker;
+#[cfg(test)]
+mod split_session_tests;
+mod split_state;
+mod split_ui;
 mod strip;
 mod tabs;
 use events::handle_event;
@@ -193,6 +198,8 @@ pub(super) fn run_window(
 
 /// The root owns the session manager even when the initial tab fails to open.
 pub(super) struct Prototype {
+    nudge: Option<(usize, std::time::Instant)>,
+    splits: split_state::SplitState,
     drag_layout: drag::DragLayout,
     picker: Option<picker::TabPicker>,
     overflow: overflow::TabViewport,
@@ -281,11 +288,19 @@ impl Prototype {
                             return;
                         };
                         if handle_event(&binding, event) && binding.is_active() {
-                            prototype
-                                .tabs
-                                .active()
-                                .view
-                                .update(cx, |view, cx| view.notify_output(cx));
+                            if let Some(tab) = prototype
+                                .visible_ids()
+                                .into_iter()
+                                .flatten()
+                                .filter_map(|id| prototype.tabs.get(id))
+                                .find(|tab| {
+                                    tab.binding
+                                        .as_ref()
+                                        .is_some_and(|other| Rc::ptr_eq(other, &binding))
+                                })
+                            {
+                                tab.view.update(cx, |view, cx| view.notify_output(cx));
+                            }
                             cx.notify();
                         }
                     })
@@ -298,9 +313,11 @@ impl Prototype {
         .detach();
         Self {
             tabs: Tabs::new(tab),
+            splits: Default::default(),
             picker: None,
             overflow: Default::default(),
             drag_layout: Default::default(),
+            nudge: None,
             factory,
             current_title: DEFAULT_TITLE.to_string(),
             ui,
@@ -388,8 +405,9 @@ impl TabFactory {
             while wake.changed().await {
                 wake.acknowledge();
                 let updated = prototype.update(cx, |prototype, cx| {
-                    if prototype.tabs.active_id() == id {
-                        let tab = prototype.tabs.active();
+                    if prototype.visible_ids().contains(&Some(id))
+                        && let Some(tab) = prototype.tabs.get(id)
+                    {
                         tab.view.update(cx, |view, cx| view.notify_output(cx));
                     }
                     if wake_title.lock().is_ok_and(|title| title.is_some()) {
@@ -535,7 +553,7 @@ impl Render for Prototype {
             .relative()
             .child(shell::frame(
                 titlebar,
-                self.tabs.active().view.clone(),
+                self.workspace_panes(window, cx),
                 self.ui.background,
             ))
             .children(self.tabs.active().paste_controller.clone())

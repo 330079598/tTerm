@@ -6,11 +6,15 @@ use tterm_core::i18n::keys;
 use tterm_core::keymap::actions::KeymapActionId;
 use tterm_ui::tokens::gpui::hsla;
 
+use super::split_state::FOCUS_ACTIONS;
 use super::{CommandSpec, KeymapRouter, Prototype, TitleUpdate, WindowTab, classify_title_update};
 
 pub(super) fn register_actions(router: &KeymapRouter) {
     use KeymapActionId::{TabsCloseActive, TabsNext, TabsPrev, WorkspaceNewTab};
-    for action in [WorkspaceNewTab, TabsNext, TabsPrev, TabsCloseActive] {
+    for action in [WorkspaceNewTab, TabsNext, TabsPrev, TabsCloseActive]
+        .into_iter()
+        .chain(FOCUS_ACTIONS)
+    {
         router.register(action, Box::new(|_, _| true));
     }
 }
@@ -33,31 +37,93 @@ impl WindowTab {
 }
 
 impl Prototype {
-    pub(super) fn select_tab(&mut self, id: usize, window: &mut Window, cx: &mut Context<Self>) {
-        if id != self.tabs.active_id() {
-            self.tabs.active().leave(cx);
-            self.tabs.select(id);
+    pub(super) fn visible_ids(&self) -> [Option<usize>; 2] {
+        let active = self.tabs.active_id();
+        self.splits
+            .pair_for(active)
+            .map_or([Some(active), None], |pair| {
+                [Some(pair.first), Some(pair.second)]
+            })
+    }
+
+    fn refresh_panes(
+        &self,
+        previous: [Option<usize>; 2],
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        let visible = self.visible_ids();
+        for id in previous.into_iter().flatten() {
+            if !visible.contains(&Some(id))
+                && let Some(tab) = self.tabs.get(id)
+            {
+                tab.leave(cx);
+            }
+        }
+        for id in visible.into_iter().flatten() {
+            if id != self.tabs.active_id()
+                && !previous.contains(&Some(id))
+                && let Some(tab) = self.tabs.get(id)
+            {
+                if let Some(binding) = &tab.binding {
+                    binding.enter();
+                }
+                tab.view.update(cx, |view, cx| view.set_visible(true, cx));
+            }
         }
         self.tabs.active().enter(window, cx);
     }
 
-    fn new_tab(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        self.tabs.active().leave(cx);
+    pub(super) fn focus_pane(&mut self, id: usize, window: &mut Window, cx: &mut Context<Self>) {
+        if id != self.tabs.active_id() && self.visible_ids().contains(&Some(id)) {
+            self.select_tab(id, window, cx);
+        }
+    }
+
+    pub(super) fn split_tab(
+        &mut self,
+        source: usize,
+        target: usize,
+        edge: super::split_state::Edge,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        let previous = self.visible_ids();
+        if !previous.contains(&Some(target))
+            || self.tabs.get(source).is_none()
+            || !self.splits.split(source, target, edge)
+        {
+            return;
+        }
+        self.tabs.select(source);
+        self.refresh_panes(previous, window, cx);
+    }
+
+    pub(super) fn select_tab(&mut self, id: usize, window: &mut Window, cx: &mut Context<Self>) {
+        let previous = self.visible_ids();
+        if self.tabs.get(id).is_none() {
+            return;
+        }
+        self.tabs.select(id);
+        self.refresh_panes(previous, window, cx);
+    }
+
+    pub(super) fn new_tab(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        let previous = self.visible_ids();
         self.tabs.push(|id| {
             self.factory
                 .open(id, CommandSpec::Shell, &self.ui.locale, cx)
         });
-        self.tabs.active().enter(window, cx);
+        self.refresh_panes(previous, window, cx);
     }
 
-    fn close_tab(&mut self, id: usize, window: &mut Window, cx: &mut Context<Self>) {
+    pub(super) fn close_tab(&mut self, id: usize, window: &mut Window, cx: &mut Context<Self>) {
         if self.tabs.neighbour(true).is_none() {
             return;
         }
+        let previous = self.visible_ids();
         let was_active = id == self.tabs.active_id();
-        if was_active {
-            self.tabs.active().leave(cx);
-        }
+        let peer = self.splits.remove(id);
         if let Some(closed) = self.tabs.close(id)
             && let Some(binding) = closed.binding
             && let Err(error) = self.factory.sessions.close_tab(binding.tab_id())
@@ -65,7 +131,10 @@ impl Prototype {
             eprintln!("Failed to close terminal tab: {error}");
         }
         if was_active {
-            self.tabs.active().enter(window, cx);
+            if let Some(peer) = peer {
+                self.tabs.select(peer);
+            }
+            self.refresh_panes(previous, window, cx);
         } else {
             cx.notify();
         }
@@ -102,6 +171,18 @@ impl Prototype {
                     self.select_tab(id, window, cx);
                 }
             }
+            Some(action) if FOCUS_ACTIONS.contains(&action) => {
+                let active = self.tabs.active_id();
+                if let Some(id) = self
+                    .splits
+                    .pair_for(active)
+                    .and_then(|pair| pair.focus_target(active, action))
+                {
+                    self.focus_pane(id, window, cx);
+                } else {
+                    self.nudge_active_tab(cx);
+                }
+            }
             _ => return,
         }
         window.prevent_default();
@@ -123,6 +204,7 @@ impl Prototype {
         self.advance_drag(window, cx);
         let placement = self.placement(window);
         let now = std::time::Instant::now();
+        let mut flash = self.tab_flash(window, now);
         let colors = self.ui.theme.colors;
         let mut strip = div()
             .flex()
@@ -181,7 +263,7 @@ impl Prototype {
                     item.w(width).min_w(width).max_w(width)
                 })
                 .when(active, |item| {
-                    item.child(
+                    item.children(flash.take()).child(
                         div()
                             .absolute()
                             .top_0()

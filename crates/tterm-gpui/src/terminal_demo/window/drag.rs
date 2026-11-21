@@ -16,9 +16,9 @@ pub(super) struct DragLayout {
     pub(super) motion: Motion,
 }
 
-struct TabDrag {
-    owner: EntityId,
-    id: usize,
+pub(super) struct TabDrag {
+    pub(super) owner: EntityId,
+    pub(super) id: usize,
 }
 
 struct Preview {

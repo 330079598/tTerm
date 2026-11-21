@@ -18,6 +18,13 @@ impl<T> Tabs<T> {
     pub(super) fn active(&self) -> &T {
         &self.entries[self.active_index].1
     }
+
+    pub(super) fn get(&self, id: usize) -> Option<&T> {
+        self.entries
+            .iter()
+            .find(|entry| entry.0 == id)
+            .map(|entry| &entry.1)
+    }
     pub(super) fn active_id(&self) -> usize {
         self.entries[self.active_index].0
     }
