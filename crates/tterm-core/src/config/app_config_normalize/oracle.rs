@@ -1,5 +1,6 @@
 use super::normalize_config;
 use crate::config::AppConfig;
+use crate::config::limits;
 use serde_json::{Value, json};
 
 fn platform_oracle() -> Value {
@@ -11,6 +12,51 @@ fn platform_oracle() -> Value {
         include_str!("../../../../../docs/gpui-migration/reports/P1-11c-evidence/node-linux.json")
     };
     serde_json::from_str(file).unwrap()
+}
+
+#[test]
+fn settings_limits_and_sound_choices_match_typescript() {
+    let oracle = platform_oracle();
+    let expected = &oracle["values"]["appConfig.constants"];
+    macro_rules! constants {
+        ($($name:ident),+ $(,)?) => {$(
+            assert_eq!(json!(limits::$name), expected[stringify!($name)], "{}", stringify!($name));
+        )+};
+    }
+    macro_rules! ranges {
+        ($($name:ident),+ $(,)?) => {$(
+            let bounds = &expected[stringify!($name)];
+            assert_eq!(Some(f64::from(*limits::$name.start())), bounds["min"].as_f64(), "{} min", stringify!($name));
+            assert_eq!(Some(f64::from(*limits::$name.end())), bounds["max"].as_f64(), "{} max", stringify!($name));
+        )+};
+    }
+    constants!(
+        NOTIFICATION_SOUND_NAMES,
+        HIDDEN_RENDERER_RELEASE_SECS_OPTIONS,
+        DEFAULT_HIDDEN_RENDERER_RELEASE_SECS,
+        DEFAULT_TERMINAL_FONT_SIZE,
+        DEFAULT_PREDICTIVE_ECHO_THRESHOLD_MS,
+        PREDICTIVE_ECHO_THRESHOLD_MIN_MS,
+        PREDICTIVE_ECHO_THRESHOLD_MAX_MS,
+        TERMINAL_LOG_MAX_RETENTION_DAYS,
+        TERMINAL_LOG_MAX_TOTAL_MB,
+        MAX_BANDWIDTH_LIMIT_KIB,
+        RECONNECT_MAX_ATTEMPTS_MIN,
+        RECONNECT_MAX_ATTEMPTS_MAX
+    );
+    ranges!(
+        TERMINAL_FONT_SIZE_RANGE,
+        TERMINAL_LINE_HEIGHT_RANGE,
+        TERMINAL_LETTER_SPACING_RANGE,
+        WINDOW_OPACITY_PERCENT_RANGE,
+        WINDOW_BLUR_RADIUS_RANGE,
+        NOTIFY_COMMAND_MIN_SECS_RANGE,
+        TOAST_MAX_VISIBLE_RANGE
+    );
+    assert_eq!(
+        expected["defaultRenderer"],
+        limits::DEFAULT_TERMINAL_RENDERER
+    );
 }
 
 fn compare_shape(actual: &Value, expected: &Value) {

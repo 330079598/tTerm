@@ -7,12 +7,12 @@
 | 任务 | 实际进度 |
 | --- | --- |
 | P1-09、P1-12 | b2、b3 已合入；P1-12 已合入，见 [Windows 验收与平台边界](reports/P1-12.md)。 |
-| P1-11c、g | c1、c2 的本地 shell 批，以及 g1–g3 已合入。c2 的[状态归一化批](reports/P1-11c-c2-state.md)已提交到本地 `GPUI`（`ff33d4d3`），整卡进行中。 |
+| P1-11c、g | P1-11c 已通过 Windows [整卡复核](reports/P1-11c-closeout.md)，macOS 待补、Linux 推迟（决策 016）。g1–g3 已合入。 |
 | P2-01～05 | 已合入绑定、输出、键盘、鼠标和剪贴板。原生交互的待验证项仍以各卡报告为准。 |
 | P2-06 | 进行中：[回滚容量首批](reports/P2-06.md)已提交到本地 `GPUI`（`9c7aa74d`），尚未完成界面验收。 |
-| P3-01～03 | [P3-01 窗口第一批](reports/P3-01.md)与 [P3-03 国际化](reports/P3-03.md)已合入；P3-02 尚未合入，等待 P1-11c。 |
+| P3-01～03 | [P3-01 窗口第一批](reports/P3-01.md)与 [P3-03 国际化](reports/P3-03.md)已合入；P3-02 尚未合入，P1-11c 依赖已满足。 |
 
-同日续批（本地 `GPUI`）：c2 配置限额、字体默认值共用、UI 缩放与行高归一化，以及 `TabSettings` 写回配置的转换已接入。[`normalizeConfig` 阶段](reports/P1-11c-c2-normalize.md)已完成 Windows 验收。P1-11c 仍待整卡对照复核；P3-02 尚未接入该入口。W0-05 B1～B4 界面基线仍待补。
+同日续批（本地 `GPUI`）：c2 配置限额、字体默认值共用、UI 缩放与行高归一化，以及 `TabSettings` 写回配置的转换已接入。[`normalizeConfig` 阶段](reports/P1-11c-c2-normalize.md)已完成 Windows 验收；P3-02 尚未接入该入口。W0-05 B1～B4 界面基线仍待补。
 
 已按用户确认落实 [P1-11c 需要确认第 2 项](reports/P1-11c.md#需要确认) 的顶层未知键策略：保存本机配置时原样保留未知键的 JSON 值，不加入类型化的 IPC 或同步数据；已知设置仍由当前版本写入，不递归合并其内部字段。临时文件往返测试覆盖修改已知设置、保留未来字段与数字精度、不写回已迁移的旧键，以及遇到损坏 JSON 不覆盖。Windows 六项 pnpm 检查、Rust fmt、严格 Clippy 与 workspace 测试全部通过。
 
