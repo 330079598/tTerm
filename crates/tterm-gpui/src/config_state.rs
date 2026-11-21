@@ -1,10 +1,11 @@
 //! Native GPUI configuration state.
 //!
-//! The root loads the strict config before the application starts and passes
-//! the snapshot here. A setting change reaches the in-memory snapshot only
-//! after the strict config file accepted it, so a failed write cannot publish
-//! an irreversible change such as a smaller scrollback buffer. The write runs
-//! on the shared core blocking worker; the UI thread only queues it.
+//! The root loads the strict config, applies the shared UI normalization and
+//! passes the snapshot here before the application starts. A setting change
+//! reaches the in-memory snapshot only after the strict config file accepted
+//! it, so a failed write cannot publish an irreversible change such as a
+//! smaller scrollback buffer. The write runs on the shared core blocking
+//! worker; the UI thread only queues it.
 
 use std::sync::Arc;
 
@@ -34,8 +35,8 @@ pub struct ConfigState {
 impl EventEmitter<ScrollbackChanged> for ConfigState {}
 
 impl ConfigState {
-    /// Creates the state from the strict config the root loaded before the
-    /// application started.
+    /// Creates the state from the strict config the root loaded and normalized
+    /// before the application started.
     pub fn new(config: AppConfig, runtime: &tokio::runtime::Handle) -> Self {
         Self::with_writer(
             config,

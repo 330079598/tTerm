@@ -26,6 +26,17 @@ pub fn normalize_config(input: &serde_json::Value) -> serde_json::Result<AppConf
     Ok(config)
 }
 
+/// Normalizes the config a strict reader accepted, as the Tauri client does.
+///
+/// The Tauri client receives an [`AppConfig`] from `load_config` and runs the
+/// frontend's `normalizeConfig` before any view reads it. Native startup uses
+/// this entry so the same file produces the same choices in both clients. The
+/// strict reader still decides whether the file is readable; a damaged file is
+/// not repaired here.
+pub fn normalize_loaded_config(config: &AppConfig) -> serde_json::Result<AppConfig> {
+    normalize_config(&serde_json::to_value(config)?)
+}
+
 /// Rounds UI scale to the nearest ten percent within the supported range.
 pub fn normalize_ui_scale_percent(value: Option<f64>) -> u16 {
     let Some(value) = value.filter(|value| value.is_finite()) else {
@@ -94,5 +105,44 @@ mod tests {
             indicator
         );
         assert_eq!(config.panes.templates[0].root.to_string(), root.to_string());
+    }
+
+    #[test]
+    fn a_strictly_loaded_config_is_normalized_like_the_tauri_frontend() {
+        let loaded: AppConfig = serde_json::from_value(json!({
+            "theme": "default",
+            "ui_style": "floating",
+            "close_behavior": "close",
+            "sftp_start_directory": "root",
+            "secret_storage_mode": "hybrid",
+            "hidden_renderer_release_secs": 7,
+            "favorite_themes": ["nord", "nord", ""],
+            "sftp_external_editor": "  code  ",
+            "ui_scale_percent": 85
+        }))
+        .unwrap();
+
+        let config = normalize_loaded_config(&loaded).unwrap();
+
+        assert_eq!(config.ui_scale_percent, 90);
+        assert_eq!(config.ui_style, "classic");
+        assert_eq!(config.close_behavior, "ask");
+        assert_eq!(config.sftp_start_directory, "last");
+        assert_eq!(config.secret_storage_mode, "system");
+        assert_eq!(
+            config.hidden_renderer_release_secs,
+            crate::config::limits::DEFAULT_HIDDEN_RENDERER_RELEASE_SECS
+        );
+        assert_eq!(config.favorite_themes, vec!["nord".to_string()]);
+        assert_eq!(config.sftp_external_editor, "code");
+    }
+
+    #[test]
+    fn a_first_launch_keeps_the_native_layout_and_storage_defaults() {
+        let config = normalize_loaded_config(&AppConfig::default()).unwrap();
+
+        assert_eq!(config.theme, "default");
+        assert_eq!(config.ui_style, "islands");
+        assert_eq!(config.secret_storage_mode, "system");
     }
 }

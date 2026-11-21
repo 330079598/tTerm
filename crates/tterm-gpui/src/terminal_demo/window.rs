@@ -12,7 +12,9 @@ use history::{history_capacity, subscribe_history};
 use gpui_kit::prelude::*;
 use gpui_kit::{App, Entity, Rgba, Window, div};
 use tokio::sync::mpsc::UnboundedReceiver;
-use tterm_core::config::{AppConfig, load_config_file};
+use tterm_core::config::AppConfig;
+use tterm_core::config::app_config_normalize::normalize_loaded_config;
+use tterm_core::config::load_config_file;
 use tterm_core::events::AppEvent;
 use tterm_core::i18n::catalogue::Catalogue;
 use tterm_core::i18n::keys;
@@ -63,6 +65,36 @@ struct PrototypeStartup {
     background: Rgba,
 }
 
+/// Loads settings with the same sequence the Tauri client uses: the strict
+/// file reader, then the shared UI normalization before any view reads them.
+fn load_startup_config() -> AppConfig {
+    startup_config(load_config_file())
+}
+
+/// Normalizes a loaded config, or starts from the normalized defaults when
+/// the strict reader rejects the file. The Tauri frontend makes the same
+/// fallback in `ConfigContext`.
+fn startup_config(loaded: Result<AppConfig, String>) -> AppConfig {
+    let normalized = loaded.and_then(|config| {
+        normalize_loaded_config(&config)
+            .map_err(|error| format!("Failed to normalize config: {error}"))
+    });
+    normalized.unwrap_or_else(|error| {
+        eprintln!("tterm-gpui: failed to load config, using defaults: {error}");
+        default_startup_config()
+    })
+}
+
+fn default_startup_config() -> AppConfig {
+    match normalize_loaded_config(&AppConfig::default()) {
+        Ok(config) => config,
+        Err(error) => {
+            eprintln!("tterm-gpui: failed to normalize the default config: {error}");
+            AppConfig::default()
+        }
+    }
+}
+
 /// Runs the application with one prototype window until it closes.
 pub(super) fn run_window(
     command: CommandSpec,
@@ -70,10 +102,7 @@ pub(super) fn run_window(
     events: UnboundedReceiver<AppEvent>,
 ) {
     prepare_conpty();
-    let app_config = load_config_file().unwrap_or_else(|error| {
-        eprintln!("tterm-gpui: failed to load config, using defaults: {error}");
-        AppConfig::default()
-    });
+    let app_config = load_startup_config();
     if let Err(error) = Catalogue::embedded() {
         eprintln!("tterm-gpui: failed to load translations from src/i18n/locales: {error}");
         return;
@@ -465,10 +494,12 @@ impl Render for Prototype {
 
 #[cfg(test)]
 mod tests {
+    use tterm_core::config::AppConfig;
+    use tterm_core::config::limits::DEFAULT_HIDDEN_RENDERER_RELEASE_SECS;
     use tterm_core::events::ssh::SshConnectionProgressPayload;
 
     use super::events::connection_state;
-    use super::{DEFAULT_TITLE, TitleUpdate, classify_title_update};
+    use super::{DEFAULT_TITLE, TitleUpdate, classify_title_update, startup_config};
     use crate::terminal_demo::binding::scoped::ConnectionState;
 
     #[test]
@@ -512,5 +543,32 @@ mod tests {
             classify_title_update(Some("cargo test".to_string())),
             Some(TitleUpdate::Program("cargo test".to_string()))
         );
+    }
+
+    #[test]
+    fn startup_config_normalizes_before_views_read_it() {
+        let loaded = AppConfig {
+            ui_style: "floating".to_string(),
+            close_behavior: "close".to_string(),
+            hidden_renderer_release_secs: 7,
+            ..AppConfig::default()
+        };
+
+        let config = startup_config(Ok(loaded));
+
+        assert_eq!(config.ui_style, "classic");
+        assert_eq!(config.close_behavior, "ask");
+        assert_eq!(
+            config.hidden_renderer_release_secs,
+            DEFAULT_HIDDEN_RENDERER_RELEASE_SECS
+        );
+    }
+
+    #[test]
+    fn startup_config_uses_normalized_defaults_when_reading_fails() {
+        let config = startup_config(Err("damaged config".to_string()));
+
+        assert_eq!(config.ui_style, "islands");
+        assert_eq!(config.secret_storage_mode, "system");
     }
 }
