@@ -30,7 +30,7 @@ use super::session::{RefreshWatch, Session};
 pub struct SessionManager {
     services: Arc<AppServices>,
     attention: Rc<RefCell<TabAttentionStore>>,
-    terminal_config: Config,
+    terminal_config: RefCell<Config>,
     next_nonce: AtomicU32,
     tabs: Mutex<HashMap<String, Rc<TabBinding>>>,
 }
@@ -42,7 +42,7 @@ impl SessionManager {
         Self {
             services,
             attention,
-            terminal_config: Config::default(),
+            terminal_config: RefCell::new(Config::default()),
             next_nonce: AtomicU32::new(1),
             tabs: Mutex::new(HashMap::new()),
         }
@@ -50,8 +50,24 @@ impl SessionManager {
 
     /// Sets the model options inherited by each new session.
     pub fn with_terminal_config(mut self, config: Config) -> Self {
-        self.terminal_config = config;
+        *self.terminal_config.get_mut() = config;
         self
+    }
+
+    /// Changes the scrollback capacity of every managed session.
+    ///
+    /// `lines` is the already resolved buffer size, as
+    /// [`tterm_core::config::scrollback::resolve_scrollback_lines`] returns it; a
+    /// configuration sentinel is not accepted here. Sessions opened later
+    /// inherit the same capacity. Existing sessions keep their generation,
+    /// parser and model identity; only the history capacity changes, and an
+    /// attached visible view is woken so it repaints evicted rows and a
+    /// clamped viewport immediately.
+    pub fn set_scrollback(&self, lines: usize) {
+        self.terminal_config.borrow_mut().scrollback = lines;
+        for binding in self.tabs().values() {
+            binding.set_scrollback(lines);
+        }
     }
 
     /// Opens a new generation for `tab_id`, replacing its old session.
@@ -74,6 +90,7 @@ impl SessionManager {
         if let Some(previous) = binding.take_session() {
             previous.close();
         }
+        let config = self.terminal_config.borrow().clone();
         match Session::spawn(
             Arc::clone(&self.services),
             tab_id,
@@ -81,7 +98,7 @@ impl SessionManager {
             connection,
             grid,
             cell,
-            self.terminal_config.clone(),
+            config,
         ) {
             Ok(session) => binding.set_session(Arc::new(session)),
             Err(error) => {
@@ -251,6 +268,13 @@ impl TabBinding {
             .lock()
             .unwrap_or_else(PoisonError::into_inner)
             .set_start_error(session_nonce, error)
+    }
+
+    /// Applies a capacity change to this tab's current generation.
+    fn set_scrollback(&self, lines: usize) {
+        if let Some(session) = self.session() {
+            session.set_scrollback(lines);
+        }
     }
 
     fn begin_session(&self, session_nonce: u32) {

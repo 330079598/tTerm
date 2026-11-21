@@ -5,7 +5,9 @@ use std::rc::Rc;
 use std::sync::{Arc, Mutex};
 
 mod events;
+mod history;
 use events::handle_event;
+use history::{history_capacity, subscribe_history};
 
 use gpui_kit::prelude::*;
 use gpui_kit::{App, Entity, Rgba, Window, div};
@@ -35,7 +37,9 @@ use crate::app_window::chrome::{ActionHandler, TitleBarAction};
 use crate::app_window::startup;
 use crate::app_window::state;
 use crate::app_window::state::WindowGeometry;
+use crate::config_state::ConfigState;
 use crate::locale::{Locale, LocaleGlobal};
+use crate::scrollback_setting::ScrollbackSetting;
 
 const TAB_ID: &str = "gpui-main";
 const INITIAL_GRID: GridSize = GridSize {
@@ -54,7 +58,7 @@ struct PrototypeStartup {
     keyboard: tterm_terminal_view::input::keyboard::EncoderConfig,
     keymap: Rc<KeymapRouter>,
     locale: Entity<Locale>,
-    config: AppConfig,
+    config: Entity<ConfigState>,
     theme: Theme,
     background: Rgba,
 }
@@ -87,9 +91,7 @@ pub(super) fn run_window(
     let sessions = Rc::new(
         SessionManager::new(Arc::clone(&services), attention).with_terminal_config(Config {
             clipboard: clipboard_policy,
-            scrollback: tterm_core::config::scrollback::resolve_scrollback_lines(Some(f64::from(
-                app_config.scrollback_lines,
-            ))) as usize,
+            scrollback: history_capacity(app_config.scrollback_lines),
             ..Config::default()
         }),
     );
@@ -100,6 +102,7 @@ pub(super) fn run_window(
     gpui_kit::application().run(move |cx: &mut App| {
         gpui_kit::init(cx);
         let locale = cx.new(|_| Locale::new(language));
+        let config = cx.new(|_| ConfigState::new(app_config, &services.shared.runtime));
         LocaleGlobal::set(cx, locale.clone());
         tterm_terminal_view::view::bind_keys(cx);
         lifecycle.install_quit_flush(cx);
@@ -116,7 +119,7 @@ pub(super) fn run_window(
             keyboard,
             keymap,
             locale,
-            config: app_config,
+            config,
             theme,
             background,
         };
@@ -162,11 +165,8 @@ pub(super) struct Prototype {
     title: Arc<Mutex<Option<String>>>,
     current_title: String,
     title_is_default: bool,
-    locale: Entity<Locale>,
+    ui: WindowUi,
     paste_controller: Option<Entity<PasteController>>,
-    geometry: Entity<WindowGeometry>,
-    theme: Theme,
-    background: Rgba,
 }
 
 impl Prototype {
@@ -179,7 +179,7 @@ impl Prototype {
     /// background write like the caption and Linux buttons do.
     #[cfg(all(feature = "automation", debug_assertions))]
     pub(super) fn request_close(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        let geometry = self.geometry.clone();
+        let geometry = self.ui.geometry.clone();
         let _ = geometry.update(cx, |geometry, cx| geometry.request_close(window, cx));
     }
 
@@ -199,8 +199,18 @@ impl Prototype {
             theme,
             background,
         } = startup;
+        let scrollback_setting =
+            cx.new(|cx| ScrollbackSetting::new(config.clone(), locale.clone(), theme, cx));
         cx.observe(&locale, |_, _, cx| cx.notify()).detach();
         cx.observe(&geometry, |_, _, cx| cx.notify()).detach();
+        subscribe_history(cx, &config, &sessions).detach();
+        let ui = WindowUi {
+            locale: locale.clone(),
+            geometry,
+            theme,
+            background,
+            scrollback_setting,
+        };
         let connection = command.connection_options();
         let drop_text = connection.as_ref().ok().and_then(local_drop_text);
         let (binding, open_error) = match connection {
@@ -217,7 +227,7 @@ impl Prototype {
         let attachment = binding.as_ref().and_then(|binding| binding.attach());
         let Some(attachment) = attachment else {
             let error = open_error.unwrap_or_else(|| "Failed to start terminal".to_string());
-            return failed(cx, binding, error, locale, geometry, theme, background);
+            return failed(cx, binding, error, ui);
         };
         log_conpty_source();
         let model = attachment.model();
@@ -229,18 +239,16 @@ impl Prototype {
                 cx,
                 None,
                 "The terminal tab was not registered".to_string(),
-                locale,
-                geometry,
-                theme,
-                background,
+                ui,
             );
         };
         let keymap_route = Rc::clone(&keymap);
+        let initial = config.read(cx).config().clone();
         let paste_controller = cx.new(|cx| {
             PasteController::new(
                 cx,
                 locale.clone(),
-                &config,
+                &initial,
                 Rc::clone(&binding),
                 session_nonce,
             )
@@ -252,8 +260,8 @@ impl Prototype {
             keyboard,
             keymap: Some(Rc::new(move |event| route_keymap(&keymap_route, event))),
             paste_gate: Some(paste_gate),
-            copy_on_select: config.copy_on_select,
-            right_click_paste: config.right_click_paste,
+            copy_on_select: initial.copy_on_select,
+            right_click_paste: initial.right_click_paste,
             drop_text,
             ..TerminalViewConfig::default()
         };
@@ -309,16 +317,13 @@ impl Prototype {
             title,
             current_title: DEFAULT_TITLE.to_string(),
             title_is_default: true,
-            locale,
+            ui,
             paste_controller: Some(paste_controller),
-            geometry,
-            theme,
-            background,
         }
     }
 
     fn default_window_title(&self, cx: &App) -> String {
-        let locale = self.locale.read(cx);
+        let locale = self.ui.locale.read(cx);
         let title = match locale.text(keys::APP_TITLE) {
             Ok(title) => title,
             Err(error) => {
@@ -340,7 +345,8 @@ impl Prototype {
     /// choice stays with the configuration settings (P3-02).
     #[cfg(all(feature = "automation", debug_assertions))]
     pub(super) fn set_language(&mut self, language: Language, cx: &mut Context<Self>) {
-        self.locale
+        self.ui
+            .locale
             .update(cx, |locale, cx| locale.set_language(language, cx));
         cx.notify();
     }
@@ -353,14 +359,19 @@ impl Prototype {
     }
 }
 
-fn failed(
-    cx: &mut Context<Prototype>,
-    binding: Option<Rc<TabBinding>>,
-    error: String,
+struct WindowUi {
     locale: Entity<Locale>,
     geometry: Entity<WindowGeometry>,
     theme: Theme,
     background: Rgba,
+    scrollback_setting: Entity<ScrollbackSetting>,
+}
+
+fn failed(
+    cx: &mut Context<Prototype>,
+    binding: Option<Rc<TabBinding>>,
+    error: String,
+    ui: WindowUi,
 ) -> Prototype {
     eprintln!("tterm-gpui: {error}");
     let terminal = Arc::new(Terminal::new(Config::default(), INITIAL_GRID, INITIAL_CELL));
@@ -373,11 +384,8 @@ fn failed(
         title: Arc::new(Mutex::new(None)),
         current_title: DEFAULT_TITLE.to_string(),
         title_is_default: true,
-        locale,
+        ui,
         paste_controller: None,
-        geometry,
-        theme,
-        background,
     }
 }
 
@@ -424,7 +432,7 @@ impl Render for Prototype {
             }
             None => {}
         }
-        let geometry = self.geometry.clone();
+        let geometry = self.ui.geometry.clone();
         let on_action: ActionHandler = Rc::new(move |action, window, cx| match action {
             TitleBarAction::Minimize => window.minimize_window(),
             TitleBarAction::ToggleMaximize => window.zoom_window(),
@@ -434,14 +442,24 @@ impl Render for Prototype {
                 });
             }
         });
-        let titlebar = TitleBar::new(self.current_title.clone(), self.theme)
+        let settings_button = self
+            .ui
+            .scrollback_setting
+            .update(cx, |setting, cx| setting.button(cx));
+        let titlebar = TitleBar::new(self.current_title.clone(), self.ui.theme)
+            .tools(settings_button)
             .on_action(on_action)
             .render(window);
         div()
             .size_full()
             .relative()
-            .child(shell::frame(titlebar, self.view.clone(), self.background))
+            .child(shell::frame(
+                titlebar,
+                self.view.clone(),
+                self.ui.background,
+            ))
             .children(self.paste_controller.clone())
+            .child(self.ui.scrollback_setting.clone())
     }
 }
 

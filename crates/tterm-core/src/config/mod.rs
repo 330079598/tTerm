@@ -17,6 +17,7 @@ pub mod paths;
 pub mod reconnect;
 pub mod save;
 pub mod scrollback;
+pub mod scrollback_file;
 pub mod sftp_start_directory;
 
 pub mod tab_agent_indicator;

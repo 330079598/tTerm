@@ -214,7 +214,28 @@ impl Session {
         if self.visible.swap(visible, Ordering::AcqRel) == visible {
             return;
         }
-        if visible && self.alive.load(Ordering::Acquire) {
+        if visible {
+            self.wake();
+        }
+    }
+
+    /// Changes the scrollback capacity of this session's model.
+    ///
+    /// The session keeps its generation and parser. A visible view is woken
+    /// because shrinking the capacity can evict history and clamp the viewport
+    /// without another PTY batch arriving to request the frame.
+    pub fn set_scrollback(&self, lines: usize) {
+        let model = self.model();
+        if model.scrollback() == lines {
+            return;
+        }
+        model.set_scrollback(lines);
+        self.wake();
+    }
+
+    /// Requests one frame when the session is both visible and live.
+    fn wake(&self) {
+        if self.visible.load(Ordering::Acquire) && self.alive.load(Ordering::Acquire) {
             self.refresh.notify();
         }
     }

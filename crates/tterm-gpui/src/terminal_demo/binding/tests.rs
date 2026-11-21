@@ -7,7 +7,7 @@ use tterm_core::core::session::types::PtyConnectionOptions;
 use tterm_core::events::ssh::{SshConnectionProgressPayload, SshHostKeyPromptPayload};
 use tterm_core::workspace::tab_attention::{TabAttentionLevel, TabAttentionStore};
 use tterm_terminal::grid::{CellSize, GridSize};
-use tterm_terminal::terminal::Terminal;
+use tterm_terminal::terminal::{Config, Scroll, Terminal};
 
 use super::{SessionManager, scoped::ConnectionState};
 use crate::terminal_demo::command::CommandSpec;
@@ -45,6 +45,29 @@ fn local_connection() -> PtyConnectionOptions {
     command
         .connection_options()
         .expect("local connection options")
+}
+
+/// A local command that stays alive without producing output, so a wake-up
+/// can only come from the capacity change under test.
+fn quiet_connection() -> PtyConnectionOptions {
+    #[cfg(windows)]
+    let command = CommandSpec::Program {
+        program: std::env::var("COMSPEC")
+            .unwrap_or_else(|_| r"C:\Windows\System32\cmd.exe".to_string()),
+        args: vec![
+            "/Q".to_string(),
+            "/C".to_string(),
+            "ping -n 60 127.0.0.1 >NUL".to_string(),
+        ],
+    };
+    #[cfg(not(windows))]
+    let command = CommandSpec::Program {
+        program: "/bin/sh".to_string(),
+        args: vec!["-c".to_string(), "sleep 60".to_string()],
+    };
+    command
+        .connection_options()
+        .expect("quiet connection options")
 }
 
 fn flood_connection() -> PtyConnectionOptions {
@@ -477,5 +500,122 @@ fn recreating_the_gpui_view_keeps_the_sessions_content(cx: &mut gpui_kit::TestAp
     });
     assert_ne!(first_id, second_view.entity_id());
     assert!(text(&second_model).contains("P2-01-BEFORE-ENTITY-DROP"));
+    manager.close_tab(tab_id).expect("close the tab");
+}
+
+#[test]
+fn changing_scrollback_capacity_updates_every_open_session_and_future_sessions() {
+    let runtime = test_runtime();
+    let manager = SessionManager::new(
+        Arc::clone(&runtime.services),
+        Rc::new(RefCell::new(TabAttentionStore::new())),
+    )
+    .with_terminal_config(Config {
+        scrollback: 8,
+        ..Config::default()
+    });
+    let first_id = "p2-06-scrollback-first";
+    let second_id = "p2-06-scrollback-second";
+    let first = manager.open(first_id, local_connection(), GRID, CELL);
+    let second = manager.open(second_id, local_connection(), GRID, CELL);
+    let first_attachment = first.attach().expect("attach the first view");
+    let second_attachment = second.attach().expect("attach the second view");
+    let first_session = Arc::clone(&first_attachment.session);
+    let second_session = Arc::clone(&second_attachment.session);
+    let first_nonce = first_session.session_nonce();
+    let second_nonce = second_session.session_nonce();
+    let first_model = first_attachment.model();
+    let second_model = second_attachment.model();
+    let first_input = first_attachment.session().input();
+    let second_input = second_attachment.session().input();
+
+    for index in 0..40 {
+        first_input(&print_command(&format!("first-{index}")));
+        second_input(&print_command(&format!("second-{index}")));
+    }
+    assert!(wait_for_text(&first_model, "first-39"));
+    assert!(wait_for_text(&second_model, "second-39"));
+    assert!(first_model.snapshot().history_size() > 4);
+    assert!(second_model.snapshot().history_size() > 4);
+
+    first_model.scroll(Scroll::Top);
+    second_model.scroll(Scroll::Top);
+    let first_before = first_model.snapshot();
+    let second_before = second_model.snapshot();
+    assert!(first_before.display_offset() > 4);
+    assert!(second_before.display_offset() > 4);
+
+    manager.set_scrollback(4);
+
+    assert_eq!(first_model.scrollback(), 4);
+    assert_eq!(second_model.scrollback(), 4);
+    let first_after = first_model.snapshot();
+    let second_after = second_model.snapshot();
+    assert_eq!(first_after.history_size(), 4);
+    assert_eq!(second_after.history_size(), 4);
+    assert!(
+        first_after.damage().is_full(),
+        "evicting history changes every visible row"
+    );
+    assert!(
+        second_after.damage().is_full(),
+        "every managed session is updated"
+    );
+    assert!(
+        first_after.display_offset() <= 4,
+        "the viewport is clamped to the remaining history"
+    );
+    assert!(second_after.display_offset() <= 4);
+    assert!(
+        first_after.scrollback_generation() > first_before.scrollback_generation(),
+        "the view cache is invalidated when rows are evicted"
+    );
+    assert!(
+        second_after.scrollback_generation() > second_before.scrollback_generation(),
+        "each attached view sees its own generation advance"
+    );
+
+    let first_current = first.session().expect("the first session survives");
+    let second_current = second.session().expect("the second session survives");
+    assert!(Arc::ptr_eq(&first_current, &first_session));
+    assert!(Arc::ptr_eq(&second_current, &second_session));
+    assert_eq!(first_current.session_nonce(), first_nonce);
+    assert_eq!(second_current.session_nonce(), second_nonce);
+
+    let later_id = "p2-06-scrollback-later";
+    let later = manager.open(later_id, local_connection(), GRID, CELL);
+    let later_model = later.attach().expect("attach the later view").model();
+    assert_eq!(
+        later_model.scrollback(),
+        4,
+        "sessions opened after the change inherit the resolved capacity"
+    );
+
+    manager.close_tab(first_id).expect("close the first tab");
+    manager.close_tab(second_id).expect("close the second tab");
+    manager.close_tab(later_id).expect("close the later tab");
+}
+
+#[test]
+fn a_capacity_change_wakes_an_attached_visible_view() {
+    let runtime = test_runtime();
+    let manager = manager(&runtime);
+    let tab_id = "p2-06-scrollback-wake";
+    let binding = manager.open(tab_id, quiet_connection(), GRID, CELL);
+    assert!(binding.enter(), "the view is visible");
+    let attachment = binding.attach().expect("attach the view");
+    let mut watch = attachment.subscribe();
+    watch.acknowledge();
+
+    manager.set_scrollback(4);
+
+    let changed = runtime
+        ._runtime
+        .block_on(async { tokio::time::timeout(Duration::from_secs(5), watch.changed()).await });
+    assert!(
+        matches!(changed, Ok(true)),
+        "the capacity change requests a frame without new PTY output"
+    );
+
     manager.close_tab(tab_id).expect("close the tab");
 }

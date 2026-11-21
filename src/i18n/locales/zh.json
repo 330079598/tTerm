@@ -4,6 +4,16 @@
     "subtitle": "现代终端模拟器",
     "version": "版本 {{version}}"
   },
+  "scrollbackSetting": {
+    "open": "回滚设置",
+    "title": "回滚行数",
+    "description": "0 表示不限制。保存较小的上限后，已打开的终端会永久删除超出上限的旧历史行。",
+    "placeholder": "默认：10000",
+    "save": "保存",
+    "empty": "请输入回滚行数；使用 0 表示无限制历史。",
+    "invalid": "请输入 0 到 10,000,000 之间的整数。",
+    "tooLarge": "回滚行数不能超过 10,000,000。"
+  },
   "about": {
     "acknowledgements": "致谢",
     "acknowledgementsDesc": "tTerm 建立在这些开源项目之上，感谢它们的作者与贡献者。",

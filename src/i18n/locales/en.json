@@ -4,6 +4,16 @@
     "subtitle": "Modern Terminal Emulator",
     "version": "Version {{version}}"
   },
+  "scrollbackSetting": {
+    "open": "Scrollback settings",
+    "title": "Scrollback Lines",
+    "description": "Use 0 for unlimited history. Saving a lower limit permanently removes older lines beyond that limit from open terminals.",
+    "placeholder": "Default: 10000",
+    "save": "Save",
+    "empty": "Enter a scrollback line count. Use 0 for unlimited history.",
+    "invalid": "Enter a whole number between 0 and 10,000,000.",
+    "tooLarge": "Scrollback lines cannot exceed 10,000,000."
+  },
   "about": {
     "acknowledgements": "Acknowledgements",
     "acknowledgementsDesc": "tTerm is built on these open source projects. Thanks to their authors and contributors.",
