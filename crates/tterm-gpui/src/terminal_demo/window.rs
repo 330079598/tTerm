@@ -7,6 +7,7 @@ use std::sync::{Arc, Mutex};
 mod drag;
 mod events;
 mod history;
+mod motion;
 mod overflow;
 mod picker;
 mod strip;
@@ -192,6 +193,7 @@ pub(super) fn run_window(
 
 /// The root owns the session manager even when the initial tab fails to open.
 pub(super) struct Prototype {
+    drag_layout: drag::DragLayout,
     picker: Option<picker::TabPicker>,
     overflow: overflow::TabViewport,
     tabs: Tabs<WindowTab>,
@@ -298,6 +300,7 @@ impl Prototype {
             tabs: Tabs::new(tab),
             picker: None,
             overflow: Default::default(),
+            drag_layout: Default::default(),
             factory,
             current_title: DEFAULT_TITLE.to_string(),
             ui,
@@ -498,7 +501,7 @@ fn classify_title_update(pending: Option<String>) -> Option<TitleUpdate> {
 
 impl Render for Prototype {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
-        let strip = self.tab_strip(cx);
+        let strip = self.tab_strip(window, cx);
         let title = self
             .tabs
             .active()

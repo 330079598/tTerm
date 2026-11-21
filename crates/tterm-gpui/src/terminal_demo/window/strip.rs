@@ -108,7 +108,21 @@ impl Prototype {
         cx.stop_propagation();
     }
 
-    pub(super) fn tab_strip(&self, cx: &mut Context<Self>) -> Div {
+    fn advance_drag(&mut self, window: &Window, cx: &Context<Self>) {
+        if self.drag_layout.gesture.get().is_some() {
+            if cx.has_active_drag() {
+                super::drag::advance_scroll(&self.overflow.handle, window);
+            } else {
+                self.drag_layout.gesture.set(None);
+                self.drag_layout.motion = Default::default();
+            }
+        }
+    }
+
+    pub(super) fn tab_strip(&mut self, window: &Window, cx: &mut Context<Self>) -> Div {
+        self.advance_drag(window, cx);
+        let placement = self.placement(window);
+        let now = std::time::Instant::now();
         let colors = self.ui.theme.colors;
         let mut strip = div()
             .flex()
@@ -197,46 +211,33 @@ impl Prototype {
                 )
                 .on_click(cx.listener(move |this, _, window, cx| this.select_tab(id, window, cx)));
             if closable {
-                item = super::drag::reorderable(
-                    item,
-                    id,
-                    label,
-                    self.ui.theme,
-                    self.overflow.handle.clone(),
-                    cx,
-                );
-                item = item.child(
-                    div()
-                        .id(("close-session-tab", id))
-                        .aria_label(close.clone())
-                        .size(px(18.))
-                        .flex_shrink_0()
-                        .flex()
-                        .items_center()
-                        .justify_center()
-                        .rounded(px(3.))
-                        .when(!active, |button| {
-                            button
-                                .opacity(0.)
-                                .group_hover(group, |style| style.opacity(1.))
-                        })
-                        .hover(|style| style.bg(hsla(colors.muted, 0.82)))
-                        .child("×")
-                        .on_mouse_down(gpui_kit::MouseButton::Left, |_, window, cx| {
-                            window.prevent_default();
-                            cx.stop_propagation();
-                        })
-                        .on_click(cx.listener(move |this, _, window, cx| {
-                            cx.stop_propagation();
-                            this.close_tab(id, window, cx);
-                        })),
-                );
+                item =
+                    super::drag::reorderable(item, id, label, self.ui.theme, &self.drag_layout, cx);
+                item = item.child(self.close_button(id, active, group, close.clone(), cx));
             }
-            strip = strip.child(item);
+            let shift = placement
+                .as_ref()
+                .map_or(0., |layout| layout.displacement(index));
+            let offset = self.drag_layout.motion.offset(id, shift, now);
+            let hidden = self
+                .drag_layout
+                .gesture
+                .get()
+                .is_some_and(|(dragged, _)| dragged == id);
+            strip = strip.child(
+                div()
+                    .flex()
+                    .flex_shrink_0()
+                    .child(item.left(px(offset)).when(hidden, |item| item.opacity(0.))),
+            );
         }
-        let viewport = self
-            .overflow
-            .wrap(strip, self.tabs.active_id(), index, &self.ui.locale, cx);
+        let viewport = self.overflow.wrap(
+            super::drag::drop_target(strip, cx),
+            self.tabs.active_id(),
+            index,
+            &self.ui.locale,
+            cx,
+        );
         div()
             .flex()
             .min_w_0()
@@ -258,5 +259,40 @@ impl Prototype {
                     .child("+")
                     .on_click(cx.listener(|this, _, window, cx| this.new_tab(window, cx))),
             )
+    }
+
+    fn close_button(
+        &self,
+        id: usize,
+        active: bool,
+        group: String,
+        label: String,
+        cx: &Context<Self>,
+    ) -> impl IntoElement + use<> {
+        let muted = self.ui.theme.colors.muted;
+        div()
+            .id(("close-session-tab", id))
+            .aria_label(label)
+            .size(px(18.))
+            .flex_shrink_0()
+            .flex()
+            .items_center()
+            .justify_center()
+            .rounded(px(3.))
+            .when(!active, |button| {
+                button
+                    .opacity(0.)
+                    .group_hover(group, |style| style.opacity(1.))
+            })
+            .hover(move |style| style.bg(hsla(muted, 0.82)))
+            .child("×")
+            .on_mouse_down(gpui_kit::MouseButton::Left, |_, window, cx| {
+                window.prevent_default();
+                cx.stop_propagation();
+            })
+            .on_click(cx.listener(move |this, _, window, cx| {
+                cx.stop_propagation();
+                this.close_tab(id, window, cx);
+            }))
     }
 }

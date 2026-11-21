@@ -2,10 +2,19 @@
 
 use gpui_kit::prelude::*;
 use gpui_kit::{Context, Div, EntityId, Pixels, ScrollHandle, Stateful, Window, div, px};
+use std::{cell::Cell, rc::Rc};
 use tterm_ui::tokens::gpui::hsla;
 use tterm_ui::tokens::theme::Theme;
 
 use super::Prototype;
+use super::motion::{Motion, Placement, destination};
+
+#[derive(Default)]
+pub(super) struct DragLayout {
+    pub(super) gesture: Rc<Cell<Option<(usize, Pixels)>>>,
+    press_x: Rc<Cell<Pixels>>,
+    pub(super) motion: Motion,
+}
 
 struct TabDrag {
     owner: EntityId,
@@ -15,7 +24,6 @@ struct TabDrag {
 struct Preview {
     title: String,
     theme: Theme,
-    scroll: ScrollHandle,
 }
 
 fn edge_step(position: Pixels, width: Pixels) -> Pixels {
@@ -28,20 +36,53 @@ fn edge_step(position: Pixels, width: Pixels) -> Pixels {
     px(14. * f32::from(near_left - near_right) / f32::from(edge))
 }
 
-impl Render for Preview {
-    fn render(&mut self, window: &mut Window, _: &mut Context<Self>) -> impl IntoElement {
-        let bounds = self.scroll.bounds();
-        let pointer = window.mouse_position();
-        if bounds.contains(&pointer) {
-            let mut offset = self.scroll.offset();
-            let step = edge_step(pointer.x - bounds.left(), bounds.size.width);
-            let next = (offset.x + step).clamp(-self.scroll.max_offset().x, px(0.));
-            if offset.x != next {
-                offset.x = next;
-                self.scroll.set_offset(offset);
-                window.request_animation_frame();
-            }
+impl Prototype {
+    pub(super) fn placement(&self, window: &Window) -> Option<Placement> {
+        let (id, grab) = self.drag_layout.gesture.get()?;
+        let source = self.tabs.ordered().position(|(tab, _)| tab == id)?;
+        let scroll = &self.overflow.handle;
+        if !scroll.bounds().contains(&window.mouse_position()) {
+            return None;
         }
+        let slots = (0..self.tabs.ordered().len())
+            .map(|index| scroll.bounds_for_item(index))
+            .collect::<Option<Vec<_>>>()?;
+        let width = slots[source].size.width;
+        let gap = slots
+            .get(1)
+            .map_or(px(0.), |second| second.left() - slots[0].right());
+        let first = slots.first()?.left();
+        let left = (window.mouse_position().x - scroll.offset().x - grab)
+            .clamp(first, (slots.last()?.right() - width).max(first));
+        let centres = slots
+            .iter()
+            .map(|slot| f32::from(slot.center().x))
+            .collect::<Vec<_>>();
+        Some(Placement {
+            source,
+            target: destination(&centres, source, left.into(), (left + width).into()),
+            span: (width + gap).into(),
+        })
+    }
+}
+
+pub(super) fn advance_scroll(scroll: &ScrollHandle, window: &Window) {
+    window.request_animation_frame();
+    let bounds = scroll.bounds();
+    let pointer = window.mouse_position();
+    if bounds.contains(&pointer) {
+        let mut offset = scroll.offset();
+        let step = edge_step(pointer.x - bounds.left(), bounds.size.width);
+        let next = (offset.x + step).clamp(-scroll.max_offset().x, px(0.));
+        if offset.x != next {
+            offset.x = next;
+            scroll.set_offset(offset);
+        }
+    }
+}
+
+impl Render for Preview {
+    fn render(&mut self, _: &mut Window, _: &mut Context<Self>) -> impl IntoElement {
         div()
             .h(px(30.))
             .max_w(px(220.))
@@ -60,34 +101,40 @@ pub(super) fn reorderable(
     id: usize,
     title: String,
     theme: Theme,
-    scroll: ScrollHandle,
+    layout: &DragLayout,
     cx: &Context<Prototype>,
 ) -> Stateful<Div> {
     let owner = cx.entity_id();
-    item.on_mouse_down(gpui_kit::MouseButton::Left, |_, window, _| {
+    let gesture = layout.gesture.clone();
+    let press = layout.press_x.clone();
+    let start = press.clone();
+    item.on_mouse_down(gpui_kit::MouseButton::Left, move |event, window, _| {
+        press.set(event.position.x);
         window.prevent_default()
     })
-    .on_drag(TabDrag { owner, id }, move |_, _, _, cx| {
+    .on_drag(TabDrag { owner, id }, move |_, grab, window, cx| {
+        gesture.set(Some((id, grab.x + start.get() - window.mouse_position().x)));
+        cx.notify(owner);
         cx.new(|_| Preview {
             title: title.clone(),
             theme,
-            scroll: scroll.clone(),
         })
     })
-    .drag_over::<TabDrag>(move |style, drag, _, _| {
-        if drag.owner == owner && drag.id != id {
-            style
-                .bg(hsla(theme.colors.tab_hover, 1.))
-                .border_b_2()
-                .border_color(hsla(theme.colors.tab_active_border, 1.))
-        } else {
-            style
+}
+
+pub(super) fn drop_target(strip: Div, cx: &Context<Prototype>) -> Div {
+    strip.on_drop(cx.listener(|this, drag: &TabDrag, window, cx| {
+        if drag.owner == cx.entity_id()
+            && let Some(placement) = this.placement(window)
+        {
+            let target = this.tabs.ordered().nth(placement.target).map(|(id, _)| id);
+            if let Some(target) = target {
+                this.tabs.move_to(drag.id, target);
+            }
         }
-    })
-    .on_drop(cx.listener(move |this, drag: &TabDrag, _, cx| {
-        if owner == drag.owner && this.tabs.move_to(drag.id, id) {
-            cx.notify();
-        }
+        this.drag_layout.gesture.set(None);
+        this.drag_layout.motion = Motion::default();
+        cx.notify();
     }))
 }
 
@@ -106,3 +153,6 @@ mod tests {
         }
     }
 }
+
+#[cfg(test)]
+mod window_tests;
