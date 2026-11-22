@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { afterEach, beforeAll, describe, expect, it } from "vitest"
+import { afterEach, beforeAll, describe, expect, it, vi } from "vitest"
 import { Terminal } from "@xterm/xterm"
 
 import {
@@ -81,13 +81,16 @@ describe("attachPredictiveEcho", () => {
   })
 
   it("draws nothing when off, on a fast link in auto mode, or when typing may not echo", async () => {
+    using clock = vi.spyOn(Date, "now").mockReturnValue(1_000)
     for (const [mode, canPredict] of [
       ["off", true],
       ["auto", true],
       ["always", false],
     ] as const) {
       const predictive = (await setup(mode, () => canPredict)).echo
+      clock.mockReturnValue(1_000)
       predictive.noteInput("l")
+      clock.mockReturnValue(1_005)
       await write("l")
       predictive.noteInput("s")
       expect(drawn(), mode).toBe("")
