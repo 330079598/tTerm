@@ -148,6 +148,18 @@
     "needsSession": "Only a terminal or connection pane can be copied into the panes this layout adds.",
     "delete": "Delete layout {{name}}"
   },
+  "savedConnections": {
+    "title": "Saved SSH connections",
+    "description": "Choose a saved SSH connection to open in a new tab.",
+    "open": "Open",
+    "opening": "Opening…",
+    "hint": "Up and Down select, Enter opens, and Escape closes.",
+    "loading": "Loading saved connections…",
+    "empty": "No saved SSH connections yet.",
+    "loadFailed": "Could not load saved SSH connections. Try again.",
+    "openFailed": "This saved connection could not be opened. It may have been deleted or is unavailable. Choose another connection.",
+    "select": "Select {{name}}"
+  },
   "broadcast": {
     "title": "Terminal broadcast",
     "selected_one": "{{count}} selected",

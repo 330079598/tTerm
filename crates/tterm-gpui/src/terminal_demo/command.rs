@@ -6,6 +6,7 @@
 
 use tterm_core::core::session::types::PtyConnectionOptions;
 use tterm_core::profiles::connection::connection_options_for_profile;
+use tterm_core::profiles::launch::SavedSshLaunch;
 use tterm_core::profiles::types::SavedProfile;
 use tterm_core::workspace::tab::{ConnectionType, Tab, TabConnection, TabType, TerminalShellType};
 
@@ -57,7 +58,7 @@ impl CommandSpec {
         match self {
             Self::Shell => local_options(None, &[]),
             Self::Program { program, args } => local_options(Some(program), args),
-            Self::SshProfile { selector } => saved_ssh_profile(selector),
+            Self::SshProfile { selector } => saved_ssh_profile_from_cli(selector),
         }
     }
 
@@ -81,10 +82,20 @@ pub(super) struct TabLaunch {
     restored: bool,
 }
 
+/// How a saved SSH profile is selected when a tab opens.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(super) enum SshProfileSelector {
+    /// A tab that knows its saved profile must reopen exactly that row.
+    Id(String),
+    /// A workspace saved before tabs carried ids can reopen by a unique name.
+    Name(String),
+}
+
 pub(super) enum LaunchSource {
     Command(CommandSpec),
     Local(Box<PtyConnectionOptions>),
-    SshProfile { selector: String },
+    SshProfile { selector: SshProfileSelector },
+    SavedSshProfile(Box<SavedSshLaunch>),
     Unsupported { reason: String },
 }
 
@@ -109,7 +120,9 @@ impl TabLaunch {
         let saved_id = saved.id.clone();
         let may_resume_agent = matches!(
             source,
-            LaunchSource::Local(_) | LaunchSource::SshProfile { .. }
+            LaunchSource::Local(_)
+                | LaunchSource::SshProfile { .. }
+                | LaunchSource::SavedSshProfile(_)
         );
         Self {
             saved_id,
@@ -117,6 +130,21 @@ impl TabLaunch {
             source,
             may_resume_agent,
             restored: true,
+        }
+    }
+
+    /// A profile confirmed in the picker, with its connection already built
+    /// from the isolated profile database.
+    pub(super) fn saved_profile(saved_id: impl Into<String>, launch: SavedSshLaunch) -> Self {
+        let saved_id = saved_id.into();
+        let mut saved = launch.saved_tab.clone();
+        saved.set_id(saved_id.clone());
+        Self {
+            saved_id,
+            saved,
+            source: LaunchSource::SavedSshProfile(Box::new(launch)),
+            may_resume_agent: true,
+            restored: false,
         }
     }
 
@@ -142,7 +170,9 @@ impl TabLaunch {
     pub(super) fn is_ssh(&self) -> bool {
         matches!(
             self.source,
-            LaunchSource::Command(CommandSpec::SshProfile { .. }) | LaunchSource::SshProfile { .. }
+            LaunchSource::Command(CommandSpec::SshProfile { .. })
+                | LaunchSource::SshProfile { .. }
+                | LaunchSource::SavedSshProfile(_)
         )
     }
 
@@ -189,6 +219,7 @@ impl TabLaunch {
             LaunchSource::Command(command) => command.connection_options(),
             LaunchSource::Local(options) => Ok(options.as_ref().clone()),
             LaunchSource::SshProfile { selector } => saved_ssh_profile(selector),
+            LaunchSource::SavedSshProfile(launch) => Ok(launch.connection.clone()),
             LaunchSource::Unsupported { reason } => Err(reason.clone()),
         }
     }
@@ -273,14 +304,61 @@ fn local_options(
     })
 }
 
-fn saved_ssh_profile(selector: &str) -> Result<PtyConnectionOptions, String> {
+fn saved_ssh_profile(selector: &SshProfileSelector) -> Result<PtyConnectionOptions, String> {
     let profiles = tterm_core::profiles::storage::load_profiles()?;
-    let mut profile = select_saved_profile(selector, &profiles)?;
+    let mut profile = match selector {
+        SshProfileSelector::Id(id) => select_saved_profile_by_id(id, &profiles)?,
+        SshProfileSelector::Name(name) => select_saved_profile_by_name(name, &profiles)?,
+    };
     tterm_core::profiles::storage::normalize_profile(&mut profile);
     connection_options_for_profile(&profile)
 }
 
-fn select_saved_profile(selector: &str, profiles: &[SavedProfile]) -> Result<SavedProfile, String> {
+fn saved_ssh_profile_from_cli(selector: &str) -> Result<PtyConnectionOptions, String> {
+    let profiles = tterm_core::profiles::storage::load_profiles()?;
+    let mut profile = select_saved_profile_from_cli(selector, &profiles)?;
+    tterm_core::profiles::storage::normalize_profile(&mut profile);
+    connection_options_for_profile(&profile)
+}
+
+fn select_saved_profile_by_id(id: &str, profiles: &[SavedProfile]) -> Result<SavedProfile, String> {
+    profiles
+        .iter()
+        .find(|profile| profile.id == id)
+        .cloned()
+        .ok_or_else(|| {
+            format!(
+                "The saved connection with id '{id}' no longer exists. Choose another saved \
+                 connection."
+            )
+        })
+}
+
+fn select_saved_profile_by_name(
+    name: &str,
+    profiles: &[SavedProfile],
+) -> Result<SavedProfile, String> {
+    let mut matches = profiles
+        .iter()
+        .filter(|profile| profile.name.eq_ignore_ascii_case(name));
+    let Some(profile) = matches.next() else {
+        return Err(format!(
+            "No saved connection matches '{name}'. Save it in tTerm first."
+        ));
+    };
+    if matches.next().is_some() {
+        return Err(format!(
+            "More than one saved connection is named '{name}'; reopen the tab after choosing a \
+             unique name."
+        ));
+    }
+    Ok(profile.clone())
+}
+
+fn select_saved_profile_from_cli(
+    selector: &str,
+    profiles: &[SavedProfile],
+) -> Result<SavedProfile, String> {
     if let Some(profile) = profiles
         .iter()
         .find(|profile| profile.id == selector)
@@ -333,7 +411,10 @@ fn join_arguments(args: &[String]) -> Result<String, String> {
 
 #[cfg(test)]
 mod tests {
-    use super::{CommandSpec, join_arguments, select_saved_profile};
+    use super::{
+        CommandSpec, join_arguments, select_saved_profile_by_id, select_saved_profile_by_name,
+        select_saved_profile_from_cli,
+    };
     use tterm_core::profiles::types::SavedProfile;
 
     fn args(list: &[&str]) -> Vec<String> {
@@ -407,11 +488,13 @@ mod tests {
         let profiles = vec![profile("prod", "Production"), profile("other", "prod")];
 
         assert_eq!(
-            select_saved_profile("prod", &profiles).expect("id").name,
+            select_saved_profile_from_cli("prod", &profiles)
+                .expect("id")
+                .name,
             "Production"
         );
         assert_eq!(
-            select_saved_profile("production", &profiles)
+            select_saved_profile_from_cli("production", &profiles)
                 .expect("case-insensitive name")
                 .id,
             "prod"
@@ -428,6 +511,33 @@ mod tests {
             .expect("profile")
         };
         let profiles = vec![profile("one"), profile("two")];
-        assert!(select_saved_profile("production", &profiles).is_err());
+        assert!(select_saved_profile_from_cli("production", &profiles).is_err());
+        assert!(select_saved_profile_by_name("Production", &profiles).is_err());
+    }
+
+    #[test]
+    fn exact_ids_and_legacy_names_never_borrow_each_others_lookup() {
+        let profile = |id: &str, name: &str| -> SavedProfile {
+            serde_json::from_value(serde_json::json!({
+                "id": id, "name": name, "connection_type": "ssh",
+                "host": "example.com", "username": "user"
+            }))
+            .expect("profile")
+        };
+        let profiles = vec![profile("prod", "Production"), profile("other", "prod")];
+
+        assert_eq!(
+            select_saved_profile_by_id("prod", &profiles)
+                .expect("exact id")
+                .name,
+            "Production"
+        );
+        assert_eq!(
+            select_saved_profile_by_name("prod", &profiles)
+                .expect("name-only legacy tab")
+                .id,
+            "other"
+        );
+        assert!(select_saved_profile_by_id("Production", &profiles).is_err());
     }
 }

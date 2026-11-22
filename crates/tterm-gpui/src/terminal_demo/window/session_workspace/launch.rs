@@ -5,7 +5,7 @@ use tterm_core::core::session::types::PtyConnectionOptions;
 use tterm_core::workspace::local_shells::connections::with_current_local_shell;
 use tterm_core::workspace::tab::{ConnectionType, Tab, TabConnection, TabType};
 
-use crate::terminal_demo::command::{LaunchSource, TabLaunch};
+use crate::terminal_demo::command::{LaunchSource, SshProfileSelector, TabLaunch};
 
 const SHELL_FIELD: &str = "terminalShell";
 const SHELL_PATH_FIELD: &str = "terminalShellCustomPath";
@@ -114,22 +114,23 @@ fn local_options(tab: &Tab, config: &AppConfig) -> Result<PtyConnectionOptions, 
     Ok(options)
 }
 
-fn ssh_selector(tab: &Tab) -> Option<String> {
+fn ssh_selector(tab: &Tab) -> Option<SshProfileSelector> {
     let connection = tab.connection.as_ref()?;
     if connection.connection_type != Some(ConnectionType::Ssh) {
         return None;
     }
-    connection
+    if let Some(id) = connection
         .saved_field("profileId")
         .and_then(serde_json::Value::as_str)
         .filter(|value| !value.trim().is_empty())
-        .or_else(|| {
-            connection
-                .saved_field("profileName")
-                .and_then(serde_json::Value::as_str)
-                .filter(|value| !value.trim().is_empty())
-        })
-        .map(str::to_owned)
+    {
+        return Some(SshProfileSelector::Id(id.to_string()));
+    }
+    connection
+        .saved_field("profileName")
+        .and_then(serde_json::Value::as_str)
+        .filter(|value| !value.trim().is_empty())
+        .map(|name| SshProfileSelector::Name(name.to_string()))
 }
 
 fn saved_text<'a>(connection: &'a TabConnection, key: &str, fallback: &'a str) -> &'a str {
@@ -149,4 +150,64 @@ fn valid_distro(value: &str) -> bool {
         && value
             .chars()
             .all(|ch| ch.is_ascii_alphanumeric() || matches!(ch, '.' | '_' | '-'))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{SshProfileSelector, ssh_selector};
+    use tterm_core::workspace::tab::{ConnectionType, Tab, TabConnection, TabType};
+
+    fn connection_tab(
+        connection_type: ConnectionType,
+        profile_id: Option<&str>,
+        profile_name: Option<&str>,
+    ) -> Tab {
+        let mut connection = TabConnection::default();
+        connection.set_connection_type(Some(connection_type));
+        connection.set_profile_id(profile_id.map(str::to_string));
+        connection.set_profile_name(profile_name.map(str::to_string));
+        let mut tab = Tab::new("tab-1", "Saved", TabType::Ssh);
+        tab.set_connection(Some(connection));
+        tab
+    }
+
+    #[test]
+    fn a_saved_ssh_tab_keeps_exact_ids_and_legacy_names_separate() {
+        assert_eq!(
+            ssh_selector(&connection_tab(
+                ConnectionType::Ssh,
+                Some("profile-1"),
+                Some("Renamed"),
+            )),
+            Some(SshProfileSelector::Id("profile-1".to_string()))
+        );
+        assert_eq!(
+            ssh_selector(&connection_tab(
+                ConnectionType::Ssh,
+                None,
+                Some("Production"),
+            )),
+            Some(SshProfileSelector::Name("Production".to_string()))
+        );
+        assert_eq!(
+            ssh_selector(&connection_tab(
+                ConnectionType::Ssh,
+                Some("  "),
+                Some("Production"),
+            )),
+            Some(SshProfileSelector::Name("Production".to_string()))
+        );
+    }
+
+    #[test]
+    fn a_saved_tab_of_another_type_is_not_an_ssh_launch() {
+        assert_eq!(
+            ssh_selector(&connection_tab(
+                ConnectionType::Terminal,
+                Some("profile-1"),
+                None,
+            )),
+            None
+        );
+    }
 }

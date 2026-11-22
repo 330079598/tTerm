@@ -42,6 +42,8 @@ tokio = { version = "=1.53.1", features = ["rt-multi-thread", "sync"] }
 image = { version = "=0.25.10", default-features = false, features = ["png"], optional = true }
 
 [dev-dependencies]
+rand = "=0.10.3"
+russh = { version = "=0.63.3", default-features = false, features = ["ring", "rsa"] }
 # `test-support` gives the terminal_view example `Window::render_to_image` for
 # its screenshot; `profiler` enables GPUI's frame timings for the P0-10
 # drawing benchmark.

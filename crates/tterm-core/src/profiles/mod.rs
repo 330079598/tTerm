@@ -6,6 +6,7 @@ pub mod connection_check;
 pub mod group_service;
 pub mod groups;
 pub mod import;
+pub mod launch;
 pub mod parser;
 pub mod service;
 pub mod storage;

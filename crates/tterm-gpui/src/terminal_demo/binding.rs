@@ -114,6 +114,11 @@ impl SessionManager {
         self.tabs().get(tab_id).map(Rc::clone)
     }
 
+    /// The services every session in this manager shares.
+    pub fn services(&self) -> Arc<AppServices> {
+        Arc::clone(&self.services)
+    }
+
     /// Closes a tab and releases every backend state item scoped to it.
     pub fn close_tab(&self, tab_id: &str) -> Result<(), String> {
         let binding = self.tabs().remove(tab_id);

@@ -14,6 +14,10 @@ mod motion;
 mod nudge;
 mod overflow;
 mod picker;
+mod profile_launch;
+mod saved_connections;
+#[cfg(test)]
+mod saved_connections_tests;
 mod session_workspace;
 mod settings_page;
 #[cfg(test)]
@@ -65,6 +69,7 @@ use crate::app_window::state::WindowGeometry;
 use crate::config_state::ConfigState;
 use crate::locale::{Locale, LocaleGlobal};
 use crate::scrollback_setting::ScrollbackSetting;
+use saved_connections::SavedConnectionsUi;
 use template_ui::TemplateUi;
 
 const INITIAL_GRID: GridSize = GridSize {
@@ -231,6 +236,7 @@ pub(super) struct Prototype {
     next_saved_tab: u64,
     closing: bool,
     settings_open: bool,
+    pending_profile_opens: std::collections::HashSet<String>,
     factory: TabFactory,
     current_title: String,
     ui: WindowUi,
@@ -316,6 +322,8 @@ impl Prototype {
         cx.observe(&scrollback_setting, |_, _, cx| cx.notify())
             .detach();
         let template_ui = TemplateUi::for_workspace(config.clone(), locale.clone(), theme, cx);
+        let saved_connections =
+            SavedConnectionsUi::for_workspace(sessions.services(), locale.clone(), theme, cx);
         cx.observe(&locale, |_, _, cx| cx.notify()).detach();
         cx.observe(&geometry, |_, _, cx| cx.notify()).detach();
         subscribe_history(cx, &config, &sessions).detach();
@@ -326,6 +334,7 @@ impl Prototype {
             background,
             scrollback_setting,
             template_ui,
+            saved_connections,
         };
         let factory = TabFactory {
             sessions,
@@ -355,6 +364,7 @@ impl Prototype {
             next_saved_tab,
             closing: false,
             settings_open: false,
+            pending_profile_opens: Default::default(),
             picker: None,
             overflow: Default::default(),
             drag_layout: Default::default(),
@@ -624,6 +634,7 @@ struct WindowUi {
     background: Rgba,
     scrollback_setting: Entity<ScrollbackSetting>,
     template_ui: Entity<TemplateUi>,
+    saved_connections: Entity<SavedConnectionsUi>,
 }
 
 struct FailedTab {
@@ -721,11 +732,13 @@ impl Render for Prototype {
                 .child(settings_button)
         } else {
             let layout_button = self.layout_template_button(cx);
+            let saved_connections_button = self.saved_connections_button(cx);
             div()
                 .flex()
                 .items_center()
                 .gap(px(4.0))
                 .child(layout_button)
+                .child(saved_connections_button)
                 .child(settings_button)
         };
         let titlebar = TitleBar::new(self.current_title.clone(), self.ui.theme)
@@ -761,6 +774,7 @@ impl Render for Prototype {
                     .flatten(),
             )
             .children((!settings_open).then(|| self.ui.template_ui.clone()))
+            .children((!settings_open).then(|| self.ui.saved_connections.clone()))
     }
 }
 
