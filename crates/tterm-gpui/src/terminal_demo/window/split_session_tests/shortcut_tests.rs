@@ -1,5 +1,5 @@
 use super::*;
-use tterm_core::workspace::tab_groups::SplitOrientation;
+use tterm_core::workspace::tab_groups::{PaneNode, SplitOrientation};
 
 fn with_workspace(
     cx: &mut TestAppContext,
@@ -50,8 +50,11 @@ fn verify_split(cx: &mut TestAppContext, config: AppConfig, key: &str, axis: Spl
         press(visual, key);
         let second = visual.update(|window, cx| {
             let workspace = root.read(cx);
-            check_visible(workspace, [Some(1), Some(2)], 2, window, cx);
-            assert_eq!(workspace.splits.pair_for(1).unwrap().axis, axis);
+            check_visible(workspace, &[1, 2], 2, window, cx);
+            match workspace.splits.root(1).expect("split root") {
+                PaneNode::Split { orientation, .. } => assert_eq!(*orientation, axis),
+                PaneNode::Pane { .. } => panic!("expected a split root"),
+            }
             workspace
                 .tabs
                 .active()
@@ -67,11 +70,11 @@ fn verify_split(cx: &mut TestAppContext, config: AppConfig, key: &str, axis: Spl
         press(visual, key);
         visual.update(|window, cx| {
             root.update(cx, |workspace, cx| {
-                check_visible(workspace, [Some(1), Some(2)], 2, window, cx);
+                check_visible(workspace, &[1, 2], 2, window, cx);
                 assert_eq!(workspace.tabs.ordered().len(), 2);
                 assert!(workspace.factory.sessions.tab("gpui-3").is_none());
                 workspace.close_tab(2, window, cx);
-                check_visible(workspace, [Some(1), None], 1, window, cx);
+                check_visible(workspace, &[1], 1, window, cx);
                 assert!(workspace.factory.sessions.tab("gpui-2").is_none());
             })
         });
@@ -94,7 +97,7 @@ fn pane_zoom_preserves_the_pair_and_routes_focus_only_to_visible_panes(cx: &mut 
             press(visual, "\\");
             let models = visual.update(|_, cx| {
                 root.update(cx, |workspace, _| {
-                    assert!(workspace.splits.resize(1, 0.35));
+                    assert!(workspace.splits.resize(1, &[], &[0.35, 0.65]));
                     ["gpui-1", "gpui-2"].map(|id| {
                         workspace
                             .factory
@@ -111,17 +114,17 @@ fn pane_zoom_preserves_the_pair_and_routes_focus_only_to_visible_panes(cx: &mut 
                 visual.update(|window, cx| {
                     let workspace = root.read(cx);
                     check_visible(workspace, visible, focused, window, cx);
-                    assert_eq!(workspace.splits.pair_for(1).unwrap().ratio, 0.35);
+                    assert_eq!(workspace.splits.split_sizes(1, &[]), Some(vec![0.35, 0.65]));
                 })
             };
             press(visual, "alt-enter");
-            check(visual, [Some(2), None], 2);
+            check(visual, &[2], 2);
             press(visual, "alt-left");
-            check(visual, [Some(2), None], 2);
+            check(visual, &[2], 2);
             send_marker(visual, &models[1], "zoomedpane");
             assert!(!output(&models[0]).contains("zoomedpane"));
             press(visual, "alt-enter");
-            check(visual, [Some(1), Some(2)], 2);
+            check(visual, &[1, 2], 2);
             press(visual, "alt-enter");
             visual.update(|window, cx| {
                 root.update(cx, |workspace, cx| {
@@ -130,11 +133,11 @@ fn pane_zoom_preserves_the_pair_and_routes_focus_only_to_visible_panes(cx: &mut 
                     workspace.close_tab(3, window, cx);
                 })
             });
-            check(visual, [Some(2), None], 2);
+            check(visual, &[2], 2);
             visual.update(|window, cx| {
                 root.update(cx, |workspace, cx| workspace.select_tab(1, window, cx))
             });
-            check(visual, [Some(1), Some(2)], 1);
+            check(visual, &[1, 2], 1);
             send_marker(visual, &models[0], "revealedpane");
         },
     );
@@ -166,7 +169,7 @@ fn split_does_not_duplicate_exec_programs(cx: &mut TestAppContext) {
         press(visual, "\\");
         visual.update(|window, cx| {
             let workspace = root.read(cx);
-            check_visible(workspace, [Some(1), None], 1, window, cx);
+            check_visible(workspace, &[1], 1, window, cx);
             assert!(workspace.factory.sessions.tab("gpui-2").is_none());
         });
     });
@@ -195,7 +198,7 @@ fn restoring_single_panes_keeps_both_sessions_and_the_active_tab(cx: &mut TestAp
             press(visual, "alt-\\");
             visual.update(|window, cx| {
                 let workspace = root.read(cx);
-                check_visible(workspace, [Some(2), None], 2, window, cx);
+                check_visible(workspace, &[2], 2, window, cx);
                 assert_eq!(
                     workspace
                         .tabs
@@ -221,7 +224,7 @@ fn restoring_single_panes_keeps_both_sessions_and_the_active_tab(cx: &mut TestAp
                 root.update(cx, |workspace, cx| {
                     assert_eq!(workspace.nudge.map(|(id, _)| id), Some(2));
                     workspace.select_tab(1, window, cx);
-                    check_visible(workspace, [Some(1), None], 1, window, cx);
+                    check_visible(workspace, &[1], 1, window, cx);
                 })
             });
             send_marker(visual, &original[0].model(), "firstalone");

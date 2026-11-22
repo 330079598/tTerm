@@ -292,7 +292,6 @@ impl Prototype {
                             if let Some(tab) = prototype
                                 .visible_ids()
                                 .into_iter()
-                                .flatten()
                                 .filter_map(|id| prototype.tabs.get(id))
                                 .find(|tab| {
                                     tab.binding
@@ -314,7 +313,7 @@ impl Prototype {
         .detach();
         Self {
             tabs: Tabs::new(tab),
-            splits: Default::default(),
+            splits: split_state::SplitState::new(1),
             picker: None,
             overflow: Default::default(),
             drag_layout: Default::default(),
@@ -406,7 +405,7 @@ impl TabFactory {
             while wake.changed().await {
                 wake.acknowledge();
                 let updated = prototype.update(cx, |prototype, cx| {
-                    if prototype.visible_ids().contains(&Some(id))
+                    if prototype.visible_ids().contains(&id)
                         && let Some(tab) = prototype.tabs.get(id)
                     {
                         tab.view.update(cx, |view, cx| view.notify_output(cx));

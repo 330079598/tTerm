@@ -1,10 +1,15 @@
-//! A tab drop moves the existing terminal view beside another session.
+//! Split cards render the whole pane tree, and a tab drop moves the existing
+//! terminal view beside the leaf under the pointer.
 
 use std::{cell::Cell, rc::Rc};
 
 use gpui_kit::prelude::*;
 use gpui_kit::{
     App, Bounds, Context, Div, Hsla, Pixels, Point, Window, canvas, div, fill, outline, px,
+};
+use tterm_core::workspace::{
+    pane_layout::{PaneMinimum, minimum_extent},
+    tab_groups::{PaneNode, SplitOrientation, get_pane_ids},
 };
 use tterm_ui::tokens::gpui::hsla;
 
@@ -57,7 +62,24 @@ fn preview_bounds(mut bounds: Bounds<Pixels>, edge: Edge) -> Bounds<Pixels> {
     )
 }
 
-fn drop_surface(
+fn leaf_drop_surface(
+    tab_id: usize,
+    foreground: Hsla,
+    background: Hsla,
+    commit: impl Fn(&TabDrag, Edge, &mut Window, &mut App) + 'static,
+) -> impl IntoElement {
+    named_drop_surface(
+        format!("split-drop-surface-{tab_id}"),
+        format!("workspace-pane-drop-{tab_id}"),
+        foreground,
+        background,
+        commit,
+    )
+}
+
+fn named_drop_surface(
+    id: String,
+    selector: String,
     foreground: Hsla,
     background: Hsla,
     commit: impl Fn(&TabDrag, Edge, &mut Window, &mut App) + 'static,
@@ -65,7 +87,8 @@ fn drop_surface(
     let measured = Rc::new(Cell::new(None::<Bounds<Pixels>>));
     let target = measured.clone();
     div()
-        .id("split-drop-surface")
+        .id(id)
+        .debug_selector(move || selector)
         .absolute()
         .inset_0()
         .occlude()
@@ -96,53 +119,145 @@ fn drop_surface(
 
 impl Prototype {
     pub(super) fn workspace_panes(&self, window: &mut Window, cx: &mut Context<Self>) -> Div {
-        let selected = self.tabs.active_id();
-        let pair = self.splits.visible_pair(selected);
-        let mut root = div().size_full().relative().flex().min_w_0().min_h_0();
-        if let Some(pair) = pair {
-            let panes = [(pair.first, pair.ratio), (pair.second, 1. - pair.ratio)]
-                .into_iter()
-                .filter_map(|(id, weight)| {
-                    let view = self.tabs.get(id)?.view.clone();
-                    Some(
+        let active = self.tabs.active_id();
+        let source = self.drag_layout.gesture.get().and_then(|(id, _)| {
+            (cx.has_active_drag() && self.tabs.get(id).is_some()).then_some(id)
+        });
+        let root = div().size_full().relative().flex().min_w_0().min_h_0();
+        let Some(tree) = self.splits.root(active).cloned() else {
+            return root.child(self.render_pane(active, source, cx));
+        };
+        if let Some(zoomed) = self.splits.zoomed(active) {
+            return root.child(self.render_pane(zoomed, source, cx));
+        }
+        root.child(self.render_node(&tree, Vec::new(), active, source, window, cx))
+    }
+
+    fn render_node(
+        &self,
+        node: &PaneNode,
+        path: Vec<usize>,
+        active: usize,
+        source: Option<usize>,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) -> Div {
+        match node {
+            PaneNode::Pane { tab_id } => tab_id
+                .parse::<usize>()
+                .ok()
+                .map_or_else(|| div().size_full(), |id| self.render_pane(id, source, cx)),
+            PaneNode::Split {
+                orientation,
+                children,
+                sizes,
+            } => {
+                let horizontal = *orientation == SplitOrientation::Horizontal;
+                let count = children.len();
+                let resolved = resolve_sizes(sizes, count);
+                let minimum = PaneMinimum {
+                    width: 220.,
+                    height: 140.,
+                };
+                let minimums = children
+                    .iter()
+                    .map(|child| minimum_extent(child, *orientation, minimum, f64::from(sash::GAP)))
+                    .collect();
+                let sashes = sash::Sashes::new(
+                    sash::SplitSpec {
+                        tab: active,
+                        path: &path,
+                        orientation: *orientation,
+                        sizes: &resolved,
+                        minimums,
+                        signature: get_pane_ids(node),
+                    },
+                    window,
+                    cx,
+                );
+                let mut split = div().size_full().relative().flex().min_w_0().min_h_0();
+                if !horizontal {
+                    split = split.flex_col();
+                }
+                for (index, child) in children.iter().enumerate() {
+                    let mut child_path = path.clone();
+                    child_path.push(index);
+                    let pane = self.render_node(child, child_path, active, source, window, cx);
+                    split = split.child(
                         div()
                             .flex_basis(px(0.))
-                            .flex_grow(weight)
+                            .flex_grow(resolved.get(index).copied().unwrap_or(0.) as f32)
                             .min_w_0()
                             .min_h_0()
                             .overflow_hidden()
-                            .child(view)
-                            .capture_any_mouse_down(cx.listener(move |this, _, window, cx| {
-                                if this.tabs.active_id() != id {
-                                    this.focus_pane(id, window, cx);
-                                }
-                            })),
-                    )
-                })
-                .collect::<Vec<_>>();
-            return sash::layout(root, pair, panes.into_iter(), self.ui.theme, window, cx);
+                            .child(pane),
+                    );
+                    if index + 1 < count {
+                        split = split.child(sashes.divider(index, self.ui.theme));
+                    }
+                }
+                split.child(sashes.tracker())
+            }
         }
-        root = root.child(self.tabs.active().view.clone());
-        if let Some((source, _)) = self.drag_layout.gesture.get()
-            && cx.has_active_drag()
-            && self.tabs.get(source).is_some()
-            && self.splits.can_split(source, selected)
+    }
+
+    fn render_pane(&self, tab_id: usize, source: Option<usize>, cx: &mut Context<Self>) -> Div {
+        let Some(tab) = self.tabs.get(tab_id) else {
+            return div().size_full();
+        };
+        let owner = cx.entity_id();
+        let workspace = cx.weak_entity();
+        let mut pane = div()
+            .debug_selector(|| format!("workspace-pane-{tab_id}"))
+            .relative()
+            .size_full()
+            .min_w_0()
+            .min_h_0()
+            .overflow_hidden()
+            .child(tab.view.clone())
+            .capture_any_mouse_down(cx.listener(move |this, _, window, cx| {
+                if this.tabs.active_id() != tab_id {
+                    this.focus_pane(tab_id, window, cx);
+                }
+            }));
+        if let Some(source) = source
+            && self.splits.can_split(source, tab_id)
         {
-            let owner = cx.entity_id();
-            let workspace = cx.weak_entity();
             let primary = self.ui.theme.colors.primary;
-            root = root.child(drop_surface(
+            pane = pane.child(leaf_drop_surface(
+                tab_id,
                 hsla(primary, 0.9),
                 hsla(primary, 0.18),
                 move |drag, edge, window, cx| {
                     if drag.owner == owner && drag.id == source {
                         let _ = workspace.update(cx, |this, cx| {
-                            this.split_tab(source, selected, edge, window, cx)
+                            this.split_tab(source, tab_id, edge, window, cx)
                         });
                     }
                 },
             ));
         }
-        root
+        pane
     }
+}
+
+fn resolve_sizes(sizes: &[f64], count: usize) -> Vec<f64> {
+    if count == 0 {
+        return Vec::new();
+    }
+    let fallback = 1. / count as f64;
+    let mut resolved = (0..count)
+        .map(|index| {
+            sizes
+                .get(index)
+                .copied()
+                .filter(|size| size.is_finite() && *size > 0.)
+                .unwrap_or(fallback)
+        })
+        .collect::<Vec<_>>();
+    let total: f64 = resolved.iter().sum();
+    if !total.is_finite() || total <= 0. {
+        resolved.fill(fallback);
+    }
+    resolved
 }

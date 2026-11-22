@@ -37,9 +37,9 @@ fn verify_sash(cx: &mut TestAppContext, edge: Edge) {
         visual.update(|window, cx| {
             window.render_frame(cx);
             let workspace = root.read(cx);
-            check_visible(workspace, [Some(1), Some(2)], 2, window, cx);
+            check_visible(workspace, &[1, 2], 2, window, cx);
             (
-                workspace.splits.pair_for(1).unwrap().ratio,
+                workspace.splits.split_sizes(1, &[]).unwrap()[0],
                 models.each_ref().map(|model| model.grid_size()),
             )
         })
@@ -74,7 +74,7 @@ fn verify_sash(cx: &mut TestAppContext, edge: Edge) {
     assert!(larger > first && smaller < second);
     assert_eq!((cross_first, cross_second), (cross_larger, cross_smaller));
     let total = (larger + smaller) as f32;
-    assert!((larger as f32 / total - dragged).abs() < 2. / total);
+    assert!((larger as f32 / total - dragged as f32).abs() < 2. / total);
     visual.simulate_mouse_up(end, MouseButton::Left, Default::default());
     visual.simulate_mouse_move(start, None, Default::default());
     assert_eq!(snapshot(visual), (dragged, after));

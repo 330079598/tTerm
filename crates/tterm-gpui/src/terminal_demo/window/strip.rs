@@ -58,32 +58,22 @@ impl WindowTab {
 }
 
 impl Prototype {
-    pub(super) fn visible_ids(&self) -> [Option<usize>; 2] {
-        let active = self.tabs.active_id();
-        self.splits
-            .visible_pair(active)
-            .map_or([Some(active), None], |pair| {
-                [Some(pair.first), Some(pair.second)]
-            })
+    pub(super) fn visible_ids(&self) -> Vec<usize> {
+        self.splits.visible_ids(self.tabs.active_id())
     }
 
-    fn refresh_panes(
-        &self,
-        previous: [Option<usize>; 2],
-        window: &mut Window,
-        cx: &mut Context<Self>,
-    ) {
+    fn refresh_panes(&self, previous: Vec<usize>, window: &mut Window, cx: &mut Context<Self>) {
         let visible = self.visible_ids();
-        for id in previous.into_iter().flatten() {
-            if !visible.contains(&Some(id))
-                && let Some(tab) = self.tabs.get(id)
+        for id in &previous {
+            if !visible.contains(id)
+                && let Some(tab) = self.tabs.get(*id)
             {
                 tab.leave(cx);
             }
         }
-        for id in visible.into_iter().flatten() {
+        for id in visible {
             if id != self.tabs.active_id()
-                && !previous.contains(&Some(id))
+                && !previous.contains(&id)
                 && let Some(tab) = self.tabs.get(id)
             {
                 if let Some(binding) = &tab.binding {
@@ -96,7 +86,7 @@ impl Prototype {
     }
 
     pub(super) fn focus_pane(&mut self, id: usize, window: &mut Window, cx: &mut Context<Self>) {
-        if id != self.tabs.active_id() && self.visible_ids().contains(&Some(id)) {
+        if id != self.tabs.active_id() && self.visible_ids().contains(&id) {
             self.select_tab(id, window, cx);
         }
     }
@@ -110,8 +100,9 @@ impl Prototype {
         cx: &mut Context<Self>,
     ) {
         let previous = self.visible_ids();
-        if !previous.contains(&Some(target))
+        if !previous.contains(&target)
             || self.tabs.get(source).is_none()
+            || !self.splits.can_split(source, target)
             || !self.splits.split(source, target, edge)
         {
             return;
@@ -126,7 +117,7 @@ impl Prototype {
             return;
         }
         self.tabs.select(id);
-        self.splits.reveal(id);
+        self.splits.focus(id);
         self.refresh_panes(previous, window, cx);
     }
 
@@ -136,12 +127,13 @@ impl Prototype {
             self.factory
                 .open(id, CommandSpec::Shell, &self.ui.locale, cx)
         });
+        self.splits.open(self.tabs.active_id());
         self.refresh_panes(previous, window, cx);
     }
 
     fn split_shell(&mut self, edge: Edge, window: &mut Window, cx: &mut Context<Self>) {
         let original = self.tabs.active_id();
-        if !self.tabs.active().live_default_shell() || self.splits.pair_for(original).is_some() {
+        if !self.tabs.active().live_default_shell() || self.splits.is_split(original) {
             self.nudge_active_tab(cx);
             return;
         }
@@ -154,9 +146,11 @@ impl Prototype {
         if new == original {
             return;
         }
+        self.splits.open(new);
         if self.tabs.active().live_default_shell() && self.splits.split(new, original, edge) {
             self.refresh_panes(previous, window, cx);
         } else {
+            self.splits.close(new);
             self.release_tab(new);
             self.tabs.select(original);
             self.nudge_active_tab(cx);
@@ -165,7 +159,7 @@ impl Prototype {
 
     fn restore_single_group(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         let previous = self.visible_ids();
-        if self.splits.remove(self.tabs.active_id()).is_some() {
+        if self.splits.ungroup(self.tabs.active_id()) {
             self.refresh_panes(previous, window, cx);
         } else {
             self.nudge_active_tab(cx);
@@ -187,13 +181,13 @@ impl Prototype {
         }
         let previous = self.visible_ids();
         let was_active = id == self.tabs.active_id();
-        let peer = self.splits.remove(id);
+        let peer = self.splits.close(id);
         self.release_tab(id);
         if was_active {
             if let Some(peer) = peer {
                 self.tabs.select(peer);
+                self.splits.focus(self.tabs.active_id());
             }
-            self.splits.reveal(self.tabs.active_id());
             self.refresh_panes(previous, window, cx);
         } else {
             cx.notify();
@@ -248,11 +242,7 @@ impl Prototype {
             }
             Some(action) if FOCUS_ACTIONS.contains(&action) => {
                 let active = self.tabs.active_id();
-                if let Some(id) = self
-                    .splits
-                    .visible_pair(active)
-                    .and_then(|pair| pair.focus_target(active, action))
-                {
+                if let Some(id) = self.splits.focus_target(active, action) {
                     self.focus_pane(id, window, cx);
                 } else {
                     self.nudge_active_tab(cx);

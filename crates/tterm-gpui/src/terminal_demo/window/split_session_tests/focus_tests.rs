@@ -38,7 +38,7 @@ fn verify_focus_keys(cx: &mut TestAppContext, edge: Edge) {
     visual
         .update(|window, cx| root.update(cx, |workspace, cx| workspace.select_tab(1, window, cx)));
     for key in [direction(inward), next.clone(), prev.clone()] {
-        press(visual, &key, [Some(1), None], 1);
+        press(visual, &key, &[1], 1);
     }
     let models = visual.update(|window, cx| {
         root.update(cx, |workspace, cx| {
@@ -63,18 +63,18 @@ fn verify_focus_keys(cx: &mut TestAppContext, edge: Edge) {
             })
         })
     });
-    let pair = [Some(1), Some(2)];
+    let pair = [1, 2];
     for key in [outward, across] {
-        press(visual, &direction(key), pair, 2);
+        press(visual, &direction(key), &pair, 2);
     }
-    press(visual, &direction(inward), pair, 1);
+    press(visual, &direction(inward), &pair, 1);
     send_marker(visual, &models[0], "firstfocus");
-    press(visual, &direction(outward), pair, 2);
+    press(visual, &direction(outward), &pair, 2);
     send_marker(visual, &models[1], "secondfocus");
     assert!(!output(&models[1]).contains("firstfocus"));
     assert!(!output(&models[0]).contains("secondfocus"));
     for (key, id) in [(&next, 1), (&next, 2), (&prev, 1), (&prev, 2)] {
-        press(visual, key, pair, id);
+        press(visual, key, &pair, id);
     }
     visual.update(|window, _| window.remove_window());
 }

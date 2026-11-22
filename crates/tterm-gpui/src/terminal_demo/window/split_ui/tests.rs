@@ -54,12 +54,14 @@ impl Render for DropProbe {
             )
             .child(
                 div()
+                    .debug_selector(|| "drop-probe-pane".into())
                     .relative()
                     .flex_1()
                     .min_h_0()
                     .child(self.view.clone())
                     .when(cx.has_active_drag(), |target| {
-                        target.child(drop_surface(
+                        target.child(leaf_drop_surface(
+                            6,
                             gpui_kit::white(),
                             gpui_kit::white(),
                             move |drag, edge, _, _| dropped.set(Some((drag.id, edge))),
@@ -105,6 +107,13 @@ fn native_tab_drop_reaches_surface_above_terminal_only_on_release(cx: &mut TestA
     let right = point(px(390.), px(140.));
     visual.simulate_mouse_move(right, MouseButton::Left, Default::default());
     assert_eq!(dropped.get(), None);
+    let pane = visual
+        .debug_bounds("drop-probe-pane")
+        .expect("probe pane is laid out");
+    let surface = visual
+        .debug_bounds("workspace-pane-drop-6")
+        .expect("leaf surface is laid out");
+    assert!(pane.contains(&surface.center()));
     visual.simulate_mouse_up(right, MouseButton::Left, Default::default());
     assert_eq!(dropped.get(), Some((6, Edge::Right)));
 }

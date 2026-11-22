@@ -8,6 +8,7 @@ use super::*;
 use crate::terminal_demo::runtime::{GpuiRuntime, test_runtime};
 
 mod focus_tests;
+mod nested_tests;
 mod sash_tests;
 mod shortcut_tests;
 
@@ -66,7 +67,7 @@ fn make_workspace_with(
 
 fn check_visible(
     workspace: &Prototype,
-    visible: [Option<usize>; 2],
+    visible: &[usize],
     focused: usize,
     window: &Window,
     cx: &App,
@@ -76,7 +77,7 @@ fn check_visible(
     for (id, tab) in workspace.tabs.ordered() {
         let session = tab.binding.as_ref().unwrap().session().unwrap();
         let view = tab.view.read(cx);
-        assert_eq!(view.is_visible(), visible.contains(&Some(id)));
+        assert_eq!(view.is_visible(), visible.contains(&id));
         assert_eq!(session.is_visible(), view.is_visible());
         assert_eq!(view.focus_handle().is_focused(window), id == focused);
     }
@@ -137,7 +138,7 @@ fn split_panes_keep_live_sessions_and_route_input_only_to_the_focused_view(
             });
             workspace.select_tab(1, window, cx);
             workspace.split_tab(2, 1, Edge::Right, window, cx);
-            check_visible(workspace, [Some(1), Some(2)], 2, window, cx);
+            check_visible(workspace, &[1, 2], 2, window, cx);
             let session = |id| {
                 workspace
                     .tabs
@@ -156,7 +157,7 @@ fn split_panes_keep_live_sessions_and_route_input_only_to_the_focused_view(
     visual.update(|window, cx| {
         root.update(cx, |workspace, cx| {
             workspace.focus_pane(1, window, cx);
-            check_visible(workspace, [Some(1), Some(2)], 1, window, cx);
+            check_visible(workspace, &[1, 2], 1, window, cx);
         })
     });
     send_marker(visual, &first.model(), "alphapane");
@@ -165,9 +166,9 @@ fn split_panes_keep_live_sessions_and_route_input_only_to_the_focused_view(
     visual.update(|window, cx| {
         root.update(cx, |workspace, cx| {
             workspace.new_tab(window, cx);
-            check_visible(workspace, [Some(3), None], 3, window, cx);
+            check_visible(workspace, &[3], 3, window, cx);
             workspace.select_tab(2, window, cx);
-            check_visible(workspace, [Some(1), Some(2)], 2, window, cx);
+            check_visible(workspace, &[1, 2], 2, window, cx);
             let session = |id| {
                 workspace
                     .tabs
@@ -181,7 +182,7 @@ fn split_panes_keep_live_sessions_and_route_input_only_to_the_focused_view(
             };
             assert!(Arc::ptr_eq(&first, &session(1)) && Arc::ptr_eq(&second, &session(2)));
             workspace.close_tab(2, window, cx);
-            check_visible(workspace, [Some(1), None], 1, window, cx);
+            check_visible(workspace, &[1], 1, window, cx);
             assert!(workspace.factory.sessions.tab("gpui-2").is_none());
         })
     });
