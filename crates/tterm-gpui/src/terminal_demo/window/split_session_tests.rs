@@ -9,6 +9,7 @@ use crate::terminal_demo::runtime::{GpuiRuntime, test_runtime};
 
 mod focus_tests;
 mod sash_tests;
+mod shortcut_tests;
 
 fn shell() -> CommandSpec {
     #[cfg(windows)]
@@ -26,7 +27,16 @@ fn make_workspace(
     events: UnboundedReceiver<AppEvent>,
     cx: &mut Context<Prototype>,
 ) -> Prototype {
-    let config = AppConfig::default();
+    make_workspace_with(runtime, events, shell(), AppConfig::default(), cx)
+}
+
+fn make_workspace_with(
+    runtime: &GpuiRuntime,
+    events: UnboundedReceiver<AppEvent>,
+    command: CommandSpec,
+    config: AppConfig,
+    cx: &mut Context<Prototype>,
+) -> Prototype {
     let keymap = Rc::new(KeymapRouter::new(&config.keymap, cfg!(target_os = "macos")));
     let locale = cx.new(|_| Locale::new(Language::En));
     LocaleGlobal::set(cx, locale.clone());
@@ -37,7 +47,7 @@ fn make_workspace(
     Prototype::new(
         cx,
         PrototypeStartup {
-            command: shell(),
+            command,
             sessions: Rc::new(SessionManager::new(
                 runtime.services.clone(),
                 Default::default(),

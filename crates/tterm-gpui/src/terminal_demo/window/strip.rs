@@ -6,20 +6,39 @@ use tterm_core::i18n::keys;
 use tterm_core::keymap::actions::KeymapActionId;
 use tterm_ui::tokens::gpui::hsla;
 
-use super::split_state::FOCUS_ACTIONS;
+use super::split_state::{Edge, FOCUS_ACTIONS};
 use super::{CommandSpec, KeymapRouter, Prototype, TitleUpdate, WindowTab, classify_title_update};
 
 pub(super) fn register_actions(router: &KeymapRouter) {
-    use KeymapActionId::{TabsCloseActive, TabsNext, TabsPrev, WorkspaceNewTab};
-    for action in [WorkspaceNewTab, TabsNext, TabsPrev, TabsCloseActive]
-        .into_iter()
-        .chain(FOCUS_ACTIONS)
+    use KeymapActionId::{
+        TabsCloseActive, TabsNext, TabsPrev, WorkspaceNewTab, WorkspaceSplitBelow,
+        WorkspaceSplitRight,
+    };
+    for action in [
+        WorkspaceNewTab,
+        TabsNext,
+        TabsPrev,
+        TabsCloseActive,
+        WorkspaceSplitRight,
+        WorkspaceSplitBelow,
+    ]
+    .into_iter()
+    .chain(FOCUS_ACTIONS)
     {
         router.register(action, Box::new(|_, _| true));
     }
 }
 
 impl WindowTab {
+    fn live_default_shell(&self) -> bool {
+        self.default_shell
+            && self
+                .binding
+                .as_ref()
+                .and_then(|binding| binding.session())
+                .is_some_and(|session| session.is_live())
+    }
+
     fn leave(&self, cx: &mut Context<Prototype>) {
         self.view.update(cx, |view, cx| view.deactivate(cx));
         if let Some(binding) = &self.binding {
@@ -117,6 +136,30 @@ impl Prototype {
         self.refresh_panes(previous, window, cx);
     }
 
+    fn split_shell(&mut self, edge: Edge, window: &mut Window, cx: &mut Context<Self>) {
+        let original = self.tabs.active_id();
+        if !self.tabs.active().live_default_shell() || self.splits.pair_for(original).is_some() {
+            self.nudge_active_tab(cx);
+            return;
+        }
+        let previous = self.visible_ids();
+        self.tabs.push(|id| {
+            self.factory
+                .open(id, CommandSpec::Shell, &self.ui.locale, cx)
+        });
+        let new = self.tabs.active_id();
+        if new == original {
+            return;
+        }
+        if self.tabs.active().live_default_shell() && self.splits.split(new, original, edge) {
+            self.refresh_panes(previous, window, cx);
+        } else {
+            self.release_tab(new);
+            self.tabs.select(original);
+            self.nudge_active_tab(cx);
+        }
+    }
+
     pub(super) fn close_tab(&mut self, id: usize, window: &mut Window, cx: &mut Context<Self>) {
         if self.tabs.neighbour(true).is_none() {
             return;
@@ -124,12 +167,7 @@ impl Prototype {
         let previous = self.visible_ids();
         let was_active = id == self.tabs.active_id();
         let peer = self.splits.remove(id);
-        if let Some(closed) = self.tabs.close(id)
-            && let Some(binding) = closed.binding
-            && let Err(error) = self.factory.sessions.close_tab(binding.tab_id())
-        {
-            eprintln!("Failed to close terminal tab: {error}");
-        }
+        self.release_tab(id);
         if was_active {
             if let Some(peer) = peer {
                 self.tabs.select(peer);
@@ -137,6 +175,15 @@ impl Prototype {
             self.refresh_panes(previous, window, cx);
         } else {
             cx.notify();
+        }
+    }
+
+    fn release_tab(&mut self, id: usize) {
+        if let Some(closed) = self.tabs.close(id)
+            && let Some(binding) = closed.binding
+            && let Err(error) = self.factory.sessions.close_tab(binding.tab_id())
+        {
+            eprintln!("Failed to close terminal tab: {error}");
         }
     }
 
@@ -163,6 +210,8 @@ impl Prototype {
         }
         match self.factory.keymap.dispatch(event) {
             Some(KeymapActionId::WorkspaceNewTab) => self.new_tab(window, cx),
+            Some(KeymapActionId::WorkspaceSplitRight) => self.split_shell(Edge::Right, window, cx),
+            Some(KeymapActionId::WorkspaceSplitBelow) => self.split_shell(Edge::Bottom, window, cx),
             Some(KeymapActionId::TabsCloseActive) => {
                 self.close_tab(self.tabs.active_id(), window, cx)
             }

@@ -217,6 +217,7 @@ struct TabFactory {
 }
 
 struct WindowTab {
+    default_shell: bool,
     search: picker::ConnectionLabel,
     fallback_key: tterm_core::i18n::translate::TranslationKey,
     view: Entity<TerminalView>,
@@ -422,6 +423,7 @@ impl TabFactory {
         .detach();
 
         WindowTab {
+            default_shell: matches!(command, CommandSpec::Shell),
             search,
             fallback_key,
             view,
@@ -491,6 +493,7 @@ fn failed(
     terminal.write(format!("\x1b[31m[{error}]\x1b[0m\r\n").as_bytes());
     let view = cx.new(|cx| TerminalView::new(cx, terminal, Default::default()));
     WindowTab {
+        default_shell: false,
         search,
         fallback_key,
         view,
