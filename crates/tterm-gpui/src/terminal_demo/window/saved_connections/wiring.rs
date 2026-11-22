@@ -19,6 +19,9 @@ impl Prototype {
         self.ui
             .template_ui
             .update(cx, |template_ui, cx| template_ui.dismiss(cx));
+        if self.tunnel_page_is_open() {
+            self.close_tunnel_page(window, cx);
+        }
         if self.settings_is_open() && !self.close_settings(window, cx) {
             return;
         }

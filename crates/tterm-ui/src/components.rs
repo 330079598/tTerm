@@ -3,7 +3,7 @@
 pub mod button;
 pub mod context_menu;
 pub mod dialog;
-mod icons;
+pub mod icons;
 pub mod input;
 pub mod password_input;
 pub mod select;

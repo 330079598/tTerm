@@ -1,0 +1,58 @@
+{
+  "commands": {
+    "list_profiles": [
+      {
+        "id": "lab",
+        "name": "Demo host",
+        "connection_type": "ssh",
+        "host": "lab.example.test",
+        "port": 22,
+        "username": "demo",
+        "remember_password": false,
+        "keepalive_interval_secs": 30,
+        "keepalive_count_max": 3
+      }
+    ],
+    "list_tunnels": [
+      {
+        "id": "database",
+        "name": "Development database",
+        "profileId": "lab",
+        "kind": "local",
+        "bindHost": "127.0.0.1",
+        "bindPort": 15432,
+        "destHost": "db.example.test",
+        "destPort": 5432,
+        "autoStart": false
+      },
+      {
+        "id": "proxy",
+        "name": "Demo proxy",
+        "profileId": "lab",
+        "kind": "dynamic",
+        "bindHost": "127.0.0.1",
+        "bindPort": 1080,
+        "destHost": "",
+        "destPort": 0,
+        "autoStart": false
+      }
+    ],
+    "list_tunnel_statuses": [
+      {
+        "id": "database",
+        "state": "running",
+        "message": null,
+        "boundPort": 15432,
+        "activeConnections": 1,
+        "totalConnections": 2,
+        "failedConnections": 0,
+        "bytesUp": 2048,
+        "bytesDown": 4096,
+        "connectedAt": null,
+        "retryAttempt": 0,
+        "lastFailure": null,
+        "lifetime": { "bytesUp": 2048, "bytesDown": 4096, "connections": 2, "since": null }
+      }
+    ]
+  }
+}

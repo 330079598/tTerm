@@ -26,6 +26,9 @@ impl Prototype {
         if self.settings_open {
             return;
         }
+        if self.tunnel_page_is_open() {
+            self.close_tunnel_page(window, cx);
+        }
         self.picker = None;
         self.ui
             .template_ui

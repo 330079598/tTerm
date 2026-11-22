@@ -30,6 +30,9 @@ mod strip;
 mod tabs;
 mod template_actions;
 mod template_ui;
+mod tunnel_page;
+#[cfg(test)]
+mod tunnel_page_tests;
 use events::handle_event;
 use history::{history_capacity, subscribe_history};
 use tabs::Tabs;
@@ -71,6 +74,7 @@ use crate::locale::{Locale, LocaleGlobal};
 use crate::scrollback_setting::ScrollbackSetting;
 use saved_connections::SavedConnectionsUi;
 use template_ui::TemplateUi;
+use tunnel_page::TunnelPage;
 
 const INITIAL_GRID: GridSize = GridSize {
     columns: 80,
@@ -324,6 +328,7 @@ impl Prototype {
         let template_ui = TemplateUi::for_workspace(config.clone(), locale.clone(), theme, cx);
         let saved_connections =
             SavedConnectionsUi::for_workspace(sessions.services(), locale.clone(), theme, cx);
+        let tunnel_page = TunnelPage::new(sessions.services(), locale.clone(), theme, cx);
         cx.observe(&locale, |_, _, cx| cx.notify()).detach();
         cx.observe(&geometry, |_, _, cx| cx.notify()).detach();
         subscribe_history(cx, &config, &sessions).detach();
@@ -335,6 +340,7 @@ impl Prototype {
             scrollback_setting,
             template_ui,
             saved_connections,
+            tunnel_page,
         };
         let factory = TabFactory {
             sessions,
@@ -378,6 +384,9 @@ impl Prototype {
             while let Some(event) = events.recv().await {
                 if prototype
                     .update(cx, |prototype, cx| {
+                        if prototype.ui.tunnel_page.handle_event(&event, cx) {
+                            return;
+                        }
                         let tterm_core::events::EventName::TabScoped { tab_id, .. } = event.name()
                         else {
                             return;
@@ -635,6 +644,7 @@ struct WindowUi {
     scrollback_setting: Entity<ScrollbackSetting>,
     template_ui: Entity<TemplateUi>,
     saved_connections: Entity<SavedConnectionsUi>,
+    tunnel_page: TunnelPage,
 }
 
 struct FailedTab {
@@ -700,6 +710,8 @@ impl Render for Prototype {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         self.sync_layout_template_target(cx);
         let settings_open = self.settings_is_open();
+        let tunnel_page_open = self.tunnel_page_is_open();
+        let page_open = settings_open || tunnel_page_open;
         let strip = if settings_open {
             div()
         } else {
@@ -724,11 +736,13 @@ impl Render for Prototype {
             }
         });
         let settings_button = self.settings_button(cx);
+        let tunnels_button = self.tunnel_page_button(cx);
         let tools = if settings_open {
             div()
                 .flex()
                 .items_center()
                 .gap(px(4.0))
+                .child(tunnels_button)
                 .child(settings_button)
         } else {
             let layout_button = self.layout_template_button(cx);
@@ -737,6 +751,7 @@ impl Render for Prototype {
                 .flex()
                 .items_center()
                 .gap(px(4.0))
+                .child(tunnels_button)
                 .child(layout_button)
                 .child(saved_connections_button)
                 .child(settings_button)
@@ -748,6 +763,8 @@ impl Render for Prototype {
             .render(window);
         let content = if self.settings_is_open() {
             self.settings_page(cx)
+        } else if tunnel_page_open {
+            self.tunnel_page(cx)
         } else {
             div()
                 .size_full()
@@ -764,17 +781,17 @@ impl Render for Prototype {
             .relative()
             .child(shell::frame(titlebar, content, self.ui.background))
             .children(
-                (!settings_open)
+                (!page_open)
                     .then(|| self.tabs.active().paste_controller.clone())
                     .flatten(),
             )
             .children(
-                (!settings_open)
+                (!page_open)
                     .then(|| self.picker_panel(window, cx))
                     .flatten(),
             )
-            .children((!settings_open).then(|| self.ui.template_ui.clone()))
-            .children((!settings_open).then(|| self.ui.saved_connections.clone()))
+            .children((!page_open).then(|| self.ui.template_ui.clone()))
+            .children((!page_open).then(|| self.ui.saved_connections.clone()))
     }
 }
 

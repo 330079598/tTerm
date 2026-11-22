@@ -199,6 +199,18 @@
   ],
   "referenceScreens": [
     {
+      "id": "tunnels.empty",
+      "title": "Port forwarding without rules",
+      "fixture": "tunnels.empty.json",
+      "actions": [{ "type": "waitFor", "target": "tunnels.empty" }]
+    },
+    {
+      "id": "tunnels.list.running",
+      "title": "Running local forward and stopped SOCKS proxy",
+      "fixture": "tunnels.list.running.json",
+      "actions": [{ "type": "waitFor", "target": "tunnels.card.proxy" }]
+    },
+    {
       "id": "workspace.titlebar.default",
       "title": "Windows workspace title bar with two local tabs",
       "fixture": "workspace.titlebar.default.json",

@@ -21,6 +21,7 @@ import {
 import type { ComponentType } from "react"
 import { TabsPrimitive, TabsServerMonitor } from "@/parity/screens/TabsPrimitive"
 import { WorkspaceTitleBar } from "@/parity/screens/WorkspaceTitleBar"
+import { TunnelPanelReference } from "@/parity/screens/TunnelPanelReference"
 
 /**
  * Every screen the reference capture can open, keyed by the id in
@@ -45,6 +46,8 @@ export const parityScreens: Record<string, ComponentType<ParityScreenProps>> = {
   "ui.context-menu.highlighted": ContextMenuHighlighted,
   "ui.context-menu.wrapped": ContextMenuWrapped,
   "workspace.titlebar.default": WorkspaceTitleBar,
+  "tunnels.empty": TunnelPanelReference,
+  "tunnels.list.running": TunnelPanelReference,
 }
 
 /** The registered ids, for the manifest test. */

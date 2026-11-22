@@ -17,6 +17,9 @@ impl Prototype {
         let Some(target) = self.layout_template_target(self.tabs.active_id()) else {
             return;
         };
+        if self.tunnel_page_is_open() {
+            self.close_tunnel_page(window, cx);
+        }
         self.ui
             .template_ui
             .update(cx, |template_ui, cx| template_ui.open(target, window, cx));

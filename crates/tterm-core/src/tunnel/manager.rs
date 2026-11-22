@@ -98,6 +98,19 @@ impl TunnelManager {
             .unwrap_or_else(|| TunnelStatus::stopped(id, saved))
     }
 
+    /// The live snapshot for every rule, in the order given. A rule that has
+    /// not run since launch reports its saved lifetime totals.
+    pub fn statuses_for(
+        &self,
+        rules: &[TunnelRule],
+        saved: &HashMap<String, TunnelTraffic>,
+    ) -> Vec<TunnelStatus> {
+        rules
+            .iter()
+            .map(|rule| self.status_of(&rule.id, saved.get(&rule.id).copied().unwrap_or_default()))
+            .collect()
+    }
+
     /// Saves the traffic every tunnel carried since its last save. Called
     /// when the app exits, while tunnels may still be running.
     pub fn save_traffic(&self) {
@@ -190,10 +203,7 @@ pub async fn list_tunnel_statuses_service(
 ) -> Result<Vec<TunnelStatus>, String> {
     let (rules, saved) =
         run_blocking(|| Ok((load_tunnels()?, crate::db::read(list_tunnel_traffic)?))).await?;
-    Ok(rules
-        .iter()
-        .map(|rule| manager.status_of(&rule.id, saved.get(&rule.id).copied().unwrap_or_default()))
-        .collect())
+    Ok(manager.statuses_for(&rules, &saved))
 }
 
 /// Zeroes a tunnel's lifetime traffic and starts counting again from now.

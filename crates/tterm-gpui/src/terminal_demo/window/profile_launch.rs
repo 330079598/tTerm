@@ -73,6 +73,9 @@ impl Prototype {
         cx: &mut Context<Self>,
     ) -> Option<usize> {
         self.tabs.next_id()?;
+        if self.tunnel_page_is_open() {
+            self.close_tunnel_page(window, cx);
+        }
         if !self.close_settings(window, cx) {
             return None;
         }

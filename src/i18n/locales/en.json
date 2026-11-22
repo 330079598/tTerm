@@ -1023,6 +1023,7 @@
     "runningCount": "{{count}} running",
     "emptyTitle": "No tunnels yet",
     "emptyDescription": "Create a local, remote or dynamic (SOCKS5) forward and switch it on whenever you need it.",
+    "emptyDescriptionReadOnly": "No port-forwarding rules are configured. This page shows saved tunnels and their live status.",
     "hostMissing": "The saved host for this tunnel was deleted.",
     "loadFailed": "Failed to load tunnels",
     "startFailed": "Could not start the tunnel",

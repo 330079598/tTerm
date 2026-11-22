@@ -44,6 +44,9 @@ image = { version = "=0.25.10", default-features = false, features = ["png"], op
 [dev-dependencies]
 rand = "=0.10.3"
 russh = { version = "=0.63.3", default-features = false, features = ["ring", "rsa"] }
+# The opt-in tunnel screenshot test crops its rendered viewport to the fixed
+# 800x600 page before saving the PNG.
+image = { version = "=0.25.10", default-features = false, features = ["png"] }
 # `test-support` gives the terminal_view example `Window::render_to_image` for
 # its screenshot; `profiler` enables GPUI's frame timings for the P0-10
 # drawing benchmark.

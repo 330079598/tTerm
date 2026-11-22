@@ -1007,6 +1007,7 @@
     "runningCount": "{{count}} 个运行中",
     "emptyTitle": "还没有隧道",
     "emptyDescription": "创建本地、远程或动态（SOCKS5）转发，需要时一键开启。",
+    "emptyDescriptionReadOnly": "尚未配置端口转发规则。此页面显示已保存的隧道及其运行状态。",
     "hostMissing": "此隧道所使用的已保存主机已被删除。",
     "loadFailed": "加载隧道失败",
     "startFailed": "无法启动隧道",

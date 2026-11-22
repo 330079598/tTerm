@@ -122,6 +122,9 @@ impl Prototype {
     }
 
     pub(super) fn select_tab(&mut self, id: usize, window: &mut Window, cx: &mut Context<Self>) {
+        if self.tunnel_page_is_open() {
+            self.close_tunnel_page(window, cx);
+        }
         if !self.close_settings(window, cx) {
             return;
         }
@@ -138,6 +141,9 @@ impl Prototype {
     }
 
     pub(super) fn new_tab(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        if self.tunnel_page_is_open() {
+            self.close_tunnel_page(window, cx);
+        }
         if !self.close_settings(window, cx) {
             return;
         }
@@ -246,6 +252,19 @@ impl Prototype {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
+        if self.tunnel_page_is_open() {
+            if event.keystroke.key == "escape" {
+                self.close_tunnel_page(window, cx);
+                window.prevent_default();
+                cx.stop_propagation();
+            } else if self.factory.keymap.dispatch(event) == Some(KeymapActionId::SettingsOpen) {
+                self.close_tunnel_page(window, cx);
+                self.open_settings(window, cx);
+                window.prevent_default();
+                cx.stop_propagation();
+            }
+            return;
+        }
         if self.settings_open {
             if event.keystroke.key == "escape" {
                 if self.close_settings(window, cx) {
@@ -337,6 +356,7 @@ impl Prototype {
         let tabs = self.tabs.ordered();
         let index = self.tabs.active_index();
         let closable = tabs.len() > 1;
+        let page_open = self.tunnel_page_is_open();
         for (index, (id, tab)) in tabs.enumerate() {
             let pending = tab.title.lock().ok().and_then(|mut title| title.take());
             if let Some(update) = classify_title_update(pending) {
@@ -346,10 +366,11 @@ impl Prototype {
                 };
             }
             let label = tab.display_title(self.ui.locale.read(cx));
-            let active = self.tabs.active_id() == id;
+            let active = !page_open && self.tabs.active_id() == id;
             let group = format!("session-tab-{id}");
             let mut item = div()
                 .id(("session-tab", id))
+                .debug_selector(move || format!("session-tab-{id}"))
                 .group(group.clone())
                 .relative()
                 .flex()
@@ -429,10 +450,14 @@ impl Prototype {
                     .child(item.left(px(offset)).when(hidden, |item| item.opacity(0.))),
             );
         }
+        if page_open {
+            strip = strip.child(self.tunnel_page_tab(cx));
+        }
+        let focus_index = if page_open { self.tabs.len() } else { index };
         let viewport = self.overflow.wrap(
             super::drag::drop_target(strip, cx),
             self.tabs.active_id(),
-            index,
+            focus_index,
             &self.ui.locale,
             cx,
         );
@@ -470,6 +495,7 @@ impl Prototype {
         let muted = self.ui.theme.colors.muted;
         div()
             .id(("close-session-tab", id))
+            .debug_selector(move || format!("close-session-tab-{id}"))
             .aria_label(label)
             .size(px(18.))
             .flex_shrink_0()

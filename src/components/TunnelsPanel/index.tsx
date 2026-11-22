@@ -48,7 +48,10 @@ export const TunnelsPanel: React.FC<TunnelsPanelProps> = ({ profilesRefreshKey }
 
   return (
     <section className="flex h-full min-h-0 flex-col">
-      <header className="border-border/80 flex items-start justify-between gap-4 border-b px-6 py-4">
+      <header
+        data-parity="tunnels.header"
+        className="border-border/80 flex items-start justify-between gap-4 border-b px-6 py-4"
+      >
         <div className="min-w-0">
           <h2 className="text-base font-semibold tracking-[-0.02em]">
             {t("tunnels.title", { defaultValue: "Port Forwarding" })}
@@ -75,7 +78,10 @@ export const TunnelsPanel: React.FC<TunnelsPanelProps> = ({ profilesRefreshKey }
 
       <div className="min-h-0 flex-1 overflow-y-auto p-6">
         {loading ? null : rules.length === 0 ? (
-          <div className="mx-auto flex max-w-md flex-col items-center gap-3 py-16 text-center">
+          <div
+            data-parity="tunnels.empty"
+            className="mx-auto flex max-w-md flex-col items-center gap-3 py-16 text-center"
+          >
             <div className="bg-muted text-muted-foreground flex size-12 items-center justify-center rounded-xl border">
               <Waypoints className="size-6" />
             </div>

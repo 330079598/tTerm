@@ -136,6 +136,7 @@ export const TunnelCard = React.memo(function TunnelCard({
 
   return (
     <article
+      data-parity={`tunnels.card.${rule.id}`}
       className="bg-card flex flex-col gap-3 rounded-lg border p-4 shadow-sm"
       aria-label={rule.name}
     >
