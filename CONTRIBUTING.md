@@ -9,9 +9,9 @@ request.
 
 ## Prerequisites
 
-- Node.js 20.19 or later (CI uses the current LTS)
+- Use the current Node.js LTS (as in CI). The test dependencies do not support Node.js 20.
 - pnpm 9. Use pnpm, not npm or yarn.
-- Rust, latest stable
+- Rust via rustup. The workspace pins the compiler, rustfmt and Clippy in `rust-toolchain.toml`.
 - The [Tauri 2 system dependencies](https://tauri.app/start/prerequisites/) for your platform:
   - **Windows**: Microsoft C++ Build Tools
   - **macOS**: Xcode Command Line Tools
@@ -71,7 +71,7 @@ pnpm preview          # Preview the frontend build
 pnpm tauri:dev        # Run the app (separate tTerm Dev identity and data)
 pnpm tauri:dev:linux  # Run the app on Linux through XWayland
 pnpm tauri build      # Build the desktop app
-pnpm test             # Frontend tests (Vitest)
+pnpm test             # Frontend, parity tooling and migration contract tests
 pnpm lint             # ESLint
 pnpm lint:fix         # ESLint with automatic fixes
 pnpm format           # Format with Prettier
@@ -116,21 +116,15 @@ password.
 │   ├── lib/                  # Pure logic with no React, each module with its own tests
 │   ├── routes/               # TanStack Router pages
 │   └── types/                # Types shared across features
-├── src-tauri/src/            # Rust backend, one module per domain
-│   ├── backup/               # Backup export and import, scheduled backups, WebDAV backup
-│   ├── command_library/      # Saved commands and tags
-│   ├── config/               # App configuration and paths
-│   ├── core/                 # PTY, commands and app state
-│   ├── db/                   # SQLite schema, migrations and legacy JSON import
-│   ├── monitor/              # Server monitor metrics over SSH
-│   ├── profiles/             # Connection profiles and SSH config import
-│   ├── sftp/                 # SFTP connections, file operations and transfers
-│   ├── ssh/                  # SSH client, agent, jump hosts, host keys and the secret store
-│   ├── sync/                 # Multi-device sync over WebDAV (three-way merge)
-│   ├── terminal/             # Terminal types and I/O
-│   ├── tunnel/               # Port forwarding, SOCKS5 and the shared-connection hub
-│   └── zmodem/               # ZMODEM (rz/sz) engine, trigger detection, send and receive
-├── crates/                   # Rust crates for the GPUI version, one per responsibility
+├── src-tauri/src/            # Tauri commands, startup and desktop adapters
+├── crates/
+│   ├── tterm-core/src/       # Shared domain logic (SSH, SFTP, SQLite, backup, sync, etc.)
+│   ├── tterm-platform/       # Native platform adapters
+│   ├── tterm-gpui/           # GPUI desktop client
+│   ├── tterm-terminal/       # Terminal model
+│   ├── tterm-terminal-view/  # GPUI terminal rendering and input
+│   ├── tterm-ui/             # Shared GPUI components
+│   └── tterm-parity/         # Visual comparison tooling
 ├── docs/                     # Documentation and screenshots
 └── scripts/                  # Size check, theme and license generators
 ```
@@ -144,7 +138,7 @@ password.
 - File transfers should expose progress, cancellation and failure states.
 - Password, key and host-fingerprint flows must stay local, safe and explicit.
 - New persisted data needs a database migration
-  (`src-tauri/src/db/migrations.rs`) and must be covered by backup and import.
+  (`crates/tterm-core/src/db/migrations.rs`) and must be covered by backup and import.
 - User-facing text goes through i18next, with every key in both
   `src/i18n/locales/en.json` and `src/i18n/locales/zh.json`.
 
@@ -155,9 +149,9 @@ For how ZMODEM works and how to run its integration tests against real
 
 GitHub Actions builds the releases:
 
-- **release-main.yml** runs on pushes to `main` and on `v*` tags. It builds
-  macOS (Apple Silicon and Intel), Ubuntu 24.04 and Windows, and creates a
-  draft GitHub release.
+- **release-main.yml** runs on `v*` tag pushes or manual dispatch. It builds
+  macOS (Apple Silicon and Intel), Ubuntu 24.04 and Windows, and publishes a
+  non-draft GitHub release.
 - **release-dev-beta.yml** runs on pushes to `dev-beta` and builds beta
   pre-releases for the Beta Dev update channel.
 - **sync-release-notes.yml** is started by hand and copies release notes into
