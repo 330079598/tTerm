@@ -5,15 +5,13 @@ on:
     branches:
       - dev
       - main
-    # None of the checks read Markdown or the screenshots, so a change
-    # that touches only these has nothing to check.
     paths-ignore:
       - '**.md'
-      - 'docs/**'
+      - 'docs/screenshot/**'
   pull_request:
     paths-ignore:
       - '**.md'
-      - 'docs/**'
+      - 'docs/screenshot/**'
   workflow_dispatch:
 
 concurrency:
