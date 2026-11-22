@@ -25,11 +25,11 @@ const EXEMPT = [/\.test\.tsx?$/, /(^|\/)tests\.rs$/, /_tests\.rs$/, /(^|\/)tests
 function sourceFiles() {
   const output = execFileSync(
     "git",
-    ["ls-files", "--cached", "--others", "--exclude-standard", "--", "src", "src-tauri/src", "crates"],
+    ["ls-files", "-z", "--cached", "--others", "--exclude-standard", "--", "src", "src-tauri/src", "crates"],
     { cwd: ROOT, encoding: "utf8" }
   )
   return output
-    .split("\n")
+    .split("\0")
     .filter((path) => path && LIMITS[extname(path)] && !EXEMPT.some((re) => re.test(path)))
     .filter((path) => existsSync(join(ROOT, path)))
 }
