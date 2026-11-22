@@ -213,16 +213,9 @@ pub fn restore_secrets(connection: &Connection, rows: &[SecretRow]) -> Result<()
     Ok(())
 }
 
-pub(crate) fn migrated(connection: &Connection) -> Result<bool, String> {
-    connection
-        .query_row(
-            "SELECT 1 FROM app_meta WHERE key = ?1",
-            [MIGRATED_MARKER],
-            |_| Ok(()),
-        )
-        .optional()
-        .map(|row| row.is_some())
-        .map_err(sql_error("Failed to read the database state"))
+/// Whether the database has finished importing legacy passwords.
+pub fn migrated(connection: &Connection) -> Result<bool, String> {
+    crate::db::meta::contains(connection, MIGRATED_MARKER)
 }
 
 /// When the passwords of older versions were moved (unix ms).

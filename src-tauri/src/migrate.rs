@@ -1,6 +1,8 @@
 use serde::Serialize;
 use serde::de::DeserializeOwned;
 use std::path::{Path, PathBuf};
+use tterm_core::ssh::secret_store::legacy::{VAULT_CONFIG_FILE_NAME, VAULT_FILE_NAME};
+use tterm_core::ssh::secret_store::store;
 
 const MIGRATED_CONFIG_FILES: &[&str] = &[
     "config.json",
@@ -58,9 +60,11 @@ pub fn migrate_legacy_config_files(app: &tauri::AppHandle) -> Result<(), String>
         })?;
     }
 
-    migrate_legacy_secret_vault(app)?;
-
-    Ok(())
+    migrate_legacy_secret_vault(
+        &old_dir.join("secrets"),
+        &secrets_dir(app)?,
+        tterm_core::db::read(store::migrated)?,
+    )
 }
 
 /// Where older versions kept the app vault.
@@ -83,14 +87,10 @@ pub fn remove_retired_files(app: &tauri::AppHandle) -> Result<(), String> {
         now,
     );
     let secrets_dir = secrets_dir(app)?;
-    let secrets_migrated_at =
-        tterm_core::db::read(tterm_core::ssh::secret_store::store::migrated_at).unwrap_or(None);
+    let secrets_migrated_at = tterm_core::db::read(store::migrated_at).unwrap_or(None);
     errors.extend(remove_retired(
         &secrets_dir,
-        &[
-            tterm_core::ssh::secret_store::legacy::VAULT_FILE_NAME,
-            tterm_core::ssh::secret_store::legacy::VAULT_CONFIG_FILE_NAME,
-        ],
+        &[VAULT_FILE_NAME, VAULT_CONFIG_FILE_NAME],
         secrets_migrated_at,
         now,
     ));
@@ -315,18 +315,16 @@ where
         .map_err(|e| format!("Failed to write {} file '{}': {}", label, path.display(), e))
 }
 
-fn migrate_legacy_secret_vault(app: &tauri::AppHandle) -> Result<(), String> {
-    let new_secret_dir = secrets_dir(app)?;
-    let old_secret_dir = tterm_core::config::paths::legacy_config_path()?.join("secrets");
-    if same_path(&new_secret_dir, &old_secret_dir) || !old_secret_dir.exists() {
+fn migrate_legacy_secret_vault(
+    old_secret_dir: &Path,
+    new_secret_dir: &Path,
+    already_migrated: bool,
+) -> Result<(), String> {
+    if already_migrated || same_path(new_secret_dir, old_secret_dir) || !old_secret_dir.exists() {
         return Ok(());
     }
-    if !new_secret_dir.exists() {
-        std::fs::create_dir_all(&new_secret_dir)
-            .map_err(|e| format!("Failed to create secret dir: {}", e))?;
-    }
 
-    for name in ["secret_vault.json", "secret_vault_config.json"] {
+    for name in [VAULT_FILE_NAME, VAULT_CONFIG_FILE_NAME] {
         let old_path = old_secret_dir.join(name);
         if !old_path.exists() {
             continue;
@@ -337,6 +335,8 @@ fn migrate_legacy_secret_vault(app: &tauri::AppHandle) -> Result<(), String> {
             continue;
         }
 
+        std::fs::create_dir_all(new_secret_dir)
+            .map_err(|e| format!("Failed to create secret dir: {}", e))?;
         std::fs::copy(&old_path, &new_path).map_err(|e| {
             format!(
                 "Failed to migrate '{}' from '{}' to '{}': {}",
@@ -364,6 +364,25 @@ mod retired_file_tests {
     use super::*;
 
     const DAY_MS: i64 = 24 * 60 * 60 * 1_000;
+
+    #[test]
+    fn migrated_vault_is_not_copied_back_on_restart() {
+        let root = std::env::temp_dir().join(format!("tterm-vault-copy-{}", uuid::Uuid::new_v4()));
+        let old = root.join("legacy");
+        let new = root.join("current");
+        std::fs::create_dir_all(&old).unwrap();
+        std::fs::write(old.join(VAULT_FILE_NAME), "legacy vault").unwrap();
+        migrate_legacy_secret_vault(&old, &new, false).unwrap();
+        assert_eq!(
+            std::fs::read(new.join(VAULT_FILE_NAME)).unwrap(),
+            b"legacy vault"
+        );
+        std::fs::remove_dir_all(&new).unwrap();
+        migrate_legacy_secret_vault(&old, &new, true).unwrap();
+        assert!(!new.exists());
+        assert!(old.join(VAULT_FILE_NAME).exists());
+        std::fs::remove_dir_all(root).unwrap();
+    }
 
     #[test]
     fn retired_copies_go_once_kept_long_enough() {
