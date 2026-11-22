@@ -1,0 +1,58 @@
+{
+  "tabs": [
+    {
+      "id": "left",
+      "title": "Left",
+      "type": "terminal",
+      "isActive": true,
+      "connection": {
+        "type": "terminal",
+        "terminalShell": "pwsh"
+      }
+    },
+    {
+      "id": "right",
+      "title": "Right",
+      "type": "ssh",
+      "isActive": false,
+      "connection": {
+        "type": "ssh",
+        "host": "legacy.example",
+        "username": "deploy"
+      }
+    }
+  ],
+  "active_tab_id": "left",
+  "layout": {
+    "grid": {
+      "orientation": "HORIZONTAL",
+      "root": {
+        "type": "branch",
+        "data": [
+          {
+            "type": "leaf",
+            "data": {
+              "id": "1",
+              "views": ["left"],
+              "activeView": "left"
+            },
+            "size": 500
+          },
+          {
+            "type": "leaf",
+            "data": {
+              "id": "2",
+              "views": ["right"],
+              "activeView": "right"
+            },
+            "size": 500
+          }
+        ]
+      }
+    },
+    "panels": {},
+    "activeGroup": "2"
+  },
+  "schema_version": 0,
+  "last_saved": 1600000000000
+}

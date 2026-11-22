@@ -255,15 +255,26 @@ impl WindowGeometry {
             }));
     }
 
-    /// Starts observing and installs the gated close handler. The handler
-    /// captures the final geometry, returns `false` while the background
-    /// flush runs, and removes the window only after the worker reports.
+    /// Starts observing and installs the geometry-only close handler used by
+    /// the lifecycle tests. Production installs one combined close handler
+    /// from the workspace root so the workspace flush runs first.
+    #[cfg(test)]
     pub fn attach(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         self.observe(window, cx);
         let entity = cx.entity();
         window.on_window_should_close(cx, move |window, cx| {
             entity.update(cx, |geometry, cx| geometry.request_close(window, cx))
         });
+    }
+
+    /// The last recorded geometry, used by the combined close gate.
+    pub fn latest(&self) -> Option<SavedWindowState> {
+        self.latest
+    }
+
+    /// A clone of the serialized geometry writer.
+    pub fn queue(&self) -> SaveQueue {
+        self.queue.clone()
     }
 
     /// Updates the in-memory value; intentionally performs no database work.

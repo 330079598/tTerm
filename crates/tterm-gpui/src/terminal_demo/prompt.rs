@@ -209,6 +209,13 @@ impl PromptControl {
         true
     }
 
+    /// Whether no host-key or authentication question is waiting.
+    pub(super) fn is_idle(&self) -> bool {
+        self.state
+            .lock()
+            .is_ok_and(|state| matches!(*state, PromptState::Idle))
+    }
+
     fn write(&self, bytes: &[u8]) {
         self.model.write(bytes);
     }

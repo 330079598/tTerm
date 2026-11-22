@@ -5,7 +5,7 @@
 //! sees every byte parsed while it was gone.
 
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, PoisonError};
 use std::thread::JoinHandle;
 
 use tokio::sync::watch;
@@ -27,6 +27,12 @@ use super::pipeline::mouse_guard::{ForegroundProbe, MouseGuard};
 use super::pipeline::{self, QueueSender, RefreshSignal, SessionState};
 use super::prompt::PromptControl;
 
+pub(crate) mod reports;
+use reports::Reports;
+
+/// Bytes the user typed or pasted, before they reach the session.
+pub(crate) type InputObserver = Arc<dyn Fn(&[u8]) + Send + Sync>;
+
 /// What the terminal shows when a program ends by itself.
 pub(super) const EXIT_NOTICE: &[u8] = b"\r\n\x1b[33m[Process exited]\x1b[0m\r\n";
 
@@ -40,11 +46,13 @@ pub struct Session {
     state: SessionState,
     prompt: Arc<PromptControl>,
     flow: Arc<OutputFlow>,
+    reports: Arc<Reports>,
     queue: Mutex<Option<QueueSender>>,
     parser: Mutex<Option<JoinHandle<()>>>,
     alive: Arc<AtomicBool>,
     visible: Arc<AtomicBool>,
     input_open: Arc<AtomicBool>,
+    input_observer: Arc<Mutex<Option<InputObserver>>>,
     refresh: Arc<RefreshSignal>,
     clipboard: Arc<ClipboardWrites>,
 }
@@ -81,6 +89,7 @@ impl Session {
         let input_open = Arc::new(AtomicBool::new(true));
         let flow = Arc::new(OutputFlow::default());
         let refresh = Arc::new(RefreshSignal::new());
+        let reports = Arc::new(Reports::new());
         let state = SessionState {
             terminal: Arc::clone(&terminal),
             size: Arc::new(Mutex::new(WindowSize { grid, cell })),
@@ -90,6 +99,7 @@ impl Session {
             visible: Arc::clone(&visible),
             refresh: Arc::clone(&refresh),
             clipboard: Arc::clone(&clipboard),
+            reports: Arc::clone(&reports),
         };
         let write_services = Arc::clone(&services);
         let write_key = key.clone();
@@ -151,11 +161,13 @@ impl Session {
             state,
             prompt,
             flow,
+            reports,
             queue: Mutex::new(Some(pipeline.queue)),
             parser: Mutex::new(Some(pipeline.parser)),
             alive,
             visible,
             input_open,
+            input_observer: Arc::new(Mutex::new(None)),
             refresh,
             clipboard,
         })
@@ -204,6 +216,37 @@ impl Session {
         Arc::clone(&self.clipboard)
     }
 
+    /// The prompt, directory and agent reports parsed from this generation.
+    pub(crate) fn reports(&self) -> Arc<Reports> {
+        Arc::clone(&self.reports)
+    }
+
+    /// Calls `observer` for bytes the user typed or pasted.
+    ///
+    /// The resume controller uses this to stop before its command reaches a
+    /// prompt the user already started using. It never sees replies the model
+    /// sends to a program, because those go through the parser write path.
+    pub(crate) fn set_input_observer(&self, observer: InputObserver) {
+        *self
+            .input_observer
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner) = Some(observer);
+    }
+
+    /// Writes bytes the client constructed itself, bypassing prompt input.
+    ///
+    /// Returns an error when the generation is gone or a host-key or
+    /// authentication prompt still owns the keyboard.
+    pub(crate) fn write_input(&self, bytes: &[u8]) -> Result<(), String> {
+        if !self.is_live() {
+            return Err("The session is no longer running".to_string());
+        }
+        if !self.prompt.is_idle() {
+            return Err("The session is waiting for an SSH prompt answer".to_string());
+        }
+        self.services.write_pty(&self.key, bytes)
+    }
+
     /// Shows or hides the session.
     ///
     /// Hiding only stops frame wake-ups; the parser keeps consuming and
@@ -247,7 +290,15 @@ impl Session {
         let alive = Arc::clone(&self.alive);
         let input_open = Arc::clone(&self.input_open);
         let prompt = Arc::clone(&self.prompt);
+        let input_observer = Arc::clone(&self.input_observer);
         move |bytes| {
+            let observer = input_observer
+                .lock()
+                .unwrap_or_else(PoisonError::into_inner)
+                .clone();
+            if let Some(observer) = &observer {
+                observer(bytes);
+            }
             if !alive.load(Ordering::Acquire) || !input_open.load(Ordering::Acquire) {
                 return;
             }
@@ -513,6 +564,7 @@ mod tests {
             alive: Arc::new(AtomicBool::new(true)),
             visible: Arc::new(AtomicBool::new(false)),
             refresh: Arc::new(RefreshSignal::new()),
+            reports: Arc::new(super::reports::Reports::new()),
         };
         let acknowledged = Arc::new(AtomicUsize::new(0));
         let acknowledge = Arc::clone(&acknowledged);

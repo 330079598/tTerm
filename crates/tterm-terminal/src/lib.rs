@@ -81,6 +81,9 @@ pub mod palette;
 pub mod predictive_echo;
 pub mod search;
 pub mod selection;
+/// Bounded recognition of shell prompts, working directories and agent
+/// reports from the output stream.
+pub mod session_reports;
 pub mod snapshot;
 /// Recognizes password prompts on the cursor line.
 pub mod sudo_prompt;

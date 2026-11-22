@@ -16,6 +16,7 @@ use std::rc::Rc;
 use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
 use std::sync::{Arc, Mutex, PoisonError};
 
+use tokio::sync::watch;
 use tterm_core::core::session::types::PtyConnectionOptions;
 use tterm_core::prompts::SessionKey;
 use tterm_core::services::AppServices;
@@ -159,16 +160,19 @@ pub struct TabBinding {
     tab_id: String,
     session: Mutex<Option<Arc<Session>>>,
     scoped: Mutex<SessionScopedState>,
+    scoped_changes: watch::Sender<u64>,
     attention: Rc<RefCell<TabAttentionStore>>,
     active: AtomicBool,
 }
 
 impl TabBinding {
     fn new(tab_id: String, attention: Rc<RefCell<TabAttentionStore>>) -> Self {
+        let (scoped_changes, _) = watch::channel(0);
         Self {
             tab_id,
             session: Mutex::new(None),
             scoped: Mutex::new(SessionScopedState::new(0)),
+            scoped_changes,
             attention,
             active: AtomicBool::new(false),
         }
@@ -230,24 +234,42 @@ impl TabBinding {
             .clone()
     }
 
+    /// Subscribes to changes in this tab's session-scoped state.
+    ///
+    /// The receiver wakes on connection progress, prompts, failures and a new
+    /// session generation, so a tab controller does not need to poll.
+    pub fn subscribe_scoped(&self) -> watch::Receiver<u64> {
+        self.scoped_changes.subscribe()
+    }
+
     /// Sets or clears the host-key question for `session_nonce`.
     pub fn set_host_key_prompt(
         &self,
         session_nonce: u32,
         prompt: Option<tterm_core::events::ssh::SshHostKeyPromptPayload>,
     ) -> bool {
-        self.scoped
+        let changed = self
+            .scoped
             .lock()
             .unwrap_or_else(PoisonError::into_inner)
-            .set_host_key_prompt(session_nonce, prompt)
+            .set_host_key_prompt(session_nonce, prompt);
+        if changed {
+            self.notify_scoped();
+        }
+        changed
     }
 
     /// Sets the connection status for `session_nonce`.
     pub fn set_connection_state(&self, session_nonce: u32, state: ConnectionState) -> bool {
-        self.scoped
+        let changed = self
+            .scoped
             .lock()
             .unwrap_or_else(PoisonError::into_inner)
-            .set_connection_state(session_nonce, state)
+            .set_connection_state(session_nonce, state);
+        if changed {
+            self.notify_scoped();
+        }
+        changed
     }
 
     /// Sets or clears the SSH progress message for `session_nonce`.
@@ -256,18 +278,28 @@ impl TabBinding {
         session_nonce: u32,
         progress: Option<tterm_core::events::ssh::SshConnectionProgressPayload>,
     ) -> bool {
-        self.scoped
+        let changed = self
+            .scoped
             .lock()
             .unwrap_or_else(PoisonError::into_inner)
-            .set_connection_progress(session_nonce, progress)
+            .set_connection_progress(session_nonce, progress);
+        if changed {
+            self.notify_scoped();
+        }
+        changed
     }
 
     /// Sets or clears the local-shell start failure for `session_nonce`.
     pub fn set_start_error(&self, session_nonce: u32, error: Option<String>) -> bool {
-        self.scoped
+        let changed = self
+            .scoped
             .lock()
             .unwrap_or_else(PoisonError::into_inner)
-            .set_start_error(session_nonce, error)
+            .set_start_error(session_nonce, error);
+        if changed {
+            self.notify_scoped();
+        }
+        changed
     }
 
     /// Applies a capacity change to this tab's current generation.
@@ -278,10 +310,19 @@ impl TabBinding {
     }
 
     fn begin_session(&self, session_nonce: u32) {
-        self.scoped
+        let changed = self
+            .scoped
             .lock()
             .unwrap_or_else(PoisonError::into_inner)
             .begin(session_nonce);
+        if changed {
+            self.notify_scoped();
+        }
+    }
+
+    fn notify_scoped(&self) {
+        self.scoped_changes
+            .send_modify(|generation| *generation = generation.wrapping_add(1));
     }
 
     fn take_session(&self) -> Option<Arc<Session>> {

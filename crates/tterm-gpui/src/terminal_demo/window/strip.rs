@@ -7,7 +7,9 @@ use tterm_core::keymap::actions::KeymapActionId;
 use tterm_ui::tokens::gpui::hsla;
 
 use super::split_state::{Edge, FOCUS_ACTIONS};
-use super::{CommandSpec, KeymapRouter, Prototype, TitleUpdate, WindowTab, classify_title_update};
+use super::{
+    CommandSpec, KeymapRouter, Prototype, TabLaunch, TitleUpdate, WindowTab, classify_title_update,
+};
 
 pub(super) fn register_actions(router: &KeymapRouter) {
     use KeymapActionId::{
@@ -114,6 +116,7 @@ impl Prototype {
         }
         self.tabs.select(source);
         self.refresh_panes(previous, window, cx);
+        self.mark_workspace_dirty(cx);
     }
 
     pub(super) fn select_tab(&mut self, id: usize, window: &mut Window, cx: &mut Context<Self>) {
@@ -121,19 +124,28 @@ impl Prototype {
         if self.tabs.get(id).is_none() {
             return;
         }
-        self.tabs.select(id);
+        let changed = self.tabs.select(id);
         self.splits.focus(id);
         self.refresh_panes(previous, window, cx);
+        if changed {
+            self.mark_workspace_dirty(cx);
+        }
     }
 
     pub(super) fn new_tab(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         let previous = self.visible_ids();
+        let saved_id = self.next_saved_id();
         self.tabs.push(|id| {
-            self.factory
-                .open(id, CommandSpec::Shell, &self.ui.locale, cx)
+            self.factory.open_launch(
+                id,
+                TabLaunch::command(saved_id, CommandSpec::Shell),
+                &self.ui.locale,
+                cx,
+            )
         });
         self.splits.open(self.tabs.active_id());
         self.refresh_panes(previous, window, cx);
+        self.mark_workspace_dirty(cx);
     }
 
     fn split_shell(&mut self, edge: Edge, window: &mut Window, cx: &mut Context<Self>) {
@@ -143,9 +155,14 @@ impl Prototype {
             return;
         }
         let previous = self.visible_ids();
+        let saved_id = self.next_saved_id();
         self.tabs.push(|id| {
-            self.factory
-                .open(id, CommandSpec::Shell, &self.ui.locale, cx)
+            self.factory.open_launch(
+                id,
+                TabLaunch::command(saved_id, CommandSpec::Shell),
+                &self.ui.locale,
+                cx,
+            )
         });
         let new = self.tabs.active_id();
         if new == original {
@@ -154,6 +171,7 @@ impl Prototype {
         self.splits.open(new);
         if self.tabs.active().live_default_shell() && self.splits.split(new, original, edge) {
             self.refresh_panes(previous, window, cx);
+            self.mark_workspace_dirty(cx);
         } else {
             self.splits.close(new);
             self.release_tab(new);
@@ -166,6 +184,7 @@ impl Prototype {
         let previous = self.visible_ids();
         if self.splits.ungroup(self.tabs.active_id()) {
             self.refresh_panes(previous, window, cx);
+            self.mark_workspace_dirty(cx);
         } else {
             self.nudge_active_tab(cx);
         }
@@ -175,6 +194,7 @@ impl Prototype {
         let previous = self.visible_ids();
         if self.splits.toggle_zoom(self.tabs.active_id()) {
             self.refresh_panes(previous, window, cx);
+            self.mark_workspace_dirty(cx);
         } else {
             self.nudge_active_tab(cx);
         }
@@ -197,6 +217,7 @@ impl Prototype {
         } else {
             cx.notify();
         }
+        self.mark_workspace_dirty(cx);
     }
 
     fn release_tab(&mut self, id: usize) {

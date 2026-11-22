@@ -15,6 +15,24 @@ impl<T> Tabs<T> {
         }
     }
 
+    /// Restores tabs in their saved order. The caller keeps each tab's
+    /// persisted id, so the internal keys and those ids stay independent.
+    pub(super) fn restore(entries: Vec<T>, active: usize) -> Option<Self> {
+        if entries.is_empty() {
+            return None;
+        }
+        let count = entries.len();
+        Some(Self {
+            entries: entries
+                .into_iter()
+                .enumerate()
+                .map(|(index, tab)| (index + 1, tab))
+                .collect(),
+            active_index: active.saturating_sub(1).min(count - 1),
+            last_id: count,
+        })
+    }
+
     pub(super) fn active(&self) -> &T {
         &self.entries[self.active_index].1
     }
@@ -25,11 +43,20 @@ impl<T> Tabs<T> {
             .find(|entry| entry.0 == id)
             .map(|entry| &entry.1)
     }
+    pub(super) fn get_mut(&mut self, id: usize) -> Option<&mut T> {
+        self.entries
+            .iter_mut()
+            .find(|entry| entry.0 == id)
+            .map(|entry| &mut entry.1)
+    }
     pub(super) fn active_id(&self) -> usize {
         self.entries[self.active_index].0
     }
     pub(super) fn active_index(&self) -> usize {
         self.active_index
+    }
+    pub(super) fn len(&self) -> usize {
+        self.entries.len()
     }
     pub(super) fn next_id(&self) -> Option<usize> {
         self.last_id.checked_add(1)

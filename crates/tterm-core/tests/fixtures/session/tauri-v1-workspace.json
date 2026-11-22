@@ -1,0 +1,107 @@
+{
+  "tabs": [
+    {
+      "id": "local shell 1",
+      "title": "pwsh",
+      "type": "terminal",
+      "isActive": false,
+      "hasConnected": false,
+      "sessionNonce": 9,
+      "connectionHeaderPinned": false,
+      "connection": {
+        "type": "terminal",
+        "terminalShell": "pwsh",
+        "cwd": "C:\\work\\alpha",
+        "futureConnectionField": "kept"
+      },
+      "futureTabField": ["kept"]
+    },
+    {
+      "id": "ssh:prod host",
+      "title": "prod",
+      "type": "ssh",
+      "isActive": true,
+      "hasConnected": true,
+      "sessionNonce": 4,
+      "connection": {
+        "type": "ssh",
+        "profileId": "prod",
+        "profileName": "Prod",
+        "host": "prod.example",
+        "port": 22,
+        "username": "deploy",
+        "password": "must-not-survive",
+        "privateKeyPassphrase": "must-not-survive",
+        "authMethod": "key",
+        "privateKeyPath": "~/.ssh/id_ed25519",
+        "jumpHosts": [
+          {
+            "host": "bastion.example",
+            "port": 22,
+            "username": "jump",
+            "authMethod": "password",
+            "password": "must-not-survive"
+          }
+        ],
+        "agentResume": {
+          "agent": "codex",
+          "sessionId": "session-alpha-42",
+          "cwd": "/srv/app"
+        },
+        "futureConnectionField": "kept"
+      },
+      "futureTabField": {
+        "nested": [1, true, null]
+      }
+    },
+    {
+      "id": "settings",
+      "title": "Settings",
+      "type": "settings",
+      "isActive": false
+    },
+    {
+      "id": "remote-file:1",
+      "title": "main.rs",
+      "type": "remote-file-editor",
+      "isActive": false,
+      "connection": {
+        "type": "ssh",
+        "profileId": "prod"
+      },
+      "remoteFile": {
+        "sourceTabId": "ssh:prod host",
+        "path": "/srv/app/src/main.rs",
+        "fileName": "main.rs",
+        "size": 42
+      }
+    }
+  ],
+  "active_tab_id": "ssh:prod host",
+  "layout": {
+    "version": 2,
+    "groups": [
+      {
+        "root": {
+          "type": "split",
+          "orientation": "horizontal",
+          "children": [
+            {
+              "type": "pane",
+              "tabId": "local shell 1"
+            },
+            {
+              "type": "pane",
+              "tabId": "ssh:prod host"
+            }
+          ],
+          "sizes": [0.4, 0.6]
+        },
+        "activeTabId": "ssh:prod host",
+        "zoomedTabId": "ssh:prod host"
+      }
+    ]
+  },
+  "schema_version": 1,
+  "last_saved": 1730000000123
+}

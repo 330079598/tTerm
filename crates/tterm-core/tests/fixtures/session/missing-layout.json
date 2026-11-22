@@ -1,0 +1,17 @@
+{
+  "tabs": [
+    {
+      "id": "shell",
+      "title": "Shell",
+      "type": "terminal",
+      "isActive": true,
+      "connection": {
+        "type": "terminal",
+        "terminalShell": "pwsh"
+      }
+    }
+  ],
+  "active_tab_id": "shell",
+  "schema_version": 1,
+  "last_saved": 1
+}

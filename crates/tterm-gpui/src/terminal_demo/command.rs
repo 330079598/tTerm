@@ -7,6 +7,7 @@
 use tterm_core::core::session::types::PtyConnectionOptions;
 use tterm_core::profiles::connection::connection_options_for_profile;
 use tterm_core::profiles::types::SavedProfile;
+use tterm_core::workspace::tab::{ConnectionType, Tab, TabConnection, TabType, TerminalShellType};
 
 const USAGE: &str =
     "usage: tterm-gpui [--ssh <saved-profile-id-or-name> | --exec <program> [args...]]";
@@ -58,6 +59,195 @@ impl CommandSpec {
             Self::Program { program, args } => local_options(Some(program), args),
             Self::SshProfile { selector } => saved_ssh_profile(selector),
         }
+    }
+
+    /// A bare launch restores and saves the workspace. An explicit `--ssh` or
+    /// `--exec` run is disposable and must not overwrite the saved workspace.
+    pub fn uses_saved_workspace(&self) -> bool {
+        matches!(self, Self::Shell)
+    }
+}
+
+/// What a tab should open, including a tab restored from a saved workspace.
+///
+/// Restored tabs carry only a safe connection descriptor: a known local
+/// shell, a saved SSH profile selected by id or name, or an inert reason when
+/// the tab cannot be opened safely.
+pub(super) struct TabLaunch {
+    saved_id: String,
+    saved: Tab,
+    source: LaunchSource,
+    may_resume_agent: bool,
+    restored: bool,
+}
+
+pub(super) enum LaunchSource {
+    Command(CommandSpec),
+    Local(Box<PtyConnectionOptions>),
+    SshProfile { selector: String },
+    Unsupported { reason: String },
+}
+
+impl TabLaunch {
+    /// A tab explicitly opened by the user or a command-line argument.
+    pub(super) fn command(saved_id: impl Into<String>, command: CommandSpec) -> Self {
+        let saved_id = saved_id.into();
+        let options = command.connection_options().ok();
+        let saved = saved_tab_for_command(&saved_id, &command, options.as_ref());
+        let may_resume_agent = !matches!(command, CommandSpec::Program { .. });
+        Self {
+            saved_id,
+            saved,
+            source: LaunchSource::Command(command),
+            may_resume_agent,
+            restored: false,
+        }
+    }
+
+    /// A tab restored with a connection that is safe to open again.
+    pub(super) fn restored_tab(saved: Tab, source: LaunchSource) -> Self {
+        let saved_id = saved.id.clone();
+        let may_resume_agent = matches!(
+            source,
+            LaunchSource::Local(_) | LaunchSource::SshProfile { .. }
+        );
+        Self {
+            saved_id,
+            saved,
+            source,
+            may_resume_agent,
+            restored: true,
+        }
+    }
+
+    /// A saved tab kept in the workspace without opening its contents.
+    pub(super) fn unsupported(saved: Tab, reason: String) -> Self {
+        Self {
+            saved_id: saved.id.clone(),
+            saved,
+            source: LaunchSource::Unsupported { reason },
+            may_resume_agent: false,
+            restored: true,
+        }
+    }
+
+    pub(super) fn saved_id(&self) -> &str {
+        &self.saved_id
+    }
+
+    pub(super) fn saved(&self) -> &Tab {
+        &self.saved
+    }
+
+    pub(super) fn is_ssh(&self) -> bool {
+        matches!(
+            self.source,
+            LaunchSource::Command(CommandSpec::SshProfile { .. }) | LaunchSource::SshProfile { .. }
+        )
+    }
+
+    pub(super) fn search_kind(&self) -> &'static str {
+        if self.is_ssh() { "ssh" } else { "terminal" }
+    }
+
+    pub(super) fn may_resume_agent(&self) -> bool {
+        self.may_resume_agent
+    }
+
+    pub(super) fn local_shell(&self) -> Option<&str> {
+        match &self.source {
+            LaunchSource::Command(CommandSpec::Shell) => Some("auto"),
+            LaunchSource::Local(options) => options.terminal_shell.as_deref(),
+            _ => None,
+        }
+    }
+
+    pub(super) fn local_custom_path(&self) -> Option<&str> {
+        match &self.source {
+            LaunchSource::Local(options) if options.terminal_shell.as_deref() == Some("custom") => {
+                options.terminal_shell_custom_path.as_deref()
+            }
+            _ => None,
+        }
+    }
+
+    pub(super) fn is_restored(&self) -> bool {
+        self.restored
+    }
+
+    /// A restored local tab and the bare shell tab can gain a split pane by
+    /// starting another local default shell.
+    pub(super) fn is_default_shell(&self) -> bool {
+        matches!(
+            &self.source,
+            LaunchSource::Command(CommandSpec::Shell) | LaunchSource::Local(_)
+        )
+    }
+
+    pub(super) fn connection_options(&self) -> Result<PtyConnectionOptions, String> {
+        match &self.source {
+            LaunchSource::Command(command) => command.connection_options(),
+            LaunchSource::Local(options) => Ok(options.as_ref().clone()),
+            LaunchSource::SshProfile { selector } => saved_ssh_profile(selector),
+            LaunchSource::Unsupported { reason } => Err(reason.clone()),
+        }
+    }
+}
+
+fn saved_tab_for_command(
+    saved_id: &str,
+    command: &CommandSpec,
+    options: Option<&PtyConnectionOptions>,
+) -> Tab {
+    let tab_type = if matches!(command, CommandSpec::SshProfile { .. }) {
+        TabType::Ssh
+    } else {
+        TabType::Terminal
+    };
+    let mut tab = Tab::new(saved_id, "", tab_type);
+    if let Some(options) = options {
+        tab.set_connection(Some(connection_from_options(options)));
+    }
+    tab
+}
+
+fn connection_from_options(options: &PtyConnectionOptions) -> TabConnection {
+    let mut connection = TabConnection::default();
+    let connection_type = match options.connection_type.as_deref() {
+        Some("ssh") => ConnectionType::Ssh,
+        Some("serial") => ConnectionType::Serial,
+        _ => ConnectionType::Terminal,
+    };
+    connection.set_connection_type(Some(connection_type));
+    connection.set_profile_id(options.profile_id.clone());
+    connection.set_profile_name(options.profile_name.clone());
+    connection.set_host(options.host.clone());
+    connection.set_port(options.port.map(u32::from));
+    connection.set_username(options.username.clone());
+    connection.set_cwd(options.cwd.clone());
+    connection.set_terminal_shell(
+        options
+            .terminal_shell
+            .as_deref()
+            .and_then(shell_type_from_saved),
+    );
+    connection.set_terminal_shell_custom_path(options.terminal_shell_custom_path.clone());
+    connection.set_terminal_shell_custom_args(options.terminal_shell_custom_args.clone());
+    #[cfg(windows)]
+    connection.set_terminal_shell_wsl_distro(options.terminal_shell_wsl_distro.clone());
+    connection
+}
+
+fn shell_type_from_saved(value: &str) -> Option<TerminalShellType> {
+    match value {
+        "auto" => Some(TerminalShellType::Auto),
+        "cmd" => Some(TerminalShellType::Cmd),
+        "powershell" => Some(TerminalShellType::Powershell),
+        "pwsh" => Some(TerminalShellType::Pwsh),
+        "wsl" => Some(TerminalShellType::Wsl),
+        "git-bash" => Some(TerminalShellType::GitBash),
+        "custom" => Some(TerminalShellType::Custom),
+        _ => None,
     }
 }
 

@@ -19,6 +19,7 @@ use tterm_terminal::terminal::Terminal;
 
 use super::clipboard::store::ClipboardWrites;
 use super::intents::handle_intent;
+use super::session::reports::Reports;
 
 pub(super) mod mouse_guard;
 use mouse_guard::MouseGuard;
@@ -294,6 +295,8 @@ pub(super) struct SessionState {
     pub visible: Arc<AtomicBool>,
     /// The coalesced frame wake-up.
     pub refresh: Arc<RefreshSignal>,
+    /// Prompt, directory and agent reports parsed from applied output.
+    pub reports: Arc<Reports>,
 }
 
 impl SessionState {
@@ -307,6 +310,7 @@ impl SessionState {
             return false;
         }
         self.terminal.write(bytes);
+        self.reports.observe(bytes);
         true
     }
 

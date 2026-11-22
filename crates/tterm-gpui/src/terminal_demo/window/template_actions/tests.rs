@@ -53,6 +53,7 @@ fn make_workspace(
         cx,
         PrototypeStartup {
             command,
+            workspace: session_workspace::test_startup(handle),
             sessions: Rc::new(SessionManager::new(
                 runtime.services.clone(),
                 Default::default(),

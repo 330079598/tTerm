@@ -4,6 +4,9 @@ use std::cell::RefCell;
 use std::rc::Rc;
 use std::sync::{Arc, Mutex};
 
+mod agent_resume;
+mod agent_resume_notice;
+use agent_resume::controller::{AttachOptions, Controller};
 mod drag;
 mod events;
 mod history;
@@ -11,6 +14,7 @@ mod motion;
 mod nudge;
 mod overflow;
 mod picker;
+mod session_workspace;
 #[cfg(test)]
 mod split_session_tests;
 mod split_state;
@@ -24,8 +28,9 @@ use history::{history_capacity, subscribe_history};
 use tabs::Tabs;
 
 use gpui_kit::prelude::*;
-use gpui_kit::{App, Entity, Rgba, Window, div, px};
+use gpui_kit::{App, Entity, Rgba, Task, Window, div, px};
 use tokio::sync::mpsc::UnboundedReceiver;
+use tterm_core::agent_status::AgentResumeSession;
 use tterm_core::config::AppConfig;
 use tterm_core::config::app_config_normalize::normalize_loaded_config;
 use tterm_core::config::load_config_file;
@@ -34,6 +39,7 @@ use tterm_core::i18n::catalogue::Catalogue;
 use tterm_core::i18n::keys;
 use tterm_core::i18n::language::Language;
 use tterm_core::services::AppServices;
+use tterm_core::workspace::tab::Tab;
 use tterm_core::workspace::tab_attention::TabAttentionStore;
 use tterm_terminal::grid::{CellSize, GridSize};
 use tterm_terminal::terminal::{ClipboardPolicy, Config, Terminal};
@@ -42,7 +48,7 @@ use tterm_ui::tokens::theme::Theme;
 
 use super::binding::{SessionManager, TabBinding};
 use super::clipboard::{PasteController, local_drop_text};
-use super::command::CommandSpec;
+use super::command::{CommandSpec, TabLaunch};
 use super::conpty::{log_conpty_source, prepare_conpty};
 use super::intents::DEFAULT_TITLE;
 use super::keymap::{KeymapRouter, encoder_config, route_keymap};
@@ -69,6 +75,7 @@ const INITIAL_CELL: CellSize = CellSize {
 
 struct PrototypeStartup {
     command: CommandSpec,
+    workspace: session_workspace::StartupWorkspace,
     sessions: Rc<SessionManager>,
     events: UnboundedReceiver<AppEvent>,
     keyboard: tterm_terminal_view::input::keyboard::EncoderConfig,
@@ -139,6 +146,8 @@ pub(super) fn run_window(
         }),
     );
     let lifecycle = state::WindowLifecycle::start(&services.shared.runtime);
+    let workspace =
+        session_workspace::startup(&services.shared.runtime, command.uses_saved_workspace());
     let theme = background::theme(lifecycle.initial.background);
     let background = background::content(lifecycle.initial.background);
     let app_id = services.shared.identity.identifier.clone();
@@ -149,6 +158,7 @@ pub(super) fn run_window(
         LocaleGlobal::set(cx, locale.clone());
         tterm_terminal_view::view::bind_keys(cx);
         lifecycle.install_quit_flush(cx);
+        session_workspace::install_quit_flush(workspace.persistence.clone(), cx);
         cx.on_window_closed(|cx, _| {
             if cx.windows().is_empty() {
                 cx.quit();
@@ -157,6 +167,7 @@ pub(super) fn run_window(
         .detach();
         let startup = PrototypeStartup {
             command,
+            workspace,
             sessions,
             events,
             keyboard,
@@ -184,10 +195,15 @@ pub(super) fn run_window(
         let handle = opened.handle;
         let prototype = opened.root;
         let initial_title = prototype.read(cx).default_window_title(cx);
+        let close_root = prototype.clone();
         if let Err(error) = handle.update(cx, |_, window, cx| {
             window.set_window_title(&initial_title);
-            let view = prototype.read(cx).tabs.active().view.clone();
-            view.update(cx, |view, cx| view.activate(window, cx));
+            prototype.update(cx, |prototype, cx| {
+                prototype.initialize_workspace(window, cx);
+            });
+            window.on_window_should_close(cx, move |window, cx| {
+                close_root.update(cx, |prototype, cx| prototype.begin_close(window, cx))
+            });
             window.activate_window();
         }) {
             eprintln!("tterm-gpui: {error}");
@@ -207,6 +223,10 @@ pub(super) struct Prototype {
     picker: Option<picker::TabPicker>,
     overflow: overflow::TabViewport,
     tabs: Tabs<WindowTab>,
+    workspace: session_workspace::save::WorkspacePersistence,
+    workspace_timer: Option<Task<()>>,
+    next_saved_tab: u64,
+    closing: bool,
     factory: TabFactory,
     current_title: String,
     ui: WindowUi,
@@ -220,7 +240,13 @@ struct TabFactory {
 }
 
 struct WindowTab {
+    saved_id: String,
+    saved: Tab,
+    restored: bool,
     default_shell: bool,
+    may_resume_agent: bool,
+    agent_resume: Option<AgentResumeSession>,
+    agent_resume_controller: Option<Controller>,
     search: picker::ConnectionLabel,
     fallback_key: tterm_core::i18n::translate::TranslationKey,
     view: Entity<TerminalView>,
@@ -230,18 +256,38 @@ struct WindowTab {
     paste_controller: Option<Entity<PasteController>>,
 }
 
+impl WindowTab {
+    pub(super) fn saved_id(&self) -> &str {
+        &self.saved_id
+    }
+
+    pub(super) fn saved(&self) -> &Tab {
+        &self.saved
+    }
+
+    pub(super) fn agent_resume(&self) -> Option<&AgentResumeSession> {
+        self.agent_resume.as_ref()
+    }
+
+    pub(super) fn set_agent_resume(&mut self, resume: Option<AgentResumeSession>) {
+        self.agent_resume = resume;
+    }
+
+    pub(super) fn may_resume_agent(&self) -> bool {
+        self.may_resume_agent
+    }
+}
+
 impl Prototype {
     #[cfg(all(feature = "automation", debug_assertions))]
     pub(super) fn automation_state(&self) -> String {
         format!("title={}", self.current_title)
     }
 
-    /// The automation endpoint's close path. It waits for the final
-    /// background write like the caption and Linux buttons do.
-    #[cfg(all(feature = "automation", debug_assertions))]
+    /// The automation endpoint's close path, using the same gate as the
+    /// platform close button.
     pub(super) fn request_close(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        let geometry = self.ui.geometry.clone();
-        let _ = geometry.update(cx, |geometry, cx| geometry.request_close(window, cx));
+        self.begin_close(window, cx);
     }
 
     fn new(
@@ -251,6 +297,7 @@ impl Prototype {
     ) -> Self {
         let PrototypeStartup {
             command,
+            workspace,
             sessions,
             mut events,
             keyboard,
@@ -282,7 +329,34 @@ impl Prototype {
         };
         strip::register_actions(&factory.keymap);
         template_ui::register_actions(&factory.keymap);
-        let tab = factory.open(1, command, &locale, cx);
+        let restored = workspace
+            .restore
+            .then(|| session_workspace::snapshot(workspace.load.clone()))
+            .flatten()
+            .and_then(|snapshot| {
+                session_workspace::restore::restore_workspace(&factory, snapshot, &locale, cx)
+                    .map(|restored| (restored.tabs, restored.splits, restored.next_saved_tab))
+            });
+        let (tabs, splits, next_saved_tab) = restored.unwrap_or_else(|| {
+            let tab = factory.open(1, command, &locale, cx);
+            (Tabs::new(tab), split_state::SplitState::new(1), 2)
+        });
+        let prototype = Self {
+            tabs,
+            splits,
+            workspace: workspace.persistence,
+            workspace_timer: None,
+            next_saved_tab,
+            closing: false,
+            picker: None,
+            overflow: Default::default(),
+            drag_layout: Default::default(),
+            nudge: None,
+            factory,
+            current_title: DEFAULT_TITLE.to_string(),
+            ui,
+        };
+        prototype.publish_workspace(cx);
         cx.spawn(async move |prototype, cx| {
             while let Some(event) = events.recv().await {
                 if prototype
@@ -317,17 +391,7 @@ impl Prototype {
             }
         })
         .detach();
-        Self {
-            tabs: Tabs::new(tab),
-            splits: split_state::SplitState::new(1),
-            picker: None,
-            overflow: Default::default(),
-            drag_layout: Default::default(),
-            nudge: None,
-            factory,
-            current_title: DEFAULT_TITLE.to_string(),
-            ui,
-        }
+        prototype
     }
 }
 
@@ -339,12 +403,38 @@ impl TabFactory {
         locale: &Entity<Locale>,
         cx: &mut Context<Prototype>,
     ) -> WindowTab {
-        let fallback_key = match &command {
-            CommandSpec::SshProfile { .. } => keys::TAB_SSH,
-            _ => keys::TAB_TERMINAL,
+        self.open_launch(
+            id,
+            TabLaunch::command(format!("tab-{id}"), command),
+            locale,
+            cx,
+        )
+    }
+
+    fn open_launch(
+        &self,
+        id: usize,
+        launch: TabLaunch,
+        locale: &Entity<Locale>,
+        cx: &mut Context<Prototype>,
+    ) -> WindowTab {
+        let fallback_key = if launch.is_ssh() {
+            keys::TAB_SSH
+        } else {
+            keys::TAB_TERMINAL
         };
-        let connection = command.connection_options();
-        let search = picker::ConnectionLabel::new(&command, connection.as_ref().ok());
+        let connection = launch.connection_options();
+        let search =
+            picker::ConnectionLabel::new_parts(launch.search_kind(), connection.as_ref().ok());
+        let saved = launch.saved().clone();
+        let saved_id = launch.saved_id().to_string();
+        let restored = launch.is_restored();
+        let default_shell = launch.is_default_shell();
+        let may_resume_agent = launch.may_resume_agent();
+        let is_ssh = launch.is_ssh();
+        let local_shell = launch.local_shell().map(str::to_owned);
+        let local_custom_path = launch.local_custom_path().map(str::to_owned);
+        let agent_resume = saved_agent_resume(&saved);
         let drop_text = connection.as_ref().ok().and_then(local_drop_text);
         let (binding, open_error) = match connection {
             Ok(connection) => {
@@ -359,13 +449,24 @@ impl TabFactory {
             }
             Err(error) => (None, Some(error)),
         };
-        if let Some(binding) = &binding {
-            binding.enter();
-        }
         let attachment = binding.as_ref().and_then(|binding| binding.attach());
         let Some(attachment) = attachment else {
             let error = open_error.unwrap_or_else(|| "Failed to start terminal".to_string());
-            return failed(cx, binding, fallback_key, search, error);
+            return failed(
+                cx,
+                FailedTab {
+                    saved_id,
+                    saved,
+                    restored,
+                    default_shell,
+                    may_resume_agent,
+                    agent_resume,
+                    binding,
+                    fallback_key,
+                    search,
+                },
+                error,
+            );
         };
         log_conpty_source();
         let model = attachment.model();
@@ -374,12 +475,37 @@ impl TabFactory {
         let Some(binding) = binding else {
             return failed(
                 cx,
-                None,
-                fallback_key,
-                search,
+                FailedTab {
+                    saved_id,
+                    saved,
+                    restored,
+                    default_shell,
+                    may_resume_agent,
+                    agent_resume,
+                    binding: None,
+                    fallback_key,
+                    search,
+                },
                 "The terminal tab was not registered".to_string(),
             );
         };
+        let agent_resume_controller = binding.session().and_then(|session| {
+            Controller::attach(
+                cx.weak_entity(),
+                AttachOptions {
+                    tab: id,
+                    binding: Rc::clone(&binding),
+                    session,
+                    restored: agent_resume.clone(),
+                    may_resume: may_resume_agent,
+                    is_ssh,
+                    local_shell,
+                    local_custom_path,
+                    config: self.config.clone(),
+                },
+                cx,
+            )
+        });
         let keymap_route = Rc::clone(&self.keymap);
         let initial = self.config.read(cx).config().clone();
         let paste_controller = cx.new(|cx| {
@@ -428,7 +554,13 @@ impl TabFactory {
         .detach();
 
         WindowTab {
-            default_shell: matches!(command, CommandSpec::Shell),
+            saved_id,
+            saved,
+            restored,
+            default_shell,
+            may_resume_agent,
+            agent_resume,
+            agent_resume_controller,
             search,
             fallback_key,
             view,
@@ -487,27 +619,47 @@ struct WindowUi {
     template_ui: Entity<TemplateUi>,
 }
 
-fn failed(
-    cx: &mut Context<Prototype>,
+struct FailedTab {
+    saved_id: String,
+    saved: Tab,
+    restored: bool,
+    default_shell: bool,
+    may_resume_agent: bool,
+    agent_resume: Option<AgentResumeSession>,
     binding: Option<Rc<TabBinding>>,
     fallback_key: tterm_core::i18n::translate::TranslationKey,
     search: picker::ConnectionLabel,
-    error: String,
-) -> WindowTab {
+}
+
+fn failed(cx: &mut Context<Prototype>, tab: FailedTab, error: String) -> WindowTab {
     eprintln!("tterm-gpui: {error}");
     let terminal = Arc::new(Terminal::new(Config::default(), INITIAL_GRID, INITIAL_CELL));
     terminal.write(format!("\x1b[31m[{error}]\x1b[0m\r\n").as_bytes());
     let view = cx.new(|cx| TerminalView::new(cx, terminal, Default::default()));
     WindowTab {
-        default_shell: false,
-        search,
-        fallback_key,
+        saved_id: tab.saved_id,
+        saved: tab.saved,
+        restored: tab.restored,
+        default_shell: tab.default_shell,
+        may_resume_agent: tab.may_resume_agent,
+        agent_resume: tab.agent_resume,
+        agent_resume_controller: None,
+        search: tab.search,
+        fallback_key: tab.fallback_key,
         view,
-        binding,
+        binding: tab.binding,
         title: Arc::new(Mutex::new(None)),
         program_title: RefCell::default(),
         paste_controller: None,
     }
+}
+
+fn saved_agent_resume(tab: &Tab) -> Option<AgentResumeSession> {
+    tab.connection
+        .as_ref()
+        .and_then(|connection| connection.saved_field("agentResume"))
+        .cloned()
+        .and_then(|value| serde_json::from_value(value).ok())
 }
 
 /// A pending title update: either the parser's default marker, which resolves
@@ -538,13 +690,13 @@ impl Render for Prototype {
             .clone()
             .unwrap_or_else(|| self.default_window_title(cx));
         self.apply_window_title(window, title);
-        let geometry = self.ui.geometry.clone();
+        let close_root = cx.entity().downgrade();
         let on_action: ActionHandler = Rc::new(move |action, window, cx| match action {
             TitleBarAction::Minimize => window.minimize_window(),
             TitleBarAction::ToggleMaximize => window.zoom_window(),
             TitleBarAction::Close => {
-                geometry.update(cx, |geometry, cx| {
-                    geometry.request_close(window, cx);
+                let _ = close_root.update(cx, |prototype, cx| {
+                    prototype.request_close(window, cx);
                 });
             }
         });
@@ -564,15 +716,18 @@ impl Render for Prototype {
             .tools(tools)
             .on_action(on_action)
             .render(window);
+        let content = div()
+            .size_full()
+            .flex()
+            .flex_col()
+            .min_h(px(0.0))
+            .children(self.agent_resume_notice(cx))
+            .child(self.workspace_panes(window, cx));
         div()
             .capture_key_down(cx.listener(Self::workspace_key))
             .size_full()
             .relative()
-            .child(shell::frame(
-                titlebar,
-                self.workspace_panes(window, cx),
-                self.ui.background,
-            ))
+            .child(shell::frame(titlebar, content, self.ui.background))
             .children(self.tabs.active().paste_controller.clone())
             .child(self.ui.scrollback_setting.clone())
             .children(self.picker_panel(window, cx))
@@ -581,82 +736,4 @@ impl Render for Prototype {
 }
 
 #[cfg(test)]
-mod tests {
-    use tterm_core::config::AppConfig;
-    use tterm_core::config::limits::DEFAULT_HIDDEN_RENDERER_RELEASE_SECS;
-    use tterm_core::events::ssh::SshConnectionProgressPayload;
-
-    use super::events::connection_state;
-    use super::{DEFAULT_TITLE, TitleUpdate, classify_title_update, startup_config};
-    use crate::terminal_demo::binding::scoped::ConnectionState;
-
-    #[test]
-    fn connection_progress_maps_to_the_scoped_connection_state() {
-        assert_eq!(
-            connection_state(&SshConnectionProgressPayload::new("ready", "ready")),
-            ConnectionState::Connected
-        );
-        assert_eq!(
-            connection_state(&SshConnectionProgressPayload::new("retrying", "retrying")),
-            ConnectionState::Reconnecting
-        );
-        assert_eq!(
-            connection_state(&SshConnectionProgressPayload::new(
-                "retry_exhausted",
-                "exhausted"
-            )),
-            ConnectionState::Error
-        );
-        assert_eq!(
-            connection_state(&SshConnectionProgressPayload::new(
-                "host_key_checking",
-                "checking"
-            )),
-            ConnectionState::Connecting
-        );
-    }
-
-    #[test]
-    fn default_title_marker_resolves_through_the_locale() {
-        assert_eq!(
-            classify_title_update(Some(DEFAULT_TITLE.to_string())),
-            Some(TitleUpdate::Default)
-        );
-        assert_eq!(classify_title_update(None), None);
-    }
-
-    #[test]
-    fn a_program_title_is_preserved_verbatim() {
-        assert_eq!(
-            classify_title_update(Some("cargo test".to_string())),
-            Some(TitleUpdate::Program("cargo test".to_string()))
-        );
-    }
-
-    #[test]
-    fn startup_config_normalizes_before_views_read_it() {
-        let loaded = AppConfig {
-            ui_style: "floating".to_string(),
-            close_behavior: "close".to_string(),
-            hidden_renderer_release_secs: 7,
-            ..AppConfig::default()
-        };
-
-        let config = startup_config(Ok(loaded));
-
-        assert_eq!(config.ui_style, "classic");
-        assert_eq!(config.close_behavior, "ask");
-        assert_eq!(
-            config.hidden_renderer_release_secs,
-            DEFAULT_HIDDEN_RENDERER_RELEASE_SECS
-        );
-    }
-
-    #[test]
-    fn startup_config_uses_normalized_defaults_when_reading_fails() {
-        let config = startup_config(Err("damaged config".to_string()));
-
-        assert_eq!(config.ui_style, "islands");
-        assert_eq!(config.secret_storage_mode, "system");
-    }
-}
+mod tests;

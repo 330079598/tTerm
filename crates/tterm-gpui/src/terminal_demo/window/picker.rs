@@ -9,7 +9,7 @@ use tterm_core::i18n::translate::TranslationKey;
 use tterm_ui::components::input::{InputOptions, input};
 use tterm_ui::tokens::gpui::hsla;
 
-use super::{CommandSpec, Locale, Prototype, WindowTab};
+use super::{Locale, Prototype, WindowTab};
 
 pub(super) struct TabPicker {
     field: Entity<InputState>,
@@ -29,11 +29,7 @@ impl ConnectionLabel {
             .contains(normalized_query)
     }
 
-    pub(super) fn new(command: &CommandSpec, options: Option<&PtyConnectionOptions>) -> Self {
-        let kind = match command {
-            CommandSpec::SshProfile { .. } => "ssh",
-            _ => "terminal",
-        };
+    pub(super) fn new_parts(kind: &str, options: Option<&PtyConnectionOptions>) -> Self {
         let name = options
             .and_then(|o| o.profile_name.as_deref())
             .unwrap_or("");
@@ -62,6 +58,12 @@ impl WindowTab {
         self.program_title
             .borrow()
             .clone()
+            .or_else(|| {
+                self.restored
+                    .then(|| self.saved.title.trim())
+                    .filter(|title| !title.is_empty())
+                    .map(str::to_owned)
+            })
             .unwrap_or_else(|| text(locale, self.fallback_key))
     }
 }
@@ -251,18 +253,17 @@ mod tests {
 
     #[test]
     fn searches_tab_position_title_and_public_connection_fields_but_not_credentials() {
-        let mut options = CommandSpec::Shell.connection_options().unwrap();
-        options.host = Some("Build.Example".into());
-        options.port = Some(2222);
-        options.username = Some("Builder".into());
-        options.profile_name = Some("Nightly Jobs".into());
-        options.password = Some("password-marker".into());
-        options.private_key_passphrase = Some("passphrase-marker".into());
-        options.private_key_path = Some("keypath-marker".into());
-        let command = CommandSpec::SshProfile {
-            selector: "saved".into(),
+        let options = PtyConnectionOptions {
+            host: Some("Build.Example".into()),
+            port: Some(2222),
+            username: Some("Builder".into()),
+            profile_name: Some("Nightly Jobs".into()),
+            password: Some("password-marker".into()),
+            private_key_passphrase: Some("passphrase-marker".into()),
+            private_key_path: Some("keypath-marker".into()),
+            ..PtyConnectionOptions::default()
         };
-        let label = ConnectionLabel::new(&command, Some(&options));
+        let label = ConnectionLabel::new_parts("ssh", Some(&options));
         assert_eq!(label.host, "Build.Example:2222");
         for query in [
             "",

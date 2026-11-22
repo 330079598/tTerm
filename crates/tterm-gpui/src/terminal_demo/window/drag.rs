@@ -128,8 +128,10 @@ pub(super) fn drop_target(strip: Div, cx: &Context<Prototype>) -> Div {
             && let Some(placement) = this.placement(window)
         {
             let target = this.tabs.ordered().nth(placement.target).map(|(id, _)| id);
-            if let Some(target) = target {
-                this.tabs.move_to(drag.id, target);
+            if let Some(target) = target
+                && this.tabs.move_to(drag.id, target)
+            {
+                this.mark_workspace_dirty(cx);
             }
         }
         this.drag_layout.gesture.set(None);

@@ -45,6 +45,7 @@ fn fixture(local: bool) -> Fixture {
         alive: Arc::new(AtomicBool::new(true)),
         visible: Arc::new(AtomicBool::new(true)),
         refresh: Arc::new(RefreshSignal::new()),
+        reports: Arc::new(crate::terminal_demo::session::reports::Reports::new()),
     };
     let foreground = local.then(|| ForegroundProbe::Local {
         ptys: Arc::new(RwLock::new(HashMap::new())),

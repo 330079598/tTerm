@@ -34,7 +34,7 @@ pub fn open<V: Render + 'static>(
             .map_err(|error| error.to_string())?;
     handle
         .update(cx, |_, window, cx| {
-            geometry.update(cx, |geometry, cx| geometry.attach(window, cx));
+            geometry.update(cx, |geometry, cx| geometry.observe(window, cx));
         })
         .map_err(|error| error.to_string())?;
     Ok(Opened {

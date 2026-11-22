@@ -9,6 +9,7 @@ use serde::{Deserialize, Serialize};
 #[cfg(test)]
 mod resume_compatibility_tests;
 pub mod scrollback;
+pub mod workspace;
 
 pub const SESSION_KEY: &str = "session";
 /// Set once `session.json` was moved into the database, so the merge of the

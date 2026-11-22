@@ -138,6 +138,7 @@ impl Sashes {
         let gesture = self.gesture.clone();
         let release = self.gesture.clone();
         let owner = self.owner.clone();
+        let release_owner = owner.clone();
         let tab = self.tab;
         let path = self.path.clone();
         let span = GAP * (self.count.saturating_sub(1) as f32);
@@ -197,6 +198,9 @@ impl Sashes {
                         && event.button == MouseButton::Left
                         && release.borrow_mut().take().is_some()
                     {
+                        let _ = release_owner.update(cx, |workspace, cx| {
+                            workspace.mark_workspace_dirty(cx);
+                        });
                         cx.stop_propagation();
                     }
                 });

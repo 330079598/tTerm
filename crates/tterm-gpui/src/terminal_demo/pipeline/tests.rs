@@ -51,6 +51,7 @@ fn state(visible: bool, scrollback: usize) -> (Arc<Terminal>, SessionState) {
         alive: Arc::new(AtomicBool::new(true)),
         visible: Arc::new(AtomicBool::new(visible)),
         refresh: Arc::new(RefreshSignal::new()),
+        reports: Arc::new(crate::terminal_demo::session::reports::Reports::new()),
     };
     (terminal, state)
 }

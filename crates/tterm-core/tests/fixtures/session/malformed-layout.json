@@ -1,0 +1,17 @@
+{
+  "tabs": [
+    {
+      "id": "shell",
+      "title": "Shell",
+      "type": "terminal",
+      "isActive": true
+    }
+  ],
+  "active_tab_id": "shell",
+  "layout": {
+    "version": 2,
+    "groups": "not-an-array"
+  },
+  "schema_version": 1,
+  "last_saved": 1
+}

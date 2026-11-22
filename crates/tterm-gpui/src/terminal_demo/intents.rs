@@ -118,6 +118,7 @@ mod tests {
             alive: Arc::new(std::sync::atomic::AtomicBool::new(true)),
             visible: Arc::new(std::sync::atomic::AtomicBool::new(true)),
             refresh: Arc::new(crate::terminal_demo::pipeline::RefreshSignal::new()),
+            reports: Arc::new(crate::terminal_demo::session::reports::Reports::new()),
         };
         (model, state)
     }

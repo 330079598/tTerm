@@ -15,6 +15,7 @@ use tterm_core::workspace::tab_groups::{
     get_fallback_tab_id, get_pane_ids, get_visible_pane_ids, pane_leaf, place_pane,
     remove_tabs_from_groups, resize_split, toggle_zoom, ungroup_panes,
 };
+use tterm_core::workspace::tab_groups_persistence::RestoredTabGroup;
 
 pub(super) const FOCUS_ACTIONS: [KeymapActionId; 6] = [
     KeymapActionId::WorkspaceFocusNextPane,
@@ -56,6 +57,66 @@ impl SplitState {
         let mut state = Self::default();
         state.open(first);
         state
+    }
+
+    /// Restores saved cards, translating every persisted pane id to the
+    /// session's internal key. Cards whose panes no longer exist are dropped.
+    pub(super) fn restore(
+        groups: &[RestoredTabGroup],
+        resolve: impl Fn(&str) -> Option<usize>,
+    ) -> Self {
+        let mut state = Self::default();
+        for group in groups {
+            let Some(root) = remap_saved_tree(&group.root, &resolve) else {
+                continue;
+            };
+            let pane_ids = get_pane_ids(&root);
+            let active = resolve(&group.active_tab_id)
+                .filter(|id| pane_ids.iter().any(|pane| *pane == id.to_string()))
+                .or_else(|| pane_ids.first().and_then(|id| parse_tab_id(id)));
+            let Some(active) = active else {
+                continue;
+            };
+            let zoomed = group
+                .zoomed_tab_id
+                .as_deref()
+                .and_then(&resolve)
+                .filter(|id| pane_ids.iter().any(|pane| *pane == id.to_string()));
+            let id = state.next_group_id();
+            state.groups.push(TabGroup {
+                id,
+                root,
+                active_tab_id: active.to_string(),
+                zoomed_tab_id: zoomed.map(|id| id.to_string()),
+            });
+        }
+        state
+    }
+
+    /// The cards translated back to the ids saved with their tabs.
+    pub(super) fn saved_groups(
+        &self,
+        resolve: impl Fn(usize) -> Option<String>,
+    ) -> Vec<RestoredTabGroup> {
+        self.groups
+            .iter()
+            .filter_map(|group| {
+                let root = remap_internal_tree(&group.root, &resolve)?;
+                let active = parse_tab_id(&group.active_tab_id)
+                    .and_then(&resolve)
+                    .unwrap_or_default();
+                let zoomed = group
+                    .zoomed_tab_id
+                    .as_deref()
+                    .and_then(parse_tab_id)
+                    .and_then(&resolve);
+                Some(RestoredTabGroup {
+                    root,
+                    active_tab_id: active,
+                    zoomed_tab_id: zoomed,
+                })
+            })
+            .collect()
     }
 
     /// Gives a tab that no card holds a card of its own.
@@ -262,6 +323,45 @@ impl SplitState {
 
 fn parse_tab_id(id: &str) -> Option<usize> {
     id.parse().ok()
+}
+
+fn remap_saved_tree(node: &PaneNode, resolve: &impl Fn(&str) -> Option<usize>) -> Option<PaneNode> {
+    match node {
+        PaneNode::Pane { tab_id } => resolve(tab_id).map(|id| pane_leaf(id.to_string())),
+        PaneNode::Split {
+            orientation,
+            children,
+            sizes,
+        } => Some(PaneNode::Split {
+            orientation: *orientation,
+            children: children
+                .iter()
+                .map(|child| remap_saved_tree(child, resolve))
+                .collect::<Option<Vec<_>>>()?,
+            sizes: sizes.clone(),
+        }),
+    }
+}
+
+fn remap_internal_tree(
+    node: &PaneNode,
+    resolve: &impl Fn(usize) -> Option<String>,
+) -> Option<PaneNode> {
+    match node {
+        PaneNode::Pane { tab_id } => parse_tab_id(tab_id).and_then(resolve).map(pane_leaf),
+        PaneNode::Split {
+            orientation,
+            children,
+            sizes,
+        } => Some(PaneNode::Split {
+            orientation: *orientation,
+            children: children
+                .iter()
+                .map(|child| remap_internal_tree(child, resolve))
+                .collect::<Option<Vec<_>>>()?,
+            sizes: sizes.clone(),
+        }),
+    }
 }
 
 fn pane_rects(root: &PaneNode) -> Vec<PaneRect> {

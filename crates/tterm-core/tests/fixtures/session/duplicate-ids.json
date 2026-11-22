@@ -1,0 +1,19 @@
+{
+  "tabs": [
+    {
+      "id": "same",
+      "title": "First",
+      "type": "terminal",
+      "isActive": true
+    },
+    {
+      "id": "same",
+      "title": "Second",
+      "type": "ssh",
+      "isActive": false
+    }
+  ],
+  "active_tab_id": "same",
+  "schema_version": 1,
+  "last_saved": 1
+}

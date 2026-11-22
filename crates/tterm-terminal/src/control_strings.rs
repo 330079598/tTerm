@@ -53,7 +53,8 @@ pub(crate) struct CompletedControlString<'a> {
 /// Splits output at complete top-level OSC strings without pausing the model.
 #[derive(Debug, Default)]
 pub(crate) struct ControlStringFramer {
-    capture_osc52_payload: bool,
+    payload_codes: &'static [u16],
+    payload_limit: usize,
     state: ScanState,
     utf8: Utf8State,
     osc_code: u16,
@@ -69,8 +70,19 @@ pub(crate) struct ControlStringFramer {
 impl ControlStringFramer {
     /// Keeps OSC 52 payload bytes for the store scanner.
     pub(crate) fn with_osc52_payload(capture: bool) -> Self {
+        const OSC52_CODES: [u16; 1] = [crate::osc52::OSC52_CODE];
         Self {
-            capture_osc52_payload: capture,
+            payload_codes: if capture { &OSC52_CODES } else { &[] },
+            payload_limit: MAX_OSC52_PAYLOAD_BYTES,
+            ..Self::default()
+        }
+    }
+
+    /// Keeps the payload of each listed OSC code up to `limit` bytes.
+    pub(crate) fn with_payload_codes(codes: &'static [u16], limit: usize) -> Self {
+        Self {
+            payload_codes: codes,
+            payload_limit: limit,
             ..Self::default()
         }
     }
@@ -212,12 +224,12 @@ impl ControlStringFramer {
             0x1B => self.state = ScanState::OscEscape,
             b';' if !self.first_field_done => {
                 self.first_field_done = true;
-                if self.capture_osc52_payload && self.is_osc52() {
+                if self.captures_payload() {
                     self.push_payload(b';');
                 }
             }
             _ if self.first_field_done => {
-                if self.capture_osc52_payload && self.is_osc52() {
+                if self.captures_payload() {
                     self.push_payload(byte);
                 }
             }
@@ -281,8 +293,8 @@ impl ControlStringFramer {
         self.osc_code_valid = false;
     }
 
-    fn is_osc52(&self) -> bool {
-        self.osc_code_valid && self.osc_code == crate::osc52::OSC52_CODE
+    fn captures_payload(&self) -> bool {
+        self.osc_code_valid && self.payload_codes.contains(&self.osc_code)
     }
 
     fn push_first_field(&mut self, byte: u8) {
@@ -293,14 +305,14 @@ impl ControlStringFramer {
                 self.first_field_valid = false;
             }
         }
-        if self.capture_osc52_payload && self.is_osc52() {
+        if self.captures_payload() {
             self.push_payload(byte);
         }
     }
 
     fn push_payload(&mut self, byte: u8) {
         if self.payload_valid {
-            if self.payload.len() < MAX_OSC52_PAYLOAD_BYTES {
+            if self.payload.len() < self.payload_limit {
                 self.payload.push(byte);
             } else {
                 self.payload_valid = false;

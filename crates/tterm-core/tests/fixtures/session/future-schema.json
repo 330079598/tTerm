@@ -1,0 +1,24 @@
+{
+  "tabs": [
+    {
+      "id": "future",
+      "title": "Future",
+      "type": "ssh",
+      "isActive": true,
+      "connection": {
+        "type": "ssh",
+        "host": "future.example"
+      },
+      "futureShape": {
+        "must": "stay untouched"
+      }
+    }
+  ],
+  "active_tab_id": "future",
+  "layout": {
+    "version": 3,
+    "groups": []
+  },
+  "schema_version": 2,
+  "last_saved": 1800000000000
+}

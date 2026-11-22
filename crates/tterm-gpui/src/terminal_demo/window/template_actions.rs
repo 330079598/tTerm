@@ -8,7 +8,7 @@ use gpui_kit::{Context, Window};
 use tterm_core::workspace::pane_templates::{LayoutShape, count_template_panes};
 use tterm_core::workspace::tab_groups::get_pane_ids;
 
-use super::{CommandSpec, Prototype, WindowTab};
+use super::{CommandSpec, Prototype, TabLaunch, WindowTab};
 
 impl Prototype {
     /// Whether a template may add panes to `tab` without reconnecting or
@@ -56,9 +56,14 @@ impl Prototype {
         let mut failed = false;
         for _ in 0..missing {
             let previous = self.tabs.active_id();
+            let saved_id = self.next_saved_id();
             self.tabs.push(|id| {
-                self.factory
-                    .open(id, CommandSpec::Shell, &self.ui.locale, cx)
+                self.factory.open_launch(
+                    id,
+                    TabLaunch::command(saved_id, CommandSpec::Shell),
+                    &self.ui.locale,
+                    cx,
+                )
             });
             let new = self.tabs.active_id();
             if new == previous {
@@ -89,6 +94,7 @@ impl Prototype {
         self.tabs.select(tab);
         self.splits.focus(tab);
         self.refresh_panes(previous, window, cx);
+        self.mark_workspace_dirty(cx);
         true
     }
 }
