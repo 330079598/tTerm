@@ -215,6 +215,8 @@
   },
   "settings": {
     "title": "设置",
+    "open": "打开设置",
+    "back": "返回终端",
     "search": {
       "label": "搜索设置",
       "placeholder": "搜索设置",
@@ -492,6 +494,9 @@
       },
       "editor": {
         "save": "保存远程文件"
+      },
+      "settings": {
+        "open": "打开设置"
       }
     },
     "cliHints": {

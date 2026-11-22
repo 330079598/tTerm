@@ -180,6 +180,21 @@ impl TemplateUi {
         cx.notify();
     }
 
+    /// Hides the picker when the workspace switches to another route.
+    ///
+    /// Unlike [`Self::close`], this dismisses the overlay even while a save is
+    /// in flight. The save keeps running, but its key interceptor and the
+    /// hidden name field must not keep control of the keyboard.
+    pub(super) fn dismiss(&mut self, cx: &mut Context<Self>) {
+        self.open = false;
+        self.target = None;
+        self.feedback = None;
+        self.input = None;
+        self.restore_focus = None;
+        self.stop_intercepting_shortcuts();
+        cx.notify();
+    }
+
     fn target_tab(&self) -> Option<usize> {
         self.target.as_ref().map(|target| target.tab)
     }

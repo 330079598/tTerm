@@ -3,6 +3,7 @@ import { useCallback, useEffect, useRef } from "react"
 
 import type { AppShell } from "@/components/TTermApp/appShell"
 import { useTrayUpdateCheck } from "@/components/TTermApp/useTrayUpdateCheck"
+import { useKeymap } from "@/contexts/KeymapContext"
 import { useLatestRef } from "@/hooks/useLatestRef"
 
 interface TitleBarPagesOptions {
@@ -18,11 +19,17 @@ interface TitleBarPagesOptions {
 export function useTitleBarPages(shell: AppShell, options: TitleBarPagesOptions) {
   const { t, openSettingsTab, openTunnelsTab } = shell
   const { settingsTabTitle, tunnelsTabTitle, runningTunnelCount } = options
+  const { registerHandler } = useKeymap()
   useTrayUpdateCheck(shell, settingsTabTitle)
 
   const handleSettingsClick = useCallback(() => {
     openSettingsTab(settingsTabTitle)
   }, [openSettingsTab, settingsTabTitle])
+
+  useEffect(
+    () => registerHandler("settings.open", () => handleSettingsClick()),
+    [handleSettingsClick, registerHandler]
+  )
 
   const tunnelsButtonLabel =
     runningTunnelCount > 0

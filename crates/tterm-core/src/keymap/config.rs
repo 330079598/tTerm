@@ -131,6 +131,7 @@ fn defaults(mac: bool) -> BTreeMap<KeymapActionId, Option<Vec<String>>> {
     n!(ZmodemSendFiles);
     n!(ZmodemReceiveFiles);
     s!(EditorSave, "mod+s");
+    s!(SettingsOpen, "mod+,");
     m
 }
 fn normalize_binding(v: &[String]) -> Option<Vec<String>> {

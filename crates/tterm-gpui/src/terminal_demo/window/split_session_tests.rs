@@ -31,7 +31,7 @@ fn make_workspace(
     make_workspace_with(runtime, events, shell(), AppConfig::default(), cx)
 }
 
-fn make_workspace_with(
+pub(super) fn make_workspace_with(
     runtime: &GpuiRuntime,
     events: UnboundedReceiver<AppEvent>,
     command: CommandSpec,

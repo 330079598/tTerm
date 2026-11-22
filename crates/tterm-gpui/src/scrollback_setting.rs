@@ -27,9 +27,10 @@ use crate::locale::Locale;
 mod tests;
 
 const DIALOG_ID: &str = "scrollback-setting-dialog";
-const OPEN_BUTTON_ID: &str = "scrollback-setting-open";
 const CANCEL_BUTTON_ID: &str = "scrollback-setting-cancel";
 const SAVE_BUTTON_ID: &str = "scrollback-setting-save";
+const PAGE_INPUT_ID: &str = "settings-scrollback-input";
+const PAGE_SAVE_BUTTON_ID: &str = "settings-scrollback-save";
 const DIALOG_WIDTH: f32 = 448.0;
 const DIALOG_PADDING: f32 = 24.0;
 const DIALOG_RADIUS: f32 = 8.0;
@@ -40,6 +41,7 @@ pub(crate) struct ScrollbackSetting {
     locale: Entity<Locale>,
     theme: Theme,
     open: bool,
+    page_mode: bool,
     input: Option<Entity<InputState>>,
     error: Option<String>,
     saving: bool,
@@ -61,6 +63,7 @@ impl ScrollbackSetting {
             locale,
             theme,
             open: false,
+            page_mode: false,
             input: None,
             error: None,
             saving: false,
@@ -68,11 +71,22 @@ impl ScrollbackSetting {
         }
     }
 
+    #[cfg(test)]
     fn open(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        self.open_editor(window, cx, false);
+    }
+
+    /// Opens the editor as a section of the settings page.
+    pub(crate) fn open_page(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        self.open_editor(window, cx, true);
+    }
+
+    fn open_editor(&mut self, window: &mut Window, cx: &mut Context<Self>, page_mode: bool) {
         if self.open {
             return;
         }
-        self.restore_focus = window.focused(cx);
+        self.page_mode = page_mode;
+        self.restore_focus = (!page_mode).then(|| window.focused(cx)).flatten();
         self.error = None;
         self.saving = false;
         let value = self.config.read(cx).scrollback_lines().to_string();
@@ -91,6 +105,26 @@ impl ScrollbackSetting {
         cx.notify();
     }
 
+    /// Clears the page editor without taking focus back from the route.
+    ///
+    /// Returns `false` while a save is in flight so the route stays open
+    /// rather than discarding the user's pending change.
+    pub(crate) fn close_page(&mut self, cx: &mut Context<Self>) -> bool {
+        if !self.open {
+            return true;
+        }
+        if self.saving {
+            return false;
+        }
+        self.open = false;
+        self.page_mode = false;
+        self.error = None;
+        self.input = None;
+        self.restore_focus = None;
+        cx.notify();
+        true
+    }
+
     fn close(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         if self.saving {
             return;
@@ -104,7 +138,7 @@ impl ScrollbackSetting {
         cx.notify();
     }
 
-    fn submit(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+    pub(crate) fn submit(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         if self.saving {
             return;
         }
@@ -145,6 +179,7 @@ impl ScrollbackSetting {
     ) {
         self.saving = false;
         match result {
+            Ok(_) if self.page_mode => cx.notify(),
             Ok(_) => self.close(window, cx),
             Err(message) => {
                 self.error = Some(message);
@@ -189,6 +224,10 @@ impl ScrollbackSetting {
                 self.focus_input(window, cx);
             }
             "escape" => {
+                // The route owns Escape and returns to the terminal.
+                if self.page_mode {
+                    return;
+                }
                 window.prevent_default();
                 cx.stop_propagation();
                 self.close(window, cx);
@@ -202,16 +241,77 @@ impl ScrollbackSetting {
         }
     }
 
-    pub(crate) fn button(&self, cx: &mut Context<Self>) -> Stateful<Div> {
-        button(
-            OPEN_BUTTON_ID,
-            self.text(cx, keys::SCROLLBACK_SETTING_OPEN),
-            Variant::Ghost,
-            ButtonSize::Sm,
-            ButtonState::default(),
-            self.theme,
+    /// Sets the field value for a focused page edit.
+    #[cfg(test)]
+    pub(crate) fn set_value(&mut self, value: &str, window: &mut Window, cx: &mut Context<Self>) {
+        if let Some(input) = &self.input {
+            input.update(cx, |state, cx| state.set_value(value, window, cx));
+        }
+    }
+
+    /// Renders the scrollback field as a section of the settings page.
+    pub(crate) fn section(&mut self, cx: &mut Context<Self>) -> Div {
+        let theme = self.theme;
+        let title = self.text(cx, keys::SCROLLBACK_SETTING_TITLE);
+        let description = self.text(cx, keys::SCROLLBACK_SETTING_DESCRIPTION);
+        let save = self.text(cx, keys::SCROLLBACK_SETTING_SAVE);
+        let mut section = div()
+            .flex()
+            .flex_col()
+            .gap(px(8.0))
+            .capture_key_down(cx.listener(Self::handle_key))
+            .child(
+                div()
+                    .text_size(px(15.0))
+                    .font_weight(FontWeight(600.0))
+                    .child(title),
+            )
+            .child(
+                div()
+                    .text_size(px(13.0))
+                    .text_color(hsla(theme.colors.muted_foreground, 1.0))
+                    .child(description),
+            );
+        if let Some(state) = &self.input {
+            section = section.child(
+                input(
+                    state,
+                    InputOptions {
+                        theme: Some(theme),
+                        ..InputOptions::default()
+                    },
+                )
+                .id(PAGE_INPUT_ID)
+                .debug_selector(|| PAGE_INPUT_ID.to_string()),
+            );
+        }
+        if let Some(error) = &self.error {
+            section = section.child(
+                div()
+                    .text_size(px(12.0))
+                    .text_color(hsla(theme.colors.destructive, 1.0))
+                    .child(error.clone()),
+            );
+        }
+        let state = ButtonState {
+            disabled: self.saving,
+            ..ButtonState::default()
+        };
+        section.child(
+            div().mt(px(8.0)).flex().justify_end().child(
+                button(
+                    PAGE_SAVE_BUTTON_ID,
+                    save.clone(),
+                    Variant::Default,
+                    ButtonSize::Default,
+                    state,
+                    theme,
+                )
+                .debug_selector(|| PAGE_SAVE_BUTTON_ID.to_string())
+                .aria_label(save)
+                .on_click(cx.listener(|this, _, window, cx| this.submit(window, cx))),
+            ),
         )
-        .on_click(cx.listener(|this, _, window, cx| this.open(window, cx)))
     }
 
     fn dialog(&mut self, cx: &mut Context<Self>) -> Stateful<Div> {

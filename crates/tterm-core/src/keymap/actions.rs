@@ -65,6 +65,7 @@ pub enum KeymapActionId {
     ZmodemSendFiles,
     ZmodemReceiveFiles,
     EditorSave,
+    SettingsOpen,
 }
 
 /// Ordered action registry: `(id, group, allow_in_editable)`.
@@ -276,6 +277,11 @@ pub const KEYMAP_ACTIONS: &[(KeymapActionId, KeymapActionGroup, bool)] = &[
         true,
     ),
     (KeymapActionId::EditorSave, KeymapActionGroup::Editor, true),
+    (
+        KeymapActionId::SettingsOpen,
+        KeymapActionGroup::Workspace,
+        true,
+    ),
 ];
 
 /// Stable ordered action groups used by the settings UI.
@@ -358,6 +364,7 @@ impl KeymapActionId {
         Self::ZmodemSendFiles,
         Self::ZmodemReceiveFiles,
         Self::EditorSave,
+        Self::SettingsOpen,
     ];
     pub fn as_str(self) -> &'static str {
         ACTION_NAMES[self as usize]
@@ -367,7 +374,7 @@ impl KeymapActionId {
         (g, a)
     }
 }
-const ACTION_NAMES: [&str; 47] = [
+const ACTION_NAMES: [&str; 48] = [
     "workspace.newTab",
     "workspace.splitRight",
     "workspace.splitBelow",
@@ -415,6 +422,7 @@ const ACTION_NAMES: [&str; 47] = [
     "zmodem.sendFiles",
     "zmodem.receiveFiles",
     "editor.save",
+    "settings.open",
 ];
 impl fmt::Display for KeymapActionId {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {

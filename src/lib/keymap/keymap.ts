@@ -85,6 +85,7 @@ const DEFAULT_BINDINGS: Record<KeymapActionId, string | string[] | null> = {
   "zmodem.sendFiles": null,
   "zmodem.receiveFiles": null,
   "editor.save": "mod+s",
+  "settings.open": "mod+,",
 }
 
 /**

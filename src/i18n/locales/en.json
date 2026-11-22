@@ -224,6 +224,8 @@
   },
   "settings": {
     "title": "Settings",
+    "open": "Open settings",
+    "back": "Back to terminal",
     "search": {
       "label": "Search settings",
       "placeholder": "Search settings",
@@ -501,6 +503,9 @@
       },
       "editor": {
         "save": "Save remote file"
+      },
+      "settings": {
+        "open": "Open settings"
       }
     },
     "cliHints": {

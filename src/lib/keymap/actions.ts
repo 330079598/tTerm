@@ -56,6 +56,8 @@ export type KeymapActionId =
   | "zmodem.receiveFiles"
   // editor
   | "editor.save"
+  // settings
+  | "settings.open"
 
 export interface KeymapActionDefinition {
   id: KeymapActionId
@@ -116,6 +118,7 @@ export const KEYMAP_ACTIONS: KeymapActionDefinition[] = [
   { id: "zmodem.sendFiles", group: "zmodem", allowInEditable: true },
   { id: "zmodem.receiveFiles", group: "zmodem", allowInEditable: true },
   { id: "editor.save", group: "editor", allowInEditable: true },
+  { id: "settings.open", group: "workspace", allowInEditable: true },
 ]
 
 const KEYMAP_ACTION_MAP = new Map(KEYMAP_ACTIONS.map((action) => [action.id, action]))

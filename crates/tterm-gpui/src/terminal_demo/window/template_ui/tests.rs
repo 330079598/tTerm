@@ -279,6 +279,60 @@ fn saving_an_unnamed_split_uses_the_plural_untitled_name(cx: &mut TestAppContext
 }
 
 #[gpui_kit::test]
+fn opening_settings_dismisses_a_pending_save_and_releases_the_keyboard(cx: &mut TestAppContext) {
+    let writes = TemplateWrites::default();
+    let (_runtime, root, visual) = workspace(cx, CommandSpec::Shell, AppConfig::default(), writes);
+    visual.update(|window, cx| {
+        root.update(cx, |workspace, cx| {
+            workspace.tabs.push(|id| {
+                workspace
+                    .factory
+                    .open(id, CommandSpec::Shell, &workspace.ui.locale, cx)
+            });
+            workspace.select_tab(1, window, cx);
+            workspace.split_tab(2, 1, Edge::Right, window, cx);
+            workspace.open_layout_templates(window, cx);
+            let template_ui = workspace.ui.template_ui.clone();
+            assert!(template_ui.read(cx).open);
+            template_ui.update(cx, |template_ui, _| {
+                template_ui.saving = true;
+                template_ui.save_purpose = Some(SavePurpose::Add);
+            });
+
+            workspace.open_settings(window, cx);
+
+            assert!(workspace.settings_is_open());
+            template_ui.update(cx, |template_ui, _| {
+                assert!(!template_ui.open);
+                assert!(template_ui.saving);
+                assert!(template_ui.key_interceptor.is_none());
+                assert!(template_ui.input.is_none());
+            });
+        });
+        window.render_frame(cx);
+    });
+
+    visual.update(|window, cx| {
+        let focused = window.focused(cx).expect("the settings field is focused");
+        root.update(cx, |workspace, cx| {
+            workspace.ui.template_ui.update(cx, |template_ui, cx| {
+                template_ui.finish_save(Ok(()), window, cx);
+            });
+        });
+        assert!(
+            focused.is_focused(window),
+            "the finished save must not take focus from the settings page"
+        );
+    });
+
+    visual.simulate_keystrokes("escape");
+    visual.update(|window, cx| {
+        assert!(!root.read(cx).settings_is_open());
+        window.remove_window();
+    });
+}
+
+#[gpui_kit::test]
 fn deleting_a_saved_layout_removes_only_that_card(cx: &mut TestAppContext) {
     let writes = TemplateWrites::default();
     let config = with_templates(vec![

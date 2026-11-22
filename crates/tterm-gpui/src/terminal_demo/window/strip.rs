@@ -13,8 +13,9 @@ use super::{
 
 pub(super) fn register_actions(router: &KeymapRouter) {
     use KeymapActionId::{
-        TabsCloseActive, TabsNext, TabsPrev, WorkspaceNewTab, WorkspaceRestoreSingleGroup,
-        WorkspaceSplitBelow, WorkspaceSplitRight, WorkspaceTogglePaneZoom,
+        SettingsOpen, TabsCloseActive, TabsNext, TabsPrev, WorkspaceNewTab,
+        WorkspaceRestoreSingleGroup, WorkspaceSplitBelow, WorkspaceSplitRight,
+        WorkspaceTogglePaneZoom,
     };
     for action in [
         WorkspaceNewTab,
@@ -25,6 +26,7 @@ pub(super) fn register_actions(router: &KeymapRouter) {
         WorkspaceSplitBelow,
         WorkspaceRestoreSingleGroup,
         WorkspaceTogglePaneZoom,
+        SettingsOpen,
     ]
     .into_iter()
     .chain(FOCUS_ACTIONS)
@@ -43,7 +45,7 @@ impl WindowTab {
                 .is_some_and(|session| session.is_live())
     }
 
-    fn leave(&self, cx: &mut Context<Prototype>) {
+    pub(super) fn leave(&self, cx: &mut Context<Prototype>) {
         self.view.update(cx, |view, cx| view.deactivate(cx));
         if let Some(binding) = &self.binding {
             binding.leave();
@@ -120,6 +122,9 @@ impl Prototype {
     }
 
     pub(super) fn select_tab(&mut self, id: usize, window: &mut Window, cx: &mut Context<Self>) {
+        if !self.close_settings(window, cx) {
+            return;
+        }
         let previous = self.visible_ids();
         if self.tabs.get(id).is_none() {
             return;
@@ -133,6 +138,9 @@ impl Prototype {
     }
 
     pub(super) fn new_tab(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        if !self.close_settings(window, cx) {
+            return;
+        }
         let previous = self.visible_ids();
         let saved_id = self.next_saved_id();
         self.tabs.push(|id| {
@@ -201,6 +209,9 @@ impl Prototype {
     }
 
     pub(super) fn close_tab(&mut self, id: usize, window: &mut Window, cx: &mut Context<Self>) {
+        if !self.close_settings(window, cx) {
+            return;
+        }
         if self.tabs.neighbour(true).is_none() {
             return;
         }
@@ -235,6 +246,18 @@ impl Prototype {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
+        if self.settings_open {
+            if event.keystroke.key == "escape" {
+                if self.close_settings(window, cx) {
+                    window.prevent_default();
+                    cx.stop_propagation();
+                }
+            } else if self.factory.keymap.dispatch(event).is_some() {
+                window.prevent_default();
+                cx.stop_propagation();
+            }
+            return;
+        }
         if event.keystroke.key == "escape" && cx.stop_active_drag(window) {
             window.prevent_default();
             cx.stop_propagation();
@@ -259,6 +282,7 @@ impl Prototype {
                 self.restore_single_group(window, cx)
             }
             Some(KeymapActionId::WorkspaceChooseLayout) => self.open_layout_templates(window, cx),
+            Some(KeymapActionId::SettingsOpen) => self.open_settings(window, cx),
             Some(KeymapActionId::TabsCloseActive) => {
                 self.close_tab(self.tabs.active_id(), window, cx)
             }

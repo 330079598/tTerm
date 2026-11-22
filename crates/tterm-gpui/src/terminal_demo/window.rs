@@ -15,6 +15,9 @@ mod nudge;
 mod overflow;
 mod picker;
 mod session_workspace;
+mod settings_page;
+#[cfg(test)]
+mod settings_page_tests;
 #[cfg(test)]
 mod split_session_tests;
 mod split_state;
@@ -227,6 +230,7 @@ pub(super) struct Prototype {
     workspace_timer: Option<Task<()>>,
     next_saved_tab: u64,
     closing: bool,
+    settings_open: bool,
     factory: TabFactory,
     current_title: String,
     ui: WindowUi,
@@ -309,6 +313,8 @@ impl Prototype {
         } = startup;
         let scrollback_setting =
             cx.new(|cx| ScrollbackSetting::new(config.clone(), locale.clone(), theme, cx));
+        cx.observe(&scrollback_setting, |_, _, cx| cx.notify())
+            .detach();
         let template_ui = TemplateUi::for_workspace(config.clone(), locale.clone(), theme, cx);
         cx.observe(&locale, |_, _, cx| cx.notify()).detach();
         cx.observe(&geometry, |_, _, cx| cx.notify()).detach();
@@ -348,6 +354,7 @@ impl Prototype {
             workspace_timer: None,
             next_saved_tab,
             closing: false,
+            settings_open: false,
             picker: None,
             overflow: Default::default(),
             drag_layout: Default::default(),
@@ -681,7 +688,12 @@ fn classify_title_update(pending: Option<String>) -> Option<TitleUpdate> {
 impl Render for Prototype {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         self.sync_layout_template_target(cx);
-        let strip = self.tab_strip(window, cx);
+        let settings_open = self.settings_is_open();
+        let strip = if settings_open {
+            div()
+        } else {
+            self.tab_strip(window, cx)
+        };
         let title = self
             .tabs
             .active()
@@ -700,38 +712,55 @@ impl Render for Prototype {
                 });
             }
         });
-        let settings_button = self
-            .ui
-            .scrollback_setting
-            .update(cx, |setting, cx| setting.button(cx));
-        let layout_button = self.layout_template_button(cx);
-        let tools = div()
-            .flex()
-            .items_center()
-            .gap(px(4.0))
-            .child(layout_button)
-            .child(settings_button);
+        let settings_button = self.settings_button(cx);
+        let tools = if settings_open {
+            div()
+                .flex()
+                .items_center()
+                .gap(px(4.0))
+                .child(settings_button)
+        } else {
+            let layout_button = self.layout_template_button(cx);
+            div()
+                .flex()
+                .items_center()
+                .gap(px(4.0))
+                .child(layout_button)
+                .child(settings_button)
+        };
         let titlebar = TitleBar::new(self.current_title.clone(), self.ui.theme)
             .slot(strip)
             .tools(tools)
             .on_action(on_action)
             .render(window);
-        let content = div()
-            .size_full()
-            .flex()
-            .flex_col()
-            .min_h(px(0.0))
-            .children(self.agent_resume_notice(cx))
-            .child(self.workspace_panes(window, cx));
+        let content = if self.settings_is_open() {
+            self.settings_page(cx)
+        } else {
+            div()
+                .size_full()
+                .flex()
+                .flex_col()
+                .min_h(px(0.0))
+                .children(self.agent_resume_notice(cx))
+                .child(self.workspace_panes(window, cx))
+                .into_any_element()
+        };
         div()
             .capture_key_down(cx.listener(Self::workspace_key))
             .size_full()
             .relative()
             .child(shell::frame(titlebar, content, self.ui.background))
-            .children(self.tabs.active().paste_controller.clone())
-            .child(self.ui.scrollback_setting.clone())
-            .children(self.picker_panel(window, cx))
-            .child(self.ui.template_ui.clone())
+            .children(
+                (!settings_open)
+                    .then(|| self.tabs.active().paste_controller.clone())
+                    .flatten(),
+            )
+            .children(
+                (!settings_open)
+                    .then(|| self.picker_panel(window, cx))
+                    .flatten(),
+            )
+            .children((!settings_open).then(|| self.ui.template_ui.clone()))
     }
 }
 
