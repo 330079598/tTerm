@@ -7,6 +7,9 @@ use tterm_core::workspace::pane_layout::{PaneBox, layout_pane_tree};
 use tterm_core::workspace::pane_navigation::{
     PaneDirection, PaneRect, find_pane_in_direction, get_sibling_pane_id,
 };
+use tterm_core::workspace::pane_templates::{
+    LayoutShape, apply_template_to_groups, count_template_panes,
+};
 use tterm_core::workspace::tab_groups::{
     PaneNode, SplitDirection, TabGroup, find_group_of_tab, focus_pane_in_groups,
     get_fallback_tab_id, get_pane_ids, get_visible_pane_ids, pane_leaf, place_pane,
@@ -132,6 +135,32 @@ impl SplitState {
         if next == self.groups {
             return false;
         }
+        self.groups = next;
+        true
+    }
+
+    /// Lays the card holding `tab` out as `shape`; new panes take the leftover
+    /// slots and panes the shape cannot hold move into cards of their own.
+    pub(super) fn apply_template(
+        &mut self,
+        tab: usize,
+        shape: &LayoutShape,
+        new_tabs: &[usize],
+    ) -> bool {
+        let Some(group) = self.group_for(tab) else {
+            return false;
+        };
+        if get_pane_ids(&group.root).len() + new_tabs.len() < count_template_panes(shape) {
+            return false;
+        }
+        let mut next_id = self.last_group;
+        let new_ids = new_tabs.iter().map(usize::to_string).collect::<Vec<_>>();
+        let next =
+            apply_template_to_groups(&self.groups, &tab.to_string(), shape, &new_ids, &mut || {
+                next_id = next_id.saturating_add(1);
+                format!("group-{next_id}")
+            });
+        self.last_group = next_id;
         self.groups = next;
         true
     }

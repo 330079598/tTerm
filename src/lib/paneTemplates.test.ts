@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest"
 
+import frontendSaved from "@/lib/fixtures/paneTemplates.savedByFrontend.json"
+import rustSaved from "@/lib/fixtures/paneTemplates.savedByRust.json"
 import {
   applyTemplateToGroups,
   BUILTIN_PANE_TEMPLATES,
@@ -12,6 +14,7 @@ import {
   type LayoutShape,
 } from "@/lib/paneTemplates"
 import { getPaneIds, paneLeaf, type PaneNode, type TabGroup } from "@/lib/tabGroups"
+import { normalizeTabSettings } from "@/lib/tabSettings"
 
 const pane: LayoutShape = { type: "pane" }
 const row = (children: LayoutShape[], sizes = children.map(() => 1 / children.length)) => ({
@@ -87,6 +90,47 @@ describe("normalizePaneTemplates", () => {
     ])
     expect(templates).toEqual([{ id: "a", name: "Ops", root: row([pane, pane]) }])
     expect(normalizePaneTemplates(undefined)).toEqual([])
+  })
+})
+
+describe("saved config fixtures", () => {
+  it("reads the native writer's nested layout without sharing its serializer", () => {
+    expect(normalizeTabSettings(rustSaved).panes.templates).toEqual([
+      {
+        id: "rust-nested",
+        name: "Rust Nested",
+        root: {
+          type: "split",
+          orientation: "horizontal",
+          children: [
+            { type: "pane" },
+            {
+              type: "split",
+              orientation: "vertical",
+              children: [{ type: "pane" }, { type: "pane" }],
+              sizes: [0.28, 0.72],
+            },
+          ],
+          sizes: [0.44, 0.56],
+        },
+      },
+      {
+        id: "rust-even",
+        name: "Rust Even",
+        root: {
+          type: "split",
+          orientation: "vertical",
+          children: [{ type: "pane" }, { type: "pane" }],
+          sizes: [0.5, 0.5],
+        },
+      },
+    ])
+  })
+
+  it("keeps the frontend's names, ids and ratios for the reverse fixture", () => {
+    expect(normalizeTabSettings(frontendSaved).panes.templates).toEqual(
+      frontendSaved.panes.templates
+    )
   })
 })
 

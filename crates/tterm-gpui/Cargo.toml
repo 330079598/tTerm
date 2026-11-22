@@ -34,6 +34,7 @@ tterm-core = { path = "../tterm-core" }
 tterm-platform = { path = "../tterm-platform" }
 tterm-ui = { path = "../tterm-ui" }
 serde = { version = "1", features = ["derive"] }
+serde_json = "1"
 rusqlite = { version = "=0.40.2", features = ["bundled"] }
 tterm-terminal-view = { path = "../tterm-terminal-view" }
 tterm-terminal = { path = "../tterm-terminal" }
@@ -45,7 +46,6 @@ image = { version = "=0.25.10", default-features = false, features = ["png"], op
 # its screenshot; `profiler` enables GPUI's frame timings for the P0-10
 # drawing benchmark.
 gpui-kit = { workspace = true, features = ["test-support", "profiler"] }
-serde_json = "1"
 # In-memory database fixtures for the window-state tests.
 tterm-core = { path = "../tterm-core", features = ["test-support"] }
 

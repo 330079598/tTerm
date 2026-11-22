@@ -15,7 +15,8 @@ pub fn save_scrollback_lines(lines: u32) -> Result<(), String> {
     save_at(&ensure_config_dir()?.join("config.json"), lines)
 }
 
-fn save_at(path: &Path, lines: u32) -> Result<(), String> {
+pub(super) fn save_at(path: &Path, lines: u32) -> Result<(), String> {
+    let _edit = super::edit::lock()?;
     let lines = normalize_scrollback_config(Some(f64::from(lines)));
     let previous = match fs::read_to_string(path) {
         Ok(content) => content,

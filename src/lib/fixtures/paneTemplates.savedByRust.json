@@ -1,0 +1,55 @@
+{
+  "theme": "default",
+  "font_size": 18,
+  "scrollback_lines": 4321,
+  "panes": {
+    "show_headers": true,
+    "dim_inactive_percent": 30,
+    "templates": [
+      {
+        "id": "rust-nested",
+        "name": "Rust Nested",
+        "root": {
+          "type": "split",
+          "orientation": "horizontal",
+          "children": [
+            {
+              "type": "pane"
+            },
+            {
+              "type": "split",
+              "orientation": "vertical",
+              "children": [
+                {
+                  "type": "pane"
+                },
+                {
+                  "type": "pane"
+                }
+              ],
+              "sizes": [0.28, 0.72]
+            }
+          ],
+          "sizes": [0.44, 0.56]
+        }
+      },
+      {
+        "id": "rust-even",
+        "name": "Rust Even",
+        "root": {
+          "type": "split",
+          "orientation": "vertical",
+          "children": [
+            {
+              "type": "pane"
+            },
+            {
+              "type": "pane"
+            }
+          ],
+          "sizes": [0.5, 0.5]
+        }
+      }
+    ]
+  }
+}

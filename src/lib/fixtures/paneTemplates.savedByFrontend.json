@@ -1,0 +1,65 @@
+{
+  "theme": "default",
+  "font_size": 19,
+  "scrollback_lines": 12000,
+  "future": {
+    "exact": 1.23e45,
+    "untouched": [1, "two", null]
+  },
+  "panes": {
+    "show_headers": false,
+    "dim_inactive_percent": 15,
+    "templates": [
+      {
+        "id": "frontend-ops",
+        "name": "Frontend Ops",
+        "root": {
+          "type": "split",
+          "orientation": "horizontal",
+          "children": [
+            {
+              "type": "pane"
+            },
+            {
+              "type": "split",
+              "orientation": "vertical",
+              "children": [
+                {
+                  "type": "pane"
+                },
+                {
+                  "type": "pane"
+                }
+              ],
+              "sizes": [0.35, 0.65]
+            }
+          ],
+          "sizes": [0.62, 0.38]
+        }
+      },
+      {
+        "id": "frontend-triad",
+        "name": "Frontend Triad",
+        "root": {
+          "type": "split",
+          "orientation": "vertical",
+          "children": [
+            {
+              "type": "pane"
+            },
+            {
+              "type": "pane"
+            },
+            {
+              "type": "pane"
+            }
+          ],
+          "sizes": [0.2, 0.3, 0.5]
+        }
+      }
+    ],
+    "future_pane_setting": {
+      "keep": [1, 2, 3]
+    }
+  }
+}

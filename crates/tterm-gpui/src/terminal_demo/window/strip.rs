@@ -32,7 +32,7 @@ pub(super) fn register_actions(router: &KeymapRouter) {
 }
 
 impl WindowTab {
-    fn live_default_shell(&self) -> bool {
+    pub(super) fn live_default_shell(&self) -> bool {
         self.default_shell
             && self
                 .binding
@@ -62,7 +62,12 @@ impl Prototype {
         self.splits.visible_ids(self.tabs.active_id())
     }
 
-    fn refresh_panes(&self, previous: Vec<usize>, window: &mut Window, cx: &mut Context<Self>) {
+    pub(super) fn refresh_panes(
+        &self,
+        previous: Vec<usize>,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
         let visible = self.visible_ids();
         for id in &previous {
             if !visible.contains(id)
@@ -232,6 +237,7 @@ impl Prototype {
             Some(KeymapActionId::WorkspaceRestoreSingleGroup) => {
                 self.restore_single_group(window, cx)
             }
+            Some(KeymapActionId::WorkspaceChooseLayout) => self.open_layout_templates(window, cx),
             Some(KeymapActionId::TabsCloseActive) => {
                 self.close_tab(self.tabs.active_id(), window, cx)
             }

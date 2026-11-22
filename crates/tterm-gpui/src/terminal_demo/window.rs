@@ -17,12 +17,14 @@ mod split_state;
 mod split_ui;
 mod strip;
 mod tabs;
+mod template_actions;
+mod template_ui;
 use events::handle_event;
 use history::{history_capacity, subscribe_history};
 use tabs::Tabs;
 
 use gpui_kit::prelude::*;
-use gpui_kit::{App, Entity, Rgba, Window, div};
+use gpui_kit::{App, Entity, Rgba, Window, div, px};
 use tokio::sync::mpsc::UnboundedReceiver;
 use tterm_core::config::AppConfig;
 use tterm_core::config::app_config_normalize::normalize_loaded_config;
@@ -54,6 +56,7 @@ use crate::app_window::state::WindowGeometry;
 use crate::config_state::ConfigState;
 use crate::locale::{Locale, LocaleGlobal};
 use crate::scrollback_setting::ScrollbackSetting;
+use template_ui::TemplateUi;
 
 const INITIAL_GRID: GridSize = GridSize {
     columns: 80,
@@ -259,6 +262,7 @@ impl Prototype {
         } = startup;
         let scrollback_setting =
             cx.new(|cx| ScrollbackSetting::new(config.clone(), locale.clone(), theme, cx));
+        let template_ui = TemplateUi::for_workspace(config.clone(), locale.clone(), theme, cx);
         cx.observe(&locale, |_, _, cx| cx.notify()).detach();
         cx.observe(&geometry, |_, _, cx| cx.notify()).detach();
         subscribe_history(cx, &config, &sessions).detach();
@@ -268,6 +272,7 @@ impl Prototype {
             theme,
             background,
             scrollback_setting,
+            template_ui,
         };
         let factory = TabFactory {
             sessions,
@@ -276,6 +281,7 @@ impl Prototype {
             keymap,
         };
         strip::register_actions(&factory.keymap);
+        template_ui::register_actions(&factory.keymap);
         let tab = factory.open(1, command, &locale, cx);
         cx.spawn(async move |prototype, cx| {
             while let Some(event) = events.recv().await {
@@ -478,6 +484,7 @@ struct WindowUi {
     theme: Theme,
     background: Rgba,
     scrollback_setting: Entity<ScrollbackSetting>,
+    template_ui: Entity<TemplateUi>,
 }
 
 fn failed(
@@ -521,6 +528,7 @@ fn classify_title_update(pending: Option<String>) -> Option<TitleUpdate> {
 
 impl Render for Prototype {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+        self.sync_layout_template_target(cx);
         let strip = self.tab_strip(window, cx);
         let title = self
             .tabs
@@ -544,9 +552,16 @@ impl Render for Prototype {
             .ui
             .scrollback_setting
             .update(cx, |setting, cx| setting.button(cx));
+        let layout_button = self.layout_template_button(cx);
+        let tools = div()
+            .flex()
+            .items_center()
+            .gap(px(4.0))
+            .child(layout_button)
+            .child(settings_button);
         let titlebar = TitleBar::new(self.current_title.clone(), self.ui.theme)
             .slot(strip)
-            .tools(settings_button)
+            .tools(tools)
             .on_action(on_action)
             .render(window);
         div()
@@ -561,6 +576,7 @@ impl Render for Prototype {
             .children(self.tabs.active().paste_controller.clone())
             .child(self.ui.scrollback_setting.clone())
             .children(self.picker_panel(window, cx))
+            .child(self.ui.template_ui.clone())
     }
 }
 
