@@ -89,6 +89,24 @@ fn a_prompt_mark_closes_reporting_at_its_stream_position() {
 }
 
 #[test]
+fn guarded_output_delivers_split_prompt_reports_once_to_the_resume_controller() {
+    use tterm_terminal::session_reports::SessionReport;
+
+    let fixture = fixture(false);
+    let (_, mut receiver, signal) = fixture.guard.state.reports.attach();
+    let now = Instant::now();
+    fixture.apply(b"\x1b]133;", now);
+    assert!(!signal.at_prompt());
+    fixture.apply(b"A\x07", now);
+    assert!(signal.at_prompt());
+    assert_eq!(receiver.try_recv().unwrap(), SessionReport::Prompt);
+    fixture.apply(b"\x1b]133;C\x07", now);
+    assert!(!signal.at_prompt());
+    assert_eq!(receiver.try_recv().unwrap(), SessionReport::CommandStarted);
+    assert!(receiver.try_recv().is_err());
+}
+
+#[test]
 fn osc_633_prompt_marks_close_reporting_too() {
     let fixture = fixture(false);
     let now = Instant::now();

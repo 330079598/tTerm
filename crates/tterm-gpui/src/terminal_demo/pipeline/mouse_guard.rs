@@ -138,6 +138,7 @@ impl MouseGuard {
         if !self.is_live() {
             return false;
         }
+        self.state.reports.observe(bytes);
         gate.epoch = gate.epoch.saturating_add(1);
         let prompt_offsets = gate.prompts.scan(bytes);
         let mut start = 0;

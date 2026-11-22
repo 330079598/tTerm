@@ -93,6 +93,13 @@ impl ControlStringFramer {
         bytes: &[u8],
         mut on_complete: impl FnMut(CompletedControlString<'_>),
     ) {
+        if self.state == ScanState::Ground
+            && self.utf8.remaining == 0
+            && bytes.is_ascii()
+            && !bytes.contains(&0x1b)
+        {
+            return;
+        }
         for (index, &byte) in bytes.iter().enumerate() {
             match self.state {
                 ScanState::Ground => self.ground(byte),
