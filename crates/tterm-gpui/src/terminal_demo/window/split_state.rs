@@ -27,6 +27,7 @@ pub(super) struct Pair {
     pub(super) axis: SplitOrientation,
     /// The first pane's share of the space remaining after the divider.
     pub(super) ratio: f32,
+    zoomed: Option<usize>,
 }
 
 impl Pair {
@@ -73,6 +74,26 @@ impl SplitState {
         source != target && self.pair_for(source).is_none() && self.pair_for(target).is_none()
     }
 
+    pub(super) fn visible_pair(&self, id: usize) -> Option<Pair> {
+        self.pair_for(id).filter(|pair| pair.zoomed.is_none())
+    }
+
+    pub(super) fn toggle_zoom(&mut self, id: usize) -> bool {
+        let Some(pair) = self.pairs.iter_mut().find(|pair| pair.contains(id)) else {
+            return false;
+        };
+        pair.zoomed = (pair.zoomed != Some(id)).then_some(id);
+        true
+    }
+
+    pub(super) fn reveal(&mut self, id: usize) {
+        if let Some(pair) = self.pairs.iter_mut().find(|pair| pair.contains(id))
+            && pair.zoomed != Some(id)
+        {
+            pair.zoomed = None;
+        }
+    }
+
     pub(super) fn split(&mut self, source: usize, target: usize, edge: Edge) -> bool {
         if !self.can_split(source, target) {
             return false;
@@ -88,6 +109,7 @@ impl SplitState {
             second,
             axis,
             ratio: 0.5,
+            zoomed: None,
         });
         true
     }
@@ -144,6 +166,7 @@ mod tests {
                 first: 30,
                 second: 10,
                 ratio: 0.4,
+                zoomed: None,
             };
             assert_eq!(pair.focus_target(30, forward), Some(10));
             assert_eq!(pair.focus_target(10, backward), Some(30));
@@ -175,6 +198,7 @@ mod tests {
                     second,
                     axis,
                     ratio: 0.5,
+                    zoomed: None,
                 })
             );
             assert_eq!(state.pair_for(first), state.pair_for(second));

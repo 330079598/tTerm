@@ -12,7 +12,7 @@ use super::{CommandSpec, KeymapRouter, Prototype, TitleUpdate, WindowTab, classi
 pub(super) fn register_actions(router: &KeymapRouter) {
     use KeymapActionId::{
         TabsCloseActive, TabsNext, TabsPrev, WorkspaceNewTab, WorkspaceRestoreSingleGroup,
-        WorkspaceSplitBelow, WorkspaceSplitRight,
+        WorkspaceSplitBelow, WorkspaceSplitRight, WorkspaceTogglePaneZoom,
     };
     for action in [
         WorkspaceNewTab,
@@ -22,6 +22,7 @@ pub(super) fn register_actions(router: &KeymapRouter) {
         WorkspaceSplitRight,
         WorkspaceSplitBelow,
         WorkspaceRestoreSingleGroup,
+        WorkspaceTogglePaneZoom,
     ]
     .into_iter()
     .chain(FOCUS_ACTIONS)
@@ -60,7 +61,7 @@ impl Prototype {
     pub(super) fn visible_ids(&self) -> [Option<usize>; 2] {
         let active = self.tabs.active_id();
         self.splits
-            .pair_for(active)
+            .visible_pair(active)
             .map_or([Some(active), None], |pair| {
                 [Some(pair.first), Some(pair.second)]
             })
@@ -125,6 +126,7 @@ impl Prototype {
             return;
         }
         self.tabs.select(id);
+        self.splits.reveal(id);
         self.refresh_panes(previous, window, cx);
     }
 
@@ -170,6 +172,15 @@ impl Prototype {
         }
     }
 
+    fn toggle_pane_zoom(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        let previous = self.visible_ids();
+        if self.splits.toggle_zoom(self.tabs.active_id()) {
+            self.refresh_panes(previous, window, cx);
+        } else {
+            self.nudge_active_tab(cx);
+        }
+    }
+
     pub(super) fn close_tab(&mut self, id: usize, window: &mut Window, cx: &mut Context<Self>) {
         if self.tabs.neighbour(true).is_none() {
             return;
@@ -182,6 +193,7 @@ impl Prototype {
             if let Some(peer) = peer {
                 self.tabs.select(peer);
             }
+            self.splits.reveal(self.tabs.active_id());
             self.refresh_panes(previous, window, cx);
         } else {
             cx.notify();
@@ -219,6 +231,7 @@ impl Prototype {
             return;
         }
         match self.factory.keymap.dispatch(event) {
+            Some(KeymapActionId::WorkspaceTogglePaneZoom) => self.toggle_pane_zoom(window, cx),
             Some(KeymapActionId::WorkspaceNewTab) => self.new_tab(window, cx),
             Some(KeymapActionId::WorkspaceSplitRight) => self.split_shell(Edge::Right, window, cx),
             Some(KeymapActionId::WorkspaceSplitBelow) => self.split_shell(Edge::Bottom, window, cx),
@@ -237,7 +250,7 @@ impl Prototype {
                 let active = self.tabs.active_id();
                 if let Some(id) = self
                     .splits
-                    .pair_for(active)
+                    .visible_pair(active)
                     .and_then(|pair| pair.focus_target(active, action))
                 {
                     self.focus_pane(id, window, cx);

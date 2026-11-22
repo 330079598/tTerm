@@ -85,6 +85,62 @@ fn default_shortcut_splits_right(cx: &mut TestAppContext) {
 }
 
 #[gpui_kit::test]
+fn pane_zoom_preserves_the_pair_and_routes_focus_only_to_visible_panes(cx: &mut TestAppContext) {
+    with_workspace(
+        cx,
+        CommandSpec::Shell,
+        AppConfig::default(),
+        |root, visual| {
+            press(visual, "\\");
+            let models = visual.update(|_, cx| {
+                root.update(cx, |workspace, _| {
+                    assert!(workspace.splits.resize(1, 0.35));
+                    ["gpui-1", "gpui-2"].map(|id| {
+                        workspace
+                            .factory
+                            .sessions
+                            .tab(id)
+                            .unwrap()
+                            .session()
+                            .unwrap()
+                            .model()
+                    })
+                })
+            });
+            let check = |visual: &mut VisualTestContext, visible, focused| {
+                visual.update(|window, cx| {
+                    let workspace = root.read(cx);
+                    check_visible(workspace, visible, focused, window, cx);
+                    assert_eq!(workspace.splits.pair_for(1).unwrap().ratio, 0.35);
+                })
+            };
+            press(visual, "alt-enter");
+            check(visual, [Some(2), None], 2);
+            press(visual, "alt-left");
+            check(visual, [Some(2), None], 2);
+            send_marker(visual, &models[1], "zoomedpane");
+            assert!(!output(&models[0]).contains("zoomedpane"));
+            press(visual, "alt-enter");
+            check(visual, [Some(1), Some(2)], 2);
+            press(visual, "alt-enter");
+            visual.update(|window, cx| {
+                root.update(cx, |workspace, cx| {
+                    workspace.new_tab(window, cx);
+                    workspace.select_tab(2, window, cx);
+                    workspace.close_tab(3, window, cx);
+                })
+            });
+            check(visual, [Some(2), None], 2);
+            visual.update(|window, cx| {
+                root.update(cx, |workspace, cx| workspace.select_tab(1, window, cx))
+            });
+            check(visual, [Some(1), Some(2)], 1);
+            send_marker(visual, &models[0], "revealedpane");
+        },
+    );
+}
+
+#[gpui_kit::test]
 fn default_shortcut_splits_below(cx: &mut TestAppContext) {
     verify_split(
         cx,

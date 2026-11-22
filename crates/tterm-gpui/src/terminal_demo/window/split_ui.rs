@@ -97,7 +97,7 @@ fn drop_surface(
 impl Prototype {
     pub(super) fn workspace_panes(&self, window: &mut Window, cx: &mut Context<Self>) -> Div {
         let selected = self.tabs.active_id();
-        let pair = self.splits.pair_for(selected);
+        let pair = self.splits.visible_pair(selected);
         let mut root = div().size_full().relative().flex().min_w_0().min_h_0();
         if let Some(pair) = pair {
             let panes = [(pair.first, pair.ratio), (pair.second, 1. - pair.ratio)]
