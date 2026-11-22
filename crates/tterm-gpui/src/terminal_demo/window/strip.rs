@@ -11,8 +11,8 @@ use super::{CommandSpec, KeymapRouter, Prototype, TitleUpdate, WindowTab, classi
 
 pub(super) fn register_actions(router: &KeymapRouter) {
     use KeymapActionId::{
-        TabsCloseActive, TabsNext, TabsPrev, WorkspaceNewTab, WorkspaceSplitBelow,
-        WorkspaceSplitRight,
+        TabsCloseActive, TabsNext, TabsPrev, WorkspaceNewTab, WorkspaceRestoreSingleGroup,
+        WorkspaceSplitBelow, WorkspaceSplitRight,
     };
     for action in [
         WorkspaceNewTab,
@@ -21,6 +21,7 @@ pub(super) fn register_actions(router: &KeymapRouter) {
         TabsCloseActive,
         WorkspaceSplitRight,
         WorkspaceSplitBelow,
+        WorkspaceRestoreSingleGroup,
     ]
     .into_iter()
     .chain(FOCUS_ACTIONS)
@@ -160,6 +161,15 @@ impl Prototype {
         }
     }
 
+    fn restore_single_group(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        let previous = self.visible_ids();
+        if self.splits.remove(self.tabs.active_id()).is_some() {
+            self.refresh_panes(previous, window, cx);
+        } else {
+            self.nudge_active_tab(cx);
+        }
+    }
+
     pub(super) fn close_tab(&mut self, id: usize, window: &mut Window, cx: &mut Context<Self>) {
         if self.tabs.neighbour(true).is_none() {
             return;
@@ -212,6 +222,9 @@ impl Prototype {
             Some(KeymapActionId::WorkspaceNewTab) => self.new_tab(window, cx),
             Some(KeymapActionId::WorkspaceSplitRight) => self.split_shell(Edge::Right, window, cx),
             Some(KeymapActionId::WorkspaceSplitBelow) => self.split_shell(Edge::Bottom, window, cx),
+            Some(KeymapActionId::WorkspaceRestoreSingleGroup) => {
+                self.restore_single_group(window, cx)
+            }
             Some(KeymapActionId::TabsCloseActive) => {
                 self.close_tab(self.tabs.active_id(), window, cx)
             }

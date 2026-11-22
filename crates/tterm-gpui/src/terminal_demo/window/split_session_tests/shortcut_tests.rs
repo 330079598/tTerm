@@ -115,3 +115,62 @@ fn split_does_not_duplicate_exec_programs(cx: &mut TestAppContext) {
         });
     });
 }
+
+#[gpui_kit::test]
+fn restoring_single_panes_keeps_both_sessions_and_the_active_tab(cx: &mut TestAppContext) {
+    with_workspace(
+        cx,
+        CommandSpec::Shell,
+        AppConfig::default(),
+        |root, visual| {
+            press(visual, "\\");
+            let ids = ["gpui-1", "gpui-2"];
+            let original = visual.update(|_, cx| {
+                ids.map(|id| {
+                    root.read(cx)
+                        .factory
+                        .sessions
+                        .tab(id)
+                        .unwrap()
+                        .session()
+                        .unwrap()
+                })
+            });
+            press(visual, "alt-\\");
+            visual.update(|window, cx| {
+                let workspace = root.read(cx);
+                check_visible(workspace, [Some(2), None], 2, window, cx);
+                assert_eq!(
+                    workspace
+                        .tabs
+                        .ordered()
+                        .map(|(id, _)| id)
+                        .collect::<Vec<_>>(),
+                    [1, 2]
+                );
+                for (id, previous) in ids.into_iter().zip(&original) {
+                    let session = workspace
+                        .factory
+                        .sessions
+                        .tab(id)
+                        .unwrap()
+                        .session()
+                        .unwrap();
+                    assert!(Arc::ptr_eq(previous, &session));
+                }
+            });
+            send_marker(visual, &original[1].model(), "secondalone");
+            press(visual, "alt-\\");
+            visual.update(|window, cx| {
+                root.update(cx, |workspace, cx| {
+                    assert_eq!(workspace.nudge.map(|(id, _)| id), Some(2));
+                    workspace.select_tab(1, window, cx);
+                    check_visible(workspace, [Some(1), None], 1, window, cx);
+                })
+            });
+            send_marker(visual, &original[0].model(), "firstalone");
+            assert!(!output(&original[1].model()).contains("firstalone"));
+            assert!(!output(&original[0].model()).contains("secondalone"));
+        },
+    );
+}

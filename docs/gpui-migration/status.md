@@ -2,6 +2,8 @@
 
 ## 2026-11-22 分屏快捷键
 
+`workspace.restoreSingleGroup` 可解除当前双窗格（Windows 默认 `Ctrl+Alt+\`）。焦点留在原标签，两侧会话不重启；单窗格重复触发只闪动活动标签。Windows 无界面窗口回归核对了会话身份、可见性、标签顺序和解除后两侧的实际 PTY 输入。
+
 P3-04 / P3-08：在单独的本地默认 shell 中，`workspace.splitRight` 和 `workspace.splitBelow` 按共享键位配置打开新 shell，并把输入焦点交给新窗格。原会话继续运行；已分屏、SSH 或 `--exec` 标签不会因此再开会话。Windows GPUI 无界面窗口测试使用真实本地 PTY，覆盖两个方向、改键、输入隔离、重复按键、关闭后继续输入和 `--exec` 边界。未做桌面物理按键或 macOS/Linux 验收；自拖复制、嵌套布局和恢复不在本批范围内。
 
 ## 2026-11-21 接手核对
