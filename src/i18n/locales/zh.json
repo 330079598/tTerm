@@ -1010,6 +1010,7 @@
     "emptyDescriptionReadOnly": "尚未配置端口转发规则。此页面显示已保存的隧道及其运行状态。",
     "hostMissing": "此隧道所使用的已保存主机已被删除。",
     "loadFailed": "加载隧道失败",
+    "liveStatusUnavailable": "无法实时更新隧道状态。请重新打开面板重试。",
     "startFailed": "无法启动隧道",
     "deleteFailed": "删除隧道失败",
     "deleteConfirmTitle": "删除这个隧道？",

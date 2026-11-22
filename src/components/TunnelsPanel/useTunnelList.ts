@@ -47,17 +47,26 @@ export function useTunnelList(profilesRefreshKey: number | undefined) {
 
   useEffect(() => {
     let disposed = false
-    const unlisteners: Array<() => void> = []
+    let offStatus: (() => void) | undefined
     const register = async () => {
       // Subscribe before the first fetch so no status change is missed in between.
-      const offStatus = await listen<TunnelStatus>("tunnel-status", (event) =>
-        applyStatus(event.payload)
-      )
+      try {
+        offStatus = await listen<TunnelStatus>("tunnel-status", (event) =>
+          applyStatus(event.payload)
+        )
+      } catch (error) {
+        if (!disposed) {
+          toast({
+            title: t("tunnels.liveStatusUnavailable"),
+            description: toErrorMessage(error),
+            variant: "destructive",
+          })
+        }
+      }
       if (disposed) {
-        offStatus()
+        offStatus?.()
         return
       }
-      unlisteners.push(offStatus)
       try {
         await reload()
       } catch (error) {
@@ -73,7 +82,7 @@ export function useTunnelList(profilesRefreshKey: number | undefined) {
     void register()
     return () => {
       disposed = true
-      unlisteners.forEach((off) => off())
+      offStatus?.()
     }
   }, [applyStatus, reload, t, toast])
 

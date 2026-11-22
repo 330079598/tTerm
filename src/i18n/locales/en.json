@@ -1026,6 +1026,7 @@
     "emptyDescriptionReadOnly": "No port-forwarding rules are configured. This page shows saved tunnels and their live status.",
     "hostMissing": "The saved host for this tunnel was deleted.",
     "loadFailed": "Failed to load tunnels",
+    "liveStatusUnavailable": "Live tunnel status updates are unavailable. Reopen the panel to retry.",
     "startFailed": "Could not start the tunnel",
     "deleteFailed": "Failed to delete tunnel",
     "deleteConfirmTitle": "Delete this tunnel?",
