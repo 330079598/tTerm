@@ -35,8 +35,6 @@ portable-pty = "0.9"
 uuid = { version = "1", features = ["v4"] }
 tokio = { version = "1", features = ["rt-multi-thread", "macros", "sync", "time", "io-util", "fs", "net", "process"] }
 chrono = { version = "0.4", default-features = false, features = ["clock"] }
-# Used by the session-sink throughput benchmark only.
-sha2 = "0.11"
 zeroize = "1"
 tauri-plugin-updater = "2"
 tauri-plugin-process = "2"
@@ -54,6 +52,7 @@ tauri-plugin-frame = "1.1.6"
 objc2 = "0.6"
 
 [dev-dependencies]
+sha2 = "0.11"
 tterm-core = { path = "../crates/tterm-core", features = ["test-support"] }
 tauri = { version = "2", features = ["test"] }
 tokio = { version = "1", features = ["test-util"] }
