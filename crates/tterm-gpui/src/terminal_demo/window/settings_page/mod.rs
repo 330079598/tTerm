@@ -56,6 +56,7 @@ pub(super) struct SettingsPage {
     scrollback: Entity<ScrollbackSetting>,
     search_input: Option<Entity<InputState>>,
     _search_events: Option<Subscription>,
+    _search_observer: Option<Subscription>,
     query: String,
     active_index: usize,
     open: bool,
@@ -76,6 +77,7 @@ impl SettingsPage {
             scrollback,
             search_input: None,
             _search_events: None,
+            _search_observer: None,
             query: String::new(),
             active_index: 0,
             open: false,
@@ -115,6 +117,7 @@ impl SettingsPage {
         self.query.clear();
         self.active_index = 0;
         self._search_events = None;
+        self._search_observer = None;
         self.search_input = None;
         cx.notify();
         true
@@ -163,7 +166,9 @@ impl SettingsPage {
                 cx.notify();
             }
         });
+        let observer = cx.observe(&field, |_, _, cx| cx.notify());
         self._search_events = Some(events);
+        self._search_observer = Some(observer);
         self.search_input = Some(field.clone());
         field
     }
