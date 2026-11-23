@@ -9,10 +9,9 @@
 //! without a window, and so a cache hit can skip shaping entirely.
 
 use std::collections::HashMap;
-use std::hash::{Hash, Hasher};
 
 use gpui_kit::{FontId, GlyphId, Pixels, SharedString, WindowTextSystem, px};
-use tterm_terminal::cell::{Cell, Underline};
+use tterm_terminal::cell::{Attributes, Cell, Underline};
 use tterm_terminal::palette::{Rgba, TerminalPalette};
 
 use crate::glyphs::{BuiltinGlyph, CellMetrics, builtin_glyph};
@@ -355,68 +354,93 @@ fn column_for_offset(map: &[(usize, usize)], offset: usize) -> usize {
 /// scrolls. The version is used only as a fast path when a draw reuses the
 /// previous frame; invalidation here is by content and by the epoch, which
 /// changes when the palette, font or cell metrics change.
+///
+/// A scrolled screen damages every row, so this runs over every visible cell
+/// on each frame. Each cell is packed into one word instead of hashing its
+/// fields one by one: the field-by-field form spent about two thirds of a
+/// debug-frame budget on a repaint, and folding a single word keeps the cost
+/// proportional to the cells without depending on how a `Hash` impl
+/// serializes. The packing covers every field the row layout reads, so two
+/// rows with the same key produce the same layout.
 pub fn row_hash(cells: &[Cell], style_epoch: u64) -> u64 {
-    let mut hasher = FnvHasher::new();
-    style_epoch.hash(&mut hasher);
-    cells.len().hash(&mut hasher);
+    let mut state = mix(0xcbf2_9ce4_8422_2325, style_epoch);
+    state = mix(state, cells.len() as u64);
     for cell in cells {
-        (cell.ch as u32).hash(&mut hasher);
-        hash_color(&mut hasher, cell.foreground);
-        hash_color(&mut hasher, cell.background);
-        cell.attributes.hash(&mut hasher);
-        cell.underline_color.hash(&mut hasher);
-        cell.zerowidth.hash(&mut hasher);
-        cell.hyperlink.is_some().hash(&mut hasher);
+        let mut packed = u64::from(cell.ch as u32);
+        packed = packed.wrapping_mul(MIX) ^ color_code(cell.foreground);
+        packed = packed.wrapping_mul(MIX) ^ color_code(cell.background);
+        packed = packed.wrapping_mul(MIX) ^ attribute_bits(&cell.attributes);
+        packed = packed.wrapping_mul(MIX) ^ cell.underline_color.map_or(NO_COLOR, color_code);
+        state = mix(state, packed);
+        for character in cell.zerowidth.iter().flatten() {
+            state = mix(state, u64::from(*character as u32));
+        }
+        if cell.hyperlink.is_some() {
+            state = mix(state, LINK_MARKER);
+        }
     }
-    hasher.finish()
+    state
 }
 
-fn hash_color(hasher: &mut impl Hasher, color: tterm_terminal::color::Color) {
+/// One odd multiplier for the row hash.
+const MIX: u64 = 0x9e37_79b9_7f4a_7c15;
+/// A second odd multiplier, used only to spread the mixed state.
+const SPREAD: u64 = 0xbf58_476d_1ce4_e5b9;
+/// Stands in for a cell without an underline color; no color code reaches it.
+const NO_COLOR: u64 = u64::MAX;
+/// Marks a cell that carries a hyperlink; the link only underlines the cell.
+const LINK_MARKER: u64 = 0x6c69_6e6b_0000_0001;
+
+/// One mixing round of the row hash.
+///
+/// Two odd multipliers and an xorshift spread a one-bit change over the whole
+/// key, and the round is cheap enough to run once per visible cell.
+fn mix(state: u64, value: u64) -> u64 {
+    let mixed = (state ^ value).wrapping_mul(MIX);
+    let spread = (mixed ^ (mixed >> 29)).wrapping_mul(SPREAD);
+    spread ^ (spread >> 32)
+}
+
+/// Packs a color losslessly, with its variant in the low two bits.
+fn color_code(color: tterm_terminal::color::Color) -> u64 {
     use tterm_terminal::color::Color;
     match color {
-        Color::Named(named) => {
-            0u8.hash(hasher);
-            (named as u8).hash(hasher);
-        }
-        Color::Indexed(index) => {
-            1u8.hash(hasher);
-            index.hash(hasher);
-        }
+        Color::Named(named) => u64::from(named as u8) << 2,
+        Color::Indexed(index) => u64::from(index) << 2 | 1,
         Color::Spec(rgb) => {
-            2u8.hash(hasher);
-            rgb.r.hash(hasher);
-            rgb.g.hash(hasher);
-            rgb.b.hash(hasher);
+            u64::from(rgb.r) << 24 | u64::from(rgb.g) << 16 | u64::from(rgb.b) << 8 | 2
         }
     }
 }
 
-struct FnvHasher(u64);
-
-impl FnvHasher {
-    fn new() -> Self {
-        Self(0xcbf2_9ce4_8422_2325)
-    }
-}
-
-impl Hasher for FnvHasher {
-    fn finish(&self) -> u64 {
-        self.0
-    }
-
-    fn write(&mut self, bytes: &[u8]) {
-        for byte in bytes {
-            self.0 ^= u64::from(*byte);
-            self.0 = self.0.wrapping_mul(0x0000_0100_0000_01b3);
-        }
-    }
+/// Packs every attribute the layout reads into one word.
+fn attribute_bits(attributes: &Attributes) -> u64 {
+    let underline = match attributes.underline {
+        Underline::None => 0,
+        Underline::Single => 1,
+        Underline::Double => 2,
+        Underline::Curly => 3,
+        Underline::Dotted => 4,
+        Underline::Dashed => 5,
+    };
+    u64::from(attributes.bold)
+        | u64::from(attributes.dim) << 1
+        | u64::from(attributes.italic) << 2
+        | u64::from(attributes.inverse) << 3
+        | u64::from(attributes.hidden) << 4
+        | u64::from(attributes.strikeout) << 5
+        | underline << 6
+        | u64::from(attributes.wrapline) << 9
+        | u64::from(attributes.wide) << 10
+        | u64::from(attributes.wide_spacer) << 11
+        | u64::from(attributes.leading_wide_spacer) << 12
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use tterm_terminal::cell::Attributes;
-    use tterm_terminal::color::{Color, NamedColor};
+    use tterm_terminal::color::{Color, NamedColor, Rgb};
 
     fn cell(character: char) -> Cell {
         Cell {
@@ -561,7 +585,55 @@ mod tests {
         let same = row("hello");
         let changed = row("hellp");
         assert_eq!(row_hash(&cells, 1), row_hash(&same, 1));
-        assert_ne!(row_hash(&cells, 1), row_hash(&changed, 1));
         assert_ne!(row_hash(&cells, 1), row_hash(&cells, 2));
+        assert_ne!(row_hash(&cells, 1), row_hash(&changed, 1));
+    }
+
+    /// The hash packs fields by hand, so every field the layout reads has to
+    /// move the key. A new field that is left out would let a cached row
+    /// paint stale colors or decorations.
+    #[test]
+    fn row_hashes_cover_every_field_the_layout_reads() {
+        let base = row("ab");
+        let reference = row_hash(&base, 0);
+        let changed = |name: &str, edit: &dyn Fn(&mut Vec<Cell>)| {
+            let mut cells = base.clone();
+            edit(&mut cells);
+            assert_ne!(
+                row_hash(&cells, 0),
+                reference,
+                "{name} did not change the hash"
+            );
+        };
+        changed("foreground", &|cells| {
+            cells[1].foreground = Color::Indexed(5);
+        });
+        changed("background", &|cells| {
+            cells[1].background = Color::Indexed(6);
+        });
+        changed("underline color", &|cells| {
+            cells[1].underline_color = Some(Color::Spec(Rgb { r: 1, g: 2, b: 3 }));
+        });
+        changed("bold", &|cells| cells[1].attributes.bold = true);
+        changed("dim", &|cells| cells[1].attributes.dim = true);
+        changed("italic", &|cells| cells[1].attributes.italic = true);
+        changed("inverse", &|cells| cells[1].attributes.inverse = true);
+        changed("hidden", &|cells| cells[1].attributes.hidden = true);
+        changed("strikeout", &|cells| cells[1].attributes.strikeout = true);
+        changed("underline", &|cells| {
+            cells[1].attributes.underline = Underline::Curly;
+        });
+        changed("wrapline", &|cells| cells[1].attributes.wrapline = true);
+        changed("wide", &|cells| cells[1].attributes.wide = true);
+        changed("wide spacer", &|cells| {
+            cells[1].attributes.wide_spacer = true;
+        });
+        changed("leading wide spacer", &|cells| {
+            cells[1].attributes.leading_wide_spacer = true;
+        });
+        changed("zerowidth", &|cells| {
+            cells[1].zerowidth = Some(vec!['\u{301}']);
+        });
+        changed("row length", &|cells| cells.push(cells[0].clone()));
     }
 }
