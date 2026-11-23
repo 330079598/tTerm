@@ -10973,6 +10973,7 @@ dependencies = [
  "hmac 0.13.0",
  "indexmap 2.14.2",
  "keyring",
+ "libc",
  "num-bigint 0.5.1",
  "percent-encoding",
  "portable-pty",

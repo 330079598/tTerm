@@ -11,6 +11,7 @@ const SHELL_FIELD: &str = "terminalShell";
 const SHELL_PATH_FIELD: &str = "terminalShellCustomPath";
 const SHELL_ARGS_FIELD: &str = "terminalShellCustomArgs";
 const SHELL_ID_FIELD: &str = "terminalShellId";
+#[cfg(windows)]
 const SHELL_DISTRO_FIELD: &str = "terminalShellWslDistro";
 const CWD_FIELD: &str = "cwd";
 
@@ -145,6 +146,7 @@ fn valid_text(value: &str) -> bool {
     !value.chars().any(char::is_control)
 }
 
+#[cfg(windows)]
 fn valid_distro(value: &str) -> bool {
     !value.is_empty()
         && value

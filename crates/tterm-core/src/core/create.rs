@@ -192,7 +192,7 @@ fn spawn_initial_session(
             );
 
             #[cfg(unix)]
-            terminal::cwd_watch::spawn_cwd_watcher(
+            crate::terminal::cwd_watch::spawn_cwd_watcher(
                 tab.app.events.clone(),
                 channel.tab_id.clone(),
                 channel.session_nonce,
