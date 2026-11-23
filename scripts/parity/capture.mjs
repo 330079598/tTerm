@@ -138,7 +138,7 @@ async function captureScreen(
     viewport: { width, height },
     deviceScaleFactor,
     colorScheme: theme === "light" ? "light" : "dark",
-    locale: "en-US",
+    locale: screen.locale ?? "en-US",
     timezoneId: "UTC",
     reducedMotion: "reduce",
   })
@@ -220,6 +220,9 @@ async function runActions(page, actions, screenId) {
         const press = [...(action.modifiers ?? []).map((value) => `${value}+`), action.key].join("")
         if (action.target) await page.locator(targetSelector(action.target)).press(press)
         else await page.keyboard.press(press)
+      } else if (action.type === "type") {
+        await page.locator(targetSelector(action.target)).focus()
+        await page.keyboard.insertText(action.text)
       } else if (action.type === "scrollTo") {
         await page.locator(targetSelector(action.target)).scrollIntoViewIfNeeded()
       } else if (action.type === "drag") {

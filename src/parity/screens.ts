@@ -52,6 +52,8 @@ export const parityScreens: Record<string, ComponentType<ParityScreenProps>> = {
   "settings.terminal.scrollback": SettingsReference,
   "settings.search.scrollback": SettingsReference,
   "settings.search.scrollback.open": SettingsReference,
+  "settings.search.scrollback-zh": SettingsReference,
+  "settings.search.scrollback.open-zh": SettingsReference,
   "tunnels.empty": TunnelPanelReference,
   "tunnels.list.running": TunnelPanelReference,
 }

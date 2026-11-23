@@ -453,6 +453,64 @@
           "target": "settings.scrollback.lines"
         }
       ]
+    },
+    {
+      "id": "settings.search.scrollback-zh",
+      "title": "Settings search results for the Chinese scrollback query",
+      "fixture": "settings.reference.json",
+      "locale": "zh-CN",
+      "uiStyles": ["classic"],
+      "uiScalePercents": [100],
+      "actions": [
+        {
+          "type": "waitFor",
+          "target": "settings.search.field"
+        },
+        {
+          "type": "type",
+          "target": "settings.search.field",
+          "text": "回滚"
+        },
+        {
+          "type": "waitFor",
+          "target": "settings.search.results"
+        }
+      ]
+    },
+    {
+      "id": "settings.search.scrollback.open-zh",
+      "title": "Scrollback Lines opened from the Chinese settings search",
+      "fixture": "settings.reference.json",
+      "locale": "zh-CN",
+      "uiStyles": ["classic"],
+      "uiScalePercents": [100],
+      "actions": [
+        {
+          "type": "waitFor",
+          "target": "settings.search.field"
+        },
+        {
+          "type": "type",
+          "target": "settings.search.field",
+          "text": "回滚"
+        },
+        {
+          "type": "waitFor",
+          "target": "settings.search.results"
+        },
+        {
+          "type": "click",
+          "target": "settings.search.result.0"
+        },
+        {
+          "type": "waitFor",
+          "target": "settings.scrollback.lines"
+        },
+        {
+          "type": "scrollTo",
+          "target": "settings.scrollback.lines"
+        }
+      ]
     }
   ]
 }

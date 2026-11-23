@@ -57,6 +57,8 @@ export const fixtures: Record<string, ParityFixture> = {
   "settings.terminal.scrollback": settingsReferenceFixture,
   "settings.search.scrollback": settingsReferenceFixture,
   "settings.search.scrollback.open": settingsReferenceFixture,
+  "settings.search.scrollback-zh": settingsReferenceFixture,
+  "settings.search.scrollback.open-zh": settingsReferenceFixture,
   "tunnels.empty": {
     commands: { ...workspaceTitleBarFixture.commands, ...emptyTunnels.commands },
   },

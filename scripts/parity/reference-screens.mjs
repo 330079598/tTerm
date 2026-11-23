@@ -49,9 +49,7 @@ export function selectScreens(manifest, requestedIds) {
     if (seen.has(id)) continue
     const screen = byId.get(id)
     if (!screen) {
-      throw new Error(
-        `No parity screen "${id}"; manifest ids: ${[...byId.keys()].join(", ")}`
-      )
+      throw new Error(`No parity screen "${id}"; manifest ids: ${[...byId.keys()].join(", ")}`)
     }
     seen.add(id)
     selected.push(screen)
@@ -80,6 +78,7 @@ export function referenceManifest(
       id: screen.id,
       image: `${screen.id}.png`,
       layout: `${screen.id}.layout.json`,
+      ...(screen.locale ? { locale: screen.locale } : {}),
     })),
   }
 }
@@ -100,6 +99,7 @@ export function referenceOnlyManifest(
       id: screen.id,
       image: `${screen.id}.png`,
       layout: `${screen.id}.layout.json`,
+      ...(screen.locale ? { locale: screen.locale } : {}),
     })),
   }
 }
