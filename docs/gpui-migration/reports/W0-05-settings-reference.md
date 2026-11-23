@@ -262,3 +262,7 @@ pnpm exec vitest run src/parity/screens/settingsReference.test.tsx --reporter=ve
 参照交付物复核通过，整卡暂不合入 `GPUI`。独立复跑 WebKit 捕获得到标题栏 13、设置首页 152、搜索结果 25 个布局元素，三张 PNG 和三个布局文件与本报告资产逐字节一致。另行复跑六项 pnpm 检查通过（187 个测试文件，1367 项 Vitest 用例）。搜索截图记录输入 `font` 后的真实列表；点击并选择目标页签有组件交互测试，不据此宣称原生桌面滚动定位已验收。标题栏仍是 Windows 布局夹具，不是 macOS 原生标题栏基线。
 
 合并阻塞项为严格 Clippy 的 SSH 测试辅助代码未使用，以及本文列出的两项 workspace 测试失败。应单独修复并复跑整套检查后再决定是否合并；不降低帧预算、不忽略指针测试。本批没有迁移 GPUI 设置页。
+
+### 合并后复核（2026-11-23）
+
+上述阻塞已解除。修复合入 `237bc925`，参照合入 `66bfead0`。合并后的本地 `GPUI` 通过前端六项、Rust fmt、严格 Clippy、`cargo test --workspace` 及[决策 020](../decisions/020-independent-frame-and-throughput-measurements.md)的两项 release 检查。30 个后台会话均有进展，前台 120 帧 p95 为 0.132 ms；另起 30 个会话的 30 MiB 在 148.75 ms 内全部确认。通过的是本批原版参照与本机性能门禁，不是 G2、G3 或 GPUI 设置整页验收。
