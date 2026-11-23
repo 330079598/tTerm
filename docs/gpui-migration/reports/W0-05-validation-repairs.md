@@ -93,3 +93,69 @@
 ### 协调者独立复核
 
 在 `1809b4ab` 上，Rust fmt 与严格 Clippy 通过，默认 `cargo test --workspace` 失败。120 帧窗口 391.70 ms，窗口确认 33,603,600 B（81.81 MiB/s），累计 42,476,000 B，超过 30 MiB 下限；前台 p95 从空载 4.67 ms 升至 25.70 ms，超过 16.667 ms。只读诊断可复现，本次没有可验收的生产修复。
+
+## 2026-11-23 第三轮：独立 release 门禁
+
+决策人已确认把第二轮“需要进一步决策”的第 1 条落实为[决策 019](../decisions/019-release-frame-budget-gate.md)：只把这一个用例移出默认并行套件，改成独立、无条件的 release 门禁。本轮不改负载、生产节奏、采样窗口、16.667 ms 预算、30 MiB 下限、Cargo profile 或产品代码，也没有 push、合并或读取用户数据。
+
+### 改动
+
+| 位置 | 内容 |
+| --- | --- |
+| `crates/tterm-gpui/src/terminal_demo/pipeline/tests.rs` | 给 `thirty_background_parsers_keep_the_foreground_within_its_frame_budget` 加带理由的 `#[ignore]`。断言一条未改；只把一行诊断输出移到 30 MiB 断言之前，使未达累计量的运行也能留下 p95 与 bytes。 |
+| `scripts/perf/gpui-release-frame-budget.mjs` | 唯一入口：校验 `rust-toolchain.toml` 的版本，`cargo test -p tterm-gpui --lib --release --no-run` 构建，从 cargo JSON 唯一取到 lib 测试二进制，`--list --ignored --exact` 要求恰好一项，再以 `--exact --ignored --nocapture --test-threads=1` 运行，最后核对“1 passed / 0 failed / 0 ignored”、用例自己的 `... ok` 行和 `P2-02 foreground frames:` 证据行。任一不符即非零退出。 |
+| `scripts/perf/gpui-release-frame-budget.test.mjs` | 覆盖读取端的失败路径：改名、0 项、2 项、`FAILED`、缺结果行、缺证据行、构建消息里 0 个或 2 个可执行文件。已加入 `pnpm test`。 |
+| `.github/workflows/check.yml` | 新增 `rust-frame-budget` 作业：`runs-on: macos-15`、`rustup show`、`swatinem/rust-cache`、执行上面这条命令。无 `if`、无 `continue-on-error`。 |
+| `AGENTS.md`、`CONTRIBUTING.md`、`acceptance.md`、`decisions/019…`、`decisions/README.md` | 入口命令、失败判定、平台与测量范围；把 G2 的这一项指向门禁，并写明门禁不是桌面验收。 |
+
+核对过实际承担 GPUI 校验的 workflow：只有 `check.yml` 跑 `cargo test --workspace`；`sudo-mode.yml` 只跑 sftp/sudo 的真实主机用例；三个发布 workflow 不跑测试。
+
+### gpui 测试宏的 ignore 转发
+
+`#[gpui_kit::test]` 来自 `gpui-pre-macros 0.3.11` 的 `test`。它把内层函数的属性取出，挂在生成的 `#[test] fn` 上（`outer_fn.attrs.extend(inner_fn_attributes)`），所以写在宏前面的 `#[ignore]` 落在真正被 libtest 发现的函数上。实测两条都成立：`cargo test --workspace` 中该用例显示为 `... ignored, measures wall-clock frames under 30 background parsers; ...`，gpui lib 套件为 `267 passed; 2 ignored`（改前为 268 passed; 1 ignored），其余覆盖与默认并发未变；门禁按完整名运行时，panic 位置与证据行都来自同一个 `pipeline/tests.rs` 用例。
+
+### 环境与测量范围
+
+macOS 27.2（`sw_vers`），Apple M4，10 核，32 GB，arm64；`rustc 1.99.1 (58cf8f9c3 2026-10-13)`；工作树基于 `a32fbb0d`。测量仍是原定义：12 帧预热、120 帧采样、100 ms 预热窗口、30 个后台解析器、2 ms 生产节奏；断言为后台不请求前台帧、累计 ≥ 30 MiB（31,457,280 B）、p95 ≤ 16.667 ms。三次运行都在同一台机器上独占执行，期间不跑其他任务。
+
+### 三次本机独占 release 结果（预先定三次，全部保留）
+
+| # | 基线 p50 / p95 | 30 会话 p50 / p95 | 累计确认 bytes | 帧窗口 | 窗口确认与速率 | 退出码 |
+| --- | --- | --- | --- | --- | --- | --- |
+| 1 | 113.292 / 118.167 µs | 111.792 / 128.583 µs | 26,404,000 | 13.946 ms | 2,788,000 B（190.65 MiB/s） | 1 |
+| 2 | 113.833 / 117.583 µs | 111.458 / 121.25 µs | 26,469,600 | 13.767 ms | 2,771,600 B（191.99 MiB/s） | 1 |
+| 3 | 114.875 / 121.208 µs | 110.083 / 137.084 µs | 24,436,000 | 14.071 ms | 2,558,400 B（173.40 MiB/s） | 1 |
+
+三次的 `snapshots=253 frames=253`；快照等待合计 2.376–2.619 µs，持锁合计约 6.93–6.98 ms，单次最大 84.125–132.916 µs。每条日志中 libtest 的结论都是 `FAILED. 0 passed; 1 failed; 0 ignored; 267 filtered out`，panic 信息为 `the measurement processed only N bytes across 30 background sessions`。
+
+另有一次在同一台机器、同一命令下的开发期运行（诊断输出上移之前）：累计 26,141,600 B，同样在 30 MiB 断言处失败；因为当时 p95 没有打印，才把那一行移到断言之前。这次也保留在结论里。
+
+### 为什么失败，以及没有动什么
+
+release 下前台一帧约 0.11 ms，120 帧的采样窗口只有约 14 ms，加上 100 ms 预热，生产者按 2 ms 节奏只交出约 24–26 MB；dev 构建里窗口长得多，累计量才越过 30 MiB。窗口内速率是 173–192 MiB/s，远高于 30 MiB 所需，所以这次失败是“累计下限与很短的采样窗口耦合”，不是吞吐或帧预算不足：p95 只有 121–137 µs，距 16.667 ms 还有两个数量级余量。
+
+按决策 019 第 7 条，本轮没有为了变绿去延长窗口、调生产节奏、改 2 ms 间隔、加预热或重试、降低 30 MiB 下限或 p95 预算，也没有改产品代码。门禁的真实状态是**红**：实现与证据完整，30 MiB 一项不达标。
+
+### 负向验证（全部非零退出）
+
+| 运行 | 结果 |
+| --- | --- |
+| `node scripts/perf/gpui-release-frame-budget.mjs --test-name <名字末尾少一个 t>` | `frame budget gate FAILED: expected exactly one ignored test named …, listed []`，退出码 1 |
+| `--test-name thirty_background_parsers_keep_the_foreground_within_its_frame_budget`（只有函数名，没有模块路径） | 同上，`listed []`，退出码 1；libtest 的 `--exact` 按模块全名匹配，只写函数名会 0 项且自身退出 0，靠这一步才拦住 |
+| `--test-name terminal_demo::pipeline::tests::thirty_hidden_sessions_parse_without_waking_the_foreground`（存在但不 ignored） | `listed []`，退出码 1 |
+| 门禁正常路径（上面三次） | `FAILED. 0 passed; 1 failed` → 退出码 1 |
+
+`--test-name` 只用于证明失败路径，CI 作业不传它。
+
+### 复验记录
+
+- `pnpm install --offline --frozen-lockfile`：Already up to date。
+- `pnpm lint && pnpm format:check && pnpm check:tokens && pnpm typecheck && pnpm test && pnpm check:size`：通过；`pnpm test` 含新增的 11 项 perf 脚本用例；`check:size` 1496 个文件在限制内。
+- `cargo fmt --all --check`：通过。
+- `cargo clippy --workspace --all-targets -- -D warnings`：通过。
+- `cargo test --workspace`：通过（退出码 0），默认并发；gpui lib 为 `267 passed; 2 ignored`。
+- 门禁：3 次独占 release 运行均退出 1，数值见上表。
+
+### 结论与剩余决策
+
+门禁本身已按要求独立、无条件、fail closed，本地与 CI 走同一入口；它目前不通过，不通过项是 30 MiB 累计下限，p95 预算有大量余量。本轮不把门禁调整成绿，也不宣称桌面验收完成。是否把采样窗口改成固定时长、或把累计下限改成窗口内速率，属于改变测量定义，需要决策人另开记录；在此之前 W0-05 与 G2 都保持未通过。Windows 同一项按决策 016 记为待补，Linux 推迟。

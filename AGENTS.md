@@ -25,12 +25,26 @@ Windows and macOS.
 ```sh
 pnpm lint && pnpm format:check && pnpm check:tokens && pnpm typecheck && pnpm test && pnpm check:size
 cargo fmt --all --check && cargo clippy --workspace --all-targets -- -D warnings && cargo test --workspace
+node scripts/perf/gpui-release-frame-budget.mjs
 ```
 
 - Don't silence a failing check to get it green. That means no `--no-verify`,
   no `eslint-disable`, no blanket `#[allow]`, and no raising a limit or a
   baseline entry. Fix the cause.
 - If you can't fix it, stop and say so.
+- The last command is the 30-session foreground frame budget. Its fixture is
+  `#[ignore]`d so `cargo test --workspace` keeps its default parallelism and
+  never runs it; this script builds the release lib test binary, checks that
+  libtest lists exactly that one ignored test, and runs it alone with
+  `--exact --ignored --nocapture --test-threads=1`. It needs an idle machine and
+  CI runs it in its own `rust-frame-budget` job on `macos-15`. It exits non-zero
+  when the test is renamed, when the filter matches zero or several tests, when
+  the harness runs in the wrong mode, or when an assertion fails.
+- That gate is not desktop acceptance and not a G2 pass: it measures one
+  release job on one fixed macOS runner ([decision 019](docs/gpui-migration/decisions/019-release-frame-budget-gate.md)).
+  Reach green by fixing the cause, not by touching the load, the pacing, the
+  sampling window, the 16.667 ms p95 budget or the 30 MiB floor. If the numbers
+  miss, stop and report the measured values.
 
 ## Size limits
 

@@ -55,7 +55,14 @@ and macOS.
 ```bash
 pnpm lint && pnpm format:check && pnpm check:tokens && pnpm typecheck && pnpm test && pnpm check:size
 cargo fmt --all --check && cargo clippy --workspace --all-targets -- -D warnings && cargo test --workspace
+node scripts/perf/gpui-release-frame-budget.mjs
 ```
+
+The last command is the 30-session foreground frame budget. It runs one
+`#[ignore]`d release fixture alone on an idle machine, so CI gives it its own
+`rust-frame-budget` job instead of the parallel test matrix; the script fails
+closed on a renamed test, an empty filter or a failed assertion. See
+[decision 019](./docs/gpui-migration/decisions/019-release-frame-budget-gate.md).
 
 Don't silence a failing check to get it green: no `--no-verify`, no
 `eslint-disable`, no blanket `#[allow]`, and no raising a size limit or a

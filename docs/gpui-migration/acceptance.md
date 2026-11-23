@@ -61,6 +61,7 @@
 ### G2 终端可以日常使用
 
 - 用 P0-10 的绘制基准测完整终端，P95 帧耗时 ≤ 16.7ms（60Hz，约定的硬件与负载）。与 Tauri 基线的对比不在这里做，统一在 G4 之前做（[决策 015](decisions/015-trim-p0.md) 第 5 条）。
+- 30 个后台会话同时输出时，前台 p95 帧耗时 ≤ 16.667ms，且原负载累计处理 ≥ 30 MiB。这条只由 release 门禁测量：`node scripts/perf/gpui-release-frame-budget.mjs`，固定 macOS 15 runner、仓库锁定的 Rust、`--release`、`--exact --ignored --nocapture --test-threads=1`，机器不同时跑其他任务（[决策 019](decisions/019-release-frame-budget-gate.md)）。该用例在 `cargo test --workspace` 中标记为 `#[ignore]`，普通测试套件不再运行它，默认并发与其余覆盖不变。门禁通过只说明这一个测量环境下的帧预算与吞吐，**不是桌面验收**：它不替代 G2 的整机验收，也不代替决策 016 的 Windows 待补与 Linux 推迟。
 - 持续输出 30 分钟内存有界；回滚区写满后浏览历史不闪烁、不跳行（nyaterm #1043 的场景）。
 - 终端查询只有一个应答方，有测试证明。
 - 从 G1 移来（决策 015）：输入法方面，系统中文输入法全部场景在 macOS 或 Windows 上通过，另一个平台待补（P2-11，决策 016）；Linux 推迟到 Linux 发布前，届时四个组合中至少 X11+fcitx5 与 Wayland+fcitx5 通过。无 GPU 环境方面，能正常运行，空闲 CPU < 2%；不满足时要有确定结论，做降级方案或明确不支持该环境（P2-25）。持续输出时的 CPU 与 Tauri 版的对比移到 G4。
