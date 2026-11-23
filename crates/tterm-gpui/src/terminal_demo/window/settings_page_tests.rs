@@ -7,6 +7,7 @@ use gpui_kit::test::TestWindowExt as _;
 use gpui_kit::{App, MouseButton, TestAppContext, VisualTestContext};
 use tterm_core::config::AppConfig;
 use tterm_core::config::scrollback::resolve_scrollback_lines;
+use tterm_core::i18n::keys;
 use tterm_core::workspace::tab_groups::{PaneNode, SplitOrientation};
 
 use super::settings_page::{SETTINGS_OPEN_BUTTON_ID, SETTINGS_PAGE_ID};
@@ -642,30 +643,21 @@ fn edited_scrollback_survives_reopening_and_stays_applied(cx: &mut TestAppContex
     harness
         .visual
         .update(|_, cx| assert!(root.read(cx).settings_is_open()));
+    open_scrollback_from_search(&mut harness, &root);
 
-    // A value outside the field's range stays a draft: pressing Save must not
-    // write it or shrink the live buffers.
-    harness.visual.update(|window, cx| {
-        root.update(cx, |workspace, cx| {
-            workspace.set_settings_scrollback_value("20000001", window, cx);
-        });
-    });
-    click(
-        harness.visual,
-        super::settings_page::SETTINGS_SCROLLBACK_SAVE_ID,
-    );
+    // A value outside the field's range stays a draft: pressing Enter must
+    // not write it or shrink the live buffers.
+    replace_focused_text(&mut harness, "20000001");
+    press(harness.visual, "enter");
     harness.visual.update(|window, cx| {
         window.render_frame(cx);
         assert!(root.read(cx).settings_is_open());
         assert_eq!(config.read(cx).scrollback_lines(), 10_000);
-        assert!(
-            root.read(cx)
-                .ui
-                .settings_page
-                .read(cx)
-                .scrollback_value(cx)
-                .contains("20000001")
+        assert_eq!(
+            root.read(cx).ui.settings_page.read(cx).scrollback_value(cx),
+            "20000001"
         );
+        assert!(page_scrollback_focused(&root, window, cx));
     });
     assert!(
         harness
@@ -673,12 +665,9 @@ fn edited_scrollback_survives_reopening_and_stays_applied(cx: &mut TestAppContex
             .debug_bounds(super::settings_page::SETTINGS_SCROLLBACK_ERROR_ID)
             .is_some()
     );
+    assert!(writes.lock().expect("scrollback writes").is_empty());
 
-    harness.visual.update(|window, cx| {
-        root.update(cx, |workspace, cx| {
-            workspace.set_settings_scrollback_value("400", window, cx);
-        });
-    });
+    replace_focused_text(&mut harness, "400");
     click(
         harness.visual,
         super::settings_page::SETTINGS_SCROLLBACK_SAVE_ID,
@@ -693,15 +682,12 @@ fn edited_scrollback_survives_reopening_and_stays_applied(cx: &mut TestAppContex
         resolve_scrollback_lines(Some(400.0)) as usize
     );
 
-    harness.visual.update(|window, cx| {
-        root.update(cx, |workspace, cx| {
-            workspace.set_settings_scrollback_value("800", window, cx);
-        });
-    });
     click(
         harness.visual,
-        super::settings_page::SETTINGS_SCROLLBACK_SAVE_ID,
+        super::settings_page::SETTINGS_SCROLLBACK_INPUT_ID,
     );
+    replace_focused_text(&mut harness, "800");
+    press(harness.visual, "enter");
     wait_for_save(&mut harness, 800);
     harness
         .visual
@@ -711,7 +697,7 @@ fn edited_scrollback_survives_reopening_and_stays_applied(cx: &mut TestAppContex
         resolve_scrollback_lines(Some(800.0)) as usize
     );
 
-    press(harness.visual, "escape");
+    click(harness.visual, SETTINGS_OPEN_BUTTON_ID);
     assert!(!settings_page_visible(harness.visual));
     harness.visual.update(|window, cx| {
         let workspace = root.read(cx);
@@ -730,15 +716,9 @@ fn edited_scrollback_survives_reopening_and_stays_applied(cx: &mut TestAppContex
             "800"
         );
     });
-    harness.visual.update(|window, cx| {
-        root.update(cx, |workspace, cx| {
-            workspace.set_settings_scrollback_value("1200", window, cx);
-        });
-    });
-    click(
-        harness.visual,
-        super::settings_page::SETTINGS_SCROLLBACK_SAVE_ID,
-    );
+    open_scrollback_from_search(&mut harness, &root);
+    replace_focused_text(&mut harness, "1200");
+    press(harness.visual, "enter");
     wait_for_save(&mut harness, 1200);
     harness.visual.update(|_, cx| {
         assert!(root.read(cx).settings_is_open());
@@ -749,11 +729,12 @@ fn edited_scrollback_survives_reopening_and_stays_applied(cx: &mut TestAppContex
         resolve_scrollback_lines(Some(1200.0)) as usize
     );
 
-    press(harness.visual, "escape");
+    click(harness.visual, SETTINGS_OPEN_BUTTON_ID);
     harness.visual.update(|window, cx| {
         let workspace = root.read(cx);
         assert!(!workspace.settings_is_open());
         assert_panes(workspace, &[1, 2], 1, window, cx);
+        assert!(pane_focus(workspace, 1, cx).is_focused(window));
         assert_sessions_unchanged(workspace, &first, &second, 1);
     });
 
@@ -762,6 +743,211 @@ fn edited_scrollback_survives_reopening_and_stays_applied(cx: &mut TestAppContex
         vec![400, 800, 1200]
     );
     send_marker(harness.visual, &first_model, "aftersetting");
+    harness.visual.update(|window, _| window.remove_window());
+}
+
+#[gpui_kit::test]
+fn keyboard_and_mouse_selection_focus_the_editable_value(cx: &mut TestAppContext) {
+    let mut harness = harness(cx, AppConfig::default());
+    let root = harness.root.clone();
+    let config = harness.config.clone();
+    let writes = Arc::clone(&harness.writes);
+
+    click(harness.visual, SETTINGS_OPEN_BUTTON_ID);
+    open_scrollback_from_search(&mut harness, &root);
+    replace_focused_text(&mut harness, "4321");
+    harness.visual.update(|window, cx| {
+        let page = root.read(cx).ui.settings_page.read(cx);
+        assert_eq!(page.search_value(cx), "");
+        assert_eq!(page.scrollback_value(cx), "4321");
+        assert!(page_scrollback_focused(&root, window, cx));
+        assert_eq!(config.read(cx).scrollback_lines(), 10_000);
+    });
+
+    // The settings shortcut opens the route that is already showing. It must
+    // keep the unsaved draft and its field instead of rebuilding the page.
+    press(harness.visual, &format!("{}-,", modifier()));
+    harness.visual.update(|window, cx| {
+        let page = root.read(cx).ui.settings_page.read(cx);
+        assert!(root.read(cx).settings_is_open());
+        assert_eq!(page.scrollback_value(cx), "4321");
+        assert_eq!(page.search_query(), "");
+        assert!(page_scrollback_focused(&root, window, cx));
+    });
+    assert!(writes.lock().expect("scrollback writes").is_empty());
+
+    press(harness.visual, "escape");
+    harness.visual.update(|window, cx| {
+        let workspace = root.read(cx);
+        assert!(!workspace.settings_is_open());
+        assert!(pane_focus(workspace, 1, cx).is_focused(window));
+    });
+
+    // The same result selected with the pointer must take the next typed
+    // digits into the value, not into the search query.
+    click(harness.visual, SETTINGS_OPEN_BUTTON_ID);
+    type_search(&mut harness, "scrollback");
+    click(
+        harness.visual,
+        super::settings_page::SETTINGS_SEARCH_RESULT_0_ID,
+    );
+    harness.visual.update(|window, cx| {
+        assert!(page_scrollback_focused(&root, window, cx));
+    });
+    replace_focused_text(&mut harness, "8765");
+    harness.visual.update(|window, cx| {
+        let page = root.read(cx).ui.settings_page.read(cx);
+        assert_eq!(page.search_value(cx), "");
+        assert_eq!(page.scrollback_value(cx), "8765");
+        assert!(page_scrollback_focused(&root, window, cx));
+        assert_eq!(config.read(cx).scrollback_lines(), 10_000);
+    });
+
+    click(harness.visual, SETTINGS_OPEN_BUTTON_ID);
+    harness.visual.update(|window, cx| {
+        let workspace = root.read(cx);
+        assert!(!workspace.settings_is_open());
+        assert!(pane_focus(workspace, 1, cx).is_focused(window));
+    });
+    assert!(writes.lock().expect("scrollback writes").is_empty());
+    harness.visual.update(|window, _| window.remove_window());
+}
+
+#[gpui_kit::test]
+fn tab_and_shift_tab_leave_the_value_for_the_page_focus_order(cx: &mut TestAppContext) {
+    let mut harness = harness(cx, AppConfig::default());
+    let root = harness.root.clone();
+    click(harness.visual, SETTINGS_OPEN_BUTTON_ID);
+    open_scrollback_from_search(&mut harness, &root);
+
+    press(harness.visual, "shift-tab");
+    harness.visual.update(|window, cx| {
+        assert!(
+            page_search_focused(&root, window, cx),
+            "Shift+Tab from the value should reach the search field"
+        );
+        assert!(!page_scrollback_focused(&root, window, cx));
+    });
+
+    press(harness.visual, "tab");
+    harness.visual.update(|window, cx| {
+        assert!(
+            page_scrollback_focused(&root, window, cx),
+            "Tab from the search field should return to the value"
+        );
+    });
+
+    press(harness.visual, "tab");
+    harness.visual.update(|window, cx| {
+        assert!(
+            !page_scrollback_focused(&root, window, cx),
+            "Tab must leave the numeric field instead of trapping focus"
+        );
+    });
+    let mut returned_to_search = false;
+    for _ in 0..16 {
+        if harness
+            .visual
+            .update(|window, cx| page_search_focused(&root, window, cx))
+        {
+            returned_to_search = true;
+            break;
+        }
+        press(harness.visual, "tab");
+    }
+    assert!(
+        returned_to_search,
+        "the page focus order should cycle back to the search field"
+    );
+    harness.visual.update(|_, cx| {
+        assert_eq!(
+            root.read(cx).ui.settings_page.read(cx).scrollback_value(cx),
+            "10000"
+        );
+    });
+
+    click(harness.visual, SETTINGS_OPEN_BUTTON_ID);
+    harness.visual.update(|window, _| window.remove_window());
+}
+
+#[gpui_kit::test]
+fn language_change_updates_placeholders_without_resetting_the_draft(cx: &mut TestAppContext) {
+    let mut harness = harness(cx, AppConfig::default());
+    let root = harness.root.clone();
+    click(harness.visual, SETTINGS_OPEN_BUTTON_ID);
+
+    let english_search = harness.visual.update(|_, cx| {
+        root.read(cx)
+            .ui
+            .locale
+            .read(cx)
+            .text(keys::SETTINGS_SEARCH_PLACEHOLDER)
+            .expect("the English search placeholder is embedded")
+    });
+    let english_scrollback = harness.visual.update(|_, cx| {
+        root.read(cx)
+            .ui
+            .locale
+            .read(cx)
+            .text(keys::SCROLLBACK_SETTING_PLACEHOLDER)
+            .expect("the English scrollback placeholder is embedded")
+    });
+    harness.visual.update(|_, cx| {
+        let page = root.read(cx).ui.settings_page.read(cx);
+        assert_eq!(page.search_placeholder(cx), english_search);
+    });
+
+    open_scrollback_from_search(&mut harness, &root);
+    replace_focused_text(&mut harness, "777");
+    harness.visual.update(|_, cx| {
+        assert_eq!(
+            root.read(cx)
+                .ui
+                .settings_page
+                .read(cx)
+                .scrollback_placeholder(cx),
+            english_scrollback
+        );
+    });
+
+    let (chinese_search, chinese_scrollback) = harness.visual.update(|_, cx| {
+        let locale = root.read(cx).ui.locale.clone();
+        locale.update(cx, |locale, cx| locale.set_language(Language::Zh, cx));
+        (
+            locale
+                .read(cx)
+                .text(keys::SETTINGS_SEARCH_PLACEHOLDER)
+                .expect("the Chinese search placeholder is embedded"),
+            locale
+                .read(cx)
+                .text(keys::SCROLLBACK_SETTING_PLACEHOLDER)
+                .expect("the Chinese scrollback placeholder is embedded"),
+        )
+    });
+    harness.visual.update(|window, cx| {
+        window.render_frame(cx);
+        let page = root.read(cx).ui.settings_page.read(cx);
+        assert_eq!(page.search_placeholder(cx), chinese_search);
+        assert_eq!(page.scrollback_placeholder(cx), chinese_scrollback);
+        assert!(!chinese_search.is_empty());
+        assert_eq!(page.scrollback_value(cx), "777");
+        assert_eq!(page.search_query(), "");
+        assert!(page_scrollback_focused(&root, window, cx));
+    });
+
+    harness.visual.update(|_, cx| {
+        let locale = root.read(cx).ui.locale.clone();
+        locale.update(cx, |locale, cx| locale.set_language(Language::En, cx));
+    });
+    harness.visual.update(|window, cx| {
+        window.render_frame(cx);
+        let page = root.read(cx).ui.settings_page.read(cx);
+        assert_eq!(page.search_placeholder(cx), english_search);
+        assert_eq!(page.scrollback_placeholder(cx), english_scrollback);
+        assert_eq!(page.scrollback_value(cx), "777");
+    });
+
+    click(harness.visual, SETTINGS_OPEN_BUTTON_ID);
     harness.visual.update(|window, _| window.remove_window());
 }
 
@@ -821,6 +1007,57 @@ fn wait_for_settings_error(visual: &mut VisualTestContext) {
 fn type_search(harness: &mut Harness<'_>, text: &str) {
     harness.visual.simulate_input(text);
     harness.visual.update(|window, cx| window.render_frame(cx));
+}
+
+fn replace_focused_text(harness: &mut Harness<'_>, text: &str) {
+    press(harness.visual, &format!("{}-a", modifier()));
+    harness.visual.simulate_input(text);
+    harness.visual.update(|window, cx| window.render_frame(cx));
+}
+
+fn open_scrollback_from_search(harness: &mut Harness<'_>, root: &Entity<Prototype>) {
+    type_search(harness, "scrollback");
+    press(harness.visual, "enter");
+    harness.visual.update(|window, cx| {
+        let page = root.read(cx).ui.settings_page.read(cx);
+        assert_eq!(page.search_query(), "");
+        assert!(
+            page_scrollback_focused(root, window, cx),
+            "opening the result should focus its editable value"
+        );
+    });
+}
+
+fn page_search_focused(root: &Entity<Prototype>, window: &Window, cx: &App) -> bool {
+    root.read(cx)
+        .ui
+        .settings_page
+        .read(cx)
+        .search_focus(cx)
+        .is_some_and(|focus| focus.is_focused(window))
+}
+
+fn page_scrollback_focused(root: &Entity<Prototype>, window: &Window, cx: &App) -> bool {
+    root.read(cx)
+        .ui
+        .settings_page
+        .read(cx)
+        .scrollback_focus(cx)
+        .is_some_and(|focus| focus.is_focused(window))
+}
+
+fn wait_for_write_attempts(writes: &Arc<Mutex<Vec<u32>>>, expected: usize) {
+    let deadline = Instant::now() + Duration::from_secs(20);
+    loop {
+        if writes.lock().expect("scrollback write attempts").len() >= expected {
+            return;
+        }
+        assert!(
+            Instant::now() < deadline,
+            "timed out waiting for {expected} scrollback write attempt(s)"
+        );
+        std::thread::sleep(Duration::from_millis(10));
+    }
 }
 
 #[gpui_kit::test]
@@ -987,6 +1224,10 @@ fn search_accepts_chinese_and_mouse_selection(cx: &mut TestAppContext) {
         let locale = root.read(cx).ui.locale.clone();
         locale.update(cx, |locale, cx| locale.set_language(Language::En, cx));
     });
+    click(
+        harness.visual,
+        super::settings_page::SETTINGS_SEARCH_FIELD_ID,
+    );
     type_search(&mut harness, "scrollback");
     click(
         harness.visual,
@@ -1169,26 +1410,44 @@ fn write_layout_json(visual: &mut VisualTestContext, file: &str, ids: &[&'static
 }
 
 #[gpui_kit::test]
-fn a_failed_save_keeps_the_page_open_and_the_running_capacity(cx: &mut TestAppContext) {
+fn invalid_input_and_a_failed_save_recover_through_the_field(cx: &mut TestAppContext) {
     let writes = Arc::new(Mutex::new(Vec::new()));
-    let writer: ScrollbackWriter = Arc::new(|_| Err("the config disk is full".to_string()));
-    let harness = harness_with_writer(cx, AppConfig::default(), writer, writes);
+    let recorded = Arc::clone(&writes);
+    let writer: ScrollbackWriter = Arc::new(move |lines| {
+        let mut attempts = recorded.lock().expect("scrollback write attempts");
+        attempts.push(lines);
+        if attempts.len() == 1 {
+            Err("the config disk is full".to_string())
+        } else {
+            Ok(())
+        }
+    });
+    let mut harness = harness_with_writer(cx, AppConfig::default(), writer, Arc::clone(&writes));
     let root = harness.root.clone();
     let config = harness.config.clone();
     let first_model = Arc::clone(&harness.first_model);
     click(harness.visual, SETTINGS_OPEN_BUTTON_ID);
+    open_scrollback_from_search(&mut harness, &root);
 
+    replace_focused_text(&mut harness, "20000001");
+    press(harness.visual, "enter");
     harness.visual.update(|window, cx| {
-        root.update(cx, |workspace, cx| {
-            workspace.set_settings_scrollback_value("500", window, cx);
-        });
+        window.render_frame(cx);
+        assert!(root.read(cx).settings_is_open());
+        assert_eq!(config.read(cx).scrollback_lines(), 10_000);
+        assert_eq!(
+            root.read(cx).ui.settings_page.read(cx).scrollback_value(cx),
+            "20000001"
+        );
+        assert!(page_scrollback_focused(&root, window, cx));
     });
-    click(
-        harness.visual,
-        super::settings_page::SETTINGS_SCROLLBACK_SAVE_ID,
-    );
     wait_for_settings_error(harness.visual);
-    assert!(settings_page_visible(harness.visual));
+    assert!(writes.lock().expect("scrollback write attempts").is_empty());
+
+    replace_focused_text(&mut harness, "500");
+    press(harness.visual, "enter");
+    wait_for_write_attempts(&writes, 1);
+    wait_for_settings_error(harness.visual);
     harness.visual.update(|window, cx| {
         window.render_frame(cx);
         assert!(root.read(cx).settings_is_open());
@@ -1201,7 +1460,40 @@ fn a_failed_save_keeps_the_page_open_and_the_running_capacity(cx: &mut TestAppCo
             root.read(cx).ui.settings_page.read(cx).scrollback_value(cx),
             "500"
         );
+        assert!(page_scrollback_focused(&root, window, cx));
+        assert!(!config.read(cx).is_save_pending());
     });
+
+    replace_focused_text(&mut harness, "400");
+    press(harness.visual, "enter");
+    wait_for_save(&mut harness, 400);
+    harness.visual.update(|window, cx| {
+        window.render_frame(cx);
+        assert!(root.read(cx).settings_is_open());
+        assert_eq!(config.read(cx).scrollback_lines(), 400);
+    });
+    assert!(
+        harness
+            .visual
+            .debug_bounds(super::settings_page::SETTINGS_SCROLLBACK_ERROR_ID)
+            .is_none(),
+        "a successful retry should clear the save error"
+    );
+    assert_eq!(
+        first_model.scrollback(),
+        resolve_scrollback_lines(Some(400.0)) as usize
+    );
+
+    click(harness.visual, SETTINGS_OPEN_BUTTON_ID);
+    harness.visual.update(|window, cx| {
+        let workspace = root.read(cx);
+        assert!(!workspace.settings_is_open());
+        assert!(pane_focus(workspace, 1, cx).is_focused(window));
+    });
+    assert_eq!(
+        *writes.lock().expect("scrollback write attempts"),
+        vec![500, 400]
+    );
     harness.visual.update(|window, _| window.remove_window());
 }
 

@@ -28,30 +28,36 @@ fn editing_keeps_invalid_input_and_returns_focus_on_cancel_or_save(cx: &mut Test
     let previous = visual.update(|window, cx| {
         let previous = cx.focus_handle();
         previous.focus(window, cx);
-        editor.update(cx, |editor, cx| {
-            editor.open(window, cx);
-            editor
-                .input
-                .as_ref()
-                .unwrap()
-                .update(cx, |state, cx| state.set_value("invalid", window, cx));
-            editor.submit(window, cx);
-            assert!(editor.open && editor.error.is_some());
-            editor.close(window, cx);
-        });
-        assert!(previous.is_focused(window));
-        assert_eq!(config.read(cx).scrollback_lines(), 10_000);
-        editor.update(cx, |editor, cx| {
-            editor.open(window, cx);
-            editor
-                .input
-                .as_ref()
-                .unwrap()
-                .update(cx, |state, cx| state.set_value("400", window, cx));
-            editor.submit(window, cx);
-        });
+        editor.update(cx, |editor, cx| editor.open(window, cx));
         previous
     });
+
+    // Typing and Enter go through the production field and key handler. The
+    // existing value stays in the draft because the typed tail makes it
+    // invalid.
+    visual.simulate_input("invalid");
+    visual.simulate_keystrokes("enter");
+    visual.update(|window, cx| {
+        assert!(editor.read(cx).open);
+        assert!(editor.read(cx).error.is_some());
+        assert_eq!(config.read(cx).scrollback_lines(), 10_000);
+        assert_eq!(editor.read(cx).value(cx), "10000invalid");
+        assert!(editor.read(cx).input_focus(cx).is_focused(window));
+    });
+
+    visual.simulate_keystrokes("escape");
+    visual.update(|window, cx| {
+        assert!(!editor.read(cx).open);
+        assert!(previous.is_focused(window));
+        assert_eq!(config.read(cx).scrollback_lines(), 10_000);
+    });
+
+    visual.update(|window, cx| {
+        editor.update(cx, |editor, cx| editor.open(window, cx));
+    });
+    visual.simulate_keystrokes(&format!("{}-a", dialog_modifier()));
+    visual.simulate_input("400");
+    visual.simulate_keystrokes("enter");
     let deadline = Instant::now() + Duration::from_secs(5);
     while visual.update(|_, cx| editor.read(cx).open) {
         assert!(Instant::now() < deadline, "the saved editor should close");
@@ -62,4 +68,12 @@ fn editing_keeps_invalid_input_and_returns_focus_on_cancel_or_save(cx: &mut Test
         assert!(previous.is_focused(window));
         assert_eq!(config.read(cx).scrollback_lines(), 400);
     });
+}
+
+fn dialog_modifier() -> &'static str {
+    if cfg!(target_os = "macos") {
+        "cmd"
+    } else {
+        "ctrl"
+    }
 }
