@@ -256,3 +256,9 @@ pnpm exec vitest run src/parity/screens/settingsReference.test.tsx --reporter=ve
 
 - `17d5a379` `:white_check_mark: Capture the settings page and its search results`（生产标记、parity 入口、夹具、工具桩、回归）
 - 报告与资产提交见本分支末尾（`:memo:`）。
+
+## 协调者验收（2026-11-23）
+
+参照交付物复核通过，整卡暂不合入 `GPUI`。独立复跑 WebKit 捕获得到标题栏 13、设置首页 152、搜索结果 25 个布局元素，三张 PNG 和三个布局文件与本报告资产逐字节一致。另行复跑六项 pnpm 检查通过（187 个测试文件，1367 项 Vitest 用例）。搜索截图记录输入 `font` 后的真实列表；点击并选择目标页签有组件交互测试，不据此宣称原生桌面滚动定位已验收。标题栏仍是 Windows 布局夹具，不是 macOS 原生标题栏基线。
+
+合并阻塞项为严格 Clippy 的 SSH 测试辅助代码未使用，以及本文列出的两项 workspace 测试失败。应单独修复并复跑整套检查后再决定是否合并；不降低帧预算、不忽略指针测试。本批没有迁移 GPUI 设置页。
