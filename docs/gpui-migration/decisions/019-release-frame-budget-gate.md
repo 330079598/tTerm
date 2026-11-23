@@ -2,7 +2,7 @@
 
 - 日期：2026-11-23
 - 决策人：stone
-- 状态：已决定。只把已存在的 30 会话帧预算用例移出默认并行套件，改成独立 release 门禁；不改负载、采样窗口、p95 预算（16.667 ms）、30 MiB 吞吐下限，也不改产品代码与 Cargo profile。
+- 状态：已决定。只把已存在的 30 会话帧预算用例移出默认并行套件，改成独立 release 门禁；不改负载、采样窗口、p95 预算（16.667 ms）、30 MiB 吞吐下限，也不改产品代码与 Cargo profile。累计 30 MiB 的测量位置后来由[决策 020](020-independent-frame-and-throughput-measurements.md)改为独立的固定期限吞吐用例；隔离、无条件和 fail-closed 规则仍按本记录执行。
 
 ## 背景
 

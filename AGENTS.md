@@ -32,19 +32,32 @@ node scripts/perf/gpui-release-frame-budget.mjs
   no `eslint-disable`, no blanket `#[allow]`, and no raising a limit or a
   baseline entry. Fix the cause.
 - If you can't fix it, stop and say so.
-- The last command is the 30-session foreground frame budget. Its fixture is
-  `#[ignore]`d so `cargo test --workspace` keeps its default parallelism and
-  never runs it; this script builds the release lib test binary, checks that
-  libtest lists exactly that one ignored test, and runs it alone with
+- The last command runs two independent release measurements through the same
+  entry point: the 30-session foreground frame budget and the 30-session
+  background throughput. Both fixtures are `#[ignore]`d so
+  `cargo test --workspace` keeps its default parallelism and never runs them;
+  the script builds the release lib test binary once, checks that libtest lists
+  each ignored test by its full name, and runs each alone with
   `--exact --ignored --nocapture --test-threads=1`. It needs an idle machine and
-  CI runs it in its own `rust-frame-budget` job on `macos-15`. It exits non-zero
-  when the test is renamed, when the filter matches zero or several tests, when
-  the harness runs in the wrong mode, or when an assertion fails.
+  CI runs it in its own `rust-frame-budget` job on `macos-15`.
+- The frame fixture keeps 30 active parsers, the 2 ms pacing, 100 ms warm-up,
+  120 baseline and 120 loaded frames, and the 16.667 ms p95 budget. It no longer
+  asserts a cumulative 30 MiB; instead it requires all 30 sessions to advance in
+  warm-up and the sampled frame window to show real background progress. The
+  throughput fixture uses 30 fresh parsers, sends exactly 1 MiB through each
+  (30 MiB total) in 16 KiB printable blocks at a 2 ms cadence, starts its timer
+  before any input, and requires every session's applied and acknowledged
+  counters to reach 1 MiB within a fixed 500 ms deadline (at least 60 MiB/s).
+  Neither measurement reads the other's data.
+- The gate exits non-zero when either test is renamed, when a filter matches
+  zero or several tests, when the harness runs in the wrong mode, when one
+  measurement is missing or its evidence line is absent or malformed, when the
+  500 ms deadline is missed, or when an assertion fails.
 - That gate is not desktop acceptance and not a G2 pass: it measures one
-  release job on one fixed macOS runner ([decision 019](docs/gpui-migration/decisions/019-release-frame-budget-gate.md)).
+  release job on one fixed macOS runner ([decision 020](docs/gpui-migration/decisions/020-independent-frame-and-throughput-measurements.md)).
   Reach green by fixing the cause, not by touching the load, the pacing, the
-  sampling window, the 16.667 ms p95 budget or the 30 MiB floor. If the numbers
-  miss, stop and report the measured values.
+  sampling window, the 16.667 ms p95 budget, the 500 ms deadline or the 30 MiB
+  total. If the numbers miss, stop and report the measured values.
 
 ## Size limits
 

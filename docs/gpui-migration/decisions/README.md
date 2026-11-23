@@ -29,8 +29,9 @@
 | 017  | GPUI 分支只保证 GPUI 版，不再人工验证分支上的 Tauri 版 | [017-gpui-branch-tauri-untested.md](017-gpui-branch-tauri-untested.md)                   |
 | 018  | 先补工作区与设置参照，再并行推进设置流程与终端日用能力 | [018-workspace-settings-order.md](018-workspace-settings-order.md) |
 | 019  | 30 会话帧预算是独立、必跑的 release 门禁               | [019-release-frame-budget-gate.md](019-release-frame-budget-gate.md)                     |
+| 020  | 独立测量前台帧延迟与后台吞吐                           | [020-independent-frame-and-throughput-measurements.md](020-independent-frame-and-throughput-measurements.md) |
 
-- 下一个可用编号：**020**。
+- 下一个可用编号：**021**。
 
 ## 正文格式
 

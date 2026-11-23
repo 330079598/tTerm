@@ -148,6 +148,7 @@ pub(super) struct QueueMetrics {
     queued: AtomicUsize,
     max_queued: AtomicUsize,
     sent: AtomicU64,
+    applied: AtomicU64,
     acked: AtomicU64,
     batches: AtomicU64,
     #[cfg(test)]
@@ -168,7 +169,11 @@ impl QueueMetrics {
         self.queued.fetch_sub(bytes, Ordering::AcqRel);
     }
 
-    fn parsed(&self, bytes: usize) {
+    fn parsed(&self, bytes: usize, applied: bool) {
+        if applied {
+            self.applied
+                .fetch_add(u64::try_from(bytes).unwrap_or(u64::MAX), Ordering::Relaxed);
+        }
         self.acked
             .fetch_add(u64::try_from(bytes).unwrap_or(u64::MAX), Ordering::Relaxed);
         self.batches.fetch_add(1, Ordering::Relaxed);
@@ -201,6 +206,12 @@ impl QueueMetrics {
     #[cfg(test)]
     pub(super) fn sent_bytes(&self) -> u64 {
         self.sent.load(Ordering::Acquire)
+    }
+
+    /// The bytes the parser applied to this session's model.
+    #[cfg(test)]
+    pub(super) fn applied_bytes(&self) -> u64 {
+        self.applied.load(Ordering::Acquire)
     }
 
     /// The bytes the parser has processed, including client-synthesized output.
@@ -430,10 +441,12 @@ fn apply_and_release(
     if acknowledge_flow > 0 {
         acknowledge(acknowledge_flow);
     }
-    metrics.parsed(length);
+    metrics.parsed(length, applied);
     metrics.released(length);
     batch.clear();
 }
 
 #[cfg(test)]
 mod tests;
+#[cfg(test)]
+mod throughput_tests;

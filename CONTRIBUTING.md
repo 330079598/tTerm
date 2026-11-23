@@ -58,11 +58,17 @@ cargo fmt --all --check && cargo clippy --workspace --all-targets -- -D warnings
 node scripts/perf/gpui-release-frame-budget.mjs
 ```
 
-The last command is the 30-session foreground frame budget. It runs one
-`#[ignore]`d release fixture alone on an idle machine, so CI gives it its own
-`rust-frame-budget` job instead of the parallel test matrix; the script fails
-closed on a renamed test, an empty filter or a failed assertion. See
-[decision 019](./docs/gpui-migration/decisions/019-release-frame-budget-gate.md).
+The last command runs two independent release measurements through one entry
+point: the 30-session foreground frame budget and the 30-session background
+throughput. Both are `#[ignore]`d release fixtures that run alone on an idle
+machine, so CI gives them their own `rust-frame-budget` job instead of the
+parallel test matrix. The frame fixture keeps the 16.667 ms p95 budget and must
+show background progress during the sampled frames; the throughput fixture
+requires exactly 1 MiB applied and acknowledged per session (30 MiB total)
+within a fixed 500 ms deadline (at least 60 MiB/s). The script fails closed when
+a fixture is renamed or missing, an evidence line is absent or malformed, only
+one measurement runs, the deadline is missed, or an assertion fails. See
+[decision 020](./docs/gpui-migration/decisions/020-independent-frame-and-throughput-measurements.md).
 
 Don't silence a failing check to get it green: no `--no-verify`, no
 `eslint-disable`, no blanket `#[allow]`, and no raising a size limit or a
