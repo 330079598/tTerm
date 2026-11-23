@@ -52,6 +52,7 @@
 //! without a panic, and the seed is printed so a failure can be replayed.
 
 pub mod cell;
+mod clear_scanner;
 pub mod color;
 /// Shell integration command marks shared with the notification rules.
 pub mod command_mark;

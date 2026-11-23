@@ -397,14 +397,102 @@ fn clearing_history_then_output_starts_a_consistent_generation() {
     let terminal = terminal(12, 4, 3);
     terminal.write(b"old-0\r\nold-1\r\nold-2\r\nold-3\r\n");
     terminal.scroll(Scroll::Top);
-    terminal.snapshot();
+    let before = terminal.snapshot();
     terminal.write(b"\x1b[3J");
     let cleared = terminal.snapshot();
     assert_eq!(cleared.history_size(), 0);
+    assert_eq!(cleared.display_offset(), 0);
+    assert!(
+        cleared.scrollback_generation() > before.scrollback_generation(),
+        "clearing the history moves every absolute line"
+    );
     terminal.write(b"fresh\r\n");
     let after = terminal.snapshot();
     assert!(after.history_size() <= 1);
     assert!(after.rows().iter().all(|row| !row.cells().is_empty()));
+    assert!(
+        screen_text(&after)
+            .iter()
+            .any(|line| line.trim_end() == "fresh"),
+        "output after the clear starts a new history: {}",
+        after.history_size()
+    );
+}
+
+#[test]
+fn clear_and_fresh_output_in_one_write_replaces_the_history() {
+    let terminal = terminal(20, 4, 6);
+    terminal.write(b"old-0\r\nold-1\r\nold-2\r\nold-3\r\nold-4\r\nold-5\r\n");
+    let before = terminal.snapshot();
+    assert!(before.history_size() > 0);
+
+    let mut bytes = b"\x1b[H\x1b[2J\x1b[3J".to_vec();
+    for index in 0..12 {
+        bytes.extend_from_slice(format!("fresh-{index}\r\n").as_bytes());
+    }
+    terminal.write(&bytes);
+    let after = terminal.snapshot();
+    assert!(
+        after.scrollback_generation() > before.scrollback_generation(),
+        "the clear is visible even though fresh output follows in the same write"
+    );
+    assert!(after.history_size() <= 6);
+    assert!(
+        screen_text(&after)
+            .iter()
+            .any(|line| line.contains("fresh-11")),
+        "the fresh output is visible"
+    );
+    assert!(
+        screen_text(&after)
+            .iter()
+            .all(|line| !line.contains("old-")),
+        "no old line survives the clear"
+    );
+}
+
+#[test]
+fn clearing_the_viewport_keeps_the_main_history() {
+    let terminal = terminal(20, 4, 4);
+    terminal.write(b"old-0\r\nold-1\r\nold-2\r\nold-3\r\nold-4\r\nold-5\r\n");
+    let before = terminal.snapshot();
+    assert!(before.history_size() > 0);
+    terminal.write(b"\x1b[2J");
+    let cleared = terminal.snapshot();
+    assert!(
+        cleared.history_size() >= before.history_size() && cleared.history_size() > 0,
+        "ED 2 clears the viewport, not the scrollback: {} -> {}",
+        before.history_size(),
+        cleared.history_size()
+    );
+    assert!(
+        cleared
+            .rows()
+            .iter()
+            .all(|row| row.cells().iter().all(|cell| cell.ch == ' ')),
+        "the viewport itself is blank"
+    );
+}
+
+#[test]
+fn clearing_the_alternate_screen_keeps_the_main_history() {
+    let terminal = terminal(20, 4, 4);
+    terminal.write(b"old-0\r\nold-1\r\nold-2\r\nold-3\r\nold-4\r\nold-5\r\n");
+    let main = terminal.snapshot();
+    assert!(main.history_size() > 0);
+
+    terminal.write(b"\x1b[?1049h\x1b[H\x1b[2J\x1b[3J");
+    let alternate = terminal.snapshot();
+    assert!(alternate.modes().contains(crate::mode::Modes::ALT_SCREEN));
+    assert_eq!(alternate.history_size(), 0);
+
+    terminal.write(b"\x1b[?1049l");
+    let back = terminal.snapshot();
+    assert_eq!(back.history_size(), main.history_size());
+    assert!(
+        screen_text(&back).iter().any(|line| line.contains("old-5")),
+        "the main screen keeps its content after the alternate clear"
+    );
 }
 
 #[test]

@@ -242,8 +242,9 @@ impl Snapshot {
     /// The monotonically increasing history generation.
     ///
     /// The generation advances whenever output evicts one or more oldest
-    /// scrollback lines. Views use it to invalidate absolute-line caches even
-    /// when the bounded history length itself stays unchanged.
+    /// scrollback lines or clears the history. Views use it to invalidate
+    /// absolute-line caches even when the bounded history length itself stays
+    /// unchanged.
     pub fn scrollback_generation(&self) -> u64 {
         self.scrollback_generation
     }
