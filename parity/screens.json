@@ -478,6 +478,10 @@
         {
           "type": "waitFor",
           "target": "settings.search.results"
+        },
+        {
+          "type": "wait",
+          "ms": 1000
         }
       ]
     },
