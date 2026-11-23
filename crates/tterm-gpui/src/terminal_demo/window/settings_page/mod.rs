@@ -60,6 +60,7 @@ pub(super) struct SettingsPage {
     query: String,
     active_index: usize,
     open: bool,
+    _locale_observer: Option<Subscription>,
 }
 
 impl SettingsPage {
@@ -69,7 +70,6 @@ impl SettingsPage {
         scrollback: Entity<ScrollbackSetting>,
         cx: &mut Context<Self>,
     ) -> Self {
-        cx.observe(&locale, |_, _, cx| cx.notify()).detach();
         cx.observe(&scrollback, |_, _, cx| cx.notify()).detach();
         Self {
             locale,
@@ -81,6 +81,7 @@ impl SettingsPage {
             query: String::new(),
             active_index: 0,
             open: false,
+            _locale_observer: None,
         }
     }
 
@@ -88,7 +89,8 @@ impl SettingsPage {
     /// it the way the reference page does.
     pub(super) fn open(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         if self.open {
-            self.focus_search(window, cx);
+            // Opening the same route again is a no-op: it must not discard a
+            // draft or steal focus from the field the user is editing.
             return;
         }
         self.query.clear();
@@ -96,6 +98,7 @@ impl SettingsPage {
         self.scrollback
             .update(cx, |setting, cx| setting.open_page(window, cx));
         let field = self.ensure_search_input(window, cx);
+        self.ensure_locale_observer(window, cx);
         field.update(cx, |state, cx| state.focus(window, cx));
         self.open = true;
         cx.notify();
@@ -118,6 +121,7 @@ impl SettingsPage {
         self.active_index = 0;
         self._search_events = None;
         self._search_observer = None;
+        self._locale_observer = None;
         self.search_input = None;
         cx.notify();
         true
@@ -146,6 +150,29 @@ impl SettingsPage {
         shell::page(self, window, cx)
     }
 
+    fn ensure_locale_observer(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        if self._locale_observer.is_some() {
+            return;
+        }
+        let observer = cx.observe_in(&self.locale, window, |this, _, window, cx| {
+            this.refresh_placeholders(window, cx);
+            cx.notify();
+        });
+        self._locale_observer = Some(observer);
+    }
+
+    fn refresh_placeholders(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        if let Some(field) = &self.search_input {
+            let placeholder = search::text(self.locale.read(cx), keys::SETTINGS_SEARCH_PLACEHOLDER);
+            field.update(cx, |state, cx| {
+                state.set_placeholder(placeholder, window, cx);
+            });
+        }
+        self.scrollback.update(cx, |setting, cx| {
+            setting.refresh_placeholder(window, cx);
+        });
+    }
+
     fn ensure_search_input(
         &mut self,
         window: &mut Window,
@@ -171,11 +198,6 @@ impl SettingsPage {
         self._search_observer = Some(observer);
         self.search_input = Some(field.clone());
         field
-    }
-
-    fn focus_search(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        let field = self.ensure_search_input(window, cx);
-        field.update(cx, |state, cx| state.focus(window, cx));
     }
 
     fn results(&self, cx: &App) -> Vec<SettingsSearchResult> {
@@ -220,9 +242,14 @@ impl SettingsPage {
         self.query.clear();
         self.active_index = 0;
         if let Some(field) = &self.search_input {
-            field.update(cx, |state, cx| {
-                state.set_value("", window, cx);
-                state.focus(window, cx);
+            field.update(cx, |state, cx| state.set_value("", window, cx));
+            if result.is_page {
+                field.update(cx, |state, cx| state.focus(window, cx));
+            }
+        }
+        if !result.is_page {
+            self.scrollback.update(cx, |setting, cx| {
+                setting.focus_page_input(window, cx);
             });
         }
         cx.notify();
@@ -252,13 +279,20 @@ impl SettingsPage {
                 cx.stop_propagation();
                 self.open_active_result(window, cx);
             }
+            "tab" => {
+                // A single-line input shadows the root Tab binding, so the
+                // page advances its own order here. It still has to leave the
+                // field and eventually cycle back.
+                window.prevent_default();
+                cx.stop_propagation();
+                if event.keystroke.modifiers.shift {
+                    window.focus_prev(cx);
+                } else {
+                    window.focus_next(cx);
+                }
+            }
             _ => {}
         }
-    }
-
-    #[cfg(test)]
-    pub(super) fn scrollback_entity(&self) -> Entity<ScrollbackSetting> {
-        self.scrollback.clone()
     }
 
     #[cfg(test)]
@@ -272,6 +306,31 @@ impl SettingsPage {
             .as_ref()
             .map(|field| field.read(cx).value().to_string())
             .unwrap_or_default()
+    }
+
+    #[cfg(test)]
+    pub(super) fn search_placeholder(&self, cx: &App) -> String {
+        self.search_input
+            .as_ref()
+            .map(|field| field.read(cx).presentation().placeholder().to_string())
+            .unwrap_or_default()
+    }
+
+    #[cfg(test)]
+    pub(super) fn search_focus(&self, cx: &App) -> Option<gpui_kit::FocusHandle> {
+        self.search_input
+            .as_ref()
+            .map(|field| field.read(cx).presentation().focus_handle().clone())
+    }
+
+    #[cfg(test)]
+    pub(super) fn scrollback_focus(&self, cx: &App) -> Option<gpui_kit::FocusHandle> {
+        self.scrollback.read(cx).page_focus(cx)
+    }
+
+    #[cfg(test)]
+    pub(super) fn scrollback_placeholder(&self, cx: &App) -> String {
+        self.scrollback.read(cx).page_placeholder(cx)
     }
 
     #[cfg(test)]
@@ -353,20 +412,6 @@ impl Prototype {
     /// Whether the settings route owns the window content.
     pub(super) fn settings_is_open(&self) -> bool {
         self.settings_open
-    }
-
-    /// Sets the scrollback field for a route-level test.
-    #[cfg(test)]
-    pub(super) fn set_settings_scrollback_value(
-        &mut self,
-        value: &str,
-        window: &mut Window,
-        cx: &mut Context<Self>,
-    ) {
-        let scrollback = self.ui.settings_page.read(cx).scrollback_entity();
-        scrollback.update(cx, |setting, cx| {
-            setting.set_value(value, window, cx);
-        });
     }
 
     /// The title-bar entry that opens settings.

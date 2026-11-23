@@ -112,6 +112,32 @@ impl ScrollbackSetting {
         cx.notify();
     }
 
+    /// Puts the page's draft field in focus when a search result opens.
+    ///
+    /// The whole draft is selected so the next typed digit replaces the old
+    /// capacity instead of appending to it.
+    pub(crate) fn focus_page_input(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        if !self.page_mode {
+            return;
+        }
+        if let Some(input) = &self.input {
+            input.update(cx, |state, cx| {
+                state.focus(window, cx);
+                state.select_all(window, cx);
+            });
+        }
+    }
+
+    /// Refreshes the field placeholder after a language change.
+    pub(crate) fn refresh_placeholder(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        if let Some(input) = &self.input {
+            let placeholder = self.text(cx, keys::SCROLLBACK_SETTING_PLACEHOLDER);
+            input.update(cx, |state, cx| {
+                state.set_placeholder(placeholder, window, cx);
+            });
+        }
+    }
+
     /// Clears the page editor without taking focus back from the route.
     ///
     /// Returns `false` while a save is in flight so the route stays open
@@ -228,7 +254,18 @@ impl ScrollbackSetting {
             "tab" => {
                 window.prevent_default();
                 cx.stop_propagation();
-                self.focus_input(window, cx);
+                if self.page_mode {
+                    // The page has a focus order of its own; trapping Tab in
+                    // the number field would make the search unreachable.
+                    if event.keystroke.modifiers.shift {
+                        window.focus_prev(cx);
+                    } else {
+                        window.focus_next(cx);
+                    }
+                } else {
+                    // The dialog has nowhere else to go.
+                    self.focus_input(window, cx);
+                }
             }
             "escape" => {
                 // The route owns Escape and returns to the terminal.
@@ -257,12 +294,30 @@ impl ScrollbackSetting {
             .unwrap_or_default()
     }
 
-    /// Sets the field value for a focused page edit.
+    /// The dialog field's focus handle, for the editor regression.
     #[cfg(test)]
-    pub(crate) fn set_value(&mut self, value: &str, window: &mut Window, cx: &mut Context<Self>) {
-        if let Some(input) = &self.input {
-            input.update(cx, |state, cx| state.set_value(value, window, cx));
-        }
+    pub(crate) fn input_focus(&self, cx: &App) -> FocusHandle {
+        self.input
+            .as_ref()
+            .map(|input| input.read(cx).presentation().focus_handle().clone())
+            .unwrap_or_else(|| cx.focus_handle())
+    }
+
+    /// The focused draft field, for route-level focus assertions.
+    #[cfg(test)]
+    pub(crate) fn page_focus(&self, cx: &App) -> Option<FocusHandle> {
+        self.input
+            .as_ref()
+            .map(|input| input.read(cx).presentation().focus_handle().clone())
+    }
+
+    /// The draft field's placeholder, for language-change assertions.
+    #[cfg(test)]
+    pub(crate) fn page_placeholder(&self, cx: &App) -> String {
+        self.input
+            .as_ref()
+            .map(|input| input.read(cx).presentation().placeholder().to_string())
+            .unwrap_or_default()
     }
 
     /// Renders the scrollback field as the body of the Terminal settings page.
