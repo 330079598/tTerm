@@ -159,3 +159,56 @@ release 下前台一帧约 0.11 ms，120 帧的采样窗口只有约 14 ms，加
 ### 结论与剩余决策
 
 门禁本身已按要求独立、无条件、fail closed，本地与 CI 走同一入口；它目前不通过，不通过项是 30 MiB 累计下限，p95 预算有大量余量。本轮不把门禁调整成绿，也不宣称桌面验收完成。是否把采样窗口改成固定时长、或把累计下限改成窗口内速率，属于改变测量定义，需要决策人另开记录；在此之前 W0-05 与 G2 都保持未通过。Windows 同一项按决策 016 记为待补，Linux 推迟。
+
+## 2026-11-23 第四轮：独立帧与吞吐测量（78c2fbae）
+
+范围与约束：独立 worktree `migrate/W0-05-validation-repairs`，基点 `7c4490e2`，macOS 27.2 / Apple M4 / 10 核 / 32 GB / arm64，`rustc 1.99.1 (58cf8f9c3 2026-10-13)`。决策人已认可把与 120 帧长度耦合的累计 30 MiB 拆成独立的固定输入、固定期限测量；本轮不降低 16.667 ms 或 30 MiB 指标，不改产品行为、Cargo profile、后台负载内容或帧采样窗口，没有 push、合并或读取用户数据。
+
+### 改动
+
+| 位置 | 内容 |
+| --- | --- |
+| `crates/tterm-gpui/src/terminal_demo/pipeline/tests.rs` | 同名帧用例保留 30 个后台解析器、每批原内容与大小、2 ms 节奏、100 ms 预热、12 帧预热、120 基准帧、120 实际帧、快照/invalidation、隐藏不刷新和 16.667 ms p95。只删除累计 30 MiB 断言；新增 100 ms 预热内 30 个会话都前进、帧窗口确认量大于 0 且至少一个会话前进。证据增加 `baseline_frames`、`loaded_frames`、`loaded_p95_us`、`warmup_advanced`、`frame_window_advanced`。 |
+| `crates/tterm-gpui/src/terminal_demo/pipeline/throughput_tests.rs` | 新 release fixture：30 个全新解析会话，各恰好 1 MiB，总计 30 MiB；64 字节可打印行加换行，16 KiB 一块，2 ms 节奏，并行发送。生产者先等在屏障上，计时先于放行和任何输入；固定 500 ms 截止（≥ 60 MiB/s）。逐会话读取真实 applied/ack/parsed，要求各为 1 MiB，并校验 30 个会话、总和、隐藏刷新为 0；截止后不再计入，join 有清理期限。 |
+| `crates/tterm-gpui/src/terminal_demo/pipeline.rs` | 给 `QueueMetrics` 增加 applied 计数（只在测试读取），供吞吐用例逐会话验证真实写入模型的字节；生产行为不变。 |
+| `scripts/perf/gpui-release-frame-budget.mjs` | 同一入口构建一次 release lib 测试二进制，分别按完整名列出并单独运行两项 fixture；每项要求 1 passed / 0 failed / 0 ignored、自己的 `... ok` 行和证据行，并校验证据字段。拒绝缺 fixture、0/多项、只跑一半、坏证据、错过截止或断言失败。证据在 stderr，读取时合并 stdout 与 stderr。 |
+| `.github/workflows/check.yml` | 注释与步骤名改为两项测量；仍只在独立的 `rust-frame-budget` 作业运行同一个入口，无 `if`、无 `continue-on-error`、无重试。 |
+| `scripts/perf/gpui-release-frame-budget.test.mjs` | 24 项负向回归：列名格式、0/2 项、FAILED、缺结果、缺证据、错误测试名、帧 p95/帧数/零窗口/预热未全前进、吞吐会话/字节/未 applied/未 ack/未 parsed/超时、重复 fixture、只跑一项、构建消息 0/2 个可执行文件。 |
+| `docs/gpui-migration/decisions/020-independent-frame-and-throughput-measurements.md`、`AGENTS.md`、`CONTRIBUTING.md`、`acceptance.md`、决策索引、决策 019 状态 | 记录拆分为两项独立测量、固定 500 ms 截止、同一入口的 fail-closed 规则、普通套件不变，以及平台和“不是 G2/桌面验收”的范围。决策 019 的隔离与无条件规则继续有效。 |
+
+### 三项固定 release 运行（预先定三次，全部保留）
+
+实现期间 gate 最初只校验 stdout，而两个 fixture 都用 `eprintln!` 输出证据，第一次开发期运行以 `release gate FAILED: … printed no "P2-02 …" line` 退出 1；把 stdout 与 stderr 合并后再校验后，下面的三次固定运行才全部通过。这次失败属于入口读取错误，不是测量放宽或重试。
+
+每次运行都在同一台机器上独占执行，命令均为 `node scripts/perf/gpui-release-frame-budget.mjs`。帧阶段与吞吐阶段是两个独立进程；下表把两者并列只为报告，吞吐数字不来自帧阶段的任何数据。
+
+| # | 帧 baseline p50 / p95 | 30 会话 p50 / p95 | 帧窗口 | 窗口确认 / 速率 | 预热前进 / 窗口前进 | 累计确认（仅诊断） | 吞吐 wall / rate / applied·ack | 退出码 |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| 1 | 111.625 / 124.792 µs | 115.5 / 195.667 µs | 14.937917 ms | 3,050,400 B（194.75 MiB/s） | 30 / 30 | 26,912,400 B | 151.094 ms / 198.55 MiB/s / 31,457,280 B | 0 |
+| 2 | 114.292 / 210.458 µs | 115.958 / 195.75 µs | 15.0895 ms | 3,230,800 B（204.19 MiB/s） | 30 / 30 | 27,010,800 B | 149.980 ms / 200.03 MiB/s / 31,457,280 B | 0 |
+| 3 | 113.917 / 125 µs | 112.125 / 121.125 µs | 13.679 ms | 3,001,200 B（209.24 MiB/s） | 30 / 30 | 27,273,200 B | 149.819 ms / 200.24 MiB/s / 31,457,280 B | 0 |
+
+三次都是 `release gate: passed, 2 measurements (frame, throughput)`。帧 p95 为 121–196 µs，远低于 16.667 ms；每次 120 帧窗口内 30 个会话都有前进。累计确认仍是约 26.9–27.3 MB，低于 30 MiB，但该值现在只作帧阶段诊断，不再决定帧用例是否通过；独立吞吐用例三次都以约 150 ms 完成 30 MiB，离 500 ms 截止仍有约三倍余量，说明旧的失败来自窗口耦合而不是吞吐不足。
+
+### 负向验证
+
+| 运行 | 结果 |
+| --- | --- |
+| `node scripts/perf/gpui-release-frame-budget.mjs --test-name …thirty_background_parsers_keep_the_foreground_within_its_frame_budge` | `release gate FAILED: expected exactly one ignored frame test named …, listed []`，退出码 1 |
+| `--test-name thirty_background_parsers_keep_the_foreground_within_its_frame_budget`（只有函数名，没有模块路径） | 同上，`listed []`，退出码 1；libtest 的 `--exact` 按模块全名匹配，只写函数名会 0 项且自身退出 0，靠这一步拦住 |
+| `node --test scripts/perf/gpui-release-frame-budget.test.mjs` | 24 项通过；覆盖缺字段、错误字节/会话、未 applied/ack/parsed、错过 500 ms、只跑一项、重复 fixture 等失败路径 |
+
+`--test-name` 只用于证明失败路径，CI 与三次固定运行都不传它。
+
+### 复验记录
+
+- `pnpm lint && pnpm format:check && pnpm check:tokens && pnpm typecheck && pnpm test && pnpm check:size`：通过；`pnpm test` 为 186 个测试文件、1364 项，迁移 8 项，perf 24 项；`check:size` 1496 个文件在限制内。
+- `cargo fmt --all --check`：通过。
+- `cargo clippy --workspace --all-targets -- -D warnings`：通过。
+- `cargo test --workspace`：通过（退出码 0），默认并发；gpui lib 为 `267 passed; 0 failed; 3 ignored`，新增的吞吐 fixture 与帧 fixture 都没有进入普通套件。
+- release 门禁：三次固定运行均退出 0，数值见上表。
+- 实现提交：`78c2fbae`。
+
+### 当前状态
+
+本地 release 门禁已由“帧窗口累计 30 MiB 不达标”改为两项独立测量，并在三次固定运行中全部通过：帧 p95 在预算内且窗口内确有后台前进；吞吐 30 个会话各 1 MiB，在 500 ms 内全部 applied/ack。之前三轮的失败数据保留在原处，没有改写。这个结论仍不是桌面验收，也不是 G2 通过；Windows 同一项按决策 016 待补，Linux 推迟。是否合并测试、证据与参照由主控决定。

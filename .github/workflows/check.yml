@@ -158,12 +158,13 @@ jobs:
           real_shell_integration_reports_the_directory_with_marks_off
 
   rust-frame-budget:
-    # The 30-session foreground frame budget times wall-clock frames while 30
-    # background parsers saturate the machine, so it cannot share the parallel
-    # `rust` matrix: there the neighbouring tests take the cores it measures.
-    # The test is `#[ignore]`d for `cargo test --workspace` and runs only here,
-    # in release mode, on a fixed runner that does nothing else. This job is
-    # unconditional on purpose; decision 019 explains the gate and its limits.
+    # The 30-session frame and throughput measurements time wall-clock work
+    # while 30 background parsers saturate the machine, so they cannot share
+    # the parallel `rust` matrix: there the neighbouring tests take the cores
+    # they measure. Both fixtures are `#[ignore]`d for `cargo test --workspace`
+    # and run only here, in release mode, on a fixed runner that does nothing
+    # else. This job is unconditional on purpose; decision 020 explains the
+    # split gate and its limits.
     runs-on: macos-15
     steps:
       - uses: actions/checkout@v6
@@ -179,8 +180,9 @@ jobs:
           workspaces: '. -> target'
 
       # The entry point builds the release lib test binary, checks that libtest
-      # lists exactly the one ignored fixture, runs it with --exact --nocapture
-      # --test-threads=1, and fails on a renamed test, an empty filter, a wrong
-      # mode, or a failed assertion.
-      - name: 30-session release frame budget
+      # lists each ignored fixture by its full name, runs each with --exact
+      # --nocapture --test-threads=1, and fails on a renamed or missing fixture,
+      # an empty or multiple filter, a wrong mode, bad evidence, a missed
+      # deadline, or a failed assertion.
+      - name: 30-session release frame and throughput measurements
         run: node scripts/perf/gpui-release-frame-budget.mjs
