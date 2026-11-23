@@ -206,7 +206,12 @@ fn handle_request(
                 .collect();
             dispatch_keys(handle, prototype.entity_id(), keys, cx)
         }
-        Command::Screenshot => match handle.update(cx, |_, window, _| window.render_to_image()) {
+        Command::Screenshot => match handle.update(cx, |_, window, app| {
+            // Capture the current state, not the previous frame: a settings
+            // edit or language switch can finish after the last presentation.
+            let _ = window.draw(app);
+            window.render_to_image()
+        }) {
             Ok(Ok(image)) => {
                 let mut bytes = Vec::new();
                 if image::DynamicImage::ImageRgba8(image)
