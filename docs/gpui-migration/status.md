@@ -2,7 +2,7 @@
 
 ## 2026-11-23 排期与验收口径
 
-G1 已通过；G2（终端）、G3（工作区）未通过。[三屏原版参照](reports/W0-05-settings-reference.md)已合入本地 `GPUI`。下一张按[决策 018](decisions/018-workspace-settings-order.md)实现设置流程：打开设置 → 搜索回滚行数 → 保存 → 返回原窗格。本批参照不代表 GPUI 设置页已对齐。
+G1 已通过；G2（终端）、G3（工作区）未通过。[三屏原版参照](reports/W0-05-settings-reference.md)已合入本地 `GPUI`。按[决策 018](decisions/018-workspace-settings-order.md)派发的[回滚设置流程](reports/settings-scrollback-flow-plan.md)在独立分支实施，尚未验收或合入。本批参照不代表 GPUI 设置页已对齐。
 
 更新任务时分别记录代码是否合入、自动验证覆盖了什么、哪个平台做过桌面验收、哪些屏幕通过视觉对照。缺少证据写「待补」，不从前一项推断后一项。例如：P3-09 设置路由已合入，Windows 的焦点和会话回归已做；设置整页的桌面与视觉验收未通过，P4-15 仍待做。
 
