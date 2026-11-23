@@ -4,6 +4,7 @@
 - 分支 / worktree：`migrate/P2-06-scroll-memory`，独立 worktree
 - 起点：`03ab675d`
 - 代码提交：`8fe8ba44`
+- 测量修正提交：`9da7722c`
 - 平台：macOS 27.2（26B123），arm64；rustc 1.99.1
 - 状态：**本批代码与自动回归完成，未合并、未推送、未修改总状态表。** 这不是 P2-06 或 G2 的整卡通过。
 
@@ -37,12 +38,7 @@ cargo test -p tterm-terminal --test history_clear \
   a_reset_that_refills_the_same_history_still_advances_the_generation
 cargo test -p tterm-terminal --test history_clear \
   a_synchronized_saved_line_clear_runs_at_the_end_of_the_update
-cargo test -p tterm-terminal --test scrollback_memory \
-  clearing_before_the_alternate_screen_switch_releases_the_main_history \
-  -- --nocapture --test-threads=1
-cargo test -p tterm-terminal --test scrollback_memory \
-  a_synchronized_clear_does_not_release_before_it_executes \
-  -- --nocapture --test-threads=1
+cargo test -p tterm-terminal --test scrollback_memory -- --nocapture
 ```
 
 返工前的三次探针使用临时测试和同一分配器完成，没有保留在产品树中；上表记录的是它们的实际输出。
@@ -79,7 +75,7 @@ cargo test -p tterm-terminal --test scrollback_memory \
 返工后的内存证据分为两类：
 
 1. 不重填的清除、reset、清后紧接换备用屏、同步更新结束时，实测释放约 1.92 MiB；
-2. 同一字节流（清历史 + 30 行 prompt）无论一次写入、逐字节写入还是 7 字节分段写入，最终存活字节完全相同（本次均为 `4,160,628`），历史、偏移和可见内容也相同。这个断言不依赖具体的 1.92 MiB，也不读取进程 RSS。
+2. 同一字节流（清历史 + 30 行 prompt）无论一次写入、逐字节写入还是 7 字节分段写入，最终存活字节完全相同（本次均为 `4,149,770`），历史、偏移和可见内容也相同。这个断言不依赖具体的 1.92 MiB，也不读取进程 RSS。
 
 ## 自动回归
 
@@ -113,12 +109,12 @@ cargo test -p tterm-terminal --lib
 命令：
 
 ```sh
-cargo test -p tterm-terminal --test scrollback_memory -- --nocapture --test-threads=1
+cargo test -p tterm-terminal --test scrollback_memory -- --nocapture
 ```
 
-7 个测试：
+1 个测试入口（`history_clear_scenarios_hold_under_one_isolated_measurement`），按顺序调用 7 个普通函数场景：
 
-| 测试 | 断言 |
+| 场景 | 断言 |
 | --- | --- |
 | `clearing_the_history_returns_the_row_storage_to_the_allocator` | 容量 500、2,000 行后单独清除；释放 > 400,000；后续输出正常 |
 | `clearing_before_the_alternate_screen_switch_releases_the_main_history` | `CSI 3 J` + `CSI ?1049 h`；主屏行在换屏前释放 > 1,000,000 |
@@ -128,21 +124,34 @@ cargo test -p tterm-terminal --test scrollback_memory -- --nocapture --test-thre
 | `a_synchronized_reset_releases_only_after_the_update_ends` | 同步更新内的 `RIS` 在 `ESU` 前不释放、不推进世代；结束后释放 > 400,000 |
 | `the_same_stream_leaves_the_same_live_memory_when_split` | 同一“清除 + 30 行 prompt”字节流，单次写入、逐字节、7 字节分段的最终存活字节、历史、可见内容完全相等 |
 
-本次证据行（`--test-threads=1`，同一稳定阶段：写入返回且断言用 snapshot 已释放）：
+本次证据行（默认并行参数、`--nocapture`，同一稳定阶段：写入返回且断言用 snapshot 已释放）：
 
 ```text
-history-clear: capacity=500 rows=500 live_before=4160290 live_after=2240290 released=1920000
-history-clear-alt: capacity=500 live_before=4159698 live_after=2239698 released=1920000
-history-clear-sync: live_before=4159672 live_waiting=4159672 live_after=2239672 released=1920000
-history-reset: live_before=4149368 live_after=2229560 released=1919808
-history-reset-sync: live_before=4159672 live_after=2239864 released=1919808
-history-clear-on-alt: live_before=4159686 live_after=4159686 released=0
-history-clear-batch: one write live_before=4160628 live_after=4160628 released=0
-history-clear-batch: single bytes live_before=4160628 live_after=4160628 released=0
-history-clear-batch: seven-byte chunks live_before=4160628 live_after=4160628 released=0
+history-clear: capacity=500 rows=500 live_before=4149418 live_after=2229418 released=1920000
+history-clear-alt: capacity=500 live_before=4149418 live_after=2229418 released=1920000
+history-clear-sync: live_before=4149418 live_waiting=4149418 live_after=2229418 released=1920000
+history-reset: live_before=4149418 live_after=2229610 released=1919808
+history-reset-sync: live_before=4149418 live_after=2229610 released=1919808
+history-clear-on-alt: live_before=4149418 live_after=4149418 released=0
+history-clear-batch: one write live_before=4149770 live_after=4149770 released=0
+history-clear-batch: single bytes live_before=4149770 live_after=4149770 released=0
+history-clear-batch: seven-byte chunks live_before=4149770 live_after=4149770 released=0
 ```
 
-这些是请求分配字节，不是 RSS；绝对值取决于单元格布局和平台。断言使用的是关系（释放阈值、同步前的非释放、备用屏的“不释放”）和同一平台同一稳定阶段的完全相等，不把 1,920,000 或 4,160,628 写成跨平台常量。每个测试在共享分配器计数上持有一把进程内锁；`checked_sub` 在差值为负时返回负值而不是溢出。
+这些是请求分配字节，不是 RSS；绝对值取决于单元格布局和平台。断言使用的是关系（释放阈值、同步前的非释放、备用屏的“不释放”）和同一平台同一稳定阶段的完全相等，不把 1,920,000 或 4,149,770 写成跨平台常量。整个二进制只有这一个 `#[test]`，测量期间没有 libtest 工作者；`checked_sub` 在差值为负时返回负值而不是溢出。
+
+#### 测量口径修正（`9da7722c`）
+
+协调者在 `8fe8ba44` 上用 `cargo test --workspace --test scrollback_memory -- --nocapture` 复跑时，`the_same_stream_leaves_the_same_live_memory_when_split` 的严格差值断言报出 `left=254 right=0`。这不是清除路径的回归：五个释放场景的释放量仍是 1,920,000 / 1,919,808 字节。失败的是测量口径。原有 7 个 `#[test]` 由 libtest 并行运行，进程内 `Mutex` 只把测试函数体串行化，锁不住 libtest 的线程启动、输出和收尾；这些分配会落入另一个场景的 `before` 与 `after` 之间。而同一字节流场景比较的是清除后的净释放：`truncate` 后的第一次滚动会重新预留 1,000 行缓存（`MAX_CACHE_SIZE`），净差值本来就接近 0，所以 254 字节的旁路分配就足以让两个差值不再相等。
+
+修正只改变测量隔离，不改生产代码、采样点和任何断言：
+
+- 7 个场景改为普通 helper，由唯一的 `#[test] history_clear_scenarios_hold_under_one_isolated_measurement` 按顺序调用；运行期间 libtest 不再启动并列工作者，计数器只包含本线程的分配。
+- 保留每个场景原来的严格断言（释放阈值、同步前不释放、备用屏不释放、同一字节流完全相等），没有放宽阈值或改成不等式。
+- 不使用 `--test-threads=1` 绕过；修正后的命令保持默认并行参数。
+- 模块文档写明该二进制只能有一个 `#[test]`，再加一个就会重新引入并发噪声。
+
+验证：用默认并行参数和 `--nocapture` 连续运行 20 次，全部通过；9 条证据行（含绝对 `live_before` / `live_after`）20 次完全相同。随后 `cargo test --workspace` 在正常参数下通过，`scrollback_memory` 从 7 个测试变为 1 个测试，其余套件计数不变。
 
 ### 正式视图
 
@@ -177,7 +186,7 @@ node scripts/perf/gpui-release-frame-budget.mjs
 | 前端六项 | 通过；187 个测试文件、1367 个测试；`file-size: 1503 files within their limits` |
 | `cargo fmt --all --check` | 通过 |
 | 严格 Clippy | 通过，`-D warnings` |
-| `cargo test --workspace` | 通过；`src-tauri` 73 + 1 ignored、`tterm-core` 1869 + 64 ignored、`tterm-gpui` 277 + 3 ignored、`tterm-terminal` lib 346、`history_clear` 9、`replay` 2、`scrollback_memory` 7、`tterm-terminal-view` 159、`tterm-parity` 85、`tterm-platform` 14、`tterm-ui` 85；无失败 |
+| `cargo test --workspace` | 通过；`src-tauri` 73 + 1 ignored、`tterm-core` 1869 + 64 ignored、`tterm-gpui` 277 + 3 ignored、`tterm-terminal` lib 346、`history_clear` 9、`replay` 2、`scrollback_memory` 1（7 个场景）、`tterm-terminal-view` 159、`tterm-parity` 85、`tterm-platform` 14、`tterm-ui` 85；无失败 |
 | release 帧与吞吐门 | 通过；30 后台会话前台 p95 **182 µs**（预算 16,667 µs），30 MiB 在 **162,696 µs** 内全部应用并确认（约 **184.39 MiB/s**，最低 60 MiB/s） |
 
 `cargo test --workspace` 第一次并行运行时，`tterm-gpui` 的 `split_panes_keep_live_sessions_and_route_input_only_to_the_focused_view` 曾报一次 PTY 时序失败；该测试单独运行通过，随后两次全量运行（其中一次写入日志并核对汇总）也通过。没有把它当成代码通过证据，也没有修改该测试。
