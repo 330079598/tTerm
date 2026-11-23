@@ -216,6 +216,28 @@
       "fixture": "workspace.titlebar.default.json",
       "uiStyles": ["classic"],
       "uiScalePercents": [100]
+    },
+    {
+      "id": "settings.layout.default",
+      "title": "Settings layout on the default General page",
+      "fixture": "settings.reference.json",
+      "uiStyles": ["classic"],
+      "uiScalePercents": [100]
+    },
+    {
+      "id": "settings.search.results",
+      "title": "Settings search results for font",
+      "fixture": "settings.reference.json",
+      "uiStyles": ["classic"],
+      "uiScalePercents": [100],
+      "actions": [
+        { "type": "waitFor", "target": "settings.search.field" },
+        { "type": "key", "target": "settings.search.field", "key": "f" },
+        { "type": "key", "target": "settings.search.field", "key": "o" },
+        { "type": "key", "target": "settings.search.field", "key": "n" },
+        { "type": "key", "target": "settings.search.field", "key": "t" },
+        { "type": "waitFor", "target": "settings.search.results" }
+      ]
     }
   ]
 }

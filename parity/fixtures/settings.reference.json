@@ -1,0 +1,42 @@
+{
+  "commands": {
+    "load_config": {
+      "theme": "default",
+      "language": "en",
+      "ui_style": "classic",
+      "tab_width_mode": "adaptive",
+      "tab_standard_width": 120,
+      "tab_hover_tooltip": false,
+      "tab_icons": {
+        "enabled": true,
+        "agents": false,
+        "shells": {}
+      }
+    },
+    "load_app_state": {
+      "lastUpdateCheckAt": null,
+      "collapsedProfileGroupKeys": []
+    },
+    "get_secret_backend_status": {
+      "storageMode": "system",
+      "keyringAvailable": false,
+      "unlocked": false,
+      "hasMasterPassword": false,
+      "persistenceAvailable": false,
+      "migrationPending": false,
+      "verificationMethod": "none",
+      "message": null
+    },
+    "load_custom_themes": [],
+    "save_window_background": null,
+    "shell_command_status": {
+      "supported": true,
+      "installed": false
+    },
+    "folder_menu_status": {
+      "supported": true,
+      "installed": false
+    },
+    "list_fonts": ["SF Mono", "Menlo", "JetBrains Mono"]
+  }
+}

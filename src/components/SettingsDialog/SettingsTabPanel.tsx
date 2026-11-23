@@ -15,6 +15,7 @@ export const SettingsTabPanel: React.FC<SettingsTabPanelProps> = ({ value, scrol
   <TabsContent
     value={value}
     id={`settings-panel-${value}`}
+    data-parity="settings.layout.panel"
     role="tabpanel"
     aria-labelledby={`settings-tab-${value}`}
     tabIndex={0}

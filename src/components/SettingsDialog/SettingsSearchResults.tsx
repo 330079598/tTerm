@@ -36,7 +36,11 @@ export const SettingsSearchResults: React.FC<SettingsSearchProps> = ({ search })
   }
 
   return (
-    <div ref={listRef} className="min-w-0 flex-1 overflow-y-auto p-4 sm:p-6">
+    <div
+      ref={listRef}
+      data-parity="settings.search.results"
+      className="min-w-0 flex-1 overflow-y-auto p-4 sm:p-6"
+    >
       <div className="text-muted-foreground mb-2 px-2 text-xs">
         {t("settings.search.count", { count: results.length })}
       </div>
@@ -48,6 +52,7 @@ export const SettingsSearchResults: React.FC<SettingsSearchProps> = ({ search })
             <div
               key={`${result.tab}:${result.title}:${index}`}
               id={settingsSearchResultId(index)}
+              data-parity={`settings.search.result.${index}`}
               role="option"
               aria-selected={isActive}
               // The field keeps the focus, so a click must not take it away.

@@ -23,6 +23,7 @@ export const SettingsSearchField: React.FC<SettingsSearchProps> = ({ search }) =
       <Search className="text-muted-foreground pointer-events-none absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2" />
       <Input
         type="search"
+        data-parity="settings.search.field"
         role="combobox"
         aria-expanded={hasResults}
         aria-controls={SETTINGS_SEARCH_RESULTS_ID}

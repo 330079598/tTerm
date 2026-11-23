@@ -152,9 +152,16 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
 
   return (
     <>
-      <div ref={rootRef} className={cn("flex h-full min-h-0 flex-col", className)}>
+      <div
+        ref={rootRef}
+        data-parity="settings.layout.root"
+        className={cn("flex h-full min-h-0 flex-col", className)}
+      >
         {/* The right padding keeps the search clear of the dialog's close button. */}
-        <DialogHeader className="border-border gap-3 border-b pt-6 pr-12 pb-4 pl-6 sm:flex-row sm:items-center sm:justify-between">
+        <DialogHeader
+          data-parity="settings.layout.header"
+          className="border-border gap-3 border-b pt-6 pr-12 pb-4 pl-6 sm:flex-row sm:items-center sm:justify-between"
+        >
           <DialogTitle className="flex items-center gap-2">
             <Settings size={18} />
             {t("settings.title")}

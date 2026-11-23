@@ -21,6 +21,7 @@ import {
 import type { ComponentType } from "react"
 import { TabsPrimitive, TabsServerMonitor } from "@/parity/screens/TabsPrimitive"
 import { WorkspaceTitleBar } from "@/parity/screens/WorkspaceTitleBar"
+import { SettingsReference } from "@/parity/screens/SettingsReference"
 import { TunnelPanelReference } from "@/parity/screens/TunnelPanelReference"
 
 /**
@@ -46,6 +47,8 @@ export const parityScreens: Record<string, ComponentType<ParityScreenProps>> = {
   "ui.context-menu.highlighted": ContextMenuHighlighted,
   "ui.context-menu.wrapped": ContextMenuWrapped,
   "workspace.titlebar.default": WorkspaceTitleBar,
+  "settings.layout.default": SettingsReference,
+  "settings.search.results": SettingsReference,
   "tunnels.empty": TunnelPanelReference,
   "tunnels.list.running": TunnelPanelReference,
 }

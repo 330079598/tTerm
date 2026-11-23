@@ -10,6 +10,7 @@ import tabsFixture from "@fixtures/ui.tabs.default.json"
 import emptyTunnels from "@fixtures/tunnels.empty.json"
 import runningTunnels from "@fixtures/tunnels.list.running.json"
 import { workspaceTitleBarFixture } from "@/parity/screens/workspaceTitleBarFixture"
+import { settingsReferenceFixture } from "@/parity/screens/settingsReferenceFixture"
 
 /** What the mocked `invoke` answers for one screen. */
 export interface ParityFixture {
@@ -51,6 +52,8 @@ export const fixtures: Record<string, ParityFixture> = {
   "ui.context-menu.highlighted": { commands: contextMenu.commands },
   "ui.context-menu.wrapped": { commands: contextMenu.commands },
   "workspace.titlebar.default": { commands: workspaceTitleBarFixture.commands },
+  "settings.layout.default": settingsReferenceFixture,
+  "settings.search.results": settingsReferenceFixture,
   "tunnels.empty": {
     commands: { ...workspaceTitleBarFixture.commands, ...emptyTunnels.commands },
   },

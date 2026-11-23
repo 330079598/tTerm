@@ -39,7 +39,10 @@ export const SettingsSidebar: React.FC<SettingsSidebarProps> = ({ activeTab, onT
   let itemIndex = 0
 
   return (
-    <aside className="border-border bg-muted/30 min-h-0 w-14 shrink-0 overflow-y-auto border-r px-2 py-3 sm:w-48 sm:px-3">
+    <aside
+      data-parity="settings.layout.sidebar"
+      className="border-border bg-muted/30 min-h-0 w-14 shrink-0 overflow-y-auto border-r px-2 py-3 sm:w-48 sm:px-3"
+    >
       <nav aria-label={t("settings.title")}>
         <div role="tablist" aria-orientation="vertical" className="space-y-4">
           {groups.map((group) => (
@@ -63,6 +66,7 @@ export const SettingsSidebar: React.FC<SettingsSidebarProps> = ({ activeTab, onT
                         itemRefs.current[index] = element
                       }}
                       id={`settings-tab-${item.value}`}
+                      data-parity={`settings.layout.tab.${item.value}`}
                       type="button"
                       role="tab"
                       aria-controls={`settings-panel-${item.value}`}

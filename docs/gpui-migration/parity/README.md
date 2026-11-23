@@ -60,18 +60,18 @@ cargo run -p tterm-parity -- compare
 
 `vite.config.ts` 在 `--mode parity` 下用 `parityTauriAliases` 把下面 10 个模块全部改到 `src/parity/tauri/`；清单只在 `src/parity/tauri/modules.ts` 维护。`modules.test.ts` 遍历同一份清单，断言 Vite 确实从它生成别名、且每个实现文件都存在，新增 import 漏配时会失败。`plugin-os` 的返回值来自 `parity/screens.json` 的 `platform` 块（默认固定 macOS）或 Windows 覆盖，不是浏览器探测。
 
-| 模块                            | parity 文件        | 处理方式                                                                                  |
-| ------------------------------- | ------------------ | ----------------------------------------------------------------------------------------- |
-| `@tauri-apps/api/core`          | `core.ts`          | 工作实现：夹具 `invoke`、`Channel`、`isTauri`、`convertFileSrc`                           |
-| `@tauri-apps/api/event`         | `event.ts`         | 工作实现：进程内 `listen`/`once`/`emit`                                                   |
-| `@tauri-apps/api/window`        | `window.ts`        | 桩：`getCurrentWindow()` 调用即报错                                                       |
-| `@tauri-apps/api/app`           | `app.ts`           | 桩：`getVersion()` 调用即报错                                                             |
-| `@tauri-apps/api/path`          | `path.ts`          | 桩：`homeDir()` 调用即报错                                                                |
-| `@tauri-apps/api/webviewWindow` | `webviewWindow.ts` | 桩：`getCurrentWebviewWindow()` 调用即报错                                                |
-| `@tauri-apps/plugin-dialog`     | `dialog.ts`        | 桩：`open`/`save`/`message`/`ask`/`confirm` 调用即报错                                    |
-| `@tauri-apps/plugin-os`         | `os.ts`            | 工作实现：`platform`/`version`/`family`/`type`/`arch`/`exeExtension`/`eol` 同步返回清单值 |
-| `@tauri-apps/plugin-opener`     | `opener.ts`        | 桩：`openUrl`/`openPath`/`revealItemInDir` 调用即报错                                     |
-| `@tauri-apps/plugin-process`    | `process.ts`       | 桩：`relaunch`/`exit` 调用即报错                                                          |
+| 模块                            | parity 文件        | 处理方式                                                                                                    |
+| ------------------------------- | ------------------ | ----------------------------------------------------------------------------------------------------------- |
+| `@tauri-apps/api/core`          | `core.ts`          | 工作实现：夹具 `invoke`、`Channel`、`isTauri`、`convertFileSrc`                                             |
+| `@tauri-apps/api/event`         | `event.ts`         | 工作实现：进程内 `listen`/`once`/`emit`                                                                     |
+| `@tauri-apps/api/window`        | `window.ts`        | 桩：`getCurrentWindow()` 调用即报错                                                                         |
+| `@tauri-apps/api/app`           | `app.ts`           | 桩：`getVersion()` 调用即报错                                                                               |
+| `@tauri-apps/api/path`          | `path.ts`          | 桩：`homeDir()` 调用即报错                                                                                  |
+| `@tauri-apps/api/webviewWindow` | `webviewWindow.ts` | 部分实现：`getCurrentWebviewWindow().setBackgroundColor()` 是空操作，供主题 provider 渲染；其余窗口方法报错 |
+| `@tauri-apps/plugin-dialog`     | `dialog.ts`        | 桩：`open`/`save`/`message`/`ask`/`confirm` 调用即报错                                                      |
+| `@tauri-apps/plugin-os`         | `os.ts`            | 工作实现：`platform`/`version`/`family`/`type`/`arch`/`exeExtension`/`eol` 同步返回清单值                   |
+| `@tauri-apps/plugin-opener`     | `opener.ts`        | 桩：`openUrl`/`openPath`/`revealItemInDir` 调用即报错                                                       |
+| `@tauri-apps/plugin-process`    | `process.ts`       | 桩：`relaunch`/`exit` 调用即报错                                                                            |
 
 ## 2. 依赖与安装
 
