@@ -220,6 +220,8 @@ async function runActions(page, actions, screenId) {
         const press = [...(action.modifiers ?? []).map((value) => `${value}+`), action.key].join("")
         if (action.target) await page.locator(targetSelector(action.target)).press(press)
         else await page.keyboard.press(press)
+      } else if (action.type === "wait") {
+        await page.waitForTimeout(action.ms)
       } else if (action.type === "type") {
         await page.locator(targetSelector(action.target)).focus()
         await page.keyboard.insertText(action.text)

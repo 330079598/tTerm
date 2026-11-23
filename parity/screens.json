@@ -445,6 +445,10 @@
           "target": "settings.search.result.0"
         },
         {
+          "type": "wait",
+          "ms": 2200
+        },
+        {
           "type": "waitFor",
           "target": "settings.scrollback.lines"
         },
@@ -501,6 +505,10 @@
         {
           "type": "click",
           "target": "settings.search.result.0"
+        },
+        {
+          "type": "wait",
+          "ms": 2200
         },
         {
           "type": "waitFor",
