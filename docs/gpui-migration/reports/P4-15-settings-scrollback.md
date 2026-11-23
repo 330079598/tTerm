@@ -226,7 +226,7 @@ cargo test -p tterm-gpui --lib settings_page_tests -- --nocapture
 | `cargo fmt --all --check` | 通过 |
 | `cargo clippy --workspace --all-targets -- -D warnings` | 通过 |
 | `cargo test --workspace` | 通过，22 个测试目标无失败 |
-| `node scripts/perf/gpui-release-frame-budget.mjs` | 通过：前台 p95 145µs（30 个后台会话，253 帧，120 基线 + 120 负载）；后台 30 MiB 在 150.639ms 内应用并确认（199.15 MiB/s） |
+| `node scripts/perf/gpui-release-frame-budget.mjs` | 通过（提交 `6499e00f`）：前台 p95 141µs（30 个后台会话，253 帧，120 基线 + 120 负载）；后台 30 MiB 在 151.096ms 内应用并确认（198.55 MiB/s） |
 
 `window.rs` 仍在 800 行限制内（798 行），没有新增文件大小基线或豁免。
 
