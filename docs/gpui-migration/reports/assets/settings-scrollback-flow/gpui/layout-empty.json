@@ -1,0 +1,36 @@
+{
+  "version": 1,
+  "viewport": {
+    "width": 800,
+    "height": 600,
+    "deviceScaleFactor": 2
+  },
+  "titleBarHeight": 36,
+  "coordinateSpace": "settings content, origin at the title bar's bottom edge",
+  "elements": {
+    "settings-page": {
+      "x": 0.0,
+      "y": 0.0,
+      "width": 800.0,
+      "height": 600.0
+    },
+    "settings-search-field": {
+      "x": 496.0,
+      "y": 24.0,
+      "width": 256.0,
+      "height": 32.0
+    },
+    "settings-search-empty": {
+      "x": 192.0,
+      "y": 73.0,
+      "width": 608.0,
+      "height": 527.0
+    },
+    "settings-sidebar": {
+      "x": 0.0,
+      "y": 73.0,
+      "width": 192.0,
+      "height": 527.0
+    }
+  }
+}

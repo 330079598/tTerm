@@ -1,0 +1,41 @@
+{
+  "version": 2,
+  "commit": "1e2d8c4ef1fb297917ddbdfe99db1b90c8ca32ce",
+  "theme": "dark",
+  "uiStyle": "classic",
+  "uiScalePercent": 100,
+  "viewport": {
+    "width": 800,
+    "height": 600,
+    "deviceScaleFactor": 2
+  },
+  "screens": [
+    {
+      "id": "settings.search.scrollback",
+      "image": "settings.search.scrollback.png",
+      "layout": "settings.search.scrollback.layout.json"
+    },
+    {
+      "id": "settings.search.scrollback.open",
+      "image": "settings.search.scrollback.open.png",
+      "layout": "settings.search.scrollback.open.layout.json"
+    },
+    {
+      "id": "settings.terminal.scrollback",
+      "image": "settings.terminal.scrollback.png",
+      "layout": "settings.terminal.scrollback.layout.json"
+    },
+    {
+      "id": "settings.search.scrollback-zh",
+      "image": "settings.search.scrollback-zh.png",
+      "layout": "settings.search.scrollback-zh.layout.json",
+      "locale": "zh-CN"
+    },
+    {
+      "id": "settings.search.scrollback.open-zh",
+      "image": "settings.search.scrollback.open-zh.png",
+      "layout": "settings.search.scrollback.open-zh.layout.json",
+      "locale": "zh-CN"
+    }
+  ]
+}

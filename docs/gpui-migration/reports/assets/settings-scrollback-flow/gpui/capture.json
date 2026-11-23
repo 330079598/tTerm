@@ -1,0 +1,50 @@
+{
+  "version": 1,
+  "theme": "dark",
+  "uiStyle": "classic",
+  "uiScalePercent": 100,
+  "viewport": {
+    "width": 800,
+    "height": 600,
+    "deviceScaleFactor": 2
+  },
+  "titleBarHeight": 36,
+  "instance": 600602661,
+  "screens": {
+    "settings.search.scrollback": {
+      "image": "settings.search.scrollback.png",
+      "width": 1600,
+      "height": 1200,
+      "locale": "en-US",
+      "sha256": "385db61d3de4896c515a82b81fe975a25b47b4f428c3bca284bf8b4f93d49113"
+    },
+    "settings.terminal.scrollback": {
+      "image": "settings.terminal.scrollback.png",
+      "width": 1600,
+      "height": 1200,
+      "locale": "en-US",
+      "sha256": "0f06c1877b5b9e26e9eef8917f07833fa3988de2369e851ac40f34b91eb12665"
+    },
+    "settings.search.empty": {
+      "image": "settings.search.empty.png",
+      "width": 1600,
+      "height": 1200,
+      "locale": "en-US",
+      "sha256": "d7e8a1a526d510027ec44224e4cede76fbb192913e1fbfa793a18dfcdb0ea7ce"
+    },
+    "settings.search.scrollback-zh": {
+      "image": "settings.search.scrollback-zh.png",
+      "width": 1600,
+      "height": 1200,
+      "locale": "zh-CN",
+      "sha256": "1309e3c8548e222a27d2242bb5e9f71d65925e733d4c435d46ce5657a7cd2c12"
+    },
+    "settings.terminal.scrollback-zh": {
+      "image": "settings.terminal.scrollback-zh.png",
+      "width": 1600,
+      "height": 1200,
+      "locale": "zh-CN",
+      "sha256": "ad4c89c976cf2d6fc44ed3c55787e36880a1f877b1da7755ed197baef6dc514e"
+    }
+  }
+}
