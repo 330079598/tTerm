@@ -66,8 +66,14 @@
       "title": "Select states",
       "fixture": "ui.select.default.json",
       "actions": [
-        { "type": "click", "target": "ui.select.default" },
-        { "type": "click", "target": "ui.select.focus" }
+        {
+          "type": "click",
+          "target": "ui.select.default"
+        },
+        {
+          "type": "click",
+          "target": "ui.select.focus"
+        }
       ]
     },
     {
@@ -127,7 +133,13 @@
       "id": "ui.context-menu.highlighted",
       "title": "Tab context menu highlighted",
       "fixture": "ui.context-menu.json",
-      "actions": [{ "type": "key", "target": "ui.context-menu", "key": "ArrowDown" }],
+      "actions": [
+        {
+          "type": "key",
+          "target": "ui.context-menu",
+          "key": "ArrowDown"
+        }
+      ],
       "exceptions": [
         {
           "entry": "E-001",
@@ -202,13 +214,23 @@
       "id": "tunnels.empty",
       "title": "Port forwarding without rules",
       "fixture": "tunnels.empty.json",
-      "actions": [{ "type": "waitFor", "target": "tunnels.empty" }]
+      "actions": [
+        {
+          "type": "waitFor",
+          "target": "tunnels.empty"
+        }
+      ]
     },
     {
       "id": "tunnels.list.running",
       "title": "Running local forward and stopped SOCKS proxy",
       "fixture": "tunnels.list.running.json",
-      "actions": [{ "type": "waitFor", "target": "tunnels.card.proxy" }]
+      "actions": [
+        {
+          "type": "waitFor",
+          "target": "tunnels.card.proxy"
+        }
+      ]
     },
     {
       "id": "workspace.titlebar.default",
@@ -231,12 +253,205 @@
       "uiStyles": ["classic"],
       "uiScalePercents": [100],
       "actions": [
-        { "type": "waitFor", "target": "settings.search.field" },
-        { "type": "key", "target": "settings.search.field", "key": "f" },
-        { "type": "key", "target": "settings.search.field", "key": "o" },
-        { "type": "key", "target": "settings.search.field", "key": "n" },
-        { "type": "key", "target": "settings.search.field", "key": "t" },
-        { "type": "waitFor", "target": "settings.search.results" }
+        {
+          "type": "waitFor",
+          "target": "settings.search.field"
+        },
+        {
+          "type": "key",
+          "target": "settings.search.field",
+          "key": "f"
+        },
+        {
+          "type": "key",
+          "target": "settings.search.field",
+          "key": "o"
+        },
+        {
+          "type": "key",
+          "target": "settings.search.field",
+          "key": "n"
+        },
+        {
+          "type": "key",
+          "target": "settings.search.field",
+          "key": "t"
+        },
+        {
+          "type": "waitFor",
+          "target": "settings.search.results"
+        }
+      ]
+    },
+    {
+      "id": "settings.terminal.scrollback",
+      "title": "Terminal settings scrolled to Scrollback Lines",
+      "fixture": "settings.reference.json",
+      "uiStyles": ["classic"],
+      "uiScalePercents": [100],
+      "actions": [
+        {
+          "type": "waitFor",
+          "target": "settings.layout.tab.terminal"
+        },
+        {
+          "type": "click",
+          "target": "settings.layout.tab.terminal"
+        },
+        {
+          "type": "waitFor",
+          "target": "settings.scrollback.lines"
+        },
+        {
+          "type": "scrollTo",
+          "target": "settings.scrollback.lines"
+        }
+      ]
+    },
+    {
+      "id": "settings.search.scrollback",
+      "title": "Settings search results for scrollback",
+      "fixture": "settings.reference.json",
+      "uiStyles": ["classic"],
+      "uiScalePercents": [100],
+      "actions": [
+        {
+          "type": "waitFor",
+          "target": "settings.search.field"
+        },
+        {
+          "type": "key",
+          "target": "settings.search.field",
+          "key": "s"
+        },
+        {
+          "type": "key",
+          "target": "settings.search.field",
+          "key": "c"
+        },
+        {
+          "type": "key",
+          "target": "settings.search.field",
+          "key": "r"
+        },
+        {
+          "type": "key",
+          "target": "settings.search.field",
+          "key": "o"
+        },
+        {
+          "type": "key",
+          "target": "settings.search.field",
+          "key": "l"
+        },
+        {
+          "type": "key",
+          "target": "settings.search.field",
+          "key": "l"
+        },
+        {
+          "type": "key",
+          "target": "settings.search.field",
+          "key": "b"
+        },
+        {
+          "type": "key",
+          "target": "settings.search.field",
+          "key": "a"
+        },
+        {
+          "type": "key",
+          "target": "settings.search.field",
+          "key": "c"
+        },
+        {
+          "type": "key",
+          "target": "settings.search.field",
+          "key": "k"
+        },
+        {
+          "type": "waitFor",
+          "target": "settings.search.results"
+        }
+      ]
+    },
+    {
+      "id": "settings.search.scrollback.open",
+      "title": "Scrollback Lines opened from the settings search",
+      "fixture": "settings.reference.json",
+      "uiStyles": ["classic"],
+      "uiScalePercents": [100],
+      "actions": [
+        {
+          "type": "waitFor",
+          "target": "settings.search.field"
+        },
+        {
+          "type": "key",
+          "target": "settings.search.field",
+          "key": "s"
+        },
+        {
+          "type": "key",
+          "target": "settings.search.field",
+          "key": "c"
+        },
+        {
+          "type": "key",
+          "target": "settings.search.field",
+          "key": "r"
+        },
+        {
+          "type": "key",
+          "target": "settings.search.field",
+          "key": "o"
+        },
+        {
+          "type": "key",
+          "target": "settings.search.field",
+          "key": "l"
+        },
+        {
+          "type": "key",
+          "target": "settings.search.field",
+          "key": "l"
+        },
+        {
+          "type": "key",
+          "target": "settings.search.field",
+          "key": "b"
+        },
+        {
+          "type": "key",
+          "target": "settings.search.field",
+          "key": "a"
+        },
+        {
+          "type": "key",
+          "target": "settings.search.field",
+          "key": "c"
+        },
+        {
+          "type": "key",
+          "target": "settings.search.field",
+          "key": "k"
+        },
+        {
+          "type": "waitFor",
+          "target": "settings.search.results"
+        },
+        {
+          "type": "click",
+          "target": "settings.search.result.0"
+        },
+        {
+          "type": "waitFor",
+          "target": "settings.scrollback.lines"
+        },
+        {
+          "type": "scrollTo",
+          "target": "settings.scrollback.lines"
+        }
       ]
     }
   ]

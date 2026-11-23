@@ -202,7 +202,9 @@ async function captureScreen(
 }
 
 function platformViewport(manifest, platform) {
-  return platform === "windows" ? (manifest.windowsViewport ?? manifest.viewport) : manifest.viewport
+  return platform === "windows"
+    ? (manifest.windowsViewport ?? manifest.viewport)
+    : manifest.viewport
 }
 
 async function runActions(page, actions, screenId) {
@@ -218,6 +220,8 @@ async function runActions(page, actions, screenId) {
         const press = [...(action.modifiers ?? []).map((value) => `${value}+`), action.key].join("")
         if (action.target) await page.locator(targetSelector(action.target)).press(press)
         else await page.keyboard.press(press)
+      } else if (action.type === "scrollTo") {
+        await page.locator(targetSelector(action.target)).scrollIntoViewIfNeeded()
       } else if (action.type === "drag") {
         await page
           .locator(targetSelector(action.from))

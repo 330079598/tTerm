@@ -28,7 +28,7 @@ export function ScrollbackLinesField({
   const { t } = useTranslation()
 
   return (
-    <div>
+    <div data-parity="settings.scrollback.lines">
       <Label className="mb-2 block">
         {t("fontSettings.scrollbackLines", { defaultValue: "Scrollback Lines" })}
       </Label>

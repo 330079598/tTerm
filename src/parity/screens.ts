@@ -49,6 +49,9 @@ export const parityScreens: Record<string, ComponentType<ParityScreenProps>> = {
   "workspace.titlebar.default": WorkspaceTitleBar,
   "settings.layout.default": SettingsReference,
   "settings.search.results": SettingsReference,
+  "settings.terminal.scrollback": SettingsReference,
+  "settings.search.scrollback": SettingsReference,
+  "settings.search.scrollback.open": SettingsReference,
   "tunnels.empty": TunnelPanelReference,
   "tunnels.list.running": TunnelPanelReference,
 }
