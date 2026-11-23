@@ -19,7 +19,7 @@
 ### 采样方法
 
 - 基准二进制：`cargo test -p tterm-gpui --lib thirty_background_parsers --no-run`；单测运行：`cargo test -p tterm-gpui --lib thirty_background_parsers -- --nocapture --test-threads=1`（或直接运行 `--no-run` 输出的二进制）。
-- 两个快照点：100 ms 预热结束（`warmup_end`）和 120 帧结束（`warmup_end.elapsed()`）。窗口内确认量取 30 个会话 `acknowledged_bytes()` 的差值；累计量在生产者 join 后再读，包含停止后的 drain。
+- 两个快照点：100 ms 预热结束（`warmup_end`）和 120 帧结束（`warmup_end.elapsed()`）。窗口内确认量取 30 个会话 `acknowledged_bytes()` 的差值；累计量在生产者 join 后再读，可能包含生产者退出期间的部分 drain，并非等所有解析线程退出后的总量。
 - 每个候选固定样本：隔离测量 3–4 次；全量并行套件 A/B 为未改侧 8 次、闸门侧 7 次。失败样本保留在下表，没有追加运行直到全部通过。
 - 结果分三类：隔离单测（`--test-threads=1`，无同级测试）、`cargo test -p tterm-gpui --lib`（默认并行，268 个测试）、`cargo test --workspace`。三者不是同一个测量环境，不能混用通过率。
 
@@ -33,17 +33,17 @@
 
 这三次都通过当前的 p95 和 30 MiB 断言，但 p95 从 0.74 ms 到 4.79 ms 波动；第 1 次单次持锁被抢占达 118.6 ms，仍只影响不超过 6 帧，所以 p95 没被推过 16.667 ms。未改代码在所有版本上的隔离样本是 10 次 5 过（p95：27.263、33.317、20.080、5.941、26.081、19.515、3.169、1.170、4.786、0.743 ms），不是稳定的通过或稳定的失败。
 
-### 解析 CPU 的实测归属（临时插桩，n=3）
+### 解析路径的累计耗时（临时插桩，n=3）
 
-| # | 窗口确认量 | 帧窗口 wall | 前台线程 CPU / wall | `Terminal::write` 总 CPU | 其中 `parser.advance` | 其中 OSC 扫描 | 其中 Reports |
+| # | 窗口确认量 | 帧窗口 wall | 前台线程 CPU / wall | `Terminal::write` 累计 wall | 其中 `parser.advance` | 其中 OSC 扫描 | 其中 Reports |
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | 1 | 80,130,400 B | 439.5 ms | 133.5 / 439.5 ms（30%） | 7.909 s | 7.870 s（99.5%） | 39.2 ms | 49.0 ms |
 | 2 | 51,824,000 B | 287.5 ms | 84.9 / 287.5 ms（30%） | 4.460 s | 4.425 s（99.2%） | 34.9 ms | 22.3 ms |
 | 3 | 59,630,400 B | 334.5 ms | 131.8 / 334.5 ms（39%） | 6.393 s | 6.361 s（99.5%） | 32.5 ms | 34.9 ms |
 
-把 `advance` 的 CPU 秒数除以帧窗口 wall，得到 17.9、15.4、19.0 个核心的解析需求；单核吞吐 12.9–16.8 MB/s。OSC 扫描和 Reports 合计只有 0.5–1.1%，**不是**热路径。`ControlStringFramer` 对全 ASCII、无 ESC 的块已经提前返回（`is_ascii()` + `memchr(0x1b)` 两次 SIMD 扫描），所以“控制串二次走遍可打印流”确实存在，但代价约 0.5%，优化它不足以改变结论。
+解析线程用 `Instant` 计时；不同线程的墙钟时间相加包含同时执行与等待调度的时段。三次样本中这些时段主要落在 `advance`，但不能据此折算核心需求、单核吞吐或 CPU 占比。前台线程 CPU / wall 是另一组独立测量。
 
-单态化落点：vte 0.15 的 `Processor::advance<H>`、`Performer<H>` 和 alacritty 0.26 的 `impl<T: EventListener> Handler for Term<T>` 都以本仓库的 `Collector` 为类型参数，实例化在 `tterm-terminal` 自己的代码生成单元里。`[profile.dev.package."*"] opt-level = 2` 只覆盖 registry 依赖，不覆盖 workspace 成员，因此这段 VT 状态机和 `input` 在测试/dev 下以 opt-level 0 运行；这就是 13–16.8 MB/s/核 的来源。alacritty 没有向库外暴露非泛型的“喂字节”入口，`event_loop` 的 `parser.advance` 本身也随它的 `EventLoop` 泛型化，无法在本仓库侧复用到已优化的现成实例。除非改 profile/编译单元，唯一能绕开该开销的办法是对可打印 run 直接调用 `Handler::input`，这会复制并部分重写第三方 VT 语义；在差值测试覆盖全部混合流之前不可接受，本轮没有实现。
+单态化落点：vte 0.15 的 `Processor::advance<H>`、`Performer<H>` 和 alacritty 0.26 的 `impl<T: EventListener> Handler for Term<T>` 都以本仓库的 `Collector` 为类型参数，实例化在 `tterm-terminal` 自己的代码生成单元里。`[profile.dev.package."*"] opt-level = 2` 只覆盖 registry 依赖，不覆盖 workspace 成员，因此这段 VT 状态机和 `input` 在测试/dev 下以 opt-level 0 运行。这提示应比较相同负载的 release 与 dev 数据，不能据此认定生产瓶颈。
 
 ### 尝试 1：后台解析并发闸门（已实现、测量、随后还原）
 
@@ -62,17 +62,17 @@
 
 ### 尝试 2（评估后未实现）：可打印 run 跳过状态机
 
-如果对 ground 状态下的纯可打印 ASCII run 直接调用 `Handler::input`，可以省掉每字符的 `advance` 状态机分派，但：需要自己准确镜像 vte 的 Ground/CSI/OSC/UTF-8 状态；必须为分段、混合、跨块的控制流建立差分测试；且按本机 13–16.8 MB/s/核 估算，20–30% 的改善仍不足以让 3–4 核 CI 机器同时满足 p95 和 30 MiB。它还会把“为测试字面量改协议语义”的风险带进生产代码，因此未实现。真正能把这段泛型实例化变快的唯一干净手段是 profile/编译单元变更，本轮明确禁止。
+跳过 VT 状态机需正确处理分段、混合和跨块控制序列。没有足够的语义正确性与性能证据，因此没有实现。
 
 ### 结论（分开回答）
 
 1. **负载和吞吐是否物理可达：可达，但累计门槛不是速率门槛。** 实测帧窗口吞吐 96–180 MiB/s（隔离 152–180，并行套件 96–103），30 MiB 只需 0.17–0.33 s。与此同时，累计确认值随帧窗口长度变化：同一未改代码在并行套件里出现过窗口缩短到累计只有 13.66 MB 的失败，而窗口内速率仍高于 30 MiB/s 所需。因此“累计字节不够”不能单独证明机器吞吐不够；本轮的吞吐结论以窗口内 MiB/s 为准，累计值只作为现有断言的结果记录。
-2. **前台预算是否通过：不能认定通过。** 最终未改代码的隔离样本 5/10 通过（p95 0.74–33.32 ms），并行 gpui 套件 4/8 通过；单次 `cargo test --workspace` 通过，但同一环境只跑了 1 次，不能覆盖 4/8 的波动。闸门版本在隔离下 8/8、p95 0.7–2.4 ms，在并行套件下 0/7，所以“预算物理上是否可达”和“仓库当前命令是否稳定通过”是两个不同答案：前者可达，后者不通过。证据不支持把全部原因归为机器负载；已定位到两个具体原因：15–19 核的未优化泛型 VT 解析需求，以及默认并行套件让同级测试抢占前台。控制串和 Reports 不是原因。
+2. **前台预算是否通过：不能认定通过。** 最终未改代码的隔离样本 5/10 通过（p95 0.74–33.32 ms），并行 gpui 套件 4/8 通过；单次 `cargo test --workspace` 通过，但同一环境只跑了 1 次，不能覆盖 4/8 的波动。闸门版本在隔离下 8/8、p95 0.7–2.4 ms，在并行套件下 0/7，所以“预算物理上是否可达”和“仓库当前命令是否稳定通过”是两个不同答案：前者可达，后者不通过。默认并发下也存在失败，不宜仅归因于机器负载。
 
 ### 需要进一步决策
 
 1. **隔离该基准**：把 `thirty_background_parsers_keep_the_foreground_within_its_frame_budget` 放到串行/独立性能任务里运行，或至少在该用例期间不与其余 268 个测试并行。这会改变测试调度，超出本卡“不得调度该测试本身”的限制，需要评估者决定。
-2. **是否允许 dev/test 对 workspace 成员开启优化**：这是消除 `Processor::advance` 单态化落在 opt-level 0 的直接办法；本轮明确禁止改 profile。若不改，只能接受 13–16.8 MB/s/核 的解析成本。
+2. **是否允许 dev/test 对 workspace 成员开启优化**：这是消除 `Processor::advance` 单态化落在 opt-level 0 的直接办法；本轮明确禁止改 profile。
 3. **是否采用解析闸门**：它在隔离条件下有 8/8 的 p95 余量和 152–160 MiB/s 吞吐，但会让默认并行套件的该用例 0/7；只有先做决策 1 才建议采用。`-1` 与 `-2` 都已测量，两者隔离全过，`-2` 的尾延迟余量更大。
 
 ### 不需要改门槛的替代方案
@@ -89,3 +89,7 @@
 - `cargo test -p tterm-gpui --lib`：未改代码 4/8 通过；闸门 0/7；最终诊断版本 1/2（p95 8.381 ms 通过、23.180 ms 失败）。
 - `pnpm lint && pnpm format:check && pnpm check:tokens && pnpm typecheck && pnpm test && pnpm check:size`：通过；186 个测试文件、1364 项测试，layout 9 项、migration 8 项，1496 个文件在大小限制内。
 - 隔离基准：最终诊断版本 3/3 通过；未改代码全部版本合计 5/10。临时文件只在 `/tmp`（`w0-05-build.log`、`w0-05-tests-original.rs`、`w0-05-bin.txt`），未进入仓库。
+
+### 协调者独立复核
+
+在 `1809b4ab` 上，Rust fmt 与严格 Clippy 通过，默认 `cargo test --workspace` 失败。120 帧窗口 391.70 ms，窗口确认 33,603,600 B（81.81 MiB/s），累计 42,476,000 B，超过 30 MiB 下限；前台 p95 从空载 4.67 ms 升至 25.70 ms，超过 16.667 ms。只读诊断可复现，本次没有可验收的生产修复。
