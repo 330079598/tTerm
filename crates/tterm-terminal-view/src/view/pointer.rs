@@ -69,6 +69,7 @@ impl TerminalView {
             self.terminal
                 .scroll(Scroll::Delta(target as i32 - current as i32));
             self.scrollbar_drag = true;
+            self.invalidate(cx);
             cx.stop_propagation();
             return;
         }
