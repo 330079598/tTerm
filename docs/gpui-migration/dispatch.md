@@ -19,7 +19,7 @@
 
 ## 2. 当前派发顺序（2026-11-23）
 
-三屏原版参照已合入。**GPUI 设置页的回滚行数流程**已派给 Pi + DeepSeek V4.1 Flash：见[执行与验收方案](reports/settings-scrollback-flow-plan.md)。P2-06 等终端任务可并行。接手时读[状态表](status.md)，不把局部通过当成设置整页已迁移。
+三屏原版参照及 **GPUI 设置页的回滚行数流程**已合入本地 `GPUI`，见[执行方案](reports/settings-scrollback-flow-plan.md)和[验收结果](reports/P4-15.md)。下一张按决策 018 收 P2-06 滚动、滚动条与回滚内存；P2-07 搜索依赖它。接手时读[状态表](status.md)，不把局部通过当成设置整页已迁移。
 
 ### 2026-11-11 交接记录（历史）
 
