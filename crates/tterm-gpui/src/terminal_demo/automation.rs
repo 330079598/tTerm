@@ -171,6 +171,10 @@ fn handle_request(
         )),
         Command::State => AutomationResponse::text(prototype.read(cx).automation_state()),
         Command::Focus => {
+            // Activating only the window leaves the process behind the
+            // caller's application, so macOS never reports it as active and
+            // the keystroke path refuses every command. Activate the app too.
+            cx.activate(true);
             let result = handle.update(cx, |_, window, _| window.activate_window());
             match result {
                 Ok(()) => AutomationResponse::ok(),
