@@ -868,6 +868,7 @@ fn search_finds_the_scrollback_setting_and_opens_it(cx: &mut TestAppContext) {
         window.render_frame(cx);
         assert!(root.read(cx).settings_is_open());
         assert_eq!(root.read(cx).ui.settings_page.read(cx).search_query(), "");
+        assert_eq!(root.read(cx).ui.settings_page.read(cx).search_value(cx), "");
     });
     assert!(
         harness
@@ -1186,12 +1187,7 @@ fn a_failed_save_keeps_the_page_open_and_the_running_capacity(cx: &mut TestAppCo
         harness.visual,
         super::settings_page::SETTINGS_SCROLLBACK_SAVE_ID,
     );
-    assert!(
-        harness
-            .visual
-            .debug_bounds(super::settings_page::SETTINGS_SCROLLBACK_ERROR_ID)
-            .is_some()
-    );
+    wait_for_settings_error(harness.visual);
     assert!(settings_page_visible(harness.visual));
     harness.visual.update(|window, cx| {
         window.render_frame(cx);
