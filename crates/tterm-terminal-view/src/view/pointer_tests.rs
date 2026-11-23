@@ -600,6 +600,12 @@ fn macos_option_forces_selection_when_the_policy_says_so(cx: &mut TestAppContext
 #[gpui_kit::test]
 fn alt_without_the_macos_policy_reports_in_mouse_mode(cx: &mut TestAppContext) {
     let h = Harness::new(cx);
+    // Both platform policies are cleared explicitly: the defaults follow the
+    // host, and only a host where Alt belongs to the program reports it.
+    h.update(cx, |view, _, _| {
+        view.pointer_policy.macos_option_forces_selection = false;
+        view.pointer_policy.alt_selects_block_outside_macos = false;
+    });
     h.output(cx, b"\x1b[?1002h\x1b[?1006h");
     let modifiers = Modifiers {
         alt: true,
