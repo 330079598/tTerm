@@ -156,3 +156,31 @@ jobs:
           cargo test --lib -- --ignored
           real_shell_integration_marks_commands_in_each_shell
           real_shell_integration_reports_the_directory_with_marks_off
+
+  rust-frame-budget:
+    # The 30-session foreground frame budget times wall-clock frames while 30
+    # background parsers saturate the machine, so it cannot share the parallel
+    # `rust` matrix: there the neighbouring tests take the cores it measures.
+    # The test is `#[ignore]`d for `cargo test --workspace` and runs only here,
+    # in release mode, on a fixed runner that does nothing else. This job is
+    # unconditional on purpose; decision 019 explains the gate and its limits.
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v6
+
+      # rust-toolchain.toml pins the compiler; the script rejects a run whose
+      # rustc is not that version.
+      - name: Install Rust
+        run: rustup show
+
+      - name: Rust cache
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: '. -> target'
+
+      # The entry point builds the release lib test binary, checks that libtest
+      # lists exactly the one ignored fixture, runs it with --exact --nocapture
+      # --test-threads=1, and fails on a renamed test, an empty filter, a wrong
+      # mode, or a failed assertion.
+      - name: 30-session release frame budget
+        run: node scripts/perf/gpui-release-frame-budget.mjs
