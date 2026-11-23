@@ -209,6 +209,44 @@ release 下前台一帧约 0.11 ms，120 帧的采样窗口只有约 14 ms，加
 - release 门禁：三次固定运行均退出 0，数值见上表。
 - 实现提交：`78c2fbae`。
 
-### 当前状态
+### 第四轮状态
 
 本地 release 门禁已由“帧窗口累计 30 MiB 不达标”改为两项独立测量，并在三次固定运行中全部通过：帧 p95 在预算内且窗口内确有后台前进；吞吐 30 个会话各 1 MiB，在 500 ms 内全部 applied/ack。之前三轮的失败数据保留在原处，没有改写。这个结论仍不是桌面验收，也不是 G2 通过；Windows 同一项按决策 016 待补，Linux 推迟。是否合并测试、证据与参照由主控决定。
+
+## 2026-11-23 第五轮：吞吐测量边界修复（基于 aa50e484）
+
+协调者复核发现，第四轮的吞吐轮询在 `break` 后重新读取 applied/ack/parsed，并用总预算计算 `rate_mib_s`。若截止时快照尚未完成、随后清理前才补齐，证据行会写成 `completed=true`，与实际能否按时完成不符；未完成时的速率也会被总预算抬高。本轮只修这个测量边界，不改 500 ms、30 MiB、帧用例、负载、入口脚本或产品代码。
+
+### 改动
+
+| 位置 | 内容 |
+| --- | --- |
+| `crates/tterm-gpui/src/terminal_demo/pipeline/throughput_tests.rs` | 轮询先把 30 个会话的 `applied`、callback `acknowledged` 和 `parsed` 写入固定 `[Sample; SESSIONS]`，再读 `started.elapsed()`；完成判断、截止判断、总量、逐会话断言和证据行都使用这一组快照与后置时间，`break` 后不再读取会变化的计数。`completed` 仅当快照完成且后置时间不晚于 500 ms 时为 true；截止后才观察到的完成仍失败。`rate_mib_s` 改为实际 `acknowledged_total` 除以该次 wall。失败信息改为“未在截止内观察到完成”，不再使用“before the deadline”或宣称按时完成。生产者与解析线程的清理仍在快照和证据行之后独立执行。 |
+
+### 三次固定 release 运行（预先定三次，全部保留）
+
+每次运行都在同一台机器上独占执行，命令均为 `node scripts/perf/gpui-release-frame-budget.mjs`；帧与吞吐仍是两个独立进程，下表并列只为报告。环境同第四轮：macOS 27.2 / Apple M4 / 10 核 / 32 GB / arm64，`rustc 1.99.1 (58cf8f9c3 2026-10-13)`；测量时 HEAD 为 `aa50e484`，工作树包含本轮的测试与报告改动。
+
+| # | 帧 baseline p50 / p95 | 30 会话 p50 / p95 | 帧窗口 / 窗口确认（速率） | 预热前进 / 窗口前进 | 累计确认（仅诊断） | 吞吐 wall | 实际确认 / rate | completed | 退出码 |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| 1 | 113.75 / 117.667 µs | 113.5 / 121.959 µs | 13.883 ms / 3,083,200 B（211.80 MiB/s） | 30 / 30 | 27,552,000 B | 150.972 ms | 31,457,280 B / 198.71 MiB/s | true | 0 |
+| 2 | 113.75 / 117.542 µs | 110.792 / 118.542 µs | 13.571667 ms / 3,001,200 B（210.89 MiB/s） | 30 / 30 | 27,404,400 B | 151.135 ms | 31,457,280 B / 198.50 MiB/s | true | 0 |
+| 3 | 115.083 / 124.041 µs | 112.541 / 122.75 µs | 13.945583 ms / 2,919,200 B（199.63 MiB/s） | 30 / 30 | 27,634,000 B | 150.642 ms | 31,457,280 B / 199.15 MiB/s | true | 0 |
+
+三次都是 `release gate: passed, 2 measurements (frame, throughput)`。吞吐都在约 151 ms 内完成 30 MiB，按实际确认量计算的速率为 198.50–199.15 MiB/s，离 500 ms 截止仍有约三倍余量；帧 p95 为 118–122 µs，远低于 16.667 ms。帧阶段累计确认仍约 27.4–27.6 MB，只作诊断，不参与吞吐判定。
+
+### 负向边界
+
+入口脚本的证据字段没有变化，仍要求 applied、acknowledged、parsed 都等于 30 MiB 且 `wall_us` 不超过 500000；截止后才完成的快照会打印 `completed=false`，并让测试在完成断言处失败。`node --test scripts/perf/gpui-release-frame-budget.test.mjs` 的 24 项负向用例继续通过，其中包含 `wall_us=500001` 的拒绝路径。本轮没有为了让该路径通过而修改门槛、负载或重试。
+
+### 复验记录
+
+- `pnpm lint && pnpm format:check && pnpm check:tokens && pnpm typecheck && pnpm test && pnpm check:size`：通过；186 个测试文件、1364 项测试，perf 24 项；1496 个文件在大小限制内。
+- `cargo fmt --all --check`：通过。
+- `cargo clippy --workspace --all-targets -- -D warnings`：通过。
+- `cargo test --workspace`：通过（退出码 0），默认并发；gpui lib 为 `267 passed; 0 failed; 3 ignored`，两个 release fixture 都没有进入普通套件。
+- release 门禁：三次固定运行均退出 0，数值见上表。
+
+### 当前状态
+
+吞吐测量边界已修正为“同一组快照 + 后置时间”决定完成、截止和报告，截止后才补齐的计数不会再被写成按时完成；速率按实际确认量计算。本次改动只保存在本地单独提交中，没有合并或推送。该结论仍不是桌面验收，也不是 G2 通过；Windows 同一项按决策 016 待补，Linux 推迟。

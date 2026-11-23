@@ -32,6 +32,22 @@ struct Session {
     acknowledged: Arc<AtomicU64>,
 }
 
+/// One session's counters as read during a single poll.
+#[derive(Clone, Copy, Default)]
+struct Sample {
+    applied: u64,
+    acknowledged: u64,
+    parsed: u64,
+}
+
+impl Sample {
+    fn is_complete(self) -> bool {
+        self.applied == SESSION_BYTES as u64
+            && self.acknowledged == SESSION_BYTES as u64
+            && self.parsed == SESSION_BYTES as u64
+    }
+}
+
 /// Builds one session's 1 MiB as printable lines ending in newlines.
 fn payload(session: usize) -> Vec<Vec<u8>> {
     (0..BLOCKS_PER_SESSION)
@@ -113,48 +129,39 @@ fn thirty_sessions_apply_and_acknowledge_one_mebibyte_each_within_the_deadline()
     // barrier, and the timer starts before the barrier is released.
     let started = Instant::now();
     barrier.wait();
-    let elapsed = loop {
+    let mut samples = [Sample::default(); SESSIONS];
+    let (elapsed, sampled_complete) = loop {
+        // Read every counter before the clock. A complete snapshot is then
+        // evidence of progress up to the later clock reading, never a count
+        // that changed after the decision to stop polling.
+        for (sample, session) in samples.iter_mut().zip(&sessions) {
+            *sample = Sample {
+                applied: session.metrics.applied_bytes(),
+                acknowledged: session.acknowledged.load(Ordering::Acquire),
+                parsed: session.metrics.acknowledged_bytes(),
+            };
+        }
         let elapsed = started.elapsed();
-        let complete = sessions.iter().all(|session| {
-            session.metrics.applied_bytes() == SESSION_BYTES as u64
-                && session.acknowledged.load(Ordering::Acquire) == SESSION_BYTES as u64
-                && session.metrics.acknowledged_bytes() == SESSION_BYTES as u64
-        });
+        let complete = samples.iter().all(|sample| sample.is_complete());
         if complete || elapsed >= DEADLINE {
-            break elapsed;
+            break (elapsed, complete);
         }
         std::thread::sleep(POLL_INTERVAL.min(DEADLINE.saturating_sub(elapsed)));
     };
 
-    // Capture the measurement before cleanup. Anything a producer or parser
-    // does after the deadline is cleanup, not throughput.
-    let measured: Vec<(u64, u64, u64)> = sessions
-        .iter()
-        .map(|session| {
-            (
-                session.metrics.applied_bytes(),
-                session.acknowledged.load(Ordering::Acquire),
-                session.metrics.acknowledged_bytes(),
-            )
-        })
-        .collect();
-    let applied_total: u64 = measured.iter().map(|(applied, _, _)| applied).sum();
-    let acknowledged_total: u64 = measured
-        .iter()
-        .map(|(_, acknowledged, _)| acknowledged)
-        .sum();
-    let parsed_total: u64 = measured.iter().map(|(_, _, parsed)| parsed).sum();
+    // This snapshot is the measurement; cleanup and any later progress do not
+    // feed back into the result. A complete snapshot read after the deadline
+    // cannot prove on-time completion, so it still fails.
+    let applied_total: u64 = samples.iter().map(|sample| sample.applied).sum();
+    let acknowledged_total: u64 = samples.iter().map(|sample| sample.acknowledged).sum();
+    let parsed_total: u64 = samples.iter().map(|sample| sample.parsed).sum();
     let session_count = sessions.len();
     let refreshes: Vec<u64> = sessions
         .iter()
         .map(|session| session.refresh.sends())
         .collect();
-    let completed = measured.iter().all(|&(applied, acknowledged, parsed)| {
-        applied == SESSION_BYTES as u64
-            && acknowledged == SESSION_BYTES as u64
-            && parsed == SESSION_BYTES as u64
-    });
-    let rate_mib_s = TOTAL_BYTES as f64 / (1024.0 * 1024.0) / elapsed.as_secs_f64();
+    let completed = sampled_complete && elapsed <= DEADLINE;
+    let rate_mib_s = acknowledged_total as f64 / (1024.0 * 1024.0) / elapsed.as_secs_f64();
     eprintln!(
         "P2-02 background throughput: sessions={session_count} bytes={TOTAL_BYTES} \
          applied={applied_total} acknowledged={acknowledged_total} parsed={parsed_total} \
@@ -179,22 +186,24 @@ fn thirty_sessions_apply_and_acknowledge_one_mebibyte_each_within_the_deadline()
     assert_eq!(session_count, SESSIONS, "a session is missing");
     assert!(
         completed,
-        "only {applied_total} of {TOTAL_BYTES} bytes were applied and acknowledged before {DEADLINE:?}"
+        "the 30 MiB transfer was not observed complete within {DEADLINE:?}: \
+         applied={applied_total} acknowledged={acknowledged_total} parsed={parsed_total} \
+         wall={elapsed:?}"
     );
     assert_eq!(applied_total, TOTAL_BYTES as u64, "applied bytes");
     assert_eq!(acknowledged_total, TOTAL_BYTES as u64, "acknowledged bytes");
     assert_eq!(parsed_total, TOTAL_BYTES as u64, "parsed bytes");
-    for (index, (applied, acknowledged, parsed)) in measured.iter().enumerate() {
+    for (index, sample) in samples.iter().enumerate() {
         assert_eq!(
-            *applied, SESSION_BYTES as u64,
+            sample.applied, SESSION_BYTES as u64,
             "session {index} applied a different byte count"
         );
         assert_eq!(
-            *acknowledged, SESSION_BYTES as u64,
+            sample.acknowledged, SESSION_BYTES as u64,
             "session {index} acknowledged a different byte count"
         );
         assert_eq!(
-            *parsed, SESSION_BYTES as u64,
+            sample.parsed, SESSION_BYTES as u64,
             "session {index} parsed a different byte count"
         );
         assert_eq!(
