@@ -23,6 +23,18 @@ mod automation;
 use command::CommandSpec;
 use runtime::GpuiRuntime;
 
+/// Writes the headless production settings capture.
+///
+/// This exists only in debug builds with the automation feature, and uses an
+/// in-memory config with no-op writers, so it cannot touch a user profile.
+#[cfg(all(debug_assertions, feature = "automation"))]
+pub fn capture_settings_headlessly(
+    output: &std::path::Path,
+    reference: &std::path::Path,
+) -> Result<(), String> {
+    window::settings_page_capture::capture_headlessly(output, reference)
+}
+
 /// Opens the prototype window and runs until it closes.
 pub fn run() {
     let arguments: Vec<String> = std::env::args().skip(1).collect();

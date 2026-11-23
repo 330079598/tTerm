@@ -20,6 +20,8 @@ mod saved_connections;
 mod saved_connections_tests;
 mod session_workspace;
 mod settings_page;
+#[cfg(all(debug_assertions, feature = "automation"))]
+pub(super) mod settings_page_capture;
 #[cfg(test)]
 mod settings_page_tests;
 #[cfg(test)]

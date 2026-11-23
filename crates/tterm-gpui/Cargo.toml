@@ -17,6 +17,12 @@ path = "examples/p0_20_remote_editor/main.rs"
 # Keep the probe's regression tests in the required workspace test run.
 test = true
 
+[[example]]
+name = "settings_capture"
+path = "examples/settings_capture.rs"
+# The headless Metal/WGPU capture needs the automation feature's test support.
+required-features = ["automation"]
+
 [features]
 # The automation endpoint is intentionally opt-in. Its source is also gated
 # by `debug_assertions`, so a release build cannot contain the endpoint.
