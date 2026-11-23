@@ -1,21 +1,26 @@
 //! Allocator-backed evidence that clearing the history releases its rows.
 //!
 //! Alacritty's ring keeps trimmed rows allocated until the ring is truncated
-//! or the allocation grows past its cache. The tests wrap the system allocator
-//! so they can distinguish "history_size is zero" from "the row storage is
-//! gone". A capacity below Alacritty's 1000-row cache makes the difference
-//! visible, and a process-wide lock keeps the shared counter meaningful while
-//! the test binary runs its tests in parallel.
+//! or the allocation grows past its cache. The scenarios wrap the system
+//! allocator so they can distinguish "history_size is zero" from "the row
+//! storage is gone". A capacity below Alacritty's 1000-row cache makes the
+//! difference visible.
 //!
-//! Measurements are taken at the same stable point in each test: the write has
-//! returned and every snapshot created for assertions has been dropped. The
+//! The counter covers every allocation in the process, so the whole binary has
+//! exactly one `#[test]` entry point and every scenario is a plain function it
+//! calls in turn. Libtest then starts no parallel worker, and no harness
+//! bookkeeping can allocate between a scenario's two reads. Adding a second
+//! `#[test]` here would let another worker allocate inside a measurement, so
+//! the scenarios must stay helpers of the single test.
+//!
+//! Measurements are taken at the same stable point in each scenario: the write
+//! has returned and every snapshot created for assertions has been dropped. The
 //! difference uses `checked_sub`, so a measurement that grew is reported
 //! instead of overflowing.
 
 use std::alloc::{GlobalAlloc, Layout, System};
 use std::hash::{DefaultHasher, Hash, Hasher};
 use std::sync::atomic::{AtomicIsize, Ordering};
-use std::sync::{Mutex, MutexGuard};
 
 use tterm_terminal::grid::{CellSize, GridSize};
 use tterm_terminal::mode::Modes;
@@ -52,19 +57,10 @@ unsafe impl GlobalAlloc for CountingAllocator {
 #[global_allocator]
 static ALLOCATOR: CountingAllocator = CountingAllocator;
 
-/// Serializes the measurements: the counter is shared by the whole binary.
-static MEASURE_LOCK: Mutex<()> = Mutex::new(());
-
 const COLUMNS: usize = 80;
 const LINES: usize = 24;
 const CAPACITY: usize = 500;
 const ROWS: usize = 2_000;
-
-fn measure_lock() -> MutexGuard<'static, ()> {
-    MEASURE_LOCK
-        .lock()
-        .unwrap_or_else(|poisoned| poisoned.into_inner())
-}
 
 fn live_bytes() -> isize {
     LIVE_BYTES.load(Ordering::SeqCst)
@@ -144,9 +140,24 @@ fn screen_text(model: &Terminal) -> Vec<String> {
     text
 }
 
+/// The seven allocator scenarios, run in one test so no other worker exists.
+///
+/// Each scenario keeps its own strict assertions and evidence line. They cannot
+/// be separate tests: libtest would run them on parallel threads, and the
+/// process-wide counter would then include allocations made between one
+/// scenario's two reads by another worker.
 #[test]
+fn history_clear_scenarios_hold_under_one_isolated_measurement() {
+    clearing_the_history_returns_the_row_storage_to_the_allocator();
+    clearing_before_the_alternate_screen_switch_releases_the_main_history();
+    a_synchronized_clear_does_not_release_before_it_executes();
+    clearing_the_alternate_screen_does_not_release_the_main_history();
+    a_reset_returns_the_row_storage_to_the_allocator();
+    a_synchronized_reset_releases_only_after_the_update_ends();
+    the_same_stream_leaves_the_same_live_memory_when_split();
+}
+
 fn clearing_the_history_returns_the_row_storage_to_the_allocator() {
-    let _guard = measure_lock();
     let model = model();
     fill(&model);
 
@@ -176,9 +187,7 @@ fn clearing_the_history_returns_the_row_storage_to_the_allocator() {
     );
 }
 
-#[test]
 fn clearing_before_the_alternate_screen_switch_releases_the_main_history() {
-    let _guard = measure_lock();
     let model = model();
     fill(&model);
 
@@ -200,9 +209,7 @@ fn clearing_before_the_alternate_screen_switch_releases_the_main_history() {
     );
 }
 
-#[test]
 fn a_synchronized_clear_does_not_release_before_it_executes() {
-    let _guard = measure_lock();
     let model = model();
     fill(&model);
 
@@ -237,9 +244,7 @@ fn a_synchronized_clear_does_not_release_before_it_executes() {
     );
 }
 
-#[test]
 fn clearing_the_alternate_screen_does_not_release_the_main_history() {
-    let _guard = measure_lock();
     let model = model();
     fill(&model);
     model.write(b"\x1b[?1049h");
@@ -264,9 +269,7 @@ fn clearing_the_alternate_screen_does_not_release_the_main_history() {
     assert_eq!(back.display_offset(), 0);
 }
 
-#[test]
 fn a_reset_returns_the_row_storage_to_the_allocator() {
-    let _guard = measure_lock();
     let model = model();
     fill(&model);
 
@@ -287,9 +290,7 @@ fn a_reset_returns_the_row_storage_to_the_allocator() {
     );
 }
 
-#[test]
 fn a_synchronized_reset_releases_only_after_the_update_ends() {
-    let _guard = measure_lock();
     let model = model();
     fill(&model);
 
@@ -320,10 +321,7 @@ fn a_synchronized_reset_releases_only_after_the_update_ends() {
     );
 }
 
-#[test]
 fn the_same_stream_leaves_the_same_live_memory_when_split() {
-    let _guard = measure_lock();
-
     fn screen_hash(model: &Terminal) -> u64 {
         let snapshot = model.snapshot();
         let mut hasher = DefaultHasher::new();
