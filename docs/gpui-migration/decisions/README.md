@@ -27,6 +27,7 @@
 | 015  | 收窄 P0，性能对比最后统一做                            | [015-trim-p0.md](015-trim-p0.md)                                                         |
 | 016  | macOS 与 Windows 同等，Linux 推迟                      | [016-mac-windows-either.md](016-mac-windows-either.md)                                   |
 | 017  | GPUI 分支只保证 GPUI 版，不再人工验证分支上的 Tauri 版 | [017-gpui-branch-tauri-untested.md](017-gpui-branch-tauri-untested.md)                   |
+| 018  | 先补工作区与设置参照，再并行推进设置流程与终端日用能力 | [018-workspace-settings-order.md](018-workspace-settings-order.md) |
 
 - 下一个可用编号：**017**。
 

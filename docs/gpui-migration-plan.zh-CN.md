@@ -5,6 +5,8 @@
 > **2026-11-05 再次更新：不再整体复用 nyaterm 的终端，也不使用任何 nyakang 的分支**（[决策 007](gpui-migration/decisions/007-official-sources-and-terminal-route.md)）。GPUI 与组件库用官方 crates.io 发布（gpui-kit 0.9.0 + `gpui-pre`），终端以官方 `alacritty_terminal 0.26.0` 为内核自己搭建。本文第 3.2、3.5、4、10 节中关于复用 nyaterm 终端与分支的内容以该决策为准。
 > 基于 tTerm 本地代码、固定提交的 nyaterm 与 Zed 源码，以及 2026-11-01 查询的 nyaterm issue 和各分支差异；尚未进行组件抽取、编译验证和性能对比。
 
+> **2026-11-23 实施顺序更新：**下一张先补工作区与设置首页的原版对照，再用回滚行数走通设置流程；终端日用能力并行推进。完整 P4 与发布关卡不提前。见[决策 018](gpui-migration/decisions/018-workspace-settings-order.md)和[当前任务状态](gpui-migration/status.md)。
+
 ## 1. 建议与结论
 
 迁移可行。tTerm 已经用 Rust 实现 SSH、PTY、SFTP、串口、隧道、加密、数据库、备份和同步，具备保留业务核心、替换客户端的基础。

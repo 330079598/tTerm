@@ -103,6 +103,8 @@
 
 ## P3-09 页面与面板路由
 
+本卡只验入口与切换；打开设置并返回不等于设置页面已对齐。工作区参照与设置操作的提前批见[决策 018](decisions/018-workspace-settings-order.md)，依托 P3-02、05、06 的对应能力；日志、托盘和通知入口与实际能力一起验收。
+
 - 依赖：P3-06
 - 规模：S
 - 参考：`TTermApp/usePageTabs.ts`、`useTitleBarPages.ts`、`TabPanels.tsx`、`src/lib/appNavigation.ts`、`src/routes/`

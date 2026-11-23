@@ -169,6 +169,8 @@
 
 ## P4-15 至 P4-26 设置
 
+按[决策 018](decisions/018-workspace-settings-order.md)，P3 期间可先实现「打开设置 → 找到并保存回滚行数 → 返回原窗格」所需的 P4-15 子集。正式验收复用这部分实现并补齐下表范围；不提前认定 P4-15 或其他设置卡通过。
+
 `SettingsDialog/` 是最大的前端目录。先完成 P4-15 的框架，其余各卡可以并行。
 
 | 卡    | 内容                                                                     | 主要来源（`src/components/SettingsDialog/` 下）                                                                                                                                                                                                                                                                                                                                                            | 规模 |
