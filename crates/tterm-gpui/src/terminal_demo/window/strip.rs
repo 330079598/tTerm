@@ -267,7 +267,11 @@ impl Prototype {
         }
         if self.settings_open {
             if event.keystroke.key == "escape" {
-                if self.close_settings(window, cx) {
+                let cleared = self
+                    .ui
+                    .settings_page
+                    .update(cx, |page, cx| page.clear_search(window, cx));
+                if cleared || self.close_settings(window, cx) {
                     window.prevent_default();
                     cx.stop_propagation();
                 }

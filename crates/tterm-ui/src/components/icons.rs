@@ -22,3 +22,7 @@ pub const LAPTOP: &[u8] = include_bytes!("../../assets/icons/laptop.svg");
 pub const SERVER: &[u8] = include_bytes!("../../assets/icons/server.svg");
 pub const TARGET: &[u8] = include_bytes!("../../assets/icons/target.svg");
 pub const WAYPOINTS: &[u8] = include_bytes!("../../assets/icons/waypoints.svg");
+pub const SETTINGS: &[u8] = include_bytes!("../../assets/icons/settings.svg");
+pub const SQUARE_TERMINAL: &[u8] = include_bytes!("../../assets/icons/square-terminal.svg");
+pub const SEARCH: &[u8] = include_bytes!("../../assets/icons/search.svg");
+pub const SEARCH_X: &[u8] = include_bytes!("../../assets/icons/search-x.svg");

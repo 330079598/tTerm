@@ -73,6 +73,7 @@ use crate::config_state::ConfigState;
 use crate::locale::{Locale, LocaleGlobal};
 use crate::scrollback_setting::ScrollbackSetting;
 use saved_connections::SavedConnectionsUi;
+use settings_page::SettingsPage;
 use template_ui::TemplateUi;
 use tunnel_page::TunnelPage;
 
@@ -84,7 +85,6 @@ const INITIAL_CELL: CellSize = CellSize {
     width: 8,
     height: 16,
 };
-
 struct PrototypeStartup {
     command: CommandSpec,
     workspace: session_workspace::StartupWorkspace,
@@ -321,10 +321,10 @@ impl Prototype {
             theme,
             background,
         } = startup;
-        let scrollback_setting =
+        let setting =
             cx.new(|cx| ScrollbackSetting::new(config.clone(), locale.clone(), theme, cx));
-        cx.observe(&scrollback_setting, |_, _, cx| cx.notify())
-            .detach();
+        let page = cx.new(|cx| SettingsPage::new(locale.clone(), theme, setting.clone(), cx));
+        cx.observe(&page, |_, _, cx| cx.notify()).detach();
         let template_ui = TemplateUi::for_workspace(config.clone(), locale.clone(), theme, cx);
         let saved_connections =
             SavedConnectionsUi::for_workspace(sessions.services(), locale.clone(), theme, cx);
@@ -337,7 +337,7 @@ impl Prototype {
             geometry,
             theme,
             background,
-            scrollback_setting,
+            settings_page: page,
             template_ui,
             saved_connections,
             tunnel_page,
@@ -635,13 +635,12 @@ impl Prototype {
         }
     }
 }
-
 struct WindowUi {
     locale: Entity<Locale>,
     geometry: Entity<WindowGeometry>,
     theme: Theme,
     background: Rgba,
-    scrollback_setting: Entity<ScrollbackSetting>,
+    settings_page: Entity<SettingsPage>,
     template_ui: Entity<TemplateUi>,
     saved_connections: Entity<SavedConnectionsUi>,
     tunnel_page: TunnelPage,
@@ -762,7 +761,7 @@ impl Render for Prototype {
             .on_action(on_action)
             .render(window);
         let content = if self.settings_is_open() {
-            self.settings_page(cx)
+            self.settings_page(window, cx)
         } else if tunnel_page_open {
             self.tunnel_page(cx)
         } else {

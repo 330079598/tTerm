@@ -9,7 +9,7 @@ use tterm_core::config::AppConfig;
 use tterm_core::config::scrollback::resolve_scrollback_lines;
 use tterm_core::workspace::tab_groups::{PaneNode, SplitOrientation};
 
-use super::settings_page::{SETTINGS_BACK_BUTTON_ID, SETTINGS_OPEN_BUTTON_ID, SETTINGS_PAGE_ID};
+use super::settings_page::{SETTINGS_OPEN_BUTTON_ID, SETTINGS_PAGE_ID};
 use super::split_state::Edge;
 use super::*;
 use crate::config_state::{PaneTemplatesWriter, ScrollbackWriter};
@@ -94,6 +94,21 @@ struct Harness<'a> {
 }
 
 fn harness<'a>(cx: &'a mut TestAppContext, config: AppConfig) -> Harness<'a> {
+    let writes = Arc::new(Mutex::new(Vec::new()));
+    let recorded = Arc::clone(&writes);
+    let scrollback_writer: ScrollbackWriter = Arc::new(move |lines| {
+        recorded.lock().expect("scrollback writes").push(lines);
+        Ok(())
+    });
+    harness_with_writer(cx, config, scrollback_writer, writes)
+}
+
+fn harness_with_writer<'a>(
+    cx: &'a mut TestAppContext,
+    config: AppConfig,
+    scrollback_writer: ScrollbackWriter,
+    writes: Arc<Mutex<Vec<u32>>>,
+) -> Harness<'a> {
     let mut runtime = test_runtime();
     let events = std::mem::replace(
         &mut runtime.events,
@@ -103,12 +118,6 @@ fn harness<'a>(cx: &'a mut TestAppContext, config: AppConfig) -> Harness<'a> {
     cx.update(|cx| {
         gpui_kit::init(cx);
         tterm_terminal_view::view::bind_keys(cx);
-    });
-    let writes = Arc::new(Mutex::new(Vec::new()));
-    let recorded = Arc::clone(&writes);
-    let scrollback_writer: ScrollbackWriter = Arc::new(move |lines| {
-        recorded.lock().expect("scrollback writes").push(lines);
-        Ok(())
     });
     let (root, visual) =
         cx.add_window_view(|_, cx| make_workspace(&runtime, events, config, scrollback_writer, cx));
@@ -351,16 +360,6 @@ fn wait_for_save(harness: &mut Harness<'_>, expected: u32) {
     }
 }
 
-fn submit_scrollback(harness: &mut Harness<'_>, value: &'static str) {
-    let root = harness.root.clone();
-    harness.visual.update(|window, cx| {
-        root.update(cx, |workspace, cx| {
-            workspace.set_settings_scrollback_value(value, window, cx);
-            workspace.submit_settings_scrollback(window, cx);
-        });
-    });
-}
-
 #[gpui_kit::test]
 fn titlebar_click_opens_one_route_and_back_restores_the_exact_pane(cx: &mut TestAppContext) {
     let harness = harness(cx, AppConfig::default());
@@ -396,6 +395,19 @@ fn titlebar_click_opens_one_route_and_back_restores_the_exact_pane(cx: &mut Test
     });
 
     click(harness.visual, SETTINGS_OPEN_BUTTON_ID);
+    assert!(!settings_page_visible(harness.visual));
+    harness.visual.update(|window, cx| {
+        let workspace = root.read(cx);
+        assert!(!workspace.settings_is_open());
+        assert_panes(workspace, &[1, 2], 1, window, cx);
+        assert!(pane_focus(workspace, 1, cx).is_focused(window));
+        assert_sessions_unchanged(workspace, &first, &second, 1);
+        assert_eq!(workspace.splits.split_sizes(1, &[]), Some(vec![0.35, 0.65]));
+        assert_eq!(output(&first_model), before[0]);
+        assert_eq!(output(&second_model), before[1]);
+    });
+
+    click(harness.visual, SETTINGS_OPEN_BUTTON_ID);
     assert_eq!(settings_page_count(harness.visual), 1);
     harness.visual.update(|window, cx| {
         let workspace = root.read(cx);
@@ -403,7 +415,7 @@ fn titlebar_click_opens_one_route_and_back_restores_the_exact_pane(cx: &mut Test
         assert_sessions_unchanged(workspace, &first, &second, 1);
     });
 
-    click(harness.visual, SETTINGS_BACK_BUTTON_ID);
+    press(harness.visual, "escape");
     assert!(!settings_page_visible(harness.visual));
     harness.visual.update(|window, cx| {
         let workspace = root.read(cx);
@@ -445,6 +457,8 @@ fn keymap_opens_the_singleton_route_and_escape_returns_input(cx: &mut TestAppCon
     });
     assert_eq!(settings_page_count(harness.visual), 1);
 
+    click(harness.visual, SETTINGS_OPEN_BUTTON_ID);
+    assert!(!settings_page_visible(harness.visual));
     click(harness.visual, SETTINGS_OPEN_BUTTON_ID);
     assert_eq!(settings_page_count(harness.visual), 1);
     harness.visual.update(|window, cx| {
@@ -517,7 +531,7 @@ fn remapped_settings_key_replaces_the_default_chord(cx: &mut TestAppContext) {
         assert_sessions_unchanged(workspace, &first, &second, 1);
     });
 
-    click(harness.visual, SETTINGS_BACK_BUTTON_ID);
+    press(harness.visual, "escape");
     assert!(!settings_page_visible(harness.visual));
     harness.visual.update(|window, cx| {
         let workspace = root.read(cx);
@@ -567,6 +581,12 @@ fn settings_input_does_not_leak_and_background_output_keeps_running(cx: &mut Tes
     std::thread::sleep(Duration::from_millis(250));
     assert!(!output(&first_model).contains("leakprobe"));
     assert!(!output(&second_model).contains("leakprobe"));
+    harness.visual.update(|_, cx| {
+        assert_eq!(
+            root.read(cx).ui.settings_page.read(cx).search_query(),
+            "leakprobe"
+        );
+    });
 
     let probe = if cfg!(windows) {
         "echo bgprobe\r\n"
@@ -586,6 +606,11 @@ fn settings_input_does_not_leak_and_background_output_keeps_running(cx: &mut Tes
         .visual
         .update(|_, cx| assert!(root.read(cx).settings_is_open()));
 
+    press(harness.visual, "escape");
+    assert!(settings_page_visible(harness.visual));
+    harness.visual.update(|_, cx| {
+        assert_eq!(root.read(cx).ui.settings_page.read(cx).search_query(), "");
+    });
     press(harness.visual, "escape");
     assert!(!settings_page_visible(harness.visual));
     harness.visual.update(|window, cx| {
@@ -618,7 +643,46 @@ fn edited_scrollback_survives_reopening_and_stays_applied(cx: &mut TestAppContex
         .visual
         .update(|_, cx| assert!(root.read(cx).settings_is_open()));
 
-    submit_scrollback(&mut harness, "400");
+    // A value outside the field's range stays a draft: pressing Save must not
+    // write it or shrink the live buffers.
+    harness.visual.update(|window, cx| {
+        root.update(cx, |workspace, cx| {
+            workspace.set_settings_scrollback_value("20000001", window, cx);
+        });
+    });
+    click(
+        harness.visual,
+        super::settings_page::SETTINGS_SCROLLBACK_SAVE_ID,
+    );
+    harness.visual.update(|window, cx| {
+        window.render_frame(cx);
+        assert!(root.read(cx).settings_is_open());
+        assert_eq!(config.read(cx).scrollback_lines(), 10_000);
+        assert!(
+            root.read(cx)
+                .ui
+                .settings_page
+                .read(cx)
+                .scrollback_value(cx)
+                .contains("20000001")
+        );
+    });
+    assert!(
+        harness
+            .visual
+            .debug_bounds(super::settings_page::SETTINGS_SCROLLBACK_ERROR_ID)
+            .is_some()
+    );
+
+    harness.visual.update(|window, cx| {
+        root.update(cx, |workspace, cx| {
+            workspace.set_settings_scrollback_value("400", window, cx);
+        });
+    });
+    click(
+        harness.visual,
+        super::settings_page::SETTINGS_SCROLLBACK_SAVE_ID,
+    );
     wait_for_save(&mut harness, 400);
     harness.visual.update(|_, cx| {
         assert!(root.read(cx).settings_is_open());
@@ -629,7 +693,15 @@ fn edited_scrollback_survives_reopening_and_stays_applied(cx: &mut TestAppContex
         resolve_scrollback_lines(Some(400.0)) as usize
     );
 
-    submit_scrollback(&mut harness, "800");
+    harness.visual.update(|window, cx| {
+        root.update(cx, |workspace, cx| {
+            workspace.set_settings_scrollback_value("800", window, cx);
+        });
+    });
+    click(
+        harness.visual,
+        super::settings_page::SETTINGS_SCROLLBACK_SAVE_ID,
+    );
     wait_for_save(&mut harness, 800);
     harness
         .visual
@@ -639,7 +711,7 @@ fn edited_scrollback_survives_reopening_and_stays_applied(cx: &mut TestAppContex
         resolve_scrollback_lines(Some(800.0)) as usize
     );
 
-    click(harness.visual, SETTINGS_BACK_BUTTON_ID);
+    press(harness.visual, "escape");
     assert!(!settings_page_visible(harness.visual));
     harness.visual.update(|window, cx| {
         let workspace = root.read(cx);
@@ -650,10 +722,23 @@ fn edited_scrollback_survives_reopening_and_stays_applied(cx: &mut TestAppContex
     });
 
     press(harness.visual, &format!("{}-,", modifier()));
-    harness
-        .visual
-        .update(|_, cx| assert!(root.read(cx).settings_is_open()));
-    submit_scrollback(&mut harness, "1200");
+    harness.visual.update(|window, cx| {
+        window.render_frame(cx);
+        assert!(root.read(cx).settings_is_open());
+        assert_eq!(
+            root.read(cx).ui.settings_page.read(cx).scrollback_value(cx),
+            "800"
+        );
+    });
+    harness.visual.update(|window, cx| {
+        root.update(cx, |workspace, cx| {
+            workspace.set_settings_scrollback_value("1200", window, cx);
+        });
+    });
+    click(
+        harness.visual,
+        super::settings_page::SETTINGS_SCROLLBACK_SAVE_ID,
+    );
     wait_for_save(&mut harness, 1200);
     harness.visual.update(|_, cx| {
         assert!(root.read(cx).settings_is_open());
@@ -664,7 +749,7 @@ fn edited_scrollback_survives_reopening_and_stays_applied(cx: &mut TestAppContex
         resolve_scrollback_lines(Some(1200.0)) as usize
     );
 
-    click(harness.visual, SETTINGS_BACK_BUTTON_ID);
+    press(harness.visual, "escape");
     harness.visual.update(|window, cx| {
         let workspace = root.read(cx);
         assert!(!workspace.settings_is_open());
@@ -677,5 +762,488 @@ fn edited_scrollback_survives_reopening_and_stays_applied(cx: &mut TestAppContex
         vec![400, 800, 1200]
     );
     send_marker(harness.visual, &first_model, "aftersetting");
+    harness.visual.update(|window, _| window.remove_window());
+}
+
+fn page_bounds(
+    visual: &mut VisualTestContext,
+    id: &'static str,
+) -> gpui_kit::Bounds<gpui_kit::Pixels> {
+    visual.update(|window, cx| window.render_frame(cx));
+    visual
+        .debug_bounds(id)
+        .unwrap_or_else(|| panic!("{id} should be laid out"))
+}
+
+fn assert_page_box(
+    visual: &mut VisualTestContext,
+    id: &'static str,
+    x: f32,
+    y: f32,
+    width: f32,
+    height: f32,
+) {
+    let bounds = page_bounds(visual, id);
+    let actual = (
+        bounds.origin.x.as_f32(),
+        bounds.origin.y.as_f32(),
+        bounds.size.width.as_f32(),
+        bounds.size.height.as_f32(),
+    );
+    assert!(
+        (actual.0 - x).abs() <= 1.0
+            && (actual.1 - y).abs() <= 1.0
+            && (actual.2 - width).abs() <= 1.0
+            && (actual.3 - height).abs() <= 1.0,
+        "{id} is {actual:?}, expected ({x}, {y}, {width}, {height})"
+    );
+}
+
+fn wait_for_settings_error(visual: &mut VisualTestContext) {
+    let deadline = Instant::now() + Duration::from_secs(10);
+    loop {
+        visual.update(|window, cx| window.render_frame(cx));
+        if visual
+            .debug_bounds(super::settings_page::SETTINGS_SCROLLBACK_ERROR_ID)
+            .is_some()
+        {
+            return;
+        }
+        assert!(
+            Instant::now() < deadline,
+            "timed out waiting for the settings save error"
+        );
+        visual.run_until_parked();
+        std::thread::sleep(Duration::from_millis(10));
+    }
+}
+
+fn type_search(harness: &mut Harness<'_>, text: &str) {
+    harness.visual.simulate_input(text);
+    harness.visual.update(|window, cx| window.render_frame(cx));
+}
+
+#[gpui_kit::test]
+fn search_finds_the_scrollback_setting_and_opens_it(cx: &mut TestAppContext) {
+    let mut harness = harness(cx, AppConfig::default());
+    let root = harness.root.clone();
+    click(harness.visual, SETTINGS_OPEN_BUTTON_ID);
+    assert!(settings_page_visible(harness.visual));
+
+    type_search(&mut harness, "scrollback");
+    harness.visual.update(|window, cx| {
+        let page = root.read(cx).ui.settings_page.read(cx);
+        assert_eq!(page.search_query(), "scrollback");
+        assert_eq!(page.search_result_count(cx), 1);
+        assert_eq!(page.result_titles(cx), vec!["Scrollback Lines".to_string()]);
+        window.render_frame(cx);
+    });
+    assert!(
+        harness
+            .visual
+            .debug_bounds(super::settings_page::SETTINGS_SEARCH_RESULT_0_ID)
+            .is_some()
+    );
+    assert!(
+        harness
+            .visual
+            .debug_bounds(super::settings_page::SETTINGS_SEARCH_EMPTY_ID)
+            .is_none()
+    );
+
+    press(harness.visual, "down");
+    press(harness.visual, "up");
+    harness
+        .visual
+        .update(|_, cx| assert_eq!(root.read(cx).ui.settings_page.read(cx).active_index(), 0));
+
+    press(harness.visual, "enter");
+    assert!(
+        harness
+            .visual
+            .debug_bounds(super::settings_page::SETTINGS_SEARCH_RESULTS_ID)
+            .is_none()
+    );
+    harness.visual.update(|window, cx| {
+        window.render_frame(cx);
+        assert!(root.read(cx).settings_is_open());
+        assert_eq!(root.read(cx).ui.settings_page.read(cx).search_query(), "");
+    });
+    assert!(
+        harness
+            .visual
+            .debug_bounds(super::settings_page::SETTINGS_SEARCH_RESULT_0_ID)
+            .is_none()
+    );
+
+    press(harness.visual, "escape");
+    assert!(!settings_page_visible(harness.visual));
+    harness.visual.update(|window, _| window.remove_window());
+}
+
+#[gpui_kit::test]
+fn search_reports_no_match_and_clears_before_closing(cx: &mut TestAppContext) {
+    let mut harness = harness(cx, AppConfig::default());
+    let root = harness.root.clone();
+    click(harness.visual, SETTINGS_OPEN_BUTTON_ID);
+
+    type_search(&mut harness, "zzz");
+    harness.visual.update(|window, cx| {
+        let page = root.read(cx).ui.settings_page.read(cx);
+        assert_eq!(page.search_result_count(cx), 0);
+        assert_eq!(
+            page.empty_message(cx),
+            "No settings match \u{201c}zzz\u{201d}"
+        );
+        window.render_frame(cx);
+    });
+    assert!(
+        harness
+            .visual
+            .debug_bounds(super::settings_page::SETTINGS_SEARCH_EMPTY_ID)
+            .is_some()
+    );
+    assert!(
+        harness
+            .visual
+            .debug_bounds(super::settings_page::SETTINGS_SEARCH_RESULT_0_ID)
+            .is_none()
+    );
+
+    click(
+        harness.visual,
+        super::settings_page::SETTINGS_SEARCH_CLEAR_ID,
+    );
+    harness.visual.update(|window, cx| {
+        window.render_frame(cx);
+        assert_eq!(root.read(cx).ui.settings_page.read(cx).search_query(), "");
+    });
+    assert!(
+        harness
+            .visual
+            .debug_bounds(super::settings_page::SETTINGS_SEARCH_EMPTY_ID)
+            .is_none()
+    );
+    assert!(
+        harness
+            .visual
+            .debug_bounds(super::settings_page::SETTINGS_PANEL_ID)
+            .is_some()
+    );
+
+    type_search(&mut harness, "scrollback");
+    press(harness.visual, "escape");
+    assert!(settings_page_visible(harness.visual));
+    harness
+        .visual
+        .update(|_, cx| assert_eq!(root.read(cx).ui.settings_page.read(cx).search_query(), ""));
+    press(harness.visual, "escape");
+    assert!(!settings_page_visible(harness.visual));
+    harness.visual.update(|window, _| window.remove_window());
+}
+
+#[gpui_kit::test]
+fn search_accepts_chinese_and_mouse_selection(cx: &mut TestAppContext) {
+    let mut harness = harness(cx, AppConfig::default());
+    let root = harness.root.clone();
+    click(harness.visual, SETTINGS_OPEN_BUTTON_ID);
+    harness.visual.update(|_, cx| {
+        let locale = root.read(cx).ui.locale.clone();
+        locale.update(cx, |locale, cx| locale.set_language(Language::Zh, cx));
+    });
+
+    type_search(&mut harness, "回滚");
+    harness.visual.update(|window, cx| {
+        let page = root.read(cx).ui.settings_page.read(cx);
+        assert_eq!(page.search_query(), "回滚");
+        assert_eq!(page.result_titles(cx), vec!["回滚行数".to_string()]);
+        window.render_frame(cx);
+    });
+    assert!(
+        harness
+            .visual
+            .debug_bounds(super::settings_page::SETTINGS_SEARCH_RESULT_0_ID)
+            .is_some()
+    );
+
+    click(
+        harness.visual,
+        super::settings_page::SETTINGS_SEARCH_RESULT_0_ID,
+    );
+    harness.visual.update(|window, cx| {
+        window.render_frame(cx);
+        assert_eq!(root.read(cx).ui.settings_page.read(cx).search_query(), "");
+        assert!(root.read(cx).settings_is_open());
+    });
+    assert!(
+        harness
+            .visual
+            .debug_bounds(super::settings_page::SETTINGS_PANEL_ID)
+            .is_some()
+    );
+
+    harness.visual.update(|_, cx| {
+        let locale = root.read(cx).ui.locale.clone();
+        locale.update(cx, |locale, cx| locale.set_language(Language::En, cx));
+    });
+    type_search(&mut harness, "scrollback");
+    click(
+        harness.visual,
+        super::settings_page::SETTINGS_SEARCH_RESULT_0_ID,
+    );
+    harness.visual.update(|window, cx| {
+        window.render_frame(cx);
+        assert_eq!(root.read(cx).ui.settings_page.read(cx).search_query(), "");
+    });
+    assert!(
+        harness
+            .visual
+            .debug_bounds(super::settings_page::SETTINGS_PANEL_ID)
+            .is_some()
+    );
+
+    click(
+        harness.visual,
+        super::settings_page::SETTINGS_OPEN_BUTTON_ID,
+    );
+    assert!(!settings_page_visible(harness.visual));
+    harness.visual.update(|window, _| window.remove_window());
+}
+
+#[gpui_kit::test]
+fn page_layout_matches_the_reference_metrics(cx: &mut TestAppContext) {
+    let mut harness = harness(cx, AppConfig::default());
+    harness
+        .visual
+        .simulate_resize(gpui_kit::size(gpui_kit::px(800.0), gpui_kit::px(636.0)));
+    click(harness.visual, SETTINGS_OPEN_BUTTON_ID);
+
+    // The 36px window title bar sits above the 800x600 settings content area.
+    assert_page_box(harness.visual, SETTINGS_PAGE_ID, 0.0, 36.0, 800.0, 600.0);
+    assert_page_box(
+        harness.visual,
+        super::settings_page::SETTINGS_HEADER_ID,
+        0.0,
+        36.0,
+        800.0,
+        73.0,
+    );
+    assert_page_box(
+        harness.visual,
+        super::settings_page::SETTINGS_SEARCH_FIELD_ID,
+        496.0,
+        60.0,
+        256.0,
+        32.0,
+    );
+    assert_page_box(
+        harness.visual,
+        super::settings_page::SETTINGS_SIDEBAR_ID,
+        0.0,
+        109.0,
+        192.0,
+        527.0,
+    );
+    assert_page_box(
+        harness.visual,
+        super::settings_page::SETTINGS_TAB_TERMINAL_ID,
+        12.0,
+        139.0,
+        159.0,
+        32.0,
+    );
+    assert_page_box(
+        harness.visual,
+        super::settings_page::SETTINGS_PANEL_ID,
+        192.0,
+        109.0,
+        608.0,
+        527.0,
+    );
+    assert_page_box(
+        harness.visual,
+        super::settings_page::SETTINGS_SCROLLBACK_SECTION_ID,
+        216.0,
+        133.0,
+        536.0,
+        111.0,
+    );
+    assert_page_box(
+        harness.visual,
+        super::settings_page::SETTINGS_SCROLLBACK_INPUT_ID,
+        216.0,
+        155.0,
+        536.0,
+        36.0,
+    );
+
+    if std::env::var_os("TTERM_GPUI_WRITE_SETTINGS_LAYOUT").is_some() {
+        write_layout_json(harness.visual, "layout.json", &LAYOUT_IDS);
+    }
+
+    type_search(&mut harness, "scrollback");
+    assert_page_box(
+        harness.visual,
+        super::settings_page::SETTINGS_SEARCH_RESULT_0_ID,
+        216.0,
+        154.0,
+        560.0,
+        40.0,
+    );
+    if std::env::var_os("TTERM_GPUI_WRITE_SETTINGS_LAYOUT").is_some() {
+        write_layout_json(harness.visual, "layout-search.json", &SEARCH_LAYOUT_IDS);
+    }
+
+    press(harness.visual, "escape");
+    type_search(&mut harness, "zzz");
+    if std::env::var_os("TTERM_GPUI_WRITE_SETTINGS_LAYOUT").is_some() {
+        write_layout_json(harness.visual, "layout-empty.json", &EMPTY_LAYOUT_IDS);
+    }
+
+    harness.visual.update(|window, _| window.remove_window());
+}
+
+const LAYOUT_IDS: [&str; 10] = [
+    SETTINGS_PAGE_ID,
+    super::settings_page::SETTINGS_HEADER_ID,
+    super::settings_page::SETTINGS_TITLE_ID,
+    super::settings_page::SETTINGS_SEARCH_FIELD_ID,
+    super::settings_page::SETTINGS_SIDEBAR_ID,
+    super::settings_page::SETTINGS_TAB_TERMINAL_ID,
+    super::settings_page::SETTINGS_PANEL_ID,
+    super::settings_page::SETTINGS_SCROLLBACK_SECTION_ID,
+    super::settings_page::SETTINGS_SCROLLBACK_INPUT_ID,
+    super::settings_page::SETTINGS_SCROLLBACK_SAVE_ID,
+];
+
+const SEARCH_LAYOUT_IDS: [&str; 6] = [
+    SETTINGS_PAGE_ID,
+    super::settings_page::SETTINGS_SEARCH_FIELD_ID,
+    super::settings_page::SETTINGS_SEARCH_RESULTS_ID,
+    super::settings_page::SETTINGS_SEARCH_COUNT_ID,
+    super::settings_page::SETTINGS_SEARCH_RESULT_0_ID,
+    super::settings_page::SETTINGS_SIDEBAR_ID,
+];
+
+const EMPTY_LAYOUT_IDS: [&str; 4] = [
+    SETTINGS_PAGE_ID,
+    super::settings_page::SETTINGS_SEARCH_FIELD_ID,
+    super::settings_page::SETTINGS_SEARCH_EMPTY_ID,
+    super::settings_page::SETTINGS_SIDEBAR_ID,
+];
+
+fn write_layout_json(visual: &mut VisualTestContext, file: &str, ids: &[&'static str]) {
+    use std::path::Path;
+
+    fn element(visual: &mut VisualTestContext, id: &'static str) -> serde_json::Value {
+        let bounds = page_bounds(visual, id);
+        serde_json::json!({
+            "x": bounds.origin.x.as_f32(),
+            "y": bounds.origin.y.as_f32() - 36.0,
+            "width": bounds.size.width.as_f32(),
+            "height": bounds.size.height.as_f32(),
+        })
+    }
+
+    let elements: serde_json::Map<String, serde_json::Value> = ids
+        .iter()
+        .map(|id| (id.to_string(), element(visual, id)))
+        .collect();
+    let layout = serde_json::json!({
+        "version": 1,
+        "viewport": { "width": 800, "height": 600, "deviceScaleFactor": 2 },
+        "titleBarHeight": 36,
+        "coordinateSpace": "settings content, origin at the title bar's bottom edge",
+        "elements": elements,
+    });
+    let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
+    let directory = root.join("target/parity/settings-gpui");
+    std::fs::create_dir_all(&directory).expect("the layout directory is writable");
+    std::fs::write(
+        directory.join(file),
+        serde_json::to_string_pretty(&layout).expect("the layout serializes") + "\n",
+    )
+    .expect("the layout is written");
+    println!("settings layout: {}", directory.join(file).display());
+}
+
+#[gpui_kit::test]
+fn a_failed_save_keeps_the_page_open_and_the_running_capacity(cx: &mut TestAppContext) {
+    let writes = Arc::new(Mutex::new(Vec::new()));
+    let writer: ScrollbackWriter = Arc::new(|_| Err("the config disk is full".to_string()));
+    let harness = harness_with_writer(cx, AppConfig::default(), writer, writes);
+    let root = harness.root.clone();
+    let config = harness.config.clone();
+    let first_model = Arc::clone(&harness.first_model);
+    click(harness.visual, SETTINGS_OPEN_BUTTON_ID);
+
+    harness.visual.update(|window, cx| {
+        root.update(cx, |workspace, cx| {
+            workspace.set_settings_scrollback_value("500", window, cx);
+        });
+    });
+    click(
+        harness.visual,
+        super::settings_page::SETTINGS_SCROLLBACK_SAVE_ID,
+    );
+    assert!(
+        harness
+            .visual
+            .debug_bounds(super::settings_page::SETTINGS_SCROLLBACK_ERROR_ID)
+            .is_some()
+    );
+    assert!(settings_page_visible(harness.visual));
+    harness.visual.update(|window, cx| {
+        window.render_frame(cx);
+        assert!(root.read(cx).settings_is_open());
+        assert_eq!(config.read(cx).scrollback_lines(), 10_000);
+        assert_eq!(
+            first_model.scrollback(),
+            resolve_scrollback_lines(Some(10_000.0)) as usize
+        );
+        assert_eq!(
+            root.read(cx).ui.settings_page.read(cx).scrollback_value(cx),
+            "500"
+        );
+    });
+    harness.visual.update(|window, _| window.remove_window());
+}
+
+#[gpui_kit::test]
+fn arrow_keys_move_between_the_page_and_its_setting(cx: &mut TestAppContext) {
+    let mut harness = harness(cx, AppConfig::default());
+    let root = harness.root.clone();
+    click(harness.visual, SETTINGS_OPEN_BUTTON_ID);
+
+    type_search(&mut harness, "e");
+    harness.visual.update(|window, cx| {
+        let page = root.read(cx).ui.settings_page.read(cx);
+        assert_eq!(page.search_result_count(cx), 2);
+        assert_eq!(page.active_index(), 0);
+        window.render_frame(cx);
+    });
+
+    press(harness.visual, "down");
+    harness
+        .visual
+        .update(|_, cx| assert_eq!(root.read(cx).ui.settings_page.read(cx).active_index(), 1));
+    press(harness.visual, "up");
+    harness
+        .visual
+        .update(|_, cx| assert_eq!(root.read(cx).ui.settings_page.read(cx).active_index(), 0));
+    press(harness.visual, "down");
+    press(harness.visual, "enter");
+    harness.visual.update(|window, cx| {
+        window.render_frame(cx);
+        assert_eq!(root.read(cx).ui.settings_page.read(cx).search_query(), "");
+        assert!(root.read(cx).settings_is_open());
+    });
+    assert!(
+        harness
+            .visual
+            .debug_bounds(super::settings_page::SETTINGS_SEARCH_RESULT_0_ID)
+            .is_none()
+    );
+
     harness.visual.update(|window, _| window.remove_window());
 }

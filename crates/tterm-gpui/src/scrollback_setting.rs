@@ -29,8 +29,11 @@ mod tests;
 const DIALOG_ID: &str = "scrollback-setting-dialog";
 const CANCEL_BUTTON_ID: &str = "scrollback-setting-cancel";
 const SAVE_BUTTON_ID: &str = "scrollback-setting-save";
+const PAGE_SECTION_ID: &str = "settings-scrollback-lines";
 const PAGE_INPUT_ID: &str = "settings-scrollback-input";
 const PAGE_SAVE_BUTTON_ID: &str = "settings-scrollback-save";
+const PAGE_ERROR_ID: &str = "settings-scrollback-error";
+const SCROLLBACK_PRESETS: [u32; 5] = [1_000, 5_000, 10_000, 50_000, 100_000];
 const DIALOG_WIDTH: f32 = 448.0;
 const DIALOG_PADDING: f32 = 24.0;
 const DIALOG_RADIUS: f32 = 8.0;
@@ -83,6 +86,10 @@ impl ScrollbackSetting {
 
     fn open_editor(&mut self, window: &mut Window, cx: &mut Context<Self>, page_mode: bool) {
         if self.open {
+            // A dialog editor can become the page's section when settings
+            // opens above it; keep the Escape owner in sync with the route.
+            self.page_mode = page_mode;
+            cx.notify();
             return;
         }
         self.page_mode = page_mode;
@@ -241,6 +248,15 @@ impl ScrollbackSetting {
         }
     }
 
+    /// The current draft, for a test that reopens the page.
+    #[cfg(test)]
+    pub(crate) fn value(&self, cx: &App) -> String {
+        self.input
+            .as_ref()
+            .map(|input| input.read(cx).value().to_string())
+            .unwrap_or_default()
+    }
+
     /// Sets the field value for a focused page edit.
     #[cfg(test)]
     pub(crate) fn set_value(&mut self, value: &str, window: &mut Window, cx: &mut Context<Self>) {
@@ -249,28 +265,34 @@ impl ScrollbackSetting {
         }
     }
 
-    /// Renders the scrollback field as a section of the settings page.
-    pub(crate) fn section(&mut self, cx: &mut Context<Self>) -> Div {
+    /// Renders the scrollback field as the body of the Terminal settings page.
+    ///
+    /// The page's save button is separate so the field keeps the reference
+    /// layout, where saving the page is one action below every setting.
+    pub(crate) fn section(&mut self, cx: &mut Context<Self>) -> Stateful<Div> {
         let theme = self.theme;
-        let title = self.text(cx, keys::SCROLLBACK_SETTING_TITLE);
-        let description = self.text(cx, keys::SCROLLBACK_SETTING_DESCRIPTION);
-        let save = self.text(cx, keys::SCROLLBACK_SETTING_SAVE);
+        let title = self.text(cx, keys::FONT_SETTINGS_SCROLLBACK_LINES);
+        let description = self.text(cx, keys::FONT_SETTINGS_SCROLLBACK_LINES_DESC);
+        let unlimited = self.text(cx, keys::FONT_SETTINGS_UNLIMITED);
+        let value = self
+            .input
+            .as_ref()
+            .map(|input| input.read(cx).value().to_string())
+            .unwrap_or_default();
+        let current = value.trim().parse::<u32>().ok();
         let mut section = div()
+            .id(PAGE_SECTION_ID)
+            .debug_selector(|| PAGE_SECTION_ID.to_string())
             .flex()
             .flex_col()
-            .gap(px(8.0))
             .capture_key_down(cx.listener(Self::handle_key))
             .child(
                 div()
-                    .text_size(px(15.0))
-                    .font_weight(FontWeight(600.0))
+                    .text_size(px(14.0))
+                    .line_height(px(14.0))
+                    .font_weight(FontWeight(500.0))
+                    .mb(px(8.0))
                     .child(title),
-            )
-            .child(
-                div()
-                    .text_size(px(13.0))
-                    .text_color(hsla(theme.colors.muted_foreground, 1.0))
-                    .child(description),
             );
         if let Some(state) = &self.input {
             section = section.child(
@@ -285,33 +307,86 @@ impl ScrollbackSetting {
                 .debug_selector(|| PAGE_INPUT_ID.to_string()),
             );
         }
+        section = section.child(
+            div()
+                .mt(px(8.0))
+                .text_size(px(12.0))
+                .line_height(px(13.2))
+                .text_color(hsla(theme.colors.muted_foreground, 1.0))
+                .child(description),
+        );
         if let Some(error) = &self.error {
             section = section.child(
                 div()
+                    .id(PAGE_ERROR_ID)
+                    .debug_selector(|| PAGE_ERROR_ID.to_string())
+                    .mt(px(8.0))
                     .text_size(px(12.0))
                     .text_color(hsla(theme.colors.destructive, 1.0))
                     .child(error.clone()),
             );
         }
+        let mut presets = div()
+            .mt(px(8.0))
+            .flex()
+            .flex_wrap()
+            .gap(px(6.0))
+            .child(preset_button(
+                theme,
+                unlimited,
+                0,
+                current == Some(0),
+                cx.listener(|this, _, window, cx| this.set_preset(0, window, cx)),
+            ));
+        for lines in SCROLLBACK_PRESETS {
+            let label = if lines >= 1_000 {
+                format!("{}k", lines / 1_000)
+            } else {
+                lines.to_string()
+            };
+            presets = presets.child(preset_button(
+                theme,
+                label,
+                lines,
+                current == Some(lines),
+                cx.listener(move |this, _, window, cx| this.set_preset(lines, window, cx)),
+            ));
+        }
+        section.child(presets)
+    }
+
+    /// The full-width save action below the Terminal page.
+    pub(crate) fn save_button(&mut self, cx: &mut Context<Self>) -> Div {
+        let save = self.text(cx, keys::FONT_SETTINGS_SAVE);
         let state = ButtonState {
             disabled: self.saving,
             ..ButtonState::default()
         };
-        section.child(
-            div().mt(px(8.0)).flex().justify_end().child(
-                button(
-                    PAGE_SAVE_BUTTON_ID,
-                    save.clone(),
-                    Variant::Default,
-                    ButtonSize::Default,
-                    state,
-                    theme,
-                )
-                .debug_selector(|| PAGE_SAVE_BUTTON_ID.to_string())
-                .aria_label(save)
-                .on_click(cx.listener(|this, _, window, cx| this.submit(window, cx))),
-            ),
+        div().w_full().child(
+            button(
+                PAGE_SAVE_BUTTON_ID,
+                save.clone(),
+                Variant::Default,
+                ButtonSize::Default,
+                state,
+                self.theme,
+            )
+            .w_full()
+            .debug_selector(|| PAGE_SAVE_BUTTON_ID.to_string())
+            .aria_label(save)
+            .on_click(cx.listener(|this, _, window, cx| this.submit(window, cx))),
         )
+    }
+
+    fn set_preset(&mut self, lines: u32, window: &mut Window, cx: &mut Context<Self>) {
+        if let Some(input) = &self.input {
+            input.update(cx, |state, cx| {
+                state.set_value(lines.to_string(), window, cx);
+                state.focus(window, cx);
+            });
+        }
+        self.error = None;
+        cx.notify();
     }
 
     fn dialog(&mut self, cx: &mut Context<Self>) -> Stateful<Div> {
@@ -423,4 +498,33 @@ impl Render for ScrollbackSetting {
                     .child(dialog),
             )
     }
+}
+
+/// One preset chip under the scrollback field.
+///
+/// A preset only fills the draft; it never saves, so a mistaken click cannot
+/// shrink a running terminal's history before the page is saved.
+fn preset_button(
+    theme: Theme,
+    label: String,
+    lines: u32,
+    selected: bool,
+    on_click: impl Fn(&gpui_kit::ClickEvent, &mut Window, &mut App) + 'static,
+) -> Stateful<Div> {
+    let variant = if selected {
+        Variant::Default
+    } else {
+        Variant::Outline
+    };
+    button(
+        format!("settings-scrollback-preset-{lines}"),
+        label.clone(),
+        variant,
+        ButtonSize::Xs,
+        ButtonState::default(),
+        theme,
+    )
+    .debug_selector(move || format!("settings-scrollback-preset-{lines}"))
+    .aria_label(label)
+    .on_click(on_click)
 }
