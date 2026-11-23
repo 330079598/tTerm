@@ -1,50 +1,212 @@
 {
   "version": 1,
+  "method": "gpui_kit::HeadlessAppContext::with_platform + current_platform(true); production SettingsPage and real key events",
+  "isolation": "in-memory AppConfig with no-op writers; no user config, database or credential file is read",
   "theme": "dark",
   "uiStyle": "classic",
   "uiScalePercent": 100,
   "viewport": {
     "width": 800,
     "height": 600,
-    "deviceScaleFactor": 2
+    "deviceScaleFactor": 2.0
   },
-  "titleBarHeight": 36,
-  "instance": 600602661,
+  "titleBarHeight": 0,
+  "crop": "none; the production page already occupies the full 800x600 content area",
   "screens": {
     "settings.search.scrollback": {
       "image": "settings.search.scrollback.png",
       "width": 1600,
-      "height": 1200,
-      "locale": "en-US",
-      "sha256": "385db61d3de4896c515a82b81fe975a25b47b4f428c3bca284bf8b4f93d49113"
+      "height": 1200
     },
     "settings.terminal.scrollback": {
       "image": "settings.terminal.scrollback.png",
       "width": 1600,
-      "height": 1200,
-      "locale": "en-US",
-      "sha256": "0f06c1877b5b9e26e9eef8917f07833fa3988de2369e851ac40f34b91eb12665"
+      "height": 1200
     },
     "settings.search.empty": {
       "image": "settings.search.empty.png",
       "width": 1600,
-      "height": 1200,
-      "locale": "en-US",
-      "sha256": "d7e8a1a526d510027ec44224e4cede76fbb192913e1fbfa793a18dfcdb0ea7ce"
+      "height": 1200
     },
     "settings.search.scrollback-zh": {
       "image": "settings.search.scrollback-zh.png",
       "width": 1600,
-      "height": 1200,
-      "locale": "zh-CN",
-      "sha256": "1309e3c8548e222a27d2242bb5e9f71d65925e733d4c435d46ce5657a7cd2c12"
+      "height": 1200
     },
     "settings.terminal.scrollback-zh": {
       "image": "settings.terminal.scrollback-zh.png",
       "width": 1600,
-      "height": 1200,
-      "locale": "zh-CN",
-      "sha256": "ad4c89c976cf2d6fc44ed3c55787e36880a1f877b1da7755ed197baef6dc514e"
+      "height": 1200
     }
-  }
+  },
+  "measurements": [
+    {
+      "screen": "settings.search.scrollback",
+      "region": "header",
+      "referenceBounds": {
+        "x": 0.0,
+        "y": 0.0,
+        "width": 800.0,
+        "height": 73.0
+      },
+      "actualBounds": {
+        "x": 0.0,
+        "y": 0.0,
+        "width": 800.0,
+        "height": 73.0
+      },
+      "pixels": 233600,
+      "meanAbsoluteError": 1.7208547374429224,
+      "maxChannelError": 177,
+      "pixelsAbove2": 5019,
+      "pixelFractionAbove2": 0.021485445205479452
+    },
+    {
+      "screen": "settings.search.scrollback",
+      "region": "search-result",
+      "referenceBounds": {
+        "x": 192.0,
+        "y": 73.0,
+        "width": 608.0,
+        "height": 120.0
+      },
+      "actualBounds": {
+        "x": 192.0,
+        "y": 73.0,
+        "width": 608.0,
+        "height": 120.0
+      },
+      "pixels": 291840,
+      "meanAbsoluteError": 1.6783077485380118,
+      "maxChannelError": 180,
+      "pixelsAbove2": 5335,
+      "pixelFractionAbove2": 0.018280564692982455
+    },
+    {
+      "screen": "settings.terminal.scrollback",
+      "region": "header",
+      "referenceBounds": {
+        "x": 0.0,
+        "y": 0.0,
+        "width": 800.0,
+        "height": 73.0
+      },
+      "actualBounds": {
+        "x": 0.0,
+        "y": 0.0,
+        "width": 800.0,
+        "height": 73.0
+      },
+      "pixels": 233600,
+      "meanAbsoluteError": 2.2775542237442923,
+      "maxChannelError": 177,
+      "pixelsAbove2": 7344,
+      "pixelFractionAbove2": 0.03143835616438356
+    },
+    {
+      "screen": "settings.terminal.scrollback",
+      "region": "scrollback-field",
+      "referenceBounds": {
+        "x": 216.0,
+        "y": 281.0,
+        "width": 536.0,
+        "height": 111.0
+      },
+      "actualBounds": {
+        "x": 216.0,
+        "y": 97.0,
+        "width": 536.0,
+        "height": 111.0
+      },
+      "pixels": 237984,
+      "meanAbsoluteError": 8.21252549190982,
+      "maxChannelError": 228,
+      "pixelsAbove2": 34076,
+      "pixelFractionAbove2": 0.1431860965443055
+    },
+    {
+      "screen": "settings.search.scrollback-zh",
+      "region": "header",
+      "referenceBounds": {
+        "x": 0.0,
+        "y": 0.0,
+        "width": 800.0,
+        "height": 73.0
+      },
+      "actualBounds": {
+        "x": 0.0,
+        "y": 0.0,
+        "width": 800.0,
+        "height": 73.0
+      },
+      "pixels": 233600,
+      "meanAbsoluteError": 1.2829637557077627,
+      "maxChannelError": 177,
+      "pixelsAbove2": 3890,
+      "pixelFractionAbove2": 0.016652397260273972
+    },
+    {
+      "screen": "settings.search.scrollback-zh",
+      "region": "search-result",
+      "referenceBounds": {
+        "x": 192.0,
+        "y": 73.0,
+        "width": 608.0,
+        "height": 120.0
+      },
+      "actualBounds": {
+        "x": 192.0,
+        "y": 73.0,
+        "width": 608.0,
+        "height": 120.0
+      },
+      "pixels": 291840,
+      "meanAbsoluteError": 1.2396141721491227,
+      "maxChannelError": 180,
+      "pixelsAbove2": 4436,
+      "pixelFractionAbove2": 0.015200109649122807
+    },
+    {
+      "screen": "settings.terminal.scrollback-zh",
+      "region": "header",
+      "referenceBounds": {
+        "x": 0.0,
+        "y": 0.0,
+        "width": 800.0,
+        "height": 73.0
+      },
+      "actualBounds": {
+        "x": 0.0,
+        "y": 0.0,
+        "width": 800.0,
+        "height": 73.0
+      },
+      "pixels": 233600,
+      "meanAbsoluteError": 1.244095319634703,
+      "maxChannelError": 177,
+      "pixelsAbove2": 4289,
+      "pixelFractionAbove2": 0.018360445205479452
+    },
+    {
+      "screen": "settings.terminal.scrollback-zh",
+      "region": "scrollback-field",
+      "referenceBounds": {
+        "x": 216.0,
+        "y": 281.0,
+        "width": 536.0,
+        "height": 111.0
+      },
+      "actualBounds": {
+        "x": 216.0,
+        "y": 97.0,
+        "width": 536.0,
+        "height": 111.0
+      },
+      "pixels": 237984,
+      "meanAbsoluteError": 7.462098292322173,
+      "maxChannelError": 229,
+      "pixelsAbove2": 32646,
+      "pixelFractionAbove2": 0.13717728922952804
+    }
+  ]
 }
