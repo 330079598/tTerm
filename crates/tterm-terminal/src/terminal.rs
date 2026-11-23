@@ -31,10 +31,10 @@ use alacritty_terminal::term::{Config as TermConfig, Osc52, Term, TermDamage, Te
 use alacritty_terminal::vte::ansi::Processor;
 
 use crate::cell::Cell;
-use crate::clear_scanner::ClearScanner;
 use crate::damage::Damage;
 use crate::event::{self, Clipboard, Intent};
 use crate::grid::{CellSize, GridPoint, GridRange, GridSize};
+use crate::history_release::HistoryRelease;
 use crate::mode::Modes;
 use crate::mouse_reporting::MOUSE_REPORTING_OFF;
 use crate::osc52_scanner::Osc52Scanner;
@@ -227,7 +227,6 @@ impl EventListener for Collector {
 struct State {
     term: Term<Collector>,
     parser: Processor,
-    clear_scanner: ClearScanner,
     osc52_scanner: Osc52Scanner,
     config: Config,
     cell_size: CellSize,
@@ -268,7 +267,6 @@ impl Terminal {
         let state = State {
             term,
             parser: Processor::new(),
-            clear_scanner: ClearScanner::default(),
             osc52_scanner,
             config,
             cell_size,
@@ -298,7 +296,6 @@ impl Terminal {
         // scroll or reflow the grid under it, so keep the lifecycle-tracked
         // anchor and drop the endpoint instead of committing a stale range.
         state.word_drag = None;
-        let cleared_by_sequence = state.clear_scanner.scan(bytes);
         let configured = state.config.scrollback;
         let was_alternate = state.term.mode().contains(TermMode::ALT_SCREEN);
         let history_before = if was_alternate {
@@ -311,27 +308,34 @@ impl Terminal {
         };
         let stores = state.osc52_scanner.scan(bytes);
         let State { parser, term, .. } = &mut *state;
-        let mut start = 0;
-        for (end, text) in stores {
-            if end < start || end > bytes.len() {
-                continue;
+        let cleared_main;
+        {
+            let mut handler = HistoryRelease::new(term);
+            let mut start = 0;
+            for (end, text) in stores {
+                if end < start || end > bytes.len() {
+                    continue;
+                }
+                parser.advance(&mut handler, &bytes[start..end]);
+                self.intents
+                    .lock()
+                    .unwrap_or_else(PoisonError::into_inner)
+                    .push(Intent::ClipboardStore {
+                        clipboard: Clipboard::Clipboard,
+                        text,
+                    });
+                start = end;
             }
-            parser.advance(term, &bytes[start..end]);
-            self.intents
-                .lock()
-                .unwrap_or_else(PoisonError::into_inner)
-                .push(Intent::ClipboardStore {
-                    clipboard: Clipboard::Clipboard,
-                    text,
-                });
-            start = end;
+            parser.advance(&mut handler, &bytes[start..]);
+            cleared_main = handler.cleared_main();
         }
-        parser.advance(term, &bytes[start..]);
         let is_alternate = term.mode().contains(TermMode::ALT_SCREEN);
         if was_alternate != is_alternate {
             // A switch swaps grids within one write, and the main screen may
             // have evicted history before it. Only the active grid can be
             // inspected afterwards, so a new generation drops cached rows.
+            // Any main clear was already truncated by the handler before the
+            // switch, while the main grid was still active.
             state.scrollback_generation = state.scrollback_generation.wrapping_add(1);
             return;
         }
@@ -340,17 +344,9 @@ impl Terminal {
         }
         let history_size = term.total_lines().saturating_sub(term.screen_lines());
         let full_damage = matches!(term.damage(), TermDamage::Full);
-        // A shell's `clear` can share one write with the prompt that follows
-        // it, so a clear is also recognized from the completed ED 3 sequence;
-        // a delayed synchronized update is caught by the history drop. The
-        // scanner is the authority for a clear that refills the history in the
-        // same write. Alacritty's ring keeps up to 1000 trimmed rows allocated
-        // after a clear; truncating it preserves the visible rows and the live
-        // history while freeing the erased rows.
-        let cleared_history = cleared_by_sequence || history_before > history_size;
-        if cleared_history {
-            term.grid_mut().truncate();
-        }
+        // A history drop without a clear is still worth invalidating cached
+        // absolute lines for.
+        let cleared_history = cleared_main || history_before > history_size;
         if cleared_history || (configured > 0 && history_size >= configured && full_damage) {
             state.scrollback_generation = state.scrollback_generation.wrapping_add(1);
         }

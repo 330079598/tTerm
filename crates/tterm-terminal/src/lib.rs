@@ -52,7 +52,6 @@
 //! without a panic, and the seed is printed so a failure can be replayed.
 
 pub mod cell;
-mod clear_scanner;
 pub mod color;
 /// Shell integration command marks shared with the notification rules.
 pub mod command_mark;
@@ -65,6 +64,7 @@ pub mod damage;
 pub mod event;
 pub mod grid;
 pub mod hint;
+mod history_release;
 /// The frontend's base64 and URI-component decoders.
 pub mod js_encoding;
 /// JavaScript string semantics over Rust's UTF-8 strings.

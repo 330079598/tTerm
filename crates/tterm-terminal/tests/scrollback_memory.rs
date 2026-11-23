@@ -1,15 +1,24 @@
-//! Allocator-backed evidence that clearing the history also releases its rows.
+//! Allocator-backed evidence that clearing the history releases its rows.
 //!
 //! Alacritty's ring keeps trimmed rows allocated until the ring is truncated
-//! or the allocation grows past its cache. The test wraps the system allocator
-//! so it can distinguish "history_size is zero" from "the row storage is
-//! gone", and uses a capacity below Alacritty's 1000-row cache where the
-//! difference is visible.
+//! or the allocation grows past its cache. The tests wrap the system allocator
+//! so they can distinguish "history_size is zero" from "the row storage is
+//! gone". A capacity below Alacritty's 1000-row cache makes the difference
+//! visible, and a process-wide lock keeps the shared counter meaningful while
+//! the test binary runs its tests in parallel.
+//!
+//! Measurements are taken at the same stable point in each test: the write has
+//! returned and every snapshot created for assertions has been dropped. The
+//! difference uses `checked_sub`, so a measurement that grew is reported
+//! instead of overflowing.
 
 use std::alloc::{GlobalAlloc, Layout, System};
+use std::hash::{DefaultHasher, Hash, Hasher};
 use std::sync::atomic::{AtomicIsize, Ordering};
+use std::sync::{Mutex, MutexGuard};
 
 use tterm_terminal::grid::{CellSize, GridSize};
+use tterm_terminal::mode::Modes;
 use tterm_terminal::terminal::{Config, Terminal};
 
 /// Counts live bytes allocated through the global allocator.
@@ -43,8 +52,39 @@ unsafe impl GlobalAlloc for CountingAllocator {
 #[global_allocator]
 static ALLOCATOR: CountingAllocator = CountingAllocator;
 
+/// Serializes the measurements: the counter is shared by the whole binary.
+static MEASURE_LOCK: Mutex<()> = Mutex::new(());
+
+const COLUMNS: usize = 80;
+const LINES: usize = 24;
+const CAPACITY: usize = 500;
+const ROWS: usize = 2_000;
+
+fn measure_lock() -> MutexGuard<'static, ()> {
+    MEASURE_LOCK
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner())
+}
+
 fn live_bytes() -> isize {
     LIVE_BYTES.load(Ordering::SeqCst)
+}
+
+fn released(before: isize, after: isize) -> isize {
+    before
+        .checked_sub(after)
+        .expect("live-byte difference must fit in isize")
+}
+
+fn model() -> Terminal {
+    Terminal::new(
+        Config {
+            scrollback: CAPACITY,
+            ..Config::default()
+        },
+        GridSize::new(COLUMNS, LINES),
+        CellSize::new(8, 16),
+    )
 }
 
 fn output(lines: usize) -> Vec<u8> {
@@ -55,50 +95,70 @@ fn output(lines: usize) -> Vec<u8> {
     bytes
 }
 
-#[test]
-fn clearing_the_history_returns_the_row_storage_to_the_allocator() {
-    const COLUMNS: usize = 80;
-    const LINES: usize = 24;
-    const CAPACITY: usize = 500;
-
-    let model = Terminal::new(
-        Config {
-            scrollback: CAPACITY,
-            ..Config::default()
-        },
-        GridSize::new(COLUMNS, LINES),
-        CellSize::new(8, 16),
-    );
-    let bytes = output(2_000);
+/// Fills the bounded history and leaves the model at the bottom of the screen.
+fn fill(model: &Terminal) {
+    let bytes = output(ROWS);
     model.write(&bytes);
     drop(bytes);
 
-    let before_frame = model.snapshot();
-    assert_eq!(before_frame.history_size(), CAPACITY);
-    let before = live_bytes();
-    drop(before_frame);
+    let snapshot = model.snapshot();
+    assert_eq!(snapshot.history_size(), CAPACITY);
+    assert_eq!(snapshot.display_offset(), 0);
+    drop(snapshot);
+}
 
-    let mut clear_and_prompt = b"\x1b[H\x1b[2J\x1b[3J".to_vec();
+fn clear_and_prompt() -> Vec<u8> {
+    let mut bytes = b"\x1b[H\x1b[2J\x1b[3J".to_vec();
     for index in 0..30 {
-        clear_and_prompt.extend_from_slice(format!("fresh {index:02}\r\n").as_bytes());
+        bytes.extend_from_slice(format!("fresh {index:02}\r\n").as_bytes());
     }
-    model.write(&clear_and_prompt);
-    let cleared = model.snapshot();
-    assert!(cleared.history_size() < CAPACITY);
-    assert_eq!(cleared.display_offset(), 0);
-    assert!((0..cleared.line_count()).any(|line| {
-        cleared.row(line).is_some_and(|row| {
+    bytes
+}
+
+fn write_in_chunks(model: &Terminal, bytes: &[u8], chunk: Option<usize>) {
+    match chunk {
+        Some(size) => {
+            for part in bytes.chunks(size) {
+                model.write(part);
+            }
+        }
+        None => model.write(bytes),
+    }
+}
+
+fn screen_text(model: &Terminal) -> Vec<String> {
+    let snapshot = model.snapshot();
+    let text = snapshot
+        .rows()
+        .iter()
+        .map(|row| {
             row.cells()
                 .iter()
                 .map(|cell| cell.ch)
                 .collect::<String>()
-                .contains("fresh 29")
+                .trim_end()
+                .to_string()
         })
-    }));
-    drop(cleared);
+        .collect();
+    drop(snapshot);
+    text
+}
 
+#[test]
+fn clearing_the_history_returns_the_row_storage_to_the_allocator() {
+    let _guard = measure_lock();
+    let model = model();
+    fill(&model);
+
+    let before = live_bytes();
+    model.write(b"\x1b[H\x1b[2J\x1b[3J");
+    let cleared = model.snapshot();
+    assert_eq!(cleared.history_size(), 0);
+    assert_eq!(cleared.display_offset(), 0);
+    drop(cleared);
     let after = live_bytes();
-    let released = before - after;
+    let released = released(before, after);
+
     println!(
         "history-clear: capacity={CAPACITY} rows={CAPACITY} live_before={before} live_after={after} released={released}"
     );
@@ -108,18 +168,219 @@ fn clearing_the_history_returns_the_row_storage_to_the_allocator() {
     );
 
     model.write(b"after-0\r\nafter-1\r\n");
-    let fresh = model.snapshot();
-    assert!(fresh.history_size() <= CAPACITY);
     assert!(
-        (0..fresh.line_count()).any(|line| {
-            fresh.row(line).is_some_and(|row| {
-                row.cells()
-                    .iter()
-                    .map(|cell| cell.ch)
-                    .collect::<String>()
-                    .contains("after-1")
-            })
-        }),
+        screen_text(&model)
+            .iter()
+            .any(|line| line.contains("after-1")),
         "output after the clear must render normally"
     );
+}
+
+#[test]
+fn clearing_before_the_alternate_screen_switch_releases_the_main_history() {
+    let _guard = measure_lock();
+    let model = model();
+    fill(&model);
+
+    let before = live_bytes();
+    model.write(b"\x1b[3J\x1b[?1049h");
+    let cleared = model.snapshot();
+    assert!(cleared.modes().contains(Modes::ALT_SCREEN));
+    assert_eq!(cleared.history_size(), 0);
+    drop(cleared);
+    let after = live_bytes();
+    let released = released(before, after);
+
+    println!(
+        "history-clear-alt: capacity={CAPACITY} live_before={before} live_after={after} released={released}"
+    );
+    assert!(
+        released > 1_000_000,
+        "a clear followed by the alternate-screen switch must release the main rows: released {released} bytes"
+    );
+}
+
+#[test]
+fn a_synchronized_clear_does_not_release_before_it_executes() {
+    let _guard = measure_lock();
+    let model = model();
+    fill(&model);
+
+    let before = live_bytes();
+    model.write(b"\x1b[?2026h\x1b[3J");
+    let buffered = model.snapshot();
+    assert_eq!(
+        buffered.history_size(),
+        CAPACITY,
+        "ED 3 is buffered until the synchronized update ends"
+    );
+    drop(buffered);
+    let waiting = live_bytes();
+    assert!(
+        waiting >= before,
+        "no row storage may be released before Alacritty executes the clear: {before} -> {waiting}"
+    );
+
+    model.write(b"\x1b[?2026l");
+    let cleared = model.snapshot();
+    assert_eq!(cleared.history_size(), 0);
+    drop(cleared);
+    let after = live_bytes();
+    let released = released(before, after);
+
+    println!(
+        "history-clear-sync: live_before={before} live_waiting={waiting} live_after={after} released={released}"
+    );
+    assert!(
+        released > 400_000,
+        "the clear must release the rows once the update ends: released {released} bytes"
+    );
+}
+
+#[test]
+fn clearing_the_alternate_screen_does_not_release_the_main_history() {
+    let _guard = measure_lock();
+    let model = model();
+    fill(&model);
+    model.write(b"\x1b[?1049h");
+
+    let before = live_bytes();
+    model.write(b"\x1b[H\x1b[2J\x1b[3J");
+    let cleared = model.snapshot();
+    assert!(cleared.modes().contains(Modes::ALT_SCREEN));
+    drop(cleared);
+    let after = live_bytes();
+    let released = released(before, after);
+
+    println!("history-clear-on-alt: live_before={before} live_after={after} released={released}");
+    assert!(
+        released < 100_000,
+        "an alternate-screen clear must not release the hidden main history: released {released} bytes"
+    );
+
+    model.write(b"\x1b[?1049l");
+    let back = model.snapshot();
+    assert_eq!(back.history_size(), CAPACITY);
+    assert_eq!(back.display_offset(), 0);
+}
+
+#[test]
+fn a_reset_returns_the_row_storage_to_the_allocator() {
+    let _guard = measure_lock();
+    let model = model();
+    fill(&model);
+
+    let before = live_bytes();
+    let generation = model.snapshot().scrollback_generation();
+    model.write(b"\x1bc");
+    let reset = model.snapshot();
+    assert_eq!(reset.history_size(), 0);
+    assert!(reset.scrollback_generation() > generation);
+    drop(reset);
+    let after = live_bytes();
+    let released = released(before, after);
+
+    println!("history-reset: live_before={before} live_after={after} released={released}");
+    assert!(
+        released > 400_000,
+        "a reset must release the cleared rows: released {released} bytes"
+    );
+}
+
+#[test]
+fn a_synchronized_reset_releases_only_after_the_update_ends() {
+    let _guard = measure_lock();
+    let model = model();
+    fill(&model);
+
+    let before = live_bytes();
+    let generation = model.snapshot().scrollback_generation();
+    model.write(b"\x1b[?2026h\x1bc");
+    let buffered = model.snapshot();
+    assert_eq!(buffered.history_size(), CAPACITY);
+    assert_eq!(buffered.scrollback_generation(), generation);
+    drop(buffered);
+    assert!(
+        live_bytes() >= before,
+        "the buffered reset must not release rows"
+    );
+
+    model.write(b"\x1b[?2026l");
+    let reset = model.snapshot();
+    assert_eq!(reset.history_size(), 0);
+    assert!(reset.scrollback_generation() > generation);
+    drop(reset);
+    let after = live_bytes();
+    let released = released(before, after);
+
+    println!("history-reset-sync: live_before={before} live_after={after} released={released}");
+    assert!(
+        released > 400_000,
+        "the reset must release the rows once the update ends: released {released} bytes"
+    );
+}
+
+#[test]
+fn the_same_stream_leaves_the_same_live_memory_when_split() {
+    let _guard = measure_lock();
+
+    fn screen_hash(model: &Terminal) -> u64 {
+        let snapshot = model.snapshot();
+        let mut hasher = DefaultHasher::new();
+        for row in snapshot.rows() {
+            for cell in row.cells() {
+                cell.ch.hash(&mut hasher);
+            }
+            '\n'.hash(&mut hasher);
+        }
+        drop(snapshot);
+        hasher.finish()
+    }
+
+    fn run(chunk: Option<usize>) -> (isize, isize, usize, u64) {
+        let model = model();
+        fill(&model);
+        let stream = clear_and_prompt();
+        let before = live_bytes();
+        write_in_chunks(&model, &stream, chunk);
+        let history = model.snapshot().history_size();
+        let after = live_bytes();
+        let signature = screen_hash(&model);
+        drop(stream);
+        (before, after, history, signature)
+    }
+
+    let once = run(None);
+    let byte_by_byte = run(Some(1));
+    let in_sevens = run(Some(7));
+
+    for (name, run) in [
+        ("one write", &once),
+        ("single bytes", &byte_by_byte),
+        ("seven-byte chunks", &in_sevens),
+    ] {
+        println!(
+            "history-clear-batch: {name} live_before={} live_after={} released={}",
+            run.0,
+            run.1,
+            released(run.0, run.1)
+        );
+    }
+
+    assert_eq!(
+        once.1, byte_by_byte.1,
+        "single-byte writes changed live memory"
+    );
+    assert_eq!(once.1, in_sevens.1, "seven-byte writes changed live memory");
+    assert_eq!(once.2, byte_by_byte.2);
+    assert_eq!(once.2, in_sevens.2);
+    assert_eq!(once.3, byte_by_byte.3, "the visible rows differ");
+    assert_eq!(once.3, in_sevens.3);
+    assert!(once.2 < CAPACITY, "the prompt must not refill the history");
+    assert_eq!(
+        released(once.0, once.1),
+        released(byte_by_byte.0, byte_by_byte.1),
+        "chunking changed how many bytes the clear released"
+    );
+    assert_eq!(released(once.0, once.1), released(in_sevens.0, in_sevens.1));
 }
