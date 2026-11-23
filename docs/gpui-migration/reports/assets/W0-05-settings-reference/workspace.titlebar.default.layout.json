@@ -1,0 +1,765 @@
+{
+  "version": 5,
+  "screen": "workspace.titlebar.default",
+  "viewport": {
+    "width": 800,
+    "height": 600,
+    "deviceScaleFactor": 2
+  },
+  "elements": [
+    {
+      "id": "workspace.titlebar.app",
+      "sizing": "fixed",
+      "bounds": {
+        "x": 0,
+        "y": 0,
+        "width": 800,
+        "height": 600
+      },
+      "style": {
+        "backgroundColor": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "borderColor": [
+          61,
+          61,
+          61,
+          255
+        ],
+        "borderWidth": 0,
+        "borderRadius": 0,
+        "ringSpread": 0,
+        "ringSpreads": [],
+        "fontFamily": "system-ui",
+        "fontSize": 13,
+        "fontWeight": 400,
+        "lineHeight": 18.200001,
+        "color": [
+          204,
+          204,
+          204,
+          255
+        ],
+        "opacity": 1,
+        "padding": {
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        }
+      }
+    },
+    {
+      "id": "workspace.titlebar",
+      "sizing": "fixed",
+      "bounds": {
+        "x": 0,
+        "y": 0,
+        "width": 800,
+        "height": 36
+      },
+      "style": {
+        "backgroundColor": [
+          35,
+          39,
+          46,
+          255
+        ],
+        "borderColor": [
+          61,
+          61,
+          61,
+          255
+        ],
+        "borderWidth": 0,
+        "borderRadius": 0,
+        "ringSpread": 0,
+        "ringSpreads": [],
+        "fontFamily": "system-ui",
+        "fontSize": 13,
+        "fontWeight": 400,
+        "lineHeight": 18.200001,
+        "color": [
+          204,
+          204,
+          204,
+          255
+        ],
+        "opacity": 1,
+        "padding": {
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        }
+      }
+    },
+    {
+      "id": "workspace.titlebar.tabs",
+      "sizing": "fixed",
+      "bounds": {
+        "x": 0,
+        "y": 0,
+        "width": 311.64,
+        "height": 36
+      },
+      "style": {
+        "backgroundColor": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "borderColor": [
+          61,
+          61,
+          61,
+          255
+        ],
+        "borderWidth": 0,
+        "borderRadius": 0,
+        "ringSpread": 0,
+        "ringSpreads": [],
+        "fontFamily": "system-ui",
+        "fontSize": 13,
+        "fontWeight": 400,
+        "lineHeight": 18.200001,
+        "color": [
+          204,
+          204,
+          204,
+          255
+        ],
+        "opacity": 1,
+        "padding": {
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        }
+      }
+    },
+    {
+      "id": "workspace.titlebar.tab-bar",
+      "sizing": "fixed",
+      "bounds": {
+        "x": 0,
+        "y": 0,
+        "width": 219.64,
+        "height": 36
+      },
+      "style": {
+        "backgroundColor": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "borderColor": [
+          61,
+          61,
+          61,
+          255
+        ],
+        "borderWidth": 0,
+        "borderRadius": 0,
+        "ringSpread": 0,
+        "ringSpreads": [],
+        "fontFamily": "system-ui",
+        "fontSize": 13,
+        "fontWeight": 400,
+        "lineHeight": 18.200001,
+        "color": [
+          204,
+          204,
+          204,
+          255
+        ],
+        "opacity": 1,
+        "padding": {
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        }
+      }
+    },
+    {
+      "id": "workspace.titlebar.tab-local-pwsh",
+      "sizing": "fixed",
+      "bounds": {
+        "x": 4,
+        "y": 3,
+        "width": 102.3,
+        "height": 30
+      },
+      "style": {
+        "backgroundColor": [
+          44,
+          49,
+          58,
+          255
+        ],
+        "borderColor": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "borderWidth": 1,
+        "borderRadius": 5,
+        "ringSpread": 0,
+        "ringSpreads": [],
+        "fontFamily": "system-ui",
+        "fontSize": 13,
+        "fontWeight": 400,
+        "lineHeight": 18.200001,
+        "color": [
+          204,
+          204,
+          204,
+          255
+        ],
+        "opacity": 1,
+        "padding": {
+          "top": 0,
+          "right": 7,
+          "bottom": 0,
+          "left": 9
+        }
+      }
+    },
+    {
+      "id": "workspace.titlebar.tab-local-cmd",
+      "sizing": "fixed",
+      "bounds": {
+        "x": 110.3,
+        "y": 3,
+        "width": 105.34,
+        "height": 30
+      },
+      "style": {
+        "backgroundColor": [
+          27,
+          29,
+          35,
+          255
+        ],
+        "borderColor": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "borderWidth": 1,
+        "borderRadius": 5,
+        "ringSpread": 0,
+        "ringSpreads": [],
+        "fontFamily": "system-ui",
+        "fontSize": 13,
+        "fontWeight": 400,
+        "lineHeight": 18.200001,
+        "color": [
+          204,
+          204,
+          204,
+          204
+        ],
+        "opacity": 1,
+        "padding": {
+          "top": 0,
+          "right": 7,
+          "bottom": 0,
+          "left": 9
+        }
+      }
+    },
+    {
+      "id": "workspace.titlebar.new-tab",
+      "sizing": "fixed",
+      "bounds": {
+        "x": 223.64,
+        "y": 4,
+        "width": 28,
+        "height": 28
+      },
+      "style": {
+        "backgroundColor": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "borderColor": [
+          150,
+          150,
+          150,
+          255
+        ],
+        "borderWidth": 0,
+        "borderRadius": 4,
+        "ringSpread": 0,
+        "ringSpreads": [],
+        "fontFamily": "system-ui",
+        "fontSize": 13,
+        "fontWeight": 400,
+        "lineHeight": 18.200001,
+        "color": [
+          150,
+          150,
+          150,
+          255
+        ],
+        "opacity": 1,
+        "padding": {
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        }
+      }
+    },
+    {
+      "id": "workspace.titlebar.profiles",
+      "sizing": "fixed",
+      "bounds": {
+        "x": 251.64,
+        "y": 4,
+        "width": 28,
+        "height": 28
+      },
+      "style": {
+        "backgroundColor": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "borderColor": [
+          150,
+          150,
+          150,
+          255
+        ],
+        "borderWidth": 0,
+        "borderRadius": 4,
+        "ringSpread": 0,
+        "ringSpreads": [],
+        "fontFamily": "system-ui",
+        "fontSize": 13,
+        "fontWeight": 400,
+        "lineHeight": 18.200001,
+        "color": [
+          150,
+          150,
+          150,
+          255
+        ],
+        "opacity": 1,
+        "padding": {
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        }
+      }
+    },
+    {
+      "id": "workspace.titlebar.command-library",
+      "sizing": "fixed",
+      "bounds": {
+        "x": 279.64,
+        "y": 4,
+        "width": 28,
+        "height": 28
+      },
+      "style": {
+        "backgroundColor": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "borderColor": [
+          150,
+          150,
+          150,
+          255
+        ],
+        "borderWidth": 0,
+        "borderRadius": 4,
+        "ringSpread": 0,
+        "ringSpreads": [],
+        "fontFamily": "system-ui",
+        "fontSize": 13,
+        "fontWeight": 400,
+        "lineHeight": 18.200001,
+        "color": [
+          150,
+          150,
+          150,
+          255
+        ],
+        "opacity": 1,
+        "padding": {
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        }
+      }
+    },
+    {
+      "id": "workspace.titlebar.actions",
+      "sizing": "fixed",
+      "bounds": {
+        "x": 616,
+        "y": 0,
+        "width": 184,
+        "height": 36
+      },
+      "style": {
+        "backgroundColor": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "borderColor": [
+          61,
+          61,
+          61,
+          255
+        ],
+        "borderWidth": 0,
+        "borderRadius": 0,
+        "ringSpread": 0,
+        "ringSpreads": [],
+        "fontFamily": "system-ui",
+        "fontSize": 13,
+        "fontWeight": 400,
+        "lineHeight": 18.200001,
+        "color": [
+          204,
+          204,
+          204,
+          255
+        ],
+        "opacity": 1,
+        "padding": {
+          "top": 0,
+          "right": 128,
+          "bottom": 0,
+          "left": 0
+        }
+      }
+    },
+    {
+      "id": "workspace.titlebar.tunnels",
+      "sizing": "fixed",
+      "bounds": {
+        "x": 616,
+        "y": 4,
+        "width": 28,
+        "height": 28
+      },
+      "style": {
+        "backgroundColor": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "borderColor": [
+          150,
+          150,
+          150,
+          255
+        ],
+        "borderWidth": 0,
+        "borderRadius": 4,
+        "ringSpread": 0,
+        "ringSpreads": [],
+        "fontFamily": "system-ui",
+        "fontSize": 13,
+        "fontWeight": 400,
+        "lineHeight": 18.200001,
+        "color": [
+          150,
+          150,
+          150,
+          255
+        ],
+        "opacity": 1,
+        "padding": {
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        }
+      }
+    },
+    {
+      "id": "workspace.titlebar.settings",
+      "sizing": "fixed",
+      "bounds": {
+        "x": 644,
+        "y": 4,
+        "width": 28,
+        "height": 28
+      },
+      "style": {
+        "backgroundColor": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "borderColor": [
+          150,
+          150,
+          150,
+          255
+        ],
+        "borderWidth": 0,
+        "borderRadius": 4,
+        "ringSpread": 0,
+        "ringSpreads": [],
+        "fontFamily": "system-ui",
+        "fontSize": 13,
+        "fontWeight": 400,
+        "lineHeight": 18.200001,
+        "color": [
+          150,
+          150,
+          150,
+          255
+        ],
+        "opacity": 1,
+        "padding": {
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        }
+      }
+    },
+    {
+      "id": "workspace.titlebar.content",
+      "sizing": "fixed",
+      "bounds": {
+        "x": 0,
+        "y": 36,
+        "width": 800,
+        "height": 564
+      },
+      "style": {
+        "backgroundColor": [
+          27,
+          29,
+          35,
+          255
+        ],
+        "borderColor": [
+          61,
+          61,
+          61,
+          255
+        ],
+        "borderWidth": 0,
+        "borderRadius": 0,
+        "ringSpread": 0,
+        "ringSpreads": [],
+        "fontFamily": "system-ui",
+        "fontSize": 13,
+        "fontWeight": 400,
+        "lineHeight": 18.200001,
+        "color": [
+          204,
+          204,
+          204,
+          255
+        ],
+        "opacity": 1,
+        "padding": {
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        }
+      }
+    }
+  ],
+  "textRegions": [
+    {
+      "x": 51,
+      "y": 10,
+      "width": 23.29,
+      "height": 16
+    },
+    {
+      "x": 157.3,
+      "y": 10,
+      "width": 26.34,
+      "height": 16
+    },
+    {
+      "x": 14,
+      "y": 11.5,
+      "width": 5.17,
+      "height": 13
+    },
+    {
+      "x": 120.3,
+      "y": 11.5,
+      "width": 6.7,
+      "height": 13
+    }
+  ],
+  "icons": [
+    {
+      "bounds": {
+        "x": 32,
+        "y": 11.5,
+        "width": 13,
+        "height": 13
+      },
+      "color": [
+        59,
+        154,
+        225,
+        255
+      ],
+      "opacity": 1
+    },
+    {
+      "bounds": {
+        "x": 83.3,
+        "y": 12,
+        "width": 12,
+        "height": 12
+      },
+      "color": [
+        150,
+        150,
+        150,
+        255
+      ],
+      "opacity": 1
+    },
+    {
+      "bounds": {
+        "x": 138.3,
+        "y": 11.5,
+        "width": 13,
+        "height": 13
+      },
+      "color": [
+        204,
+        204,
+        204,
+        204
+      ],
+      "opacity": 1
+    },
+    {
+      "bounds": {
+        "x": 192.64,
+        "y": 12,
+        "width": 12,
+        "height": 12
+      },
+      "color": [
+        150,
+        150,
+        150,
+        255
+      ],
+      "opacity": 1
+    },
+    {
+      "bounds": {
+        "x": 229.64,
+        "y": 10,
+        "width": 16,
+        "height": 16
+      },
+      "color": [
+        150,
+        150,
+        150,
+        255
+      ],
+      "opacity": 1
+    },
+    {
+      "bounds": {
+        "x": 257.64,
+        "y": 10,
+        "width": 16,
+        "height": 16
+      },
+      "color": [
+        150,
+        150,
+        150,
+        255
+      ],
+      "opacity": 1
+    },
+    {
+      "bounds": {
+        "x": 285.64,
+        "y": 10,
+        "width": 16,
+        "height": 16
+      },
+      "color": [
+        150,
+        150,
+        150,
+        255
+      ],
+      "opacity": 1
+    },
+    {
+      "bounds": {
+        "x": 622,
+        "y": 10,
+        "width": 16,
+        "height": 16
+      },
+      "color": [
+        150,
+        150,
+        150,
+        255
+      ],
+      "opacity": 1
+    },
+    {
+      "bounds": {
+        "x": 650,
+        "y": 10,
+        "width": 16,
+        "height": 16
+      },
+      "color": [
+        150,
+        150,
+        150,
+        255
+      ],
+      "opacity": 1
+    }
+  ],
+  "missingEvents": [],
+  "invokedCommands": [
+    "get_secret_backend_status",
+    "load_app_state",
+    "load_config"
+  ]
+}

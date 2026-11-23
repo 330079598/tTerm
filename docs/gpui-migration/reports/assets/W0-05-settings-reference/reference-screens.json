@@ -1,0 +1,29 @@
+{
+  "version": 2,
+  "commit": "17d5a379edc1dbce82a6276ec1b114eb0c1e0eab",
+  "theme": "dark",
+  "uiStyle": "classic",
+  "uiScalePercent": 100,
+  "viewport": {
+    "width": 800,
+    "height": 600,
+    "deviceScaleFactor": 2
+  },
+  "screens": [
+    {
+      "id": "workspace.titlebar.default",
+      "image": "workspace.titlebar.default.png",
+      "layout": "workspace.titlebar.default.layout.json"
+    },
+    {
+      "id": "settings.layout.default",
+      "image": "settings.layout.default.png",
+      "layout": "settings.layout.default.layout.json"
+    },
+    {
+      "id": "settings.search.results",
+      "image": "settings.search.results.png",
+      "layout": "settings.search.results.layout.json"
+    }
+  ]
+}
