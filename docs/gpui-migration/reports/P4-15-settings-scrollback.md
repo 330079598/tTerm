@@ -151,7 +151,7 @@ GPUI：
 | `settings.search.scrollback-zh.png` | `1309e3c8548e222a27d2242bb5e9f71d65925e733d4c435d46ce5657a7cd2c12` |
 | `settings.terminal.scrollback-zh.png` | `ad4c89c976cf2d6fc44ed3c55787e36880a1f877b1da7755ed197baef6dc514e` |
 
-GPUI 截图在 `settings-gpui-r11` 与 `settings-gpui-r12` 两次独立运行中 PNG 字节相同；提交 `19c8820c` 后再次运行，像素也相同。脚本会等搜索框失去插入符后再截图，和原版 Playwright 的 `caret: "hide"` 对齐。
+GPUI 截图在 `settings-gpui-r11` 与 `settings-gpui-r12` 两次独立运行中 PNG 字节相同；提交 `19c8820c` 后再次运行，像素也相同；焦点重绘提交 `c4e3ca8b` 后再次运行，五张截图仍逐像素相同。脚本会等搜索框失去插入符后再截图，和原版 Playwright 的 `caret: "hide"` 对齐。
 
 ## 双端比较
 
@@ -270,4 +270,5 @@ cargo test -p tterm-gpui --lib settings_page_tests -- --nocapture
 - `562f84d9` `:bug: Draw the current frame for automation screenshots`
 - `19c8820c` `:sparkles: Build the production settings shell around scrollback`
 - `bf90ea76` `:white_check_mark: Wait for the save failure and read the cleared search`
+- `c4e3ca8b` `:bug: Repaint the settings search field when focus changes`
 - 本报告与资产：`:memo: Record the settings scrollback evidence`（见分支末尾）
