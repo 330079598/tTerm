@@ -518,6 +518,13 @@ fn thirty_hidden_sessions_parse_without_waking_the_foreground() {
     }
 }
 
+// This test times wall-clock frames while 30 parsers saturate the machine, so
+// it needs the machine to itself. In the default parallel suite the remaining
+// tests compete for the cores those parsers occupy and the result describes
+// the scheduler rather than 30 background sessions (W0-05, decision 019).
+// The release gate runs it alone on an otherwise idle machine; see
+// scripts/perf/gpui-release-frame-budget.mjs.
+#[ignore = "measures wall-clock frames under 30 background parsers; run it through the release gate"]
 #[gpui_kit::test]
 fn thirty_background_parsers_keep_the_foreground_within_its_frame_budget(cx: &mut TestAppContext) {
     cx.update(gpui_kit::init);
@@ -606,10 +613,6 @@ fn thirty_background_parsers_keep_the_foreground_within_its_frame_budget(cx: &mu
         .iter()
         .map(|(_, _, metrics)| metrics.acknowledged_bytes())
         .sum();
-    assert!(
-        acknowledged >= 30 * 1024 * 1024,
-        "the measurement processed only {acknowledged} bytes across 30 background sessions"
-    );
     for (pipeline, _, _) in sessions {
         drop(pipeline.queue);
         pipeline.parser.join().expect("background parser stops");
@@ -636,6 +639,12 @@ fn thirty_background_parsers_keep_the_foreground_within_its_frame_budget(cx: &mu
         timing.held,
         timing.held_max,
         timing.snapshots,
+    );
+    // The floor is asserted after the measurement line so a run that misses it
+    // still reports its p95 and throughput.
+    assert!(
+        acknowledged >= 30 * 1024 * 1024,
+        "the measurement processed only {acknowledged} bytes across 30 background sessions"
     );
     assert!(
         loaded_p95 <= Duration::from_millis(16) + Duration::from_micros(667),
