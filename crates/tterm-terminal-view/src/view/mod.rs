@@ -40,6 +40,8 @@ mod input_tests;
 #[cfg(test)]
 mod pointer_tests;
 #[cfg(test)]
+mod scrollback_tests;
+#[cfg(test)]
 mod tests;
 
 use std::collections::HashSet;

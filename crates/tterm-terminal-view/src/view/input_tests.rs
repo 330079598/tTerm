@@ -21,12 +21,30 @@ pub(super) struct Harness {
 
 impl Harness {
     pub fn new(cx: &mut TestAppContext) -> Self {
-        cx.update(gpui_kit::init);
-        let terminal = Arc::new(Terminal::new(
+        Self::with_config(
+            cx,
             Config {
                 kitty_keyboard: true,
                 ..Config::default()
             },
+        )
+    }
+
+    pub fn with_scrollback(cx: &mut TestAppContext, scrollback: usize) -> Self {
+        Self::with_config(
+            cx,
+            Config {
+                kitty_keyboard: true,
+                scrollback,
+                ..Config::default()
+            },
+        )
+    }
+
+    fn with_config(cx: &mut TestAppContext, config: Config) -> Self {
+        cx.update(gpui_kit::init);
+        let terminal = Arc::new(Terminal::new(
+            config,
             GridSize::new(80, 24),
             CellSize::new(8, 16),
         ));
