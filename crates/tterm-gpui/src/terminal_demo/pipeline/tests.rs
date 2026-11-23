@@ -579,8 +579,23 @@ fn thirty_background_parsers_keep_the_foreground_within_its_frame_budget(cx: &mu
     );
     std::thread::sleep(Duration::from_millis(100));
 
+    // Two read-only snapshots separate the offered rate from the cumulative
+    // floor: the warm-up window and the frame window are what the background
+    // parsers actually drained, while the total below also includes the drain
+    // after the producers stop.
+    let warmup_end = Instant::now();
+    let warmup_acked: u64 = sessions
+        .iter()
+        .map(|(_, _, metrics)| metrics.acknowledged_bytes())
+        .sum();
     foreground.reset_snapshot_timing();
     let loaded = measure_frames(cx, handle, &foreground, 120);
+    let frame_window = warmup_end.elapsed();
+    let frame_window_acked: u64 = sessions
+        .iter()
+        .map(|(_, _, metrics)| metrics.acknowledged_bytes())
+        .sum::<u64>()
+        .saturating_sub(warmup_acked);
     stop.store(true, Ordering::Release);
     for producer in producers {
         producer.join().expect("background producer stops");
@@ -606,10 +621,14 @@ fn thirty_background_parsers_keep_the_foreground_within_its_frame_budget(cx: &mu
     let loaded_p95 = percentile(&loaded, 95);
     let stats = view.read_with(cx, |view, _| view.stats());
     let timing = foreground.snapshot_timing();
+    let frame_window_mib_s =
+        frame_window_acked as f64 / (1024.0 * 1024.0) / frame_window.as_secs_f64();
     eprintln!(
         "P2-02 foreground frames: baseline p50={baseline_p50:?} p95={baseline_p95:?}; \
          30-background p50={loaded_p50:?} p95={loaded_p95:?}; snapshots={} frames={}; \
-         bytes={acknowledged}; snapshot_wait={:?} total, \
+         bytes={acknowledged}; warmup_acked={warmup_acked}; frame_window={frame_window:?}; \
+         frame_window_acked={frame_window_acked} ({frame_window_mib_s:.2} MiB/s); \
+         snapshot_wait={:?} total, \
          snapshot_hold={:?} total / {:?} max over {} snapshots",
         stats.snapshots,
         stats.frames,
