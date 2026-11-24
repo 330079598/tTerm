@@ -4,7 +4,7 @@
 - 分支 / worktree：`migrate/P2-07-search-ui`，独立 worktree
 - 起点：`7997ccc2`（第一批搜索模型已合入本地 `GPUI`）
 - 平台：macOS 27.2（26B123），arm64，Apple M4，36 GB；rustc 1.99.1；cargo 1.102.0；pnpm 11.25.0；Node 24.20.0
-- 状态：**本批完成生产搜索栏、高亮、概览标记、导航和自动化回归，只在本地分支提交，未推送、未合并，未修改 `docs/gpui-migration/status.md`。** P2-07、G2 和桌面验收都不因本批通过。没有读取真实连接、密钥或正式数据。
+- 状态：**搜索操作通过自动验收，已合入本地 `GPUI`（`aa3ea5b6`），未推送。** 协调者在该提交独立复跑前端六项、Rust fmt、严格 Clippy、workspace 测试及两项 release 测量：30 个后台会话下前台帧 p95 为 0.580 ms；另起 30 个会话，30 MiB 全部确认用时 185.613 ms。原版同状态视觉对照与原生桌面验收待补，不宣告 P2-07 整卡或 G2 通过。
 
 ## 结论
 
@@ -278,4 +278,4 @@ af29c553 :white_check_mark: Cover a grid-changing resize invalidating the search
 
 没有安装搜索结果时，`SearchOverlay::visible` 在分配任何行容器之前返回空结果。此前空闲终端每帧都会分配一个 24 项的行向量；这个改动只影响无搜索时的帧路径，不改变匹配、版本或绘制。
 
-交付前 `git status` 为空。提交只在本地分支 `migrate/P2-07-search-ui`，未推送、未合并，未修改 `docs/gpui-migration/status.md`。
+交付时工作树干净；本地 `GPUI` 以快进方式集成同一提交。

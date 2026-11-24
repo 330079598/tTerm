@@ -19,7 +19,7 @@
 
 ## 2. 当前派发顺序（2026-11-23）
 
-设置回滚行数流程已合入，见[设置验收](reports/P4-15.md)。P2-06 的[滚动与内存](reports/P2-06-scroll-memory.md)、[概览标记](reports/P2-06-overview.md)和 P2-07 的[全量搜索模型](reports/P2-07-search-model.md)已通过自动验收。下一批将搜索接入 GPUI 搜索栏、结果计数、上下项导航、高亮和概览标记，验证输入不泄漏到 PTY、持续输出时不显示旧结果。原生桌面滚动和真实 shell 集成仍要补。
+设置回滚行数流程已合入，见[设置验收](reports/P4-15.md)。P2-06 的[滚动与内存](reports/P2-06-scroll-memory.md)、[概览标记](reports/P2-06-overview.md)和 P2-07 的[搜索模型](reports/P2-07-search-model.md)、[搜索栏](reports/P2-07-search-ui.md)已通过自动验收。下一批采集原版相同搜索状态的参照，对照调整搜索栏与拖动范围，并在隔离桌面实例核验中文输入与焦点。原生桌面滚动和真实 shell 集成仍待补。
 
 ### 2026-11-11 交接记录（历史）
 
