@@ -73,6 +73,11 @@ impl SearchBar {
             self.request_scan_if_possible(cx);
             return;
         };
+        if result.content_version() != self.model.content_version() {
+            self.clear_overlay(cx);
+            self.on_overlay_stale(cx);
+            return;
+        }
         let count = result.match_count();
         if count == 0 {
             return;

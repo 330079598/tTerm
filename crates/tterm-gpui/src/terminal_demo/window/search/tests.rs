@@ -541,6 +541,24 @@ fn an_older_completion_and_a_stale_version_are_ignored(cx: &mut TestAppContext) 
 }
 
 #[gpui_kit::test]
+fn navigation_refuses_a_result_whose_content_version_changed(cx: &mut TestAppContext) {
+    with_harness(cx, &["needle", "needle"], |h, visual| {
+        h.open(visual);
+        h.type_text(visual, "needle");
+        h.settle(visual);
+        assert_eq!(h.count(visual), 2);
+
+        h.model.write(b"needle\r\n");
+        h.update(visual, |bar, _, cx| {
+            bar.navigate(SearchDirection::Forward, cx);
+        });
+        h.render(visual);
+        assert_eq!(h.status(visual), SearchStatus::Waiting);
+        assert!(h.overlay_is_empty(visual));
+    });
+}
+
+#[gpui_kit::test]
 fn rescheduling_cancels_the_previous_scan(cx: &mut TestAppContext) {
     with_harness(cx, &["needle", "needle"], |h, visual| {
         h.open(visual);
