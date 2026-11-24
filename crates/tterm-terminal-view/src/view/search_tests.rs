@@ -185,6 +185,33 @@ fn revealing_an_off_screen_match_scrolls_it_into_the_viewport(cx: &mut TestAppCo
 }
 
 #[gpui_kit::test]
+fn a_grid_changing_resize_drops_the_overlay_before_painting(cx: &mut TestAppContext) {
+    let h = Harness::with_scrollback(cx, 500);
+    fill(&h, cx, 20);
+    install(&h, cx, scan(&h, "needle"), Some(0));
+    assert!(stats(&h, cx).search_spans > 0);
+
+    h.terminal.resize(
+        tterm_terminal::grid::GridSize::new(60, 24),
+        tterm_terminal::grid::CellSize::new(8, 16),
+    );
+    // The view only reasserts its measured grid when its last grid differs.
+    h.update(cx, |view, _, _| view.last_grid = None);
+    h.draw(cx);
+    let painted = stats(&h, cx);
+    assert_eq!(painted.search_spans, 0);
+    assert!(painted.search_stale_clears >= 1);
+    assert!(
+        h.view
+            .read_with(cx, |view, _| view.search_overlay().is_empty())
+    );
+    assert!(
+        h.view
+            .read_with(cx, |view, _| view.search_marks().is_empty())
+    );
+}
+
+#[gpui_kit::test]
 fn a_hidden_view_keeps_no_search_overlay(cx: &mut TestAppContext) {
     let h = Harness::with_scrollback(cx, 500);
     fill(&h, cx, 20);
