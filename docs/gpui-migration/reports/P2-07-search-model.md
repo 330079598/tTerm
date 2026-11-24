@@ -166,8 +166,8 @@ cargo test -p tterm-terminal --lib search
 cargo test -p tterm-terminal --test search_model
 ```
 
-- 新增 21 项 `search::tests`，过滤词 `search` 共匹配 27 项通过；`search_model` 8 项通过。
-- 覆盖：空查询、无结果、非法正则、Unicode/大小写折叠、CJK 全词边界、宽字符、组合字符、折行跨行、行尾宽字符折行、硬换行不拼接、结果排序与 `index_from`、0 宽正则、块边界、世代变化、取消、长缓冲区分块、类型跨线程。完整列表见 `search/tests.rs` 和 `tests/search_model.rs`。
+- 新增 22 项 `search::tests`，过滤词 `search` 共匹配 28 项通过；`search_model` 8 项通过。
+- 覆盖：空查询、无结果、非法正则、Unicode/大小写折叠、CJK 全词边界、宽字符、组合字符、折行跨行、行尾宽字符折行、硬换行不拼接、结果排序与 `index_from`、0 宽正则、块边界、世代变化、取消、预取消不复制、长缓冲区分块、类型跨线程。完整列表见 `search/tests.rs` 和 `tests/search_model.rs`。
 
 ### 全套检查
 
@@ -175,7 +175,7 @@ cargo test -p tterm-terminal --test search_model
 | --- | --- |
 | `cargo fmt --all --check` | 通过 |
 | `cargo clippy --workspace --all-targets -- -D warnings` | 通过 |
-| `cargo test --workspace` | 全部测试二进制通过；`tterm-terminal` lib 369 项、`tterm-terminal-view` 172 项、`tterm-core` 1869 项；新的搜索 benchmark 为 `#[ignore]`，默认套件只计数不执行 |
+| `cargo test --workspace` | 全部测试二进制通过；`tterm-terminal` lib 370 项、`tterm-terminal-view` 172 项、`tterm-core` 1869 项；新的搜索 benchmark 为 `#[ignore]`，默认套件只计数不执行 |
 | `pnpm lint && pnpm format:check && pnpm check:tokens && pnpm typecheck && pnpm test && pnpm check:size` | 通过；vitest 187 个文件、1367 项，脚本测试全部通过；1510 个文件在大小限制内 |
 | `node scripts/perf/gpui-release-frame-budget.mjs` | 通过：foreground p95 421.667 µs；30-background p50 119.292 µs / p95 421.667 µs；background throughput 180.11 MiB/s，500 ms 截止内完成；两项独立测量都通过 |
 

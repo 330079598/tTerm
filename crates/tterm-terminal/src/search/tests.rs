@@ -405,6 +405,24 @@ fn a_generation_change_discards_the_partial_scan() {
 }
 
 #[test]
+fn a_pre_cancelled_scan_does_not_fetch_rows() {
+    let query = SearchQuery::new("needle", SearchOptions::default()).expect("query compiles");
+    let cancellation = SearchCancellation::new();
+    cancellation.cancel();
+    let mut fetched = false;
+    let outcome = scan_chunks(&query, &cancellation, |start, _| {
+        fetched = true;
+        RetainedRows::new(1, 0, start, Vec::new())
+    });
+
+    assert_eq!(outcome, SearchOutcome::Cancelled);
+    assert!(
+        !fetched,
+        "cancellation must be observed before the model lock"
+    );
+}
+
+#[test]
 fn cancellation_stops_the_scan() {
     let query = SearchQuery::new("needle", SearchOptions::default()).expect("query compiles");
     let cancellation = SearchCancellation::new();

@@ -422,6 +422,9 @@ pub(crate) fn scan_chunks<F>(
 where
     F: FnMut(usize, usize) -> RetainedRows,
 {
+    if cancellation.is_cancelled() {
+        return SearchOutcome::Cancelled;
+    }
     if query.empty {
         return scan_empty(fetch, cancellation);
     }
@@ -464,6 +467,9 @@ fn scan_empty<F>(mut fetch: F, cancellation: &SearchCancellation) -> SearchOutco
 where
     F: FnMut(usize, usize) -> RetainedRows,
 {
+    if cancellation.is_cancelled() {
+        return SearchOutcome::Cancelled;
+    }
     let first = fetch(0, 0);
     if cancellation.is_cancelled() {
         return SearchOutcome::Cancelled;
