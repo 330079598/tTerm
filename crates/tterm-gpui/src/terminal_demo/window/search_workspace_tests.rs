@@ -5,6 +5,8 @@
 //! credential or user configuration is read.
 
 mod ime;
+#[cfg(unix)]
+mod live_pty;
 
 use gpui_kit::test::TestWindowExt as _;
 use gpui_kit::{TestAppContext, VisualTestContext};
@@ -19,6 +21,15 @@ fn with_workspace(
     config: AppConfig,
     run: impl FnOnce(Entity<Prototype>, &mut VisualTestContext),
 ) {
+    with_command(cx, config, CommandSpec::Shell, run);
+}
+
+fn with_command(
+    cx: &mut TestAppContext,
+    config: AppConfig,
+    command: CommandSpec,
+    run: impl FnOnce(Entity<Prototype>, &mut VisualTestContext),
+) {
     let mut runtime = test_runtime();
     let events = std::mem::replace(
         &mut runtime.events,
@@ -30,7 +41,7 @@ fn with_workspace(
         tterm_terminal_view::view::bind_keys(cx);
     });
     let (root, visual) = cx.add_window_view(|_, cx| {
-        split_session_tests::make_workspace_with(&runtime, events, CommandSpec::Shell, config, cx)
+        split_session_tests::make_workspace_with(&runtime, events, command, config, cx)
     });
     visual.update(|window, cx| {
         root.update(cx, |workspace, cx| workspace.select_tab(1, window, cx));
