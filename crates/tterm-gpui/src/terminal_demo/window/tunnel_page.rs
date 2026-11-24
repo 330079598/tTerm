@@ -75,6 +75,7 @@ impl TunnelPage {
 impl Prototype {
     /// Opens the singleton page without touching any session or pane.
     pub(super) fn open_tunnel_page(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        self.close_active_search(window, cx);
         if self.tunnel_page_is_open() {
             self.ui.tunnel_page.data.update(cx, |data, cx| {
                 data.open(cx);

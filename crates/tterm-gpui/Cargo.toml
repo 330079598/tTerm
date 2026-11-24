@@ -23,6 +23,12 @@ path = "examples/settings_capture.rs"
 # The headless Metal/WGPU capture needs the automation feature's test support.
 required-features = ["automation"]
 
+[[example]]
+name = "search_capture"
+path = "examples/search_capture.rs"
+# The headless Metal/WGPU capture needs the automation feature's test support.
+required-features = ["automation"]
+
 [features]
 # The automation endpoint is intentionally opt-in. Its source is also gated
 # by `debug_assertions`, so a release build cannot contain the endpoint.

@@ -19,6 +19,9 @@ mod profile_launch;
 mod saved_connections;
 #[cfg(test)]
 mod saved_connections_tests;
+pub(super) mod search;
+#[cfg(test)]
+mod search_workspace_tests;
 mod session_workspace;
 mod settings_page;
 #[cfg(all(debug_assertions, feature = "automation"))]
@@ -56,6 +59,8 @@ use tterm_core::services::AppServices;
 use tterm_core::workspace::tab::Tab;
 use tterm_core::workspace::tab_attention::TabAttentionStore;
 use tterm_terminal::grid::{CellSize, GridSize};
+#[cfg(test)]
+use tterm_terminal::terminal::Terminal;
 use tterm_terminal::terminal::{ClipboardPolicy, Config};
 use tterm_terminal_view::view::{TerminalView, TerminalViewConfig};
 use tterm_ui::tokens::theme::Theme;
@@ -268,6 +273,7 @@ struct WindowTab {
     search: picker::ConnectionLabel,
     fallback_key: tterm_core::i18n::translate::TranslationKey,
     view: Entity<TerminalView>,
+    search_bar: Option<Entity<search::SearchBar>>,
     binding: Option<Rc<TabBinding>>,
     title: Arc<Mutex<Option<String>>>,
     program_title: RefCell<Option<String>>,
@@ -594,6 +600,7 @@ impl TabFactory {
             search,
             fallback_key,
             view,
+            search_bar: None,
             binding: Some(binding),
             title,
             program_title: RefCell::default(),

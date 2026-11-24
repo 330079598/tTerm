@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "method": "gpui_kit::HeadlessAppContext::with_platform + current_platform(true); production TerminalView and SearchBar with real key events",
+  "isolation": "synthetic in-process output; no shell, SSH connection, user config or credential file",
+  "theme": "dark",
+  "language": "en",
+  "viewport": {
+    "width": 800,
+    "height": 600,
+    "deviceScaleFactor": 2.0
+  },
+  "image": "search-bar.png",
+  "state": "query=needle, first active match, overview ruler marks visible"
+}

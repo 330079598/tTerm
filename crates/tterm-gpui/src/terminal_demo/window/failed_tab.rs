@@ -45,6 +45,7 @@ pub(super) fn failed(cx: &mut Context<Prototype>, tab: FailedTab, error: String)
         search: tab.search,
         fallback_key: tab.fallback_key,
         view,
+        search_bar: None,
         binding: tab.binding,
         title: Arc::new(Mutex::new(None)),
         program_title: RefCell::default(),

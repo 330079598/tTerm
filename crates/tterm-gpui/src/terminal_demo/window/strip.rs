@@ -13,7 +13,7 @@ use super::{
 
 pub(super) fn register_actions(router: &KeymapRouter) {
     use KeymapActionId::{
-        SettingsOpen, TabsCloseActive, TabsNext, TabsPrev, WorkspaceNewTab,
+        SettingsOpen, TabsCloseActive, TabsNext, TabsPrev, TerminalFind, WorkspaceNewTab,
         WorkspaceRestoreSingleGroup, WorkspaceSplitBelow, WorkspaceSplitRight,
         WorkspaceTogglePaneZoom,
     };
@@ -27,6 +27,7 @@ pub(super) fn register_actions(router: &KeymapRouter) {
         WorkspaceRestoreSingleGroup,
         WorkspaceTogglePaneZoom,
         SettingsOpen,
+        TerminalFind,
     ]
     .into_iter()
     .chain(FOCUS_ACTIONS)
@@ -72,6 +73,7 @@ impl Prototype {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
+        self.close_search_in_other_panes(self.tabs.active_id(), window, cx);
         let visible = self.visible_ids();
         for id in &previous {
             if !visible.contains(id)
@@ -281,6 +283,14 @@ impl Prototype {
             }
             return;
         }
+        if !event.prefer_character_input
+            && event.keystroke.key == "escape"
+            && self.close_active_search(window, cx)
+        {
+            window.prevent_default();
+            cx.stop_propagation();
+            return;
+        }
         if event.keystroke.key == "escape" && cx.stop_active_drag(window) {
             window.prevent_default();
             cx.stop_propagation();
@@ -306,6 +316,7 @@ impl Prototype {
             }
             Some(KeymapActionId::WorkspaceChooseLayout) => self.open_layout_templates(window, cx),
             Some(KeymapActionId::SettingsOpen) => self.open_settings(window, cx),
+            Some(KeymapActionId::TerminalFind) => self.open_search(window, cx),
             Some(KeymapActionId::TabsCloseActive) => {
                 self.close_tab(self.tabs.active_id(), window, cx)
             }

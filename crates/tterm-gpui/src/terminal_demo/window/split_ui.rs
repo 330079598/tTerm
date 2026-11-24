@@ -215,6 +215,12 @@ impl Prototype {
             .min_h_0()
             .overflow_hidden()
             .child(tab.view.clone())
+            .children(
+                tab.search_bar
+                    .as_ref()
+                    .filter(|search| search.read(cx).is_open())
+                    .cloned(),
+            )
             .capture_any_mouse_down(cx.listener(move |this, _, window, cx| {
                 if this.tabs.active_id() != tab_id {
                     this.focus_pane(tab_id, window, cx);

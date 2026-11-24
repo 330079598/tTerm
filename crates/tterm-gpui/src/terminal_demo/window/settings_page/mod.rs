@@ -365,6 +365,7 @@ impl SettingsPage {
 impl Prototype {
     /// Opens the settings route, or does nothing when it is already showing.
     pub(super) fn open_settings(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        self.close_active_search(window, cx);
         if self.settings_open {
             self.ui
                 .settings_page

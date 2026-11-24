@@ -35,6 +35,15 @@ pub fn capture_settings_headlessly(
     window::settings_page_capture::capture_headlessly(output, reference)
 }
 
+/// Writes the headless production search-bar capture.
+///
+/// This exists only in debug builds with the automation feature and uses a
+/// synthetic in-process model, so it cannot read a user session.
+#[cfg(all(debug_assertions, feature = "automation"))]
+pub fn capture_search_headlessly(output: &std::path::Path) -> Result<(), String> {
+    window::search::capture::capture_search_headlessly(output)
+}
+
 /// Opens the prototype window and runs until it closes.
 pub fn run() {
     let arguments: Vec<String> = std::env::args().skip(1).collect();
