@@ -279,6 +279,15 @@ impl<T: EventListener> Handler for HistoryRelease<'_, T> {
         }
     }
 
+    fn unset_private_mode(&mut self, mode: PrivateMode) {
+        let column_mode = matches!(mode, PrivateMode::Named(NamedPrivateMode::ColumnMode));
+        Handler::unset_private_mode(&mut *self.term, mode);
+        if column_mode {
+            // DECCOLM also resets the scrolling region when it is unset.
+            self.region = ScrollRegion::full(self.term.screen_lines());
+        }
+    }
+
     fn set_scrolling_region(&mut self, top: usize, bottom: Option<usize>) {
         Handler::set_scrolling_region(&mut *self.term, top, bottom);
 
@@ -334,7 +343,6 @@ impl<T: EventListener> Handler for HistoryRelease<'_, T> {
         fn set_mode(a0: Mode);
         fn unset_mode(a0: Mode);
         fn report_mode(a0: Mode);
-        fn unset_private_mode(a0: PrivateMode);
         fn report_private_mode(a0: PrivateMode);
         fn set_keypad_application_mode();
         fn unset_keypad_application_mode();
