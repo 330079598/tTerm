@@ -8,6 +8,7 @@ use tterm_terminal::palette::{Rgba, TerminalPalette};
 use tterm_terminal::snapshot::Snapshot;
 
 use super::font::CellGeometry;
+use super::overview::OverviewLayout;
 use super::paint::{CursorPaint, PaintContext};
 use super::row::RowLayout;
 use super::scrollbar::ScrollbarGeometry;
@@ -60,6 +61,8 @@ pub enum PreparedFrame {
         show_cursor: bool,
         /// The scrollbar geometry for the current snapshot.
         scrollbar: Option<ScrollbarGeometry>,
+        /// Command and search marks inside the scrollbar track.
+        overview: OverviewLayout,
     },
 }
 
@@ -76,6 +79,7 @@ impl PreparedFrame {
                 cursor,
                 show_cursor,
                 scrollbar,
+                overview,
             } => {
                 let mask = ContentMask { bounds };
                 window.with_content_mask(Some(mask), |window| {
@@ -107,6 +111,22 @@ impl PreparedFrame {
                             size: gpui_kit::size(gpui_kit::px(10.0), gpui_kit::px(scrollbar.track)),
                         };
                         window.paint_quad(gpui_kit::fill(track, hsla(data.palette.bright_black)));
+                        for mark in &overview.rects {
+                            if mark.height <= 0.0 {
+                                continue;
+                            }
+                            let mark_bounds = Bounds {
+                                origin: gpui_kit::point(
+                                    track.origin.x + gpui_kit::px(mark.x),
+                                    track.origin.y + gpui_kit::px(mark.y),
+                                ),
+                                size: gpui_kit::size(
+                                    gpui_kit::px(mark.width),
+                                    gpui_kit::px(mark.height),
+                                ),
+                            };
+                            window.paint_quad(gpui_kit::fill(mark_bounds, hsla(mark.color)));
+                        }
                         let thumb = Bounds {
                             origin: gpui_kit::point(
                                 track.origin.x,

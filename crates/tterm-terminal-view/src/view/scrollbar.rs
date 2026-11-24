@@ -35,6 +35,17 @@ impl ScrollbarGeometry {
         }
     }
 
+    /// The track position of an absolute line among `total_lines`.
+    ///
+    /// The overview ruler and the thumb use the same track: zero is the
+    /// oldest retained row and the newest row maps just before the bottom.
+    pub fn line_fraction(&self, line: i64, total_lines: usize) -> Option<f32> {
+        if line < 0 || usize::try_from(line).map_or(true, |line| line >= total_lines) {
+            return None;
+        }
+        Some((self.track - 1.0).max(0.0) * line as f32 / total_lines as f32)
+    }
+
     /// Converts a pointer position within the track to a display offset.
     pub fn offset_at(&self, pointer_y: f32, history_size: usize) -> usize {
         let travel = (self.track - self.thumb).max(0.0);
@@ -71,5 +82,16 @@ mod tests {
         let geometry = ScrollbarGeometry::new(300.0, 20, 0, 0);
         assert_eq!(geometry.thumb, 300.0);
         assert_eq!(geometry.offset_at(100.0, 0), 0);
+    }
+
+    #[test]
+    fn line_fraction_runs_from_the_oldest_row_to_the_newest() {
+        let geometry = ScrollbarGeometry::new(100.0, 10, 90, 0);
+        assert_eq!(geometry.line_fraction(0, 100), Some(0.0));
+        assert_eq!(geometry.line_fraction(-1, 100), None);
+        assert_eq!(geometry.line_fraction(100, 0), None);
+        assert_eq!(geometry.line_fraction(100, 100), None);
+        let last = geometry.line_fraction(99, 100).expect("a retained line");
+        assert!(last > 97.0 && last < 100.0, "the last row stays inside");
     }
 }

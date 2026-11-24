@@ -23,6 +23,7 @@ mod frame;
 mod ime;
 mod input_handler;
 mod keyboard;
+pub mod overview;
 mod paint;
 pub mod paste;
 mod pointer;
@@ -37,6 +38,8 @@ mod wheel;
 mod ime_tests;
 #[cfg(test)]
 mod input_tests;
+#[cfg(test)]
+mod overview_tests;
 #[cfg(test)]
 mod pointer_tests;
 #[cfg(test)]
@@ -181,6 +184,8 @@ pub struct ViewStats {
     pub blink_reuses: u64,
     /// Candidate geometry changes that requested an IME coordinate update.
     pub ime_geometry_updates: u64,
+    /// Overview ruler rectangles painted in the last prepared frame.
+    pub overview_marks: u64,
 }
 
 impl ViewStats {
@@ -235,6 +240,7 @@ pub struct TerminalView {
     blink_only: bool,
     scroll: ScrollAccumulator,
     scrollbar_drag: bool,
+    search_marks: Arc<[overview::OverviewSearchMark]>,
     stats: ViewStats,
 }
 
@@ -289,6 +295,7 @@ impl TerminalView {
             blink_only: false,
             scroll: ScrollAccumulator::default(),
             scrollbar_drag: false,
+            search_marks: Arc::from(Vec::new()),
             stats: ViewStats::default(),
         }
     }
@@ -311,6 +318,33 @@ impl TerminalView {
     /// The current palette.
     pub fn palette(&self) -> &TerminalPalette {
         &self.palette
+    }
+
+    /// The search marks the overview ruler currently reads.
+    ///
+    /// P2-07 supplies these from a full-scrollback search. The current model
+    /// only finds one match at a time, so production leaves the list empty.
+    pub fn search_marks(&self) -> &[overview::OverviewSearchMark] {
+        &self.search_marks
+    }
+
+    /// Replaces the overview ruler's search marks.
+    ///
+    /// Lines use the same retained-history coordinate as command marks. A
+    /// caller must re-scan after an eviction, a clear or a resize, because the
+    /// model does not maintain search markers. Passing no marks is the
+    /// production state until P2-07 owns that scan.
+    pub fn set_search_marks(
+        &mut self,
+        marks: Vec<overview::OverviewSearchMark>,
+        cx: &mut Context<Self>,
+    ) {
+        let marks: Arc<[overview::OverviewSearchMark]> = marks.into();
+        if self.search_marks == marks {
+            return;
+        }
+        self.search_marks = marks;
+        self.invalidate(cx);
     }
 
     /// Replaces the palette and drops every cached row.

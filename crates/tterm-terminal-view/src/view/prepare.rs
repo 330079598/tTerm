@@ -11,6 +11,7 @@ use super::TerminalView;
 use super::blink::{BLINK_INTERVAL, BlinkState};
 use super::font::{CellGeometry, FontSet, grid_for, measure_cell};
 use super::frame::{FrameData, PreparedFrame, cursor_for};
+use super::overview::{self, OverviewLayout};
 use super::row::{plan_row, row_hash, shape_row};
 use super::scrollbar::ScrollbarGeometry;
 
@@ -135,12 +136,19 @@ impl TerminalView {
                 data.snapshot.display_offset(),
             )
         });
+        let overview = scrollbar
+            .as_ref()
+            .map_or_else(OverviewLayout::default, |geometry| {
+                overview::layout_for_snapshot(geometry, &data.snapshot, &self.search_marks)
+            });
+        self.stats.overview_marks = u64::try_from(overview.rects.len()).unwrap_or(u64::MAX);
         PreparedFrame::Full {
             data,
             origin,
             cursor,
             show_cursor,
             scrollbar,
+            overview,
         }
     }
 
