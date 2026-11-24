@@ -9,6 +9,7 @@ mod agent_resume_notice;
 use agent_resume::controller::{AttachOptions, Controller};
 mod drag;
 mod events;
+mod failed_tab;
 mod history;
 mod motion;
 mod nudge;
@@ -36,6 +37,7 @@ mod tunnel_page;
 #[cfg(test)]
 mod tunnel_page_tests;
 use events::handle_event;
+use failed_tab::{FailedTab, failed, saved_agent_resume};
 use history::{history_capacity, subscribe_history};
 use tabs::Tabs;
 
@@ -54,7 +56,7 @@ use tterm_core::services::AppServices;
 use tterm_core::workspace::tab::Tab;
 use tterm_core::workspace::tab_attention::TabAttentionStore;
 use tterm_terminal::grid::{CellSize, GridSize};
-use tterm_terminal::terminal::{ClipboardPolicy, Config, Terminal};
+use tterm_terminal::terminal::{ClipboardPolicy, Config};
 use tterm_terminal_view::view::{TerminalView, TerminalViewConfig};
 use tterm_ui::tokens::theme::Theme;
 
@@ -646,49 +648,6 @@ struct WindowUi {
     template_ui: Entity<TemplateUi>,
     saved_connections: Entity<SavedConnectionsUi>,
     tunnel_page: TunnelPage,
-}
-
-struct FailedTab {
-    saved_id: String,
-    saved: Tab,
-    restored: bool,
-    default_shell: bool,
-    may_resume_agent: bool,
-    agent_resume: Option<AgentResumeSession>,
-    binding: Option<Rc<TabBinding>>,
-    fallback_key: tterm_core::i18n::translate::TranslationKey,
-    search: picker::ConnectionLabel,
-}
-
-fn failed(cx: &mut Context<Prototype>, tab: FailedTab, error: String) -> WindowTab {
-    eprintln!("tterm-gpui: {error}");
-    let terminal = Arc::new(Terminal::new(Config::default(), INITIAL_GRID, INITIAL_CELL));
-    terminal.write(format!("\x1b[31m[{error}]\x1b[0m\r\n").as_bytes());
-    let view = cx.new(|cx| TerminalView::new(cx, terminal, Default::default()));
-    WindowTab {
-        saved_id: tab.saved_id,
-        saved: tab.saved,
-        restored: tab.restored,
-        default_shell: tab.default_shell,
-        may_resume_agent: tab.may_resume_agent,
-        agent_resume: tab.agent_resume,
-        agent_resume_controller: None,
-        search: tab.search,
-        fallback_key: tab.fallback_key,
-        view,
-        binding: tab.binding,
-        title: Arc::new(Mutex::new(None)),
-        program_title: RefCell::default(),
-        paste_controller: None,
-    }
-}
-
-fn saved_agent_resume(tab: &Tab) -> Option<AgentResumeSession> {
-    tab.connection
-        .as_ref()
-        .and_then(|connection| connection.saved_field("agentResume"))
-        .cloned()
-        .and_then(|value| serde_json::from_value(value).ok())
 }
 
 /// A pending title update: either the parser's default marker, which resolves
