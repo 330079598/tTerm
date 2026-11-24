@@ -28,10 +28,8 @@ pub const MATCH_BORDER: Rgba = Rgba::rgb(0xfd, 0xe0, 0x47);
 pub const ACTIVE_MATCH_BACKGROUND: Rgba = Rgba::rgb(0xfb, 0x92, 0x3c);
 /// The border of the active match.
 pub const ACTIVE_MATCH_BORDER: Rgba = Rgba::rgb(0xfd, 0xba, 0x74);
-/// The background alpha keeps the glyphs readable under the highlight.
-pub const MATCH_BACKGROUND_ALPHA: u8 = 90;
-/// The active match is a little stronger than the other matches.
-pub const ACTIVE_MATCH_BACKGROUND_ALPHA: u8 = 128;
+/// Dark ink stays legible on both opaque highlights, even for bright ANSI text.
+pub(super) const MATCH_FOREGROUND: Rgba = Rgba::rgb(0x1b, 0x1d, 0x23);
 
 /// The most matches the overview ruler receives from one result.
 ///

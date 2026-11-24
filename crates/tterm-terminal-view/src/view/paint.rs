@@ -3,7 +3,7 @@
 use gpui_kit::{
     BorderStyle, Bounds, Hsla, PathBuilder, Pixels, Point, Window, fill, outline, point, px, size,
 };
-use tterm_terminal::palette::TerminalPalette;
+use tterm_terminal::palette::{Rgba, TerminalPalette};
 use tterm_terminal::selection::SelectionRange;
 use tterm_terminal::snapshot::CursorShape;
 
@@ -12,8 +12,8 @@ use crate::glyphs::{GlyphFill, GlyphShape};
 use super::font::CellGeometry;
 use super::row::{PlacedGlyph, RowLayout, UnderlineSpan};
 use super::search::{
-    ACTIVE_MATCH_BACKGROUND, ACTIVE_MATCH_BACKGROUND_ALPHA, ACTIVE_MATCH_BORDER, MATCH_BACKGROUND,
-    MATCH_BACKGROUND_ALPHA, MATCH_BORDER, VisibleSearch, VisibleSearchSpan,
+    ACTIVE_MATCH_BACKGROUND, ACTIVE_MATCH_BORDER, MATCH_BACKGROUND, MATCH_BORDER, MATCH_FOREGROUND,
+    VisibleSearch, VisibleSearchSpan,
 };
 use super::style::hsla;
 
@@ -112,10 +112,9 @@ impl PaintContext<'_> {
             ));
         }
 
-        if let Some(search) = self.search {
-            for span in search.row(row_index) {
-                self.paint_search_span(origin, span);
-            }
+        let matches = self.search.map_or(&[][..], |search| search.row(row_index));
+        for span in matches {
+            self.paint_search_span(origin, span);
         }
 
         let selection_color = self.palette.selection_foreground;
@@ -130,7 +129,7 @@ impl PaintContext<'_> {
             } else {
                 glyph.color
             };
-            self.paint_glyph(origin, glyph, color);
+            self.paint_glyph(origin, glyph, match_ink(matches, glyph.column, color));
         }
 
         for builtin in &row.builtins {
@@ -148,7 +147,12 @@ impl PaintContext<'_> {
             } else {
                 builtin.color
             };
-            self.paint_builtin(origin, builtin.column, &builtin.glyph, color);
+            self.paint_builtin(
+                origin,
+                builtin.column,
+                &builtin.glyph,
+                match_ink(matches, builtin.column, color),
+            );
         }
 
         for underline in &row.underlines {
@@ -224,14 +228,10 @@ impl PaintContext<'_> {
     }
 
     fn paint_search_span(&mut self, origin: Point<Pixels>, span: &VisibleSearchSpan) {
-        let (color, alpha, border) = if span.active {
-            (
-                ACTIVE_MATCH_BACKGROUND,
-                ACTIVE_MATCH_BACKGROUND_ALPHA,
-                ACTIVE_MATCH_BORDER,
-            )
+        let (color, border) = if span.active {
+            (ACTIVE_MATCH_BACKGROUND, ACTIVE_MATCH_BORDER)
         } else {
-            (MATCH_BACKGROUND, MATCH_BACKGROUND_ALPHA, MATCH_BORDER)
+            (MATCH_BACKGROUND, MATCH_BORDER)
         };
         let length = span.end.saturating_sub(span.start).saturating_add(1) as f32;
         let bounds = Bounds {
@@ -244,8 +244,7 @@ impl PaintContext<'_> {
                 px(self.metrics.cell_height),
             ),
         };
-        self.window
-            .paint_quad(fill(bounds, hsla(color.with_alpha(alpha))));
+        self.window.paint_quad(fill(bounds, hsla(color)));
         self.window
             .paint_quad(outline(bounds, hsla(border), BorderStyle::default()));
     }
@@ -495,6 +494,15 @@ fn thickness(cell_height: f32) -> f32 {
     (cell_height / 14.0).max(1.0).round()
 }
 
+fn match_ink(matches: &[VisibleSearchSpan], column: usize, otherwise: Rgba) -> Rgba {
+    let next = matches.partition_point(|span| span.end < column);
+    if matches.get(next).is_some_and(|span| span.start <= column) {
+        MATCH_FOREGROUND
+    } else {
+        otherwise
+    }
+}
+
 fn selection_contains(
     selection: Option<SelectionRange>,
     row: usize,
@@ -538,6 +546,37 @@ fn selection_spans(
 mod tests {
     use super::*;
     use tterm_terminal::grid::GridPoint;
+
+    #[test]
+    fn search_ink_covers_only_the_inclusive_matched_cells() {
+        let spans = [
+            VisibleSearchSpan {
+                start: 1,
+                end: 2,
+                active: true,
+            },
+            VisibleSearchSpan {
+                start: 4,
+                end: 4,
+                active: false,
+            },
+        ];
+        let ansi_yellow = Rgba::rgb(0xff, 0xff, 0);
+        assert_eq!(
+            (0..6)
+                .map(|column| match_ink(&spans, column, ansi_yellow))
+                .collect::<Vec<_>>(),
+            [
+                ansi_yellow,
+                MATCH_FOREGROUND,
+                MATCH_FOREGROUND,
+                ansi_yellow,
+                MATCH_FOREGROUND,
+                ansi_yellow
+            ]
+        );
+        assert_eq!(match_ink(&[], 1, ansi_yellow), ansi_yellow);
+    }
 
     #[test]
     fn selection_spans_merge_adjacent_columns() {
