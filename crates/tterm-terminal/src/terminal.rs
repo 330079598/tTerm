@@ -31,6 +31,7 @@ use alacritty_terminal::term::{Config as TermConfig, Osc52, Term, TermDamage, Te
 use alacritty_terminal::vte::ansi::Processor;
 
 use crate::cell::Cell;
+use crate::command_marks::overview::CommandMarkState;
 use crate::damage::Damage;
 use crate::event::{self, Clipboard, Intent};
 use crate::grid::{CellSize, GridPoint, GridRange, GridSize};
@@ -228,6 +229,7 @@ struct State {
     term: Term<Collector>,
     parser: Processor,
     osc52_scanner: Osc52Scanner,
+    command_marks: CommandMarkState,
     config: Config,
     cell_size: CellSize,
     version: u64,
@@ -268,6 +270,7 @@ impl Terminal {
             term,
             parser: Processor::new(),
             osc52_scanner,
+            command_marks: CommandMarkState::new(),
             config,
             cell_size,
             version: 0,
@@ -307,16 +310,35 @@ impl Terminal {
                 .saturating_sub(state.term.screen_lines())
         };
         let stores = state.osc52_scanner.scan(bytes);
-        let State { parser, term, .. } = &mut *state;
-        let cleared_main;
-        {
-            let mut handler = HistoryRelease::new(term);
-            let mut start = 0;
-            for (end, text) in stores {
-                if end < start || end > bytes.len() {
-                    continue;
-                }
+        let mark_events = state.command_marks.scan(bytes);
+        let mut events = stores
+            .into_iter()
+            .map(|(end, text)| (end, Some(text), None))
+            .chain(
+                mark_events
+                    .into_iter()
+                    .map(|event| (event.end, None, Some(event))),
+            )
+            .collect::<Vec<_>>();
+        events.sort_by_key(|(end, _, _)| *end);
+        let State {
+            parser,
+            term,
+            command_marks,
+            ..
+        } = &mut *state;
+        let mut cleared_main = false;
+        let mut start = 0;
+        for (end, store, mark) in events {
+            if end < start || end > bytes.len() {
+                continue;
+            }
+            {
+                let mut handler = HistoryRelease::new(term);
                 parser.advance(&mut handler, &bytes[start..end]);
+                cleared_main |= handler.cleared_main();
+            }
+            if let Some(text) = store {
                 self.intents
                     .lock()
                     .unwrap_or_else(PoisonError::into_inner)
@@ -324,10 +346,16 @@ impl Terminal {
                         clipboard: Clipboard::Clipboard,
                         text,
                     });
-                start = end;
             }
+            if let Some(event) = mark {
+                command_marks.handle_event(event, term);
+            }
+            start = end;
+        }
+        {
+            let mut handler = HistoryRelease::new(term);
             parser.advance(&mut handler, &bytes[start..]);
-            cleared_main = handler.cleared_main();
+            cleared_main |= handler.cleared_main();
         }
         let is_alternate = term.mode().contains(TermMode::ALT_SCREEN);
         if was_alternate != is_alternate {
@@ -336,6 +364,9 @@ impl Terminal {
             // inspected afterwards, so a new generation drops cached rows.
             // Any main clear was already truncated by the handler before the
             // switch, while the main grid was still active.
+            if cleared_main {
+                command_marks.dispose_markers();
+            }
             state.scrollback_generation = state.scrollback_generation.wrapping_add(1);
             return;
         }
@@ -347,6 +378,16 @@ impl Terminal {
         // A history drop without a clear is still worth invalidating cached
         // absolute lines for.
         let cleared_history = cleared_main || history_before > history_size;
+        if cleared_main {
+            command_marks.dispose_markers();
+        } else if history_before > history_size {
+            command_marks.trim_scrollback(history_before - history_size);
+        } else if configured > 0 && history_size >= configured && full_damage {
+            // At capacity an output scroll evicts an oldest line whose exact
+            // count Alacritty does not expose. Keeping a line number that may
+            // now name another row is worse than dropping the marks.
+            command_marks.dispose_markers();
+        }
         if cleared_history || (configured > 0 && history_size >= configured && full_damage) {
             state.scrollback_generation = state.scrollback_generation.wrapping_add(1);
         }
@@ -370,6 +411,9 @@ impl Terminal {
         let mut state = self.state.lock();
         state.word_drag = None;
         state.cell_size = cell_size;
+        // Reflow changes which row holds each line; the tracker has no reflow
+        // map, so stale marks are dropped instead of pointing at another row.
+        state.command_marks.dispose_markers();
         state.term.resize(grid.clamped());
     }
 
@@ -386,17 +430,34 @@ impl Terminal {
         if state.config.scrollback == lines {
             return;
         }
+        let was_alternate = state.term.mode().contains(TermMode::ALT_SCREEN);
+        let history_before = state
+            .term
+            .total_lines()
+            .saturating_sub(state.term.screen_lines());
         // The alternate grid hides the primary history that set_options trims.
-        if lines < state.config.scrollback
-            && (state.term.mode().contains(TermMode::ALT_SCREEN)
-                || lines < state.term.history_size())
-        {
+        let invalidates =
+            lines < state.config.scrollback && (was_alternate || lines < state.term.history_size());
+        if invalidates {
             state.scrollback_generation = state.scrollback_generation.wrapping_add(1);
         }
         state.word_drag = None;
         state.config.scrollback = lines;
         let config = state.config.to_alacritty();
         state.term.set_options(config);
+        let history_after = state
+            .term
+            .total_lines()
+            .saturating_sub(state.term.screen_lines());
+        if history_after < history_before {
+            state
+                .command_marks
+                .trim_scrollback(history_before - history_after);
+        } else if invalidates {
+            // The hidden primary screen shrank while the alternate screen was
+            // active, so no visible history size can tell how far to move.
+            state.command_marks.dispose_markers();
+        }
     }
 
     /// The configured scrollback capacity, in lines.
@@ -605,8 +666,10 @@ fn take_snapshot(state: &mut State, version: u64) -> Snapshot {
         term,
         cell_size,
         scrollback_generation,
+        command_marks,
         ..
     } = state;
+    let command_marks = command_marks.positions();
     let damage = Damage::take(term);
     let grid = GridSize::new(term.columns(), term.screen_lines());
     let history_size = term.total_lines().saturating_sub(grid.screen_lines);
@@ -631,6 +694,7 @@ fn take_snapshot(state: &mut State, version: u64) -> Snapshot {
         selection,
         damage,
         bottom_line_occupied,
+        command_marks,
     })
 }
 

@@ -71,6 +71,23 @@ pub struct BufferLine {
     pub text: String,
 }
 
+/// The marked lines of one command, in retained-history coordinates.
+///
+/// Zero is the oldest line the model still holds and the last visible line is
+/// `history_size + screen_lines - 1`. This is the coordinate the overview
+/// ruler draws in; it survives new output until the oldest lines are evicted.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct CommandMarkPosition {
+    /// The absolute line of the prompt.
+    pub prompt_line: i64,
+    /// The absolute line where output started, when the shell marked it.
+    pub output_line: Option<i64>,
+    /// The absolute line where the command ended, when the shell marked it.
+    pub end_line: Option<i64>,
+    /// The status the shell reported for a finished command.
+    pub exit_code: Option<i64>,
+}
+
 /// The mark in an OSC 133 / 633 payload such as `A`, `C` or `D;1`.
 pub fn parse_command_mark(data: &str) -> Option<CommandMark> {
     let mut parts = data.split(';');
@@ -151,6 +168,7 @@ pub struct CommandMarks {
     marks_prompts: bool,
     output_since_prompt: bool,
     status_since_prompt: Option<i64>,
+    revision: u64,
 }
 
 impl Default for CommandMarks {
@@ -175,6 +193,7 @@ impl CommandMarks {
             marks_prompts: false,
             output_since_prompt: false,
             status_since_prompt: None,
+            revision: 0,
         }
     }
 
@@ -213,6 +232,7 @@ impl CommandMarks {
     pub fn dispose_markers(&mut self) {
         self.entries.clear();
         self.jumped = None;
+        self.touch();
     }
 
     /// Moves markers when `lines` scrollback rows are removed from the top.
@@ -221,6 +241,9 @@ impl CommandMarks {
     /// entire entry, matching xterm's prompt `onDispose` callback; disposing
     /// only an output or end marker invalidates that command's output range.
     pub fn trim_scrollback(&mut self, lines: usize) {
+        if lines == 0 {
+            return;
+        }
         let lines = i64::try_from(lines).unwrap_or(i64::MAX);
         for entry in &mut self.entries {
             entry.prompt_line = entry.prompt_line.saturating_sub(lines);
@@ -238,6 +261,33 @@ impl CommandMarks {
                 self.jumped = None;
             }
         }
+        self.touch();
+    }
+
+    /// A read-only copy of the current command positions for the overview
+    /// ruler.
+    pub fn overview_marks(&self) -> Vec<CommandMarkPosition> {
+        self.entries
+            .iter()
+            .filter(|entry| entry.prompt_line >= 0)
+            .map(|entry| CommandMarkPosition {
+                prompt_line: entry.prompt_line,
+                output_line: entry
+                    .output
+                    .filter(|output| output.line >= 0)
+                    .map(|output| output.line),
+                end_line: entry.end.filter(|end| end.line >= 0).map(|end| end.line),
+                exit_code: entry.exit_code,
+            })
+            .collect()
+    }
+
+    /// A number that changes whenever the marked lines change.
+    ///
+    /// The view caches [`CommandMarks::overview_marks`] by this revision so a
+    /// frame does not rebuild an unchanging list.
+    pub fn revision(&self) -> u64 {
+        self.revision
     }
 
     /// Applies one OSC 133 or OSC 633 payload.
@@ -248,6 +298,17 @@ impl CommandMarks {
         let Some(mark) = parse_command_mark(data) else {
             return;
         };
+        self.handle_parsed_mark(mark, view);
+    }
+
+    pub(crate) fn handle_parsed_mark(
+        &mut self,
+        mark: CommandMark,
+        view: &mut impl CommandMarkViewport,
+    ) {
+        if !self.enabled || !view.is_normal_screen() {
+            return;
+        }
         match mark {
             CommandMark::Prompt => {
                 let finished = self.current_exit_code();
@@ -271,6 +332,7 @@ impl CommandMarks {
                 self.finish_command(exit_code, view);
             }
         }
+        self.touch();
     }
 
     /// Whether the shell waits at a prompt, for shells that mark finished
@@ -332,6 +394,7 @@ impl CommandMarks {
             next_line: true,
         });
         self.command_running = true;
+        self.touch();
         true
     }
 
@@ -517,8 +580,15 @@ impl CommandMarks {
         self.entries.clear();
         self.jumped = None;
         self.command_running = false;
+        self.touch();
+    }
+
+    fn touch(&mut self) {
+        self.revision = self.revision.wrapping_add(1);
     }
 }
+
+pub(crate) mod overview;
 
 #[cfg(test)]
 mod tests;

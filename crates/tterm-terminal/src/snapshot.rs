@@ -6,7 +6,10 @@
 //! — never the scrollback — plus the metadata a frame needs: cursor, modes,
 //! display offset, selection, and which rows changed since the previous frame.
 
+use std::sync::Arc;
+
 use crate::cell::Cell;
+use crate::command_marks::CommandMarkPosition;
 use crate::damage::Damage;
 use crate::grid::{CellSize, GridPoint, GridSize, WindowSize};
 use crate::mode::Modes;
@@ -119,6 +122,7 @@ pub(crate) struct SnapshotParts {
     pub selection: Option<SelectionRange>,
     pub damage: Damage,
     pub bottom_line_occupied: bool,
+    pub command_marks: Arc<[CommandMarkPosition]>,
 }
 
 /// The visible area at one point in time.
@@ -136,6 +140,7 @@ pub struct Snapshot {
     selection: Option<SelectionRange>,
     damage: Damage,
     bottom_line_occupied: bool,
+    command_marks: Arc<[CommandMarkPosition]>,
 }
 
 impl Snapshot {
@@ -153,6 +158,7 @@ impl Snapshot {
             selection,
             damage,
             bottom_line_occupied,
+            command_marks,
         } = parts;
         Self {
             version,
@@ -167,6 +173,7 @@ impl Snapshot {
             selection,
             damage,
             bottom_line_occupied,
+            command_marks,
         }
     }
 
@@ -252,6 +259,11 @@ impl Snapshot {
     /// The selection, in grid coordinates, or `None` when nothing is selected.
     pub fn selection(&self) -> Option<SelectionRange> {
         self.selection
+    }
+
+    /// Shell-integration command marks in retained-history coordinates.
+    pub fn command_marks(&self) -> &[CommandMarkPosition] {
+        &self.command_marks
     }
 
     /// The rows that changed since the previous snapshot.
