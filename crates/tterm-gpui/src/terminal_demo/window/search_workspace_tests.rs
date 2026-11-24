@@ -126,6 +126,22 @@ fn escape_closes_the_search_even_when_the_terminal_has_the_keyboard(cx: &mut Tes
 }
 
 #[gpui_kit::test]
+fn the_find_chord_does_not_open_a_terminal_search_while_settings_is_open(cx: &mut TestAppContext) {
+    with_workspace(cx, AppConfig::default(), |root, visual| {
+        visual.update(|window, cx| {
+            root.update(cx, |workspace, cx| workspace.open_settings(window, cx));
+        });
+        press(visual, &default_find());
+        visual.update(|_, cx| {
+            assert!(
+                active_search(&root, cx).is_none(),
+                "settings keeps its own search field"
+            );
+        });
+    });
+}
+
+#[gpui_kit::test]
 fn switching_panes_closes_the_previous_panes_search_and_its_highlights(cx: &mut TestAppContext) {
     with_workspace(cx, AppConfig::default(), |root, visual| {
         press(visual, &format!("{}-\\", modifier()));

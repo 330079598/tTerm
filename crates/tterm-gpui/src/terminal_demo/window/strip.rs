@@ -277,9 +277,13 @@ impl Prototype {
                     window.prevent_default();
                     cx.stop_propagation();
                 }
-            } else if self.factory.keymap.dispatch(event).is_some() {
-                window.prevent_default();
-                cx.stop_propagation();
+            } else if let Some(action) = self.factory.keymap.dispatch(event) {
+                // Finding belongs to a terminal pane; the settings page has its
+                // own search field, so leave the chord alone there.
+                if action != KeymapActionId::TerminalFind {
+                    window.prevent_default();
+                    cx.stop_propagation();
+                }
             }
             return;
         }
