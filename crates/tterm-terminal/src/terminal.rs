@@ -664,6 +664,7 @@ fn take_snapshot(state: &mut State, version: u64) -> Snapshot {
         term,
         cell_size,
         scrollback_generation,
+        content_version,
         command_marks,
         ..
     } = state;
@@ -689,6 +690,7 @@ fn take_snapshot(state: &mut State, version: u64) -> Snapshot {
         display_offset,
         history_size,
         scrollback_generation: *scrollback_generation,
+        content_version: *content_version,
         selection,
         damage,
         bottom_line_occupied,

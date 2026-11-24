@@ -95,6 +95,15 @@ impl TerminalView {
             None => self.build_frame(grid, metrics, &text_system),
         };
 
+        if self.search_overlay.is_stale_for(&data.snapshot) {
+            self.search_became_stale(cx);
+        }
+        let search = self.search_overlay.visible(&data.snapshot);
+        self.stats.search_spans = u64::try_from(search.span_count()).unwrap_or(u64::MAX);
+        self.stats.search_active_spans =
+            u64::try_from(search.active_span_count()).unwrap_or(u64::MAX);
+        self.stats.search_matches_visited = u64::try_from(search.visited()).unwrap_or(u64::MAX);
+
         let cursor = if self.composition.active() {
             None
         } else {
@@ -149,6 +158,7 @@ impl TerminalView {
             show_cursor,
             scrollbar,
             overview,
+            search,
         }
     }
 

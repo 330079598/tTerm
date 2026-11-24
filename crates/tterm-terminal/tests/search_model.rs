@@ -456,3 +456,47 @@ fn a_cancelled_search_returns_cancelled_without_a_result() {
         SearchOutcome::Cancelled
     );
 }
+
+#[test]
+fn a_snapshot_carries_the_content_version_of_its_rows() {
+    let model = model(4, 40);
+    model.write(b"first\r\n");
+    let before = model.snapshot();
+    assert_eq!(before.content_version(), model.content_version());
+    model.write(b"second\r\n");
+    let after = model.snapshot();
+    assert!(after.content_version() > before.content_version());
+}
+
+#[test]
+fn scrolling_to_a_retained_line_leaves_a_visible_line_alone() {
+    let model = model(6, 40);
+    for line in 0..30 {
+        model.write(format!("line-{line:02}\r\n").as_bytes());
+    }
+    let history = model.snapshot().history_size() as i64;
+    assert!(history > 0);
+    // The newest screen rows are visible at the bottom.
+    assert!(!model.scroll_to_retained_line(history));
+    assert_eq!(model.snapshot().display_offset(), 0);
+    // An old history row is brought into view.
+    assert!(model.scroll_to_retained_line(5));
+    let snapshot = model.snapshot();
+    let top = history - snapshot.display_offset() as i64;
+    assert!(5 >= top && 5 < top + snapshot.grid().screen_lines as i64);
+}
+
+#[test]
+fn scrolling_to_a_retained_line_near_the_bottom_uses_the_smallest_offset() {
+    let model = model(6, 40);
+    for line in 0..30 {
+        model.write(format!("line-{line:02}\r\n").as_bytes());
+    }
+    let history = model.snapshot().history_size() as i64;
+    let target = history - 2;
+    assert!(model.scroll_to_retained_line(target));
+    let snapshot = model.snapshot();
+    assert_eq!(snapshot.display_offset() as i64, history - target);
+    let top = history - snapshot.display_offset() as i64;
+    assert_eq!(target, top);
+}

@@ -31,6 +31,7 @@ mod prepare;
 pub mod row;
 mod scroll;
 mod scrollbar;
+pub mod search;
 mod style;
 mod wheel;
 
@@ -45,6 +46,8 @@ mod pointer_tests;
 #[cfg(test)]
 mod scrollback_tests;
 #[cfg(test)]
+mod search_tests;
+#[cfg(test)]
 mod tests;
 
 use std::collections::HashSet;
@@ -57,6 +60,7 @@ use gpui_kit::{
 };
 use tterm_terminal::grid::{CellSize, GridSize};
 use tterm_terminal::palette::TerminalPalette;
+use tterm_terminal::search::SearchPosition;
 use tterm_terminal::terminal::Terminal;
 
 use crate::input::keyboard::EncoderConfig;
@@ -67,6 +71,7 @@ use self::element::TerminalElement;
 use self::font::{CellGeometry, FontSet, TerminalFont};
 use self::frame::FrameData;
 use self::scroll::ScrollAccumulator;
+use self::search::{SearchOverlay, SearchStaleListener};
 
 /// Where bytes the view produces, such as alternate-screen wheel arrows,
 /// are written.
@@ -186,6 +191,16 @@ pub struct ViewStats {
     pub ime_geometry_updates: u64,
     /// Overview ruler rectangles painted in the last prepared frame.
     pub overview_marks: u64,
+    /// Search match spans painted in the last prepared frame.
+    pub search_spans: u64,
+    /// Search spans of the active match painted in the last prepared frame.
+    pub search_active_spans: u64,
+    /// Matches that intersected the visible rows in the last prepared frame.
+    ///
+    /// This stays proportional to the viewport, not to the result size.
+    pub search_matches_visited: u64,
+    /// Overlays dropped because their content version no longer matched.
+    pub search_stale_clears: u64,
 }
 
 impl ViewStats {
@@ -241,6 +256,8 @@ pub struct TerminalView {
     scroll: ScrollAccumulator,
     scrollbar_drag: bool,
     search_marks: Arc<[overview::OverviewSearchMark]>,
+    search_overlay: SearchOverlay,
+    search_stale: Option<SearchStaleListener>,
     stats: ViewStats,
 }
 
@@ -296,6 +313,8 @@ impl TerminalView {
             scroll: ScrollAccumulator::default(),
             scrollbar_drag: false,
             search_marks: Arc::from(Vec::new()),
+            search_overlay: SearchOverlay::default(),
+            search_stale: None,
             stats: ViewStats::default(),
         }
     }
@@ -321,19 +340,34 @@ impl TerminalView {
     }
 
     /// The search marks the overview ruler currently reads.
-    ///
-    /// P2-07 supplies these from a full-scrollback search. The current model
-    /// only finds one match at a time, so production leaves the list empty.
     pub fn search_marks(&self) -> &[overview::OverviewSearchMark] {
         &self.search_marks
     }
 
-    /// Replaces the overview ruler's search marks.
+    /// The accepted search overlay, empty until a result is installed.
+    pub fn search_overlay(&self) -> &SearchOverlay {
+        &self.search_overlay
+    }
+
+    /// Installs a scan result and its active match.
     ///
-    /// Lines use the same retained-history coordinate as command marks. A
-    /// caller must re-scan after an eviction, a clear or a resize, because the
-    /// model does not maintain search markers. Passing no marks is the
-    /// production state until P2-07 owns that scan.
+    /// The overlay carries the content version, scrollback generation and row
+    /// count it scanned. The next frame drops it when they no longer match,
+    /// so callers do not have to clear it on output, eviction or reflow. The
+    /// overview ruler is rebuilt from the same matches.
+    pub fn set_search_overlay(&mut self, overlay: SearchOverlay, cx: &mut Context<Self>) {
+        self.search_marks = overlay.marks().into();
+        self.search_overlay = overlay;
+        self.invalidate(cx);
+    }
+
+    /// Replaces only the overview ruler's search marks.
+    ///
+    /// Lines use the same retained-history coordinate as command marks. This
+    /// is the low-level ruler input retained for diagnostics and the P2-06
+    /// regression; production installs matches through
+    /// [`Self::set_search_overlay`] so the ruler and the cell highlights
+    /// cannot disagree.
     pub fn set_search_marks(
         &mut self,
         marks: Vec<overview::OverviewSearchMark>,
@@ -345,6 +379,67 @@ impl TerminalView {
         }
         self.search_marks = marks;
         self.invalidate(cx);
+    }
+
+    /// Drops every match and ruler mark.
+    pub fn clear_search_overlay(&mut self, cx: &mut Context<Self>) {
+        if self.search_overlay.is_empty() && self.search_marks.is_empty() {
+            return;
+        }
+        self.search_overlay = SearchOverlay::default();
+        self.search_marks = Arc::from(Vec::new());
+        self.invalidate(cx);
+    }
+
+    /// Installs the callback the view calls when it drops a stale overlay.
+    pub fn set_search_stale_listener(
+        &mut self,
+        listener: Option<SearchStaleListener>,
+        cx: &mut Context<Self>,
+    ) {
+        self.search_stale = listener;
+        if !self.visible {
+            return;
+        }
+        cx.notify();
+    }
+
+    /// The retained-history line at the top of the last prepared frame.
+    ///
+    /// A new search starts from what the user can see. Before the first frame
+    /// the fallback is the oldest retained line.
+    pub fn search_origin(&self) -> SearchPosition {
+        let Some(frame) = &self.last_frame else {
+            return SearchPosition::default();
+        };
+        let offset = i64::try_from(frame.snapshot.display_offset()).unwrap_or_default();
+        SearchPosition {
+            line: frame.snapshot.history_size() as i64 - offset,
+            column: 0,
+        }
+    }
+
+    /// Scrolls a retained-history line into view and reports whether it moved.
+    pub fn reveal_search_line(&mut self, line: i64, cx: &mut Context<Self>) -> bool {
+        let moved = self.terminal.scroll_to_retained_line(line);
+        if moved {
+            self.invalidate(cx);
+        }
+        moved
+    }
+
+    /// Drops the overlay and tells its owner to rescan.
+    pub(crate) fn search_became_stale(&mut self, cx: &mut Context<Self>) {
+        if self.search_overlay.is_empty() {
+            return;
+        }
+        self.search_overlay = SearchOverlay::default();
+        self.search_marks = Arc::from(Vec::new());
+        self.stats.search_stale_clears = self.stats.search_stale_clears.saturating_add(1);
+        if let Some(listener) = self.search_stale.take() {
+            listener(cx);
+            self.search_stale = Some(listener);
+        }
     }
 
     /// Replaces the palette and drops every cached row.
@@ -384,6 +479,10 @@ impl TerminalView {
             self.blink_only = false;
             self.request_redraw(cx);
         } else {
+            if !self.search_overlay.is_empty() {
+                self.search_overlay = SearchOverlay::default();
+                self.search_marks = Arc::from(Vec::new());
+            }
             self.ime_confirm = false;
             self.composition.clear();
             self.preedit = None;
@@ -428,6 +527,7 @@ impl TerminalView {
 
     /// Invalidates the screen and cancels view-local input during a session reset.
     pub fn clear(&mut self, cx: &mut Context<Self>) {
+        self.search_became_stale(cx);
         self.ime_confirm = false;
         self.composition.clear();
         self.preedit = None;

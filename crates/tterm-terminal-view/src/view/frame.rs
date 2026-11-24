@@ -12,6 +12,7 @@ use super::overview::OverviewLayout;
 use super::paint::{CursorPaint, PaintContext};
 use super::row::RowLayout;
 use super::scrollbar::ScrollbarGeometry;
+use super::search::VisibleSearch;
 use super::style::hsla;
 
 /// One snapshot plus its shaped rows.
@@ -63,6 +64,8 @@ pub enum PreparedFrame {
         scrollbar: Option<ScrollbarGeometry>,
         /// Command and search marks inside the scrollbar track.
         overview: OverviewLayout,
+        /// Search matches clipped to the visible rows.
+        search: VisibleSearch,
     },
 }
 
@@ -80,6 +83,7 @@ impl PreparedFrame {
                 show_cursor,
                 scrollbar,
                 overview,
+                search,
             } => {
                 let mask = ContentMask { bounds };
                 window.with_content_mask(Some(mask), |window| {
@@ -92,6 +96,7 @@ impl PreparedFrame {
                         display_offset: data.snapshot.display_offset(),
                         show_cursor: *show_cursor,
                         cursor: *cursor,
+                        search: Some(search),
                     };
                     context.paint_terminal_background(bounds);
                     for (index, row) in data.rows.iter().enumerate() {

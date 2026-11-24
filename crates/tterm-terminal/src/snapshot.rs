@@ -119,6 +119,7 @@ pub(crate) struct SnapshotParts {
     pub display_offset: usize,
     pub history_size: usize,
     pub scrollback_generation: u64,
+    pub content_version: u64,
     pub selection: Option<SelectionRange>,
     pub damage: Damage,
     pub bottom_line_occupied: bool,
@@ -137,6 +138,7 @@ pub struct Snapshot {
     display_offset: usize,
     history_size: usize,
     scrollback_generation: u64,
+    content_version: u64,
     selection: Option<SelectionRange>,
     damage: Damage,
     bottom_line_occupied: bool,
@@ -155,6 +157,7 @@ impl Snapshot {
             display_offset,
             history_size,
             scrollback_generation,
+            content_version,
             selection,
             damage,
             bottom_line_occupied,
@@ -170,6 +173,7 @@ impl Snapshot {
             display_offset,
             history_size,
             scrollback_generation,
+            content_version,
             selection,
             damage,
             bottom_line_occupied,
@@ -254,6 +258,16 @@ impl Snapshot {
     /// unchanged.
     pub fn scrollback_generation(&self) -> u64 {
         self.scrollback_generation
+    }
+
+    /// The model's searchable-text version when this frame was copied.
+    ///
+    /// A search result names the version it scanned; a view compares the two
+    /// before it paints matches. The number is sampled under the same lock as
+    /// the rows, so a frame and its version are always consistent. It is only
+    /// comparable within the model that produced it.
+    pub fn content_version(&self) -> u64 {
+        self.content_version
     }
 
     /// The selection, in grid coordinates, or `None` when nothing is selected.

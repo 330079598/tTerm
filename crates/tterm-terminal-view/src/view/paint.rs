@@ -9,6 +9,10 @@ use crate::glyphs::{GlyphFill, GlyphShape};
 
 use super::font::CellGeometry;
 use super::row::{PlacedGlyph, RowLayout, UnderlineSpan};
+use super::search::{
+    ACTIVE_MATCH_BACKGROUND, ACTIVE_MATCH_BACKGROUND_ALPHA, MATCH_BACKGROUND,
+    MATCH_BACKGROUND_ALPHA, VisibleSearch, VisibleSearchSpan,
+};
 use super::style::hsla;
 
 /// Where the cursor is drawn, after focus and blink are applied.
@@ -51,6 +55,8 @@ pub struct PaintContext<'a> {
     pub show_cursor: bool,
     /// The cursor, when one is drawn.
     pub cursor: Option<CursorPaint>,
+    /// Search matches clipped to the visible rows.
+    pub search: Option<&'a VisibleSearch>,
 }
 
 impl PaintContext<'_> {
@@ -102,6 +108,12 @@ impl PaintContext<'_> {
                 },
                 hsla(self.palette.selection_background),
             ));
+        }
+
+        if let Some(search) = self.search {
+            for span in search.row(row_index) {
+                self.paint_search_span(origin, span);
+            }
         }
 
         let selection_color = self.palette.selection_foreground;
@@ -207,6 +219,27 @@ impl PaintContext<'_> {
                 self.paint_outline(bounds, faded);
             }
         }
+    }
+
+    fn paint_search_span(&mut self, origin: Point<Pixels>, span: &VisibleSearchSpan) {
+        let (color, alpha) = if span.active {
+            (ACTIVE_MATCH_BACKGROUND, ACTIVE_MATCH_BACKGROUND_ALPHA)
+        } else {
+            (MATCH_BACKGROUND, MATCH_BACKGROUND_ALPHA)
+        };
+        let length = span.end.saturating_sub(span.start).saturating_add(1) as f32;
+        let bounds = Bounds {
+            origin: point(
+                origin.x + px(span.start as f32 * self.metrics.cell_width),
+                origin.y,
+            ),
+            size: size(
+                px(length * self.metrics.cell_width),
+                px(self.metrics.cell_height),
+            ),
+        };
+        self.window
+            .paint_quad(fill(bounds, hsla(color.with_alpha(alpha))));
     }
 
     fn paint_cell_content(

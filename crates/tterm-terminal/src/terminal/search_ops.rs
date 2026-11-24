@@ -3,6 +3,9 @@
 //! The matcher lives in [`crate::search`]. This module only holds the model
 //! lock for the duration of one call.
 
+use alacritty_terminal::grid::Dimensions as _;
+use alacritty_terminal::grid::Scroll as AnsiScroll;
+
 use super::Terminal;
 use crate::grid::{GridPoint, GridRange};
 use crate::search::rows::read_rows;
@@ -76,5 +79,29 @@ impl Terminal {
         crate::search::scan_chunks(query, cancellation, |start, max_rows| {
             self.retained_rows(start, max_rows)
         })
+    }
+
+    /// Scrolls the viewport so `line` is visible, and reports whether it moved.
+    ///
+    /// `line` uses the retained-history coordinate of [`SearchPosition`]:
+    /// zero is the oldest retained row. A line already in the viewport leaves
+    /// the offset alone; otherwise the smallest offset that brings it into
+    /// view is used, so a match near the bottom does not jump to the top.
+    /// Scrolling does not change the content version.
+    pub fn scroll_to_retained_line(&self, line: i64) -> bool {
+        let mut state = self.state.lock();
+        let history = state.term.history_size() as i64;
+        let screen = state.term.screen_lines() as i64;
+        let current = state.term.grid().display_offset() as i64;
+        let top = history - current;
+        if line >= top && line < top.saturating_add(screen) {
+            return false;
+        }
+        let target = (history - line).clamp(0, history);
+        let delta = target - current;
+        if delta != 0 {
+            state.term.scroll_display(AnsiScroll::Delta(delta as i32));
+        }
+        delta != 0
     }
 }
