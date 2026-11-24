@@ -14,6 +14,7 @@ use crate::search::{RetainedRows, SearchRow, UnitPosition};
 pub(crate) fn read_rows(
     grid: &Grid<AnsiCell>,
     generation: u64,
+    content_version: u64,
     start: usize,
     max_rows: usize,
 ) -> RetainedRows {
@@ -31,7 +32,7 @@ pub(crate) fn read_rows(
         };
         rows.push(row);
     }
-    RetainedRows::new(generation, total_lines, start, rows)
+    RetainedRows::new(generation, content_version, total_lines, start, rows)
 }
 
 /// Converts one row's cells into UTF-16 units and cell positions.

@@ -12,6 +12,17 @@ use crate::search::{
 };
 
 impl Terminal {
+    /// The version of the model's current searchable text.
+    ///
+    /// It advances on every non-empty write, on a resize that changes the
+    /// grid, and when a scrollback-capacity change drops history. Taking a
+    /// snapshot or scrolling the viewport does not change it. A search result
+    /// names the version it scanned; compare the two before using the result.
+    /// The number is only comparable within this model, not across sessions.
+    pub fn content_version(&self) -> u64 {
+        self.state.lock().content_version
+    }
+
     /// Finds the next match of `search` from `origin`.
     ///
     /// The match is computed while the terminal lock is held, so a scan that
@@ -32,13 +43,16 @@ impl Terminal {
     ///
     /// `start` is the retained-history line: zero is the oldest row the model
     /// holds, matching the overview marks. The lock is held only for this
-    /// copy; the generation in the result lets a worker detect eviction, a
-    /// clear, an alternate-screen switch or a resize between chunks.
+    /// copy; the content version in the result lets a worker detect any write
+    /// that changed text between chunks, while the scrollback generation
+    /// still covers cache events such as eviction and an alternate-screen
+    /// switch.
     pub fn retained_rows(&self, start: usize, max_rows: usize) -> RetainedRows {
         let state = self.state.lock();
         read_rows(
             state.term.grid(),
             state.scrollback_generation,
+            state.content_version,
             start,
             max_rows.min(SEARCH_CHUNK_ROWS),
         )
@@ -48,8 +62,12 @@ impl Terminal {
     ///
     /// The calling thread is expected to be a worker: the scan never holds the
     /// lock for the whole scrollback. `cancellation` stops it between rows and
-    /// matches. A [`SearchOutcome::Stale`] result means the scrollback
-    /// generation changed during the scan and the caller should run it again.
+    /// matches. A [`SearchOutcome::Stale`] result means the content changed
+    /// during the scan and the caller should run it again. A caller that keeps
+    /// the result can compare
+    /// [`SearchResult::content_version`](crate::search::SearchResult::content_version)
+    /// with [`Terminal::content_version`] to check it after the scan
+    /// returned.
     pub fn search_retained(
         &self,
         query: &SearchQuery,

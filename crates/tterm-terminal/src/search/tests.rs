@@ -62,6 +62,7 @@ fn an_empty_query_is_complete_and_empty() {
         result.generation(),
         terminal.snapshot().scrollback_generation()
     );
+    assert_eq!(result.content_version(), terminal.content_version());
 }
 
 #[test]
@@ -364,6 +365,7 @@ fn rows_copied_for_a_worker_are_bounded() {
     let rows = terminal.retained_rows(0, usize::MAX);
     assert_eq!(rows.rows().len(), SEARCH_CHUNK_ROWS);
     assert_eq!(rows.first_line(), 0);
+    assert_eq!(rows.content_version(), terminal.content_version());
     assert!(rows.total_lines() > SEARCH_CHUNK_ROWS);
 }
 
@@ -395,6 +397,7 @@ fn a_generation_change_discards_the_partial_scan() {
         let generation = if start == 0 { 7 } else { 8 };
         RetainedRows::new(
             generation,
+            1,
             2,
             start,
             vec![row(start as i64, "needle", false)],
@@ -405,6 +408,145 @@ fn a_generation_change_discards_the_partial_scan() {
 }
 
 #[test]
+fn a_write_between_chunks_discards_the_partial_scan() {
+    let query = SearchQuery::new("needle", SearchOptions::default()).expect("query compiles");
+    let cancellation = SearchCancellation::new();
+    let mut fetches = 0;
+    let outcome = scan_chunks(&query, &cancellation, |start, _| {
+        fetches += 1;
+        let content_version = if start == 0 { 3 } else { 4 };
+        RetainedRows::new(
+            9,
+            content_version,
+            2,
+            start,
+            vec![row(start as i64, "needle", false)],
+        )
+    });
+
+    assert_eq!(outcome, SearchOutcome::Stale);
+    assert_eq!(
+        fetches, 2,
+        "the scan stops at the chunk from another version"
+    );
+}
+
+#[test]
+fn an_in_place_overwrite_between_chunks_discards_the_partial_scan() {
+    let query = SearchQuery::new("needle", SearchOptions::default()).expect("query compiles");
+    let cancellation = SearchCancellation::new();
+    let outcome = scan_chunks(&query, &cancellation, |start, _| {
+        // The row count and scrollback generation stay put; only the cells
+        // on the second row are rewritten.
+        let (content_version, text) = if start == 0 {
+            (5, "needle")
+        } else {
+            (6, "XXXXXX")
+        };
+        RetainedRows::new(
+            1,
+            content_version,
+            2,
+            start,
+            vec![row(start as i64, text, false)],
+        )
+    });
+
+    assert_eq!(outcome, SearchOutcome::Stale);
+}
+
+#[test]
+fn an_untrimmed_append_seen_only_by_the_final_check_discards_the_scan() {
+    let query = SearchQuery::new("needle", SearchOptions::default()).expect("query compiles");
+    let cancellation = SearchCancellation::new();
+    let outcome = scan_chunks(&query, &cancellation, |start, _| {
+        if start == 0 {
+            RetainedRows::new(1, 1, 1, 0, vec![row(0, "needle", false)])
+        } else {
+            // The append does not evict, so the generation and total do not
+            // move; only the content version notices it.
+            RetainedRows::new(1, 2, 2, start, Vec::new())
+        }
+    });
+
+    assert_eq!(outcome, SearchOutcome::Stale);
+}
+
+#[test]
+fn an_untrimmed_append_between_chunks_discards_the_scan() {
+    let query = SearchQuery::new("needle", SearchOptions::default()).expect("query compiles");
+    let cancellation = SearchCancellation::new();
+    let outcome = scan_chunks(&query, &cancellation, |start, _| {
+        let total_lines = if start == 0 { 2 } else { 3 };
+        RetainedRows::new(
+            1,
+            1,
+            total_lines,
+            start,
+            vec![row(start as i64, "needle", false)],
+        )
+    });
+
+    assert_eq!(outcome, SearchOutcome::Stale);
+}
+
+#[test]
+fn a_chunk_that_runs_past_the_sampled_total_discards_the_scan() {
+    let query = SearchQuery::new("needle", SearchOptions::default()).expect("query compiles");
+    let cancellation = SearchCancellation::new();
+    let outcome = scan_chunks(&query, &cancellation, |start, _| {
+        let rows = if start == 0 {
+            vec![row(0, "needle", false)]
+        } else {
+            vec![row(1, "needle", false), row(2, "needle", false)]
+        };
+        RetainedRows::new(1, 1, 2, start, rows)
+    });
+
+    assert_eq!(
+        outcome,
+        SearchOutcome::Stale,
+        "a result must never report fewer total lines than it scanned"
+    );
+}
+
+#[test]
+fn a_write_during_the_final_check_discards_the_scan() {
+    let query = SearchQuery::new("needle", SearchOptions::default()).expect("query compiles");
+    let cancellation = SearchCancellation::new();
+    let outcome = scan_chunks(&query, &cancellation, |start, _| {
+        if start == 0 {
+            RetainedRows::new(1, 1, 1, 0, vec![row(0, "needle", false)])
+        } else {
+            RetainedRows::new(1, 2, 1, start, Vec::new())
+        }
+    });
+
+    assert_eq!(outcome, SearchOutcome::Stale);
+}
+
+#[test]
+fn the_final_cancellation_check_wins_over_a_newer_content_version() {
+    let query = SearchQuery::new("needle", SearchOptions::default()).expect("query compiles");
+    let cancellation = SearchCancellation::new();
+    let shared = cancellation.clone();
+    let outcome = scan_chunks(&query, &cancellation, move |start, _| {
+        if start == 0 {
+            RetainedRows::new(1, 1, 1, 0, vec![row(0, "needle", false)])
+        } else {
+            shared.cancel();
+            RetainedRows::new(1, 2, 1, start, Vec::new())
+        }
+    });
+
+    assert_eq!(
+        outcome,
+        SearchOutcome::Cancelled,
+        "a cancelled scan must not report a result, even when the content also changed"
+    );
+}
+
+#[test]
 fn a_pre_cancelled_scan_does_not_fetch_rows() {
     let query = SearchQuery::new("needle", SearchOptions::default()).expect("query compiles");
     let cancellation = SearchCancellation::new();
@@ -412,7 +554,7 @@ fn a_pre_cancelled_scan_does_not_fetch_rows() {
     let mut fetched = false;
     let outcome = scan_chunks(&query, &cancellation, |start, _| {
         fetched = true;
-        RetainedRows::new(1, 0, start, Vec::new())
+        RetainedRows::new(1, 1, 0, start, Vec::new())
     });
 
     assert_eq!(outcome, SearchOutcome::Cancelled);
@@ -429,7 +571,7 @@ fn cancellation_stops_the_scan() {
     let shared = cancellation.clone();
     let outcome = scan_chunks(&query, &cancellation, |start, _| {
         shared.cancel();
-        RetainedRows::new(1, 2, start, vec![row(start as i64, "needle", false)])
+        RetainedRows::new(1, 1, 2, start, vec![row(start as i64, "needle", false)])
     });
 
     assert_eq!(outcome, SearchOutcome::Cancelled);

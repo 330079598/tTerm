@@ -5,7 +5,8 @@
 //!
 //! ```sh
 //! cargo test -p tterm-terminal --release --test search_benchmark \
-//!     -- --ignored --exact --nocapture --test-threads=1
+//!     -- --exact one_hundred_thousand_line_search_reports_time_and_allocations \
+//!     --ignored --nocapture --test-threads=1
 //! ```
 //!
 //! The test reports wall-clock time and allocator traffic for a plain query, a

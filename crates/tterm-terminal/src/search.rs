@@ -18,10 +18,15 @@
 //! A [`SearchPosition`] uses the retained-history coordinate P2-06's overview
 //! marks use: line zero is the oldest row the model still holds, and the last
 //! visible line is `history_size + screen_lines - 1`. New output that does not
-//! evict a row leaves those numbers alone. Eviction, `ED 3`/`RIS`, an
-//! alternate-screen switch and resize advance
-//! [`crate::snapshot::Snapshot::scrollback_generation`] and invalidate a
-//! result.
+//! evict a row leaves those numbers alone.
+//!
+//! A result also carries a content version sampled under the same lock as the
+//! rows. It advances on every non-empty model write, on a resize that changes
+//! the grid and on a scrollback-capacity change that can drop history, so a
+//! worker can tell whether the text it scanned is still current. Unlike
+//! [`crate::snapshot::Snapshot::scrollback_generation`], it is not a cache
+//! generation: taking a snapshot or scrolling does not touch it. The version
+//! is only meaningful within one session; two models may share a number.
 //!
 //! # Matching
 //!
@@ -160,14 +165,21 @@ pub struct SearchMatch {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct SearchResult {
     generation: u64,
+    content_version: u64,
     total_lines: usize,
     matches: Vec<SearchMatch>,
 }
 
 impl SearchResult {
-    pub(crate) fn new(generation: u64, total_lines: usize, matches: Vec<SearchMatch>) -> Self {
+    pub(crate) fn new(
+        generation: u64,
+        content_version: u64,
+        total_lines: usize,
+        matches: Vec<SearchMatch>,
+    ) -> Self {
         Self {
             generation,
+            content_version,
             total_lines,
             matches,
         }
@@ -176,6 +188,16 @@ impl SearchResult {
     /// The scrollback generation the result belongs to.
     pub fn generation(&self) -> u64 {
         self.generation
+    }
+
+    /// The content version the scan started from.
+    ///
+    /// Compare it with
+    /// [`crate::terminal::Terminal::content_version`] before using a result.
+    /// The number is only comparable within the same session; another model
+    /// may produce the same value.
+    pub fn content_version(&self) -> u64 {
+        self.content_version
     }
 
     /// The number of retained rows the scan covered.
@@ -226,8 +248,10 @@ pub enum SearchOutcome {
     Complete(SearchResult),
     /// The caller asked the scan to stop.
     Cancelled,
-    /// The scrollback generation changed during the scan, so its partial
-    /// matches were discarded and the caller should scan again.
+    /// The content changed during the scan, so its partial matches were
+    /// discarded and the caller should scan again. Continuous output can
+    /// keep returning `Stale`; a scan is not guaranteed to finish while the
+    /// session never stops writing.
     Stale,
 }
 
@@ -260,11 +284,12 @@ impl SearchCancellation {
 /// A bounded copy of consecutive retained rows.
 ///
 /// The model produces one of these per lock acquisition. `generation` is the
-/// scrollback generation at the copy; `first_line` is the retained line of
-/// `rows[0]`.
+/// scrollback generation at the copy, `content_version` is the text version
+/// sampled with it, and `first_line` is the retained line of `rows[0]`.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct RetainedRows {
     generation: u64,
+    content_version: u64,
     total_lines: usize,
     first_line: usize,
     rows: Vec<SearchRow>,
@@ -273,12 +298,14 @@ pub struct RetainedRows {
 impl RetainedRows {
     pub(crate) fn new(
         generation: u64,
+        content_version: u64,
         total_lines: usize,
         first_line: usize,
         rows: Vec<SearchRow>,
     ) -> Self {
         Self {
             generation,
+            content_version,
             total_lines,
             first_line,
             rows,
@@ -288,6 +315,11 @@ impl RetainedRows {
     /// The scrollback generation the copy belongs to.
     pub fn generation(&self) -> u64 {
         self.generation
+    }
+
+    /// The content version sampled in the same lock acquisition.
+    pub fn content_version(&self) -> u64 {
+        self.content_version
     }
 
     /// The number of retained rows in the buffer at the copy.
@@ -400,6 +432,7 @@ struct SearchScan<'a> {
     query: &'a SearchQuery,
     cancellation: &'a SearchCancellation,
     generation: u64,
+    content_version: u64,
     total_lines: usize,
     pending_units: Vec<u16>,
     pending_positions: Vec<UnitPosition>,
@@ -411,9 +444,11 @@ struct SearchScan<'a> {
 /// Scans every retained row, fetching bounded chunks with `fetch`.
 ///
 /// The loop never holds a model lock because it only calls `fetch`, which is
-/// expected to copy one chunk and return. A generation change, or a chunk
-/// that does not start where the previous one ended, discards the partial
-/// result.
+/// expected to copy one chunk and return. Every chunk must belong to the same
+/// content version and the same total row count as the first one, and no
+/// chunk may reach past that total; otherwise the partial result is discarded
+/// as [`SearchOutcome::Stale`]. Reading the version again after the last chunk
+/// catches a write that happened after the last copy.
 pub(crate) fn scan_chunks<F>(
     query: &SearchQuery,
     cancellation: &SearchCancellation,
@@ -430,27 +465,52 @@ where
     }
     let first = fetch(0, SEARCH_CHUNK_ROWS);
     let generation = first.generation;
+    let content_version = first.content_version;
     let total_lines = first.total_lines;
-    let mut scan = SearchScan::new(query, cancellation, generation, total_lines);
+    let mut scan = SearchScan::new(
+        query,
+        cancellation,
+        generation,
+        content_version,
+        total_lines,
+    );
     let mut next = 0;
     let mut chunk = first;
     loop {
         if cancellation.is_cancelled() {
             return SearchOutcome::Cancelled;
         }
-        if chunk.generation != generation || chunk.first_line != next {
+        if chunk.generation != generation
+            || chunk.content_version != content_version
+            || chunk.total_lines != total_lines
+            || chunk.first_line != next
+        {
+            return SearchOutcome::Stale;
+        }
+        let end = next.saturating_add(chunk.rows.len());
+        if end > total_lines {
+            // A growing buffer must never make the result cover rows the
+            // result's own total does not name.
             return SearchOutcome::Stale;
         }
         let previous = next;
         scan.push_rows(&chunk.rows);
-        next = next.saturating_add(chunk.rows.len());
+        next = end;
         if scan.cancelled {
             return SearchOutcome::Cancelled;
         }
         if next >= total_lines {
-            // The last chunk may have raced with an eviction that happened
-            // after it was copied, so read the generation one more time.
-            if fetch(total_lines, 0).generation != generation {
+            // The last chunk may have raced with a write that kept the row
+            // count but changed text, so sample the version once more.
+            let last = fetch(total_lines, 0);
+            if cancellation.is_cancelled() {
+                return SearchOutcome::Cancelled;
+            }
+            if last.generation != generation
+                || last.content_version != content_version
+                || last.total_lines != total_lines
+                || last.first_line != total_lines
+            {
                 return SearchOutcome::Stale;
             }
             return scan.finish();
@@ -474,11 +534,20 @@ where
     if cancellation.is_cancelled() {
         return SearchOutcome::Cancelled;
     }
-    if fetch(first.total_lines, 0).generation != first.generation {
+    let last = fetch(first.total_lines, 0);
+    if cancellation.is_cancelled() {
+        return SearchOutcome::Cancelled;
+    }
+    if last.generation != first.generation
+        || last.content_version != first.content_version
+        || last.total_lines != first.total_lines
+        || last.first_line != first.total_lines
+    {
         return SearchOutcome::Stale;
     }
     SearchOutcome::Complete(SearchResult::new(
         first.generation,
+        first.content_version,
         first.total_lines,
         Vec::new(),
     ))

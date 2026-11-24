@@ -236,6 +236,7 @@ struct State {
     cell_size: CellSize,
     version: u64,
     scrollback_generation: u64,
+    content_version: u64,
     scroll_region: ScrollRegion,
     word_selection: bool,
     word_drag: Option<SelectionRange>,
@@ -278,6 +279,7 @@ impl Terminal {
             cell_size,
             version: 0,
             scrollback_generation: 0,
+            content_version: 0,
             scroll_region: ScrollRegion::full(grid.clamped().screen_lines),
             word_selection: false,
             word_drag: None,
@@ -299,6 +301,10 @@ impl Terminal {
             return;
         }
         let mut state = self.state.lock();
+        // A non-empty batch may change any cell, including repainting one
+        // visible row in place. Bumping here, inside the lock, makes the
+        // version a conservative description of the text a search copies.
+        state.content_version = state.content_version.wrapping_add(1);
         // An active drag endpoint is a screen-coordinate choice. Output can
         // scroll or reflow the grid under it, so keep the lifecycle-tracked
         // anchor and drop the endpoint instead of committing a stale range.
@@ -422,10 +428,14 @@ impl Terminal {
         // Reflow changes which row holds each line; the tracker has no reflow
         // map, so stale marks are dropped instead of pointing at another row.
         state.command_marks.dispose_markers();
-        // Reflow can change the history length and the row that holds a line,
-        // so a cached row number is stale even when the history size is not.
-        state.scrollback_generation = state.scrollback_generation.wrapping_add(1);
-        state.term.resize(grid.clamped());
+        // Only a grid change can reflow text under a search result. A cell
+        // size change alone leaves every retained row where it was.
+        let grid = grid.clamped();
+        let current = GridSize::new(state.term.columns(), state.term.screen_lines());
+        if grid != current {
+            state.content_version = state.content_version.wrapping_add(1);
+        }
+        state.term.resize(grid);
         state.scroll_region = ScrollRegion::full(state.term.screen_lines());
     }
 
@@ -452,6 +462,8 @@ impl Terminal {
             lines < state.config.scrollback && (was_alternate || lines < state.term.history_size());
         if invalidates {
             state.scrollback_generation = state.scrollback_generation.wrapping_add(1);
+            // The same shrink drops rows from the text a search can see.
+            state.content_version = state.content_version.wrapping_add(1);
         }
         state.word_drag = None;
         state.config.scrollback = lines;

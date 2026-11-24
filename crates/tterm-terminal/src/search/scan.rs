@@ -5,17 +5,19 @@ use crate::search::{
 };
 
 impl<'a> SearchScan<'a> {
-    /// Starts a scan for one generation of the retained history.
+    /// Starts a scan for one content version of the retained history.
     pub(crate) fn new(
         query: &'a SearchQuery,
         cancellation: &'a SearchCancellation,
         generation: u64,
+        content_version: u64,
         total_lines: usize,
     ) -> Self {
         Self {
             query,
             cancellation,
             generation,
+            content_version,
             total_lines,
             pending_units: Vec::new(),
             pending_positions: Vec::new(),
@@ -61,6 +63,7 @@ impl<'a> SearchScan<'a> {
         }
         SearchOutcome::Complete(SearchResult::new(
             self.generation,
+            self.content_version,
             self.total_lines,
             self.matches,
         ))

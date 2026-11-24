@@ -820,17 +820,22 @@ fn resize_replaces_the_grid_and_damages_everything() {
 }
 
 #[test]
-fn resize_advances_the_scrollback_generation() {
+fn resize_is_not_a_scrollback_cache_event_but_advances_the_content_version() {
     let terminal = terminal(20, 3, 100);
     terminal.write(b"one\r\ntwo\r\nthree\r\nfour\r\n");
     let before = terminal.snapshot().scrollback_generation();
+    let content = terminal.content_version();
 
     terminal.resize(GridSize::new(10, 4), CellSize::default());
-    let after = terminal.snapshot().scrollback_generation();
 
+    assert_eq!(
+        terminal.snapshot().scrollback_generation(),
+        before,
+        "the scrollback cache generation keeps its own meaning"
+    );
     assert!(
-        after > before,
-        "reflow moves rows, so cached retained-history lines must expire"
+        terminal.content_version() > content,
+        "reflow moves rows, so the searchable text version must advance"
     );
 }
 
