@@ -5,7 +5,7 @@
 //!
 //! ```sh
 //! cargo run -p tterm-gpui --example search_capture --features tterm-gpui/automation -- \
-//!   --output docs/gpui-migration/reports/evidence/P2-07-search-ui
+//!   --output "$(mktemp -d)/gpui"
 //! ```
 
 use std::path::PathBuf;

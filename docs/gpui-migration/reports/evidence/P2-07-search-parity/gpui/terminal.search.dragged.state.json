@@ -1,0 +1,55 @@
+{
+  "method": "gpui-kit headless renderer, production SearchBar and TerminalView; synthetic 80-line model, no shell",
+  "viewport": {
+    "width": 800.0,
+    "height": 600.0,
+    "deviceScaleFactor": 2.0
+  },
+  "theme": "dark",
+  "language": "en",
+  "focus": "search-input",
+  "query": "needle",
+  "searchOpen": true,
+  "dragging": false,
+  "options": {
+    "caseSensitive": false,
+    "wholeWord": false,
+    "regex": false
+  },
+  "result": {
+    "index": 27,
+    "count": 80
+  },
+  "text": {
+    "count": "28 / 80",
+    "input": "needle"
+  },
+  "bounds": {
+    "bar": {
+      "x": 270.0,
+      "y": 548.0,
+      "width": 522.0,
+      "height": 44.0
+    },
+    "surface": {
+      "x": 0.0,
+      "y": 0.0,
+      "width": 800.0,
+      "height": 600.0
+    }
+  },
+  "terminal": {
+    "cols": 98,
+    "rows": 32,
+    "baseY": 49,
+    "viewportY": 14,
+    "activeMatch": {
+      "line": 27,
+      "firstColumn": 23,
+      "lastColumnInclusive": 28
+    },
+    "visibleSearchSpans": 32,
+    "visibleActiveSpans": 1,
+    "overviewMarks": 33
+  }
+}
