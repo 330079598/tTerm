@@ -98,7 +98,6 @@ impl SearchBar {
         .child(previous)
         .child(next)
         .child(close)
-        .child(div().debug_selector(|| "probe-controls".to_string()))
     }
 }
 

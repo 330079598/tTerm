@@ -339,11 +339,11 @@ impl Render for SearchBar {
                             theme: Some(self.theme),
                             focused: self.input.read(cx).focus_handle(cx).is_focused(window),
                             height: 28.0,
+                            size: gpui_kit::component::Size::Small,
                             ..InputOptions::default()
                         },
                     )),
-            )
-            .child(div().debug_selector(|| "probe-root".to_string()));
+            );
         self.render_controls(window, cx, root).into_any_element()
     }
 }
