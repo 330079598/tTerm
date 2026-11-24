@@ -134,7 +134,7 @@ open ──输入/选项变化──▶ 清空旧结果 ──去抖──▶ �
 | 切窗格、关闭、覆盖、清历史、重排时，栏内结果、可见匹配高亮及概览标记不得残留。 | 通过 | `switching_panes_closes_the_previous_panes_search_and_its_highlights`；`an_in_place_overwrite_and_a_history_clear_remove_the_result`；`output_clears_the_result_and_a_settled_rescan_includes_the_new_rows`；`a_hidden_view_keeps_no_search_overlay`、`a_grid_changing_resize_drops_the_overlay_before_painting`；视图的 `is_stale_for` 同时复核内容版本、世代和总行数 |
 | 上/下一项循环且在屏外时滚入可见。 | 通过 | `navigation_wraps_and_scrolls_an_off_screen_match_into_view`（上一项跨顶部、下一项跨尾部、计数 `120 / 120`）；`revealing_an_off_screen_match_scrolls_it_into_the_viewport` |
 | 选择与搜索高亮彼此独立，按可见行裁剪，不逐帧遍历所有匹配。 | 通过 | `a_large_result_is_clipped_to_the_viewport_and_selection_stays_independent`（>1000 条匹配，仅访问视口行；清除选择后搜索仍在）；`visible_spans_are_clipped_to_the_viewport_instead_of_the_whole_result`；`a_match_that_wraps_into_the_viewport_is_painted_on_both_rows`；`marks_keep_the_active_flag_and_are_bounded` |
-| 用生产视图、隔离终端和真实键鼠事件回归：默认/自定义快捷键及回退、两窗格隔离、中英文、正则出错/空结果、选项、导航计数、Esc 后重新输入、搜索时无输入泄漏。 | 通过 | `search/tests.rs` 12 项、`search_workspace_tests.rs` 4 项、`view/search_tests.rs` 6 项；均挂载生产 `TerminalView` + `SearchBar`，用 `VisualTestContext` 派发真实键鼠事件；模型是进程内合成输出，没有启动 SSH/PTY/桌面窗口 |
+| 用生产视图、隔离终端和真实键鼠事件回归：默认/自定义快捷键及回退、两窗格隔离、中英文、正则出错/空结果、选项、导航计数、Esc 后重新输入、搜索时无输入泄漏。 | 通过 | `search/tests.rs` 12 项、`search_workspace_tests.rs` 5 项、`view/search_tests.rs` 6 项；均挂载生产 `TerminalView` + `SearchBar`，用 `VisualTestContext` 派发真实键鼠事件；模型是进程内合成输出，没有启动 SSH/PTY/桌面窗口 |
 | 用确定性交错验证取消、乱序完成和生产绘制（普通/活动高亮与标尺，结果过期后消失）。 | 通过 | `an_older_completion_and_a_stale_version_are_ignored`、`rescheduling_cancels_the_previous_scan`；`visible_matches_paint_normal_and_active_spans_and_feed_the_ruler`、`output_drops_the_overlay_before_the_next_frame_and_reports_it`；`ViewStats::search_active_spans`、`overview_marks`、`search_stale_clears` |
 | 捕获原版与 GPUI 同状态界面以比较外观；如无法取得证据如实登记。 | **部分：仅 GPUI 截图** | `docs/gpui-migration/reports/evidence/P2-07-search-ui/search-bar.png`（1600×1200，2×）；原版运行截图未取得，见“偏差与未验证” |
 | 按 AGENTS.md 全量检查与 idle release 双门；未通过不能调门槛。 | 通过 | 见“检查”；门槛负载、步进、采样窗口、16.667 ms p95、500 ms 截止和 30 MiB 总量均未改 |
@@ -203,7 +203,7 @@ cargo clippy --workspace --all-targets -- -D warnings
 cargo test --workspace
 ```
 
-全部通过。`tterm-gpui` lib 293 项、3 项 ignored；`tterm-terminal-view` lib 182 项；`tterm-terminal` lib 377 项、`search_model` 20 项；其余 workspace 测试二进制全部通过。搜索 benchmark 仍为 `#[ignore]`，默认套件只计数不执行。
+全部通过。`tterm-gpui` lib 294 项、3 项 ignored；`tterm-terminal-view` lib 182 项；`tterm-terminal` lib 377 项、`search_model` 20 项；其余 workspace 测试二进制全部通过。搜索 benchmark 仍为 `#[ignore]`，默认套件只计数不执行。
 
 ### release 双门
 
@@ -211,9 +211,9 @@ cargo test --workspace
 node scripts/perf/gpui-release-frame-budget.mjs
 ```
 
-- 机器：Apple M4（10 CPU），36 GB，macOS 27.2；运行前 `uptime` 的 1/5/15 分钟负载为 2.94 / 4.93 / 5.47。
-- 帧：baseline p50 142.333 µs / p95 154.417 µs；30-background p50 150.166 µs / p95 168.667 µs；p95 预算 16.667 ms，远未触及。抽样窗口 18.14125 ms 内 30 个会话全部前进，确认 3,165,200 字节（166.39 MiB/s）。
-- 吞吐：30 会话、30 MiB 全部应用并确认，176.256 ms 完成（170.21 MiB/s），低于 500 ms 截止；`completed=true`。
+- 机器：Apple M4（10 CPU），36 GB，macOS 27.2；运行前 `uptime` 的 1/5/15 分钟负载为 7.20 / 7.87 / 7.25。
+- 帧：baseline p50 109.375 µs / p95 156.583 µs；30-background p50 138.917 µs / p95 163.416 µs；p95 预算 16.667 ms，远未触及。抽样窗口 16.111334 ms 内 30 个会话全部前进，确认 3,312,800 字节（196.09 MiB/s）。
+- 吞吐：30 会话、30 MiB 全部应用并确认，174.231 ms 完成（172.18 MiB/s），低于 500 ms 截止；`completed=true`。
 - 两项独立测量都通过；门槛代码、负载、步进、采样窗口和截止均未修改。
 
 ## 偏差与未验证
@@ -235,7 +235,7 @@ node scripts/perf/gpui-release-frame-budget.mjs
 
 ```sh
 git status --short                     # 应为空
-git log --oneline 7997ccc2..HEAD       # 10 个本批提交（含报告和 failed_tab 预拆分）
+git log --oneline 7997ccc2..HEAD       # 12 个本批提交（含两次报告和 failed_tab 预拆分）
 cargo test -p tterm-terminal --test search_model
 cargo test -p tterm-terminal-view --lib search
 cargo test -p tterm-gpui --lib search::tests
@@ -263,8 +263,10 @@ b6a38055 :fire: Drop the unused drag-handle icon
 a429b04a :bug: Remove the search debug probes and use the compact input size
 af29c553 :white_check_mark: Cover a grid-changing resize invalidating the search overlay
 4fb92812 :bug: Refuse to navigate a search result from an older content version
+883b8cc0 :memo: Record the GPUI search-bar implementation and its evidence
+890d4483 :bug: Leave find to the settings page instead of a terminal pane
 ```
 
-报告本身随本文件一起提交，位于 `4fb92812` 之后。
+报告先由 `883b8cc0` 提交，随后续两处修正由本文件所在的 memo 提交更新；历史中保留两次 memo 提交。
 
 交付前 `git status` 为空。提交只在本地分支 `migrate/P2-07-search-ui`，未推送、未合并，未修改 `docs/gpui-migration/status.md`。
