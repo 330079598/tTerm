@@ -29,10 +29,14 @@ const COMMAND_X: f32 = BORDER;
 const SEARCH_X: f32 = BORDER + OUTER_WIDTH;
 
 /// xterm's fixed overview colors for finished commands and matches.
-const SUCCEEDED_COLOR: Rgba = Rgba::rgb(0x22, 0xc5, 0x5e);
-const FAILED_COLOR: Rgba = Rgba::rgb(0xef, 0x44, 0x44);
-const MATCH_COLOR: Rgba = Rgba::rgb(0xfa, 0xcc, 0x15);
-const ACTIVE_MATCH_COLOR: Rgba = Rgba::rgb(0xfb, 0x92, 0x3c);
+///
+/// The command colors come from the frontend's `commandMarks.ts`; the search
+/// colors come from `searchTypes.ts`. Both are fixed overview colors, not
+/// palette-derived colors, because xterm keeps them independent of the theme.
+pub(super) const SUCCEEDED_COLOR: Rgba = Rgba::rgb(0x22, 0xc5, 0x5e);
+pub(super) const FAILED_COLOR: Rgba = Rgba::rgb(0xef, 0x44, 0x44);
+pub(super) const MATCH_COLOR: Rgba = Rgba::rgb(0xfa, 0xcc, 0x15);
+pub(super) const ACTIVE_MATCH_COLOR: Rgba = Rgba::rgb(0xfb, 0x92, 0x3c);
 
 /// The shortest and tallest one-line mark in logical pixels.
 const MIN_MARK_HEIGHT: f32 = 6.0;
@@ -79,17 +83,23 @@ pub struct OverviewLayout {
 
 /// Resolves command and search marks into track rectangles.
 ///
-/// The alternate screen has its own hidden history, so the ruler is not
-/// drawn there, matching xterm's hidden overview canvas.
+/// `history_lines + screen_lines` is the same total xterm maps decorations
+/// against. The alternate screen has its own hidden history, and an empty
+/// history has no ruler to draw, so both produce no rectangles.
 pub(super) fn layout(
     geometry: &ScrollbarGeometry,
-    total_lines: usize,
+    history_lines: usize,
+    screen_lines: usize,
     command_marks: &[CommandMarkPosition],
     search_marks: &[OverviewSearchMark],
     alternate_screen: bool,
 ) -> OverviewLayout {
     let track = geometry.track;
-    if alternate_screen || track < 1.0 || total_lines == 0 {
+    if alternate_screen || history_lines == 0 || track < 1.0 {
+        return OverviewLayout::default();
+    }
+    let total_lines = history_lines.saturating_add(screen_lines);
+    if total_lines == 0 {
         return OverviewLayout::default();
     }
     let rows = track.ceil() as usize;
@@ -155,12 +165,10 @@ pub(super) fn layout_for_snapshot(
     snapshot: &Snapshot,
     search_marks: &[OverviewSearchMark],
 ) -> OverviewLayout {
-    let total_lines = snapshot
-        .history_size()
-        .saturating_add(snapshot.grid().screen_lines);
     layout(
         geometry,
-        total_lines,
+        snapshot.history_size(),
+        snapshot.grid().screen_lines,
         snapshot.command_marks(),
         search_marks,
         snapshot
@@ -239,11 +247,12 @@ mod tests {
     #[test]
     fn empty_marks_and_the_alternate_screen_paint_nothing() {
         let geometry = ScrollbarGeometry::new(200.0, 20, 100, 0);
-        assert!(layout(&geometry, 120, &[], &[], false).rects.is_empty());
+        assert!(layout(&geometry, 20, 100, &[], &[], false).rects.is_empty());
         assert!(
             layout(
                 &geometry,
-                120,
+                20,
+                100,
                 &[command(10, 0)],
                 &[search(20, false)],
                 true
@@ -258,7 +267,8 @@ mod tests {
         let geometry = ScrollbarGeometry::new(200.0, 20, 100, 0);
         let layout = layout(
             &geometry,
-            120,
+            20,
+            100,
             &[command(10, 0), command(60, 1)],
             &[search(30, false), search(90, true)],
             false,
@@ -294,7 +304,7 @@ mod tests {
         let geometry = ScrollbarGeometry::new(300.0, 20, 1000, 0);
         let commands: Vec<_> = (0..5_000).map(|line| command(line, line % 2)).collect();
         let searches: Vec<_> = (0..5_000).map(|line| search(line, line % 3 == 0)).collect();
-        let layout = layout(&geometry, 6_000, &commands, &searches, false);
+        let layout = layout(&geometry, 5_000, 1_000, &commands, &searches, false);
         assert!(
             layout.rects.len() <= geometry.track.ceil() as usize * 2,
             "the paint count is bounded by the track's pixel rows"
@@ -302,10 +312,49 @@ mod tests {
     }
 
     #[test]
+    fn empty_history_paints_nothing_even_with_marks() {
+        let geometry = ScrollbarGeometry::new(200.0, 20, 0, 0);
+        assert!(
+            layout(
+                &geometry,
+                0,
+                24,
+                &[command(0, 0)],
+                &[search(0, true)],
+                false
+            )
+            .rects
+            .is_empty(),
+            "the overview ruler only maps retained history"
+        );
+    }
+
+    #[test]
+    fn empty_search_source_leaves_the_command_ruler_alone() {
+        let geometry = ScrollbarGeometry::new(200.0, 20, 100, 0);
+        let layout = layout(&geometry, 20, 100, &[command(10, 0)], &[], false);
+        assert_eq!(layout.rects.len(), 1);
+        assert_eq!(layout.rects[0].x, COMMAND_X);
+        assert_eq!(layout.rects[0].color, SUCCEEDED_COLOR);
+    }
+
+    #[test]
+    fn absolute_lines_map_from_the_oldest_history_row_to_the_newest_screen_row() {
+        let geometry = ScrollbarGeometry::new(240.0, 24, 240, 0);
+        let oldest = layout(&geometry, 240, 24, &[command(0, 0)], &[], false);
+        let newest = layout(&geometry, 240, 24, &[command(263, 0)], &[], false);
+        let oldest = oldest.rects[0];
+        let newest = newest.rects[0];
+        assert!(oldest.y < newest.y);
+        assert!(oldest.y >= 0.0);
+        assert!(newest.y + newest.height <= geometry.track);
+    }
+
+    #[test]
     fn marks_on_one_row_share_a_rectangle() {
         let geometry = ScrollbarGeometry::new(200.0, 20, 100, 0);
         let commands: Vec<_> = (0..50).map(|_| command(80, 0)).collect();
-        let layout = layout(&geometry, 120, &commands, &[], false);
+        let layout = layout(&geometry, 20, 100, &commands, &[], false);
         assert_eq!(layout.rects.len(), 1);
     }
 }

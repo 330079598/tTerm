@@ -5,11 +5,14 @@
 //! the view prepared, not a separately constructed snapshot or screen view.
 
 use super::input_tests::Harness;
-use super::overview::{self, OverviewSearchMark};
+use super::overview::{
+    self, ACTIVE_MATCH_COLOR, FAILED_COLOR, MATCH_COLOR, OverviewSearchMark, SUCCEEDED_COLOR,
+};
 use super::scrollbar::ScrollbarGeometry;
+use super::style::hsla;
 use gpui_kit::{
-    Modifiers, MouseButton, MouseDownEvent, MouseUpEvent, ScrollDelta, ScrollEvent, TestAppContext,
-    point, px,
+    AppContext, Modifiers, MouseButton, MouseDownEvent, MouseUpEvent, ScrollDelta, ScrollEvent,
+    TestAppContext, point, px,
 };
 use tterm_terminal::command_marks::CommandMarkPosition;
 
@@ -300,4 +303,95 @@ fn the_alternate_screen_does_not_paint_main_screen_marks(cx: &mut TestAppContext
         h.view.read_with(cx, |view, _| view.stats().overview_marks) > 0,
         "returning to the main screen restores its marks"
     );
+}
+
+#[gpui_kit::test]
+fn overview_layout_is_painted_in_the_track_under_the_thumb(cx: &mut TestAppContext) {
+    let h = Harness::with_scrollback(cx, 500);
+    let mut bytes = commands(2);
+    bytes.extend_from_slice(&fill(120));
+    h.output(cx, &bytes);
+    let snapshot = snapshot(&h, cx);
+    assert!(snapshot.history_size() > 0);
+    assert!(!layout(&h, cx, &snapshot).rects.is_empty());
+
+    let cursor = h.view.read_with(cx, |view, _| view.palette().cursor);
+    cx.update_window(h.window, |_, window, _| {
+        let scale = window.scale_factor();
+        let quads = window.painted_quads();
+        let mark_color = hsla(SUCCEEDED_COLOR);
+        let marks: Vec<_> = quads
+            .iter()
+            .enumerate()
+            .filter(|(_, quad)| quad.background == mark_color.into())
+            .collect();
+        assert!(
+            !marks.is_empty(),
+            "the prepared overview rectangles reach the painted scene"
+        );
+        assert!(
+            marks
+                .iter()
+                .all(|(_, quad)| (quad.bounds.size.width.as_f32() / scale - 3.0).abs() < 0.01),
+            "a command mark keeps the left zone's three-pixel width"
+        );
+
+        let (thumb_index, thumb) = quads
+            .iter()
+            .enumerate()
+            .rev()
+            .find(|(_, quad)| {
+                quad.background == hsla(cursor).into()
+                    && (quad.bounds.size.width.as_f32() / scale - 10.0).abs() < 0.01
+            })
+            .expect("the scrollbar thumb is painted");
+        for (index, mark) in &marks {
+            assert!(*index < thumb_index, "the thumb paints over the marks");
+            let left = thumb.bounds.origin.x.as_f32();
+            let right = left + thumb.bounds.size.width.as_f32();
+            assert!(mark.bounds.origin.x.as_f32() >= left - 0.01);
+            assert!(
+                mark.bounds.origin.x.as_f32() + mark.bounds.size.width.as_f32() <= right + 0.01,
+                "the 10-pixel gutter keeps every mark inside the track"
+            );
+        }
+
+        let search_colors = [hsla(MATCH_COLOR), hsla(ACTIVE_MATCH_COLOR)];
+        assert!(
+            quads.iter().all(|quad| !search_colors
+                .iter()
+                .any(|color| quad.background == (*color).into())),
+            "the empty production search source paints nothing"
+        );
+    })
+    .expect("inspect the painted overview");
+}
+
+#[gpui_kit::test]
+fn empty_history_paints_no_overview_marks_even_when_a_command_is_tracked(cx: &mut TestAppContext) {
+    let h = Harness::with_scrollback(cx, 500);
+    h.output(cx, &commands(1));
+    let snapshot = snapshot(&h, cx);
+    assert_eq!(snapshot.history_size(), 0);
+    assert_eq!(snapshot.command_marks().len(), 1);
+    assert_eq!(
+        h.view.read_with(cx, |view, _| view.stats().overview_marks),
+        0
+    );
+
+    cx.update_window(h.window, |_, window, _| {
+        let colors = [
+            hsla(SUCCEEDED_COLOR),
+            hsla(FAILED_COLOR),
+            hsla(MATCH_COLOR),
+            hsla(ACTIVE_MATCH_COLOR),
+        ];
+        assert!(
+            window.painted_quads().iter().all(|quad| !colors
+                .iter()
+                .any(|color| quad.background == (*color).into())),
+            "an empty history has no ruler position to paint"
+        );
+    })
+    .expect("inspect the empty overview");
 }
