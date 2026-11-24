@@ -16,7 +16,6 @@ const names = [
   "case-sensitive",
   "whole-word",
   "regex",
-  "grip-horizontal",
 ]
 
 function nodeMarkup(node) {
