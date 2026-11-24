@@ -21,7 +21,7 @@
 
 设置回滚行数流程已合入，见[设置验收](reports/P4-15.md)。P2-06 的[滚动与内存](reports/P2-06-scroll-memory.md)、[概览标记](reports/P2-06-overview.md)和 P2-07 的[搜索模型](reports/P2-07-search-model.md)、[搜索栏](reports/P2-07-search-ui.md)已通过自动验收。
 
-P2-07 [第三批执行卡](reports/P2-07-search-parity-plan.md)已派给 Pi + DeepSeek V4.1 Flash（`migrate/P2-07-search-parity`）。协调者复跑原版 WebKit：800×600、DPR 2、`needle` 第 28/80 项，栏框从 `(264,12,522,44)` 拖至 `(270,548,522,44)`。夹具主动恢复滚动和焦点，这只证明两张截图状态可比，不证明原生导航行为。候选分支须复核换行后的实际外框、无输出时分屏缩放、拖动期间鼠标上报与组字中 Esc，再决定是否合并。原生桌面输入、滚动和真实 shell 集成仍待补。
+P2-07 [第三批](reports/P2-07-search-parity.md)已通过自动验收并合入本地 `GPUI`（`084100b1`）：两态栏框、高亮底色、窄窗拖动、分屏鼠标隔离和文本输入协议回归已验证。下一步在隔离桌面核验 macOS 原生拼音候选、两次 Esc 和原窗格焦点；随后验证原生滚动和真实 shell/PTY。以上完成后再申请 G2 签收，不以截图或性能门替代。
 
 ### 2026-11-11 交接记录（历史）
 
