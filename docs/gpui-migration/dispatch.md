@@ -21,7 +21,7 @@
 
 设置回滚行数流程已合入，见[设置验收](reports/P4-15.md)。P2-06 的[滚动与内存](reports/P2-06-scroll-memory.md)、[概览标记](reports/P2-06-overview.md)和 P2-07 的[搜索模型](reports/P2-07-search-model.md)、[搜索栏](reports/P2-07-search-ui.md)已通过自动验收。
 
-P2-07 [第三批](reports/P2-07-search-parity.md)已合入本地 `GPUI`。[本地真实 PTY 与 zsh 钩子](reports/P2-06-07-live-acceptance.md)已验收并提交。[P2-19 只读恢复](reports/P2-19-read-only.md)和 [P2-12 第一批](reports/P2-12-ssh-query.md)已在工作区通过 Windows 自动回归。下一张不依赖专用桌面的卡是同一输出批次中跨应答方的查询顺序：先发模型应答的 CPR，再发 SSH 层应答的状态查询，在服务端核对两份回包。另行安排专用 macOS 的拼音、物理滚动与标尺、30 分钟内存长跑及无 GPU 测量。
+P2-07 [第三批](reports/P2-07-search-parity.md)和[本地真实 PTY 与 zsh 钩子](reports/P2-06-07-live-acceptance.md)已合入本地 `GPUI`。[P2-19 只读恢复](reports/P2-19-read-only.md)已提交（`43bf05bd`）。[P2-12](reports/P2-12-ssh-query.md)已覆盖单条查询和同包普通 CPR/状态查询双向顺序。剩余协议验收要覆盖仍由 SSH 层回答的查询与模型查询混发、建连早期输出和真实 TUI。并行准备原生输入法、物理滚动与标尺、30 分钟内存长跑及无 GPU 测量。
 
 ### 2026-11-11 交接记录（历史）
 

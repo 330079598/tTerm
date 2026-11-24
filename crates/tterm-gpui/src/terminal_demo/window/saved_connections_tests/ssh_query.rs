@@ -21,9 +21,13 @@ const START_GATE: &[u8] = b"P2-12-START";
 const STATUS_GATE: &[u8] = b"P2-12-STATUS";
 const WINDOW_GATE: &[u8] = b"P2-12-WINDOW";
 const CPR_GATE: &[u8] = b"P2-12-CPR";
+const MIXED_CPR_OSR_GATE: &[u8] = b"P2-12-MIXED-CPR-OSR";
+const MIXED_OSR_CPR_GATE: &[u8] = b"P2-12-MIXED-OSR-CPR";
 const DONE_GATE: &[u8] = b"P2-12-DONE";
 const END_MARKER: &str = "P2-12-END";
 const DONE_ACK: &str = "P2-12-DONE-ACK";
+const CPR_OSR_REPLY: &[u8] = b"\x1b[4;7R\x1b[0n";
+const OSR_CPR_REPLY: &[u8] = b"\x1b[0n\x1b[4;7R";
 const REPLY_DEADLINE: Duration = Duration::from_secs(20);
 const STABLE: Duration = Duration::from_millis(100);
 
@@ -79,6 +83,14 @@ fn core_and_model_queries_are_answered_once_and_in_order(cx: &mut TestAppContext
                 b"\x1b[4;7H\x1b[6n".to_vec(),
                 format!("\r\n{END_MARKER}\r\n").into_bytes(),
             ],
+        )
+        .after_input(
+            MIXED_CPR_OSR_GATE,
+            vec![b"\x1b[4;7H\x1b[6n\x1b[5n".to_vec()],
+        )
+        .after_input(
+            MIXED_OSR_CPR_GATE,
+            vec![b"\x1b[4;7H\x1b[5n\x1b[6n".to_vec()],
         )
         .after_input(DONE_GATE, vec![format!("\r\n{DONE_ACK}\r\n").into_bytes()]);
     let server = ShellServer::start_scripted(harness._runtime._runtime.handle(), script);
@@ -156,6 +168,28 @@ fn core_and_model_queries_are_answered_once_and_in_order(cx: &mut TestAppContext
     pump_until(harness.visual, "the parser to apply the end marker", |_| {
         output(&model).contains(END_MARKER)
     });
+
+    // Packet order is the contract, not responder priority. The reverse case
+    // fails if core replies are merely delayed behind every model reply.
+    input(MIXED_CPR_OSR_GATE);
+    expected.extend_from_slice(MIXED_CPR_OSR_GATE);
+    expected.extend_from_slice(CPR_OSR_REPLY);
+    expect_transcript(
+        harness.visual,
+        &server,
+        &expected,
+        "CPR then OSR in one packet keeps request order",
+    );
+
+    input(MIXED_OSR_CPR_GATE);
+    expected.extend_from_slice(MIXED_OSR_CPR_GATE);
+    expected.extend_from_slice(OSR_CPR_REPLY);
+    expect_transcript(
+        harness.visual,
+        &server,
+        &expected,
+        "OSR then CPR in one packet keeps request order",
+    );
 
     input(DONE_GATE);
     expected.extend_from_slice(DONE_GATE);

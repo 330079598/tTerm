@@ -496,9 +496,10 @@ impl SessionSink for GpuiSessionSink {
         self.output.answers_input()
     }
 
-    fn forwards_cursor_position_report(&self) -> bool {
-        // The parser answers `CSI 6 n` from this session's own model, so the
-        // query must reach the model instead of the SSH layer's home reply.
+    fn forwards_standard_dsr(&self) -> bool {
+        // The parser answers `CSI 5 n` and `CSI 6 n` from this session's own
+        // model, so both queries must reach it instead of the SSH layer's
+        // fixed replies.
         true
     }
 }

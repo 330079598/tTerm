@@ -432,6 +432,35 @@ fn a_forwarded_cursor_position_report_is_answered_from_the_model_grid() {
 }
 
 #[test]
+fn a_forwarded_status_report_is_answered_by_the_model() {
+    let (_, state) = state(true, 64);
+    let replies = Arc::new(Mutex::new(Vec::new()));
+    let write_replies = Arc::clone(&replies);
+    let pipeline = start(
+        state,
+        Arc::new(move |bytes| {
+            write_replies.lock().expect("query replies").push(bytes);
+        }),
+        Arc::new(|_| {}),
+        None,
+    )
+    .expect("start the parser");
+
+    pipeline
+        .queue
+        .send(b"\x1b[5n".to_vec())
+        .expect("send a status report query");
+    drop(pipeline.queue);
+    pipeline.parser.join().expect("parser exits");
+
+    assert_eq!(
+        replies.lock().expect("query replies").as_slice(),
+        &[b"\x1b[0n".to_vec()],
+        "the model still reports ready, now through its ordered reply path"
+    );
+}
+
+#[test]
 fn shutdown_acknowledges_rejected_bytes_so_the_reader_cannot_wedge() {
     let (model, state) = state(true, 64);
     state.alive.store(false, Ordering::Release);
