@@ -820,6 +820,21 @@ fn resize_replaces_the_grid_and_damages_everything() {
 }
 
 #[test]
+fn resize_advances_the_scrollback_generation() {
+    let terminal = terminal(20, 3, 100);
+    terminal.write(b"one\r\ntwo\r\nthree\r\nfour\r\n");
+    let before = terminal.snapshot().scrollback_generation();
+
+    terminal.resize(GridSize::new(10, 4), CellSize::default());
+    let after = terminal.snapshot().scrollback_generation();
+
+    assert!(
+        after > before,
+        "reflow moves rows, so cached retained-history lines must expire"
+    );
+}
+
+#[test]
 fn a_zero_sized_resize_is_clamped_instead_of_panicking() {
     let terminal = terminal(10, 3, 0);
     terminal.resize(GridSize::new(0, 0), CellSize::new(0, 0));

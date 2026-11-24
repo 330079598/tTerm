@@ -146,7 +146,8 @@ pub fn builtin_highlight_set() -> HighlightSet {
         ],
     }
 }
-fn escape(value: &str) -> String {
+/// Escapes regular-expression syntax so a keyword matches as literal text.
+pub(crate) fn escape_pattern(value: &str) -> String {
     value
         .chars()
         .flat_map(|c| match c {
@@ -159,7 +160,7 @@ fn escape(value: &str) -> String {
 }
 fn source(rule: &HighlightRule) -> String {
     let body = if rule.kind == "keyword" {
-        escape(&rule.pattern)
+        escape_pattern(&rule.pattern)
     } else {
         rule.pattern.clone()
     };

@@ -34,14 +34,16 @@ use crate::cell::Cell;
 use crate::command_marks::overview::CommandMarkState;
 use crate::damage::Damage;
 use crate::event::{self, Clipboard, Intent};
-use crate::grid::{CellSize, GridPoint, GridRange, GridSize};
+use crate::grid::{CellSize, GridPoint, GridSize};
 use crate::history_release::{HistoryRelease, MarkChanges, ScrollRegion};
 use crate::mode::Modes;
 use crate::mouse_reporting::MOUSE_REPORTING_OFF;
 use crate::osc52_scanner::Osc52Scanner;
-use crate::search::{Search, SearchDirection};
 use crate::selection::{SelectionKind, SelectionRange, Side, word};
 use crate::snapshot::{self, Cursor, CursorShape, Row, Snapshot, SnapshotParts};
+
+mod search_ops;
+mod selection_text;
 
 /// How many scrollback lines a new model keeps when the caller has no
 /// preference.
@@ -420,6 +422,9 @@ impl Terminal {
         // Reflow changes which row holds each line; the tracker has no reflow
         // map, so stale marks are dropped instead of pointing at another row.
         state.command_marks.dispose_markers();
+        // Reflow can change the history length and the row that holds a line,
+        // so a cached row number is stale even when the history size is not.
+        state.scrollback_generation = state.scrollback_generation.wrapping_add(1);
         state.term.resize(grid.clamped());
         state.scroll_region = ScrollRegion::full(state.term.screen_lines());
     }
@@ -629,41 +634,6 @@ impl Terminal {
         self.write(MOUSE_REPORTING_OFF);
         true
     }
-
-    /// The selected text, with trailing blanks trimmed and wrapped lines
-    /// joined.
-    ///
-    /// The caller should only ask when the user copies: a selection over the
-    /// whole scrollback would otherwise build a huge string every frame
-    /// (design note 6.3).
-    pub fn selection_text(&self) -> Option<String> {
-        let mut state = self.state.lock();
-        let combined = active_selection_range(&state)?;
-        if state.word_selection && state.word_drag.is_some() {
-            let anchor = state.term.selection.clone();
-            word::set_range(&mut state.term, combined);
-            let text = state.term.selection_to_string();
-            state.term.selection = anchor;
-            return text;
-        }
-        state.term.selection_to_string()
-    }
-
-    /// Finds the next match of `search` from `origin`.
-    ///
-    /// The match is computed while the terminal lock is held, so a scan that
-    /// walks far into the scrollback delays the parser. P2-07 moves long
-    /// searches to a worker that takes the lock in chunks; this call is the
-    /// frame-sized version the first prototype needs.
-    pub fn find_next(
-        &self,
-        search: &mut Search,
-        origin: GridPoint,
-        direction: SearchDirection,
-    ) -> Option<GridRange> {
-        let state = self.state.lock();
-        search.find_in(&state.term, origin, direction)
-    }
 }
 
 /// Applies the history changes the parser made during one slice.
@@ -677,7 +647,7 @@ fn apply_mark_changes(command_marks: &mut CommandMarkState, changes: MarkChanges
 
 /// Builds the frame while the caller holds the lock.
 fn take_snapshot(state: &mut State, version: u64) -> Snapshot {
-    let selection = active_selection_range(state);
+    let selection = selection_text::active_selection_range(state);
     let State {
         term,
         cell_size,
@@ -712,28 +682,6 @@ fn take_snapshot(state: &mut State, version: u64) -> Snapshot {
         bottom_line_occupied,
         command_marks,
     })
-}
-
-/// The selection the view and copy operation should use.
-///
-/// A word drag keeps its original word in Alacritty's selection so that the
-/// anchor follows the grid's lifecycle, while `word_drag` holds the word under
-/// the pointer. The displayed range is always rebuilt from those two.
-fn active_selection_range(state: &State) -> Option<SelectionRange> {
-    let anchor = state
-        .term
-        .selection
-        .as_ref()?
-        .to_range(&state.term)
-        .map(SelectionRange::from)?;
-    match state.word_drag {
-        Some(drag) if state.word_selection => Some(SelectionRange {
-            start: anchor.start.min(drag.start),
-            end: anchor.end.max(drag.end),
-            block: false,
-        }),
-        _ => Some(anchor),
-    }
 }
 
 /// Copies exactly the visible cells, row by row.
