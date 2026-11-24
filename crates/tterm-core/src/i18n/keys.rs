@@ -99,6 +99,7 @@ translation_keys! {
     TERMINAL_SEARCH_PREVIOUS => "terminalSearch.previous",
     TERMINAL_SEARCH_NEXT => "terminalSearch.next",
     TERMINAL_SEARCH_CLOSE => "terminalSearch.close",
+    TERMINAL_SEARCH_DRAG => "terminalSearch.drag",
     TERMINAL_SEARCH_INVALID_REGEX => "terminalSearch.invalidRegex",
     PASTE_MULTILINE_TITLE => "terminalPaste.multilineTitle",
     PASTE_MULTILINE_DESCRIPTION => "terminalPaste.multilineDescription",

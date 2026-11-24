@@ -55,8 +55,8 @@ use std::rc::Rc;
 use std::sync::Arc;
 
 use gpui_kit::{
-    Context, FocusHandle, InteractiveElement, IntoElement, ParentElement, Pixels, Point, Render,
-    Styled, Task, Window, div,
+    Bounds, Context, FocusHandle, InteractiveElement, IntoElement, ParentElement, Pixels, Point,
+    Render, Styled, Task, Window, div,
 };
 use tterm_terminal::grid::{CellSize, GridSize};
 use tterm_terminal::palette::TerminalPalette;
@@ -250,6 +250,7 @@ pub struct TerminalView {
     cache_frame: u64,
     style_epoch: u64,
     last_frame: Option<Arc<FrameData>>,
+    last_bounds: Option<Bounds<Pixels>>,
     blink: BlinkState,
     blink_task: Option<Task<()>>,
     blink_only: bool,
@@ -307,6 +308,7 @@ impl TerminalView {
             cache_frame: 0,
             style_epoch: 0,
             last_frame: None,
+            last_bounds: None,
             blink: BlinkState::default(),
             blink_task: None,
             blink_only: false,
@@ -337,6 +339,14 @@ impl TerminalView {
     /// The grid size from the last prepared frame.
     pub fn grid_size(&self) -> Option<GridSize> {
         self.last_grid
+    }
+
+    /// The element bounds from the last prepared frame.
+    ///
+    /// The search bar clamps itself to this rectangle, which is the pane's
+    /// content area. Before the first frame it is `None`.
+    pub fn bounds(&self) -> Option<Bounds<Pixels>> {
+        self.last_bounds
     }
 
     /// The current palette.

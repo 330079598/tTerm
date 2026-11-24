@@ -4,11 +4,15 @@
 //! exercise the persisted keymap and search-bar ownership. No SSH profile,
 //! credential or user configuration is read.
 
+mod ime;
+
 use gpui_kit::test::TestWindowExt as _;
 use gpui_kit::{TestAppContext, VisualTestContext};
 
 use super::*;
 use crate::terminal_demo::runtime::test_runtime;
+
+mod reporting;
 
 fn with_workspace(
     cx: &mut TestAppContext,
@@ -191,5 +195,132 @@ fn switching_panes_closes_the_previous_panes_search_and_its_highlights(cx: &mut 
             assert_eq!(workspace.tabs.active_id(), active);
             let _ = window;
         });
+    });
+}
+
+#[gpui_kit::test]
+fn dragging_the_handle_keeps_the_bar_in_its_pane_and_leaves_the_other_alone(
+    cx: &mut TestAppContext,
+) {
+    with_workspace(cx, AppConfig::default(), |root, visual| {
+        press(visual, &format!("{}-\\", modifier()));
+        visual.update(|window, cx| {
+            root.update(cx, |workspace, cx| workspace.focus_pane(1, window, cx));
+        });
+        press(visual, &default_find());
+        visual.update(|window, cx| window.render_frame(cx));
+
+        let pane = visual.debug_bounds("workspace-pane-1").expect("first pane");
+        let neighbour = visual
+            .debug_bounds("workspace-pane-2")
+            .expect("second pane");
+        let handle = visual
+            .debug_bounds(search::HANDLE_SELECTOR)
+            .expect("visible handle")
+            .center();
+        visual.simulate_mouse_down(handle, gpui_kit::MouseButton::Left, Default::default());
+        visual.simulate_mouse_move(
+            gpui_kit::point(
+                pane.right() + gpui_kit::px(200.),
+                pane.bottom() + gpui_kit::px(200.),
+            ),
+            gpui_kit::MouseButton::Left,
+            Default::default(),
+        );
+        visual.update(|window, cx| window.render_frame(cx));
+
+        let moved = visual
+            .debug_bounds(search::BAR_SELECTOR)
+            .expect("moved bar");
+        assert_eq!(moved.right(), pane.right() - gpui_kit::px(8.));
+        assert_eq!(moved.bottom(), pane.bottom() - gpui_kit::px(8.));
+        assert_eq!(
+            visual.debug_bounds("workspace-pane-1"),
+            Some(pane),
+            "the pane itself did not change"
+        );
+        assert_eq!(
+            visual.debug_bounds("workspace-pane-2"),
+            Some(neighbour),
+            "the neighbouring pane did not move"
+        );
+
+        visual.simulate_mouse_up(
+            gpui_kit::point(
+                pane.right() + gpui_kit::px(200.),
+                pane.bottom() + gpui_kit::px(200.),
+            ),
+            gpui_kit::MouseButton::Left,
+            Default::default(),
+        );
+        visual.update(|_, cx| {
+            let workspace = root.read(cx);
+            let neighbour_tab = workspace.tabs.get(2).expect("the second tab");
+            assert_eq!(neighbour_tab.view.read(cx).model().selection_text(), None);
+            assert!(
+                neighbour_tab
+                    .search_bar
+                    .as_ref()
+                    .is_none_or(|bar| !bar.read(cx).is_open()),
+                "the drag never opened a search in the neighbouring pane"
+            );
+        });
+    });
+}
+
+#[gpui_kit::test]
+fn switching_panes_while_the_handle_is_down_ends_the_gesture(cx: &mut TestAppContext) {
+    with_workspace(cx, AppConfig::default(), |root, visual| {
+        press(visual, &format!("{}-\\", modifier()));
+        visual.update(|window, cx| {
+            root.update(cx, |workspace, cx| workspace.focus_pane(1, window, cx));
+        });
+        press(visual, &default_find());
+        visual.update(|window, cx| window.render_frame(cx));
+
+        let bar = visual
+            .update(|_, cx| active_search(&root, cx))
+            .expect("first pane bar");
+        assert!(!visual.update(|_, cx| bar.read(cx).drag_active()));
+        let handle = visual
+            .debug_bounds(search::HANDLE_SELECTOR)
+            .expect("visible handle")
+            .center();
+        visual.simulate_mouse_down(handle, gpui_kit::MouseButton::Left, Default::default());
+        visual.simulate_mouse_move(
+            handle + gpui_kit::point(gpui_kit::px(40.), gpui_kit::px(40.)),
+            gpui_kit::MouseButton::Left,
+            Default::default(),
+        );
+        visual.update(|_, cx| assert!(bar.read(cx).drag_active()));
+
+        visual.update(|window, cx| {
+            root.update(cx, |workspace, cx| workspace.focus_pane(2, window, cx));
+        });
+        visual.update(|window, cx| window.render_frame(cx));
+        visual.update(|_, cx| {
+            assert!(!bar.read(cx).is_open(), "the pane switch closed the bar");
+            assert!(
+                !bar.read(cx).drag_active(),
+                "the pane switch dropped the gesture"
+            );
+        });
+        assert!(
+            visual.debug_bounds(search::BAR_SELECTOR).is_none(),
+            "the closed bar paints nothing"
+        );
+
+        visual.simulate_mouse_up(
+            handle + gpui_kit::point(gpui_kit::px(40.), gpui_kit::px(40.)),
+            gpui_kit::MouseButton::Left,
+            Default::default(),
+        );
+        visual.simulate_mouse_move(
+            handle + gpui_kit::point(gpui_kit::px(120.), gpui_kit::px(120.)),
+            None,
+            Default::default(),
+        );
+        visual.update(|window, cx| window.render_frame(cx));
+        assert!(visual.debug_bounds(search::BAR_SELECTOR).is_none());
     });
 }

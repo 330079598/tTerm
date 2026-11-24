@@ -1,7 +1,7 @@
 //! Painting the search bar's input, count, options and navigation.
 
 use gpui_kit::{
-    Context, Div, InteractiveElement as _, ParentElement, Role, Stateful,
+    Context, Div, InteractiveElement as _, IntoElement, MouseButton, ParentElement, Role, Stateful,
     StatefulInteractiveElement as _, Styled, Window, div, px,
 };
 use tterm_core::i18n::keys;
@@ -9,18 +9,45 @@ use tterm_ui::components::button::{ButtonSize, ButtonState, Variant, button};
 use tterm_ui::components::icons;
 use tterm_ui::tokens::gpui::hsla;
 
+use super::drag::{HANDLE_HEIGHT, HANDLE_WIDTH};
 use super::{
-    CASE_OPTION_SELECTOR, CLOSE_SELECTOR, COUNT_SELECTOR, NEXT_SELECTOR, PREVIOUS_SELECTOR,
-    REGEX_OPTION_SELECTOR, SearchBar, SearchStatus, WORD_OPTION_SELECTOR, text,
+    CASE_OPTION_SELECTOR, CLOSE_SELECTOR, COUNT_SELECTOR, HANDLE_SELECTOR, NEXT_SELECTOR,
+    PREVIOUS_SELECTOR, REGEX_OPTION_SELECTOR, SearchBar, SearchStatus, WORD_OPTION_SELECTOR, text,
 };
 
 impl SearchBar {
+    /// Paints the grip that starts a drag. The hit target is the grip only.
+    pub(super) fn render_handle(&self, cx: &mut Context<Self>) -> impl IntoElement {
+        let label = text(self.locale.read(cx), keys::TERMINAL_SEARCH_DRAG);
+        let color = hsla(self.theme.colors.muted_foreground, 1.0);
+        div()
+            .id(HANDLE_SELECTOR)
+            .debug_selector(|| HANDLE_SELECTOR.to_string())
+            .flex()
+            .items_center()
+            .justify_center()
+            .flex_shrink_0()
+            .w(px(HANDLE_WIDTH))
+            .h(px(HANDLE_HEIGHT))
+            .cursor(self.handle_cursor())
+            .text_color(color)
+            .occlude()
+            .role(Role::Button)
+            .aria_label(label)
+            .on_mouse_down(
+                MouseButton::Left,
+                cx.listener(|bar, event, window, cx| bar.start_drag(event, window, cx)),
+            )
+            .child(icons::icon(icons::GRIP_HORIZONTAL, color, 14.0))
+    }
+
     pub(super) fn render_controls(
         &self,
         _window: &mut Window,
         cx: &mut Context<Self>,
-        root: Stateful<Div>,
-    ) -> Stateful<Div> {
+        root: Div,
+        compact: bool,
+    ) -> Div {
         let locale = self.locale.read(cx);
         let colors = self.theme.colors;
         let muted = hsla(colors.muted_foreground, 1.0);
@@ -84,7 +111,7 @@ impl SearchBar {
             div()
                 .id(COUNT_SELECTOR)
                 .debug_selector(|| COUNT_SELECTOR.to_string())
-                .min_w(px(74.0))
+                .min_w(px(if compact { 56.0 } else { 74.0 }))
                 .text_center()
                 .text_size(px(12.0))
                 .whitespace_nowrap()

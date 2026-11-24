@@ -9,6 +9,7 @@ const names = [
   "arrow-big-up-dash",
   "chevron-down",
   "x",
+  "grip-horizontal",
   "triangle-alert",
   "info",
   "plus",

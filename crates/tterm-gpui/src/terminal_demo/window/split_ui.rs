@@ -223,6 +223,17 @@ impl Prototype {
             )
             .capture_any_mouse_down(cx.listener(move |this, _, window, cx| {
                 if this.tabs.active_id() != tab_id {
+                    if this
+                        .tabs
+                        .active()
+                        .search_bar
+                        .as_ref()
+                        .is_some_and(|bar| bar.read(cx).owns_pointer())
+                    {
+                        window.prevent_default();
+                        cx.stop_propagation();
+                        return;
+                    }
                     this.focus_pane(tab_id, window, cx);
                 }
             }));

@@ -30,6 +30,7 @@ impl TerminalView {
         cx: &mut Context<Self>,
     ) -> PreparedFrame {
         self.stats.frames = self.stats.frames.saturating_add(1);
+        self.last_bounds = Some(bounds);
         if !self.visible {
             return PreparedFrame::Empty {
                 background: self.palette.background,

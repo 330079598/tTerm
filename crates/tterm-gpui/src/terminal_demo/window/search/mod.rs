@@ -15,18 +15,25 @@ mod bar;
 #[cfg(all(debug_assertions, feature = "automation"))]
 pub(crate) mod capture;
 mod controller;
+mod drag;
 
+#[cfg(test)]
+mod drag_tests;
+#[cfg(test)]
+mod geometry_tests;
 #[cfg(test)]
 mod tests;
 
+use std::cell::Cell;
 use std::rc::Rc;
 use std::sync::Arc;
 use std::time::Duration;
 
-use gpui_kit::component::input::InputState;
+use gpui_kit::component::input::{Escape, InputState};
 use gpui_kit::{
-    App, AppContext as _, Context, Entity, Focusable as _, InteractiveElement as _, IntoElement,
-    KeyDownEvent, ParentElement, Render, Styled, Subscription, Task, WeakEntity, Window, div,
+    App, AppContext as _, Bounds, Context, Entity, EntityInputHandler as _, Focusable as _,
+    InteractiveElement as _, IntoElement, KeyDownEvent, ParentElement, Pixels, Point, Render, Size,
+    Styled, Subscription, Task, WeakEntity, Window, div, px,
 };
 use tterm_core::i18n::keys;
 use tterm_core::i18n::translate::{ArgumentValue, TranslationRequest};
@@ -44,6 +51,8 @@ use crate::locale::Locale;
 const SEARCH_DEBOUNCE: Duration = Duration::from_millis(120);
 /// How long output settles before an invalidated result is scanned again.
 const OUTPUT_RESCAN_DEBOUNCE: Duration = Duration::from_millis(160);
+/// The width below which the bar's controls use their compact minimums.
+const COMPACT_BAR_WIDTH: f32 = 360.0;
 
 /// The debug selector of the bar and its controls.
 pub(super) const BAR_SELECTOR: &str = "terminal-search-bar";
@@ -55,6 +64,7 @@ pub(super) const REGEX_OPTION_SELECTOR: &str = "terminal-search-regex";
 pub(super) const PREVIOUS_SELECTOR: &str = "terminal-search-previous";
 pub(super) const NEXT_SELECTOR: &str = "terminal-search-next";
 pub(super) const CLOSE_SELECTOR: &str = "terminal-search-close";
+pub(super) const HANDLE_SELECTOR: &str = "terminal-search-handle";
 
 /// What the bar currently shows in its result slot.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -89,7 +99,19 @@ pub(super) struct SearchBar {
     request: u64,
     cancellation: Option<SearchCancellation>,
     task: Option<Task<()>>,
+    /// The user-chosen top-left corner inside the pane; `None` is top-right.
+    position: Option<Point<Pixels>>,
+    /// The painted border box, measured after layout.
+    bar_size: Rc<Cell<Option<Size<Pixels>>>>,
+    /// The pane rectangle from the view's last prepared frame.
+    surface_bounds: Rc<Cell<Option<Bounds<Pixels>>>>,
+    drag: Option<drag::SearchDrag>,
+    /// Set when geometry cancels a drag; clears on the matching release.
+    suppress_mouse_until_release: bool,
     _input_subscription: Subscription,
+    _view_subscription: Option<Subscription>,
+    _window_bounds_subscription: Subscription,
+    _activation_subscription: Subscription,
 }
 
 impl SearchBar {
@@ -106,6 +128,36 @@ impl SearchBar {
         let input = cx.new(|cx| InputState::new(window, cx).placeholder(placeholder));
         let subscription = cx.subscribe(&input, Self::on_input_event);
         cx.observe(&locale, |_, _, cx| cx.notify()).detach();
+        let surface_bounds = Rc::new(Cell::new(
+            view.upgrade().and_then(|view| view.read(cx).bounds()),
+        ));
+        let observed_surface = surface_bounds.clone();
+        let view_subscription = view.upgrade().map(|view| {
+            cx.observe(&view, move |bar, view, cx| {
+                let bounds = view.read(cx).bounds();
+                let changed = bounds.is_some() && observed_surface.get() != bounds;
+                if changed {
+                    observed_surface.set(bounds);
+                }
+                if changed && bar.drag.is_some() {
+                    bar.cancel_geometry(cx);
+                } else if changed {
+                    cx.notify();
+                }
+            })
+        });
+        let window_bounds_subscription = cx.observe_window_bounds(window, |bar, _, cx| {
+            if bar.drag.is_some() {
+                bar.cancel_geometry(cx);
+            } else {
+                cx.notify();
+            }
+        });
+        let activation_subscription = cx.observe_window_activation(window, |bar, window, cx| {
+            if !window.is_window_active() {
+                bar.cancel_geometry(cx);
+            }
+        });
         Self {
             model,
             view,
@@ -122,7 +174,15 @@ impl SearchBar {
             request: 0,
             cancellation: None,
             task: None,
+            position: None,
+            bar_size: Rc::new(Cell::new(None)),
+            surface_bounds,
+            drag: None,
+            suppress_mouse_until_release: false,
             _input_subscription: subscription,
+            _view_subscription: view_subscription,
+            _window_bounds_subscription: window_bounds_subscription,
+            _activation_subscription: activation_subscription,
         }
     }
 
@@ -134,6 +194,8 @@ impl SearchBar {
     /// Opens the bar, clears the old query and focuses the input.
     pub(super) fn open(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         self.open = true;
+        self.drag = None;
+        self.suppress_mouse_until_release = false;
         self.cancel_scan();
         self.query.clear();
         self.status = SearchStatus::Idle;
@@ -165,6 +227,8 @@ impl SearchBar {
         cx: &mut Context<Self>,
     ) {
         self.open = false;
+        self.drag = None;
+        self.suppress_mouse_until_release = false;
         self.cancel_scan();
         self.query.clear();
         self.status = SearchStatus::Idle;
@@ -190,6 +254,19 @@ impl SearchBar {
         self.active = None;
         self.active_start = None;
         self.clear_overlay(cx);
+    }
+
+    /// Reacts to a measured bar or pane change after layout.
+    ///
+    /// The bar's own render only runs when it is notified, so a pane split can
+    /// change the surface without re-rendering it. Prepaint catches that and
+    /// asks for the frame that re-clamps the bar.
+    fn on_geometry_changed(&mut self, cx: &mut Context<Self>) {
+        if self.drag.is_some() {
+            self.cancel_geometry(cx);
+        } else {
+            cx.notify();
+        }
     }
 
     fn clear_overlay(&mut self, cx: &mut Context<Self>) {
@@ -234,14 +311,21 @@ impl SearchBar {
     }
 
     fn on_key_down(&mut self, event: &KeyDownEvent, window: &mut Window, cx: &mut Context<Self>) {
-        if event.prefer_character_input {
-            return;
-        }
-        if event.keystroke.key == "escape" {
+        if event.keystroke.key == "escape" && !event.prefer_character_input {
             window.prevent_default();
             cx.stop_propagation();
             self.close(window, true, cx);
         }
+    }
+
+    /// The input's Escape action would unmark text before the key-down handler sees it.
+    fn cancel_composition(&mut self, _: &Escape, window: &mut Window, cx: &mut Context<Self>) {
+        self.input.update(cx, |input, cx| {
+            if let Some(range) = input.marked_text_range(window, cx) {
+                input.replace_text_in_range(Some(range), "", window, cx);
+                cx.stop_propagation();
+            }
+        });
     }
 
     fn count_text(&self, cx: &App) -> String {
@@ -292,21 +376,59 @@ impl Render for SearchBar {
         if !self.open {
             return div().into_any_element();
         }
-        let root = div()
+        let window_width = f32::from(window.bounds().size.width);
+        if let Some(bounds) = self.view.upgrade().and_then(|view| view.read(cx).bounds())
+            && self.surface_bounds.get() != Some(bounds)
+        {
+            self.surface_bounds.set(Some(bounds));
+            if self.drag.is_some() {
+                self.cancel_geometry(cx);
+            }
+        }
+        let surface_width = self
+            .surface_bounds
+            .get()
+            .map(|bounds| f32::from(bounds.size.width));
+        let width = drag::bar_width(window_width, surface_width);
+        let compact = match width {
+            drag::BarWidth::Fixed(width) => f32::from(width) < COMPACT_BAR_WIDTH,
+            drag::BarWidth::Fill => surface_width
+                .is_some_and(|width| width - 2.0 * drag::NARROW_INSET < COMPACT_BAR_WIDTH),
+        };
+        // The root has exactly one child, its content box. Measuring that box
+        // gives the real border box once the known padding and border are
+        // added; a union of the controls would miss gaps and wrapped rows.
+        let measured = self.bar_size.clone();
+        let surface = self.surface_bounds.clone();
+        let view = self.view.clone();
+        let bar = cx.entity().downgrade();
+        let mut root = div()
+            .on_children_prepainted(move |children, _window, cx| {
+                let Some(content) = children.first() else {
+                    return;
+                };
+                let frame = 2.0 * (drag::BAR_PADDING + drag::BAR_BORDER);
+                let size = Size {
+                    width: px(f32::from(content.size.width) + frame),
+                    height: px(f32::from(content.size.height) + frame),
+                };
+                let size_changed = measured.get() != Some(size);
+                measured.set(Some(size));
+                let latest = view.upgrade().and_then(|view| view.read(cx).bounds());
+                let surface_changed = latest.is_some() && surface.get() != latest;
+                if let Some(latest) = latest {
+                    surface.set(Some(latest));
+                }
+                if size_changed || surface_changed {
+                    let _ = bar.update(cx, |bar, cx| bar.on_geometry_changed(cx));
+                }
+            })
             .id(BAR_SELECTOR)
             .debug_selector(|| BAR_SELECTOR.to_string())
             .absolute()
-            .top(gpui_kit::px(12.0))
-            .right(gpui_kit::px(14.0))
-            .flex()
-            .items_center()
-            .gap(gpui_kit::px(6.0))
-            .w(gpui_kit::px(540.0))
-            .max_w(gpui_kit::relative(0.95))
-            .flex_wrap()
-            .p(gpui_kit::px(7.0))
-            .rounded(gpui_kit::px(12.0))
-            .border(gpui_kit::px(1.0))
+            .p(px(drag::BAR_PADDING))
+            .rounded(px(12.0))
+            .border(px(drag::BAR_BORDER))
             .border_color(tterm_ui::tokens::gpui::hsla(self.theme.colors.border, 1.0))
             .bg(tterm_ui::tokens::gpui::hsla(
                 self.theme.colors.background,
@@ -314,24 +436,53 @@ impl Render for SearchBar {
             ))
             .shadow(vec![
                 gpui_kit::BoxShadow::new(
-                    gpui_kit::px(0.0),
-                    gpui_kit::px(12.0),
+                    px(0.0),
+                    px(12.0),
                     tterm_ui::tokens::gpui::hsla(self.theme.colors.background, 0.28),
                 )
-                .blur_radius(gpui_kit::px(16.0)),
+                .blur_radius(px(16.0)),
             ])
             .text_color(tterm_ui::tokens::gpui::hsla(
                 self.theme.colors.foreground,
                 1.0,
             ))
             .occlude()
-            .on_key_down(cx.listener(Self::on_key_down))
+            .capture_action(cx.listener(Self::cancel_composition))
+            .on_key_down(cx.listener(Self::on_key_down));
+        root = match width {
+            drag::BarWidth::Fixed(width) => root.w(width),
+            drag::BarWidth::Fill => root
+                .left(px(drag::NARROW_INSET))
+                .right(px(drag::NARROW_INSET)),
+        };
+        root = match self.placement(window_width) {
+            Some((position, _, _)) if matches!(width, drag::BarWidth::Fill) => {
+                let left = self.position.map_or(px(drag::NARROW_INSET), |_| position.x);
+                root.left(left)
+                    .right(px(2.0 * drag::NARROW_INSET) - left)
+                    .top(position.y)
+            }
+            Some((position, _, _)) => root.left(position.x).top(position.y),
+            None if matches!(width, drag::BarWidth::Fill) => root
+                .left(px(drag::NARROW_INSET))
+                .top(px(drag::NARROW_INSET)),
+            None => root
+                .top(px(drag::BAR_DEFAULT_TOP))
+                .right(px(drag::BAR_DEFAULT_RIGHT)),
+        };
+        let content = div()
+            .flex()
+            .items_center()
+            .gap(px(6.0))
+            .flex_wrap()
+            .w_full()
+            .child(self.render_handle(cx))
             .child(
                 div()
                     .id(INPUT_SELECTOR)
                     .debug_selector(|| INPUT_SELECTOR.to_string())
-                    .w(gpui_kit::px(220.0))
-                    .min_w(gpui_kit::px(180.0))
+                    .w(px(if compact { 160.0 } else { 220.0 }))
+                    .min_w(px(if compact { 120.0 } else { 180.0 }))
                     .flex_1()
                     .child(input(
                         &self.input,
@@ -344,12 +495,21 @@ impl Render for SearchBar {
                         },
                     )),
             );
-        self.render_controls(window, cx, root).into_any_element()
+        let mut content = self.render_controls(window, cx, content, compact);
+        if self.owns_pointer() {
+            content = content.child(self.drag_tracker(cx));
+        }
+        root.child(content).into_any_element()
     }
 }
 
 #[cfg(test)]
 impl SearchBar {
+    /// Lets workspace tests deliver the same preedit updates as a platform IME.
+    pub(super) fn input(&self) -> Entity<InputState> {
+        self.input.clone()
+    }
+
     /// The current result status.
     pub(super) fn status(&self) -> &SearchStatus {
         &self.status
@@ -378,6 +538,11 @@ impl SearchBar {
     /// A clone of the current cancellation token, for interleaving a scan.
     pub(super) fn current_cancellation(&self) -> Option<SearchCancellation> {
         self.cancellation.clone()
+    }
+
+    /// Whether a handle gesture is still active.
+    pub(super) fn drag_active(&self) -> bool {
+        self.drag.is_some()
     }
 }
 
