@@ -1,6 +1,8 @@
 //! The paint phase: rectangles and glyphs only, no shaping and no model lock.
 
-use gpui_kit::{Bounds, Hsla, PathBuilder, Pixels, Point, Window, fill, point, px, size};
+use gpui_kit::{
+    BorderStyle, Bounds, Hsla, PathBuilder, Pixels, Point, Window, fill, outline, point, px, size,
+};
 use tterm_terminal::palette::TerminalPalette;
 use tterm_terminal::selection::SelectionRange;
 use tterm_terminal::snapshot::CursorShape;
@@ -10,8 +12,8 @@ use crate::glyphs::{GlyphFill, GlyphShape};
 use super::font::CellGeometry;
 use super::row::{PlacedGlyph, RowLayout, UnderlineSpan};
 use super::search::{
-    ACTIVE_MATCH_BACKGROUND, ACTIVE_MATCH_BACKGROUND_ALPHA, MATCH_BACKGROUND,
-    MATCH_BACKGROUND_ALPHA, VisibleSearch, VisibleSearchSpan,
+    ACTIVE_MATCH_BACKGROUND, ACTIVE_MATCH_BACKGROUND_ALPHA, ACTIVE_MATCH_BORDER, MATCH_BACKGROUND,
+    MATCH_BACKGROUND_ALPHA, MATCH_BORDER, VisibleSearch, VisibleSearchSpan,
 };
 use super::style::hsla;
 
@@ -222,10 +224,14 @@ impl PaintContext<'_> {
     }
 
     fn paint_search_span(&mut self, origin: Point<Pixels>, span: &VisibleSearchSpan) {
-        let (color, alpha) = if span.active {
-            (ACTIVE_MATCH_BACKGROUND, ACTIVE_MATCH_BACKGROUND_ALPHA)
+        let (color, alpha, border) = if span.active {
+            (
+                ACTIVE_MATCH_BACKGROUND,
+                ACTIVE_MATCH_BACKGROUND_ALPHA,
+                ACTIVE_MATCH_BORDER,
+            )
         } else {
-            (MATCH_BACKGROUND, MATCH_BACKGROUND_ALPHA)
+            (MATCH_BACKGROUND, MATCH_BACKGROUND_ALPHA, MATCH_BORDER)
         };
         let length = span.end.saturating_sub(span.start).saturating_add(1) as f32;
         let bounds = Bounds {
@@ -240,6 +246,8 @@ impl PaintContext<'_> {
         };
         self.window
             .paint_quad(fill(bounds, hsla(color.with_alpha(alpha))));
+        self.window
+            .paint_quad(outline(bounds, hsla(border), BorderStyle::default()));
     }
 
     fn paint_cell_content(
