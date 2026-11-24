@@ -4,7 +4,7 @@ import "@/components/TerminalTab.css"
 import { FitAddon } from "@xterm/addon-fit"
 import { SearchAddon } from "@xterm/addon-search"
 import { Terminal as Xterminal } from "@xterm/xterm"
-import { useCallback, useEffect, useRef, useState } from "react"
+import { useEffect, useRef } from "react"
 import { useTranslation } from "react-i18next"
 
 import { TerminalSearchBar } from "@/components/TerminalTab/TerminalSearchBar"
@@ -52,13 +52,13 @@ function SearchReferenceHarness({ onReady }: ParityScreenProps) {
   const termRef = useRef<Xterminal | null>(null)
   const searchAddonRef = useRef<SearchAddon | null>(null)
   const isActiveRef = useRef(true)
-  const [isSearchOpen, setIsSearchOpen] = useState(false)
   const { t } = useTranslation()
 
   const {
     closeSearch,
     handleSearchDragStart,
     isSearchDragging,
+    isSearchOpen,
     openSearch,
     runSearch,
     searchInputRef,
@@ -76,13 +76,6 @@ function SearchReferenceHarness({ onReady }: ParityScreenProps) {
     surfaceRef,
     termRef,
   })
-
-  // The hook owns the open state, so mirror it from the bar's visibility. The
-  // hidden button below calls the same hook entry point the keymap uses.
-  const openFromHarness = useCallback(() => {
-    setIsSearchOpen(true)
-    openSearch()
-  }, [openSearch])
 
   useEffect(() => {
     const surface = surfaceRef.current
@@ -162,7 +155,7 @@ function SearchReferenceHarness({ onReady }: ParityScreenProps) {
   }, [isSearchOpen, searchInputRef, searchResults.resultIndex])
 
   useEffect(() => {
-    const writeState = () => {
+    window.__PARITY_STATE__ = () => {
       const term = termRef.current
       const surface = surfaceRef.current
       const bar = surface?.querySelector<HTMLElement>(".terminal-search-bar") ?? null
@@ -170,7 +163,7 @@ function SearchReferenceHarness({ onReady }: ParityScreenProps) {
       const handle = surface?.querySelector<HTMLElement>(".terminal-search-drag-handle") ?? null
       const count = surface?.querySelector<HTMLElement>(".terminal-search-count") ?? null
       const focused = document.activeElement
-      window.__PARITY_STATE__ = {
+      return {
         method:
           "Playwright WebKit 26 + production TerminalSearchBar, useTerminalSearch and stylesheet + xterm.js SearchAddon; synthetic in-process output",
         shell: false,
@@ -234,8 +227,9 @@ function SearchReferenceHarness({ onReady }: ParityScreenProps) {
           : null,
       }
     }
-    const frame = requestAnimationFrame(writeState)
-    return () => cancelAnimationFrame(frame)
+    return () => {
+      delete window.__PARITY_STATE__
+    }
   })
 
   return (
@@ -254,10 +248,7 @@ function SearchReferenceHarness({ onReady }: ParityScreenProps) {
       {isSearchOpen && (
         <TerminalSearchBar
           isSearchDragging={isSearchDragging}
-          onClose={() => {
-            closeSearch()
-            setIsSearchOpen(false)
-          }}
+          onClose={closeSearch}
           onDragStart={handleSearchDragStart}
           onRunSearch={(direction) => runSearch(direction)}
           onToggleOption={toggleSearchOption}
@@ -274,7 +265,7 @@ function SearchReferenceHarness({ onReady }: ParityScreenProps) {
         <button
           type="button"
           data-parity-action="terminal.search.open"
-          onClick={openFromHarness}
+          onClick={openSearch}
           style={{
             position: "absolute",
             top: 0,

@@ -74,6 +74,7 @@ export const TerminalSearchBar: React.FC<TerminalSearchBarProps> = ({
   return (
     <div
       className="terminal-search-bar"
+      data-parity="terminal.search.bar"
       data-dragging={isSearchDragging ? "true" : undefined}
       onMouseDown={(event) => event.stopPropagation()}
       onKeyDown={handleKeyDown}
@@ -83,6 +84,7 @@ export const TerminalSearchBar: React.FC<TerminalSearchBarProps> = ({
         <TooltipTrigger asChild>
           <div
             className="terminal-search-drag-handle"
+            data-parity="terminal.search.handle"
             onPointerDown={onDragStart}
             aria-label={t("terminalSearch.drag", { defaultValue: "Drag search box" })}
           >
@@ -100,9 +102,12 @@ export const TerminalSearchBar: React.FC<TerminalSearchBarProps> = ({
         placeholder={t("terminalSearch.placeholder", { defaultValue: "Search terminal" })}
         aria-label={t("terminalSearch.placeholder", { defaultValue: "Search terminal" })}
         className="terminal-search-input"
+        data-parity="terminal.search.input"
       />
       <span
         className="terminal-search-count"
+        data-parity="terminal.search.count"
+        data-parity-sizing="text"
         aria-live="polite"
         data-empty={searchQuery ? undefined : "true"}
         data-missing={searchQuery && searchResults.resultCount === 0 ? "true" : undefined}
@@ -116,6 +121,7 @@ export const TerminalSearchBar: React.FC<TerminalSearchBarProps> = ({
             variant={searchOptions.caseSensitive ? "secondary" : "ghost"}
             size="icon-xs"
             onClick={() => onToggleOption("caseSensitive")}
+            data-parity="terminal.search.case"
             aria-pressed={searchOptions.caseSensitive}
           >
             <CaseSensitive />
@@ -132,6 +138,7 @@ export const TerminalSearchBar: React.FC<TerminalSearchBarProps> = ({
             variant={searchOptions.wholeWord ? "secondary" : "ghost"}
             size="icon-xs"
             onClick={() => onToggleOption("wholeWord")}
+            data-parity="terminal.search.word"
             aria-pressed={searchOptions.wholeWord}
           >
             <WholeWord />
@@ -148,6 +155,7 @@ export const TerminalSearchBar: React.FC<TerminalSearchBarProps> = ({
             variant={searchOptions.regex ? "secondary" : "ghost"}
             size="icon-xs"
             onClick={() => onToggleOption("regex")}
+            data-parity="terminal.search.regex"
             aria-pressed={searchOptions.regex}
           >
             <Regex />
@@ -164,6 +172,7 @@ export const TerminalSearchBar: React.FC<TerminalSearchBarProps> = ({
             variant="ghost"
             size="icon-xs"
             onClick={() => onRunSearch("previous")}
+            data-parity="terminal.search.previous"
           >
             <ArrowUp />
           </Button>
@@ -174,7 +183,13 @@ export const TerminalSearchBar: React.FC<TerminalSearchBarProps> = ({
       </Tooltip>
       <Tooltip>
         <TooltipTrigger asChild>
-          <Button type="button" variant="ghost" size="icon-xs" onClick={() => onRunSearch("next")}>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon-xs"
+            onClick={() => onRunSearch("next")}
+            data-parity="terminal.search.next"
+          >
             <ArrowDown />
           </Button>
         </TooltipTrigger>
@@ -182,7 +197,13 @@ export const TerminalSearchBar: React.FC<TerminalSearchBarProps> = ({
       </Tooltip>
       <Tooltip>
         <TooltipTrigger asChild>
-          <Button type="button" variant="ghost" size="icon-xs" onClick={onClose}>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon-xs"
+            onClick={onClose}
+            data-parity="terminal.search.close"
+          >
             <X />
           </Button>
         </TooltipTrigger>

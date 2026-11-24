@@ -13,14 +13,8 @@
   "theme": "dark",
   "uiScalePercent": 100,
   "uiStyle": "classic",
-  "uiStyles": [
-    "classic",
-    "islands"
-  ],
-  "uiScalePercents": [
-    100,
-    125
-  ],
+  "uiStyles": ["classic", "islands"],
+  "uiScalePercents": [100, 125],
   "platform": {
     "os": "macos",
     "version": "14.5.0",
@@ -106,9 +100,7 @@
       "exceptions": [
         {
           "entry": "E-001",
-          "elements": [
-            "ui.tabs.active"
-          ],
+          "elements": ["ui.tabs.active"],
           "outset": 4
         }
       ]
@@ -120,9 +112,7 @@
       "exceptions": [
         {
           "entry": "E-001",
-          "elements": [
-            "ui.tabs.server-active"
-          ],
+          "elements": ["ui.tabs.server-active"],
           "outset": 4
         }
       ]
@@ -134,9 +124,7 @@
       "exceptions": [
         {
           "entry": "E-001",
-          "elements": [
-            "ui.context-menu"
-          ],
+          "elements": ["ui.context-menu"],
           "outset": 25
         }
       ]
@@ -155,9 +143,7 @@
       "exceptions": [
         {
           "entry": "E-001",
-          "elements": [
-            "ui.context-menu"
-          ],
+          "elements": ["ui.context-menu"],
           "outset": 25
         }
       ]
@@ -169,9 +155,7 @@
       "exceptions": [
         {
           "entry": "E-001",
-          "elements": [
-            "ui.context-menu"
-          ],
+          "elements": ["ui.context-menu"],
           "outset": 25
         }
       ]
@@ -183,9 +167,7 @@
       "exceptions": [
         {
           "entry": "E-001",
-          "elements": [
-            "ui.dialog.confirm.content"
-          ],
+          "elements": ["ui.dialog.confirm.content"],
           "outset": 25
         }
       ]
@@ -197,9 +179,7 @@
       "exceptions": [
         {
           "entry": "E-001",
-          "elements": [
-            "ui.dialog.destructive.content"
-          ],
+          "elements": ["ui.dialog.destructive.content"],
           "outset": 25
         }
       ]
@@ -211,9 +191,7 @@
       "exceptions": [
         {
           "entry": "E-001",
-          "elements": [
-            "ui.dialog.prompt.content"
-          ],
+          "elements": ["ui.dialog.prompt.content"],
           "outset": 25
         }
       ]
@@ -225,9 +203,7 @@
       "exceptions": [
         {
           "entry": "E-001",
-          "elements": [
-            "ui.dialog.multiline.content"
-          ],
+          "elements": ["ui.dialog.multiline.content"],
           "outset": 25
         }
       ]
@@ -260,34 +236,22 @@
       "id": "workspace.titlebar.default",
       "title": "Windows workspace title bar with two local tabs",
       "fixture": "workspace.titlebar.default.json",
-      "uiStyles": [
-        "classic"
-      ],
-      "uiScalePercents": [
-        100
-      ]
+      "uiStyles": ["classic"],
+      "uiScalePercents": [100]
     },
     {
       "id": "settings.layout.default",
       "title": "Settings layout on the default General page",
       "fixture": "settings.reference.json",
-      "uiStyles": [
-        "classic"
-      ],
-      "uiScalePercents": [
-        100
-      ]
+      "uiStyles": ["classic"],
+      "uiScalePercents": [100]
     },
     {
       "id": "settings.search.results",
       "title": "Settings search results for font",
       "fixture": "settings.reference.json",
-      "uiStyles": [
-        "classic"
-      ],
-      "uiScalePercents": [
-        100
-      ],
+      "uiStyles": ["classic"],
+      "uiScalePercents": [100],
       "actions": [
         {
           "type": "waitFor",
@@ -323,12 +287,8 @@
       "id": "settings.terminal.scrollback",
       "title": "Terminal settings scrolled to Scrollback Lines",
       "fixture": "settings.reference.json",
-      "uiStyles": [
-        "classic"
-      ],
-      "uiScalePercents": [
-        100
-      ],
+      "uiStyles": ["classic"],
+      "uiScalePercents": [100],
       "actions": [
         {
           "type": "waitFor",
@@ -352,12 +312,8 @@
       "id": "settings.search.scrollback",
       "title": "Settings search results for scrollback",
       "fixture": "settings.reference.json",
-      "uiStyles": [
-        "classic"
-      ],
-      "uiScalePercents": [
-        100
-      ],
+      "uiStyles": ["classic"],
+      "uiScalePercents": [100],
       "actions": [
         {
           "type": "waitFor",
@@ -423,12 +379,8 @@
       "id": "settings.search.scrollback.open",
       "title": "Scrollback Lines opened from the settings search",
       "fixture": "settings.reference.json",
-      "uiStyles": [
-        "classic"
-      ],
-      "uiScalePercents": [
-        100
-      ],
+      "uiStyles": ["classic"],
+      "uiScalePercents": [100],
       "actions": [
         {
           "type": "waitFor",
@@ -511,12 +463,8 @@
       "title": "Settings search results for the Chinese scrollback query",
       "fixture": "settings.reference.json",
       "locale": "zh-CN",
-      "uiStyles": [
-        "classic"
-      ],
-      "uiScalePercents": [
-        100
-      ],
+      "uiStyles": ["classic"],
+      "uiScalePercents": [100],
       "actions": [
         {
           "type": "waitFor",
@@ -542,12 +490,8 @@
       "title": "Scrollback Lines opened from the Chinese settings search",
       "fixture": "settings.reference.json",
       "locale": "zh-CN",
-      "uiStyles": [
-        "classic"
-      ],
-      "uiScalePercents": [
-        100
-      ],
+      "uiStyles": ["classic"],
+      "uiScalePercents": [100],
       "actions": [
         {
           "type": "waitFor",
@@ -584,12 +528,8 @@
       "id": "terminal.search.default",
       "title": "Terminal search bar over synthetic output, active match visible at the initial top-right position",
       "fixture": "terminal.search.default.json",
-      "uiStyles": [
-        "classic"
-      ],
-      "uiScalePercents": [
-        100
-      ],
+      "uiStyles": ["classic"],
+      "uiScalePercents": [100],
       "actions": [
         {
           "type": "waitFor",
@@ -636,12 +576,8 @@
       "id": "terminal.search.dragged",
       "title": "Terminal search bar over synthetic output, active match visible and dragged to the bottom-right boundary",
       "fixture": "terminal.search.default.json",
-      "uiStyles": [
-        "classic"
-      ],
-      "uiScalePercents": [
-        100
-      ],
+      "uiStyles": ["classic"],
+      "uiScalePercents": [100],
       "actions": [
         {
           "type": "waitFor",

@@ -193,7 +193,7 @@ async function captureScreen(
       join(outDir, `${screen.id}.layout.json`),
       `${JSON.stringify(layout, null, 2)}\n`
     )
-    const state = await page.evaluate(() => window.__PARITY_STATE__ ?? null)
+    const state = await page.evaluate(() => window.__PARITY_STATE__?.() ?? null)
     if (state !== null) {
       await writeFile(
         join(outDir, `${screen.id}.state.json`),

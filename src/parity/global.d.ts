@@ -15,6 +15,6 @@ declare global {
     __PARITY_MISSING_EVENTS__?: string[]
     __PARITY_ACTIONS_DONE__?: boolean
     /** Optional structured state a screen records for its capture. */
-    __PARITY_STATE__?: unknown
+    __PARITY_STATE__?: () => unknown
   }
 }
