@@ -2,7 +2,7 @@
 
 ## 2026-11-23 排期与验收口径
 
-G1 已通过；G2（终端）、G3（工作区）未通过。[三屏原版参照](reports/W0-05-settings-reference.md)及[回滚设置流程](reports/P4-15.md)已合入本地 `GPUI`，视觉只验局部。P2-06 的[滚动与内存](reports/P2-06-scroll-memory.md)、[概览标记](reports/P2-06-overview.md)及 P2-07 的[搜索模型](reports/P2-07-search-model.md)、[搜索栏](reports/P2-07-search-ui.md)已通过自动验收。搜索栏原版同状态对照、拖动和桌面中文输入验证待补；原生滚动与真实 shell 集成证据仍待补。
+G1 已通过；G2（终端）、G3（工作区）未通过。[三屏原版参照](reports/W0-05-settings-reference.md)及[回滚设置流程](reports/P4-15.md)已合入本地 `GPUI`，视觉只验局部。P2-06 的[滚动与内存](reports/P2-06-scroll-memory.md)、[概览标记](reports/P2-06-overview.md)及 P2-07 的[搜索模型](reports/P2-07-search-model.md)、[搜索栏](reports/P2-07-search-ui.md)已通过自动验收。搜索栏原版同状态参照已采集到 `reports/evidence/P2-07-search-parity/webkit/`；第三批候选拖动实现尚未合并，Rust 新增测试有编译错误，窄窗实际外框、静止分屏重夹和拖动取消时鼠标隔离仍待修正。原生 macOS 拼音组字/候选 Esc 仍待人工，原生滚动与真实 shell 集成证据仍待补。
 
 更新任务时分别记录代码是否合入、自动验证覆盖了什么、哪个平台做过桌面验收、哪些屏幕通过视觉对照。缺少证据写「待补」，不从前一项推断后一项。例如：P3-09 设置路由已合入，Windows 的焦点和会话回归已做；设置整页的桌面与视觉验收未通过，P4-15 仍待做。
 
