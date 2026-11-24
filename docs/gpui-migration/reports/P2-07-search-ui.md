@@ -54,6 +54,9 @@
 | `a429b04a` | `:bug:` 删除调试探针，输入框改用 Small 字号 |
 | `af29c553` | `:white_check_mark:` 视口 resize 使搜索覆盖层失效的测试 |
 | `4fb92812` | `:bug:` 导航前拒绝旧内容版本的搜索结果 |
+| `883b8cc0` | `:memo:` 初版报告 |
+| `890d4483` | `:bug:` 设置页打开时不把查找键当作终端搜索 |
+| `3be47e52` | `:zap:` 没有匹配时不分配每帧可见 span 容器 |
 
 ### 主要文件
 
@@ -215,6 +218,7 @@ node scripts/perf/gpui-release-frame-budget.mjs
 - 帧：baseline p50 109.375 µs / p95 156.583 µs；30-background p50 138.917 µs / p95 163.416 µs；p95 预算 16.667 ms，远未触及。抽样窗口 16.111334 ms 内 30 个会话全部前进，确认 3,312,800 字节（196.09 MiB/s）。
 - 吞吐：30 会话、30 MiB 全部应用并确认，174.231 ms 完成（172.18 MiB/s），低于 500 ms 截止；`completed=true`。
 - 两项独立测量都通过；门槛代码、负载、步进、采样窗口和截止均未修改。
+- 在最后的无匹配分配优化（`3be47e52`）之后又以 1/5/15 分钟负载 10.59 / 8.76 / 7.79 复跑一次，仍通过：baseline p95 272.542 µs、30-background p95 699.875 µs、吞吐 183.84 MiB/s（163.187 ms，`completed=true`）。这次机器并不空闲，数字只作为最终代码仍通过门槛的证明，不替代上面的低负载测量。
 
 ## 偏差与未验证
 
@@ -235,7 +239,7 @@ node scripts/perf/gpui-release-frame-budget.mjs
 
 ```sh
 git status --short                     # 应为空
-git log --oneline 7997ccc2..HEAD       # 12 个本批提交（含两次报告和 failed_tab 预拆分）
+git log --oneline 7997ccc2..HEAD       # 14 个本批提交（含三次报告和 failed_tab 预拆分）
 cargo test -p tterm-terminal --test search_model
 cargo test -p tterm-terminal-view --lib search
 cargo test -p tterm-gpui --lib search::tests
@@ -265,8 +269,13 @@ af29c553 :white_check_mark: Cover a grid-changing resize invalidating the search
 4fb92812 :bug: Refuse to navigate a search result from an older content version
 883b8cc0 :memo: Record the GPUI search-bar implementation and its evidence
 890d4483 :bug: Leave find to the settings page instead of a terminal pane
+3be47e52 :zap: Skip the search overlay allocation while no matches are installed
 ```
 
-报告先由 `883b8cc0` 提交，随后续两处修正由本文件所在的 memo 提交更新；历史中保留两次 memo 提交。
+报告先由 `883b8cc0` 提交，随后续修正由本文件所在的 memo 提交更新；历史中保留三次 memo 提交。
+
+### 分配优化
+
+没有安装搜索结果时，`SearchOverlay::visible` 在分配任何行容器之前返回空结果。此前空闲终端每帧都会分配一个 24 项的行向量；这个改动只影响无搜索时的帧路径，不改变匹配、版本或绘制。
 
 交付前 `git status` 为空。提交只在本地分支 `migrate/P2-07-search-ui`，未推送、未合并，未修改 `docs/gpui-migration/status.md`。
