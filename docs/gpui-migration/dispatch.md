@@ -21,7 +21,7 @@
 
 设置回滚行数流程已合入，见[设置验收](reports/P4-15.md)。P2-06 的[滚动与内存](reports/P2-06-scroll-memory.md)、[概览标记](reports/P2-06-overview.md)和 P2-07 的[搜索模型](reports/P2-07-search-model.md)、[搜索栏](reports/P2-07-search-ui.md)已通过自动验收。
 
-P2-07 [第三批](reports/P2-07-search-parity.md)已通过自动验收并合入本地 `GPUI`（`084100b1`）：两态栏框、高亮底色、窄窗拖动、分屏鼠标隔离和文本输入协议回归已验证。下一步在隔离桌面核验 macOS 原生拼音候选、两次 Esc 和原窗格焦点；随后验证原生滚动和真实 shell/PTY。以上完成后再申请 G2 签收，不以截图或性能门替代。
+P2-07 [第三批](reports/P2-07-search-parity.md)已通过自动验收并合入本地 `GPUI`（`084100b1`）。[本地真实 PTY 与 zsh 钩子](reports/P2-06-07-live-acceptance.md)已独立复跑通过。下一步在专用 macOS 图形会话按操作卡核验原生拼音、物理滚动与标尺，再按 [G2 完整清单](acceptance.md)逐项核对；本地钩子证据不替代真实 SSH 或桌面验收。
 
 ### 2026-11-11 交接记录（历史）
 
