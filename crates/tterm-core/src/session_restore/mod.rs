@@ -134,10 +134,22 @@ pub async fn load_session_service() -> Result<SessionData, String> {
 }
 
 pub async fn save_session_service(session: SessionData) -> Result<(), String> {
+    write_session_service(session, true).await
+}
+
+/// Writes a session without deleting the snapshots of tabs it does not list.
+///
+/// The GPUI client still reads the Tauri-era snapshots without owning their
+/// storage, so its workspace writes must not remove files it never saved. The
+/// Tauri session save keeps pruning through [`save_session_service`].
+pub(crate) async fn write_session_service(
+    session: SessionData,
+    prune_scrollback: bool,
+) -> Result<(), String> {
     run_blocking(move || {
         // Every change of the tabs is saved here, so this is where the
         // content of the tabs closed since is let go.
-        if let Err(error) = scrollback::prune_to_session(&session.tabs) {
+        if prune_scrollback && let Err(error) = scrollback::prune_to_session(&session.tabs) {
             eprintln!("Failed to delete the terminal content of closed tabs: {error}");
         }
         crate::db::write(|transaction| write_session(transaction, session))

@@ -458,9 +458,12 @@ pub async fn load_workspace_service() -> Result<WorkspaceLoad, String> {
     load::service().await
 }
 
-/// Saves a workspace through the session service, keeping scrollback pruning
-/// and the backend secret guard in the same path as Tauri's session save.
+/// Saves a workspace through the session store without pruning snapshots.
+///
+/// The GPUI client only reads Tauri-era snapshots in this stage, so a metadata
+/// save must not delete files it does not own. The Tauri session save still
+/// prunes through [`crate::session_restore::save_session_service`].
 pub async fn save_workspace_service(snapshot: WorkspaceSnapshot) -> Result<(), String> {
     let saved_at = chrono::Utc::now().timestamp_millis();
-    crate::session_restore::save_session_service(encode_session(snapshot, saved_at)).await
+    super::write_session_service(encode_session(snapshot, saved_at), false).await
 }

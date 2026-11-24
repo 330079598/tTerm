@@ -42,6 +42,7 @@ use crate::osc52_scanner::Osc52Scanner;
 use crate::selection::{SelectionKind, SelectionRange, Side, word};
 use crate::snapshot::{self, Cursor, CursorShape, Row, Snapshot, SnapshotParts};
 
+mod legacy_restore;
 mod search_ops;
 mod selection_text;
 

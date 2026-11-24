@@ -20,13 +20,13 @@ use crate::terminal_demo::window::split_state::Edge;
 
 static NEXT_DATABASE: AtomicU64 = AtomicU64::new(1);
 
-struct TestDatabase {
-    directory: PathBuf,
+pub(super) struct TestDatabase {
+    pub(super) directory: PathBuf,
     path: PathBuf,
 }
 
 impl TestDatabase {
-    fn new() -> Self {
+    pub(super) fn new() -> Self {
         let directory = std::env::temp_dir().join(format!(
             "tterm-gpui-restart-{}-{}",
             std::process::id(),

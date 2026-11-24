@@ -3,10 +3,12 @@
 use std::collections::HashMap;
 
 use gpui_kit::{Context, Entity};
+use tterm_core::session_restore::scrollback::SavedScrollback;
 use tterm_core::session_restore::workspace::WorkspaceSnapshot;
 
 use super::super::{Locale, Prototype, TabFactory, Tabs, WindowTab, split_state};
 use super::launch::launch_for_tab;
+use super::legacy;
 
 /// The restored tab collection, its split cards, and the next persisted id.
 pub(in crate::terminal_demo::window) struct RestoredWorkspace {
@@ -20,6 +22,7 @@ pub(in crate::terminal_demo::window) struct RestoredWorkspace {
 pub(in crate::terminal_demo::window) fn restore_workspace(
     factory: &TabFactory,
     snapshot: WorkspaceSnapshot,
+    mut legacy_content: HashMap<String, SavedScrollback>,
     locale: &Entity<Locale>,
     cx: &mut Context<Prototype>,
 ) -> Option<RestoredWorkspace> {
@@ -40,7 +43,10 @@ pub(in crate::terminal_demo::window) fn restore_workspace(
         {
             next_saved_tab = next_saved_tab.max(number.saturating_add(1));
         }
-        let launch = launch_for_tab(tab, &config);
+        let restored = legacy_content
+            .remove(&tab.id)
+            .and_then(|saved| legacy::restored_history(locale.read(cx), saved));
+        let launch = launch_for_tab(tab, &config).with_restored_history(restored);
         entries.push(factory.open_launch(internal, launch, locale, cx));
     }
     let active = snapshot

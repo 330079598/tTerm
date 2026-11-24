@@ -10,6 +10,8 @@ use tterm_core::profiles::launch::SavedSshLaunch;
 use tterm_core::profiles::types::SavedProfile;
 use tterm_core::workspace::tab::{ConnectionType, Tab, TabConnection, TabType, TerminalShellType};
 
+use super::session::RestoredHistory;
+
 const USAGE: &str =
     "usage: tterm-gpui [--ssh <saved-profile-id-or-name> | --exec <program> [args...]]";
 
@@ -80,6 +82,7 @@ pub(super) struct TabLaunch {
     source: LaunchSource,
     may_resume_agent: bool,
     restored: bool,
+    restored_history: Option<RestoredHistory>,
 }
 
 /// How a saved SSH profile is selected when a tab opens.
@@ -112,6 +115,7 @@ impl TabLaunch {
             source: LaunchSource::Command(command),
             may_resume_agent,
             restored: false,
+            restored_history: None,
         }
     }
 
@@ -130,6 +134,7 @@ impl TabLaunch {
             source,
             may_resume_agent,
             restored: true,
+            restored_history: None,
         }
     }
 
@@ -145,6 +150,7 @@ impl TabLaunch {
             source: LaunchSource::SavedSshProfile(Box::new(launch)),
             may_resume_agent: true,
             restored: false,
+            restored_history: None,
         }
     }
 
@@ -156,7 +162,19 @@ impl TabLaunch {
             source: LaunchSource::Unsupported { reason },
             may_resume_agent: false,
             restored: true,
+            restored_history: None,
         }
+    }
+
+    /// Attaches the snapshot that belongs to a restored tab.
+    pub(super) fn with_restored_history(mut self, history: Option<RestoredHistory>) -> Self {
+        self.restored_history = history;
+        self
+    }
+
+    /// Takes the snapshot once the session is about to be created.
+    pub(super) fn take_restored_history(&mut self) -> Option<RestoredHistory> {
+        self.restored_history.take()
     }
 
     pub(super) fn saved_id(&self) -> &str {

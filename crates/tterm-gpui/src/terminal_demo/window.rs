@@ -167,8 +167,11 @@ pub(super) fn run_window(
         }),
     );
     let lifecycle = state::WindowLifecycle::start(&services.shared.runtime);
-    let workspace =
-        session_workspace::startup(&services.shared.runtime, command.uses_saved_workspace());
+    let workspace = session_workspace::startup(
+        &services.shared.runtime,
+        command.uses_saved_workspace(),
+        app_config.restore_terminal_content,
+    );
     let theme = background::theme(lifecycle.initial.background);
     let background = background::content(lifecycle.initial.background);
     let app_id = services.shared.identity.identifier.clone();
@@ -331,6 +334,12 @@ impl Prototype {
             theme,
             background,
         } = startup;
+        let session_workspace::StartupWorkspace {
+            load,
+            persistence,
+            restore,
+            legacy,
+        } = workspace;
         let setting =
             cx.new(|cx| ScrollbackSetting::new(config.clone(), locale.clone(), theme, cx));
         let page = cx.new(|cx| SettingsPage::new(locale.clone(), theme, setting.clone(), cx));
@@ -360,13 +369,14 @@ impl Prototype {
         };
         strip::register_actions(&factory.keymap);
         template_ui::register_actions(&factory.keymap);
-        let restored = workspace
-            .restore
-            .then(|| session_workspace::snapshot(workspace.load.clone()))
+        let restored = restore
+            .then(|| session_workspace::snapshot(load))
             .flatten()
             .and_then(|snapshot| {
-                session_workspace::restore::restore_workspace(&factory, snapshot, &locale, cx)
-                    .map(|restored| (restored.tabs, restored.splits, restored.next_saved_tab))
+                session_workspace::restore::restore_workspace(
+                    &factory, snapshot, legacy, &locale, cx,
+                )
+                .map(|restored| (restored.tabs, restored.splits, restored.next_saved_tab))
             });
         let (tabs, splits, next_saved_tab) = restored.unwrap_or_else(|| {
             let tab = factory.open(1, command, &locale, cx);
@@ -375,7 +385,7 @@ impl Prototype {
         let prototype = Self {
             tabs,
             splits,
-            workspace: workspace.persistence,
+            workspace: persistence,
             workspace_timer: None,
             next_saved_tab,
             closing: false,
@@ -432,6 +442,28 @@ impl Prototype {
 }
 
 impl TabFactory {
+    fn open_binding(
+        &self,
+        id: usize,
+        connection: Result<tterm_core::core::session::types::PtyConnectionOptions, String>,
+        launch: &mut TabLaunch,
+    ) -> (Option<Rc<TabBinding>>, Option<String>) {
+        match connection {
+            Ok(connection) => {
+                let binding = self.sessions.open_with_history(
+                    format!("gpui-{id}"),
+                    connection,
+                    INITIAL_GRID,
+                    INITIAL_CELL,
+                    launch.take_restored_history(),
+                );
+                let error = binding.scoped_state().start_error().map(str::to_string);
+                (Some(binding), error)
+            }
+            Err(error) => (None, Some(error)),
+        }
+    }
+
     fn open(
         &self,
         id: usize,
@@ -450,7 +482,7 @@ impl TabFactory {
     fn open_launch(
         &self,
         id: usize,
-        launch: TabLaunch,
+        mut launch: TabLaunch,
         locale: &Entity<Locale>,
         cx: &mut Context<Prototype>,
     ) -> WindowTab {
@@ -472,19 +504,7 @@ impl TabFactory {
         let local_custom_path = launch.local_custom_path().map(str::to_owned);
         let agent_resume = saved_agent_resume(&saved);
         let drop_text = connection.as_ref().ok().and_then(local_drop_text);
-        let (binding, open_error) = match connection {
-            Ok(connection) => {
-                let binding = self.sessions.open(
-                    format!("gpui-{id}"),
-                    connection,
-                    INITIAL_GRID,
-                    INITIAL_CELL,
-                );
-                let error = binding.scoped_state().start_error().map(str::to_string);
-                (Some(binding), error)
-            }
-            Err(error) => (None, Some(error)),
-        };
+        let (binding, open_error) = self.open_binding(id, connection, &mut launch);
         let attachment = binding.as_ref().and_then(|binding| binding.attach());
         let Some(attachment) = attachment else {
             let error = open_error.unwrap_or_else(|| "Failed to start terminal".to_string());
@@ -566,7 +586,6 @@ impl TabFactory {
             ..TerminalViewConfig::default()
         };
         let view = cx.new(|cx| TerminalView::new(cx, model, config));
-
         let mut wake = attachment.subscribe();
         let wake_title = Arc::clone(&title);
         cx.spawn(async move |prototype, cx| {

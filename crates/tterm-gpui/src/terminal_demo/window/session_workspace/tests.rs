@@ -28,6 +28,7 @@ use crate::terminal_demo::runtime::{GpuiRuntime, test_runtime};
 use crate::terminal_demo::window::split_state::SplitState;
 use crate::terminal_demo::window::{Prototype, PrototypeStartup};
 
+mod legacy;
 mod restart;
 
 const WORKSPACE_FIXTURE: &str =
@@ -122,6 +123,29 @@ fn make_workspace(
     restore: bool,
     cx: &mut Context<Prototype>,
 ) -> Prototype {
+    make_startup_window(
+        runtime,
+        events,
+        StartupWorkspace {
+            load,
+            persistence,
+            restore,
+            legacy: Default::default(),
+        },
+        geometry_queue,
+        CommandSpec::Shell,
+        cx,
+    )
+}
+
+fn make_startup_window(
+    runtime: &GpuiRuntime,
+    events: UnboundedReceiver<AppEvent>,
+    workspace: StartupWorkspace,
+    geometry_queue: SaveQueue,
+    command: CommandSpec,
+    cx: &mut Context<Prototype>,
+) -> Prototype {
     let config = AppConfig::default();
     let keymap = Rc::new(KeymapRouter::new(&config.keymap, cfg!(target_os = "macos")));
     let locale = cx.new(|_| Locale::new(Language::En));
@@ -146,12 +170,8 @@ fn make_workspace(
     Prototype::new(
         cx,
         PrototypeStartup {
-            command: CommandSpec::Shell,
-            workspace: StartupWorkspace {
-                load,
-                persistence,
-                restore,
-            },
+            command,
+            workspace,
             sessions: Rc::new(SessionManager::new(
                 runtime.services.clone(),
                 Default::default(),

@@ -36,6 +36,14 @@ pub(crate) type InputObserver = Arc<dyn Fn(&[u8]) + Send + Sync>;
 /// What the terminal shows when a program ends by itself.
 pub(super) const EXIT_NOTICE: &[u8] = b"\r\n\x1b[33m[Process exited]\x1b[0m\r\n";
 
+/// A Tauri-era snapshot replayed into a new model before its transport starts.
+pub(crate) struct RestoredHistory {
+    /// The serialized escape sequences the old terminal showed.
+    pub(crate) content: String,
+    /// The localized line that marks where the restored content ends.
+    pub(crate) banner: String,
+}
+
 /// A running core session, its model and the parser that feeds the model.
 ///
 /// Clones are not made; the session manager and attachments share it through
@@ -64,10 +72,11 @@ impl Session {
         tab_id: String,
         session_nonce: u32,
         mut connection: PtyConnectionOptions,
-        grid: GridSize,
-        cell: CellSize,
+        size: WindowSize,
         config: Config,
+        restored: Option<RestoredHistory>,
     ) -> Result<Self, String> {
+        let WindowSize { grid, cell } = size;
         prepare_connection(&services, &mut connection)?;
         // Only a local term session owns a process this client can inspect.
         // SSH, serial and unknown kinds must not run a host process check.
@@ -84,6 +93,11 @@ impl Session {
             ClipboardPolicy::CopyOnly | ClipboardPolicy::CopyAndPaste
         )));
         let terminal = Arc::new(Terminal::new(config, grid, cell));
+        // Replay before the parser or transport exists, so the old content can
+        // never land below output from the new session.
+        if let Some(restored) = restored {
+            terminal.restore_legacy_history(&restored.content, &restored.banner);
+        }
         let alive = Arc::new(AtomicBool::new(true));
         let visible = Arc::new(AtomicBool::new(false));
         let input_open = Arc::new(AtomicBool::new(true));

@@ -89,6 +89,7 @@ translation_keys! {
     AGENT_RESUME_UNAVAILABLE => "agentResume.unavailable",
     AGENT_RESUME_UNSAFE => "agentResume.unsafe",
     AGENT_RESUME_FAILED => "agentResume.failed",
+    SESSION_HEADER_CONTENT_RESTORED => "sessionHeader.contentRestored",
     TERMINAL_SEARCH_PLACEHOLDER => "terminalSearch.placeholder",
     TERMINAL_SEARCH_READY => "terminalSearch.ready",
     TERMINAL_SEARCH_RESULTS => "terminalSearch.results",

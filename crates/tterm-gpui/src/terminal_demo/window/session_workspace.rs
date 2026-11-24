@@ -5,6 +5,7 @@
 //! single boundary that translates between the two.
 
 pub(super) mod launch;
+mod legacy;
 pub(super) mod restore;
 pub(super) mod save;
 #[cfg(test)]
@@ -19,6 +20,7 @@ use gpui_kit::{App, Context, Window};
 use save::WorkspacePersistence;
 use tokio::runtime::Handle;
 use tterm_core::agent_status::AgentResumeSession;
+use tterm_core::session_restore::scrollback::SavedScrollback;
 use tterm_core::session_restore::workspace::{
     WorkspaceLoad, WorkspaceSnapshot, load_workspace_service, save_workspace_service,
 };
@@ -71,24 +73,48 @@ pub(super) struct StartupWorkspace {
     pub load: WorkspaceLoad,
     pub persistence: WorkspacePersistence,
     pub restore: bool,
+    /// The Tauri-era snapshots to replay, keyed by the tab they belong to.
+    pub legacy: HashMap<String, SavedScrollback>,
 }
 
 /// Loads the saved workspace for a bare launch, or disables persistence for
 /// an explicit `--ssh`/`--exec` run.
-pub(super) fn startup(runtime: &Handle, restore: bool) -> StartupWorkspace {
+pub(super) fn startup(
+    runtime: &Handle,
+    restore: bool,
+    restore_terminal_content: bool,
+) -> StartupWorkspace {
     if !restore {
         return StartupWorkspace {
             load: WorkspaceLoad::Empty,
             persistence: WorkspacePersistence::start(runtime, false),
             restore: false,
+            legacy: HashMap::new(),
         };
     }
     let load = load_startup(runtime);
     let savable = can_save(&load);
+    let legacy = if restore_terminal_content {
+        legacy::read_saved(runtime, &restored_tab_ids(&load))
+    } else {
+        HashMap::new()
+    };
     StartupWorkspace {
         load,
         persistence: WorkspacePersistence::start(runtime, savable),
         restore: true,
+        legacy,
+    }
+}
+
+fn restored_tab_ids(load: &WorkspaceLoad) -> Vec<String> {
+    match load {
+        WorkspaceLoad::Readable { snapshot, .. } => {
+            snapshot.tabs.iter().map(|tab| tab.id.clone()).collect()
+        }
+        WorkspaceLoad::Empty | WorkspaceLoad::Unreadable { .. } | WorkspaceLoad::Future { .. } => {
+            Vec::new()
+        }
     }
 }
 
@@ -111,6 +137,7 @@ pub(super) fn test_startup(runtime: &Handle) -> StartupWorkspace {
         load: WorkspaceLoad::Empty,
         persistence: WorkspacePersistence::start(runtime, false),
         restore: false,
+        legacy: HashMap::new(),
     }
 }
 

@@ -14,6 +14,11 @@ use std::io::{ErrorKind, Read, Write};
 use std::path::{Path, PathBuf};
 use std::time::UNIX_EPOCH;
 
+mod legacy;
+
+#[cfg(test)]
+mod legacy_tests;
+
 const DIR_NAME: &str = "scrollback";
 const EXTENSION: &str = "gz";
 /// A snapshot is a few thousand lines of text with its colors; anything this
@@ -156,6 +161,35 @@ pub fn read_snapshots(dir: &Path, keep: &HashSet<String>) -> Result<Vec<SavedScr
         });
     }
     Ok(snapshots)
+}
+
+/// Reads the gzip snapshot the Tauri version wrote for `tab_id`, if `dir`
+/// holds one that is intact and small enough.
+///
+/// Unlike [`read_snapshots`], this is read-only: it neither prunes other tabs
+/// nor deletes damaged files, so a caller can report what it skipped.
+pub fn read_legacy_snapshot(dir: &Path, tab_id: &str) -> Option<SavedScrollback> {
+    let path = snapshot_path(dir, tab_id).ok()?;
+    let file = fs::File::open(&path).ok()?;
+    let metadata = file.metadata().ok()?;
+    if !metadata.is_file() || metadata.len() > MAX_SNAPSHOT_BYTES {
+        return None;
+    }
+
+    let mut bytes = Vec::new();
+    file.take(MAX_SNAPSHOT_BYTES + 1)
+        .read_to_end(&mut bytes)
+        .ok()?;
+    if u64::try_from(bytes.len()).ok()? > MAX_SNAPSHOT_BYTES {
+        return None;
+    }
+
+    let content = legacy::decode(&bytes, usize::try_from(MAX_SNAPSHOT_BYTES).ok()?)?;
+    Some(SavedScrollback {
+        tab_id: tab_id.to_string(),
+        content,
+        saved_at: saved_at(&path),
+    })
 }
 
 pub fn clear(dir: &Path) -> Result<(), String> {

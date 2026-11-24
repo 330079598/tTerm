@@ -1,0 +1,62 @@
+{
+  "id": "p2-19-legacy-snapshot",
+  "description": "Output from the Tauri version's serializeTerminal: scrollback down to the cursor line, SGR colors, and no alternate screen or terminal modes.",
+  "generatedBy": {
+    "command": "P2_19_REFRESH=1 pnpm exec vitest run src/components/TerminalTab/legacySnapshotFixture.test.ts",
+    "entry": "src/components/TerminalTab/terminalSnapshot.ts#serializeTerminal"
+  },
+  "versions": {
+    "@xterm/xterm": "6.0.0",
+    "@xterm/addon-serialize": "0.14.0",
+    "@xterm/addon-unicode11": "0.9.0"
+  },
+  "terminal": {
+    "cols": 80,
+    "rows": 24,
+    "scrollback": 10000,
+    "unicode": "11"
+  },
+  "scrolledOffLine": "scrolled-off-0",
+  "scrollbackLines": 9,
+  "serialized": "scrolled-off-0\r\nline-1\r\nline-2\r\nline-3\r\nline-4\r\nline-5\r\nline-6\r\nline-7\r\nline-8\r\nline-9\r\nline-10\r\nline-11\r\nline-12\r\nline-13\r\nline-14\r\nline-15\r\nline-16\r\nline-17\r\nline-18\r\nline-19\r\nline-20\r\nline-21\r\nline-22\r\nline-23\r\nline-24\r\nline-25\r\nline-26\r\nline-27\r\nline-28\r\nline-29\r\n\u001b[31mred\u001b[0m 中文\r\n$ cargo test\r\n$ ",
+  "input": "scrolled-off-0\r\nline-1\r\nline-2\r\nline-3\r\nline-4\r\nline-5\r\nline-6\r\nline-7\r\nline-8\r\nline-9\r\nline-10\r\nline-11\r\nline-12\r\nline-13\r\nline-14\r\nline-15\r\nline-16\r\nline-17\r\nline-18\r\nline-19\r\nline-20\r\nline-21\r\nline-22\r\nline-23\r\nline-24\r\nline-25\r\nline-26\r\nline-27\r\nline-28\r\nline-29\r\n\u001b[31mred\u001b[0m 中文\r\n$ cargo test\r\n\u001b[?1049h\u001b[?1000h\u001b[?2004hvim-only\u001b[?1049l$ ",
+  "expectedVisible": [
+    "scrolled-off-0",
+    "line-1",
+    "line-2",
+    "line-3",
+    "line-4",
+    "line-5",
+    "line-6",
+    "line-7",
+    "line-8",
+    "line-9",
+    "line-10",
+    "line-11",
+    "line-12",
+    "line-13",
+    "line-14",
+    "line-15",
+    "line-16",
+    "line-17",
+    "line-18",
+    "line-19",
+    "line-20",
+    "line-21",
+    "line-22",
+    "line-23",
+    "line-24",
+    "line-25",
+    "line-26",
+    "line-27",
+    "line-28",
+    "line-29",
+    "red 中文",
+    "$ cargo test",
+    "$ "
+  ],
+  "expectedColor": {
+    "text": "red",
+    "foreground": "index:1"
+  }
+}

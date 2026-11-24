@@ -21,11 +21,11 @@ use tterm_core::core::session::types::PtyConnectionOptions;
 use tterm_core::prompts::SessionKey;
 use tterm_core::services::AppServices;
 use tterm_core::workspace::tab_attention::TabAttentionStore;
-use tterm_terminal::grid::{CellSize, GridSize};
+use tterm_terminal::grid::{CellSize, GridSize, WindowSize};
 use tterm_terminal::terminal::{Config, Terminal};
 
 use self::scoped::{ConnectionState, SessionScopedState};
-use super::session::{RefreshWatch, Session};
+use super::session::{RefreshWatch, RestoredHistory, Session};
 
 /// The application-owned sessions, one binding per tab.
 pub struct SessionManager {
@@ -84,6 +84,19 @@ impl SessionManager {
         grid: GridSize,
         cell: CellSize,
     ) -> Rc<TabBinding> {
+        self.open_with_history(tab_id, connection, grid, cell, None)
+    }
+
+    /// Opens a new generation and shows a restored snapshot before its
+    /// transport can write anything.
+    pub(crate) fn open_with_history(
+        &self,
+        tab_id: impl Into<String>,
+        connection: PtyConnectionOptions,
+        grid: GridSize,
+        cell: CellSize,
+        restored: Option<RestoredHistory>,
+    ) -> Rc<TabBinding> {
         let tab_id = tab_id.into();
         let binding = self.tab_or_create(tab_id.clone());
         let session_nonce = self.next_nonce.fetch_add(1, Ordering::Relaxed);
@@ -97,9 +110,9 @@ impl SessionManager {
             tab_id,
             session_nonce,
             connection,
-            grid,
-            cell,
+            WindowSize { grid, cell },
             config,
+            restored,
         ) {
             Ok(session) => binding.set_session(Arc::new(session)),
             Err(error) => {
