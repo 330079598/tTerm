@@ -1,13 +1,14 @@
-//! Releases cached history rows when Alacritty executes a history clear.
+//! Releases cached history rows and records history movement while Alacritty
+//! executes parser commands.
 //!
 //! Alacritty's `ED 3` and full reset remove history rows from the grid's
 //! logical length but keep up to 1000 trimmed rows in the storage cache. The
-//! model needs to free that cache without changing any terminal semantics.
+//! model frees that cache without changing any terminal semantics.
 //!
 //! Every byte the model parses goes through this handler, which forwards every
-//! command to Alacritty unchanged. It acts only inside Alacritty's own
-//! `clear_screen` and `reset_state` calls, so a truncation happens at exactly
-//! the same point in the byte stream as the clear. That matters when the clear
+//! command to Alacritty unchanged. It also observes the exact commands that
+//! clear history or push its oldest rows out, so command marks move in the
+//! same call as the rows they describe. That matters when a clear or scroll
 //! shares a write with output that refills the history, with a switch to the
 //! alternate screen, or with a synchronized update that delays execution.
 //!
@@ -17,13 +18,15 @@
 //! updated.
 
 use alacritty_terminal::event::EventListener;
+use alacritty_terminal::grid::{BidirectionalIterator, Dimensions, GridCell};
+use alacritty_terminal::index::Point;
 use alacritty_terminal::term::Term;
 use alacritty_terminal::term::TermMode;
 use alacritty_terminal::vte::ansi::cursor_icon::CursorIcon;
 use alacritty_terminal::vte::ansi::{
     Attr, CharsetIndex, ClearMode, CursorShape, CursorStyle, Handler, Hyperlink, KeyboardModes,
-    KeyboardModesApplyBehavior, LineClearMode, Mode, ModifyOtherKeys, PrivateMode, Rgb,
-    ScpCharPath, ScpUpdateMode, StandardCharset, TabulationClearMode,
+    KeyboardModesApplyBehavior, LineClearMode, Mode, ModifyOtherKeys, NamedPrivateMode,
+    PrivateMode, Rgb, ScpCharPath, ScpUpdateMode, StandardCharset, TabulationClearMode,
 };
 
 /// Generates a forwarding method for each handler command.
@@ -39,18 +42,88 @@ macro_rules! forward {
     };
 }
 
-/// Forwards parser commands to Alacritty and records main-screen history clears.
+/// The scrolling region Alacritty currently uses, in screen lines.
+///
+/// The region is not exposed by the upstream crate, so the wrapper mirrors the
+/// same values when the parser sets it. A scroll only reaches history when the
+/// region starts at the top of the screen.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct ScrollRegion {
+    start: i32,
+    end: i32,
+}
+
+impl ScrollRegion {
+    /// The full screen, which is the region before any `DECSTBM`.
+    pub(crate) fn full(lines: usize) -> Self {
+        Self {
+            start: 0,
+            end: i32::try_from(lines).unwrap_or(i32::MAX),
+        }
+    }
+
+    fn contains(&self, line: i32) -> bool {
+        line >= self.start && line < self.end
+    }
+
+    fn lines(&self) -> usize {
+        usize::try_from(self.end.saturating_sub(self.start)).unwrap_or(0)
+    }
+}
+
+/// How a parser command changed the marked history rows.
+///
+/// A dispose wins over any shifts in the same slice: the entries it removes
+/// cannot be moved, and a later mark in the write starts a fresh entry.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub(crate) struct MarkChanges {
+    /// Remove every entry.
+    pub(crate) dispose: bool,
+    /// Drop this many oldest rows and shift the remaining marks.
+    pub(crate) shift: usize,
+}
+
+impl MarkChanges {
+    fn dispose(&mut self) {
+        self.dispose = true;
+        self.shift = 0;
+    }
+
+    fn shift(&mut self, lines: usize) {
+        if !self.dispose {
+            self.shift = self.shift.saturating_add(lines);
+        }
+    }
+}
+
+/// Forwards parser commands to Alacritty and records history changes.
+///
+/// The wrapper owns no parser state of its own except the mirrored scrolling
+/// region. Every method forwards first and then records the exact history
+/// change Alacritty just made, so a command mark applied at the end of a slice
+/// sees the same grid state as the parser.
 pub(crate) struct HistoryRelease<'a, T: EventListener> {
     term: &'a mut Term<T>,
+    region: ScrollRegion,
     cleared_main: bool,
+    marks: MarkChanges,
 }
 
 impl<'a, T: EventListener> HistoryRelease<'a, T> {
-    /// Wraps a terminal for one parsing call.
+    /// Wraps a terminal for one parsing call with a full-screen region.
+    #[cfg(test)]
     pub(crate) fn new(term: &'a mut Term<T>) -> Self {
+        let region = ScrollRegion::full(term.screen_lines());
+        Self::with_region(term, region)
+    }
+
+    /// Wraps a terminal and continues its mirrored scrolling region.
+    pub(crate) fn with_region(term: &'a mut Term<T>, region: ScrollRegion) -> Self {
         Self {
             term,
+            region,
             cleared_main: false,
+            marks: MarkChanges::default(),
         }
     }
 
@@ -58,25 +131,92 @@ impl<'a, T: EventListener> HistoryRelease<'a, T> {
     pub(crate) fn cleared_main(&self) -> bool {
         self.cleared_main
     }
+
+    /// The scrolling region after the parsed commands.
+    pub(crate) fn region(&self) -> ScrollRegion {
+        self.region
+    }
+
+    /// The marked-line changes made by the parsed commands.
+    pub(crate) fn mark_changes(&self) -> MarkChanges {
+        self.marks
+    }
+
+    fn is_normal_screen(&self) -> bool {
+        !self.term.mode().contains(TermMode::ALT_SCREEN)
+    }
+
+    fn history_size(&self) -> usize {
+        self.term.grid().history_size()
+    }
+
+    /// Records the oldest rows a successful scroll pushed out.
+    fn record_shift(&mut self, positions: usize, history_before: usize) {
+        if positions == 0 {
+            return;
+        }
+        let added = self.history_size().saturating_sub(history_before);
+        let evicted = positions.saturating_sub(added);
+        if evicted > 0 {
+            self.marks.shift(evicted);
+        }
+    }
+
+    /// How many rows a linefeed at the cursor will scroll out of the top.
+    fn linefeed_positions(&self) -> usize {
+        let cursor = self.term.grid().cursor.point.line.0;
+        if self.is_normal_screen() && self.region.start == 0 && cursor + 1 == self.region.end {
+            1
+        } else {
+            0
+        }
+    }
+
+    /// The rows `ED 2` will scroll up while it clears the viewport.
+    fn clear_viewport_positions(&self) -> usize {
+        let grid = self.term.grid();
+        let mut iter = grid.iter_from(Point::new(grid.bottommost_line(), grid.last_column()));
+        while let Some(cell) = iter.prev() {
+            if !cell.is_empty() || cell.point.line < 0 {
+                break;
+            }
+        }
+        usize::try_from(iter.point().line.0 + 1).unwrap_or(0)
+    }
 }
 
 impl<T: EventListener> Handler for HistoryRelease<'_, T> {
     fn clear_screen(&mut self, mode: ClearMode) {
-        let on_main = !self.term.mode().contains(TermMode::ALT_SCREEN);
+        let on_main = self.is_normal_screen();
         let saved = matches!(mode, ClearMode::Saved);
-        self.term.clear_screen(mode);
+        let all = matches!(mode, ClearMode::All);
+        let positions = if on_main && all {
+            self.clear_viewport_positions()
+        } else {
+            0
+        };
+        let history_before = self.history_size();
+        Handler::clear_screen(&mut *self.term, mode);
 
-        // `Saved` is the only clear mode that touches history. On the
+        // `Saved` is the only clear mode that removes history. On the
         // alternate screen Alacritty clears the alternate grid, whose history
         // is empty, so truncating it cannot touch the hidden main history.
         if saved {
             self.term.grid_mut().truncate();
             self.cleared_main |= on_main;
+            if on_main {
+                self.marks.dispose();
+            }
+        } else if on_main {
+            // `ED 2` moves the viewport's non-empty rows into history before
+            // clearing it. That is a real scroll at capacity even though it is
+            // not a clear of the saved lines.
+            self.record_shift(positions, history_before);
         }
     }
 
     fn reset_state(&mut self) {
-        self.term.reset_state();
+        Handler::reset_state(&mut *self.term);
 
         // A reset always leaves the main grid active: Alacritty swaps the
         // alternate grid out first. Both grids are reset, and the alternate
@@ -84,6 +224,75 @@ impl<T: EventListener> Handler for HistoryRelease<'_, T> {
         // history without touching what is left of the alternate screen.
         self.term.grid_mut().truncate();
         self.cleared_main = true;
+        self.region = ScrollRegion::full(self.term.screen_lines());
+        self.marks.dispose();
+    }
+
+    fn linefeed(&mut self) {
+        let positions = self.linefeed_positions();
+        let history_before = self.history_size();
+        Handler::linefeed(&mut *self.term);
+        self.record_shift(positions, history_before);
+    }
+
+    fn newline(&mut self) {
+        let positions = self.linefeed_positions();
+        let history_before = self.history_size();
+        Handler::newline(&mut *self.term);
+        self.record_shift(positions, history_before);
+    }
+
+    fn scroll_up(&mut self, lines: usize) {
+        let positions = if self.is_normal_screen() && self.region.start == 0 {
+            lines.min(self.region.lines())
+        } else {
+            0
+        };
+        let history_before = self.history_size();
+        Handler::scroll_up(&mut *self.term, lines);
+        self.record_shift(positions, history_before);
+    }
+
+    fn delete_lines(&mut self, lines: usize) {
+        let origin = self.term.grid().cursor.point.line.0;
+        let positions = if self.is_normal_screen()
+            && origin == 0
+            && lines > 0
+            && self.region.start == 0
+            && self.region.contains(origin)
+        {
+            lines.min(self.term.screen_lines()).min(self.region.lines())
+        } else {
+            0
+        };
+        let history_before = self.history_size();
+        Handler::delete_lines(&mut *self.term, lines);
+        self.record_shift(positions, history_before);
+    }
+
+    fn set_private_mode(&mut self, mode: PrivateMode) {
+        let column_mode = matches!(mode, PrivateMode::Named(NamedPrivateMode::ColumnMode));
+        Handler::set_private_mode(&mut *self.term, mode);
+        if column_mode {
+            // DECCOLM resets the scrolling region internally.
+            self.region = ScrollRegion::full(self.term.screen_lines());
+        }
+    }
+
+    fn set_scrolling_region(&mut self, top: usize, bottom: Option<usize>) {
+        Handler::set_scrolling_region(&mut *self.term, top, bottom);
+
+        let screen_lines = self.term.screen_lines();
+        let bottom = bottom.unwrap_or(screen_lines);
+        if top < bottom {
+            let start = i32::try_from(top).unwrap_or(i32::MAX) - 1;
+            let end = i32::try_from(bottom).unwrap_or(i32::MAX);
+            let screen = i32::try_from(screen_lines).unwrap_or(i32::MAX);
+            self.region = ScrollRegion {
+                start: start.min(screen),
+                end: end.min(screen),
+            };
+        }
     }
 
     forward! {
@@ -106,15 +315,11 @@ impl<T: EventListener> Handler for HistoryRelease<'_, T> {
         fn put_tab(a0: u16);
         fn backspace();
         fn carriage_return();
-        fn linefeed();
         fn bell();
         fn substitute();
-        fn newline();
         fn set_horizontal_tabstop();
-        fn scroll_up(a0: usize);
         fn scroll_down(a0: usize);
         fn insert_blank_lines(a0: usize);
-        fn delete_lines(a0: usize);
         fn erase_chars(a0: usize);
         fn delete_chars(a0: usize);
         fn move_backward_tabs(a0: u16);
@@ -129,10 +334,8 @@ impl<T: EventListener> Handler for HistoryRelease<'_, T> {
         fn set_mode(a0: Mode);
         fn unset_mode(a0: Mode);
         fn report_mode(a0: Mode);
-        fn set_private_mode(a0: PrivateMode);
         fn unset_private_mode(a0: PrivateMode);
         fn report_private_mode(a0: PrivateMode);
-        fn set_scrolling_region(a0: usize, a1: Option<usize>);
         fn set_keypad_application_mode();
         fn unset_keypad_application_mode();
         fn set_active_charset(a0: CharsetIndex);

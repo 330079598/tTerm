@@ -89,3 +89,50 @@ fn an_overlong_payload_is_dropped_whole() {
     input.push(0x07);
     assert!(scan(&input).is_empty());
 }
+
+#[test]
+fn command_mark_boundaries_match_the_production_report_scanner() {
+    use super::SessionReportScanner;
+    use crate::command_mark::CommandMark;
+
+    let input = concat!(
+        "before",
+        "\x1b]133;A\x07",
+        "\x1b]0;a title with 133;A inside\x07",
+        "\x1bPdcs with ]133;A inside\x07\x1b\\",
+        "\x1b]133;C\x1b\\",
+        "\x1b]8;;https://example.com/133;A\x07",
+        "\x1b]133;D;7\x07",
+        "\x1b]133;A\x1bX",
+        "\x1b]633;D;0\x07",
+    )
+    .as_bytes();
+
+    for split in 0..=input.len() {
+        let chunks = [&input[..split], &input[split..]];
+        let mut reports = SessionReportScanner::new();
+        let mut commands = SessionReportScanner::for_command_marks();
+        let mut report_marks = Vec::<(usize, CommandMark)>::new();
+        let mut command_marks = Vec::<(usize, CommandMark)>::new();
+        let mut offset = 0;
+        for chunk in chunks {
+            report_marks.extend(
+                reports
+                    .scan_controls(chunk)
+                    .into_iter()
+                    .filter_map(|control| control.mark.map(|mark| (offset + control.end, mark))),
+            );
+            command_marks.extend(
+                commands
+                    .scan_command_marks(chunk)
+                    .into_iter()
+                    .map(|event| (offset + event.end, event.mark)),
+            );
+            offset += chunk.len();
+        }
+        assert_eq!(
+            command_marks, report_marks,
+            "both scanners must agree at split {split}"
+        );
+    }
+}

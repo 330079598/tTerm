@@ -166,23 +166,142 @@ fn alternate_screen_marks_do_not_pollute_the_main_screen() {
 }
 
 #[test]
-fn an_eviction_discards_marks_that_cannot_be_shifted_exactly() {
-    let model = model(5, 5);
-    for index in 0..4 {
+fn an_eviction_shifts_surviving_marks_by_the_exact_rows() {
+    let model = model(3, 3);
+    for index in 0..2 {
         command(&model, index, 0);
     }
-    assert!(!marks(&model).is_empty());
-
-    // At capacity Alacritty does not expose how many oldest rows a scroll
-    // evicted, so the model drops the marks instead of letting a line number
-    // name a different command.
-    for index in 4..8 {
-        command(&model, index, 0);
-    }
-    assert!(
-        marks(&model).is_empty(),
-        "unknown evictions invalidate the overview marks"
+    let before = marks(&model);
+    assert_eq!(
+        before
+            .iter()
+            .map(|mark| mark.prompt_line)
+            .collect::<Vec<_>>(),
+        [0, 2]
     );
+
+    // Filling the last free history row moves no retained line.
+    model.write(b"\n");
+    assert_eq!(marks(&model), before);
+    assert_eq!(model.snapshot().history_size(), 3);
+
+    // The next line pushes the oldest row out. The first command is gone and
+    // the second one moves up by exactly one row.
+    model.write(b"\n");
+    assert_eq!(
+        marks(&model),
+        vec![CommandMarkPosition {
+            prompt_line: 1,
+            output_line: Some(2),
+            end_line: Some(3),
+            exit_code: Some(0),
+        }]
+    );
+}
+
+#[test]
+fn one_write_and_byte_writes_agree_on_clears_alternate_screens_and_evictions() {
+    let mut stream = Vec::new();
+    for index in 0..4 {
+        stream.extend_from_slice(format!("\x1b]133;A\x07$ cmd{index}\r\n").as_bytes());
+        stream.extend_from_slice(b"\x1b]133;C\x07");
+        stream.extend_from_slice(format!("out{index}\r\n").as_bytes());
+        stream.extend_from_slice(format!("\x1b]133;D;{index}\x07").as_bytes());
+    }
+    for index in 0..24 {
+        stream.extend_from_slice(format!("fill-{index:02}\r\n").as_bytes());
+    }
+    stream.extend_from_slice(b"\x1b[?1049h");
+    stream.extend_from_slice(b"\x1b]133;A\x07$ alt\r\n\x1b]133;C\x07alt\r\n\x1b]133;D;9\x07");
+    stream.extend_from_slice(b"\x1b[3J\x1b[?1049l");
+    stream.extend_from_slice(b"\x1b[3J\x1b[H");
+    stream.extend_from_slice(b"\x1b]133;A\x07$ final\r\n\x1b]133;C\x07done\r\n\x1b]133;D;0\x07");
+
+    let one = model(5, 50);
+    one.write(&stream);
+    let split = model(5, 50);
+    for byte in &stream {
+        split.write(&[*byte]);
+    }
+
+    assert_eq!(marks(&one), marks(&split));
+    assert_eq!(
+        one.snapshot().history_size(),
+        split.snapshot().history_size()
+    );
+    let final_marks = marks(&one);
+    assert_eq!(
+        final_marks.len(),
+        1,
+        "the clear before the final command wins"
+    );
+    assert_eq!(final_marks[0].prompt_line, 0);
+    assert_eq!(final_marks[0].exit_code, Some(0));
+}
+
+#[test]
+fn a_clear_and_new_marks_in_one_write_keep_only_the_new_command() {
+    let mut stream = b"\x1b]133;A\x07old\r\n\x1b]133;C\x07old\r\n\x1b]133;D;1\x07".to_vec();
+    stream.extend_from_slice(b"\x1b[3J\x1b[H");
+    stream.extend_from_slice(b"\x1b]133;A\x07$ new\r\n\x1b]133;C\x07new\r\n\x1b]133;D;0\x07");
+
+    let single = model(5, 50);
+    single.write(&stream);
+    let found = marks(&single);
+    assert_eq!(found.len(), 1, "the clear disposes the old command");
+    assert_eq!(found[0].prompt_line, 0);
+    assert_eq!(found[0].output_line, Some(1));
+    assert_eq!(found[0].end_line, Some(2));
+    assert_eq!(found[0].exit_code, Some(0));
+
+    let split = model(5, 50);
+    for byte in &stream {
+        split.write(&[*byte]);
+    }
+    assert_eq!(
+        split.snapshot().command_marks(),
+        single.snapshot().command_marks()
+    );
+}
+
+#[test]
+fn control_string_payloads_do_not_create_command_marks() {
+    let model = model(5, 50);
+    for fake in [
+        b"\x1b]0;title 133;A 133;C 133;D;0\x07".as_slice(),
+        b"\x1bPpayload ]133;A\x07 133;C 133;D;0\x1b\\",
+        b"\x1b]8;;https://example.com/133;A\x07",
+    ] {
+        model.write(fake);
+        assert!(
+            marks(&model).is_empty(),
+            "payload text must not become a shell mark: {fake:?}"
+        );
+    }
+
+    command(&model, 0, 0);
+    assert_eq!(marks(&model).len(), 1, "a real mark still works");
+}
+
+#[test]
+fn a_synchronized_update_does_not_give_a_buffered_mark_a_fake_position() {
+    let stream = b"\x1b[?2026h\x1b]133;A\x07$ hidden\r\n\
+        \x1b]133;C\x07out\r\n\x1b]133;D;0\x07\x1b[?2026l";
+    let single = model(5, 50);
+    single.write(stream);
+    assert!(
+        marks(&single).is_empty(),
+        "a mark buffered by a synchronized update has no executed position"
+    );
+
+    let split = model(5, 50);
+    for byte in stream {
+        split.write(&[*byte]);
+    }
+    assert_eq!(marks(&split), marks(&single));
+
+    command(&single, 0, 0);
+    assert_eq!(marks(&single).len(), 1, "the next prompt re-synchronizes");
 }
 
 #[test]
@@ -219,4 +338,43 @@ fn a_mark_split_across_writes_is_applied_at_its_terminator() {
     assert_eq!(marks[0].output_line, Some(1));
     assert_eq!(marks[0].end_line, Some(2));
     assert_eq!(marks[0].exit_code, Some(7));
+}
+
+#[test]
+fn a_scroll_before_an_alternate_screen_switch_still_moves_main_marks() {
+    let model = model(3, 3);
+    for index in 0..2 {
+        command(&model, index, 0);
+    }
+    let before = marks(&model);
+    assert_eq!(
+        before
+            .iter()
+            .map(|mark| mark.prompt_line)
+            .collect::<Vec<_>>(),
+        [0, 2]
+    );
+
+    model.write(b"\n\n\x1b[?1049h");
+    assert_eq!(
+        marks(&model),
+        vec![CommandMarkPosition {
+            prompt_line: 1,
+            output_line: Some(2),
+            end_line: Some(3),
+            exit_code: Some(0),
+        }],
+        "the two main-screen scrolls happen before the grid is swapped"
+    );
+    model.write(b"\x1b[3J\x1b[?1049l");
+    assert_eq!(
+        marks(&model),
+        vec![CommandMarkPosition {
+            prompt_line: 1,
+            output_line: Some(2),
+            end_line: Some(3),
+            exit_code: Some(0),
+        }],
+        "an alternate-screen clear does not touch the main marks"
+    );
 }

@@ -22,6 +22,15 @@ const REPORT_OSC_CODES: [u16; 5] = [7, 9, 133, 633, 777];
 /// prefix.
 const MAX_REPORT_PAYLOAD_BYTES: usize = 32 * 1024;
 
+/// The most payload bytes kept for one command mark.
+const MAX_COMMAND_MARK_PAYLOAD_BYTES: usize = 4 * 1024;
+
+/// The OSC codes command marks use, as the bounded framer stores them.
+const COMMAND_MARK_OSC_CODES: [u16; 2] = [
+    crate::command_marks::COMMAND_MARK_OSC_CODES[0] as u16,
+    crate::command_marks::COMMAND_MARK_OSC_CODES[1] as u16,
+];
+
 /// A report the session needs from the output stream.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum SessionReport {
@@ -33,6 +42,26 @@ pub enum SessionReport {
     CommandStarted,
     /// A working-directory report from OSC 7 or OSC 9;9.
     Cwd(String),
+}
+
+/// One completed control string and what the session or the model made of it.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(crate) struct ScannedControl {
+    /// The byte offset just past the terminator.
+    pub(crate) end: usize,
+    /// The session report this control string carries, when it carries one.
+    pub(crate) report: Option<SessionReport>,
+    /// The command mark this control string carries, when it carries one.
+    pub(crate) mark: Option<CommandMark>,
+}
+
+/// A completed command mark and the byte offset just past its terminator.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct CommandMarkEvent {
+    /// The byte offset just past the terminator.
+    pub(crate) end: usize,
+    /// The parsed mark.
+    pub(crate) mark: CommandMark,
 }
 
 /// Recognizes complete reports across arbitrary output chunk boundaries.
@@ -52,16 +81,50 @@ impl SessionReportScanner {
         }
     }
 
-    /// Scans one chunk and returns every complete report it contains.
-    pub fn scan(&mut self, bytes: &[u8]) -> Vec<SessionReport> {
-        let mut reports = Vec::new();
-        self.framer.scan(bytes, |event| {
-            Self::record(event, &mut reports);
-        });
-        reports
+    /// Creates the same scanner configured for the model's command marks.
+    ///
+    /// The framing state machine is shared with [`Self::new`], so both
+    /// scanners split chunks and control strings at identical boundaries.
+    pub(crate) fn for_command_marks() -> Self {
+        Self {
+            framer: ControlStringFramer::with_payload_codes(
+                &COMMAND_MARK_OSC_CODES,
+                MAX_COMMAND_MARK_PAYLOAD_BYTES,
+            ),
+        }
     }
 
-    fn record(event: CompletedControlString<'_>, reports: &mut Vec<SessionReport>) {
+    /// Scans one chunk and returns every complete report it contains.
+    pub fn scan(&mut self, bytes: &[u8]) -> Vec<SessionReport> {
+        self.scan_controls(bytes)
+            .into_iter()
+            .filter_map(|control| control.report)
+            .collect()
+    }
+
+    /// Scans one chunk and returns the model's complete command marks.
+    pub(crate) fn scan_command_marks(&mut self, bytes: &[u8]) -> Vec<CommandMarkEvent> {
+        self.scan_controls(bytes)
+            .into_iter()
+            .filter_map(|control| {
+                control.mark.map(|mark| CommandMarkEvent {
+                    end: control.end,
+                    mark,
+                })
+            })
+            .collect()
+    }
+
+    /// Scans one chunk and keeps both the report and the mark of each control.
+    pub(crate) fn scan_controls(&mut self, bytes: &[u8]) -> Vec<ScannedControl> {
+        let mut controls = Vec::new();
+        self.framer.scan(bytes, |event| {
+            Self::record(event, &mut controls);
+        });
+        controls
+    }
+
+    fn record(event: CompletedControlString<'_>, controls: &mut Vec<ScannedControl>) {
         if !event.payload_valid {
             return;
         }
@@ -71,22 +134,34 @@ impl SessionReportScanner {
         let Ok(data) = std::str::from_utf8(event.payload) else {
             return;
         };
+        let mut report = None;
+        let mut mark = None;
         match code {
             7 | 9 => {
                 if let Some(cwd) = parse_cwd_report(i64::from(code), data) {
-                    reports.push(SessionReport::Cwd(cwd));
+                    report = Some(SessionReport::Cwd(cwd));
                 }
             }
-            133 | 633 => match parse_command_mark(data) {
-                Some(CommandMark::Prompt) => reports.push(SessionReport::Prompt),
-                Some(CommandMark::Output) => reports.push(SessionReport::CommandStarted),
-                Some(CommandMark::Done { .. }) | None => {}
-            },
+            133 | 633 => {
+                mark = parse_command_mark(data);
+                match mark {
+                    Some(CommandMark::Prompt) => report = Some(SessionReport::Prompt),
+                    Some(CommandMark::Output) => report = Some(SessionReport::CommandStarted),
+                    Some(CommandMark::Done { .. }) | None => {}
+                }
+            }
             777 if data.starts_with("tterm-agent;") => {
-                reports.push(SessionReport::AgentReport(data.to_owned()));
+                report = Some(SessionReport::AgentReport(data.to_owned()));
             }
             777 => {}
             _ => {}
+        }
+        if report.is_some() || mark.is_some() {
+            controls.push(ScannedControl {
+                end: event.end,
+                report,
+                mark,
+            });
         }
     }
 }

@@ -1,10 +1,11 @@
 //! Model-side command marks for the overview ruler.
 //!
-//! The parser's OSC handler does not expose OSC 133 or 633, so a bounded
-//! scanner finds those control strings and applies them at the exact byte
-//! offset where Alacritty finished reading them. The tracker itself is the
-//! existing [`CommandMarks`] state machine; this module only adapts the
-//! model's grid to its viewport trait and caches the read-only line list.
+//! The parser's OSC handler does not expose OSC 133 or 633, so the model uses
+//! the same bounded [`SessionReportScanner`] as the session layer and applies
+//! a mark at the byte offset where Alacritty finished reading its control
+//! string. The tracker itself is the existing [`CommandMarks`] state machine;
+//! this module only adapts the model's grid to its viewport trait and caches
+//! the read-only line list.
 
 use std::sync::Arc;
 
@@ -14,56 +15,8 @@ use alacritty_terminal::grid::Scroll as AnsiScroll;
 use alacritty_terminal::term::Term;
 use alacritty_terminal::term::TermMode;
 
-use crate::command_mark::CommandMark;
-use crate::command_marks::{
-    COMMAND_MARK_OSC_CODES, CommandMarkPosition, CommandMarkViewport, CommandMarks,
-};
-use crate::control_strings::ControlStringFramer;
-
-/// The most payload bytes kept for one command mark.
-const MAX_COMMAND_MARK_PAYLOAD_BYTES: usize = 4 * 1024;
-
-/// A completed command mark and the byte offset just past its terminator.
-pub(crate) struct CommandMarkEvent {
-    pub(crate) end: usize,
-    pub(crate) mark: CommandMark,
-}
-
-/// Finds OSC 133 and 633 payloads without becoming a second terminal parser.
-pub(crate) struct CommandMarkScanner {
-    framer: ControlStringFramer,
-}
-
-impl CommandMarkScanner {
-    fn new() -> Self {
-        const CODES: [u16; 2] = [
-            COMMAND_MARK_OSC_CODES[0] as u16,
-            COMMAND_MARK_OSC_CODES[1] as u16,
-        ];
-        Self {
-            framer: ControlStringFramer::with_payload_codes(&CODES, MAX_COMMAND_MARK_PAYLOAD_BYTES),
-        }
-    }
-
-    fn scan(&mut self, bytes: &[u8]) -> Vec<CommandMarkEvent> {
-        let mut events = Vec::new();
-        self.framer.scan(bytes, |event| {
-            if !event.payload_valid || !matches!(event.code, Some(133 | 633)) {
-                return;
-            }
-            let Ok(data) = std::str::from_utf8(event.payload) else {
-                return;
-            };
-            if let Some(mark) = crate::command_marks::parse_command_mark(data) {
-                events.push(CommandMarkEvent {
-                    end: event.end,
-                    mark,
-                });
-            }
-        });
-        events
-    }
-}
+use crate::command_marks::{CommandMarkPosition, CommandMarkViewport, CommandMarks};
+use crate::session_reports::{CommandMarkEvent, SessionReportScanner};
 
 /// The model's implementation of the tracker's viewport.
 ///
@@ -121,7 +74,7 @@ impl<T: EventListener> CommandMarkViewport for ModelViewport<'_, T> {
 /// The tracker, its scanner and the cached read-only line list.
 pub(crate) struct CommandMarkState {
     marks: CommandMarks,
-    scanner: CommandMarkScanner,
+    scanner: SessionReportScanner,
     positions: Arc<[CommandMarkPosition]>,
     positions_revision: u64,
 }
@@ -133,14 +86,14 @@ impl CommandMarkState {
         Self {
             positions_revision: marks.revision(),
             marks,
-            scanner: CommandMarkScanner::new(),
+            scanner: SessionReportScanner::for_command_marks(),
             positions: Arc::from(Vec::new()),
         }
     }
 
     /// Finds the command marks completed by this write, without applying them.
     pub(crate) fn scan(&mut self, bytes: &[u8]) -> Vec<CommandMarkEvent> {
-        self.scanner.scan(bytes)
+        self.scanner.scan_command_marks(bytes)
     }
 
     /// Applies one mark after the parser has consumed its bytes.

@@ -35,7 +35,7 @@ use crate::command_marks::overview::CommandMarkState;
 use crate::damage::Damage;
 use crate::event::{self, Clipboard, Intent};
 use crate::grid::{CellSize, GridPoint, GridRange, GridSize};
-use crate::history_release::HistoryRelease;
+use crate::history_release::{HistoryRelease, MarkChanges, ScrollRegion};
 use crate::mode::Modes;
 use crate::mouse_reporting::MOUSE_REPORTING_OFF;
 use crate::osc52_scanner::Osc52Scanner;
@@ -234,6 +234,7 @@ struct State {
     cell_size: CellSize,
     version: u64,
     scrollback_generation: u64,
+    scroll_region: ScrollRegion,
     word_selection: bool,
     word_drag: Option<SelectionRange>,
 }
@@ -275,6 +276,7 @@ impl Terminal {
             cell_size,
             version: 0,
             scrollback_generation: 0,
+            scroll_region: ScrollRegion::full(grid.clamped().screen_lines),
             word_selection: false,
             word_drag: None,
         };
@@ -309,6 +311,9 @@ impl Terminal {
                 .total_lines()
                 .saturating_sub(state.term.screen_lines())
         };
+        // The scanners only locate complete control strings. A mark is
+        // applied after the parser has consumed the bytes up to its end, so
+        // its position is the model state after that OSC, not a guessed line.
         let stores = state.osc52_scanner.scan(bytes);
         let mark_events = state.command_marks.scan(bytes);
         let mut events = stores
@@ -325,19 +330,24 @@ impl Terminal {
             parser,
             term,
             command_marks,
+            scroll_region,
             ..
         } = &mut *state;
+        let mut region = *scroll_region;
         let mut cleared_main = false;
         let mut start = 0;
         for (end, store, mark) in events {
             if end < start || end > bytes.len() {
                 continue;
             }
-            {
-                let mut handler = HistoryRelease::new(term);
+            let (changes, cleared) = {
+                let mut handler = HistoryRelease::with_region(term, region);
                 parser.advance(&mut handler, &bytes[start..end]);
-                cleared_main |= handler.cleared_main();
-            }
+                region = handler.region();
+                (handler.mark_changes(), handler.cleared_main())
+            };
+            cleared_main |= cleared;
+            apply_mark_changes(command_marks, changes);
             if let Some(text) = store {
                 self.intents
                     .lock()
@@ -348,25 +358,31 @@ impl Terminal {
                     });
             }
             if let Some(event) = mark {
-                command_marks.handle_event(event, term);
+                if parser.sync_bytes_count() > 0 {
+                    // The synchronized update has not executed this mark yet.
+                    // Its future cursor cannot be known without replaying the
+                    // buffered bytes, so drop the marks instead of inventing a
+                    // position; the next prompt starts a fresh entry.
+                    command_marks.dispose_markers();
+                } else {
+                    command_marks.handle_event(event, term);
+                }
             }
             start = end;
         }
         {
-            let mut handler = HistoryRelease::new(term);
+            let mut handler = HistoryRelease::with_region(term, region);
             parser.advance(&mut handler, &bytes[start..]);
+            region = handler.region();
             cleared_main |= handler.cleared_main();
+            apply_mark_changes(command_marks, handler.mark_changes());
         }
+        *scroll_region = region;
         let is_alternate = term.mode().contains(TermMode::ALT_SCREEN);
         if was_alternate != is_alternate {
-            // A switch swaps grids within one write, and the main screen may
-            // have evicted history before it. Only the active grid can be
-            // inspected afterwards, so a new generation drops cached rows.
-            // Any main clear was already truncated by the handler before the
-            // switch, while the main grid was still active.
-            if cleared_main {
-                command_marks.dispose_markers();
-            }
+            // A switch swaps grids within one write. A main clear and every
+            // main scroll before the switch were already applied at their
+            // exact byte offsets; a new generation drops cached rows.
             state.scrollback_generation = state.scrollback_generation.wrapping_add(1);
             return;
         }
@@ -378,16 +394,6 @@ impl Terminal {
         // A history drop without a clear is still worth invalidating cached
         // absolute lines for.
         let cleared_history = cleared_main || history_before > history_size;
-        if cleared_main {
-            command_marks.dispose_markers();
-        } else if history_before > history_size {
-            command_marks.trim_scrollback(history_before - history_size);
-        } else if configured > 0 && history_size >= configured && full_damage {
-            // At capacity an output scroll evicts an oldest line whose exact
-            // count Alacritty does not expose. Keeping a line number that may
-            // now name another row is worse than dropping the marks.
-            command_marks.dispose_markers();
-        }
         if cleared_history || (configured > 0 && history_size >= configured && full_damage) {
             state.scrollback_generation = state.scrollback_generation.wrapping_add(1);
         }
@@ -415,6 +421,7 @@ impl Terminal {
         // map, so stale marks are dropped instead of pointing at another row.
         state.command_marks.dispose_markers();
         state.term.resize(grid.clamped());
+        state.scroll_region = ScrollRegion::full(state.term.screen_lines());
     }
 
     /// Changes the scrollback capacity.
@@ -656,6 +663,15 @@ impl Terminal {
     ) -> Option<GridRange> {
         let state = self.state.lock();
         search.find_in(&state.term, origin, direction)
+    }
+}
+
+/// Applies the history changes the parser made during one slice.
+fn apply_mark_changes(command_marks: &mut CommandMarkState, changes: MarkChanges) {
+    if changes.dispose {
+        command_marks.dispose_markers();
+    } else if changes.shift > 0 {
+        command_marks.trim_scrollback(changes.shift);
     }
 }
 
