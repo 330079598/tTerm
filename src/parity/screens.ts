@@ -23,6 +23,7 @@ import { TabsPrimitive, TabsServerMonitor } from "@/parity/screens/TabsPrimitive
 import { WorkspaceTitleBar } from "@/parity/screens/WorkspaceTitleBar"
 import { SettingsReference } from "@/parity/screens/SettingsReference"
 import { TunnelPanelReference } from "@/parity/screens/TunnelPanelReference"
+import { TerminalSearchReference } from "@/parity/screens/searchReference"
 
 /**
  * Every screen the reference capture can open, keyed by the id in
@@ -56,6 +57,8 @@ export const parityScreens: Record<string, ComponentType<ParityScreenProps>> = {
   "settings.search.scrollback.open-zh": SettingsReference,
   "tunnels.empty": TunnelPanelReference,
   "tunnels.list.running": TunnelPanelReference,
+  "terminal.search.default": TerminalSearchReference,
+  "terminal.search.dragged": TerminalSearchReference,
 }
 
 /** The registered ids, for the manifest test. */

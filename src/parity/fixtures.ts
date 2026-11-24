@@ -11,6 +11,7 @@ import emptyTunnels from "@fixtures/tunnels.empty.json"
 import runningTunnels from "@fixtures/tunnels.list.running.json"
 import { workspaceTitleBarFixture } from "@/parity/screens/workspaceTitleBarFixture"
 import { settingsReferenceFixture } from "@/parity/screens/settingsReferenceFixture"
+import searchFixture from "@fixtures/terminal.search.default.json"
 
 /** What the mocked `invoke` answers for one screen. */
 export interface ParityFixture {
@@ -59,6 +60,8 @@ export const fixtures: Record<string, ParityFixture> = {
   "settings.search.scrollback.open": settingsReferenceFixture,
   "settings.search.scrollback-zh": settingsReferenceFixture,
   "settings.search.scrollback.open-zh": settingsReferenceFixture,
+  "terminal.search.default": { commands: searchFixture.commands },
+  "terminal.search.dragged": { commands: searchFixture.commands },
   "tunnels.empty": {
     commands: { ...workspaceTitleBarFixture.commands, ...emptyTunnels.commands },
   },

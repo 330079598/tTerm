@@ -193,6 +193,13 @@ async function captureScreen(
       join(outDir, `${screen.id}.layout.json`),
       `${JSON.stringify(layout, null, 2)}\n`
     )
+    const state = await page.evaluate(() => window.__PARITY_STATE__ ?? null)
+    if (state !== null) {
+      await writeFile(
+        join(outDir, `${screen.id}.state.json`),
+        `${JSON.stringify(state, null, 2)}\n`
+      )
+    }
     console.log(
       `${screen.id}: ${layout.elements.length} element(s), ${layout.textRegions.length} text region(s)`
     )
@@ -231,6 +238,25 @@ async function runActions(page, actions, screenId) {
         await page
           .locator(targetSelector(action.from))
           .dragTo(page.locator(targetSelector(action.to)))
+      } else if (action.type === "repeat") {
+        if (!Number.isInteger(action.count) || action.count < 0) {
+          throw new Error(`repeat count ${action.count} is not a non-negative integer`)
+        }
+        for (let repeat = 0; repeat < action.count; repeat += 1) {
+          await runActions(page, action.actions ?? [], screenId)
+        }
+      } else if (action.type === "dragBy") {
+        const target = page.locator(targetSelector(action.target))
+        const box = await target.boundingBox()
+        if (!box) throw new Error(`dragBy target ${action.target} has no box`)
+        const startX = box.x + box.width / 2
+        const startY = box.y + box.height / 2
+        await page.mouse.move(startX, startY)
+        await page.mouse.down()
+        await page.mouse.move(startX + action.dx, startY + action.dy, {
+          steps: action.steps ?? 16,
+        })
+        await page.mouse.up()
       } else {
         throw new Error(`unknown action type ${action.type}`)
       }
