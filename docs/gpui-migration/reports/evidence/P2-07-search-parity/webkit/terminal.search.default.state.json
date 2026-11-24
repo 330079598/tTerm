@@ -1,0 +1,91 @@
+{
+  "method": "Playwright WebKit 26 + production TerminalSearchBar, useTerminalSearch and stylesheet + xterm.js SearchAddon; synthetic in-process output",
+  "shell": false,
+  "searchOpen": true,
+  "query": "needle",
+  "options": {
+    "caseSensitive": false,
+    "wholeWord": false,
+    "regex": false
+  },
+  "result": {
+    "index": 27,
+    "count": 80
+  },
+  "dragging": false,
+  "position": {
+    "x": 0,
+    "y": 0
+  },
+  "focus": "search-input",
+  "terminal": {
+    "cols": 93,
+    "rows": 37,
+    "viewportY": 14,
+    "baseY": 44,
+    "cursorY": 36,
+    "selection": {
+      "start": {
+        "x": 23,
+        "y": 27
+      },
+      "end": {
+        "x": 29,
+        "y": 27
+      }
+    },
+    "decorations": 53,
+    "activeDecorations": 1
+  },
+  "bounds": {
+    "surface": {
+      "x": 0,
+      "y": 0,
+      "width": 800,
+      "height": 600
+    },
+    "bar": {
+      "x": 264,
+      "y": 12,
+      "width": 522,
+      "height": 44
+    },
+    "handle": {
+      "x": 272,
+      "y": 21,
+      "width": 20,
+      "height": 26
+    },
+    "input": {
+      "x": 298,
+      "y": 20,
+      "width": 220,
+      "height": 28
+    },
+    "count": {
+      "x": 524,
+      "y": 26,
+      "width": 74,
+      "height": 16
+    }
+  },
+  "text": {
+    "count": "28 / 80",
+    "input": "needle"
+  },
+  "computed": {
+    "position": "absolute",
+    "top": "12px",
+    "right": "14px",
+    "transform": "matrix(1, 0, 0, 1, 0, 0)",
+    "width": "522px",
+    "height": "44px",
+    "gap": "6px",
+    "padding": "7px",
+    "borderRadius": "12px",
+    "borderWidth": "1px",
+    "backgroundColor": "rgba(27, 29, 35, 0.92)",
+    "boxShadow": "rgba(27, 29, 35, 0.28) 0px 12px 32px 0px",
+    "backdropFilter": "blur(14px)"
+  }
+}

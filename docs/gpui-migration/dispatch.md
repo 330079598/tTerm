@@ -17,9 +17,11 @@
 - 每一次 push；
 - G 关卡。
 
-## 2. 当前派发顺序（2026-11-23）
+## 2. 当前派发顺序（2026-11-24）
 
-设置回滚行数流程已合入，见[设置验收](reports/P4-15.md)。P2-06 的[滚动与内存](reports/P2-06-scroll-memory.md)、[概览标记](reports/P2-06-overview.md)和 P2-07 的[搜索模型](reports/P2-07-search-model.md)、[搜索栏](reports/P2-07-search-ui.md)已通过自动验收。下一批采集原版相同搜索状态的参照，对照调整搜索栏与拖动范围，并在隔离桌面实例核验中文输入与焦点。原生桌面滚动和真实 shell 集成仍待补。
+设置回滚行数流程已合入，见[设置验收](reports/P4-15.md)。P2-06 的[滚动与内存](reports/P2-06-scroll-memory.md)、[概览标记](reports/P2-06-overview.md)和 P2-07 的[搜索模型](reports/P2-07-search-model.md)、[搜索栏](reports/P2-07-search-ui.md)已通过自动验收。
+
+P2-07 [第三批执行卡](reports/P2-07-search-parity-plan.md)已派给 Pi + DeepSeek V4.1 Flash（`migrate/P2-07-search-parity`）。协调者复跑原版 WebKit：800×600、DPR 2、`needle` 第 28/80 项，栏框从 `(264,12,522,44)` 拖至 `(270,548,522,44)`。夹具主动恢复滚动和焦点，这只证明两张截图状态可比，不证明原生导航行为。候选分支须复核换行后的实际外框、无输出时分屏缩放、拖动期间鼠标上报与组字中 Esc，再决定是否合并。原生桌面输入、滚动和真实 shell 集成仍待补。
 
 ### 2026-11-11 交接记录（历史）
 
