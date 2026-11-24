@@ -177,16 +177,19 @@ impl SearchOverlay {
 
     /// Clips the accepted matches to the snapshot's visible rows.
     pub fn visible(&self, snapshot: &Snapshot) -> VisibleSearch {
-        let lines = snapshot.line_count();
-        let rows = vec![Vec::new(); lines];
-        let mut visible = VisibleSearch { rows, visited: 0 };
         let Some(result) = &self.result else {
-            return visible;
+            return VisibleSearch::default();
         };
+        if result.is_empty() {
+            return VisibleSearch::default();
+        }
+        let lines = snapshot.line_count();
         let columns = snapshot.grid().columns;
         if lines == 0 || columns == 0 {
-            return visible;
+            return VisibleSearch::default();
         }
+        let rows = vec![Vec::new(); lines];
+        let mut visible = VisibleSearch { rows, visited: 0 };
         let history = snapshot.history_size() as i64;
         let offset = snapshot.display_offset() as i64;
         let first_line = history - offset;
