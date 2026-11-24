@@ -246,6 +246,28 @@ fn a_match_can_span_wrapped_rows() {
 }
 
 #[test]
+fn a_wide_character_that_wraps_keeps_its_place() {
+    let terminal = model(5, 3, 10);
+    terminal.write("abcd中ef".as_bytes());
+
+    let crossing = run(&terminal, "d中", SearchOptions::default());
+    assert_eq!(starts(&crossing), vec![(0, 3)]);
+    assert_eq!(
+        ends(&crossing),
+        vec![(1, 1)],
+        "the wrapped wide glyph covers columns 0 and 1"
+    );
+
+    let wide = run(&terminal, "中e", SearchOptions::default());
+    assert_eq!(starts(&wide), vec![(1, 0)]);
+    assert_eq!(
+        ends(&wide),
+        vec![(1, 2)],
+        "the wide glyph covers columns 0 and 1"
+    );
+}
+
+#[test]
 fn adjacent_hard_lines_do_not_form_a_wrapped_line() {
     let terminal = model(10, 3, 10);
     terminal.write(b"abcde\r\nfghij\r\n");

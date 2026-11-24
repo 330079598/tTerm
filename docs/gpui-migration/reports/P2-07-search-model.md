@@ -173,13 +173,13 @@ cargo test -p tterm-terminal --release --test search_benchmark \
 cargo test -p tterm-terminal --lib search
 ```
 
-新增 20 项，连同既有搜索测试共 26 项通过。覆盖：
+新增 21 项，过滤词 `search` 共匹配 27 项通过。覆盖：
 
 - 空查询、无结果、非法正则不 panic 且返回可显示错误；
 - 字面量模式不把正则元字符当模式，正则模式保留 lookbehind；
 - 大小写选项和 Unicode `i` 折叠；
 - 全词的前端非单词字符集、下划线/CJK 边界行为；
-- Unicode 宽字符、组合字符、折行跨行匹配；
+- Unicode 宽字符、组合字符、折行跨行匹配，以及行尾放不下的宽字符折到下一行；
 - 硬换行不拼接；
 - 结果排序与 `index_from` 上一个/下一个；
 - 0 宽正则匹配被跳过且不循环；
@@ -212,7 +212,7 @@ cargo test -p tterm-terminal --test search_model
 | --- | --- |
 | `cargo fmt --all --check` | 通过 |
 | `cargo clippy --workspace --all-targets -- -D warnings` | 通过 |
-| `cargo test --workspace` | 全部测试二进制通过；`tterm-terminal` lib 368 项、`tterm-terminal-view` 172 项、`tterm-core` 1869 项；新的搜索 benchmark 为 `#[ignore]`，默认套件只计数不执行 |
+| `cargo test --workspace` | 全部测试二进制通过；`tterm-terminal` lib 369 项、`tterm-terminal-view` 172 项、`tterm-core` 1869 项；新的搜索 benchmark 为 `#[ignore]`，默认套件只计数不执行 |
 | `pnpm lint && pnpm format:check && pnpm check:tokens && pnpm typecheck && pnpm test && pnpm check:size` | 通过；vitest 187 个文件、1367 项，脚本测试全部通过；1510 个文件在大小限制内 |
 | `node scripts/perf/gpui-release-frame-budget.mjs` | 通过：foreground p95 421.667 µs，30-background p50 119.292 µs / p95 421.667 µs；background throughput 180.11 MiB/s，500 ms 截止内完成；两项独立测量都通过 |
 
