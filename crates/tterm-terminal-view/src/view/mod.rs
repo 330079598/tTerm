@@ -329,6 +329,11 @@ impl TerminalView {
         self.stats
     }
 
+    /// The model this view renders.
+    pub fn model(&self) -> Arc<Terminal> {
+        Arc::clone(&self.terminal)
+    }
+
     /// The grid size from the last prepared frame.
     pub fn grid_size(&self) -> Option<GridSize> {
         self.last_grid

@@ -17,6 +17,9 @@ pub struct InputOptions {
     /// Right padding in logical pixels: `px-3` by default, wider when a
     /// control such as the password toggle sits over the field's right end.
     pub padding_right: f32,
+    /// Field height in logical pixels; the search bar uses the compact 28 px
+    /// height from its stylesheet.
+    pub height: f32,
 }
 
 /// `px-3`.
@@ -30,6 +33,7 @@ impl Default for InputOptions {
             size: Size::Medium,
             theme: None,
             padding_right: PADDING_X,
+            height: 36.0,
         }
     }
 }
@@ -73,7 +77,7 @@ pub fn input(state: &Entity<InputState>, options: InputOptions) -> gpui_kit::Div
         theme.colors.background,
     );
     div()
-        .h(px(36.0))
+        .h(px(options.height))
         .w_full()
         .pl(px(PADDING_X))
         .pr(px(computed.padding_right))

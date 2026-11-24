@@ -26,3 +26,6 @@ pub const SETTINGS: &[u8] = include_bytes!("../../assets/icons/settings.svg");
 pub const SQUARE_TERMINAL: &[u8] = include_bytes!("../../assets/icons/square-terminal.svg");
 pub const SEARCH: &[u8] = include_bytes!("../../assets/icons/search.svg");
 pub const SEARCH_X: &[u8] = include_bytes!("../../assets/icons/search-x.svg");
+pub const CASE_SENSITIVE: &[u8] = include_bytes!("../../assets/icons/case-sensitive.svg");
+pub const WHOLE_WORD: &[u8] = include_bytes!("../../assets/icons/whole-word.svg");
+pub const REGEX: &[u8] = include_bytes!("../../assets/icons/regex.svg");

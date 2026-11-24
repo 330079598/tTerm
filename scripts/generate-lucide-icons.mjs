@@ -13,6 +13,10 @@ const names = [
   "info",
   "plus",
   "rotate-ccw",
+  "case-sensitive",
+  "whole-word",
+  "regex",
+  "grip-horizontal",
 ]
 
 function nodeMarkup(node) {
