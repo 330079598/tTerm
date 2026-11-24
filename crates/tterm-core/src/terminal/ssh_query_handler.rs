@@ -5,6 +5,23 @@ struct SequenceEnd {
     terminator_len: usize,
 }
 
+/// Where the answer to a plain cursor position report (`ESC [ 6 n`) comes from.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum CursorPositionReport {
+    /// The SSH layer answers with the home position.
+    ///
+    /// The Tauri frontend draws the bytes itself and expects this fixed reply,
+    /// which the SSH transport has always sent.
+    Home,
+    /// The query is forwarded verbatim to the caller's terminal model.
+    ///
+    /// The GPUI session parses the output in its own model, which knows the
+    /// cursor position and replies through the same ordered path as user
+    /// input. Forwarding the query once is the whole contract; the SSH layer
+    /// writes no reply of its own.
+    Model,
+}
+
 /// Process SSH output for terminal queries and write replies back through SSH channel.
 ///
 /// Terminal applications like vim send escape sequence queries to discover terminal capabilities.
@@ -18,7 +35,8 @@ struct SequenceEnd {
 ///
 /// Supported queries:
 /// - Device Attributes (DA): terminal identification
-/// - Cursor Position Report (CPR): current cursor location
+/// - Cursor Position Report (CPR): answered here or forwarded to the model,
+///   depending on [`CursorPositionReport`]
 /// - Operating Status Report (OSR): terminal ready status
 /// - XTGETTCAP: terminal capability queries (e.g., color support)
 ///
@@ -28,6 +46,7 @@ pub async fn process_ssh_output_for_ui<W>(
     data: &[u8],
     pending: &mut Vec<u8>,
     writer: &mut W,
+    cursor_report: CursorPositionReport,
 ) -> std::io::Result<Vec<u8>>
 where
     W: AsyncWriteExt + Unpin,
@@ -72,10 +91,16 @@ where
 
         // Cursor Position Report (CPR): ESC[6n
         // Response format: ESC[{row};{col}R
-        // We report cursor at home position (1,1)
+        // Without a model we report the cursor at home (1,1). A frontend with
+        // a model gets the query forwarded and answers it itself.
         if !matched && rest.starts_with(b"\x1b[6n") {
-            writer.write_all(b"\x1b[1;1R").await?;
-            writer.flush().await?;
+            match cursor_report {
+                CursorPositionReport::Home => {
+                    writer.write_all(b"\x1b[1;1R").await?;
+                    writer.flush().await?;
+                }
+                CursorPositionReport::Model => output.extend_from_slice(b"\x1b[6n"),
+            }
             i += 4;
             matched = true;
         }
@@ -221,12 +246,20 @@ mod tests {
     /// packets would, and returns the concatenated display output plus every
     /// byte written back through the channel.
     async fn process_in_chunks(data: &[u8], chunk_size: usize) -> (Vec<u8>, Vec<u8>, Vec<u8>) {
+        process_in_chunks_with_cursor(data, chunk_size, CursorPositionReport::Home).await
+    }
+
+    async fn process_in_chunks_with_cursor(
+        data: &[u8],
+        chunk_size: usize,
+        cursor_report: CursorPositionReport,
+    ) -> (Vec<u8>, Vec<u8>, Vec<u8>) {
         let mut pending = Vec::new();
         let mut replies = Vec::new();
         let mut output = Vec::new();
         for chunk in data.chunks(chunk_size.max(1)) {
             output.extend_from_slice(
-                &process_ssh_output_for_ui(chunk, &mut pending, &mut replies)
+                &process_ssh_output_for_ui(chunk, &mut pending, &mut replies, cursor_report)
                     .await
                     .expect("process chunk"),
             );
@@ -271,6 +304,52 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn cursor_position_report_is_forwarded_to_the_model() {
+        let (output, replies, pending) =
+            process_in_chunks_with_cursor(b"\x1b[6n", 8, CursorPositionReport::Model).await;
+        assert!(
+            replies.is_empty(),
+            "the SSH layer must not answer for the model"
+        );
+        assert!(pending.is_empty());
+        assert_eq!(output, b"\x1b[6n".to_vec());
+    }
+
+    #[tokio::test]
+    async fn cursor_position_report_split_across_packets_is_forwarded_once() {
+        // `ESC [` arrives alone, then `6n`; the model must see one whole query.
+        let (output, replies, pending) =
+            process_in_chunks_with_cursor(b"\x1b[6n", 3, CursorPositionReport::Model).await;
+        assert!(replies.is_empty());
+        assert!(pending.is_empty());
+        assert_eq!(output, b"\x1b[6n".to_vec());
+    }
+
+    #[tokio::test]
+    async fn adjacent_cursor_position_reports_are_forwarded_separately() {
+        let (output, replies, pending) =
+            process_in_chunks_with_cursor(b"\x1b[6n\x1b[6n", 5, CursorPositionReport::Model).await;
+        assert!(replies.is_empty());
+        assert!(pending.is_empty());
+        assert_eq!(output, b"\x1b[6n\x1b[6n".to_vec());
+    }
+
+    #[tokio::test]
+    async fn forwarding_cursor_reports_leaves_the_other_queries_with_the_ssh_layer() {
+        // DA, DEC CPR, OSR and XTGETTCAP keep their transport answers; only the
+        // plain CPR follows the model.
+        let data = b"\x1b[c\x1b[?6n\x1b[5n\x1bP+q436f\x1b\\\x1b[6n";
+        let (output, replies, pending) =
+            process_in_chunks_with_cursor(data, 4, CursorPositionReport::Model).await;
+        assert!(pending.is_empty());
+        assert_eq!(output, b"\x1b[6n".to_vec());
+        assert_eq!(
+            replies,
+            b"\x1b[?64;1;2;4;6;9;15;21;22c\x1b[?1;1R\x1b[0n\x1bP1+r436f3d323536\x1b\\".to_vec()
+        );
+    }
+
+    #[tokio::test]
     async fn incomplete_sequence_tail_is_deferred_to_pending() {
         // A CSI cut off by a packet boundary must wait for the next packet.
         let (first_output, replies, pending) = process_in_chunks(b"hi\x1b[", 16).await;
@@ -280,9 +359,14 @@ mod tests {
 
         let mut pending = pending;
         let mut replies = Vec::new();
-        let second = process_ssh_output_for_ui(b"31m", &mut pending, &mut replies)
-            .await
-            .expect("process completion chunk");
+        let second = process_ssh_output_for_ui(
+            b"31m",
+            &mut pending,
+            &mut replies,
+            CursorPositionReport::Home,
+        )
+        .await
+        .expect("process completion chunk");
         assert!(replies.is_empty());
         assert!(pending.is_empty());
         assert_eq!(second, b"\x1b[31m".to_vec());
@@ -321,9 +405,14 @@ mod tests {
         let mut output = Vec::new();
         for chunk in data.chunks(4096) {
             output.extend(
-                process_ssh_output_for_ui(chunk, &mut pending, &mut replies)
-                    .await
-                    .expect("process chunk"),
+                process_ssh_output_for_ui(
+                    chunk,
+                    &mut pending,
+                    &mut replies,
+                    CursorPositionReport::Home,
+                )
+                .await
+                .expect("process chunk"),
             );
             assert!(pending.len() < MAX_DEFERRED_QUERY_BYTES);
         }

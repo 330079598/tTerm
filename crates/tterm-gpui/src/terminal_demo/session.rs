@@ -495,6 +495,12 @@ impl SessionSink for GpuiSessionSink {
     fn answers_input(&self) -> bool {
         self.output.answers_input()
     }
+
+    fn forwards_cursor_position_report(&self) -> bool {
+        // The parser answers `CSI 6 n` from this session's own model, so the
+        // query must reach the model instead of the SSH layer's home reply.
+        true
+    }
 }
 
 fn grid_rows(grid: GridSize) -> u16 {

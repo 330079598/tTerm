@@ -1,6 +1,7 @@
 //! Acceptance tests for the saved-SSH picker over live split sessions.
 
 mod server;
+mod ssh_query;
 
 use std::sync::{Arc, OnceLock};
 use std::time::{Duration, Instant};

@@ -19,6 +19,7 @@ struct IncomingOutput<'a> {
     zmodem_send_pipe: &'a mut crate::zmodem::ZmodemSendPipe,
     ssh_query_pending: &'a mut Vec<u8>,
     record_raw_output: bool,
+    cursor_report: crate::terminal::ssh_query_handler::CursorPositionReport,
 }
 
 impl IncomingOutput<'_> {
@@ -41,6 +42,7 @@ impl IncomingOutput<'_> {
             data,
             self.ssh_query_pending,
             writer_stream,
+            self.cursor_report,
         )
         .await;
 
@@ -127,6 +129,14 @@ pub(super) async fn read_connection(connection: ConnectedSession) -> SshExitSign
     // `deliver_output` instead, since bytes in a foreign charset would be
     // unreadable in a plain-text log.
     let record_raw_output = output_decoder.is_none();
+    // The sink fixes this for the whole connection: the SSH layer either
+    // answers a plain cursor position report itself or leaves it for the
+    // frontend's terminal model.
+    let cursor_report = if tab.sink.forwards_cursor_position_report() {
+        crate::terminal::ssh_query_handler::CursorPositionReport::Model
+    } else {
+        crate::terminal::ssh_query_handler::CursorPositionReport::Home
+    };
 
     if let Some(output) = early_output.filter(|output| !output.is_empty()) {
         if record_raw_output {
@@ -190,7 +200,7 @@ pub(super) async fn read_connection(connection: ConnectedSession) -> SshExitSign
                         let result = IncomingOutput {
                             tab: &tab, app: &app, sender: &sender, output_decoder: &mut output_decoder,
                             zmodem_driver: &mut zmodem_driver, zmodem_send_pipe: &mut zmodem_send_pipe,
-                            ssh_query_pending: &mut ssh_query_pending, record_raw_output,
+                            ssh_query_pending: &mut ssh_query_pending, record_raw_output, cursor_report,
                         }.data(data.as_ref(), &mut writer_stream).await;
                         if let Err(reason) = result {
                             finish_output(&mut sender);

@@ -399,6 +399,39 @@ fn acknowledgement_follows_query_replies_and_other_parser_intents() {
 }
 
 #[test]
+fn a_forwarded_cursor_position_report_is_answered_from_the_model_grid() {
+    let (model, state) = state(true, 64);
+    // The SSH reader forwards a plain cursor position query instead of
+    // answering it, so the reply must carry the model's cursor, not home.
+    model.write(b"abc");
+    assert!(model.drain_intents().is_empty());
+    let replies = Arc::new(Mutex::new(Vec::new()));
+    let write_replies = Arc::clone(&replies);
+    let pipeline = start(
+        state,
+        Arc::new(move |bytes| {
+            write_replies.lock().expect("query replies").push(bytes);
+        }),
+        Arc::new(|_| {}),
+        None,
+    )
+    .expect("start the parser");
+
+    pipeline
+        .queue
+        .send(b"\x1b[6n".to_vec())
+        .expect("send a cursor position query");
+    drop(pipeline.queue);
+    pipeline.parser.join().expect("parser exits");
+
+    assert_eq!(
+        replies.lock().expect("query replies").as_slice(),
+        &[b"\x1b[1;4R".to_vec()],
+        "the model answers with the cursor one column past the three characters"
+    );
+}
+
+#[test]
 fn shutdown_acknowledges_rejected_bytes_so_the_reader_cannot_wedge() {
     let (model, state) = state(true, 64);
     state.alive.store(false, Ordering::Release);

@@ -38,4 +38,19 @@ pub trait SessionSink: EventSink {
 
     /// Checks whether output is within the existing input-answer window.
     fn answers_input(&self) -> bool;
+
+    /// Whether a plain cursor position report (`CSI 6 n`) is answered by the
+    /// terminal model instead of by the SSH layer.
+    ///
+    /// The SSH reader cannot know where the cursor is, so it answers with the
+    /// home position for a frontend that draws the bytes itself and expects
+    /// that fixed reply. A frontend that owns a terminal model needs the query
+    /// in its parser input instead, because only the model knows the real
+    /// cursor. The default keeps the fixed reply for every existing sink.
+    ///
+    /// Implementations must be constant for the lifetime of the sink: the
+    /// reader caches the answer per connection.
+    fn forwards_cursor_position_report(&self) -> bool {
+        false
+    }
 }

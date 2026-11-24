@@ -116,6 +116,10 @@ mod tests {
         let sink = RecordingSessionSink::default();
         let endpoint: &dyn SessionSink = &sink;
         assert!(!endpoint.answers_input());
+        assert!(
+            !endpoint.forwards_cursor_position_report(),
+            "a sink without a terminal model keeps the SSH home reply"
+        );
         endpoint.send_bytes(vec![0, 255, 13, 10]).unwrap();
         endpoint.ack_output(4);
         endpoint.note_input();
