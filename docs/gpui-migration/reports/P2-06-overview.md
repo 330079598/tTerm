@@ -3,7 +3,7 @@
 - 日期：2026-11-24
 - 分支 / worktree：`migrate/P2-06-overview`，独立 worktree
 - 起点：`1cbf6682`（第一版本批报告）
-- 代码提交：`5719b0f7`（命令标记跟随解析器执行的历史变化）、`6b52ef77`（只按保留历史绘制概览标记）
+- 代码提交：`5719b0f7`（命令标记跟随解析器执行的历史变化）、`22751c13`（DECCOLM 同步重置镜像滚动区域）、`6b52ef77`（只按保留历史绘制概览标记）
 - 平台：macOS 27.2（26B123），arm64；rustc 1.99.1
 - 状态：**自动检查通过；只提交本地分支，未推送、未合并。** 本批仍不宣告 P2-06 或 G2 整卡通过。原生桌面手测、真实 shell 集成、原版同状态截图均未完成；P2-07 的搜索 UI 没有实现。
 
@@ -44,6 +44,7 @@ OSC 52 store 仍由独立的 `Osc52Scanner` 和命令扫描器分别扫描，但
 | 备用屏 | 备用屏上的标记和清除都不进入主屏；主屏在切换前的滚动已经同步 |
 | `set_scrollback` 缩小容量 | 主屏按实际减少的历史行数平移；备用屏隐藏主屏时无法知道精确行数，丢弃标记 |
 | resize / reflow | 仍丢弃全部标记；没有重排行映射 |
+| DECCOLM 设置/取消 | Alacritty 会重置滚动区域；镜像区域同步重置，避免之后的换行被误判为全屏历史滚动 |
 | 同步更新 | 清除/滚动延迟到 ESU 执行；同步缓冲内尚未执行的命令标记作废 |
 
 `CommandMarks::trim_scrollback` 继续复用核心状态机：提示符行被淘汰时整条 entry 丢弃，输出/结束行被淘汰时只把对应位置变成不可用。标记不再是“满容量就全部丢弃”。
@@ -136,7 +137,7 @@ cargo test -p tterm-terminal-view --lib view::overview
 
 ## 全套检查
 
-在代码提交前的最终工作树上实际运行；提交只包含同一内容，文档提交不改代码。
+在 `22751c13` 的工作树上实际运行；之后的文档提交不改代码。
 
 ```sh
 pnpm lint && pnpm format:check && pnpm check:tokens && pnpm typecheck && pnpm test && pnpm check:size
@@ -150,7 +151,7 @@ node scripts/perf/gpui-release-frame-budget.mjs
 | `cargo fmt --all --check` | 通过 |
 | 严格 Clippy | 通过，`-D warnings` |
 | `cargo test --workspace` | 通过；`src-tauri` 73 + 1 ignored，`tterm-core` 1869 + 64 ignored，`tterm-gpui` 277 + 3 ignored，`tterm-terminal` lib 347、`history_clear` 9、`overview_marks` 15、`replay` 2、`scrollback_memory` 1，`tterm-terminal-view` 172，`tterm-parity` 85，`tterm-platform` 14，`tterm-ui` 85；无失败 |
-| release 帧与吞吐门 | 通过；提交 `6b52ef77` 上 30 后台会话前台 p95 **130 µs**（预算 16,667 µs），30 MiB 在 **154,250 µs** 内全部应用并确认（约 **194.49 MiB/s**，最低 60 MiB/s） |
+| release 帧与吞吐门 | 通过；提交 `22751c13` 上 30 后台会话前台 p95 **119 µs**（预算 16,667 µs），30 MiB 在 **151,775 µs** 内全部应用并确认（约 **197.66 MiB/s**，最低 60 MiB/s） |
 
 `cargo test --workspace` 使用默认并行参数，未追加过滤、skip 或 ignored 参数。release 门在独立 worktree 的 release 目标上运行，测量时没有并行执行其他任务。
 
