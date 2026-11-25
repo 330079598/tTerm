@@ -1,9 +1,13 @@
-//! The settings pages and their entries for settings search, from
+//! The settings pages and their entries for settings search, derived from
 //! `src/components/SettingsDialog/settingsSearchIndex.ts`.
 //!
 //! Both fields of an entry are i18n keys. A client translates them and
 //! builds its search results; this module keeps the list of settings that
 //! belong to pages it does not currently have open.
+//!
+//! GPUI renders terminals natively, so the WebView-only renderer choice and
+//! hidden-renderer release delay are deliberately absent even though the
+//! Tauri client still lists them.
 
 #[cfg(test)]
 mod tests;
@@ -325,14 +329,6 @@ pub const SETTINGS_SEARCH_INDEX: [SettingsPageIndex; 14] = [
             SettingsSearchEntry {
                 title: "fontSettings.textRendering",
                 description: Some("fontSettings.textRenderingDesc"),
-            },
-            SettingsSearchEntry {
-                title: "fontSettings.renderer",
-                description: Some("fontSettings.rendererDesc"),
-            },
-            SettingsSearchEntry {
-                title: "fontSettings.rendererRelease",
-                description: None,
             },
             SettingsSearchEntry {
                 title: "fontSettings.fontFamily",

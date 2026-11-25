@@ -120,6 +120,30 @@ fn applies_only_the_changed_fields_to_the_latest_file() {
 }
 
 #[test]
+fn a_page_save_preserves_the_webview_renderer_choices() {
+    let path = temp_config();
+    seed(
+        &path,
+        &AppConfig {
+            terminal_renderer: "canvas".to_string(),
+            hidden_renderer_release_secs: 30,
+            ..AppConfig::default()
+        },
+    );
+    let snapshot = super::super::load_config_at(&path).unwrap();
+    let mut draft = TerminalPageSettings::from(&snapshot);
+    draft.family = "Fira Code".to_string();
+
+    save_page_at(&path, &snapshot, draft).unwrap();
+
+    let reloaded = super::super::load_config_at(&path).unwrap();
+    assert_eq!(reloaded.terminal_renderer, "canvas");
+    assert_eq!(reloaded.hidden_renderer_release_secs, 30);
+    assert_eq!(reloaded.font_family, "Fira Code");
+    fs::remove_file(path).unwrap();
+}
+
+#[test]
 fn a_cursor_and_padding_edit_keeps_the_latest_font_and_scrollback() {
     let path = temp_config();
     seed(

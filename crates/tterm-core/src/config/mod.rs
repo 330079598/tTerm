@@ -95,9 +95,13 @@ pub struct AppConfig {
     pub prompt_unlock_vault_on_startup: bool,
     #[serde(default = "defaults::default_scrollback_lines")]
     pub scrollback_lines: u32,
+    /// WebView renderer id retained for the Tauri client's shared config format.
+    /// GPUI renders natively and does not read it.
     #[serde(default = "defaults::default_terminal_renderer")]
     pub terminal_renderer: String,
-    /// Seconds a terminal stays out of sight before its renderer is released; 0 keeps it.
+    /// Seconds a WebView terminal stays out of sight before its renderer is
+    /// released; 0 keeps it. GPUI has no renderer-release lifecycle and does
+    /// not read it.
     #[serde(default = "defaults::default_hidden_renderer_release_secs")]
     pub hidden_renderer_release_secs: u32,
     #[serde(default = "defaults::default_terminal_padding_left_px")]

@@ -7,9 +7,9 @@ pub const NOTIFICATION_SOUND_NAMES: [&str; 6] =
     ["system", "chime", "ding", "pop", "rise", "custom"];
 /// Renderer id retained in the shared configuration format.
 pub const DEFAULT_TERMINAL_RENDERER: &str = "webgl";
-/// Supported idle delays for hidden renderers, in seconds.
+/// Supported idle delays for hidden WebView renderers, in seconds.
 pub const HIDDEN_RENDERER_RELEASE_SECS_OPTIONS: [u32; 5] = [0, 10, 30, 60, 300];
-/// Default idle delay for hidden renderers.
+/// Default idle delay for hidden WebView renderers.
 pub const DEFAULT_HIDDEN_RENDERER_RELEASE_SECS: u32 = 10;
 /// Font size used on first launch.
 pub const DEFAULT_TERMINAL_FONT_SIZE: u16 = 14;

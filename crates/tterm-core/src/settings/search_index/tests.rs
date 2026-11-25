@@ -67,3 +67,14 @@ fn returns_the_entries_for_the_page_and_none_for_an_unknown_page() {
     );
     assert!(entries_for_page("missing").is_empty());
 }
+
+#[test]
+fn the_gpui_index_omits_the_webview_renderer_settings() {
+    let titles: Vec<&str> = entries_for_page("terminal")
+        .iter()
+        .map(|entry| entry.title)
+        .collect();
+
+    assert!(!titles.contains(&"fontSettings.renderer"));
+    assert!(!titles.contains(&"fontSettings.rendererRelease"));
+}
