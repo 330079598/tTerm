@@ -21,7 +21,7 @@
 
 设置回滚行数流程已合入，见[设置验收](reports/P4-15.md)。P2-06 的[滚动与内存](reports/P2-06-scroll-memory.md)、[概览标记](reports/P2-06-overview.md)和 P2-07 的[搜索模型](reports/P2-07-search-model.md)、[搜索栏](reports/P2-07-search-ui.md)已通过自动验收。
 
-P2-07 [第三批](reports/P2-07-search-parity.md)和[本地真实 PTY 与 zsh 钩子](reports/P2-06-07-live-acceptance.md)已合入 `GPUI`。[P2-19 只读恢复](reports/P2-19-read-only.md)已提交（`43bf05bd`）。[P2-12 第三批](reports/P2-12-ssh-query.md)在工作区补齐混合查询字节顺序、建连早期数据与回环真实 Vim。下一批优先核验同步更新时的回复顺序、剩余查询矩阵与写回失败处理；tmux/neovim 和远程桌面证据分开记录。原生输入法、物理滚动与标尺、30 分钟内存及无 GPU 测量仍待专门验收。
+P2-07 [第三批](reports/P2-07-search-parity.md)和[本地真实 PTY 与 zsh 钩子](reports/P2-06-07-live-acceptance.md)已合入 `GPUI`。[P2-19 只读恢复](reports/P2-19-read-only.md)已提交。[P2-12](reports/P2-12-ssh-query.md)第三、四批已在本地提交；第四批保住回复顺序并通过[原始四组吞吐对照](reports/P2-12-ssh-cost.md)。接下来验证未关闭同步块的超时行为，再做颜色查询和写回失败处理。桌面、远程与 G2 环境验收独立排期。
 
 ### 2026-11-11 交接记录（历史）
 
