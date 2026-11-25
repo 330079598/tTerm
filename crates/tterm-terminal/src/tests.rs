@@ -8,7 +8,7 @@
 
 use std::sync::Arc;
 use std::sync::mpsc;
-use std::time::Instant;
+use std::time::{Duration, Instant};
 
 use alacritty_terminal::term::TermMode;
 
@@ -118,6 +118,64 @@ fn synchronized_output_is_reported_while_the_parser_holds_it() {
     let model = terminal(20, 5, 0);
     model.write(b"\x1b[?2004;2026hX");
     assert!(model.has_synchronized_output());
+}
+
+#[test]
+fn an_unclosed_synchronized_update_expires_with_its_buffered_replies() {
+    let model = terminal(20, 5, 0);
+    model.write(b"\x1b[?2026hHELD\x1b[4;7H\x1b[6n");
+    let deadline = model
+        .synchronized_output_deadline()
+        .expect("BSU records an abort deadline");
+    assert!(model.has_synchronized_output());
+    assert!(!screen_text(&model.snapshot())[0].contains("HELD"));
+
+    assert!(
+        !model.flush_synchronized_output_at(deadline - Duration::from_millis(1)),
+        "a block inside its deadline stays buffered"
+    );
+    assert!(!screen_text(&model.snapshot())[0].contains("HELD"));
+
+    assert!(
+        model.flush_synchronized_output_at(deadline),
+        "the expired block is aborted"
+    );
+    assert!(!model.has_synchronized_output());
+    assert!(model.synchronized_output_deadline().is_none());
+    assert!(screen_text(&model.snapshot())[0].contains("HELD"));
+    assert_eq!(
+        write_replies(model.drain_intents()),
+        vec![b"\x1b[4;7R".to_vec()],
+        "the buffered query is answered at its stream position"
+    );
+}
+
+#[test]
+fn an_empty_synchronized_update_expires_before_the_next_output() {
+    let model = terminal(20, 5, 0);
+    model.write(b"\x1b[?2026h");
+    assert!(
+        !model.has_synchronized_output(),
+        "no bytes are buffered yet"
+    );
+    let deadline = model
+        .synchronized_output_deadline()
+        .expect("BSU records an abort deadline even with an empty buffer");
+
+    model.write(b"LATER");
+    assert_eq!(
+        trimmed_row_text(&model.snapshot(), 0),
+        "",
+        "output after an open BSU is still held for the update"
+    );
+
+    assert!(model.flush_synchronized_output_at(deadline));
+    model.write(b"NOW");
+    assert_eq!(
+        trimmed_row_text(&model.snapshot(), 0),
+        "LATERNOW",
+        "the buffer and the following output are applied in stream order"
+    );
 }
 
 #[test]

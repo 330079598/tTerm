@@ -202,6 +202,11 @@ fn output_settles_for_exactly_two_hundred_milliseconds() {
             .begin_check_at(now + Duration::from_millis(199))
             .is_none()
     );
+    assert_eq!(
+        fixture.guard.timeout_at(now + Duration::from_millis(199)),
+        Some(Duration::from_millis(1)),
+        "a sync timeout settling early must leave the mouse check scheduled"
+    );
     assert!(fixture.guard.begin_check_at(now + SETTLE_DELAY).is_some());
     assert_eq!(fixture.guard.timeout_at(now + SETTLE_DELAY), None);
 }

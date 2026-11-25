@@ -51,6 +51,7 @@ mod ordered_api;
 mod preferences;
 mod search_ops;
 mod selection_text;
+mod sync_output;
 
 /// How many scrollback lines a new model keeps when the caller has no
 /// preference.

@@ -11,7 +11,7 @@ use std::sync::atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering};
 use std::sync::mpsc::{self, Receiver, RecvTimeoutError, SyncSender};
 use std::sync::{Arc, Mutex, PoisonError};
 use std::thread::JoinHandle;
-use std::time::Instant;
+use std::time::{Duration, Instant};
 
 use tokio::sync::watch;
 use tterm_core::terminal::ssh_query_handler::ordered::{OrderedQueries, Part};
@@ -370,6 +370,7 @@ pub(super) fn start(
             guard,
             ssh_queries,
             ssh_replies: DeferredReplies::default(),
+            sync_deadline: None,
         },
         acknowledge,
     )?;
@@ -386,17 +387,30 @@ fn spawn_parser(
         .name("gpui-pty-parser".to_string())
         .spawn(move || {
             loop {
-                let chunk = match output
+                let now = Instant::now();
+                if output.sync_deadline.is_some_and(|deadline| deadline <= now) {
+                    output.flush_expired_synchronized_output();
+                }
+                let sync_wait = output.sync_deadline.map(|deadline| {
+                    deadline
+                        .saturating_duration_since(now)
+                        .max(Duration::from_millis(1))
+                });
+                let guard_wait = output
                     .guard
                     .as_ref()
-                    .and_then(|guard| guard.timeout_at(Instant::now()))
-                {
-                    Some(timeout) => match queued.recv_timeout(timeout) {
+                    .and_then(|guard| guard.timeout_at(now));
+                let wait = match (sync_wait, guard_wait) {
+                    (Some(sync), Some(guard)) => Some(sync.min(guard)),
+                    (Some(sync), None) => Some(sync),
+                    (None, Some(guard)) => Some(guard),
+                    (None, None) => None,
+                };
+                let chunk = match wait {
+                    Some(wait) => match queued.recv_timeout(wait) {
                         Ok(chunk) => Some(chunk),
                         Err(RecvTimeoutError::Timeout) => {
-                            if let Some(guard) = &output.guard {
-                                guard.settle();
-                            }
+                            output.on_timeout();
                             continue;
                         }
                         Err(RecvTimeoutError::Disconnected) => None,
@@ -430,41 +444,81 @@ struct ParserOutput {
     guard: Option<Arc<MouseGuard>>,
     ssh_queries: Option<OrderedQueries>,
     ssh_replies: DeferredReplies,
+    sync_deadline: Option<Instant>,
 }
 
 impl ParserOutput {
     /// Emits all replies in parse order before the caller releases flow credit.
     fn apply(&mut self, bytes: &[u8], transport: bool) -> bool {
-        let Self {
-            state,
-            write,
-            guard,
-            ssh_queries,
-            ssh_replies,
-        } = self;
-        if !state.alive.load(Ordering::Acquire) {
-            return false;
-        }
-        let mut applier = Applier {
-            clipboard_epoch: state.clipboard.epoch(),
-            state,
-            write,
-            guard,
-            deferred: ssh_replies,
+        let deadline = {
+            let Self {
+                state,
+                write,
+                guard,
+                ssh_queries,
+                ssh_replies,
+                ..
+            } = self;
+            if !state.alive.load(Ordering::Acquire) {
+                return false;
+            }
+            let mut applier = Applier {
+                clipboard_epoch: state.clipboard.epoch(),
+                state,
+                write,
+                guard,
+                deferred: ssh_replies,
+            };
+            if let Some(queries) = ssh_queries.as_mut().filter(|_| transport) {
+                queries.feed(bytes, |part| match part {
+                    Part::Display(bytes) => applier.display(bytes),
+                    Part::Reply(reply) if state.alive.load(Ordering::Acquire) => {
+                        applier.reply(reply);
+                    }
+                    Part::Reply(_) => {}
+                });
+            } else {
+                applier.display(bytes);
+            }
+            state.publish();
+            state.terminal.synchronized_output_deadline()
         };
-        if let Some(queries) = ssh_queries.as_mut().filter(|_| transport) {
-            queries.feed(bytes, |part| match part {
-                Part::Display(bytes) => applier.display(bytes),
-                Part::Reply(reply) if state.alive.load(Ordering::Acquire) => {
-                    applier.reply(reply);
-                }
-                Part::Reply(_) => {}
-            });
-        } else {
-            applier.display(bytes);
-        }
-        state.publish();
+        self.sync_deadline = deadline;
         true
+    }
+
+    /// Runs whatever became due while the queue was idle.
+    fn on_timeout(&mut self) {
+        self.flush_expired_synchronized_output();
+        if let Some(guard) = &self.guard {
+            guard.settle();
+        }
+    }
+
+    /// Applies the model's expired synchronized buffer and emits its replies.
+    ///
+    /// ESU normally does this. A program that never sends it leaves the screen
+    /// hidden, so the parser aborts the update at Alacritty's deadline and
+    /// writes the model replies that were waiting inside it.
+    fn flush_expired_synchronized_output(&mut self) {
+        if !self.state.alive.load(Ordering::Acquire) {
+            self.sync_deadline = None;
+            return;
+        }
+        if self.state.terminal.flush_expired_synchronized_output() {
+            let mut applier = Applier {
+                clipboard_epoch: self.state.clipboard.epoch(),
+                state: &self.state,
+                write: &self.write,
+                guard: &self.guard,
+                deferred: &mut self.ssh_replies,
+            };
+            applier.flush_intents();
+            self.state.publish();
+        }
+        // A no-op flush can mean the model already closed the block. Refresh
+        // even then so a stale deadline cannot keep the queue waking.
+        self.sync_deadline = self.state.terminal.synchronized_output_deadline();
     }
 }
 

@@ -925,6 +925,49 @@ fn a_disabled_clipboard_setting_rejects_osc52_at_the_slot() {
     assert_eq!(clipboard.take(), None);
 }
 
+#[test]
+fn a_timeout_flush_does_not_replay_osc52_inside_the_block() {
+    let (model, mut state) = state(false, 64);
+    let clipboard = Arc::new(crate::terminal_demo::clipboard::store::ClipboardWrites::new(true));
+    state.clipboard = Arc::clone(&clipboard);
+    let pipeline = start_pipeline(state, |_| {});
+    let output = output_into(&pipeline, Arc::new(OutputFlow::default()));
+
+    output
+        .send(b"\x1b[?2026h\x1b]52;c;aGVsbG8=\x07".to_vec())
+        .expect("queue a store inside an unclosed update");
+    assert_eq!(
+        wait_for_clipboard(&clipboard).as_deref(),
+        Some("hello"),
+        "the store crosses to the slot before the block is displayed"
+    );
+    assert!(
+        wait_until(|| model.has_synchronized_output()),
+        "the update holds the bytes"
+    );
+    assert!(
+        wait_until(|| !model.has_synchronized_output()),
+        "the timeout aborts the update"
+    );
+    assert_eq!(
+        clipboard.take(),
+        None,
+        "aborting the update must not replay its OSC 52 store"
+    );
+
+    output.send(b"AFTER".to_vec()).expect("queue later output");
+    assert!(wait_until(|| text(&model).contains("AFTER")));
+    assert_eq!(
+        clipboard.take(),
+        None,
+        "output after the abort must not replay the store either"
+    );
+
+    drop(output);
+    drop(pipeline.queue);
+    pipeline.parser.join().expect("parser exits");
+}
+
 const SSH_DA1_REPLY: &[u8] = b"\x1b[?64;1;2;4;6;9;15;21;22c";
 
 fn run_ssh_output(chunks: &[Vec<u8>]) -> (Vec<u8>, Arc<Terminal>) {
@@ -1129,6 +1172,124 @@ fn a_real_private_mode_query_never_consumes_an_ordering_reply() {
             "chunk size {chunk_size}: the program's own 57344 report keeps its place"
         );
     }
+}
+
+const FOREGROUND_COLOR_REPLY: &[u8] = b"\x1b]10;rgb:d7d7/dddd/e8e8\x07";
+const BACKGROUND_COLOR_REPLY: &[u8] = b"\x1b]11;rgb:1b1b/1d1d/2323\x07";
+const CURSOR_COLOR_REPLY: &[u8] = b"\x1b]12;rgb:7979/d8d8/ffff\x07";
+const INDEXED_BLACK_REPLY: &[u8] = b"\x1b]4;0;rgb:1616/1b1b/2222\x07";
+
+#[test]
+fn color_queries_are_answered_once_by_the_model() {
+    let input = [
+        b"\x1b]4;0;?\x07".as_slice(),
+        b"\x1b]10;?\x07".as_slice(),
+        b"\x1b]11;?\x07",
+        b"\x1b]12;?\x07",
+        b"\x1b[6n",
+    ]
+    .concat();
+    let expected = [
+        INDEXED_BLACK_REPLY,
+        FOREGROUND_COLOR_REPLY,
+        BACKGROUND_COLOR_REPLY,
+        CURSOR_COLOR_REPLY,
+        b"\x1b[1;1R".as_slice(),
+    ]
+    .concat();
+
+    for chunk_size in [input.len(), 1, 3, 5] {
+        let chunks = input
+            .chunks(chunk_size)
+            .map(<[u8]>::to_vec)
+            .collect::<Vec<_>>();
+        let (replies, _) = run_ssh_output(&chunks);
+        assert_eq!(
+            replies, expected,
+            "chunk size {chunk_size}: each color query has one model reply"
+        );
+    }
+}
+
+#[test]
+fn color_queries_keep_their_stream_position_inside_a_synchronized_update() {
+    let input = [
+        b"\x1b[?2026h".as_slice(),
+        b"\x1b]10;?\x07",
+        b"\x1b[c",
+        b"\x1b]11;?\x07",
+        b"\x1b[?2026l",
+    ]
+    .concat();
+    let expected = [
+        FOREGROUND_COLOR_REPLY,
+        SSH_DA1_REPLY,
+        BACKGROUND_COLOR_REPLY,
+    ]
+    .concat();
+
+    for chunk_size in [input.len(), 1, 2, 7] {
+        let chunks = input
+            .chunks(chunk_size)
+            .map(<[u8]>::to_vec)
+            .collect::<Vec<_>>();
+        let (replies, _) = run_ssh_output(&chunks);
+        assert_eq!(
+            replies, expected,
+            "chunk size {chunk_size}: color and fixed replies keep stream order"
+        );
+    }
+}
+
+#[test]
+fn an_unclosed_synchronized_update_is_flushed_at_its_deadline() {
+    let (model, state) = state(true, 64);
+    let (pipeline, replies) = start_ssh_pipeline(state);
+    let metrics = pipeline.queue.metrics_handle();
+    let hidden = b"\x1b[?2026hHELD\x1b[4;7H\x1b[6n\x1b[c";
+    pipeline
+        .queue
+        .send(hidden.to_vec())
+        .expect("queue an open synchronized update");
+    assert!(
+        wait_until(|| metrics.acknowledged_bytes() == hidden.len() as u64),
+        "the parser consumes the open block"
+    );
+    assert!(!text(&model).contains("HELD"));
+    assert!(
+        replies.lock().expect("captured replies").is_empty(),
+        "nothing is answered before the deadline"
+    );
+
+    let expected = [b"\x1b[4;7R".as_slice(), SSH_DA1_REPLY].concat();
+    assert!(
+        wait_until(|| *replies.lock().expect("captured replies") == expected),
+        "the parser aborts the unclosed update and answers what it held"
+    );
+    assert!(!model.has_synchronized_output(), "the update is over");
+    assert!(text(&model).contains("HELD"), "the held text is now shown");
+
+    let tail = b"\r\nAFTER\x1b[c";
+    pipeline
+        .queue
+        .send(tail.to_vec())
+        .expect("queue output after the aborted update");
+    assert!(
+        wait_until(|| text(&model).contains("AFTER")),
+        "later output is parsed normally instead of staying buffered"
+    );
+    let after_abort = [expected.as_slice(), SSH_DA1_REPLY].concat();
+    assert!(
+        wait_until(|| *replies.lock().expect("captured replies") == after_abort),
+        "a fixed reply after the abort is written once, without the stale block"
+    );
+    assert_eq!(
+        *replies.lock().expect("captured replies"),
+        after_abort,
+        "the aborted block does not answer again"
+    );
+    drop(pipeline.queue);
+    pipeline.parser.join().expect("parser exits");
 }
 
 #[test]
