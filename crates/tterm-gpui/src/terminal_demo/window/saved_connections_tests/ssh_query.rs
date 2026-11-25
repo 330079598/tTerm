@@ -1,9 +1,7 @@
 //! P2-12: each terminal query has one responder over a real SSH channel.
 //!
-//! The loopback shell waits for ordinary client input before it emits its next
-//! query. Each reply is therefore fenced by the same client's own input, so
-//! the test does not depend on a quiet period or on two independent reply
-//! paths racing each other.
+//! Each group is released by ordinary input and may contain several queries.
+//! The server checks the complete transcript, including the final input fence.
 
 use std::time::{Duration, Instant};
 
@@ -23,6 +21,8 @@ const WINDOW_GATE: &[u8] = b"P2-12-WINDOW";
 const CPR_GATE: &[u8] = b"P2-12-CPR";
 const MIXED_CPR_OSR_GATE: &[u8] = b"P2-12-MIXED-CPR-OSR";
 const MIXED_OSR_CPR_GATE: &[u8] = b"P2-12-MIXED-OSR-CPR";
+const CAPABILITIES_GATE: &[u8] = b"P2-12-CAPABILITIES";
+const SPLIT_CAPABILITIES_GATE: &[u8] = b"P2-12-SPLIT-CAPABILITIES";
 const DONE_GATE: &[u8] = b"P2-12-DONE";
 const END_MARKER: &str = "P2-12-END";
 const DONE_ACK: &str = "P2-12-DONE-ACK";
@@ -70,10 +70,8 @@ fn text_area_reply(size: WindowSize) -> Vec<u8> {
     format!("\x1b[4;{height};{width}t").into_bytes()
 }
 
-#[gpui_kit::test]
-fn core_and_model_queries_are_answered_once_and_in_order(cx: &mut TestAppContext) {
-    let harness = harness(cx);
-    let script = ShellScript::new(vec![b"SAVED_SSH_READY\r\n".to_vec()])
+fn query_script() -> ShellScript {
+    ShellScript::new(vec![b"SAVED_SSH_READY\r\n".to_vec()])
         .after_input(START_GATE, vec![b"\x1b[".to_vec(), b"c".to_vec()])
         .after_input(STATUS_GATE, vec![b"\x1b[5n".to_vec()])
         .after_input(WINDOW_GATE, vec![b"\x1b[14t".to_vec()])
@@ -92,8 +90,25 @@ fn core_and_model_queries_are_answered_once_and_in_order(cx: &mut TestAppContext
             MIXED_OSR_CPR_GATE,
             vec![b"\x1b[4;7H\x1b[5n\x1b[6n".to_vec()],
         )
-        .after_input(DONE_GATE, vec![format!("\r\n{DONE_ACK}\r\n").into_bytes()]);
-    let server = ShellServer::start_scripted(harness._runtime._runtime.handle(), script);
+        .after_input(
+            CAPABILITIES_GATE,
+            vec![b"\x1b[4;7H\x1b[6n\x1b[c\x1b[5n\x1b[>c\x1b[6n".to_vec()],
+        )
+        .after_input(
+            SPLIT_CAPABILITIES_GATE,
+            vec![
+                b"\x1b[?6n\x1b[14t\x1bP+q43".to_vec(),
+                b"6f\x1b".to_vec(),
+                b"\\\x1b[6n".to_vec(),
+            ],
+        )
+        .after_input(DONE_GATE, vec![format!("\r\n{DONE_ACK}\r\n").into_bytes()])
+}
+
+#[gpui_kit::test]
+fn core_and_model_queries_are_answered_once_and_in_order(cx: &mut TestAppContext) {
+    let harness = harness(cx);
+    let server = ShellServer::start_scripted(harness._runtime._runtime.handle(), query_script());
     let name = "Query Responder";
     trust_server("query-responder", name, &server);
     let root = harness.root.clone();
@@ -142,7 +157,7 @@ fn core_and_model_queries_are_answered_once_and_in_order(cx: &mut TestAppContext
         harness.visual,
         &server,
         &expected,
-        "status has exactly one core reply",
+        "status has exactly one reply",
     );
 
     let window_reply = text_area_reply(model.snapshot().window_size());
@@ -190,6 +205,40 @@ fn core_and_model_queries_are_answered_once_and_in_order(cx: &mut TestAppContext
         &expected,
         "OSR then CPR in one packet keeps request order",
     );
+
+    for (gate, replies) in [
+        (
+            CAPABILITIES_GATE,
+            [
+                CPR_REPLY,
+                DA1_REPLY,
+                STATUS_REPLY,
+                b"\x1b[>0;276;0c",
+                CPR_REPLY,
+            ]
+            .concat(),
+        ),
+        (
+            SPLIT_CAPABILITIES_GATE,
+            [
+                b"\x1b[?1;1R".as_slice(),
+                &window_reply,
+                b"\x1bP1+r436f3d323536\x1b\\",
+                CPR_REPLY,
+            ]
+            .concat(),
+        ),
+    ] {
+        input(gate);
+        expected.extend_from_slice(gate);
+        expected.extend_from_slice(&replies);
+        expect_transcript(
+            harness.visual,
+            &server,
+            &expected,
+            "mixed SSH capabilities and model queries",
+        );
+    }
 
     input(DONE_GATE);
     expected.extend_from_slice(DONE_GATE);

@@ -132,7 +132,10 @@ impl Session {
             services.shared.runtime.clone(),
             foreground,
         ));
-        let pipeline = pipeline::start(state.clone(), write, acknowledge, Some(guard))?;
+        let ssh_queries =
+            (connection.connection_type.as_deref() == Some("ssh")).then(Default::default);
+        let pipeline =
+            pipeline::start(state.clone(), write, acknowledge, Some(guard), ssh_queries)?;
         let queue_for_output = pipeline.queue.clone();
         let output = TerminalOutput::new(
             Arc::new(move |bytes| queue_for_output.send(bytes)),
@@ -496,10 +499,7 @@ impl SessionSink for GpuiSessionSink {
         self.output.answers_input()
     }
 
-    fn forwards_standard_dsr(&self) -> bool {
-        // The parser answers `CSI 5 n` and `CSI 6 n` from this session's own
-        // model, so both queries must reach it instead of the SSH layer's
-        // fixed replies.
+    fn owns_ssh_queries(&self) -> bool {
         true
     }
 }
@@ -595,6 +595,7 @@ mod tests {
             Arc::new(move |bytes| {
                 acknowledge.fetch_add(bytes, Ordering::Relaxed);
             }),
+            None,
             None,
         )
         .expect("start parser");

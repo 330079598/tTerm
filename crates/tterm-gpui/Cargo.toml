@@ -67,6 +67,9 @@ gpui-kit = { workspace = true, features = ["test-support", "profiler"] }
 # In-memory database fixtures for the window-state tests.
 tterm-core = { path = "../tterm-core", features = ["test-support"] }
 
+[target.'cfg(unix)'.dev-dependencies]
+portable-pty = "=0.9.0"
+
 [target.'cfg(windows)'.dependencies]
 # Loads the bundled conpty.dll by full path; the version is the one pins.md
 # fixes for tTerm and gpui-pre.

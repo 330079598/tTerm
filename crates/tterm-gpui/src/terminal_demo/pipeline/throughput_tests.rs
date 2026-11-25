@@ -82,6 +82,7 @@ fn start_session() -> Session {
                 .fetch_add(u64::try_from(bytes).unwrap_or(u64::MAX), Ordering::Relaxed);
         }),
         None,
+        None,
     )
     .expect("start the throughput parser");
     let metrics = pipeline.queue.metrics_handle();

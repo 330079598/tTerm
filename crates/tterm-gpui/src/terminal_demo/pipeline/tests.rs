@@ -60,7 +60,7 @@ fn start_pipeline(
     state: SessionState,
     acknowledge: impl Fn(usize) + Send + Sync + 'static,
 ) -> Pipeline {
-    start(state, Arc::new(|_| {}), Arc::new(acknowledge), None).expect("start the parser")
+    start(state, Arc::new(|_| {}), Arc::new(acknowledge), None, None).expect("start the parser")
 }
 
 fn text(model: &Terminal) -> String {
@@ -387,6 +387,7 @@ fn acknowledgement_follows_query_replies_and_other_parser_intents() {
             );
         }),
         None,
+        None,
     )
     .expect("start the parser");
 
@@ -413,6 +414,7 @@ fn a_forwarded_cursor_position_report_is_answered_from_the_model_grid() {
             write_replies.lock().expect("query replies").push(bytes);
         }),
         Arc::new(|_| {}),
+        None,
         None,
     )
     .expect("start the parser");
@@ -442,6 +444,7 @@ fn a_forwarded_status_report_is_answered_by_the_model() {
             write_replies.lock().expect("query replies").push(bytes);
         }),
         Arc::new(|_| {}),
+        None,
         None,
     )
     .expect("start the parser");
@@ -814,8 +817,8 @@ fn a_prompt_mark_closes_mouse_reporting_inside_the_parser() {
         runtime.handle().clone(),
         None,
     ));
-    let pipeline =
-        start(state, Arc::new(|_| {}), Arc::new(|_| {}), Some(guard)).expect("start the parser");
+    let pipeline = start(state, Arc::new(|_| {}), Arc::new(|_| {}), Some(guard), None)
+        .expect("start the parser");
     pipeline
         .queue
         .send(b"\x1b[?1002h\x1b[?1006h$ \x1b]133;A\x07".to_vec())

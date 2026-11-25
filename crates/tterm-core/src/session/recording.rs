@@ -117,7 +117,7 @@ mod tests {
         let endpoint: &dyn SessionSink = &sink;
         assert!(!endpoint.answers_input());
         assert!(
-            !endpoint.forwards_standard_dsr(),
+            !endpoint.owns_ssh_queries(),
             "a sink without a terminal model keeps the SSH layer replies"
         );
         endpoint.send_bytes(vec![0, 255, 13, 10]).unwrap();

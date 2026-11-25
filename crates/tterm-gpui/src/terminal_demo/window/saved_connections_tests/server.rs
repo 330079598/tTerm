@@ -1,4 +1,4 @@
-//! A loopback-only SSH server. Its shell records input but executes nothing.
+//! A loopback-only SSH fixture. Scripted sessions never start a process.
 
 use std::collections::VecDeque;
 use std::sync::atomic::{AtomicUsize, Ordering};
@@ -29,6 +29,9 @@ struct Activity {
 /// [`PACKET_GAP`] so a split escape sequence really crosses channel-data
 /// boundaries.
 pub(super) struct ShellScript {
+    #[cfg(unix)]
+    pub(super) vim: Option<super::vim::Bridge>,
+    before_exec_success: Option<Vec<u8>>,
     initial: Vec<Vec<u8>>,
     after_input: VecDeque<ShellStep>,
 }
@@ -42,9 +45,18 @@ impl ShellScript {
     /// Creates a script that sends `initial` when the shell opens.
     pub(super) fn new(initial: Vec<Vec<u8>>) -> Self {
         Self {
+            #[cfg(unix)]
+            vim: None,
+            before_exec_success: None,
             initial,
             after_input: VecDeque::new(),
         }
+    }
+
+    /// Emulates the integrated shell that prints its first bytes before exec succeeds.
+    pub(super) fn before_exec_success(mut self, bytes: Vec<u8>) -> Self {
+        self.before_exec_success = Some(bytes);
+        self
     }
 
     /// Adds one group of packets to send after the client sends `gate`.
@@ -98,9 +110,13 @@ impl ShellServer {
             while let Ok((stream, _)) = listener.accept().await {
                 counts.connections.fetch_add(1, Ordering::SeqCst);
                 let handler = Shell {
+                    #[cfg(unix)]
+                    vim: script.vim.clone(),
                     activity: counts.clone(),
                     channels: Vec::new(),
                     shell_channel: None,
+                    installer_channel: None,
+                    before_exec_success: script.before_exec_success.clone(),
                     gate_buffer: Vec::new(),
                     initial: initial.clone(),
                     after_input: Arc::clone(&scheduled),
@@ -152,9 +168,13 @@ impl Drop for ShellServer {
 }
 
 struct Shell {
+    #[cfg(unix)]
+    vim: Option<super::vim::Bridge>,
     activity: Arc<Activity>,
     channels: Vec<Channel<Msg>>,
     shell_channel: Option<ChannelId>,
+    installer_channel: Option<ChannelId>,
+    before_exec_success: Option<Vec<u8>>,
     gate_buffer: Vec<u8>,
     initial: Vec<Vec<u8>>,
     after_input: Arc<Mutex<VecDeque<ShellStep>>>,
@@ -189,13 +209,17 @@ impl russh::server::Handler for Shell {
     type Error = russh::Error;
 
     async fn auth_password(&mut self, user: &str, password: &str) -> Result<Auth, Self::Error> {
-        Ok(
-            if user == "picker-test" && password == "disposable-test-password" {
-                Auth::Accept
-            } else {
-                Auth::reject()
-            },
-        )
+        let expected = "disposable-test-password";
+        #[cfg(unix)]
+        let expected = self
+            .vim
+            .as_ref()
+            .map_or(expected, |bridge| bridge.password.as_str());
+        Ok(if user == "picker-test" && password == expected {
+            Auth::Accept
+        } else {
+            Auth::reject()
+        })
     }
 
     async fn channel_open_session(
@@ -231,8 +255,53 @@ impl russh::server::Handler for Shell {
         self.activity.shells.fetch_add(1, Ordering::SeqCst);
         self.shell_channel = Some(channel);
         session.channel_success(channel)?;
+        #[cfg(unix)]
+        if let Some(bridge) = &self.vim {
+            let index = self
+                .channels
+                .iter()
+                .position(|shell| shell.id() == channel)
+                .unwrap();
+            bridge.attach(self.channels.swap_remove(index));
+            return Ok(());
+        }
         let packets = std::mem::take(&mut self.initial);
         send_packets(session, channel, packets).await
+    }
+
+    async fn exec_request(
+        &mut self,
+        channel: ChannelId,
+        command: &[u8],
+        session: &mut Session,
+    ) -> Result<(), Self::Error> {
+        if self.before_exec_success.is_some() && command == b"exec sh -s" {
+            self.installer_channel = Some(channel);
+            return session.channel_success(channel);
+        }
+        if command.ends_with(b"'/synthetic/unix/start.sh' --motd")
+            && let Some(early) = self.before_exec_success.take()
+        {
+            self.activity.shells.fetch_add(1, Ordering::SeqCst);
+            self.shell_channel = Some(channel);
+            session.data(channel, early)?;
+            session.channel_success(channel)?;
+            return send_packets(session, channel, std::mem::take(&mut self.initial)).await;
+        }
+        session.channel_failure(channel)
+    }
+
+    async fn channel_eof(
+        &mut self,
+        channel: ChannelId,
+        session: &mut Session,
+    ) -> Result<(), Self::Error> {
+        if self.installer_channel == Some(channel) {
+            self.installer_channel = None;
+            session.data(channel, b"TTERM-SHELL-INTEGRATION ok /synthetic\n".to_vec())?;
+            session.close(channel)?;
+        }
+        Ok(())
     }
 
     async fn data(

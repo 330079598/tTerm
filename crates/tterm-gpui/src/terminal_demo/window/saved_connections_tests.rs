@@ -1,7 +1,10 @@
 //! Acceptance tests for the saved-SSH picker over live split sessions.
 
+mod early_query;
 mod server;
 mod ssh_query;
+#[cfg(unix)]
+mod vim;
 
 use std::sync::{Arc, OnceLock};
 use std::time::{Duration, Instant};

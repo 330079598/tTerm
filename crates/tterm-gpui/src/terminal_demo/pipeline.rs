@@ -14,6 +14,7 @@ use std::thread::JoinHandle;
 use std::time::Instant;
 
 use tokio::sync::watch;
+use tterm_core::terminal::ssh_query_handler::ordered::{OrderedQueries, Part};
 use tterm_terminal::grid::WindowSize;
 use tterm_terminal::terminal::Terminal;
 
@@ -348,6 +349,7 @@ pub(super) fn start(
     write: WriteBytes,
     acknowledge: AcknowledgeBytes,
     guard: Option<Arc<MouseGuard>>,
+    ssh_queries: Option<OrderedQueries>,
 ) -> Result<Pipeline, String> {
     let metrics = Arc::new(QueueMetrics::default());
     let (sender, queued) = mpsc::sync_channel(QUEUED_CHUNKS);
@@ -355,10 +357,13 @@ pub(super) fn start(
     let parser = spawn_parser(
         queued,
         Arc::clone(&metrics),
-        state,
-        write,
+        ParserOutput {
+            state,
+            write,
+            guard,
+            ssh_queries,
+        },
         acknowledge,
-        guard,
     )?;
     Ok(Pipeline { queue, parser })
 }
@@ -366,23 +371,22 @@ pub(super) fn start(
 fn spawn_parser(
     queued: Receiver<QueuedChunk>,
     metrics: Arc<QueueMetrics>,
-    state: SessionState,
-    write: WriteBytes,
+    mut output: ParserOutput,
     acknowledge: AcknowledgeBytes,
-    guard: Option<Arc<MouseGuard>>,
 ) -> Result<JoinHandle<()>, String> {
     std::thread::Builder::new()
         .name("gpui-pty-parser".to_string())
         .spawn(move || {
             loop {
-                let chunk = match guard
+                let chunk = match output
+                    .guard
                     .as_ref()
                     .and_then(|guard| guard.timeout_at(Instant::now()))
                 {
                     Some(timeout) => match queued.recv_timeout(timeout) {
                         Ok(chunk) => Some(chunk),
                         Err(RecvTimeoutError::Timeout) => {
-                            if let Some(guard) = &guard {
+                            if let Some(guard) = &output.guard {
                                 guard.settle();
                             }
                             continue;
@@ -394,16 +398,13 @@ fn spawn_parser(
                 let Some(chunk) = chunk else {
                     break;
                 };
-                let (mut batch, acknowledge_flow) = chunk.into_batch();
-                apply_and_release(
-                    &state,
-                    &metrics,
-                    &write,
-                    &acknowledge,
-                    guard.as_deref(),
-                    &mut batch,
-                    acknowledge_flow,
-                );
+                let (batch, acknowledge_flow) = chunk.into_batch();
+                let applied = output.apply(&batch, acknowledge_flow != 0);
+                if acknowledge_flow != 0 {
+                    acknowledge(acknowledge_flow);
+                }
+                metrics.parsed(batch.len(), applied);
+                metrics.released(batch.len());
             }
         })
         .map_err(|error| format!("Failed to start the GPUI output parser: {error}"))
@@ -415,35 +416,48 @@ impl QueuedChunk {
     }
 }
 
-fn apply_and_release(
-    state: &SessionState,
-    metrics: &QueueMetrics,
-    write: &WriteBytes,
-    acknowledge: &AcknowledgeBytes,
-    guard: Option<&MouseGuard>,
-    batch: &mut Vec<u8>,
-    acknowledge_flow: usize,
-) {
-    let length = batch.len();
-    let applied = match guard {
-        Some(guard) => guard.apply_batch(batch),
-        None => state.apply(state.session_nonce, batch),
-    };
-    if applied {
-        for intent in state.terminal.drain_intents() {
-            handle_intent(intent, state, |bytes| write(bytes));
+struct ParserOutput {
+    state: SessionState,
+    write: WriteBytes,
+    guard: Option<Arc<MouseGuard>>,
+    ssh_queries: Option<OrderedQueries>,
+}
+
+impl ParserOutput {
+    /// Emits all replies in parse order before the caller releases flow credit.
+    fn apply(&mut self, bytes: &[u8], transport: bool) -> bool {
+        let Self {
+            state,
+            write,
+            guard,
+            ssh_queries,
+        } = self;
+        if !state.alive.load(Ordering::Acquire) {
+            return false;
+        }
+        let display = |bytes: &[u8]| {
+            let applied = match guard.as_ref() {
+                Some(guard) => guard.apply_batch(bytes),
+                None => state.apply(state.session_nonce, bytes),
+            };
+            if applied {
+                for intent in state.terminal.drain_intents() {
+                    handle_intent(intent, state, |reply| write(reply));
+                }
+            }
+        };
+        if let Some(queries) = ssh_queries.as_mut().filter(|_| transport) {
+            queries.feed(bytes, |part| match part {
+                Part::Display(bytes) => display(bytes),
+                Part::Reply(reply) if state.alive.load(Ordering::Acquire) => write(reply.to_vec()),
+                Part::Reply(_) => {}
+            });
+        } else {
+            display(bytes);
         }
         state.publish();
+        true
     }
-    // The acknowledgement follows the model write and its intents. A batch
-    // rejected because the generation closed is acknowledged too, because the
-    // reader must not stay blocked on bytes that will never be drawn.
-    if acknowledge_flow > 0 {
-        acknowledge(acknowledge_flow);
-    }
-    metrics.parsed(length, applied);
-    metrics.released(length);
-    batch.clear();
 }
 
 #[cfg(test)]

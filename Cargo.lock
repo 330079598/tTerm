@@ -11013,6 +11013,7 @@ dependencies = [
  "chrono",
  "gpui-kit",
  "image",
+ "portable-pty",
  "rand 0.10.3",
  "rusqlite",
  "russh",

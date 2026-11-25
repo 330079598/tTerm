@@ -1,28 +1,17 @@
+use std::borrow::Cow;
+
 use tokio::io::AsyncWriteExt;
+
+/// Ordered query framing for native SSH sessions.
+pub mod ordered;
+
+const DA1_REPLY: &[u8] = b"\x1b[?64;1;2;4;6;9;15;21;22c";
+const DA2_REPLY: &[u8] = b"\x1b[>0;276;0c";
+const DEC_CPR_REPLY: &[u8] = b"\x1b[?1;1R";
 
 struct SequenceEnd {
     index: usize,
     terminator_len: usize,
-}
-
-/// Who answers the standard Device Status Report queries.
-///
-/// `CSI 5 n` (status) and `CSI 6 n` (cursor position) are the standard,
-/// non-private members of the ECMA-48 DSR family. The DEC-private
-/// `CSI ? 6 n` is not one of them and keeps its own fixed reply.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum StandardDsrReply {
-    /// The SSH layer writes the fixed reply the Tauri frontend expects.
-    ///
-    /// That is `CSI 0 n` for status and `CSI 1 ; 1 R` for the cursor.
-    SshLayer,
-    /// The query is forwarded verbatim to the caller's terminal model.
-    ///
-    /// The GPUI session parses the output in its own model, which answers from
-    /// the real terminal state through the same ordered path as user input.
-    /// Forwarding each query once is the whole contract; the SSH layer writes
-    /// no reply of its own.
-    Model,
 }
 
 /// Process SSH output for terminal queries and write replies back through SSH channel.
@@ -38,9 +27,8 @@ pub enum StandardDsrReply {
 ///
 /// Supported queries:
 /// - Device Attributes (DA): terminal identification
-/// - Device Status Reports (DSR): status (`CSI 5 n`) and cursor position
-///   (`CSI 6 n`), answered here or forwarded to the model depending on
-///   [`StandardDsrReply`]
+/// - Cursor Position Report (CPR): current cursor location
+/// - Operating Status Report (OSR): terminal ready status
 /// - XTGETTCAP: terminal capability queries (e.g., color support)
 ///
 /// OSC 10/11 color queries pass through: xterm.js answers them with the tab's
@@ -49,7 +37,6 @@ pub async fn process_ssh_output_for_ui<W>(
     data: &[u8],
     pending: &mut Vec<u8>,
     writer: &mut W,
-    dsr_reply: StandardDsrReply,
 ) -> std::io::Result<Vec<u8>>
 where
     W: AsyncWriteExt + Unpin,
@@ -84,7 +71,7 @@ where
                 let params = &rest[3..end];
                 let valid_da = params.iter().all(|b| b.is_ascii_digit() || *b == b';');
                 if valid_da {
-                    writer.write_all(b"\x1b[>0;276;0c").await?;
+                    writer.write_all(DA2_REPLY).await?;
                     writer.flush().await?;
                     i += end + 1;
                     matched = true;
@@ -92,12 +79,12 @@ where
             }
         }
 
-        // Standard DSR cursor position report: ESC[6n
+        // Cursor Position Report (CPR): ESC[6n
         // Response format: ESC[{row};{col}R
-        // Without a model we report the cursor at home (1,1). A frontend with
-        // a model gets the query forwarded and answers it from its own grid.
+        // We report cursor at home position (1,1)
         if !matched && rest.starts_with(b"\x1b[6n") {
-            route_standard_dsr(b"\x1b[6n", b"\x1b[1;1R", dsr_reply, writer, &mut output).await?;
+            writer.write_all(b"\x1b[1;1R").await?;
+            writer.flush().await?;
             i += 4;
             matched = true;
         }
@@ -105,17 +92,17 @@ where
         // DEC CPR: ESC[?6n (DECCIR format)
         // Response format: ESC[?{row};{col}R
         if !matched && rest.starts_with(b"\x1b[?6n") {
-            writer.write_all(b"\x1b[?1;1R").await?;
+            writer.write_all(DEC_CPR_REPLY).await?;
             writer.flush().await?;
             i += 5;
             matched = true;
         }
 
-        // Standard DSR status report: ESC[5n
+        // Operating Status Report (OSR): ESC[5n
         // Response format: ESC{status}n (0 = ready, 3 = failure)
-        // The model reports ready as well; forwarding keeps one responder.
         if !matched && rest.starts_with(b"\x1b[5n") {
-            route_standard_dsr(b"\x1b[5n", b"\x1b[0n", dsr_reply, writer, &mut output).await?;
+            writer.write_all(b"\x1b[0n").await?;
+            writer.flush().await?;
             i += 4;
             matched = true;
         }
@@ -127,7 +114,7 @@ where
         if !matched && rest.len() >= 3 && rest.starts_with(b"\x1b[") {
             let start = if rest[2] == b'?' { 3 } else { 2 };
             if rest.len() > start && rest[start] == b'c' {
-                writer.write_all(b"\x1b[?64;1;2;4;6;9;15;21;22c").await?;
+                writer.write_all(DA1_REPLY).await?;
                 writer.flush().await?;
                 i += start + 1;
                 matched = true;
@@ -143,18 +130,7 @@ where
         {
             let hex_query = &rest[4..end.index];
 
-            // "Co" = 436f/436F in hex (terminal colors capability)
-            if hex_query == b"436f" || hex_query == b"436F" {
-                // Respond with 256 colors: 1+r436f3d323536 = "Co=256"
-                writer.write_all(b"\x1bP1+r436f3d323536\x1b\\").await?;
-            } else if hex_query.eq_ignore_ascii_case(b"4d73") {
-                writer.write_all(XTGETTCAP_MS_REPLY).await?;
-            } else {
-                // Unknown capability - respond with failure
-                writer.write_all(b"\x1bP0+r").await?;
-                writer.write_all(hex_query).await?;
-                writer.write_all(b"\x1b\\").await?;
-            }
+            writer.write_all(&capability_reply(hex_query)).await?;
             writer.flush().await?;
             i += end.index + end.terminator_len;
             matched = true;
@@ -174,28 +150,6 @@ where
     Ok(output)
 }
 
-/// Writes the SSH layer's fixed answer to a standard Device Status Report, or
-/// appends the query to the display output so the caller's model answers it.
-async fn route_standard_dsr<W>(
-    query: &[u8],
-    legacy_reply: &[u8],
-    reply: StandardDsrReply,
-    writer: &mut W,
-    output: &mut Vec<u8>,
-) -> std::io::Result<()>
-where
-    W: AsyncWriteExt + Unpin,
-{
-    match reply {
-        StandardDsrReply::SshLayer => {
-            writer.write_all(legacy_reply).await?;
-            writer.flush().await?;
-        }
-        StandardDsrReply::Model => output.extend_from_slice(query),
-    }
-    Ok(())
-}
-
 /// Longest tail held back waiting for the rest of a query. The queries
 /// answered here are a few dozen bytes at most; anything still unterminated
 /// past this is ordinary output that xterm.js parses across chunks itself.
@@ -208,6 +162,16 @@ const MAX_DEFERRED_QUERY_BYTES: usize = 64;
 /// before it copies that way. It is answered even when the setting that lets
 /// programs copy is off, since the frontend then drops what arrives.
 const XTGETTCAP_MS_REPLY: &[u8] = b"\x1bP1+r4d73=5c455d35323b25703125733b25703225735c303037\x1b\\";
+
+fn capability_reply(name: &[u8]) -> Cow<'static, [u8]> {
+    if name.eq_ignore_ascii_case(b"436f") {
+        Cow::Borrowed(b"\x1bP1+r436f3d323536\x1b\\")
+    } else if name.eq_ignore_ascii_case(b"4d73") {
+        Cow::Borrowed(XTGETTCAP_MS_REPLY)
+    } else {
+        Cow::Owned([b"\x1bP0+r", name, b"\x1b\\"].concat())
+    }
+}
 
 fn is_incomplete_query(rest: &[u8]) -> bool {
     if rest.len() >= MAX_DEFERRED_QUERY_BYTES {
@@ -265,20 +229,12 @@ mod tests {
     /// packets would, and returns the concatenated display output plus every
     /// byte written back through the channel.
     async fn process_in_chunks(data: &[u8], chunk_size: usize) -> (Vec<u8>, Vec<u8>, Vec<u8>) {
-        process_in_chunks_with_dsr(data, chunk_size, StandardDsrReply::SshLayer).await
-    }
-
-    async fn process_in_chunks_with_dsr(
-        data: &[u8],
-        chunk_size: usize,
-        dsr_reply: StandardDsrReply,
-    ) -> (Vec<u8>, Vec<u8>, Vec<u8>) {
         let mut pending = Vec::new();
         let mut replies = Vec::new();
         let mut output = Vec::new();
         for chunk in data.chunks(chunk_size.max(1)) {
             output.extend_from_slice(
-                &process_ssh_output_for_ui(chunk, &mut pending, &mut replies, dsr_reply)
+                &process_ssh_output_for_ui(chunk, &mut pending, &mut replies)
                     .await
                     .expect("process chunk"),
             );
@@ -316,97 +272,10 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn standard_dsr_queries_are_answered_and_consumed() {
-        // The Tauri sink keeps this path: the SSH layer answers both standard
-        // reports and none of the bytes reach the frontend.
-        let (output, replies, _) = process_in_chunks(b"\x1b[5n\x1b[6n", 8).await;
-        assert_eq!(replies, b"\x1b[0n\x1b[1;1R".to_vec());
+    async fn cursor_position_report_is_answered_and_consumed() {
+        let (output, replies, _) = process_in_chunks(b"\x1b[6n", 8).await;
+        assert_eq!(replies, b"\x1b[1;1R".to_vec());
         assert!(output.is_empty());
-    }
-
-    #[tokio::test]
-    async fn cursor_position_report_is_forwarded_to_the_model() {
-        let (output, replies, pending) =
-            process_in_chunks_with_dsr(b"\x1b[6n", 8, StandardDsrReply::Model).await;
-        assert!(
-            replies.is_empty(),
-            "the SSH layer must not answer for the model"
-        );
-        assert!(pending.is_empty());
-        assert_eq!(output, b"\x1b[6n".to_vec());
-    }
-
-    #[tokio::test]
-    async fn status_report_is_forwarded_to_the_model() {
-        let (output, replies, pending) =
-            process_in_chunks_with_dsr(b"\x1b[5n", 8, StandardDsrReply::Model).await;
-        assert!(
-            replies.is_empty(),
-            "the model must be the only responder to a status report"
-        );
-        assert!(pending.is_empty());
-        assert_eq!(output, b"\x1b[5n".to_vec());
-    }
-
-    #[tokio::test]
-    async fn cursor_position_report_split_across_packets_is_forwarded_once() {
-        // `ESC [` arrives alone, then `6n`; the model must see one whole query.
-        let (output, replies, pending) =
-            process_in_chunks_with_dsr(b"\x1b[6n", 3, StandardDsrReply::Model).await;
-        assert!(replies.is_empty());
-        assert!(pending.is_empty());
-        assert_eq!(output, b"\x1b[6n".to_vec());
-    }
-
-    #[tokio::test]
-    async fn status_report_split_across_packets_is_forwarded_once() {
-        let (output, replies, pending) =
-            process_in_chunks_with_dsr(b"\x1b[5n", 3, StandardDsrReply::Model).await;
-        assert!(replies.is_empty());
-        assert!(pending.is_empty());
-        assert_eq!(output, b"\x1b[5n".to_vec());
-    }
-
-    #[tokio::test]
-    async fn standard_dsr_queries_coalesced_in_one_packet_are_forwarded_in_order() {
-        let (output, replies, pending) =
-            process_in_chunks_with_dsr(b"\x1b[5n\x1b[6n", 64, StandardDsrReply::Model).await;
-        assert!(replies.is_empty());
-        assert!(pending.is_empty());
-        assert_eq!(output, b"\x1b[5n\x1b[6n".to_vec());
-    }
-
-    #[tokio::test]
-    async fn reverse_ordered_standard_dsr_queries_keep_their_order() {
-        let (output, replies, pending) =
-            process_in_chunks_with_dsr(b"\x1b[6n\x1b[5n", 64, StandardDsrReply::Model).await;
-        assert!(replies.is_empty());
-        assert!(pending.is_empty());
-        assert_eq!(output, b"\x1b[6n\x1b[5n".to_vec());
-    }
-
-    #[tokio::test]
-    async fn adjacent_cursor_position_reports_are_forwarded_separately() {
-        let (output, replies, pending) =
-            process_in_chunks_with_dsr(b"\x1b[6n\x1b[6n", 5, StandardDsrReply::Model).await;
-        assert!(replies.is_empty());
-        assert!(pending.is_empty());
-        assert_eq!(output, b"\x1b[6n\x1b[6n".to_vec());
-    }
-
-    #[tokio::test]
-    async fn forwarding_standard_dsr_leaves_the_other_queries_with_the_ssh_layer() {
-        // DA, the DEC-private CPR and XTGETTCAP keep their transport answers;
-        // only the two standard DSRs follow the model.
-        let data = b"\x1b[c\x1b[?6n\x1b[5n\x1bP+q436f\x1b\\\x1b[6n";
-        let (output, replies, pending) =
-            process_in_chunks_with_dsr(data, 4, StandardDsrReply::Model).await;
-        assert!(pending.is_empty());
-        assert_eq!(output, b"\x1b[5n\x1b[6n".to_vec());
-        assert_eq!(
-            replies,
-            b"\x1b[?64;1;2;4;6;9;15;21;22c\x1b[?1;1R\x1bP1+r436f3d323536\x1b\\".to_vec()
-        );
     }
 
     #[tokio::test]
@@ -419,14 +288,9 @@ mod tests {
 
         let mut pending = pending;
         let mut replies = Vec::new();
-        let second = process_ssh_output_for_ui(
-            b"31m",
-            &mut pending,
-            &mut replies,
-            StandardDsrReply::SshLayer,
-        )
-        .await
-        .expect("process completion chunk");
+        let second = process_ssh_output_for_ui(b"31m", &mut pending, &mut replies)
+            .await
+            .expect("process completion chunk");
         assert!(replies.is_empty());
         assert!(pending.is_empty());
         assert_eq!(second, b"\x1b[31m".to_vec());
@@ -465,14 +329,9 @@ mod tests {
         let mut output = Vec::new();
         for chunk in data.chunks(4096) {
             output.extend(
-                process_ssh_output_for_ui(
-                    chunk,
-                    &mut pending,
-                    &mut replies,
-                    StandardDsrReply::SshLayer,
-                )
-                .await
-                .expect("process chunk"),
+                process_ssh_output_for_ui(chunk, &mut pending, &mut replies)
+                    .await
+                    .expect("process chunk"),
             );
             assert!(pending.len() < MAX_DEFERRED_QUERY_BYTES);
         }

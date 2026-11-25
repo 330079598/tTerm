@@ -39,20 +39,9 @@ pub trait SessionSink: EventSink {
     /// Checks whether output is within the existing input-answer window.
     fn answers_input(&self) -> bool;
 
-    /// Whether the standard Device Status Reports (`CSI 5 n` and `CSI 6 n`)
-    /// are answered by the terminal model instead of by the SSH layer.
-    ///
-    /// The SSH reader cannot know the terminal state, so it answers both
-    /// with fixed legacy replies for a frontend that draws the bytes itself.
-    /// A frontend that owns a terminal model needs the queries in its
-    /// parser input instead; the model then answers through the same ordered
-    /// path as user input. The DEC-private `CSI ? 6 n`, the device attributes
-    /// and XTGETTCAP are never part of this switch. The default keeps the
-    /// fixed replies for every existing sink.
-    ///
-    /// Implementations must be constant for the lifetime of the sink: the
-    /// reader caches the answer per connection.
-    fn forwards_standard_dsr(&self) -> bool {
+    /// Whether the native parser handles all SSH queries in stream order.
+    /// The default retains the transport replies expected by the web frontend.
+    fn owns_ssh_queries(&self) -> bool {
         false
     }
 }

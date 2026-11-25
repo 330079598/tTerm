@@ -19,7 +19,7 @@ struct IncomingOutput<'a> {
     zmodem_send_pipe: &'a mut crate::zmodem::ZmodemSendPipe,
     ssh_query_pending: &'a mut Vec<u8>,
     record_raw_output: bool,
-    dsr_reply: crate::terminal::ssh_query_handler::StandardDsrReply,
+    owns_queries: bool,
 }
 
 impl IncomingOutput<'_> {
@@ -36,22 +36,21 @@ impl IncomingOutput<'_> {
             return Ok(());
         }
 
-        // Process terminal queries (vim t_u7, t_RV, etc.) before forwarding to UI
-        // This is critical for SSH connections where vim waits for responses
-        let processed = crate::terminal::ssh_query_handler::process_ssh_output_for_ui(
-            data,
-            self.ssh_query_pending,
-            writer_stream,
-            self.dsr_reply,
-        )
-        .await;
-
-        let bytes = match processed {
-            Ok(bytes) => bytes,
-            Err(e) => {
-                // Fallback: use raw data if processing fails
-                eprintln!("SSH output processing failed: {}", e);
-                data.to_vec()
+        let bytes = if self.owns_queries {
+            data.to_vec()
+        } else {
+            match crate::terminal::ssh_query_handler::process_ssh_output_for_ui(
+                data,
+                self.ssh_query_pending,
+                writer_stream,
+            )
+            .await
+            {
+                Ok(bytes) => bytes,
+                Err(error) => {
+                    eprintln!("SSH output processing failed: {error}");
+                    data.to_vec()
+                }
             }
         };
         if !bytes.is_empty() {
@@ -129,14 +128,7 @@ pub(super) async fn read_connection(connection: ConnectedSession) -> SshExitSign
     // `deliver_output` instead, since bytes in a foreign charset would be
     // unreadable in a plain-text log.
     let record_raw_output = output_decoder.is_none();
-    // The sink fixes this for the whole connection: the SSH layer either
-    // answers the standard Device Status Reports itself or leaves them for the
-    // frontend's terminal model.
-    let dsr_reply = if tab.sink.forwards_standard_dsr() {
-        crate::terminal::ssh_query_handler::StandardDsrReply::Model
-    } else {
-        crate::terminal::ssh_query_handler::StandardDsrReply::SshLayer
-    };
+    let owns_queries = tab.sink.owns_ssh_queries();
 
     if let Some(output) = early_output.filter(|output| !output.is_empty()) {
         if record_raw_output {
@@ -200,7 +192,7 @@ pub(super) async fn read_connection(connection: ConnectedSession) -> SshExitSign
                         let result = IncomingOutput {
                             tab: &tab, app: &app, sender: &sender, output_decoder: &mut output_decoder,
                             zmodem_driver: &mut zmodem_driver, zmodem_send_pipe: &mut zmodem_send_pipe,
-                            ssh_query_pending: &mut ssh_query_pending, record_raw_output, dsr_reply,
+                            ssh_query_pending: &mut ssh_query_pending, record_raw_output, owns_queries,
                         }.data(data.as_ref(), &mut writer_stream).await;
                         if let Err(reason) = result {
                             finish_output(&mut sender);
