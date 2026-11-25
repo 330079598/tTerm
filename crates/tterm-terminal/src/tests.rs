@@ -97,6 +97,30 @@ fn first_frame_contains_the_visible_grid_and_its_defaults() {
 }
 
 #[test]
+fn synchronized_output_is_reported_while_the_parser_holds_it() {
+    let model = terminal(20, 5, 0);
+    assert!(!model.has_synchronized_output());
+
+    // The mode is open after BSU, but there is nothing buffered to order yet.
+    model.write(b"\x1b[?2026h");
+    assert!(!model.has_synchronized_output());
+
+    model.write(b"HELD\x1b[4;7H");
+    assert!(model.has_synchronized_output());
+    assert!(!screen_text(&model.snapshot())[0].contains("HELD"));
+
+    model.write(b"\x1b[?2026l");
+    assert!(!model.has_synchronized_output());
+    assert!(screen_text(&model.snapshot())[0].contains("HELD"));
+
+    // A mode set that includes 2026 starts the update just as the exact form
+    // does, so the session must ask the parser instead of parsing this itself.
+    let model = terminal(20, 5, 0);
+    model.write(b"\x1b[?2004;2026hX");
+    assert!(model.has_synchronized_output());
+}
+
+#[test]
 fn mode_sets_combine_for_groups() {
     let combined = Modes::APP_CURSOR.union(Modes::APP_KEYPAD);
     assert!(combined.contains(Modes::APP_CURSOR));

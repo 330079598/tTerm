@@ -23,6 +23,8 @@ const MIXED_CPR_OSR_GATE: &[u8] = b"P2-12-MIXED-CPR-OSR";
 const MIXED_OSR_CPR_GATE: &[u8] = b"P2-12-MIXED-OSR-CPR";
 const CAPABILITIES_GATE: &[u8] = b"P2-12-CAPABILITIES";
 const SPLIT_CAPABILITIES_GATE: &[u8] = b"P2-12-SPLIT-CAPABILITIES";
+const SYNC_FORWARD_GATE: &[u8] = b"P2-12-SYNC-FORWARD";
+const SYNC_REVERSE_GATE: &[u8] = b"P2-12-SYNC-REVERSE";
 const DONE_GATE: &[u8] = b"P2-12-DONE";
 const END_MARKER: &str = "P2-12-END";
 const DONE_ACK: &str = "P2-12-DONE-ACK";
@@ -100,6 +102,29 @@ fn query_script() -> ShellScript {
                 b"\x1b[?6n\x1b[14t\x1bP+q43".to_vec(),
                 b"6f\x1b".to_vec(),
                 b"\\\x1b[6n".to_vec(),
+            ],
+        )
+        .after_input(DONE_GATE, vec![format!("\r\n{DONE_ACK}\r\n").into_bytes()])
+}
+
+fn sync_query_script() -> ShellScript {
+    ShellScript::new(vec![b"SAVED_SSH_READY\r\n".to_vec()])
+        .after_input(
+            SYNC_FORWARD_GATE,
+            vec![
+                b"\x1b[?2026h\x1b[4;7H\x1b[6n".to_vec(),
+                b"\x1b[c".to_vec(),
+                b"\x1b[9;3H\x1b[6n\x1b[?2026l".to_vec(),
+                b"\x1b[2;5H\x1b[6n".to_vec(),
+            ],
+        )
+        .after_input(
+            SYNC_REVERSE_GATE,
+            vec![
+                b"\x1b[?2026h\x1b[c".to_vec(),
+                b"\x1b[6;4H\x1b[6n".to_vec(),
+                b"\x1b[>c".to_vec(),
+                b"\x1b[?2026l\x1b[5n".to_vec(),
             ],
         )
         .after_input(DONE_GATE, vec![format!("\r\n{DONE_ACK}\r\n").into_bytes()])
@@ -262,6 +287,108 @@ fn core_and_model_queries_are_answered_once_and_in_order(cx: &mut TestAppContext
         server.script_remaining(),
         0,
         "every scripted query should have been requested"
+    );
+    harness.visual.update(|window, _| window.remove_window());
+}
+
+/// P2-12 fourth batch: fixed and model replies keep wire order across BSU/ESU.
+#[gpui_kit::test]
+fn synchronized_output_keeps_query_replies_in_wire_order(cx: &mut TestAppContext) {
+    let harness = harness(cx);
+    let server =
+        ShellServer::start_scripted(harness._runtime._runtime.handle(), sync_query_script());
+    let name = "Synchronized Queries";
+    trust_server("synchronized-queries", name, &server);
+    let root = harness.root.clone();
+    let launch = direct_launch("synchronized-queries", name, &server);
+    let tab_id = harness.visual.update(|window, cx| {
+        root.update(cx, |workspace, cx| {
+            workspace
+                .open_saved_profile_launch(launch, window, cx)
+                .expect("the saved launch should open one SSH tab")
+        })
+    });
+    let (session, model) = harness.visual.update(|window, cx| {
+        window.render_frame(cx);
+        let workspace = root.read(cx);
+        let session = workspace
+            .tabs
+            .get(tab_id)
+            .and_then(|tab| tab.binding.as_ref())
+            .and_then(|binding| binding.session())
+            .expect("the saved launch runs a live session");
+        (session.clone(), session.model())
+    });
+    pump_until(harness.visual, "the SSH shell to become ready", |_| {
+        output(&model).contains("SAVED_SSH_READY")
+    });
+
+    let input = session.input();
+    let mut expected = Vec::new();
+
+    // The block straddles four channel-data packets. The fixed DA1 lies
+    // between the two CPRs and must come back between them too.
+    input(SYNC_FORWARD_GATE);
+    expected.extend_from_slice(SYNC_FORWARD_GATE);
+    expected.extend_from_slice(
+        [
+            b"\x1b[4;7R".as_slice(),
+            DA1_REPLY,
+            b"\x1b[9;3R".as_slice(),
+            b"\x1b[2;5R".as_slice(),
+        ]
+        .concat()
+        .as_slice(),
+    );
+    expect_transcript(
+        harness.visual,
+        &server,
+        &expected,
+        "model replies before and after a fixed reply keep stream order",
+    );
+
+    // A fixed reply first, then a model reply, then a fixed reply.
+    input(SYNC_REVERSE_GATE);
+    expected.extend_from_slice(SYNC_REVERSE_GATE);
+    expected.extend_from_slice(
+        [
+            DA1_REPLY,
+            b"\x1b[6;4R".as_slice(),
+            b"\x1b[>0;276;0c".as_slice(),
+            b"\x1b[0n".as_slice(),
+        ]
+        .concat()
+        .as_slice(),
+    );
+    expect_transcript(
+        harness.visual,
+        &server,
+        &expected,
+        "fixed replies before later model replies keep stream order",
+    );
+
+    input(DONE_GATE);
+    expected.extend_from_slice(DONE_GATE);
+    expect_transcript(
+        harness.visual,
+        &server,
+        &expected,
+        "the final input fence closes the synchronized transcript",
+    );
+    pump_until(harness.visual, "the final fence acknowledgement", |_| {
+        output(&model).contains(DONE_ACK)
+    });
+    std::thread::sleep(STABLE);
+    harness.visual.run_until_parked();
+    assert_eq!(
+        server.inputs(),
+        expected,
+        "a synchronized reply may not be reordered or duplicated after the fence"
+    );
+    assert_eq!(
+        server.script_remaining(),
+        0,
+        "every scripted synchronized query should have been requested"
     );
     harness.visual.update(|window, _| window.remove_window());
 }

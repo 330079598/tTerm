@@ -146,6 +146,10 @@ pub enum Intent {
     /// these on its ordered input channel so two query answers cannot swap
     /// places.
     WriteToPty(Vec<u8>),
+    /// A synthetic ordering marker reached its stream position. The SSH
+    /// session writes the fixed reply reserved under `order` instead of a
+    /// mode report.
+    OrderedReply(u64),
     /// The cursor's blinking state changed; the view restarts or stops its
     /// cursor timer.
     CursorBlinkingChanged,
@@ -172,6 +176,9 @@ impl fmt::Debug for Intent {
                 .finish(),
             Self::WindowSizeRequest { .. } => formatter.write_str("WindowSizeRequest"),
             Self::WriteToPty(bytes) => formatter.debug_tuple("WriteToPty").field(bytes).finish(),
+            Self::OrderedReply(order) => {
+                formatter.debug_tuple("OrderedReply").field(order).finish()
+            }
             Self::CursorBlinkingChanged => formatter.write_str("CursorBlinkingChanged"),
         }
     }

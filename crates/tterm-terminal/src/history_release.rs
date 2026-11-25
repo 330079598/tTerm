@@ -17,6 +17,8 @@
 //! that default here, so the dependency pin must be rechecked when `vte` is
 //! updated.
 
+use std::sync::Mutex;
+
 use alacritty_terminal::event::EventListener;
 use alacritty_terminal::grid::{BidirectionalIterator, Dimensions, GridCell};
 use alacritty_terminal::index::Point;
@@ -28,6 +30,9 @@ use alacritty_terminal::vte::ansi::{
     KeyboardModesApplyBehavior, LineClearMode, Mode, ModifyOtherKeys, NamedPrivateMode,
     PrivateMode, Rgb, ScpCharPath, ScpUpdateMode, StandardCharset, TabulationClearMode,
 };
+
+use crate::event::Intent;
+use crate::ordered_replies::OrderedReplies;
 
 /// Generates a forwarding method for each handler command.
 ///
@@ -107,6 +112,8 @@ pub(crate) struct HistoryRelease<'a, T: EventListener> {
     region: ScrollRegion,
     cleared_main: bool,
     marks: MarkChanges,
+    ordered: Option<&'a mut OrderedReplies>,
+    intents: Option<&'a Mutex<Vec<Intent>>>,
 }
 
 impl<'a, T: EventListener> HistoryRelease<'a, T> {
@@ -124,6 +131,25 @@ impl<'a, T: EventListener> HistoryRelease<'a, T> {
             region,
             cleared_main: false,
             marks: MarkChanges::default(),
+            ordered: None,
+            intents: None,
+        }
+    }
+
+    /// Wraps a terminal and resolves the session's ordering markers.
+    pub(crate) fn with_region_and_markers(
+        term: &'a mut Term<T>,
+        region: ScrollRegion,
+        ordered: &'a mut OrderedReplies,
+        intents: &'a Mutex<Vec<Intent>>,
+    ) -> Self {
+        Self {
+            term,
+            region,
+            cleared_main: false,
+            marks: MarkChanges::default(),
+            ordered: Some(ordered),
+            intents: Some(intents),
         }
     }
 
@@ -288,6 +314,16 @@ impl<T: EventListener> Handler for HistoryRelease<'_, T> {
         }
     }
 
+    fn report_private_mode(&mut self, mode: PrivateMode) {
+        if let Some(intents) = self.intents
+            && let Some(ordered) = self.ordered.as_mut()
+            && ordered.intercept(mode, intents)
+        {
+            return;
+        }
+        Handler::report_private_mode(&mut *self.term, mode);
+    }
+
     fn set_scrolling_region(&mut self, top: usize, bottom: Option<usize>) {
         Handler::set_scrolling_region(&mut *self.term, top, bottom);
 
@@ -343,7 +379,6 @@ impl<T: EventListener> Handler for HistoryRelease<'_, T> {
         fn set_mode(a0: Mode);
         fn unset_mode(a0: Mode);
         fn report_mode(a0: Mode);
-        fn report_private_mode(a0: PrivateMode);
         fn set_keypad_application_mode();
         fn unset_keypad_application_mode();
         fn set_active_charset(a0: CharsetIndex);

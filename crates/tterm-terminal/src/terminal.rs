@@ -38,11 +38,13 @@ use crate::grid::{CellSize, GridPoint, GridSize};
 use crate::history_release::{HistoryRelease, MarkChanges, ScrollRegion};
 use crate::mode::Modes;
 use crate::mouse_reporting::MOUSE_REPORTING_OFF;
+use crate::ordered_replies::{MarkerSource, OrderedReplies};
 use crate::osc52_scanner::Osc52Scanner;
 use crate::selection::{SelectionKind, SelectionRange, Side, word};
 use crate::snapshot::{self, Cursor, CursorShape, Row, Snapshot, SnapshotParts};
 
 mod legacy_restore;
+mod ordered_api;
 mod search_ops;
 mod selection_text;
 
@@ -241,6 +243,7 @@ struct State {
     scroll_region: ScrollRegion,
     word_selection: bool,
     word_drag: Option<SelectionRange>,
+    ordered_replies: Option<OrderedReplies>,
 }
 
 /// The terminal of one session.
@@ -284,6 +287,7 @@ impl Terminal {
             scroll_region: ScrollRegion::full(grid.clamped().screen_lines),
             word_selection: false,
             word_drag: None,
+            ordered_replies: None,
         };
         Self {
             state: FairMutex::new(state),
@@ -298,10 +302,18 @@ impl Terminal {
     /// before it reaches the model. A sequence split across two calls is
     /// continued by the parser, which keeps its own state.
     pub fn write(&self, bytes: &[u8]) {
+        self.write_with_source(bytes, MarkerSource::Remote);
+    }
+
+    fn write_with_source(&self, bytes: &[u8], source: MarkerSource) {
         if bytes.is_empty() {
             return;
         }
         let mut state = self.state.lock();
+        let buffered_before = state.parser.sync_bytes_count();
+        if let Some(ordered) = state.ordered_replies.as_mut() {
+            ordered.before_write(bytes, source, buffered_before);
+        }
         // A non-empty batch may change any cell, including repainting one
         // visible row in place. Bumping here, inside the lock, makes the
         // version a conservative description of the text a search copies.
@@ -340,6 +352,7 @@ impl Terminal {
             term,
             command_marks,
             scroll_region,
+            ordered_replies,
             ..
         } = &mut *state;
         let mut region = *scroll_region;
@@ -350,7 +363,15 @@ impl Terminal {
                 continue;
             }
             let (changes, cleared) = {
-                let mut handler = HistoryRelease::with_region(term, region);
+                let mut handler = match ordered_replies.as_mut() {
+                    Some(ordered) => HistoryRelease::with_region_and_markers(
+                        term,
+                        region,
+                        ordered,
+                        self.intents.as_ref(),
+                    ),
+                    None => HistoryRelease::with_region(term, region),
+                };
                 parser.advance(&mut handler, &bytes[start..end]);
                 region = handler.region();
                 (handler.mark_changes(), handler.cleared_main())
@@ -380,12 +401,21 @@ impl Terminal {
             start = end;
         }
         {
-            let mut handler = HistoryRelease::with_region(term, region);
+            let mut handler = match ordered_replies.as_mut() {
+                Some(ordered) => HistoryRelease::with_region_and_markers(
+                    term,
+                    region,
+                    ordered,
+                    self.intents.as_ref(),
+                ),
+                None => HistoryRelease::with_region(term, region),
+            };
             parser.advance(&mut handler, &bytes[start..]);
             region = handler.region();
             cleared_main |= handler.cleared_main();
             apply_mark_changes(command_marks, handler.mark_changes());
         }
+        let buffered_after = parser.sync_bytes_count();
         *scroll_region = region;
         let is_alternate = term.mode().contains(TermMode::ALT_SCREEN);
         if was_alternate != is_alternate {
@@ -393,18 +423,18 @@ impl Terminal {
             // main scroll before the switch were already applied at their
             // exact byte offsets; a new generation drops cached rows.
             state.scrollback_generation = state.scrollback_generation.wrapping_add(1);
-            return;
+        } else if !is_alternate {
+            let history_size = term.total_lines().saturating_sub(term.screen_lines());
+            let full_damage = matches!(term.damage(), TermDamage::Full);
+            // A history drop without a clear is still worth invalidating cached
+            // absolute lines for.
+            let cleared_history = cleared_main || history_before > history_size;
+            if cleared_history || (configured > 0 && history_size >= configured && full_damage) {
+                state.scrollback_generation = state.scrollback_generation.wrapping_add(1);
+            }
         }
-        if is_alternate {
-            return;
-        }
-        let history_size = term.total_lines().saturating_sub(term.screen_lines());
-        let full_damage = matches!(term.damage(), TermDamage::Full);
-        // A history drop without a clear is still worth invalidating cached
-        // absolute lines for.
-        let cleared_history = cleared_main || history_before > history_size;
-        if cleared_history || (configured > 0 && history_size >= configured && full_damage) {
-            state.scrollback_generation = state.scrollback_generation.wrapping_add(1);
+        if let Some(ordered) = state.ordered_replies.as_mut() {
+            ordered.after_write(bytes, source, buffered_before > 0, buffered_after);
         }
     }
 
@@ -416,6 +446,16 @@ impl Terminal {
     pub fn drain_intents(&self) -> Vec<Intent> {
         let mut intents = self.intents.lock().unwrap_or_else(PoisonError::into_inner);
         std::mem::take(&mut *intents)
+    }
+
+    /// Whether the parser is holding output from a synchronized update.
+    ///
+    /// Output inside the update is applied when ESU arrives or the buffer
+    /// fills. Until then it is invisible to snapshots and its replies have not
+    /// been produced. The SSH client uses this to decide whether a fixed reply
+    /// would overtake model replies the parser has buffered.
+    pub fn has_synchronized_output(&self) -> bool {
+        self.state.lock().parser.sync_bytes_count() > 0
     }
 
     /// Resizes the grid and remembers the cell size the view measured.

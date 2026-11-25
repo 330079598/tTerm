@@ -73,6 +73,7 @@ pub mod keyword_highlight;
 pub mod mode;
 /// Mouse-reporting modes and the prompt marks that close them.
 pub mod mouse_reporting;
+mod ordered_replies;
 /// The OSC 52 clipboard request.
 pub mod osc52;
 /// Bounded OSC 52 store recognition on shared control-string framing.

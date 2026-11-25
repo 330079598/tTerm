@@ -15,6 +15,7 @@ use std::time::Instant;
 
 use tokio::sync::watch;
 use tterm_core::terminal::ssh_query_handler::ordered::{OrderedQueries, Part};
+use tterm_terminal::event::Intent;
 use tterm_terminal::grid::WindowSize;
 use tterm_terminal::terminal::Terminal;
 
@@ -24,6 +25,9 @@ use super::session::reports::Reports;
 
 pub(super) mod mouse_guard;
 use mouse_guard::MouseGuard;
+
+mod ssh_replies;
+use ssh_replies::DeferredReplies;
 
 /// How many parser-sized chunks may wait for the parser before core applies
 /// backpressure upstream.
@@ -351,6 +355,9 @@ pub(super) fn start(
     guard: Option<Arc<MouseGuard>>,
     ssh_queries: Option<OrderedQueries>,
 ) -> Result<Pipeline, String> {
+    if ssh_queries.is_some() {
+        state.terminal.enable_ordered_replies();
+    }
     let metrics = Arc::new(QueueMetrics::default());
     let (sender, queued) = mpsc::sync_channel(QUEUED_CHUNKS);
     let queue = QueueSender::new(sender, Arc::clone(&metrics));
@@ -362,6 +369,7 @@ pub(super) fn start(
             write,
             guard,
             ssh_queries,
+            ssh_replies: DeferredReplies::default(),
         },
         acknowledge,
     )?;
@@ -421,6 +429,7 @@ struct ParserOutput {
     write: WriteBytes,
     guard: Option<Arc<MouseGuard>>,
     ssh_queries: Option<OrderedQueries>,
+    ssh_replies: DeferredReplies,
 }
 
 impl ParserOutput {
@@ -431,35 +440,91 @@ impl ParserOutput {
             write,
             guard,
             ssh_queries,
+            ssh_replies,
         } = self;
         if !state.alive.load(Ordering::Acquire) {
             return false;
         }
-        let display = |bytes: &[u8]| {
-            let applied = match guard.as_ref() {
-                Some(guard) => guard.apply_batch(bytes),
-                None => state.apply(state.session_nonce, bytes),
-            };
-            if applied {
-                for intent in state.terminal.drain_intents() {
-                    handle_intent(intent, state, |reply| write(reply));
-                }
-            }
+        let mut applier = Applier {
+            state,
+            write,
+            guard,
+            deferred: ssh_replies,
         };
         if let Some(queries) = ssh_queries.as_mut().filter(|_| transport) {
             queries.feed(bytes, |part| match part {
-                Part::Display(bytes) => display(bytes),
-                Part::Reply(reply) if state.alive.load(Ordering::Acquire) => write(reply.to_vec()),
+                Part::Display(bytes) => applier.display(bytes),
+                Part::Reply(reply) if state.alive.load(Ordering::Acquire) => {
+                    applier.reply(reply);
+                }
                 Part::Reply(_) => {}
             });
         } else {
-            display(bytes);
+            applier.display(bytes);
         }
         state.publish();
         true
     }
 }
 
+/// Applies output and resolves intents for one parser batch.
+struct Applier<'a> {
+    state: &'a SessionState,
+    write: &'a WriteBytes,
+    guard: &'a Option<Arc<MouseGuard>>,
+    deferred: &'a mut DeferredReplies,
+}
+
+impl Applier<'_> {
+    /// Feeds one display slice to the model and emits what it produced.
+    fn display(&mut self, bytes: &[u8]) {
+        let applied = match self.guard.as_ref() {
+            Some(guard) => guard.apply_batch(bytes),
+            None => self.state.apply(self.state.session_nonce, bytes),
+        };
+        if applied {
+            self.flush_intents();
+        }
+    }
+
+    /// Emits the model's intents, replacing an ordering marker with the fixed
+    /// reply that waits at that point in the stream.
+    fn flush_intents(&mut self) {
+        for intent in self.state.terminal.drain_intents() {
+            self.intent(intent);
+        }
+    }
+
+    fn intent(&mut self, intent: Intent) {
+        if let Intent::OrderedReply(order) = intent {
+            if let Some(reply) = self.deferred.take(order) {
+                (self.write)(reply);
+            }
+            return;
+        }
+        handle_intent(intent, self.state, |reply| (self.write)(reply));
+    }
+
+    /// Writes a fixed reply, or defers it while the parser holds a
+    /// synchronized update whose model replies have not been produced yet.
+    fn reply(&mut self, reply: &[u8]) {
+        if self.state.terminal.has_synchronized_output() {
+            self.defer(reply);
+        } else {
+            (self.write)(reply.to_vec());
+        }
+    }
+
+    /// Inserts a marker at a fixed reply's position and anchors the reply to it.
+    fn defer(&mut self, reply: &[u8]) {
+        let order = self.deferred.defer(reply.to_vec());
+        self.state.terminal.write_ordered_reply(order);
+        self.flush_intents();
+    }
+}
+
+#[cfg(test)]
+mod p2_12_bench;
 #[cfg(test)]
 mod tests;
 #[cfg(test)]

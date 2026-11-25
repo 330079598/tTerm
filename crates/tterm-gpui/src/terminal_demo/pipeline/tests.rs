@@ -10,7 +10,8 @@ use gpui_kit::{
 };
 use tterm_core::terminal::io_batcher::OutputFlow;
 use tterm_core::terminal::output::TerminalOutput;
-use tterm_terminal::grid::{CellSize, GridSize, WindowSize};
+use tterm_core::terminal::ssh_query_handler::ordered::OrderedQueries;
+use tterm_terminal::grid::{CellSize, GridPoint, GridSize, WindowSize};
 use tterm_terminal::terminal::{Config, Terminal};
 use tterm_terminal_view::view::{TerminalView, TerminalViewConfig};
 
@@ -61,6 +62,25 @@ fn start_pipeline(
     acknowledge: impl Fn(usize) + Send + Sync + 'static,
 ) -> Pipeline {
     start(state, Arc::new(|_| {}), Arc::new(acknowledge), None, None).expect("start the parser")
+}
+
+fn start_ssh_pipeline(state: SessionState) -> (Pipeline, Arc<Mutex<Vec<u8>>>) {
+    let replies = Arc::new(Mutex::new(Vec::new()));
+    let captured = Arc::clone(&replies);
+    let pipeline = start(
+        state,
+        Arc::new(move |bytes| {
+            captured
+                .lock()
+                .expect("captured SSH replies")
+                .extend_from_slice(&bytes);
+        }),
+        Arc::new(|_| {}),
+        None,
+        Some(OrderedQueries::default()),
+    )
+    .expect("start the SSH parser");
+    (pipeline, replies)
 }
 
 fn text(model: &Terminal) -> String {
@@ -903,4 +923,290 @@ fn a_disabled_clipboard_setting_rejects_osc52_at_the_slot() {
     drop(pipeline.queue);
     pipeline.parser.join().expect("parser exits");
     assert_eq!(clipboard.take(), None);
+}
+
+const SSH_DA1_REPLY: &[u8] = b"\x1b[?64;1;2;4;6;9;15;21;22c";
+
+fn run_ssh_output(chunks: &[Vec<u8>]) -> (Vec<u8>, Arc<Terminal>) {
+    let (model, state) = state(false, 64);
+    let (pipeline, replies) = start_ssh_pipeline(state);
+    for chunk in chunks {
+        pipeline
+            .queue
+            .send(chunk.clone())
+            .expect("queue SSH output");
+    }
+    drop(pipeline.queue);
+    pipeline.parser.join().expect("parser exits");
+    let replies = replies.lock().expect("captured replies").clone();
+    (replies, model)
+}
+
+#[test]
+fn synchronized_output_keeps_fixed_and_model_replies_in_wire_order() {
+    let input = [
+        b"\x1b[?2026h".as_slice(),
+        b"\x1b[4;7H",
+        b"\x1b[6n",
+        b"\x1b[c",
+        b"\x1b[9;3H",
+        b"\x1b[6n",
+        b"\x1b[?2026l",
+        b"\x1b[2;5H",
+        b"\x1b[6n",
+    ]
+    .concat();
+    let expected = [
+        b"\x1b[4;7R".as_slice(),
+        SSH_DA1_REPLY,
+        b"\x1b[9;3R",
+        b"\x1b[2;5R",
+    ]
+    .concat();
+
+    for chunk_size in [input.len(), 1, 3, 7, 11] {
+        let chunks = input
+            .chunks(chunk_size)
+            .map(<[u8]>::to_vec)
+            .collect::<Vec<_>>();
+        let (replies, model) = run_ssh_output(&chunks);
+        assert_eq!(
+            replies, expected,
+            "chunk size {chunk_size}: replies must follow the stream, not the responder"
+        );
+        assert_eq!(
+            model.snapshot().cursor().point.column,
+            4,
+            "the ordinary query after ESU runs at the final cursor column"
+        );
+        assert_eq!(
+            model.snapshot().cursor().point.line,
+            1,
+            "the ordinary query after ESU runs at the final cursor line"
+        );
+    }
+}
+
+#[test]
+fn synchronized_output_keeps_fixed_replies_ahead_of_later_model_replies() {
+    let input = [
+        b"\x1b[?2026h".as_slice(),
+        b"\x1b[c",
+        b"\x1b[6;4H",
+        b"\x1b[6n",
+        b"\x1b[>c",
+        b"\x1b[?2026l",
+        b"\x1b[5n",
+    ]
+    .concat();
+    let expected = [
+        SSH_DA1_REPLY,
+        b"\x1b[6;4R".as_slice(),
+        b"\x1b[>0;276;0c".as_slice(),
+        b"\x1b[0n".as_slice(),
+    ]
+    .concat();
+
+    for chunk_size in [input.len(), 1, 2, 5, 13] {
+        let chunks = input
+            .chunks(chunk_size)
+            .map(<[u8]>::to_vec)
+            .collect::<Vec<_>>();
+        let (replies, _) = run_ssh_output(&chunks);
+        assert_eq!(
+            replies, expected,
+            "chunk size {chunk_size}: a fixed reply before a model query must stay before it"
+        );
+    }
+}
+
+#[test]
+fn synchronized_output_stays_hidden_until_its_end() {
+    let (model, state) = state(true, 64);
+    let (pipeline, replies) = start_ssh_pipeline(state);
+    let metrics = pipeline.queue.metrics_handle();
+    let hidden = b"\x1b[?2026hHELD\x1b[4;7H\x1b[6n\x1b[c";
+    pipeline
+        .queue
+        .send(hidden.to_vec())
+        .expect("queue an open synchronized update");
+    assert!(
+        wait_until(|| metrics.acknowledged_bytes() == hidden.len() as u64),
+        "the parser consumes the open block"
+    );
+    let snapshot = model.snapshot();
+    assert!(!text(&model).contains("HELD"));
+    assert_eq!(snapshot.cursor().point, GridPoint::new(0, 0));
+    assert!(
+        replies.lock().expect("captured replies").is_empty(),
+        "a model query inside the block must not force a reply before ESU"
+    );
+
+    let tail = b"\x1b[?2026l SHOWN";
+    pipeline
+        .queue
+        .send(tail.to_vec())
+        .expect("queue the synchronized update's end");
+    drop(pipeline.queue);
+    pipeline.parser.join().expect("parser exits");
+    let snapshot = model.snapshot();
+    assert!(text(&model).contains("SHOWN"));
+    assert_eq!(snapshot.cursor().point, GridPoint::new(3, 12));
+    assert_eq!(
+        *replies.lock().expect("captured replies"),
+        [b"\x1b[4;7R".as_slice(), SSH_DA1_REPLY].concat(),
+        "the buffered model reply stays before the deferred fixed reply"
+    );
+}
+
+#[test]
+fn synchronized_output_defers_capability_replies_too() {
+    let input = [
+        b"\x1b[?2026h".as_slice(),
+        b"\x1b[?6n",
+        b"\x1b[3;2H\x1b[6n",
+        b"\x1bP+q436f\x1b\\",
+        b"\x1b[?2026l",
+    ]
+    .concat();
+    let expected = [
+        b"\x1b[?1;1R".as_slice(),
+        b"\x1b[3;2R".as_slice(),
+        b"\x1bP1+r436f3d323536\x1b\\".as_slice(),
+    ]
+    .concat();
+
+    for chunk_size in [input.len(), 1, 3, 7] {
+        let chunks = input
+            .chunks(chunk_size)
+            .map(<[u8]>::to_vec)
+            .collect::<Vec<_>>();
+        let (replies, _) = run_ssh_output(&chunks);
+        assert_eq!(
+            replies, expected,
+            "chunk size {chunk_size}: a capability answer keeps its stream position"
+        );
+    }
+}
+
+#[test]
+fn a_real_private_mode_query_never_consumes_an_ordering_reply() {
+    let mode_query = b"\x1b[?57344$p";
+    let mode_report = b"\x1b[?57344;0$y";
+    let input = [
+        b"\x1b[?2026h".as_slice(),
+        b"\x1b[4;7H\x1b[6n",
+        mode_query,
+        b"\x1b[c",
+        mode_query,
+        b"\x1b[9;3H\x1b[6n",
+        mode_query,
+        b"\x1b[?6n",
+        b"\x1b[?2026l",
+        b"\x1b[2;5H\x1b[6n",
+    ]
+    .concat();
+    let expected = [
+        b"\x1b[4;7R".as_slice(),
+        mode_report,
+        SSH_DA1_REPLY,
+        mode_report,
+        b"\x1b[9;3R",
+        mode_report,
+        b"\x1b[?1;1R",
+        b"\x1b[2;5R",
+    ]
+    .concat();
+
+    for chunk_size in [input.len(), 1, 2, 3, 7, 11, 16] {
+        let chunks = input
+            .chunks(chunk_size)
+            .map(<[u8]>::to_vec)
+            .collect::<Vec<_>>();
+        let (replies, _) = run_ssh_output(&chunks);
+        assert_eq!(
+            replies, expected,
+            "chunk size {chunk_size}: the program's own 57344 report keeps its place"
+        );
+    }
+}
+
+#[test]
+fn marker_aliases_and_cancellations_keep_their_real_reports() {
+    let mode_report = b"\x1b[?57344;0$y";
+    let input = [
+        b"\x1b[?2026h".as_slice(),
+        b"\x1b[4;7H\x1b[6n",
+        b"\x1b[?057344$p",
+        b"\x1b[?57344$\x18p",
+        b"\x1b[?57344;7$p",
+        b"\x1b[c",
+        b"\x1b[?57344$p",
+        b"\x1b[?2026l",
+        b"\x1b[2;5H\x1b[6n",
+    ]
+    .concat();
+    let expected = [
+        b"\x1b[4;7R".as_slice(),
+        mode_report,
+        mode_report,
+        SSH_DA1_REPLY,
+        mode_report,
+        b"\x1b[2;5R",
+    ]
+    .concat();
+
+    for chunk_size in [input.len(), 1, 2, 3, 7, 11, 16] {
+        let chunks = input
+            .chunks(chunk_size)
+            .map(<[u8]>::to_vec)
+            .collect::<Vec<_>>();
+        let (replies, _) = run_ssh_output(&chunks);
+        assert_eq!(
+            replies, expected,
+            "chunk size {chunk_size}: aliases and cancelled queries keep the model's report order"
+        );
+    }
+}
+
+#[test]
+fn extending_a_sync_block_keeps_earlier_private_reports_in_place() {
+    let input = b"\x1b[?2026h\x1b[?57344$p\x1b[?2026h\x1b[c\x1b[?2026l";
+    let expected = [b"\x1b[?57344;0$y".as_slice(), SSH_DA1_REPLY].concat();
+    for size in [1, 7, input.len()] {
+        let chunks = input.chunks(size).map(<[u8]>::to_vec).collect::<Vec<_>>();
+        assert_eq!(run_ssh_output(&chunks).0, expected, "chunk size {size}");
+    }
+}
+
+#[test]
+fn a_new_sync_block_in_the_same_chunk_keeps_pending_reports_in_place() {
+    let input = [
+        b"\x1b[?2026h".as_slice(),
+        b"\x1b[?57344$p",
+        b"\x1b[?2026h",
+        b"\x1b[c",
+        b"\x1b[?2026l",
+        b"\x1b[?2026h",
+        b"\x1b[?57344$p",
+        b"\x1b[c",
+        b"\x1b[?2026l",
+    ]
+    .concat();
+    let mode_report = b"\x1b[?57344;0$y";
+    let expected = [mode_report, SSH_DA1_REPLY, mode_report, SSH_DA1_REPLY].concat();
+    let shared_chunk = [
+        b"\x1b[?2026h\x1b[?57344$p\x1b[?2026h".to_vec(),
+        b"\x1b[c\x1b[?2026l\x1b[?2026h\x1b[?57344$p".to_vec(),
+        b"\x1b[c\x1b[?2026l".to_vec(),
+    ];
+    assert_eq!(
+        run_ssh_output(&shared_chunk).0,
+        expected,
+        "an ESU and a new BSU in one chunk keep both reports in place"
+    );
+    for size in [1, 7, 11, input.len()] {
+        let chunks = input.chunks(size).map(<[u8]>::to_vec).collect::<Vec<_>>();
+        assert_eq!(run_ssh_output(&chunks).0, expected, "chunk size {size}");
+    }
 }

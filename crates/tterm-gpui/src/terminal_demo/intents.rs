@@ -38,6 +38,9 @@ pub(super) fn handle_intent(intent: Intent, state: &SessionState, mut write: imp
         Intent::ClipboardStore { text, .. } => {
             state.clipboard.store(text);
         }
+        // The parser pipeline resolves this marker before ordinary intent
+        // handling; it carries no user-visible action of its own.
+        Intent::OrderedReply(_) => {}
         // The view reads the cursor's blinking from each snapshot.
         Intent::CursorBlinkingChanged | Intent::ClipboardRead { .. } | Intent::Bell => {}
     }
