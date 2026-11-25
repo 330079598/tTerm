@@ -69,6 +69,7 @@ pub(super) fn failed(
         title: Arc::new(Mutex::new(None)),
         program_title: RefCell::default(),
         paste_controller: None,
+        context_menu: None,
     }
 }
 

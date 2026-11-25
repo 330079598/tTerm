@@ -61,6 +61,18 @@ impl Harness {
         Self::with_config_and_view(cx, config, TerminalViewConfig::default())
     }
 
+    /// Opens a view with the caller's pointer and clipboard settings.
+    pub fn with_view_config(cx: &mut TestAppContext, view_config: TerminalViewConfig) -> Self {
+        Self::with_config_and_view(
+            cx,
+            Config {
+                kitty_keyboard: true,
+                ..Config::default()
+            },
+            view_config,
+        )
+    }
+
     fn with_config_and_view(
         cx: &mut TestAppContext,
         config: Config,

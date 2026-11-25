@@ -139,6 +139,10 @@ impl ContextMenu {
     pub fn is_open(&self) -> bool {
         self.open
     }
+    /// Closes the menu and restores the focus it took, as Escape does.
+    pub fn dismiss(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        self.close(window, cx);
+    }
     pub fn highlighted(&self) -> Option<usize> {
         self.highlighted
     }

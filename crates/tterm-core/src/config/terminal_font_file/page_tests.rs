@@ -30,13 +30,17 @@ fn applies_only_the_changed_fields_to_the_latest_file() {
             terminal_padding_left_px: 7,
             terminal_padding_right_px: 8,
             terminal_padding_bottom_px: 9,
+            confirm_multiline_paste: false,
+            copy_on_select: true,
+            right_click_paste: false,
             ..AppConfig::default()
         },
     );
     let snapshot = super::super::load_config_at(&path).unwrap();
 
-    // Another client changes the theme, several page fields and the
-    // scrollback between the snapshot this window loaded and its save.
+    // Another client changes the theme, several page fields, the scrollback
+    // and the clipboard preferences between the snapshot this window loaded
+    // and its save.
     let mut other_client = super::super::load_config_at(&path).unwrap();
     other_client.theme = "nord".to_string();
     other_client.terminal_letter_spacing = 4;
@@ -45,6 +49,9 @@ fn applies_only_the_changed_fields_to_the_latest_file() {
     other_client.terminal_padding_left_px = 20;
     other_client.terminal_padding_right_px = 21;
     other_client.terminal_padding_bottom_px = 22;
+    other_client.confirm_multiline_paste = true;
+    other_client.copy_on_select = false;
+    other_client.right_click_paste = true;
     seed(&path, &other_client);
     let extended = fs::read_to_string(&path)
         .unwrap()
@@ -70,6 +77,9 @@ fn applies_only_the_changed_fields_to_the_latest_file() {
             padding_left: 20,
             padding_right: 21,
             padding_bottom: 22,
+            confirm_multiline_paste: true,
+            copy_on_select: false,
+            right_click_paste: true,
         },
         "the untouched page fields keep the values the other client wrote"
     );
@@ -89,6 +99,14 @@ fn applies_only_the_changed_fields_to_the_latest_file() {
         ),
         (20, 21, 22)
     );
+    assert_eq!(
+        (
+            reloaded.confirm_multiline_paste,
+            reloaded.copy_on_select,
+            reloaded.right_click_paste,
+        ),
+        (true, false, true)
+    );
     assert!(fs::read_to_string(&path).unwrap().contains("1.2300e+45"));
     fs::remove_file(path).unwrap();
 }
@@ -104,6 +122,9 @@ fn a_cursor_and_padding_edit_keeps_the_latest_font_and_scrollback() {
             terminal_line_height: 1.2,
             terminal_letter_spacing: 1,
             scrollback_lines: 10_000,
+            confirm_multiline_paste: true,
+            copy_on_select: true,
+            right_click_paste: false,
             ..AppConfig::default()
         },
     );
@@ -117,6 +138,9 @@ fn a_cursor_and_padding_edit_keeps_the_latest_font_and_scrollback() {
     other_client.terminal_line_height = 1.6;
     other_client.terminal_letter_spacing = 3;
     other_client.scrollback_lines = 25_000;
+    other_client.confirm_multiline_paste = false;
+    other_client.copy_on_select = false;
+    other_client.right_click_paste = true;
     seed(&path, &other_client);
 
     let mut draft = TerminalPageSettings::from(&snapshot);
@@ -138,8 +162,24 @@ fn a_cursor_and_padding_edit_keeps_the_latest_font_and_scrollback() {
             saved.padding_left,
             saved.padding_right,
             saved.padding_bottom,
+            saved.confirm_multiline_paste,
+            saved.copy_on_select,
+            saved.right_click_paste,
         ),
-        ("Fira Code", 18, 1.6, 3, 25_000, "bar", 12, 14, 8),
+        (
+            "Fira Code",
+            18,
+            1.6,
+            3,
+            25_000,
+            "bar",
+            12,
+            14,
+            8,
+            false,
+            false,
+            true
+        ),
         "an old field the other client changed must survive a page edit"
     );
     let reloaded = super::super::load_config_at(&path).unwrap();
@@ -154,8 +194,79 @@ fn a_cursor_and_padding_edit_keeps_the_latest_font_and_scrollback() {
             reloaded.terminal_padding_left_px,
             reloaded.terminal_padding_right_px,
             reloaded.terminal_padding_bottom_px,
+            reloaded.confirm_multiline_paste,
+            reloaded.copy_on_select,
+            reloaded.right_click_paste,
         ),
-        ("Fira Code", 18, 1.6, 3, 25_000, "bar", 12, 14, 8)
+        (
+            "Fira Code",
+            18,
+            1.6,
+            3,
+            25_000,
+            "bar",
+            12,
+            14,
+            8,
+            false,
+            false,
+            true
+        )
+    );
+    fs::remove_file(path).unwrap();
+}
+
+#[test]
+fn a_clipboard_edit_writes_only_its_field_and_keeps_an_external_page_edit() {
+    let path = temp_config();
+    seed(
+        &path,
+        &AppConfig {
+            font_family: "Menlo".to_string(),
+            font_size: 14,
+            confirm_multiline_paste: true,
+            copy_on_select: false,
+            right_click_paste: false,
+            ..AppConfig::default()
+        },
+    );
+    let snapshot = super::super::load_config_at(&path).unwrap();
+
+    // Another client changes the font and the preference this window keeps,
+    // between this window's snapshot and its clipboard save.
+    let mut other_client = super::super::load_config_at(&path).unwrap();
+    other_client.font_family = "Fira Code".to_string();
+    other_client.font_size = 18;
+    other_client.confirm_multiline_paste = false;
+    other_client.right_click_paste = true;
+    seed(&path, &other_client);
+
+    let mut draft = TerminalPageSettings::from(&snapshot);
+    draft.copy_on_select = true;
+
+    let saved = save_page_at(&path, &snapshot, draft).unwrap();
+
+    assert_eq!(
+        (
+            saved.family.as_str(),
+            saved.size,
+            saved.confirm_multiline_paste,
+            saved.copy_on_select,
+            saved.right_click_paste,
+        ),
+        ("Fira Code", 18, false, true, true),
+        "only the changed preference is written; the latest file wins the rest"
+    );
+    let reloaded = super::super::load_config_at(&path).unwrap();
+    assert_eq!(
+        (
+            reloaded.font_family.as_str(),
+            reloaded.font_size,
+            reloaded.confirm_multiline_paste,
+            reloaded.copy_on_select,
+            reloaded.right_click_paste,
+        ),
+        ("Fira Code", 18, false, true, true)
     );
     fs::remove_file(path).unwrap();
 }
@@ -178,6 +289,9 @@ fn reports_the_values_the_file_holds() {
             padding_left: 80,
             padding_right: 0,
             padding_bottom: 80,
+            confirm_multiline_paste: false,
+            copy_on_select: true,
+            right_click_paste: true,
         },
     )
     .unwrap();
@@ -200,6 +314,9 @@ fn reports_the_values_the_file_holds() {
         ),
         (80, 0, 80)
     );
+    assert!(!saved.confirm_multiline_paste);
+    assert!(saved.copy_on_select);
+    assert!(saved.right_click_paste);
     fs::remove_file(path).unwrap();
 }
 
@@ -321,6 +438,23 @@ fn refuses_to_merge_into_an_unreadable_config() {
     };
 
     for damaged in ["{", r#"{"theme":false}"#] {
+        fs::write(&path, damaged).unwrap();
+        assert!(save_page_at(&path, &previous, draft.clone()).is_err());
+        assert_eq!(fs::read_to_string(&path).unwrap(), damaged);
+    }
+    fs::remove_file(path).unwrap();
+}
+
+#[test]
+fn refuses_a_clipboard_edit_to_an_unreadable_config() {
+    let path = temp_config();
+    let previous = AppConfig::default();
+    let mut draft = TerminalPageSettings::from(&previous);
+    draft.confirm_multiline_paste = !draft.confirm_multiline_paste;
+    draft.copy_on_select = !draft.copy_on_select;
+    draft.right_click_paste = !draft.right_click_paste;
+
+    for damaged in ["{", r#"{"confirm_multiline_paste":false}"#] {
         fs::write(&path, damaged).unwrap();
         assert!(save_page_at(&path, &previous, draft.clone()).is_err());
         assert_eq!(fs::read_to_string(&path).unwrap(), damaged);

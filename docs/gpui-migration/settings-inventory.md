@@ -37,7 +37,7 @@
 
 | 页面     | GPUI 状态              | 实际内容                                                                                    | 说明                                                                                  |
 | -------- | ---------------------- | ------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------- |
-| Terminal | 局部 | 字号、行高、字距、字体系列、光标、回滚行数、三侧内边距及预览；页尾统一保存 | 9/18 个设置字段可编辑；见[第三批证据](reports/P4-16-cursor-padding.md) |
+| Terminal | 局部 | 字体与间距、光标、三项剪贴板行为、回滚行数、三侧内边距及预览；页尾统一保存 | 12/18 个设置字段可编辑；见[第四批证据](reports/P4-16-clipboard.md) |
 | shells   | 局部（`9eb24d8b`） | 自定义 shell 列表、新增/编辑（程序、名称、参数）、显式保存、失败保留草稿、Escape/Enter 处理 | 启动菜单有 Auto，设置页无 Auto 行；自动发现、默认、隐藏、复制、排序、删除、路径检查及桌面验收待做 |
 
 侧栏只出现 Experience 组与这两行；搜索列出已实现的字体、预览、回滚和 Shell 条目。因此“搜索能打开某页”不能当作该页实现。
@@ -141,8 +141,8 @@
 
 - **迁移卡**：P4-16。
 - **React**：[`FontSettingsTab.tsx`](../../src/components/SettingsDialog/FontSettingsTab.tsx)、[`FontFamilyPicker.tsx`](../../src/components/SettingsDialog/FontFamilyPicker.tsx)、[`CursorStylePicker.tsx`](../../src/components/SettingsDialog/CursorStylePicker.tsx)、[`ScrollbackLinesField.tsx`](../../src/components/SettingsDialog/ScrollbackLinesField.tsx)、[`TerminalPaddingFields.tsx`](../../src/components/SettingsDialog/TerminalPaddingFields.tsx)、[`useTerminalSettingsDraft.ts`](../../src/components/SettingsDialog/useTerminalSettingsDraft.ts)。
-- **GPUI 交互**：局部。字体组、光标样式、回滚行数、内边距和预览按原版顺序呈现，九个字段显式保存。行为开关和渲染器仍没有编辑控件。
-- **双端存储**：React 可一次保存 18 个终端字段；GPUI 对已实现的九个字段用一次文件更新，只改用户修改的字段。隔离文件读回已测，双客户端桌面互写待验。
+- **GPUI 交互**：局部。字体组、光标样式、三个剪贴板开关、回滚行数、内边距和预览按原版顺序呈现；12 个字段显式保存。
+- **双端存储**：React 可一次保存 18 个终端字段；GPUI 对已实现的 12 个字段用一次文件更新，只改用户修改的字段。隔离文件读回已测，双客户端桌面互写待验。
 - **视觉/证据**：局部。5 张 GPUI 截图只比较标题/搜索区与回滚字段；侧栏页面集合、拉丁字体宽度、数字步进器、Save 位置均有已知差异，整页未通过。见 [P4-15 报告](reports/P4-15.md) 与 [资产](reports/assets/settings-scrollback-flow/)。
 
 控件与动作：
@@ -154,7 +154,7 @@
 
 平台/条件：`mac_option_is_meta` 仅 macOS；`local_unix_shell_integration` 仅非 Windows 且依赖命令标记。
 
-待补：其余 9 个字段、整页布局、浅色与不同缩放、跨平台桌面复核。见[光标与内边距截图](reports/P4-16-cursor-padding.md)。
+待补：OSC 52、Option 作为 Meta、命令标记、本机 Shell 集成、渲染器选择与隐藏时释放时限（共 6 项）；另需复核整页布局、浅色、多缩放和跨平台桌面。见[光标与内边距截图](reports/P4-16-cursor-padding.md)及[剪贴板截图](reports/P4-16-clipboard.md)。
 
 ### 4.6 `shells` — Shell
 

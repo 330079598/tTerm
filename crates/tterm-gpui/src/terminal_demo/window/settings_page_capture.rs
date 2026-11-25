@@ -120,7 +120,7 @@ pub(crate) fn capture_headlessly(output: &Path, reference: &Path) -> Result<(), 
 
     let mut screens = serde_json::Map::new();
     capture_terminal_page(&mut context, window.into(), output, &mut screens)?;
-    capture_cursor_and_padding(&mut context, window.into(), output, &mut screens)?;
+    capture_search_targets(&mut context, window.into(), output, &mut screens)?;
     type_text(&mut context, window.into(), "scrollback")?;
     capture(
         &mut context,
@@ -211,7 +211,7 @@ fn capture_terminal_page(
     scroll_content(context, window, 3000.0)
 }
 
-fn capture_cursor_and_padding(
+fn capture_search_targets(
     context: &mut HeadlessAppContext,
     handle: gpui_kit::AnyWindowHandle,
     output: &Path,
@@ -219,6 +219,7 @@ fn capture_cursor_and_padding(
 ) -> Result<(), String> {
     for (query, screen) in [
         ("cursor style", "settings.terminal.cursor"),
+        ("confirm multiline paste", "settings.terminal.clipboard"),
         ("terminal padding", "settings.terminal.padding"),
     ] {
         focus_search(context, handle)?;

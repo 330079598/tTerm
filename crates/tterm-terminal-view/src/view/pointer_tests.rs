@@ -824,6 +824,85 @@ fn right_click_pastes_through_the_same_gate_when_enabled(cx: &mut TestAppContext
 }
 
 #[gpui_kit::test]
+fn right_click_paste_leaves_shift_and_reported_clicks_to_the_existing_paths(
+    cx: &mut TestAppContext,
+) {
+    let h = Harness::new(cx);
+    h.update(cx, |view, _, _| view.set_clipboard_options(false, true));
+    h.output(cx, b"hello\x1b[?1000h\x1b[?1006h");
+    cx.update(|cx| cx.write_to_clipboard(ClipboardItem::new_string("pasted".into())));
+
+    // A program that reports the mouse keeps the right click, even when the
+    // local paste preference is on.
+    press(
+        &h,
+        cx,
+        2.1,
+        0.5,
+        MouseButton::Right,
+        Modifiers::default(),
+        1,
+    );
+    release(
+        &h,
+        cx,
+        2.1,
+        0.5,
+        MouseButton::Right,
+        Modifiers::default(),
+        1,
+    );
+    assert_eq!(&*h.bytes.borrow(), b"\x1b[<2;3;1M\x1b[<2;3;1m");
+
+    // Shift stays local instead of pasting. A view with a host menu reports
+    // the gesture there; this bare view has none.
+    h.bytes.borrow_mut().clear();
+    let modifiers = Modifiers {
+        shift: true,
+        ..Default::default()
+    };
+    press(&h, cx, 2.1, 0.5, MouseButton::Right, modifiers, 1);
+    release(&h, cx, 2.1, 0.5, MouseButton::Right, modifiers, 1);
+    assert!(h.bytes.borrow().is_empty());
+}
+
+#[gpui_kit::test]
+fn copy_on_select_only_copies_a_left_release(cx: &mut TestAppContext) {
+    let h = Harness::new(cx);
+    h.update(cx, |view, _, _| view.set_clipboard_options(true, false));
+    h.output(cx, b"hello world");
+    drag(&h, cx, Modifiers::default());
+    cx.update(|cx| cx.write_to_clipboard(ClipboardItem::new_string("keep".into())));
+
+    // A right release may finish a selection, but only the left button copies.
+    let position = position(&h, cx, 4.9, 0.5);
+    h.event(
+        cx,
+        MouseDownEvent {
+            button: MouseButton::Right,
+            position,
+            click_count: 1,
+            ..Default::default()
+        },
+    );
+    h.event(
+        cx,
+        MouseUpEvent {
+            button: MouseButton::Right,
+            position,
+            click_count: 1,
+            ..Default::default()
+        },
+    );
+    assert!(h.terminal.selection_text().is_some());
+    assert_eq!(
+        cx.update(|cx| cx.read_from_clipboard().and_then(|item| item.text())),
+        Some("keep".into()),
+        "copy on select follows the reference's left-button rule"
+    );
+}
+
+#[gpui_kit::test]
 fn page_padding_is_not_a_cell_and_never_reaches_the_program(cx: &mut TestAppContext) {
     let h = Harness::with_padding(cx, TerminalPadding::new(11, 7, 5));
     let content = h

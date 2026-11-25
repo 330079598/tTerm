@@ -73,7 +73,7 @@ pub struct LocalShellsChanged {
     pub default_shell: DefaultShellSettings,
 }
 
-/// Emitted after the strict config file accepted a Terminal font change.
+/// Emitted after the strict config file accepted a Terminal page change.
 #[derive(Clone, Debug, PartialEq)]
 pub struct TerminalFontChanged {
     /// The CSS font-family chain the file holds.
@@ -84,6 +84,12 @@ pub struct TerminalFontChanged {
     pub line_height: f64,
     /// The extra cell spacing in pixels the file holds.
     pub letter_spacing: i8,
+    /// Whether a multiline paste asks before it reaches the shell.
+    pub confirm_multiline_paste: bool,
+    /// Whether releasing the mouse selection copies it.
+    pub copy_on_select: bool,
+    /// Whether right-clicking pastes instead of opening the context menu.
+    pub right_click_paste: bool,
 }
 
 /// The application's live configuration entity.
@@ -397,13 +403,17 @@ impl ConfigState {
         self.config.terminal_padding_left_px = saved.padding_left;
         self.config.terminal_padding_right_px = saved.padding_right;
         self.config.terminal_padding_bottom_px = saved.padding_bottom;
+        self.config.confirm_multiline_paste = saved.confirm_multiline_paste;
+        self.config.copy_on_select = saved.copy_on_select;
+        self.config.right_click_paste = saved.right_click_paste;
     }
 
     /// Saves every Terminal page field as one configuration edit.
     ///
     /// The draft covers the font family, size, line height, letter spacing,
-    /// scrollback capacity, cursor style and page padding, so pressing Enter
-    /// in any field writes the whole page rather than only the focused input.
+    /// scrollback capacity, cursor style, page padding and the clipboard
+    /// preferences, so pressing Enter in any field writes the whole page
+    /// rather than only the focused input.
     /// The draft is checked with the shared core rules before a writer runs.
     /// The writer applies only the fields that differ from this state's
     /// snapshot to the latest config file and returns the values the file now
@@ -451,6 +461,9 @@ impl ConfigState {
                         size: saved.size,
                         line_height: saved.line_height,
                         letter_spacing: saved.letter_spacing,
+                        confirm_multiline_paste: saved.confirm_multiline_paste,
+                        copy_on_select: saved.copy_on_select,
+                        right_click_paste: saved.right_click_paste,
                     };
                     let published = changed.clone();
                     let _ = this.update(cx, |state, cx| {
@@ -458,8 +471,8 @@ impl ConfigState {
                         state.apply_terminal_page(&saved);
                         state.config.scrollback_lines = scrollback_lines;
                         // The event is emitted after the complete snapshot, so a
-                        // listener sees cursor and padding changes that the font
-                        // event fields do not carry.
+                        // listener sees cursor, padding and clipboard changes that
+                        // the font event fields do not carry alone.
                         cx.emit(published);
                         if scrollback_lines != previous_lines {
                             cx.emit(ScrollbackChanged {

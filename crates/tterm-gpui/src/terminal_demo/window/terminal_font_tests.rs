@@ -249,6 +249,27 @@ impl Harness<'_> {
         })
     }
 
+    fn clipboard(&self, id: usize) -> (bool, bool) {
+        self.root.read_with(self.visual, |workspace, cx| {
+            let view = workspace.tabs.get(id).expect("the tab").view.read(cx);
+            (view.copy_on_select(), view.right_click_paste())
+        })
+    }
+
+    fn multiline_confirmation(&self, id: usize) -> bool {
+        self.root.read_with(self.visual, |workspace, cx| {
+            workspace
+                .tabs
+                .get(id)
+                .expect("the tab")
+                .paste_controller
+                .as_ref()
+                .expect("a live tab has a paste controller")
+                .read(cx)
+                .confirm_multiline()
+        })
+    }
+
     /// The shape a reset cursor returns to in a pane's live model.
     fn reset_cursor_shape(&self, id: usize) -> CursorShape {
         let model = self.model(id);
@@ -464,6 +485,107 @@ async fn a_committed_page_reaches_split_and_new_panes_with_cursor_and_padding(
     h.draw();
     assert_eq!(h.padding(3), TerminalPadding::new(13, 5, 9));
     assert_eq!(h.reset_cursor_shape(3), CursorShape::Beam);
+}
+
+#[gpui_kit::test]
+async fn a_committed_clipboard_page_reaches_existing_split_and_new_panes(cx: &mut TestAppContext) {
+    use tterm_core::config::terminal_font_file::TerminalPageSettings;
+
+    let mut h = harness(cx);
+    h.open_tab();
+    h.draw();
+    let root = h.root.clone();
+    h.visual.update(|window, cx| {
+        root.update(cx, |workspace, cx| {
+            workspace.select_tab(1, window, cx);
+            workspace.split_tab(2, 1, Edge::Right, window, cx);
+        });
+    });
+    h.draw();
+
+    let save = h.visual.update(|_, cx| {
+        h.config.update(cx, |state, cx| {
+            let mut page = TerminalPageSettings::from(state.config());
+            page.confirm_multiline_paste = false;
+            page.copy_on_select = true;
+            page.right_click_paste = true;
+            state.save_terminal_page(page, cx)
+        })
+    });
+    save.await
+        .expect("the committed clipboard page is accepted");
+    h.draw();
+
+    for id in [1, 2] {
+        assert_eq!(
+            h.clipboard(id),
+            (true, true),
+            "an existing split pane takes the clipboard rules"
+        );
+        assert!(
+            !h.multiline_confirmation(id),
+            "the open pane stops asking for multiline pastes"
+        );
+    }
+
+    // A new tab and a pane split after the save read the committed snapshot.
+    h.open_tab();
+    h.open_tab();
+    let root = h.root.clone();
+    h.visual.update(|window, cx| {
+        root.update(cx, |workspace, cx| {
+            workspace.select_tab(3, window, cx);
+            workspace.split_tab(4, 3, Edge::Bottom, window, cx);
+        });
+    });
+    h.draw();
+    for id in [3, 4] {
+        assert_eq!(h.clipboard(id), (true, true));
+        assert!(!h.multiline_confirmation(id));
+    }
+}
+
+#[gpui_kit::test]
+async fn an_unsaved_or_failed_clipboard_page_leaves_every_pane_alone(cx: &mut TestAppContext) {
+    use tterm_core::config::terminal_font_file::TerminalPageSettings;
+
+    let initial = AppConfig {
+        confirm_multiline_paste: true,
+        copy_on_select: false,
+        right_click_paste: false,
+        ..config()
+    };
+    let mut h = harness_with(cx, initial, failing_font());
+    h.draw();
+    assert_eq!(h.clipboard(1), (false, false));
+    assert!(h.multiline_confirmation(1));
+
+    // Editing the draft only changes the local value; the pane keeps the
+    // committed one until the page is saved.
+    let draft = h.config.read_with(h.visual, |state, _| {
+        let mut page = TerminalPageSettings::from(state.config());
+        page.confirm_multiline_paste = false;
+        page.copy_on_select = true;
+        page.right_click_paste = true;
+        page
+    });
+    h.draw();
+    assert_eq!(h.clipboard(1), (false, false));
+    assert!(h.multiline_confirmation(1));
+
+    let save = h.visual.update(|_, cx| {
+        h.config
+            .update(cx, |state, cx| state.save_terminal_page(draft, cx))
+    });
+    assert_eq!(save.await, Err("the config file is read-only".to_string()));
+    h.config.read_with(h.visual, |state, _| {
+        assert!(state.config().confirm_multiline_paste);
+        assert!(!state.config().copy_on_select);
+        assert!(!state.config().right_click_paste);
+    });
+    h.draw();
+    assert_eq!(h.clipboard(1), (false, false));
+    assert!(h.multiline_confirmation(1));
 }
 
 #[gpui_kit::test]

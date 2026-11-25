@@ -35,7 +35,8 @@ pub struct SavedTerminalFont {
 ///
 /// The page keeps every value in one draft so one Save cannot write only the
 /// field that happened to have focus. The scrollback capacity is part of the
-/// same edit because the page shows it beside the font fields.
+/// same edit because the page shows it beside the font fields, and the
+/// clipboard preferences travel with it for the same reason.
 #[derive(Debug, Clone, PartialEq)]
 pub struct TerminalPageSettings {
     /// The CSS font-family chain, trimmed by the save.
@@ -56,6 +57,14 @@ pub struct TerminalPageSettings {
     pub padding_right: u16,
     /// The bottom page padding in logical pixels.
     pub padding_bottom: u16,
+    /// Ask before pasting text with line breaks into a shell that would run
+    /// each line as it arrives.
+    pub confirm_multiline_paste: bool,
+    /// Copy the terminal selection to the clipboard when the mouse button
+    /// is released.
+    pub copy_on_select: bool,
+    /// Right-clicking the terminal pastes instead of opening the context menu.
+    pub right_click_paste: bool,
 }
 
 impl From<&AppConfig> for TerminalPageSettings {
@@ -70,6 +79,9 @@ impl From<&AppConfig> for TerminalPageSettings {
             padding_left: config.terminal_padding_left_px,
             padding_right: config.terminal_padding_right_px,
             padding_bottom: config.terminal_padding_bottom_px,
+            confirm_multiline_paste: config.confirm_multiline_paste,
+            copy_on_select: config.copy_on_select,
+            right_click_paste: config.right_click_paste,
         }
     }
 }
@@ -139,6 +151,15 @@ pub(super) fn save_page_at(
         if checked.padding_bottom != previous.padding_bottom {
             config.terminal_padding_bottom_px = checked.padding_bottom;
         }
+        if checked.confirm_multiline_paste != previous.confirm_multiline_paste {
+            config.confirm_multiline_paste = checked.confirm_multiline_paste;
+        }
+        if checked.copy_on_select != previous.copy_on_select {
+            config.copy_on_select = checked.copy_on_select;
+        }
+        if checked.right_click_paste != previous.right_click_paste {
+            config.right_click_paste = checked.right_click_paste;
+        }
         super::compatible_file::save_at(path, &config)?;
         config = super::load_config_at(path)?;
     }
@@ -191,6 +212,9 @@ fn checked_page(settings: TerminalPageSettings) -> Result<TerminalPageSettings, 
         padding_left: settings.padding_left,
         padding_right: settings.padding_right,
         padding_bottom: settings.padding_bottom,
+        confirm_multiline_paste: settings.confirm_multiline_paste,
+        copy_on_select: settings.copy_on_select,
+        right_click_paste: settings.right_click_paste,
     })
 }
 

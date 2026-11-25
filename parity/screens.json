@@ -306,6 +306,17 @@
       ]
     },
     {
+      "id": "settings.terminal.clipboard",
+      "title": "Terminal clipboard preferences",
+      "fixture": "settings.reference.json",
+      "uiStyles": ["classic"],
+      "uiScalePercents": [100],
+      "actions": [
+        { "type": "click", "target": "settings.layout.tab.terminal" },
+        { "type": "scrollTo", "target": "settings.clipboard.preferences" }
+      ]
+    },
+    {
       "id": "settings.terminal.padding",
       "title": "Terminal edge padding",
       "fixture": "settings.reference.json",

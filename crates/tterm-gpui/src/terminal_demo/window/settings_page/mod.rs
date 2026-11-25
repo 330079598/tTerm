@@ -26,6 +26,7 @@ use tterm_ui::tokens::theme::Theme;
 use self::search::{LOCAL_SHELLS_PAGE_VALUE, TERMINAL_PAGE_VALUE};
 use super::Prototype;
 use crate::appearance_setting::{AppearancePageSubmit, AppearanceSetting};
+use crate::clipboard_setting::ClipboardSetting;
 use crate::font_setting::{FontPageSubmit, FontSetting};
 use crate::local_shells_setting::LocalShellsSetting;
 use crate::locale::Locale;
@@ -71,15 +72,17 @@ pub(crate) enum SettingsTab {
 pub(super) enum SettingsSection {
     Font,
     Cursor,
+    Clipboard,
     Scrollback,
     Padding,
     Preview,
     Save,
 }
 
-pub(super) const SETTINGS_SECTIONS: [SettingsSection; 6] = [
+pub(super) const SETTINGS_SECTIONS: [SettingsSection; 7] = [
     SettingsSection::Font,
     SettingsSection::Cursor,
+    SettingsSection::Clipboard,
     SettingsSection::Scrollback,
     SettingsSection::Padding,
     SettingsSection::Preview,
@@ -118,6 +121,7 @@ pub(super) struct SettingsPage {
     scrollback: Entity<ScrollbackSetting>,
     font: Entity<FontSetting>,
     appearance: Entity<AppearanceSetting>,
+    clipboard: Entity<ClipboardSetting>,
     local_shells: Entity<LocalShellsSetting>,
     search_input: Option<Entity<InputState>>,
     _search_events: Option<Subscription>,
@@ -152,10 +156,13 @@ impl SettingsPage {
     ) -> Self {
         let config = scrollback.read(cx).config_entity();
         let font = cx.new(|cx| FontSetting::new(config.clone(), locale.clone(), theme, cx));
-        let appearance = cx.new(|cx| AppearanceSetting::new(config, locale.clone(), theme, cx));
+        let appearance =
+            cx.new(|cx| AppearanceSetting::new(config.clone(), locale.clone(), theme, cx));
+        let clipboard = cx.new(|cx| ClipboardSetting::new(config, locale.clone(), theme, cx));
         cx.observe(&scrollback, |_, _, cx| cx.notify()).detach();
         cx.observe(&font, |_, _, cx| cx.notify()).detach();
         cx.observe(&appearance, |_, _, cx| cx.notify()).detach();
+        cx.observe(&clipboard, |_, _, cx| cx.notify()).detach();
         let content_scroll = gpui_kit::ScrollHandle::new();
         cx.observe(&local_shells, |_, _, cx| cx.notify()).detach();
         Self {
@@ -164,6 +171,7 @@ impl SettingsPage {
             scrollback,
             font,
             appearance,
+            clipboard,
             local_shells,
             search_input: None,
             _search_events: None,
@@ -199,6 +207,8 @@ impl SettingsPage {
             .update(cx, |setting, cx| setting.open_page(window, cx));
         self.appearance
             .update(cx, |setting, cx| setting.open_page(window, cx));
+        self.clipboard
+            .update(cx, |setting, cx| setting.open_page(cx));
         self.local_shells
             .update(cx, |setting, cx| setting.open_page(cx));
         self.page_saving = false;
@@ -222,6 +232,7 @@ impl SettingsPage {
             || !self.scrollback.read(cx).can_close()
             || !self.font.read(cx).can_close()
             || !self.appearance.read(cx).can_close()
+            || !self.clipboard.read(cx).can_close()
             || !self.local_shells.read(cx).can_close()
         {
             return false;
@@ -233,10 +244,18 @@ impl SettingsPage {
         let appearance_closed = self
             .appearance
             .update(cx, |setting, cx| setting.close_page(cx));
+        let clipboard_closed = self
+            .clipboard
+            .update(cx, |setting, cx| setting.close_page(cx));
         let local_shells_closed = self
             .local_shells
             .update(cx, |setting, cx| setting.close_page(cx));
-        if !scrollback_closed || !font_closed || !appearance_closed || !local_shells_closed {
+        if !scrollback_closed
+            || !font_closed
+            || !appearance_closed
+            || !clipboard_closed
+            || !local_shells_closed
+        {
             return false;
         }
         self.open = false;
@@ -349,6 +368,9 @@ impl SettingsPage {
         else {
             return;
         };
+        let (confirm_multiline_paste, copy_on_select, right_click_paste) = self
+            .clipboard
+            .update(cx, |clipboard, cx| clipboard.page_values(cx));
         self.page_saving = true;
         self.page_saved = false;
         self.page_error = None;
@@ -363,6 +385,9 @@ impl SettingsPage {
             padding_left,
             padding_right,
             padding_bottom,
+            confirm_multiline_paste,
+            copy_on_select,
+            right_click_paste,
         };
         let config = self.scrollback.read(cx).config_entity();
         let task = config.update(cx, |config, cx| config.save_terminal_page(settings, cx));
@@ -389,6 +414,9 @@ impl SettingsPage {
         });
         self.appearance.update(cx, |appearance, cx| {
             appearance.page_save_result(result.clone(), window, cx)
+        });
+        self.clipboard.update(cx, |clipboard, cx| {
+            clipboard.page_save_result(result.clone(), cx)
         });
         self.scrollback.update(cx, |scrollback, cx| {
             scrollback.page_save_result(result, window, cx)
@@ -529,6 +557,10 @@ impl SettingsPage {
                             setting.focus_cursor(window, cx);
                         });
                         self.scroll_to_section(SettingsSection::Cursor);
+                    } else if self.clipboard.update(cx, |editor, cx| {
+                        editor.focus_search_result(&result.title, window, cx)
+                    }) {
+                        self.scroll_to_section(SettingsSection::Clipboard);
                     } else if result.title
                         == search::text(self.locale.read(cx), keys::FONT_SETTINGS_TERMINAL_PADDING)
                     {

@@ -4,7 +4,7 @@ use super::surface::{css_color, css_group_color, shadow_xs, surface};
 use crate::tokens::color::Hsl;
 use crate::tokens::theme::Theme;
 use gpui_kit::base::Toggle;
-use gpui_kit::{App, ClickEvent, IntoElement, ParentElement, Styled, Window, div, px};
+use gpui_kit::{App, ClickEvent, ParentElement, Styled, Window, div, px};
 
 /// The controlled state of a [`switch`].
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
@@ -70,7 +70,7 @@ pub fn switch(
     state: SwitchState,
     theme: Theme,
     on_change: impl Fn(bool, &ClickEvent, &mut Window, &mut App) + 'static,
-) -> impl IntoElement {
+) -> Toggle {
     let computed = style(state, theme);
     let backdrop = state.backdrop.unwrap_or(theme.colors.background);
     // Both layers are opaque, so the CSS group opacity is reproduced exactly by
@@ -112,6 +112,7 @@ pub fn switch(
 mod tests {
     use super::*;
     use crate::tokens::palette::{DARK, LIGHT};
+    use gpui_kit::IntoElement;
     use gpui_kit::test::TestWindowExt as _;
     use gpui_kit::{KeyDownEvent, KeyUpEvent, Keystroke, Modifiers, Render, TestAppContext, point};
     use std::cell::RefCell;

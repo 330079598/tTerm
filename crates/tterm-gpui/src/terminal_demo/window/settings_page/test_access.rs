@@ -165,6 +165,16 @@ impl SettingsPage {
     }
 
     #[cfg(test)]
+    pub(crate) fn clipboard_values(&self, cx: &App) -> (bool, bool, bool) {
+        self.clipboard.read(cx).values()
+    }
+
+    #[cfg(test)]
+    pub(crate) fn clipboard_error(&self, cx: &App) -> Option<String> {
+        self.clipboard.read(cx).error().map(str::to_string)
+    }
+
+    #[cfg(test)]
     pub(crate) fn appearance_cursor_focus(&self, cx: &App) -> Option<gpui_kit::FocusHandle> {
         Some(self.appearance.read(cx).cursor_focus())
     }

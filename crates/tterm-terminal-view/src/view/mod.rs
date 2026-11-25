@@ -17,6 +17,7 @@ mod blink;
 mod cache;
 mod clipboard;
 mod composition;
+pub mod context_menu;
 pub mod element;
 pub mod font;
 mod frame;
@@ -37,6 +38,8 @@ pub mod search;
 mod style;
 mod wheel;
 
+#[cfg(test)]
+mod context_menu_tests;
 #[cfg(test)]
 mod ime_tests;
 #[cfg(test)]
@@ -152,6 +155,8 @@ pub struct TerminalViewConfig {
     pub copy_on_select: bool,
     /// Paste on a local right-click, as Windows Terminal does.
     pub right_click_paste: bool,
+    /// Opens the host's Copy/Paste menu from a right-click gesture.
+    pub context_menu: Option<context_menu::ContextMenuHandler>,
     /// Formats dropped paths for the local tab's shell. `None` ignores drops,
     /// which keeps remote sessions from receiving local paths.
     pub drop_text: Option<paste::DropText>,
@@ -242,6 +247,7 @@ pub struct TerminalView {
     paste_gate: Option<paste::PasteGate>,
     copy_on_select: bool,
     right_click_paste: bool,
+    context_menu: Option<context_menu::ContextMenuHandler>,
     drop_text: Option<paste::DropText>,
     consumed_keys: HashSet<String>,
     input_focused: bool,
@@ -301,6 +307,7 @@ impl TerminalView {
             paste_gate: config.paste_gate,
             copy_on_select: config.copy_on_select,
             right_click_paste: config.right_click_paste,
+            context_menu: config.context_menu,
             drop_text: config.drop_text,
             consumed_keys: HashSet::new(),
             input_focused: false,
@@ -471,6 +478,23 @@ impl TerminalView {
             listener(cx);
             self.search_stale = Some(listener);
         }
+    }
+
+    /// Updates the pointer clipboard rules without touching the session or a
+    /// paste that is already waiting for confirmation.
+    pub fn set_clipboard_options(&mut self, copy_on_select: bool, right_click_paste: bool) {
+        self.copy_on_select = copy_on_select;
+        self.right_click_paste = right_click_paste;
+    }
+
+    /// Whether releasing a local selection copies it.
+    pub fn copy_on_select(&self) -> bool {
+        self.copy_on_select
+    }
+
+    /// Whether a local right-click pastes instead of starting a selection.
+    pub fn right_click_paste(&self) -> bool {
+        self.right_click_paste
     }
 
     /// Replaces the palette and drops every cached row.

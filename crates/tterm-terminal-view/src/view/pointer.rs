@@ -116,16 +116,28 @@ impl TerminalView {
         let action = mouse::button_action(self.input_modes(), force_local);
         if action == ButtonAction::Local
             && button == mouse::MouseButton::Right
+            && self.context_menu.is_some()
+            && (event.modifiers.shift || !self.right_click_paste)
+        {
+            // Shift keeps the menu available even while the program reports
+            // the mouse, and an unmodified local right-click asks for it when
+            // right-click paste is off. A reported unmodified right click
+            // still belongs to the program above.
+            self.pointer.held = None;
+            self.show_context_menu(event.position, window, cx);
+            cx.stop_propagation();
+            return;
+        }
+        if action == ButtonAction::Local
+            && button == mouse::MouseButton::Right
             && self.right_click_paste
             && !event.modifiers.shift
         {
             // Windows Terminal and similar clients paste on right click. A
             // reported right click still belongs to the program above, and
-            // Shift keeps the context-menu gesture available for a later menu.
+            // Shift keeps the context-menu gesture available.
             self.pointer.held = None;
-            if let Some(text) = cx.read_from_clipboard().and_then(|item| item.text()) {
-                self.request_paste(&text, window, cx);
-            }
+            self.paste_from_clipboard(window, cx);
             cx.stop_propagation();
             return;
         }

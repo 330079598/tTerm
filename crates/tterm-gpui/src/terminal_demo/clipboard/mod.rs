@@ -102,6 +102,18 @@ impl PasteController {
         controller
     }
 
+    /// Applies a committed confirmation setting without dropping a paste that
+    /// is already waiting for its answer.
+    pub(super) fn set_confirm_multiline(&mut self, enabled: bool) {
+        self.confirm_multiline = enabled;
+    }
+
+    /// The confirmation setting currently in force.
+    #[cfg(test)]
+    pub(super) fn confirm_multiline(&self) -> bool {
+        self.confirm_multiline
+    }
+
     fn empty(cx: &mut Context<Self>, locale: Entity<Locale>, confirm_multiline: bool) -> Self {
         let locale_subscription = cx.observe(&locale, |this, _, cx| this.locale_changed(cx));
         Self {

@@ -1,20 +1,24 @@
 //! Applies the shared config terminal options to every pane, new and existing.
 //!
-//! The font, cursor style and page padding live in the strict config file. A
-//! pane reads them from the committed [`ConfigState`] snapshot when it is
-//! created, and an open pane follows the [`TerminalFontChanged`] event, which
-//! is emitted only after the file accepted the values and the snapshot was
+//! The font, cursor style, page padding and clipboard rules live in the strict
+//! config file. A pane reads them from the committed [`ConfigState`] snapshot
+//! when it is created, and an open pane follows the [`TerminalFontChanged`] event,
+//! which is emitted only after the file accepted the values and the snapshot was
 //! updated. A failed save therefore leaves every PTY, grid and row cache alone,
-//! and an unsaved draft never reaches a pane at all.
+//! and an unsaved draft never reaches a pane or a paste already waiting for an
+//! answer.
 //!
 //! The font reaches a pane through
 //! [`tterm_terminal_view::view::TerminalView::set_font`], which re-measures the cell,
 //! asks the session to resize its PTY and drops the cached rows without
 //! touching the model, its scrollback or the session identity. Padding goes
 //! through [`tterm_terminal_view::view::TerminalView::set_padding`], which refits only
-//! the content rectangle. The cursor shape is the model's default, so a live
-//! DECSCUSR override and a hidden cursor still win; resetting the cursor
-//! returns to the configured shape. An unchanged value is a no-op, so
+//! the content rectangle. Clipboard rules go through
+//! [`tterm_terminal_view::view::TerminalView::set_clipboard_options`] and the paste
+//! controller's confirmation field; neither drops a pending paste or moves its
+//! delivery to whichever pane has focus. The cursor shape is the model's
+//! default, so a live DECSCUSR override and a hidden cursor still win; resetting
+//! the cursor returns to the configured shape. An unchanged value is a no-op, so
 //! repeating a commit cannot double-resize a PTY.
 //!
 //! [`ConfigState`]: crate::config_state::ConfigState
@@ -68,22 +72,34 @@ impl Prototype {
     /// fails, is refused while another save is pending, or never happens
     /// cannot change a pane. New panes read the same snapshot in
     /// [`TabFactory::shared_font`], [`TabFactory::shared_padding`] and
-    /// [`TabFactory::shared_cursor_shape`], which keeps the two paths in
-    /// agreement.
+    /// [`TabFactory::shared_cursor_shape`]; their open path also reads the
+    /// clipboard fields from it, which keeps the two paths in agreement.
     pub(super) fn subscribe_shared_font(&self, cx: &mut Context<Self>) -> Subscription {
         let config = self.factory.config.clone();
-        cx.subscribe(&config, |prototype, _, _: &TerminalFontChanged, cx| {
-            let font = prototype.factory.shared_font(cx);
-            let padding = prototype.factory.shared_padding(cx);
-            let cursor = prototype.factory.shared_cursor_shape(cx);
-            prototype.factory.sessions.set_default_cursor_shape(cursor);
-            for (_, tab) in prototype.tabs.ordered() {
-                tab.view.update(cx, |view, cx| {
-                    view.set_font(font.clone(), cx);
-                    view.set_padding(padding, cx);
-                    view.notify_settings_changed(cx);
-                });
-            }
-        })
+        cx.subscribe(
+            &config,
+            |prototype, _, changed: &TerminalFontChanged, cx| {
+                let font = prototype.factory.shared_font(cx);
+                let padding = prototype.factory.shared_padding(cx);
+                let cursor = prototype.factory.shared_cursor_shape(cx);
+                prototype.factory.sessions.set_default_cursor_shape(cursor);
+                for (_, tab) in prototype.tabs.ordered() {
+                    tab.view.update(cx, |view, cx| {
+                        view.set_font(font.clone(), cx);
+                        view.set_padding(padding, cx);
+                        view.set_clipboard_options(
+                            changed.copy_on_select,
+                            changed.right_click_paste,
+                        );
+                        view.notify_settings_changed(cx);
+                    });
+                    if let Some(controller) = &tab.paste_controller {
+                        controller.update(cx, |controller, _| {
+                            controller.set_confirm_multiline(changed.confirm_multiline_paste);
+                        });
+                    }
+                }
+            },
+        )
     }
 }

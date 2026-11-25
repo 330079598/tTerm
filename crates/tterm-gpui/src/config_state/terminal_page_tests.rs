@@ -38,19 +38,14 @@ fn pending(cx: &TestAppContext, state: &Entity<ConfigState>) -> bool {
     cx.read(|app| state.read(app).is_save_pending())
 }
 
-type FontEvents = Arc<Mutex<Vec<(String, u16, f64, i8)>>>;
+type FontEvents = Arc<Mutex<Vec<TerminalFontChanged>>>;
 
 fn subscribe_font(cx: &mut TestAppContext, state: &Entity<ConfigState>) -> FontEvents {
     let events: FontEvents = Arc::new(Mutex::new(Vec::new()));
     let recorded = Arc::clone(&events);
     cx.update(|cx| {
         cx.subscribe(state, move |_, event: &TerminalFontChanged, _| {
-            recorded.lock().expect("font events").push((
-                event.family.clone(),
-                event.size,
-                event.line_height,
-                event.letter_spacing,
-            ));
+            recorded.lock().expect("font events").push(event.clone());
         })
         .detach();
     });
@@ -116,6 +111,9 @@ async fn saves_the_page_then_publishes_the_actual_values_and_both_events(cx: &mu
             padding_left: 12,
             padding_right: 14,
             padding_bottom: 8,
+            confirm_multiline_paste: false,
+            copy_on_select: true,
+            right_click_paste: true,
         },
     )
     .await;
@@ -133,6 +131,9 @@ async fn saves_the_page_then_publishes_the_actual_values_and_both_events(cx: &mu
             padding_left: 12,
             padding_right: 14,
             padding_bottom: 8,
+            confirm_multiline_paste: false,
+            copy_on_select: true,
+            right_click_paste: true,
         }],
         "the checked draft reaches the one page writer"
     );
@@ -148,16 +149,79 @@ async fn saves_the_page_then_publishes_the_actual_values_and_both_events(cx: &mu
             padding_left: 12,
             padding_right: 14,
             padding_bottom: 8,
+            confirm_multiline_paste: false,
+            copy_on_select: true,
+            right_click_paste: true,
         },
         "the snapshot publishes what the writer reported, not the draft"
     );
     assert_eq!(
         *font_events.lock().expect("font events"),
-        vec![("Fira Code".to_string(), 20, 1.3, 2)]
+        vec![TerminalFontChanged {
+            family: "Fira Code".to_string(),
+            size: 20,
+            line_height: 1.3,
+            letter_spacing: 2,
+            confirm_multiline_paste: false,
+            copy_on_select: true,
+            right_click_paste: true,
+        }]
     );
     assert_eq!(
         *scrollback_events.lock().expect("scrollback events"),
         vec![50_000]
+    );
+}
+
+#[gpui_kit::test]
+async fn publishes_the_clipboard_preferences_the_file_reported(cx: &mut TestAppContext) {
+    let runtime = runtime();
+    let writer: TerminalPageWriter = Arc::new(|mut settings| {
+        // The save reads the page back, so values the file kept from an
+        // external edit win over the draft this window submitted.
+        settings.confirm_multiline_paste = false;
+        settings.copy_on_select = true;
+        settings.right_click_paste = true;
+        Ok(settings)
+    });
+    let start = AppConfig {
+        confirm_multiline_paste: true,
+        copy_on_select: false,
+        right_click_paste: false,
+        ..AppConfig::default()
+    };
+    let state = cx.update(|cx| {
+        cx.new(|_| ConfigState::with_terminal_page_writer(start, runtime.handle(), writer))
+    });
+    let font_events = subscribe_font(cx, &state);
+    cx.executor().allow_parking();
+
+    let mut draft = page(cx, &state);
+    draft.size += 1;
+    let result = save(cx, &state, draft).await;
+
+    assert_eq!(result, Ok(()));
+    let saved = page(cx, &state);
+    assert_eq!(
+        (
+            saved.confirm_multiline_paste,
+            saved.copy_on_select,
+            saved.right_click_paste,
+        ),
+        (false, true, true),
+        "the snapshot publishes the readback, not the draft"
+    );
+    assert_eq!(
+        *font_events.lock().expect("font events"),
+        vec![TerminalFontChanged {
+            family: saved.family,
+            size: saved.size,
+            line_height: saved.line_height,
+            letter_spacing: saved.letter_spacing,
+            confirm_multiline_paste: false,
+            copy_on_select: true,
+            right_click_paste: true,
+        }]
     );
 }
 
@@ -183,12 +247,15 @@ async fn a_font_only_page_does_not_emit_a_scrollback_change(cx: &mut TestAppCont
     assert_eq!(page(cx, &state), draft);
     assert_eq!(
         *font_events.lock().expect("font events"),
-        vec![(
-            "Fira Code, monospace".to_string(),
-            18,
-            draft.line_height,
-            draft.letter_spacing
-        )]
+        vec![TerminalFontChanged {
+            family: "Fira Code, monospace".to_string(),
+            size: 18,
+            line_height: draft.line_height,
+            letter_spacing: draft.letter_spacing,
+            confirm_multiline_paste: draft.confirm_multiline_paste,
+            copy_on_select: draft.copy_on_select,
+            right_click_paste: draft.right_click_paste,
+        }]
     );
     assert!(
         scrollback_events
@@ -221,6 +288,9 @@ async fn a_cursor_and_padding_only_page_updates_the_snapshot_before_the_font_eve
                 config.terminal_padding_left_px,
                 config.terminal_padding_right_px,
                 config.terminal_padding_bottom_px,
+                config.confirm_multiline_paste,
+                config.copy_on_select,
+                config.right_click_paste,
             ));
         })
         .detach();
@@ -234,23 +304,38 @@ async fn a_cursor_and_padding_only_page_updates_the_snapshot_before_the_font_eve
     draft.padding_left = 12;
     draft.padding_right = 14;
     draft.padding_bottom = 8;
+    draft.confirm_multiline_paste = false;
+    draft.copy_on_select = true;
+    draft.right_click_paste = true;
     let result = save(cx, &state, draft.clone()).await;
 
     assert_eq!(result, Ok(()));
     assert_eq!(page(cx, &state), draft);
     assert_eq!(
         *seen.lock().expect("page snapshot at event"),
-        vec![(draft.family.clone(), "bar".to_string(), 12, 14, 8)],
-        "the listener sees the cursor and padding the event follows"
+        vec![(
+            draft.family.clone(),
+            "bar".to_string(),
+            12,
+            14,
+            8,
+            false,
+            true,
+            true,
+        )],
+        "the listener sees the cursor, padding and clipboard values the event follows"
     );
     assert_eq!(
         *font_events.lock().expect("font events"),
-        vec![(
-            draft.family.clone(),
-            draft.size,
-            draft.line_height,
-            draft.letter_spacing
-        )]
+        vec![TerminalFontChanged {
+            family: draft.family.clone(),
+            size: draft.size,
+            line_height: draft.line_height,
+            letter_spacing: draft.letter_spacing,
+            confirm_multiline_paste: false,
+            copy_on_select: true,
+            right_click_paste: true,
+        }]
     );
     assert!(
         scrollback_events
@@ -291,6 +376,9 @@ async fn keeps_the_old_page_when_the_write_fails_and_remains_usable(cx: &mut Tes
     draft.family = "Fira Code".to_string();
     draft.size = 20;
     draft.scrollback_lines = 50_000;
+    draft.confirm_multiline_paste = true;
+    draft.copy_on_select = true;
+    draft.right_click_paste = true;
     let result = save(cx, &state, draft.clone()).await;
 
     assert_eq!(result, Err("disk is full".to_string()));
@@ -306,6 +394,19 @@ async fn keeps_the_old_page_when_the_write_fails_and_remains_usable(cx: &mut Tes
 
     assert_eq!(save(cx, &state, draft.clone()).await, Ok(()));
     assert_eq!(page(cx, &state), draft);
+    assert_eq!(
+        *font_events.lock().expect("font events"),
+        vec![TerminalFontChanged {
+            family: "Fira Code".to_string(),
+            size: 20,
+            line_height: before.line_height,
+            letter_spacing: before.letter_spacing,
+            confirm_multiline_paste: true,
+            copy_on_select: true,
+            right_click_paste: true,
+        }],
+        "a retried clipboard edit publishes only after the write succeeds"
+    );
     assert_eq!(
         *scrollback_events.lock().expect("scrollback events"),
         vec![50_000]
@@ -525,6 +626,9 @@ async fn the_old_font_save_reports_the_pages_line_settings(cx: &mut TestAppConte
         terminal_line_height: 1.4,
         terminal_letter_spacing: 2,
         scrollback_lines: 10_000,
+        confirm_multiline_paste: false,
+        copy_on_select: true,
+        right_click_paste: false,
         ..AppConfig::default()
     };
     let state = cx.update(|cx| {
@@ -537,9 +641,25 @@ async fn the_old_font_save_reports_the_pages_line_settings(cx: &mut TestAppConte
 
     assert_eq!(
         *font_events.lock().expect("font events"),
-        vec![("Fira Code".to_string(), 20, 1.4, 2)]
+        vec![TerminalFontChanged {
+            family: "Fira Code".to_string(),
+            size: 20,
+            line_height: 1.4,
+            letter_spacing: 2,
+            confirm_multiline_paste: false,
+            copy_on_select: true,
+            right_click_paste: false,
+        }]
     );
     let saved = page(cx, &state);
     assert_eq!((saved.line_height, saved.letter_spacing), (1.4, 2));
+    assert_eq!(
+        (
+            saved.confirm_multiline_paste,
+            saved.copy_on_select,
+            saved.right_click_paste,
+        ),
+        (false, true, false)
+    );
     assert_eq!(saved.scrollback_lines, 10_000);
 }

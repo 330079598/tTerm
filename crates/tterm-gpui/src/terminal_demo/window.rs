@@ -7,6 +7,7 @@ use std::sync::{Arc, Mutex};
 mod agent_resume;
 mod agent_resume_notice;
 use agent_resume::controller::{AttachOptions, Controller};
+mod context_menu;
 mod drag;
 mod events;
 mod failed_tab;
@@ -71,6 +72,7 @@ use tterm_terminal::terminal::{ClipboardPolicy, Config};
 use tterm_terminal_view::view::{TerminalView, TerminalViewConfig};
 use tterm_ui::tokens::theme::Theme;
 
+use self::context_menu::{PaneContextMenu, view_handler};
 use super::binding::{SessionManager, TabBinding};
 use super::clipboard::{PasteController, local_drop_text};
 use super::command::{CommandSpec, TabLaunch};
@@ -185,6 +187,7 @@ pub(super) fn run_window(
     let app_id = services.shared.identity.identifier.clone();
     gpui_kit::application().run(move |cx: &mut App| {
         gpui_kit::init(cx);
+        tterm_ui::init(cx);
         let locale = cx.new(|_| Locale::new(language));
         let config = cx.new(|_| ConfigState::new(app_config, &services.shared.runtime));
         LocaleGlobal::set(cx, locale.clone());
@@ -271,6 +274,7 @@ struct TabFactory {
     config: Entity<ConfigState>,
     keyboard: tterm_terminal_view::input::keyboard::EncoderConfig,
     keymap: Rc<KeymapRouter>,
+    theme: Theme,
 }
 
 struct WindowTab {
@@ -289,6 +293,7 @@ struct WindowTab {
     title: Arc<Mutex<Option<String>>>,
     program_title: RefCell<Option<String>>,
     paste_controller: Option<Entity<PasteController>>,
+    context_menu: Option<Entity<PaneContextMenu>>,
 }
 
 impl WindowTab {
@@ -377,6 +382,7 @@ impl Prototype {
             config,
             keyboard,
             keymap,
+            theme,
         };
         strip::register_actions(&factory.keymap);
         template_ui::register_actions(&factory.keymap);
@@ -589,6 +595,8 @@ impl TabFactory {
             )
         });
         let paste_gate = super::clipboard::view_gate(&paste_controller, &binding, session_nonce);
+        let context_menu = cx.new(|_| PaneContextMenu::new(self.theme));
+        let context_menu_handler = view_handler(context_menu.clone());
         let config = TerminalViewConfig {
             font,
             padding: self.shared_padding(cx),
@@ -599,6 +607,7 @@ impl TabFactory {
             paste_gate: Some(paste_gate),
             copy_on_select: initial.copy_on_select,
             right_click_paste: initial.right_click_paste,
+            context_menu: Some(context_menu_handler),
             drop_text,
             ..TerminalViewConfig::default()
         };
@@ -641,6 +650,7 @@ impl TabFactory {
             title,
             program_title: RefCell::default(),
             paste_controller: Some(paste_controller),
+            context_menu: Some(context_menu),
         }
     }
 }

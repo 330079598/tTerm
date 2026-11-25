@@ -43,18 +43,40 @@ impl TerminalView {
         }
         match key.key.as_str() {
             "c" => {
-                if let Some(text) = self.terminal.selection_text() {
-                    cx.write_to_clipboard(ClipboardItem::new_string(text));
-                }
+                self.copy_selection(cx);
                 true
             }
             "v" => {
-                if let Some(text) = cx.read_from_clipboard().and_then(|item| item.text()) {
-                    self.request_paste(&text, window, cx);
-                }
+                self.paste_from_clipboard(window, cx);
                 true
             }
             _ => false,
+        }
+    }
+
+    /// Copies the current selection and reports whether it wrote anything.
+    ///
+    /// Both the keyboard gesture and the context menu use this, so an empty
+    /// selection never replaces what the clipboard already holds.
+    pub fn copy_selection(&self, cx: &mut Context<Self>) -> bool {
+        let Some(text) = self.terminal.selection_text() else {
+            return false;
+        };
+        if text.is_empty() {
+            return false;
+        }
+        cx.write_to_clipboard(ClipboardItem::new_string(text));
+        true
+    }
+
+    /// Reads the clipboard and sends it through the shared paste gate.
+    ///
+    /// The context menu, the keyboard shortcut and right-click paste all end
+    /// here, so a pending confirmation or a stale session is decided in one
+    /// place and no gesture can bypass it with raw bytes.
+    pub fn paste_from_clipboard(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        if let Some(text) = cx.read_from_clipboard().and_then(|item| item.text()) {
+            self.request_paste(&text, window, cx);
         }
     }
 
@@ -116,13 +138,7 @@ impl TerminalView {
         if !self.copy_on_select {
             return;
         }
-        let Some(text) = self.terminal.selection_text() else {
-            return;
-        };
-        if text.is_empty() {
-            return;
-        }
-        cx.write_to_clipboard(ClipboardItem::new_string(text));
+        self.copy_selection(cx);
     }
 
     /// Inserts dropped paths through the same paste gate, without Enter.

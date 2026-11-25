@@ -44,6 +44,21 @@ const IMPLEMENTED: &[(&str, TranslationKey, Option<TranslationKey>)] = &[
     (TERMINAL_PAGE_VALUE, keys::FONT_SETTINGS_CURSOR_STYLE, None),
     (
         TERMINAL_PAGE_VALUE,
+        keys::FONT_SETTINGS_CONFIRM_MULTILINE_PASTE,
+        None,
+    ),
+    (
+        TERMINAL_PAGE_VALUE,
+        keys::FONT_SETTINGS_COPY_ON_SELECT,
+        None,
+    ),
+    (
+        TERMINAL_PAGE_VALUE,
+        keys::FONT_SETTINGS_RIGHT_CLICK_PASTE,
+        None,
+    ),
+    (
+        TERMINAL_PAGE_VALUE,
         keys::FONT_SETTINGS_SCROLLBACK_LINES,
         None,
     ),

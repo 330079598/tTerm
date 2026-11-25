@@ -315,7 +315,7 @@ export const FontSettingsTab: React.FC<FontSettingsTabProps> = ({
           )}
 
           <div className="flex items-start justify-between gap-4">
-            <div>
+            <div data-parity="settings.clipboard.preferences">
               <Label htmlFor="terminal-confirm-multiline-paste" className="mb-1 block">
                 {t("fontSettings.confirmMultilinePaste")}
               </Label>

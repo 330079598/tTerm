@@ -477,6 +477,97 @@ fn confirmed_paste_reads_the_live_bracketed_mode(cx: &mut TestAppContext) {
     assert_eq!(&*harness.bytes.borrow(), b"\x1b[200~one\rtwo\x1b[201~");
 }
 
+#[gpui_kit::test]
+fn cancelling_a_multiline_paste_writes_no_bytes(cx: &mut TestAppContext) {
+    let harness = view_harness(cx);
+    cx.update(|cx| {
+        cx.write_to_clipboard(ClipboardItem::new_string("one\ntwo".to_string()));
+    });
+    cx.simulate_keystrokes(
+        harness.window,
+        if cfg!(target_os = "macos") {
+            "cmd-v"
+        } else {
+            "ctrl-shift-v"
+        },
+    );
+    assert!(harness.bytes.borrow().is_empty());
+    let controller = harness
+        .probe
+        .read_with(cx, |probe, _| probe.controller.clone());
+    let dialog = controller.read_with(cx, |controller, _| {
+        controller.dialog.clone().expect("confirmation dialog")
+    });
+    cx.update_window(harness.window, |_, window, cx| {
+        dialog.update(cx, |dialog, cx| {
+            dialog.close(Some(DialogAction::Cancel), window, cx);
+        });
+    })
+    .expect("cancel the paste");
+    cx.run_until_parked();
+    assert!(harness.bytes.borrow().is_empty());
+    assert!(
+        harness
+            .probe
+            .read_with(cx, |probe, cx| probe.controller.read(cx).pending.is_none()),
+        "cancelling releases the pending paste"
+    );
+}
+
+#[gpui_kit::test]
+fn changing_confirmation_keeps_a_pending_decision_and_plain_confirm_writes_once(
+    cx: &mut TestAppContext,
+) {
+    let harness = view_harness(cx);
+    cx.update(|cx| {
+        cx.write_to_clipboard(ClipboardItem::new_string("one\ntwo".to_string()));
+    });
+    cx.simulate_keystrokes(
+        harness.window,
+        if cfg!(target_os = "macos") {
+            "cmd-v"
+        } else {
+            "ctrl-shift-v"
+        },
+    );
+    let controller = harness
+        .probe
+        .read_with(cx, |probe, _| probe.controller.clone());
+    controller.update(cx, |controller, _| controller.set_confirm_multiline(false));
+    let dialog = controller.read_with(cx, |controller, _| {
+        controller
+            .dialog
+            .clone()
+            .expect("the pending dialog survives the setting change")
+    });
+    assert!(harness.bytes.borrow().is_empty());
+    cx.update_window(harness.window, |_, window, cx| {
+        dialog.update(cx, |dialog, cx| {
+            dialog.close(Some(DialogAction::Confirm), window, cx);
+        });
+    })
+    .expect("confirm the pending paste");
+    cx.run_until_parked();
+    assert_eq!(&*harness.bytes.borrow(), b"one\rtwo");
+
+    // The committed setting now applies to the next paste without a dialog.
+    harness.bytes.borrow_mut().clear();
+    cx.simulate_keystrokes(
+        harness.window,
+        if cfg!(target_os = "macos") {
+            "cmd-v"
+        } else {
+            "ctrl-shift-v"
+        },
+    );
+    assert_eq!(&*harness.bytes.borrow(), b"one\rtwo");
+    assert!(
+        harness
+            .probe
+            .read_with(cx, |probe, cx| probe.controller.read(cx).dialog.is_none())
+    );
+}
+
 #[cfg(windows)]
 #[test]
 fn windows_drop_text_quotes_for_the_local_powershell_without_pressing_enter() {

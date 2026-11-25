@@ -332,6 +332,10 @@ fn final_section(
             .appearance
             .update(cx, |setting, cx| setting.cursor_section(cx))
             .into_any_element(),
+        SettingsSection::Clipboard => page
+            .clipboard
+            .update(cx, |setting, cx| setting.section(cx))
+            .into_any_element(),
         SettingsSection::Scrollback => page
             .scrollback
             .update(cx, |setting, cx| setting.section(cx))

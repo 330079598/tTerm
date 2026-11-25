@@ -215,6 +215,7 @@ impl Prototype {
             .min_h_0()
             .overflow_hidden()
             .child(tab.view.clone())
+            .children(tab.context_menu.clone())
             .children(
                 tab.search_bar
                     .as_ref()
