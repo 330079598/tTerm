@@ -19,7 +19,7 @@
 
 ## 2. 当前派发顺序（2026-11-25）
 
-**现场续批：** [Unix Shell](reports/P2-13-unix-shell-field.md) 已完成 WSL2 中 bash、zsh 的 8 组真实 PTY 与模型验证；下一轮保留 fish 及原生桌面的标尺、焦点和切换检查。[SSH](reports/P2-12-remote-field.md) 已复跑 7 个保存连接与回环用例，尚未连接真实远端。先准备可复现的一次性测试连接配置，再在获授权的专用主机上验证 tmux/neovim，不使用个人连接库。
+**现场续批：** [Unix Shell](reports/P2-13-unix-shell-field.md) 已完成 WSL2 中 bash、zsh 的 8 组真实 PTY 与模型验证；下一轮保留 fish 及原生桌面的标尺、焦点和切换检查。[SSH](reports/P2-12-remote-field.md) 的 7 个保存连接与回环用例已通过，一次性连接配置已能离线生成；下一步在获授权的专用主机上通过普通选择器验证 tmux/neovim，不使用个人连接库。
 
 **本轮交接：** 不再派 WebGL/Canvas 或隐藏 WebView 渲染器释放选项；GPUI 固定使用原生渲染，保留 Tauri 的配置兼容。命令标记及本机集成见[第六批](reports/P4-16-shell-integration.md)。下一步是在隔离的 Unix 桌面从普通默认 Shell 启动核对钩子和标尺，在真实 SSH 会话检查 tmux/neovim；写回失败处理另定策略。[P2-12 续批](reports/P2-12-closeout.md) 已覆盖同步块超时与颜色查询，不再作为未实现项派发。以下各批为历史记录。
 

@@ -1,5 +1,13 @@
 # 任务状态
 
+## 2026-11-25 原生远程 TUI 实机通过
+
+Windows GPUI 原生窗口通过自身 SSH 通道完成 Linux tmux 分屏/缩放/分离和 Neovim 编辑/保存/退出，恢复主屏后 Shell 可继续输入。9 个阶段全部通过，12 张窗口截图；[实机记录与复现入口](reports/P2-12-remote-field.md)。P2-12 的断链/写回策略及完整 G2 不在本次签收范围内。
+
+## 2026-11-25 一次性 SSH 连接配置
+
+`seed_ssh_check` 仅在 debug 下向全新编号实例离线写入 `p2-12-remote`。[现场步骤](reports/P2-12-remote-field.md#客户端)不依赖个人连接库。Windows 黑盒实测：缺失/非法编号拒绝创建，成功时仅有一个 profile，`known_hosts`、`secrets`、`secret_key_wraps` 均为空；复用编号失败，既有文件哈希不变。自动测试覆盖选择器的数据来源及打开参数；本次未在物理窗口点击或连接远端。前端六项、Rust 格式、严格 Clippy、默认并发工作区测试全部通过；独立 release 门禁前台加载 p95 为 0.3441 ms，后台 30 MiB 全部确认用时 136.495 ms（219.79 MiB/s）。
+
 ## 2026-11-25 Shell 与 SSH 现场验收首批
 
 WSL2 下 bash、zsh 的 8 组隔离 PTY 捕获均通过真实终端模型检查；Windows 的 7 个 GPUI 已保存连接及回环 SSH 回归通过。见 [Unix Shell 记录](reports/P2-13-unix-shell-field.md) 和 [SSH 现场准备](reports/P2-12-remote-field.md)。fish、物理 GPUI 桌面及真实远端 tmux/neovim 尚无此次验收证据，G2/G3 状态不变。
