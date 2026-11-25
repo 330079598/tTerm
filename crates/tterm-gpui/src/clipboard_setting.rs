@@ -1,12 +1,13 @@
-//! The clipboard preferences of the terminal settings page.
+//! The terminal-behavior preferences of the terminal settings page.
 //!
 //! Each row is a labelled switch that changes only a draft. The page's one
-//! Save writes all three values with the rest of the Terminal page, so
-//! turning a switch never writes the configuration by itself. A failed save
-//! keeps the draft so the user can retry without choosing the switches again.
+//! Save writes every value with the rest of the terminal page, so turning a
+//! switch never writes the configuration by itself. A failed save keeps the
+//! draft so the user can retry without choosing the switches again.
 
 use gpui_kit::prelude::*;
 use gpui_kit::{App, Context, Div, Entity, FontWeight, Stateful, div, px};
+use tterm_core::config::AppConfig;
 use tterm_core::i18n::keys;
 use tterm_core::i18n::translate::TranslationKey;
 use tterm_ui::components::switch::{SwitchState, switch};
@@ -21,6 +22,9 @@ pub(crate) const SECTION_ID: &str = "settings-clipboard";
 pub(crate) const TITLE_ID: &str = "settings-clipboard-title";
 pub(crate) const DESCRIPTION_ID: &str = "settings-clipboard-description";
 pub(crate) const ERROR_ID: &str = "settings-clipboard-error";
+pub(crate) const MAC_OPTION_IS_META_ROW_ID: &str = "settings-clipboard-mac-option-is-meta";
+pub(crate) const MAC_OPTION_IS_META_SWITCH_ID: &str =
+    "settings-clipboard-mac-option-is-meta-switch";
 pub(crate) const CONFIRM_MULTILINE_PASTE_ROW_ID: &str =
     "settings-clipboard-confirm-multiline-paste";
 pub(crate) const CONFIRM_MULTILINE_PASTE_SWITCH_ID: &str =
@@ -29,65 +33,133 @@ pub(crate) const COPY_ON_SELECT_ROW_ID: &str = "settings-clipboard-copy-on-selec
 pub(crate) const COPY_ON_SELECT_SWITCH_ID: &str = "settings-clipboard-copy-on-select-switch";
 pub(crate) const RIGHT_CLICK_PASTE_ROW_ID: &str = "settings-clipboard-right-click-paste";
 pub(crate) const RIGHT_CLICK_PASTE_SWITCH_ID: &str = "settings-clipboard-right-click-paste-switch";
+pub(crate) const OSC52_CLIPBOARD_WRITE_ROW_ID: &str = "settings-clipboard-osc52-clipboard-write";
+pub(crate) const OSC52_CLIPBOARD_WRITE_SWITCH_ID: &str =
+    "settings-clipboard-osc52-clipboard-write-switch";
 
-/// The three clipboard preferences, in the order the reference page shows
-/// them inside its "Terminal behavior" section.
+/// The preferences in the order the reference page shows them inside its
+/// "terminal behavior" section. The macOS-only row is skipped elsewhere.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum ClipboardPreference {
-    ConfirmMultilinePaste,
-    CopyOnSelect,
-    RightClickPaste,
+    MacOptionIsMeta = 0,
+    ConfirmMultilinePaste = 1,
+    CopyOnSelect = 2,
+    RightClickPaste = 3,
+    Osc52ClipboardWrite = 4,
 }
 
 impl ClipboardPreference {
-    const ALL: [Self; 3] = [
+    const ALL: [Self; 5] = [
+        Self::MacOptionIsMeta,
         Self::ConfirmMultilinePaste,
         Self::CopyOnSelect,
         Self::RightClickPaste,
+        Self::Osc52ClipboardWrite,
     ];
+
+    /// Option as Meta only makes sense where Option exists, so other
+    /// platforms neither render nor search the row.
+    fn visible(self) -> bool {
+        self != Self::MacOptionIsMeta || cfg!(target_os = "macos")
+    }
 
     fn label_key(self) -> TranslationKey {
         match self {
+            Self::MacOptionIsMeta => keys::FONT_SETTINGS_MAC_OPTION_IS_META,
             Self::ConfirmMultilinePaste => keys::FONT_SETTINGS_CONFIRM_MULTILINE_PASTE,
             Self::CopyOnSelect => keys::FONT_SETTINGS_COPY_ON_SELECT,
             Self::RightClickPaste => keys::FONT_SETTINGS_RIGHT_CLICK_PASTE,
+            Self::Osc52ClipboardWrite => keys::FONT_SETTINGS_OSC52_CLIPBOARD_WRITE,
         }
     }
 
     fn description_key(self) -> TranslationKey {
         match self {
+            Self::MacOptionIsMeta => keys::FONT_SETTINGS_MAC_OPTION_IS_META_DESC,
             Self::ConfirmMultilinePaste => keys::FONT_SETTINGS_CONFIRM_MULTILINE_PASTE_DESC,
             Self::CopyOnSelect => keys::FONT_SETTINGS_COPY_ON_SELECT_DESC,
             Self::RightClickPaste => keys::FONT_SETTINGS_RIGHT_CLICK_PASTE_DESC,
+            Self::Osc52ClipboardWrite => keys::FONT_SETTINGS_OSC52_CLIPBOARD_WRITE_DESC,
         }
     }
 
     fn row_id(self) -> &'static str {
         match self {
+            Self::MacOptionIsMeta => MAC_OPTION_IS_META_ROW_ID,
             Self::ConfirmMultilinePaste => CONFIRM_MULTILINE_PASTE_ROW_ID,
             Self::CopyOnSelect => COPY_ON_SELECT_ROW_ID,
             Self::RightClickPaste => RIGHT_CLICK_PASTE_ROW_ID,
+            Self::Osc52ClipboardWrite => OSC52_CLIPBOARD_WRITE_ROW_ID,
         }
     }
 
     fn switch_id(self) -> &'static str {
         match self {
+            Self::MacOptionIsMeta => MAC_OPTION_IS_META_SWITCH_ID,
             Self::ConfirmMultilinePaste => CONFIRM_MULTILINE_PASTE_SWITCH_ID,
             Self::CopyOnSelect => COPY_ON_SELECT_SWITCH_ID,
             Self::RightClickPaste => RIGHT_CLICK_PASTE_SWITCH_ID,
+            Self::Osc52ClipboardWrite => OSC52_CLIPBOARD_WRITE_SWITCH_ID,
         }
     }
 }
 
-/// The clipboard switches shown on the Terminal settings page.
+/// The named draft the page submits instead of a five-boolean tuple.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct ClipboardDraft {
+    /// Send Option+key as Meta on macOS.
+    pub(crate) mac_option_is_meta: bool,
+    /// Ask before pasting text with line breaks.
+    pub(crate) confirm_multiline_paste: bool,
+    /// Copy a selection when the mouse button is released.
+    pub(crate) copy_on_select: bool,
+    /// Paste on right-click instead of opening the context menu.
+    pub(crate) right_click_paste: bool,
+    /// Allow programs to write the clipboard with OSC 52.
+    pub(crate) osc52_clipboard_write: bool,
+}
+
+impl From<&AppConfig> for ClipboardDraft {
+    fn from(config: &AppConfig) -> Self {
+        Self {
+            mac_option_is_meta: config.mac_option_is_meta,
+            confirm_multiline_paste: config.confirm_multiline_paste,
+            copy_on_select: config.copy_on_select,
+            right_click_paste: config.right_click_paste,
+            osc52_clipboard_write: config.osc52_clipboard_write,
+        }
+    }
+}
+
+impl ClipboardDraft {
+    fn value(self, preference: ClipboardPreference) -> bool {
+        match preference {
+            ClipboardPreference::MacOptionIsMeta => self.mac_option_is_meta,
+            ClipboardPreference::ConfirmMultilinePaste => self.confirm_multiline_paste,
+            ClipboardPreference::CopyOnSelect => self.copy_on_select,
+            ClipboardPreference::RightClickPaste => self.right_click_paste,
+            ClipboardPreference::Osc52ClipboardWrite => self.osc52_clipboard_write,
+        }
+    }
+
+    fn set(&mut self, preference: ClipboardPreference, value: bool) {
+        match preference {
+            ClipboardPreference::MacOptionIsMeta => self.mac_option_is_meta = value,
+            ClipboardPreference::ConfirmMultilinePaste => self.confirm_multiline_paste = value,
+            ClipboardPreference::CopyOnSelect => self.copy_on_select = value,
+            ClipboardPreference::RightClickPaste => self.right_click_paste = value,
+            ClipboardPreference::Osc52ClipboardWrite => self.osc52_clipboard_write = value,
+        }
+    }
+}
+
+/// The clipboard switches shown on the terminal settings page.
 pub(crate) struct ClipboardSetting {
-    focus: [gpui_kit::FocusHandle; 3],
+    focus: [gpui_kit::FocusHandle; 5],
     config: Entity<ConfigState>,
     locale: Entity<Locale>,
     theme: Theme,
-    confirm_multiline_paste: bool,
-    copy_on_select: bool,
-    right_click_paste: bool,
+    draft: ClipboardDraft,
     error: Option<String>,
     open: bool,
 }
@@ -103,22 +175,13 @@ impl ClipboardSetting {
     ) -> Self {
         cx.observe(&config, |_, _, cx| cx.notify()).detach();
         cx.observe(&locale, |_, _, cx| cx.notify()).detach();
-        let (confirm_multiline_paste, copy_on_select, right_click_paste) = {
-            let config = config.read(cx).config();
-            (
-                config.confirm_multiline_paste,
-                config.copy_on_select,
-                config.right_click_paste,
-            )
-        };
+        let draft = ClipboardDraft::from(config.read(cx).config());
         Self {
             focus: std::array::from_fn(|_| cx.focus_handle()),
             config,
             locale,
             theme,
-            confirm_multiline_paste,
-            copy_on_select,
-            right_click_paste,
+            draft,
             error: None,
             open: false,
         }
@@ -151,15 +214,11 @@ impl ClipboardSetting {
         true
     }
 
-    /// The three draft values the page writes in one configuration edit.
-    pub(crate) fn page_values(&mut self, cx: &mut Context<Self>) -> (bool, bool, bool) {
+    /// The draft values the page writes in one configuration edit.
+    pub(crate) fn page_values(&mut self, cx: &mut Context<Self>) -> ClipboardDraft {
         self.error = None;
         cx.notify();
-        (
-            self.confirm_multiline_paste,
-            self.copy_on_select,
-            self.right_click_paste,
-        )
+        self.draft
     }
 
     /// Applies the unified page save result.
@@ -174,13 +233,16 @@ impl ClipboardSetting {
         cx.notify();
     }
 
-    /// Renders the three switches below the cursor choices.
+    /// Renders the switches below the cursor choices.
     pub(crate) fn section(&mut self, cx: &mut Context<Self>) -> Stateful<Div> {
         let colors = self.theme.colors;
         let title = self.text(cx, keys::FONT_SETTINGS_BEHAVIOR);
         let description = self.text(cx, keys::FONT_SETTINGS_BEHAVIOR_DESC);
         let mut rows = div().mt(px(12.0)).flex().flex_col().gap(px(8.0));
-        for preference in ClipboardPreference::ALL {
+        for preference in ClipboardPreference::ALL
+            .into_iter()
+            .filter(|preference| preference.visible())
+        {
             rows = rows.child(self.row(preference, cx));
         }
         let mut section = div()
@@ -239,7 +301,7 @@ impl ClipboardSetting {
         let colors = self.theme.colors;
         let label = self.text(cx, preference.label_key());
         let description = self.text(cx, preference.description_key());
-        let checked = self.value(preference);
+        let checked = self.draft.value(preference);
         let row_id = preference.row_id();
         let switch_id = preference.switch_id();
         let entity = cx.entity().downgrade();
@@ -292,29 +354,14 @@ impl ClipboardSetting {
             .child(control)
     }
 
-    fn value(&self, preference: ClipboardPreference) -> bool {
-        match preference {
-            ClipboardPreference::ConfirmMultilinePaste => self.confirm_multiline_paste,
-            ClipboardPreference::CopyOnSelect => self.copy_on_select,
-            ClipboardPreference::RightClickPaste => self.right_click_paste,
-        }
-    }
-
     fn set(&mut self, preference: ClipboardPreference, value: bool, cx: &mut Context<Self>) {
-        match preference {
-            ClipboardPreference::ConfirmMultilinePaste => self.confirm_multiline_paste = value,
-            ClipboardPreference::CopyOnSelect => self.copy_on_select = value,
-            ClipboardPreference::RightClickPaste => self.right_click_paste = value,
-        }
+        self.draft.set(preference, value);
         self.error = None;
         cx.notify();
     }
 
     fn reload_from_saved(&mut self, cx: &App) {
-        let config = self.config.read(cx).config();
-        self.confirm_multiline_paste = config.confirm_multiline_paste;
-        self.copy_on_select = config.copy_on_select;
-        self.right_click_paste = config.right_click_paste;
+        self.draft = ClipboardDraft::from(self.config.read(cx).config());
         self.error = None;
     }
 
@@ -326,7 +373,8 @@ impl ClipboardSetting {
     ) -> bool {
         if let Some(preference) = ClipboardPreference::ALL
             .into_iter()
-            .find(|p| self.text(cx, p.label_key()) == title)
+            .filter(|preference| preference.visible())
+            .find(|preference| self.text(cx, preference.label_key()) == title)
         {
             self.focus[preference as usize].focus(window, cx);
             true
@@ -346,12 +394,8 @@ impl ClipboardSetting {
 /// Test access to the clipboard drafts and their error.
 #[cfg(test)]
 impl ClipboardSetting {
-    pub(crate) fn values(&self) -> (bool, bool, bool) {
-        (
-            self.confirm_multiline_paste,
-            self.copy_on_select,
-            self.right_click_paste,
-        )
+    pub(crate) fn values(&self) -> ClipboardDraft {
+        self.draft
     }
 
     pub(crate) fn error(&self) -> Option<&str> {

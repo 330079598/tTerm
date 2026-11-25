@@ -66,9 +66,9 @@ use tterm_core::workspace::tab::Tab;
 use tterm_core::workspace::tab_attention::TabAttentionStore;
 use tterm_terminal::grid::{CellSize, GridSize};
 use tterm_terminal::snapshot::CursorShape;
+use tterm_terminal::terminal::Config;
 #[cfg(test)]
 use tterm_terminal::terminal::Terminal;
-use tterm_terminal::terminal::{ClipboardPolicy, Config};
 use tterm_terminal_view::view::{TerminalView, TerminalViewConfig};
 use tterm_ui::tokens::theme::Theme;
 
@@ -163,11 +163,7 @@ pub(super) fn run_window(
     let keymap = Rc::new(KeymapRouter::new(&app_config.keymap, mac));
     let keyboard = encoder_config(mac, app_config.mac_option_is_meta);
     let attention = Rc::new(RefCell::new(TabAttentionStore::new()));
-    let clipboard_policy = if app_config.osc52_clipboard_write {
-        ClipboardPolicy::CopyOnly
-    } else {
-        ClipboardPolicy::Disabled
-    };
+    let clipboard_policy = super::session::clipboard_write_policy(app_config.osc52_clipboard_write);
     let sessions = Rc::new(
         SessionManager::new(Arc::clone(&services), attention).with_terminal_config(Config {
             clipboard: clipboard_policy,

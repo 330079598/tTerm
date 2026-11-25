@@ -308,6 +308,36 @@ fn changing_the_locale_refreshes_an_open_dialog(cx: &mut TestAppContext) {
 }
 
 #[gpui_kit::test]
+fn revoking_in_flight_writes_keeps_the_clipboard_until_a_fresh_store(cx: &mut TestAppContext) {
+    let writes = Arc::new(ClipboardWrites::new(false));
+    let _controller = cx.update(|cx| {
+        cx.write_to_clipboard(gpui_kit::ClipboardItem::new_string("original".into()));
+        let locale = cx.new(|_| Locale::new(Language::En));
+        cx.new(|cx| PasteController::for_test_with_clipboard(cx, locale, true, Arc::clone(&writes)))
+    });
+    assert!(!writes.store("disabled".into()));
+    writes.set_enabled(true);
+    let old = writes.epoch();
+    assert!(writes.store_at(old, "pending".into()));
+    writes.set_enabled(false);
+    writes.set_enabled(true);
+    assert!(!writes.store_at(old, "already parsed".into()));
+    cx.run_until_parked();
+    assert_eq!(
+        cx.update(|cx| cx.read_from_clipboard().and_then(|item| item.text()))
+            .as_deref(),
+        Some("original")
+    );
+    assert!(writes.store("fresh".into()));
+    cx.run_until_parked();
+    assert_eq!(
+        cx.update(|cx| cx.read_from_clipboard().and_then(|item| item.text()))
+            .as_deref(),
+        Some("fresh")
+    );
+}
+
+#[gpui_kit::test]
 fn dropping_the_controller_cancels_the_clipboard_watcher(cx: &mut TestAppContext) {
     let writes = Arc::new(ClipboardWrites::new(true));
     let controller = cx.update(|cx| {

@@ -44,6 +44,11 @@ const IMPLEMENTED: &[(&str, TranslationKey, Option<TranslationKey>)] = &[
     (TERMINAL_PAGE_VALUE, keys::FONT_SETTINGS_CURSOR_STYLE, None),
     (
         TERMINAL_PAGE_VALUE,
+        keys::FONT_SETTINGS_MAC_OPTION_IS_META,
+        None,
+    ),
+    (
+        TERMINAL_PAGE_VALUE,
         keys::FONT_SETTINGS_CONFIRM_MULTILINE_PASTE,
         None,
     ),
@@ -55,6 +60,11 @@ const IMPLEMENTED: &[(&str, TranslationKey, Option<TranslationKey>)] = &[
     (
         TERMINAL_PAGE_VALUE,
         keys::FONT_SETTINGS_RIGHT_CLICK_PASTE,
+        None,
+    ),
+    (
+        TERMINAL_PAGE_VALUE,
+        keys::FONT_SETTINGS_OSC52_CLIPBOARD_WRITE,
         None,
     ),
     (
@@ -86,6 +96,10 @@ const IMPLEMENTED: &[(&str, TranslationKey, Option<TranslationKey>)] = &[
 
 /// The pages and settings a search may list.
 pub(super) fn items(locale: &Locale) -> Vec<SettingsSearchResult> {
+    items_on_platform(locale, cfg!(target_os = "macos"))
+}
+
+fn items_on_platform(locale: &Locale, macos: bool) -> Vec<SettingsSearchResult> {
     let mut items = Vec::new();
     for (page, label) in PAGES {
         let label = text(locale, *label);
@@ -100,6 +114,9 @@ pub(super) fn items(locale: &Locale) -> Vec<SettingsSearchResult> {
     // The shared index decides which page owns an entry and in what order.
     // Only the entries that this client implements survive the filter.
     for (page, title, description) in IMPLEMENTED {
+        if *title == keys::FONT_SETTINGS_MAC_OPTION_IS_META && !macos {
+            continue;
+        }
         if !entries_for_page(page)
             .iter()
             .any(|entry| entry.title == title.as_str())
@@ -172,6 +189,24 @@ mod tests {
                 title.as_str()
             );
         }
+    }
+
+    #[test]
+    fn mac_option_is_only_searchable_on_macos() {
+        use tterm_core::i18n::language::Language;
+
+        let locale = Locale::new(Language::En);
+        let title = "Use Option as Meta key";
+        assert!(
+            items_on_platform(&locale, true)
+                .iter()
+                .any(|item| item.title == title)
+        );
+        assert!(
+            !items_on_platform(&locale, false)
+                .iter()
+                .any(|item| item.title == title)
+        );
     }
 
     #[test]

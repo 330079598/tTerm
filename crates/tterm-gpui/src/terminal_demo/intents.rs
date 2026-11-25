@@ -18,7 +18,12 @@ pub(super) const DEFAULT_TITLE: &str = "tTerm GPUI Dev";
 /// answered from the default palette rather than a copy the view keeps in
 /// sync. Clipboard writes cross to the UI through the session slot. Clipboard
 /// reads get no answer; the bell is reserved for the later attention work.
-pub(super) fn handle_intent(intent: Intent, state: &SessionState, mut write: impl FnMut(Vec<u8>)) {
+pub(super) fn handle_intent(
+    intent: Intent,
+    state: &SessionState,
+    epoch: u64,
+    mut write: impl FnMut(Vec<u8>),
+) {
     match intent {
         Intent::WriteToPty(bytes) => write(bytes),
         Intent::ColorRequest { index, format } => {
@@ -36,7 +41,7 @@ pub(super) fn handle_intent(intent: Intent, state: &SessionState, mut write: imp
         // Every OSC 52 target writes the ordinary system clipboard. Reading is
         // never requested here, so no query reply exists.
         Intent::ClipboardStore { text, .. } => {
-            state.clipboard.store(text);
+            state.clipboard.store_at(epoch, text);
         }
         // The parser pipeline resolves this marker before ordinary intent
         // handling; it carries no user-visible action of its own.
@@ -132,7 +137,9 @@ mod tests {
         model.write(b"\x1b]11;?\x07\x1b[14t");
         let mut replies = Vec::new();
         for intent in model.drain_intents() {
-            handle_intent(intent, &state, |bytes| replies.push(bytes));
+            handle_intent(intent, &state, state.clipboard.epoch(), |bytes| {
+                replies.push(bytes)
+            });
         }
 
         assert_eq!(replies.len(), 2);
@@ -146,7 +153,7 @@ mod tests {
         let (model, state) = state();
         model.set_scrollback(500);
         for intent in model.drain_intents() {
-            handle_intent(intent, &state, |_| {});
+            handle_intent(intent, &state, state.clipboard.epoch(), |_| {});
         }
 
         assert_eq!(
@@ -160,7 +167,7 @@ mod tests {
         let (model, state) = state();
         model.write(b"\x1b]0;cargo test\x07");
         for intent in model.drain_intents() {
-            handle_intent(intent, &state, |_| {});
+            handle_intent(intent, &state, state.clipboard.epoch(), |_| {});
         }
 
         assert_eq!(
@@ -170,7 +177,7 @@ mod tests {
 
         model.write(b"\x1b]0;\x07");
         for intent in model.drain_intents() {
-            handle_intent(intent, &state, |_| {});
+            handle_intent(intent, &state, state.clipboard.epoch(), |_| {});
         }
 
         assert_eq!(

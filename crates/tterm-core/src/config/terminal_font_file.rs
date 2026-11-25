@@ -65,6 +65,11 @@ pub struct TerminalPageSettings {
     pub copy_on_select: bool,
     /// Right-clicking the terminal pastes instead of opening the context menu.
     pub right_click_paste: bool,
+    /// Let programs in the terminal write text to the clipboard with OSC 52.
+    pub osc52_clipboard_write: bool,
+    /// Send Option+key as Meta (ESC prefix) on macOS instead of typing the
+    /// alternate character.
+    pub mac_option_is_meta: bool,
 }
 
 impl From<&AppConfig> for TerminalPageSettings {
@@ -82,6 +87,8 @@ impl From<&AppConfig> for TerminalPageSettings {
             confirm_multiline_paste: config.confirm_multiline_paste,
             copy_on_select: config.copy_on_select,
             right_click_paste: config.right_click_paste,
+            osc52_clipboard_write: config.osc52_clipboard_write,
+            mac_option_is_meta: config.mac_option_is_meta,
         }
     }
 }
@@ -160,6 +167,12 @@ pub(super) fn save_page_at(
         if checked.right_click_paste != previous.right_click_paste {
             config.right_click_paste = checked.right_click_paste;
         }
+        if checked.osc52_clipboard_write != previous.osc52_clipboard_write {
+            config.osc52_clipboard_write = checked.osc52_clipboard_write;
+        }
+        if checked.mac_option_is_meta != previous.mac_option_is_meta {
+            config.mac_option_is_meta = checked.mac_option_is_meta;
+        }
         super::compatible_file::save_at(path, &config)?;
         config = super::load_config_at(path)?;
     }
@@ -215,6 +228,8 @@ fn checked_page(settings: TerminalPageSettings) -> Result<TerminalPageSettings, 
         confirm_multiline_paste: settings.confirm_multiline_paste,
         copy_on_select: settings.copy_on_select,
         right_click_paste: settings.right_click_paste,
+        osc52_clipboard_write: settings.osc52_clipboard_write,
+        mac_option_is_meta: settings.mac_option_is_meta,
     })
 }
 

@@ -37,6 +37,15 @@ pub(crate) type InputObserver = Arc<dyn Fn(&[u8]) + Send + Sync>;
 /// What the terminal shows when a program ends by itself.
 pub(super) const EXIT_NOTICE: &[u8] = b"\r\n\x1b[33m[Process exited]\x1b[0m\r\n";
 
+/// The only clipboard policy the OSC 52 setting selects: stores, never reads.
+pub(crate) fn clipboard_write_policy(enabled: bool) -> ClipboardPolicy {
+    if enabled {
+        ClipboardPolicy::CopyOnly
+    } else {
+        ClipboardPolicy::Disabled
+    }
+}
+
 /// A Tauri-era snapshot replayed into a new model before its transport starts.
 pub(crate) struct RestoredHistory {
     /// The serialized escape sequences the old terminal showed.
@@ -299,6 +308,17 @@ impl Session {
         let model = self.model();
         model.set_default_cursor_shape(shape);
         self.wake();
+    }
+
+    /// Applies a committed OSC 52 write setting to this generation.
+    ///
+    /// The model's bounded scanner starts or stops recognizing stores, and the
+    /// UI slot starts or stops applying them. Disabling revokes a store that
+    /// has not reached the clipboard yet; the parser and the model identity
+    /// stay the same, and a query never becomes a clipboard read.
+    pub fn set_clipboard_write_enabled(&self, enabled: bool) {
+        self.model().set_clipboard_write_enabled(enabled);
+        self.clipboard.set_enabled(enabled);
     }
 
     /// Requests one frame when the session is both visible and live.

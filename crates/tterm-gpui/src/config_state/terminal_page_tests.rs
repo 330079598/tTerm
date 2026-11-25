@@ -114,6 +114,8 @@ async fn saves_the_page_then_publishes_the_actual_values_and_both_events(cx: &mu
             confirm_multiline_paste: false,
             copy_on_select: true,
             right_click_paste: true,
+            osc52_clipboard_write: false,
+            mac_option_is_meta: true,
         },
     )
     .await;
@@ -134,6 +136,8 @@ async fn saves_the_page_then_publishes_the_actual_values_and_both_events(cx: &mu
             confirm_multiline_paste: false,
             copy_on_select: true,
             right_click_paste: true,
+            osc52_clipboard_write: false,
+            mac_option_is_meta: true,
         }],
         "the checked draft reaches the one page writer"
     );
@@ -152,6 +156,8 @@ async fn saves_the_page_then_publishes_the_actual_values_and_both_events(cx: &mu
             confirm_multiline_paste: false,
             copy_on_select: true,
             right_click_paste: true,
+            osc52_clipboard_write: false,
+            mac_option_is_meta: true,
         },
         "the snapshot publishes what the writer reported, not the draft"
     );
@@ -226,6 +232,53 @@ async fn publishes_the_clipboard_preferences_the_file_reported(cx: &mut TestAppC
 }
 
 #[gpui_kit::test]
+async fn publishes_the_osc52_and_option_values_the_file_reported(cx: &mut TestAppContext) {
+    let runtime = runtime();
+    let writer: TerminalPageWriter = Arc::new(|mut settings| {
+        // Another client changed the two preferences this window kept, so the
+        // readback wins over the draft the page submitted.
+        settings.osc52_clipboard_write = false;
+        settings.mac_option_is_meta = true;
+        Ok(settings)
+    });
+    let start = AppConfig {
+        osc52_clipboard_write: true,
+        mac_option_is_meta: false,
+        ..AppConfig::default()
+    };
+    let state = cx.update(|cx| {
+        cx.new(|_| ConfigState::with_terminal_page_writer(start, runtime.handle(), writer))
+    });
+    let font_events = subscribe_font(cx, &state);
+    cx.executor().allow_parking();
+
+    let mut draft = page(cx, &state);
+    draft.size += 1;
+    let result = save(cx, &state, draft).await;
+
+    assert_eq!(result, Ok(()));
+    let saved = page(cx, &state);
+    assert_eq!(
+        (saved.osc52_clipboard_write, saved.mac_option_is_meta),
+        (false, true),
+        "the snapshot publishes the readback, not the draft"
+    );
+    assert_eq!(
+        *font_events.lock().expect("font events"),
+        vec![TerminalFontChanged {
+            family: saved.family,
+            size: saved.size,
+            line_height: saved.line_height,
+            letter_spacing: saved.letter_spacing,
+            confirm_multiline_paste: saved.confirm_multiline_paste,
+            copy_on_select: saved.copy_on_select,
+            right_click_paste: saved.right_click_paste,
+        }],
+        "the event keeps its fields; the runtime reads the new snapshot values"
+    );
+}
+
+#[gpui_kit::test]
 async fn a_font_only_page_does_not_emit_a_scrollback_change(cx: &mut TestAppContext) {
     let runtime = runtime();
     let writer: TerminalPageWriter = Arc::new(Ok);
@@ -291,6 +344,8 @@ async fn a_cursor_and_padding_only_page_updates_the_snapshot_before_the_font_eve
                 config.confirm_multiline_paste,
                 config.copy_on_select,
                 config.right_click_paste,
+                config.osc52_clipboard_write,
+                config.mac_option_is_meta,
             ));
         })
         .detach();
@@ -307,6 +362,8 @@ async fn a_cursor_and_padding_only_page_updates_the_snapshot_before_the_font_eve
     draft.confirm_multiline_paste = false;
     draft.copy_on_select = true;
     draft.right_click_paste = true;
+    draft.osc52_clipboard_write = false;
+    draft.mac_option_is_meta = true;
     let result = save(cx, &state, draft.clone()).await;
 
     assert_eq!(result, Ok(()));
@@ -322,8 +379,10 @@ async fn a_cursor_and_padding_only_page_updates_the_snapshot_before_the_font_eve
             false,
             true,
             true,
+            false,
+            true,
         )],
-        "the listener sees the cursor, padding and clipboard values the event follows"
+        "the listener sees the cursor, padding, clipboard and terminal behaviour values the event follows"
     );
     assert_eq!(
         *font_events.lock().expect("font events"),
@@ -362,6 +421,8 @@ async fn keeps_the_old_page_when_the_write_fails_and_remains_usable(cx: &mut Tes
         font_family: "Menlo".to_string(),
         font_size: 14,
         scrollback_lines: 10_000,
+        osc52_clipboard_write: true,
+        mac_option_is_meta: false,
         ..AppConfig::default()
     };
     let before = TerminalPageSettings::from(&start);
@@ -379,10 +440,20 @@ async fn keeps_the_old_page_when_the_write_fails_and_remains_usable(cx: &mut Tes
     draft.confirm_multiline_paste = true;
     draft.copy_on_select = true;
     draft.right_click_paste = true;
+    draft.osc52_clipboard_write = false;
+    draft.mac_option_is_meta = true;
     let result = save(cx, &state, draft.clone()).await;
 
     assert_eq!(result, Err("disk is full".to_string()));
     assert_eq!(page(cx, &state), before, "a failed write commits nothing");
+    assert_eq!(
+        (
+            page(cx, &state).osc52_clipboard_write,
+            page(cx, &state).mac_option_is_meta,
+        ),
+        (true, false),
+        "a failed write leaves the old OSC 52 and Option policy in place"
+    );
     assert!(font_events.lock().expect("font events").is_empty());
     assert!(
         scrollback_events
@@ -394,6 +465,14 @@ async fn keeps_the_old_page_when_the_write_fails_and_remains_usable(cx: &mut Tes
 
     assert_eq!(save(cx, &state, draft.clone()).await, Ok(()));
     assert_eq!(page(cx, &state), draft);
+    assert_eq!(
+        (
+            page(cx, &state).osc52_clipboard_write,
+            page(cx, &state).mac_option_is_meta,
+        ),
+        (false, true),
+        "a retried edit publishes the readback after the write succeeds"
+    );
     assert_eq!(
         *font_events.lock().expect("font events"),
         vec![TerminalFontChanged {

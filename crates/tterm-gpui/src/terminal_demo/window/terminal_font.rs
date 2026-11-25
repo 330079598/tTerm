@@ -82,9 +82,18 @@ impl Prototype {
                 let font = prototype.factory.shared_font(cx);
                 let padding = prototype.factory.shared_padding(cx);
                 let cursor = prototype.factory.shared_cursor_shape(cx);
+                let saved = prototype.factory.config.read(cx).config();
+                let keyboard =
+                    super::encoder_config(cfg!(target_os = "macos"), saved.mac_option_is_meta);
+                prototype
+                    .factory
+                    .sessions
+                    .set_clipboard_write_enabled(saved.osc52_clipboard_write);
+                prototype.factory.keyboard = keyboard;
                 prototype.factory.sessions.set_default_cursor_shape(cursor);
                 for (_, tab) in prototype.tabs.ordered() {
                     tab.view.update(cx, |view, cx| {
+                        view.set_keyboard_config(keyboard);
                         view.set_font(font.clone(), cx);
                         view.set_padding(padding, cx);
                         view.set_clipboard_options(

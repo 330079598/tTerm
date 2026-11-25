@@ -33,6 +33,8 @@ fn applies_only_the_changed_fields_to_the_latest_file() {
             confirm_multiline_paste: false,
             copy_on_select: true,
             right_click_paste: false,
+            osc52_clipboard_write: true,
+            mac_option_is_meta: false,
             ..AppConfig::default()
         },
     );
@@ -52,6 +54,8 @@ fn applies_only_the_changed_fields_to_the_latest_file() {
     other_client.confirm_multiline_paste = true;
     other_client.copy_on_select = false;
     other_client.right_click_paste = true;
+    other_client.osc52_clipboard_write = false;
+    other_client.mac_option_is_meta = true;
     seed(&path, &other_client);
     let extended = fs::read_to_string(&path)
         .unwrap()
@@ -80,6 +84,8 @@ fn applies_only_the_changed_fields_to_the_latest_file() {
             confirm_multiline_paste: true,
             copy_on_select: false,
             right_click_paste: true,
+            osc52_clipboard_write: false,
+            mac_option_is_meta: true,
         },
         "the untouched page fields keep the values the other client wrote"
     );
@@ -104,8 +110,10 @@ fn applies_only_the_changed_fields_to_the_latest_file() {
             reloaded.confirm_multiline_paste,
             reloaded.copy_on_select,
             reloaded.right_click_paste,
+            reloaded.osc52_clipboard_write,
+            reloaded.mac_option_is_meta,
         ),
-        (true, false, true)
+        (true, false, true, false, true)
     );
     assert!(fs::read_to_string(&path).unwrap().contains("1.2300e+45"));
     fs::remove_file(path).unwrap();
@@ -272,6 +280,65 @@ fn a_clipboard_edit_writes_only_its_field_and_keeps_an_external_page_edit() {
 }
 
 #[test]
+fn an_osc52_and_option_edit_writes_only_its_fields_and_keeps_an_external_page_edit() {
+    let path = temp_config();
+    seed(
+        &path,
+        &AppConfig {
+            font_family: "Menlo".to_string(),
+            font_size: 14,
+            confirm_multiline_paste: true,
+            copy_on_select: false,
+            osc52_clipboard_write: true,
+            mac_option_is_meta: false,
+            ..AppConfig::default()
+        },
+    );
+    let snapshot = super::super::load_config_at(&path).unwrap();
+
+    // Another client changes settings this window keeps, including the
+    // clipboard preference beside the two this window saves.
+    let mut other_client = super::super::load_config_at(&path).unwrap();
+    other_client.font_family = "Fira Code".to_string();
+    other_client.font_size = 18;
+    other_client.confirm_multiline_paste = false;
+    other_client.copy_on_select = true;
+    seed(&path, &other_client);
+
+    let mut draft = TerminalPageSettings::from(&snapshot);
+    draft.osc52_clipboard_write = false;
+    draft.mac_option_is_meta = true;
+
+    let saved = save_page_at(&path, &snapshot, draft).unwrap();
+
+    assert_eq!(
+        (
+            saved.family.as_str(),
+            saved.size,
+            saved.confirm_multiline_paste,
+            saved.copy_on_select,
+            saved.osc52_clipboard_write,
+            saved.mac_option_is_meta,
+        ),
+        ("Fira Code", 18, false, true, false, true),
+        "only the changed preferences are written; the latest file wins the rest"
+    );
+    let reloaded = super::super::load_config_at(&path).unwrap();
+    assert_eq!(
+        (
+            reloaded.font_family.as_str(),
+            reloaded.font_size,
+            reloaded.confirm_multiline_paste,
+            reloaded.copy_on_select,
+            reloaded.osc52_clipboard_write,
+            reloaded.mac_option_is_meta,
+        ),
+        ("Fira Code", 18, false, true, false, true)
+    );
+    fs::remove_file(path).unwrap();
+}
+
+#[test]
 fn reports_the_values_the_file_holds() {
     let path = temp_config();
     let previous = AppConfig::default();
@@ -292,6 +359,8 @@ fn reports_the_values_the_file_holds() {
             confirm_multiline_paste: false,
             copy_on_select: true,
             right_click_paste: true,
+            osc52_clipboard_write: false,
+            mac_option_is_meta: true,
         },
     )
     .unwrap();
@@ -317,6 +386,8 @@ fn reports_the_values_the_file_holds() {
     assert!(!saved.confirm_multiline_paste);
     assert!(saved.copy_on_select);
     assert!(saved.right_click_paste);
+    assert!(!saved.osc52_clipboard_write);
+    assert!(saved.mac_option_is_meta);
     fs::remove_file(path).unwrap();
 }
 
@@ -455,6 +526,22 @@ fn refuses_a_clipboard_edit_to_an_unreadable_config() {
     draft.right_click_paste = !draft.right_click_paste;
 
     for damaged in ["{", r#"{"confirm_multiline_paste":false}"#] {
+        fs::write(&path, damaged).unwrap();
+        assert!(save_page_at(&path, &previous, draft.clone()).is_err());
+        assert_eq!(fs::read_to_string(&path).unwrap(), damaged);
+    }
+    fs::remove_file(path).unwrap();
+}
+
+#[test]
+fn refuses_an_osc52_and_option_edit_to_an_unreadable_config() {
+    let path = temp_config();
+    let previous = AppConfig::default();
+    let mut draft = TerminalPageSettings::from(&previous);
+    draft.osc52_clipboard_write = !draft.osc52_clipboard_write;
+    draft.mac_option_is_meta = !draft.mac_option_is_meta;
+
+    for damaged in ["{", r#"{"osc52_clipboard_write":false}"#] {
         fs::write(&path, damaged).unwrap();
         assert!(save_page_at(&path, &previous, draft.clone()).is_err());
         assert_eq!(fs::read_to_string(&path).unwrap(), damaged);

@@ -410,6 +410,23 @@ fn option_composes_text_when_mac_option_is_meta_is_false(cx: &mut TestAppContext
     h.key_down(cx, key("o", Some("ø"), alt()), false);
 
     assert_eq!(h.bytes(), "ø".as_bytes().to_vec());
+
+    cx.update(|cx| {
+        h.view.update(cx, |view, _| {
+            view.set_keyboard_config(EncoderConfig::macos(true))
+        })
+    });
+    h.clear();
+    h.key_down(cx, key("o", Some("ø"), alt()), false);
+    assert_eq!(h.bytes(), b"\x1bo");
+    cx.update(|cx| {
+        h.view.update(cx, |view, _| {
+            view.set_keyboard_config(EncoderConfig::macos(false))
+        })
+    });
+    h.clear();
+    h.key_down(cx, key("o", Some("ø"), alt()), false);
+    assert_eq!(h.bytes(), "ø".as_bytes());
 }
 
 #[gpui_kit::test]

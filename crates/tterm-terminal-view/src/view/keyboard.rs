@@ -9,6 +9,11 @@ use crate::input::focus::focus_report;
 use crate::input::keyboard::{KeyPress, KeyState, encode};
 
 impl TerminalView {
+    /// Applies the committed modifier policy without replacing the input sink or clearing composition.
+    pub fn set_keyboard_config(&mut self, config: crate::input::keyboard::EncoderConfig) {
+        self.keyboard = config;
+    }
+
     pub(super) fn input_modes(&self) -> Modes {
         self.last_frame
             .as_ref()

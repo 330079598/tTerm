@@ -151,7 +151,7 @@ fn replay(case: Case, tape: &Tape, ordered: bool) -> ModelPass {
                 display_bytes += bytes.len();
                 slices += 1;
                 for intent in model.drain_intents() {
-                    handle_intent(intent, &session, |reply| {
+                    handle_intent(intent, &session, session.clipboard.epoch(), |reply| {
                         transcript.extend_from_slice(&reply)
                     });
                 }

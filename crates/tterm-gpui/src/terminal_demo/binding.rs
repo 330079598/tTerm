@@ -84,6 +84,17 @@ impl SessionManager {
         }
     }
 
+    /// Updates the default for future sessions and the policy for live sessions.
+    pub fn set_clipboard_write_enabled(&self, enabled: bool) {
+        self.terminal_config.borrow_mut().clipboard =
+            super::session::clipboard_write_policy(enabled);
+        for binding in self.tabs().values() {
+            if let Some(session) = binding.session() {
+                session.set_clipboard_write_enabled(enabled);
+            }
+        }
+    }
+
     /// Opens a new generation for `tab_id`, replacing its old session.
     ///
     /// The returned binding exists even when opening fails, so the tab can

@@ -216,9 +216,9 @@ fn spawn_clipboard_writes(
     is_current: Rc<dyn Fn() -> bool>,
     writes: Arc<ClipboardWrites>,
 ) -> Option<Task<()>> {
-    if !writes.enabled() {
-        return None;
-    }
+    // The watcher starts even while the setting is off: a committed change can
+    // enable this generation later, and the slot itself rejects a store and
+    // revokes a pending write while it is disabled.
     let mut watch = writes.subscribe();
     Some(cx.spawn(async move |controller, cx| {
         loop {

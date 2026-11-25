@@ -446,6 +446,7 @@ impl ParserOutput {
             return false;
         }
         let mut applier = Applier {
+            clipboard_epoch: state.clipboard.epoch(),
             state,
             write,
             guard,
@@ -469,6 +470,7 @@ impl ParserOutput {
 
 /// Applies output and resolves intents for one parser batch.
 struct Applier<'a> {
+    clipboard_epoch: u64,
     state: &'a SessionState,
     write: &'a WriteBytes,
     guard: &'a Option<Arc<MouseGuard>>,
@@ -502,7 +504,9 @@ impl Applier<'_> {
             }
             return;
         }
-        handle_intent(intent, self.state, |reply| (self.write)(reply));
+        handle_intent(intent, self.state, self.clipboard_epoch, |reply| {
+            (self.write)(reply)
+        });
     }
 
     /// Writes a fixed reply, or defers it while the parser holds a

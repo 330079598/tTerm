@@ -509,6 +509,8 @@ async fn a_committed_clipboard_page_reaches_existing_split_and_new_panes(cx: &mu
             page.confirm_multiline_paste = false;
             page.copy_on_select = true;
             page.right_click_paste = true;
+            page.osc52_clipboard_write = false;
+            page.mac_option_is_meta = true;
             state.save_terminal_page(page, cx)
         })
     });
@@ -542,6 +544,16 @@ async fn a_committed_clipboard_page_reaches_existing_split_and_new_panes(cx: &mu
     for id in [3, 4] {
         assert_eq!(h.clipboard(id), (true, true));
         assert!(!h.multiline_confirmation(id));
+    }
+    for id in [1, 2, 3, 4] {
+        let model = h.model(id);
+        model.write(b"\x1b]52;c;aGVsbG8=\x07");
+        assert!(
+            !model.drain_intents().iter().any(|intent| matches!(
+                intent,
+                tterm_terminal::event::Intent::ClipboardStore { .. }
+            ))
+        );
     }
 }
 

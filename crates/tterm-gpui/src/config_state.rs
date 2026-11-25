@@ -406,14 +406,17 @@ impl ConfigState {
         self.config.confirm_multiline_paste = saved.confirm_multiline_paste;
         self.config.copy_on_select = saved.copy_on_select;
         self.config.right_click_paste = saved.right_click_paste;
+        self.config.osc52_clipboard_write = saved.osc52_clipboard_write;
+        self.config.mac_option_is_meta = saved.mac_option_is_meta;
     }
 
     /// Saves every Terminal page field as one configuration edit.
     ///
     /// The draft covers the font family, size, line height, letter spacing,
-    /// scrollback capacity, cursor style, page padding and the clipboard
-    /// preferences, so pressing Enter in any field writes the whole page
-    /// rather than only the focused input.
+    /// scrollback capacity, cursor style, page padding, the clipboard
+    /// preferences and the OSC 52 and macOS Option behaviour, so pressing
+    /// Enter in any field writes the whole page rather than only the focused
+    /// input.
     /// The draft is checked with the shared core rules before a writer runs.
     /// The writer applies only the fields that differ from this state's
     /// snapshot to the latest config file and returns the values the file now

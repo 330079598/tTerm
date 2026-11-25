@@ -368,7 +368,7 @@ impl SettingsPage {
         else {
             return;
         };
-        let (confirm_multiline_paste, copy_on_select, right_click_paste) = self
+        let clipboard = self
             .clipboard
             .update(cx, |clipboard, cx| clipboard.page_values(cx));
         self.page_saving = true;
@@ -385,9 +385,11 @@ impl SettingsPage {
             padding_left,
             padding_right,
             padding_bottom,
-            confirm_multiline_paste,
-            copy_on_select,
-            right_click_paste,
+            confirm_multiline_paste: clipboard.confirm_multiline_paste,
+            copy_on_select: clipboard.copy_on_select,
+            right_click_paste: clipboard.right_click_paste,
+            osc52_clipboard_write: clipboard.osc52_clipboard_write,
+            mac_option_is_meta: clipboard.mac_option_is_meta,
         };
         let config = self.scrollback.read(cx).config_entity();
         let task = config.update(cx, |config, cx| config.save_terminal_page(settings, cx));

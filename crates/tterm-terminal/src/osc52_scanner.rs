@@ -23,6 +23,19 @@ impl Osc52Scanner {
         }
     }
 
+    /// Enables or disables store recognition after the model was created.
+    ///
+    /// Rebuilding the framer drops any half-scanned sequence, so a store that
+    /// started while writes were disabled can never complete and replay after
+    /// a later enable. Disabling therefore revokes every pending store too.
+    pub fn set_enabled(&mut self, enabled: bool) {
+        if self.enabled == enabled {
+            return;
+        }
+        self.enabled = enabled;
+        self.framer = ControlStringFramer::with_osc52_payload(enabled);
+    }
+
     /// Scans one chunk and returns each complete store with its end offset.
     pub fn scan(&mut self, bytes: &[u8]) -> Vec<(usize, String)> {
         if !self.enabled {

@@ -1,6 +1,7 @@
 //! Test access to the settings page's drafts, focus and search results.
 
 use super::*;
+use crate::clipboard_setting::ClipboardDraft;
 
 impl SettingsPage {
     #[cfg(test)]
@@ -165,7 +166,7 @@ impl SettingsPage {
     }
 
     #[cfg(test)]
-    pub(crate) fn clipboard_values(&self, cx: &App) -> (bool, bool, bool) {
+    pub(crate) fn clipboard_values(&self, cx: &App) -> ClipboardDraft {
         self.clipboard.read(cx).values()
     }
 
