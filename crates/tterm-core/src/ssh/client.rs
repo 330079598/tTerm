@@ -173,8 +173,7 @@ pub async fn run_single_ssh_connection(
             tab_id: &tab_id,
             prompts: &prompts,
             status_options: ConnectionStatusOptions::VERBOSE,
-            host_key_verification_mode:
-                crate::ssh::types::HostKeyVerificationMode::PromptAndPersist,
+            host_key_verification_mode: crate::ssh::host_key_policy::current(),
             prompt_owner: Some(&prompt_scope.owner),
             auth_prompter: &crate::ssh::auth::AuthPrompter::tab(&app, &tab_id),
         },

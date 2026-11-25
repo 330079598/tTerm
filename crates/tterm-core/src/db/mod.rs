@@ -38,6 +38,15 @@ impl Database {
         })
     }
 
+    /// Opens the app database inside a caller-provided config directory.
+    ///
+    /// This keeps the database filename in this module while letting isolated
+    /// instances use the normal migrations without installing process-wide
+    /// config or database paths.
+    pub fn open_in_config_dir(config_dir: &Path) -> Result<Self, String> {
+        Self::open(&config_dir.join(DATABASE_FILE))
+    }
+
     #[cfg(any(test, feature = "test-support"))]
     pub fn open_in_memory() -> Result<Self, String> {
         let mut connection = Connection::open_in_memory()
@@ -84,9 +93,7 @@ impl Database {
 pub fn init() -> Result<&'static Database, String> {
     DATABASE
         .get_or_init(|| {
-            ensure_config_dir()
-                .map(|directory| directory.join(DATABASE_FILE))
-                .and_then(|path| Database::open(&path))
+            ensure_config_dir().and_then(|directory| Database::open_in_config_dir(&directory))
         })
         .as_ref()
         .map_err(Clone::clone)

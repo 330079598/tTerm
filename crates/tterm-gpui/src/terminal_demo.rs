@@ -19,6 +19,8 @@ mod window;
 
 #[cfg(all(feature = "automation", debug_assertions))]
 mod automation;
+#[cfg(all(feature = "automation", debug_assertions))]
+mod field;
 
 use command::CommandSpec;
 use runtime::GpuiRuntime;
@@ -42,6 +44,20 @@ pub fn capture_settings_headlessly(
 #[cfg(all(debug_assertions, feature = "automation"))]
 pub fn capture_search_headlessly(output: &std::path::Path) -> Result<(), String> {
     window::search::capture::capture_search_headlessly(output)
+}
+
+/// Runs the debug-only SSH field window with one stdin password.
+///
+/// The caller must use a numbered instance that already contains the fixed
+/// check profile and its confirmed host key. The entry never starts the
+/// automation endpoint, never writes the password to disk, and keeps the
+/// password out of the saved tab and workspace.
+#[cfg(all(debug_assertions, feature = "automation"))]
+pub fn run_ssh_tui_field(
+    password: zeroize::Zeroizing<String>,
+    output: Option<std::path::PathBuf>,
+) -> Result<(), String> {
+    field::run(password, output)
 }
 
 /// Opens the prototype window and runs until it closes.

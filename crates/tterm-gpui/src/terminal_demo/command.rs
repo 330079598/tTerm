@@ -343,7 +343,14 @@ fn saved_ssh_profile_from_cli(selector: &str) -> Result<PtyConnectionOptions, St
     let profiles = tterm_core::profiles::storage::load_profiles()?;
     let mut profile = select_saved_profile_from_cli(selector, &profiles)?;
     tterm_core::profiles::storage::normalize_profile(&mut profile);
-    connection_options_for_profile(&profile)
+    let options = connection_options_for_profile(&profile)?;
+    #[cfg(all(debug_assertions, feature = "automation"))]
+    let options = {
+        let mut options = options;
+        super::field::inject_password(&mut options)?;
+        options
+    };
+    Ok(options)
 }
 
 fn select_saved_profile_by_id(id: &str, profiles: &[SavedProfile]) -> Result<SavedProfile, String> {

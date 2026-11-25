@@ -11026,6 +11026,7 @@ dependencies = [
  "tterm-terminal-view",
  "tterm-ui",
  "windows 0.62.2",
+ "zeroize",
 ]
 
 [[package]]

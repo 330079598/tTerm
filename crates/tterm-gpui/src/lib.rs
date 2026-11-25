@@ -2,6 +2,10 @@
 
 pub mod app_window;
 mod appearance_setting;
+#[cfg(debug_assertions)]
+pub mod check_instance;
+#[cfg(not(debug_assertions))]
+mod check_instance;
 mod clipboard_setting;
 mod command_marks_setting;
 mod config_state;

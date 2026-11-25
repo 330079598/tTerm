@@ -71,8 +71,14 @@ impl From<SshConnectError> for String {
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum HostKeyVerificationMode {
+    /// Ask the user about an unknown or changed key and save a confirmed one.
     PromptAndPersist,
+    /// Accept a key seen for the first time in this session, but reject a
+    /// changed one. Connection checks use this for disposable test servers.
     TrustUnknownForSession,
+    /// Accept only a key already pinned in the application store. Unknown and
+    /// changed keys are rejected without asking the user.
+    RequirePinnedHostKey,
 }
 
 #[derive(Debug, Eq, PartialEq)]
@@ -81,6 +87,7 @@ enum HostKeyCheckOutcome {
     TrustUnknownForSession,
     PromptUser,
     RejectChangedKnownHost,
+    RejectUnpinnedHostKey,
 }
 
 fn resolve_host_key_check(
@@ -106,6 +113,29 @@ fn resolve_host_key_check(
             HostKeyCheckOutcome::RejectChangedKnownHost
         }
         (HostKeyVerificationMode::PromptAndPersist, _) => HostKeyCheckOutcome::PromptUser,
+        (HostKeyVerificationMode::RequirePinnedHostKey, true) => {
+            HostKeyCheckOutcome::RejectChangedKnownHost
+        }
+        (HostKeyVerificationMode::RequirePinnedHostKey, false) => {
+            HostKeyCheckOutcome::RejectUnpinnedHostKey
+        }
+    }
+}
+
+/// The key a pinned-only check compares with the application store's record.
+///
+/// A certificate is compared by the host key it certifies, which is what the
+/// normal path records after OpenSSH declines to decide about it.
+fn presented_public_key(
+    presented: &russh::keys::PublicKeyOrCertificate,
+) -> russh::keys::ssh_key::PublicKey {
+    use russh::keys::PublicKeyOrCertificate;
+
+    match presented {
+        PublicKeyOrCertificate::PublicKey { key, .. } => key.clone(),
+        PublicKeyOrCertificate::Certificate(certificate) => {
+            russh::keys::ssh_key::PublicKey::new(certificate.public_key().clone(), "")
+        }
     }
 }
 
@@ -259,23 +289,32 @@ impl russh::client::Handler for SshClientHandler {
     ) -> Result<bool, Self::Error> {
         use russh::keys::ssh_key::HashAlg;
 
+        let require_pinned =
+            self.host_key_verification_mode == HostKeyVerificationMode::RequirePinnedHostKey;
+
         // What `ssh` trusts or refuses decides first; a host certificate is
         // only asked for when `known_hosts` trusts an authority for the host.
-        let (server_public_key, listed_fingerprint) = match check_presented_key(
-            &self.host,
-            self.port,
-            Some(&self.profile_name),
-            server_public_key,
-        ) {
-            KnownHostVerdict::Trusted => return Ok(true),
-            KnownHostVerdict::Rejected(reason) => {
-                self.emit_status("31", &reason);
-                return Ok(false);
+        // A pinned-only run ignores those files so a key the profile never
+        // confirmed cannot stand in for the application store's pin.
+        let (server_public_key, listed_fingerprint) = if require_pinned {
+            (presented_public_key(server_public_key), None)
+        } else {
+            match check_presented_key(
+                &self.host,
+                self.port,
+                Some(&self.profile_name),
+                server_public_key,
+            ) {
+                KnownHostVerdict::Trusted => return Ok(true),
+                KnownHostVerdict::Rejected(reason) => {
+                    self.emit_status("31", &reason);
+                    return Ok(false);
+                }
+                KnownHostVerdict::Undecided {
+                    key,
+                    listed_fingerprint,
+                } => (key, listed_fingerprint),
             }
-            KnownHostVerdict::Undecided {
-                key,
-                listed_fingerprint,
-            } => (key, listed_fingerprint),
         };
 
         let algorithm = server_public_key.algorithm().to_string();
@@ -307,10 +346,14 @@ impl russh::client::Handler for SshClientHandler {
                 return Ok(false);
             }
         };
-        let known = known.or_else(|| {
-            listed_fingerprint
-                .map(|listed| listed_record(&self.host, self.port, &algorithm, listed))
-        });
+        let known = if require_pinned {
+            known
+        } else {
+            known.or_else(|| {
+                listed_fingerprint
+                    .map(|listed| listed_record(&self.host, self.port, &algorithm, listed))
+            })
+        };
 
         match resolve_host_key_check(
             self.host_key_verification_mode,
@@ -340,6 +383,14 @@ impl russh::client::Handler for SshClientHandler {
                 self.emit_status(
                     "31",
                     "SSH host fingerprint changed; connect normally to review the new fingerprint.",
+                );
+                return Ok(false);
+            }
+            HostKeyCheckOutcome::RejectUnpinnedHostKey => {
+                self.emit_status(
+                    "31",
+                    "SSH host key is not pinned in this instance; confirm it in a normal \
+                     connection first.",
                 );
                 return Ok(false);
             }
@@ -477,6 +528,52 @@ mod tests {
                 "SHA256:new"
             ),
             HostKeyCheckOutcome::PromptUser
+        );
+    }
+
+    #[test]
+    fn pinned_only_mode_accepts_the_stored_fingerprint() {
+        let known = known_host("SHA256:new");
+
+        assert_eq!(
+            resolve_host_key_check(
+                HostKeyVerificationMode::RequirePinnedHostKey,
+                Some(&known),
+                "example.com",
+                22,
+                "SHA256:new"
+            ),
+            HostKeyCheckOutcome::TrustedKnown
+        );
+    }
+
+    #[test]
+    fn pinned_only_mode_rejects_an_unpinned_host_key() {
+        assert_eq!(
+            resolve_host_key_check(
+                HostKeyVerificationMode::RequirePinnedHostKey,
+                None,
+                "example.com",
+                22,
+                "SHA256:new"
+            ),
+            HostKeyCheckOutcome::RejectUnpinnedHostKey
+        );
+    }
+
+    #[test]
+    fn pinned_only_mode_rejects_a_changed_host_key() {
+        let known = known_host("SHA256:old");
+
+        assert_eq!(
+            resolve_host_key_check(
+                HostKeyVerificationMode::RequirePinnedHostKey,
+                Some(&known),
+                "example.com",
+                22,
+                "SHA256:new"
+            ),
+            HostKeyCheckOutcome::RejectChangedKnownHost
         );
     }
 

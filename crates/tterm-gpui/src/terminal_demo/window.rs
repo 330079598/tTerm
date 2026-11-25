@@ -34,6 +34,7 @@ mod shell_launcher;
 mod split_session_tests;
 mod split_state;
 mod split_ui;
+pub(super) mod ssh_tui_field;
 mod strip;
 mod tabs;
 mod template_actions;
@@ -242,7 +243,11 @@ pub(super) fn run_window(
             cx.quit();
         } else {
             #[cfg(all(feature = "automation", debug_assertions))]
-            super::automation::start(handle, prototype, cx);
+            if super::field::is_armed() {
+                super::field::after_window(handle, prototype, cx);
+            } else {
+                super::automation::start(handle, prototype, cx);
+            }
         }
     });
 }

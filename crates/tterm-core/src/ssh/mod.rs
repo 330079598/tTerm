@@ -4,6 +4,7 @@ pub mod agent;
 pub mod auth;
 pub mod client;
 pub mod context;
+pub mod host_key_policy;
 pub mod host_key_prompt;
 pub mod jump;
 pub mod key_file;
