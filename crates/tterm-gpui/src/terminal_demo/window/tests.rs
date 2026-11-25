@@ -1,5 +1,4 @@
 use tterm_core::config::AppConfig;
-use tterm_core::config::limits::DEFAULT_HIDDEN_RENDERER_RELEASE_SECS;
 use tterm_core::events::ssh::SshConnectionProgressPayload;
 
 use super::events::connection_state;
@@ -53,19 +52,16 @@ fn a_program_title_is_preserved_verbatim() {
 fn startup_config_normalizes_before_views_read_it() {
     let loaded = AppConfig {
         ui_style: "floating".to_string(),
+        ui_scale_percent: 85,
         close_behavior: "close".to_string(),
-        hidden_renderer_release_secs: 7,
         ..AppConfig::default()
     };
 
     let config = startup_config(Ok(loaded));
 
     assert_eq!(config.ui_style, "classic");
+    assert_eq!(config.ui_scale_percent, 90);
     assert_eq!(config.close_behavior, "ask");
-    assert_eq!(
-        config.hidden_renderer_release_secs,
-        DEFAULT_HIDDEN_RENDERER_RELEASE_SECS
-    );
 }
 
 #[test]

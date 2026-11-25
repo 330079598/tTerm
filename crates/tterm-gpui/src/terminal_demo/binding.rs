@@ -95,6 +95,17 @@ impl SessionManager {
         }
     }
 
+    /// Turns shell-integration command marks on or off for every session and
+    /// for sessions opened later.
+    pub fn set_command_marks_enabled(&self, enabled: bool) {
+        self.terminal_config.borrow_mut().command_marks = enabled;
+        for binding in self.tabs().values() {
+            if let Some(session) = binding.session() {
+                session.set_command_marks_enabled(enabled);
+            }
+        }
+    }
+
     /// Opens a new generation for `tab_id`, replacing its old session.
     ///
     /// The returned binding exists even when opening fails, so the tab can

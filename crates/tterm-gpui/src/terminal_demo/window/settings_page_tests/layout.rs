@@ -55,7 +55,8 @@ fn page_layout_matches_the_reference_metrics(cx: &mut TestAppContext) {
         527.0,
     );
     // The page shows text rendering first, then the cursor samples, the
-    // clipboard switches, scrollback, padding, the preview and one Save last.
+    // clipboard switches, the command-mark rows that continue them, scrollback,
+    // padding, the preview and one Save last.
     // The font section is taller than the viewport, so the later sections are
     // laid out below it rather than hidden by a second save action.
     assert_page_box(
@@ -94,13 +95,21 @@ fn page_layout_matches_the_reference_metrics(cx: &mut TestAppContext) {
         harness.visual,
         super::settings_page::SETTINGS_SCROLLBACK_SECTION_ID,
     );
+    let marks = page_bounds(harness.visual, crate::command_marks_setting::SECTION_ID);
+    assert_eq!(marks.origin.x.as_f32(), 216.0);
+    assert_eq!(marks.size.width.as_f32(), 536.0);
+    assert_eq!(
+        marks.origin.y,
+        clipboard.origin.y + clipboard.size.height,
+        "the command-mark rows continue the clipboard section without a gap"
+    );
     assert_eq!(scrollback.origin.x.as_f32(), 216.0);
     assert_eq!(scrollback.size.width.as_f32(), 536.0);
     assert_eq!(scrollback.size.height.as_f32(), 111.0);
     assert_eq!(
         scrollback.origin.y,
-        clipboard.origin.y + clipboard.size.height + gpui_kit::px(24.0),
-        "the scrollback section follows the clipboard section with one section gap"
+        marks.origin.y + marks.size.height + gpui_kit::px(24.0),
+        "the scrollback section follows the command-mark rows with one section gap"
     );
     let scrollback_input = page_bounds(
         harness.visual,

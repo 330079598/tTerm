@@ -169,6 +169,7 @@ pub(super) fn run_window(
             clipboard: clipboard_policy,
             scrollback: history_capacity(app_config.scrollback_lines),
             cursor_shape: CursorShape::from_config(&app_config.cursor_style),
+            command_marks: app_config.command_marks,
             ..Config::default()
         }),
     );

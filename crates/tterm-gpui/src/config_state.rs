@@ -90,6 +90,8 @@ pub struct TerminalFontChanged {
     pub copy_on_select: bool,
     /// Whether right-clicking pastes instead of opening the context menu.
     pub right_click_paste: bool,
+    /// Whether shells mark each command's prompt and output (OSC 133).
+    pub command_marks: bool,
 }
 
 /// The application's live configuration entity.
@@ -408,6 +410,8 @@ impl ConfigState {
         self.config.right_click_paste = saved.right_click_paste;
         self.config.osc52_clipboard_write = saved.osc52_clipboard_write;
         self.config.mac_option_is_meta = saved.mac_option_is_meta;
+        self.config.command_marks = saved.command_marks;
+        self.config.local_unix_shell_integration = saved.local_unix_shell_integration;
     }
 
     /// Saves every Terminal page field as one configuration edit.
@@ -467,6 +471,7 @@ impl ConfigState {
                         confirm_multiline_paste: saved.confirm_multiline_paste,
                         copy_on_select: saved.copy_on_select,
                         right_click_paste: saved.right_click_paste,
+                        command_marks: saved.command_marks,
                     };
                     let published = changed.clone();
                     let _ = this.update(cx, |state, cx| {

@@ -2,6 +2,7 @@
 
 use super::*;
 use crate::clipboard_setting::ClipboardDraft;
+use crate::command_marks_setting::CommandMarksDraft;
 
 impl SettingsPage {
     #[cfg(test)]
@@ -173,6 +174,16 @@ impl SettingsPage {
     #[cfg(test)]
     pub(crate) fn clipboard_error(&self, cx: &App) -> Option<String> {
         self.clipboard.read(cx).error().map(str::to_string)
+    }
+
+    #[cfg(test)]
+    pub(crate) fn command_marks_values(&self, cx: &App) -> CommandMarksDraft {
+        self.command_marks.read(cx).values()
+    }
+
+    #[cfg(test)]
+    pub(crate) fn command_marks_error(&self, cx: &App) -> Option<String> {
+        self.command_marks.read(cx).error().map(str::to_string)
     }
 
     #[cfg(test)]

@@ -310,6 +310,17 @@ impl Session {
         self.wake();
     }
 
+    /// Turns shell-integration command marks on or off for this generation.
+    ///
+    /// Disabling drops the positions already collected, so the overview ruler
+    /// stops drawing them; the parser, PTY and model identity stay the same.
+    /// A visible view is woken because no new output has to arrive for its
+    /// scrollbar to change.
+    pub fn set_command_marks_enabled(&self, enabled: bool) {
+        self.model().set_command_marks_enabled(enabled);
+        self.wake();
+    }
+
     /// Applies a committed OSC 52 write setting to this generation.
     ///
     /// The model's bounded scanner starts or stops recognizing stores, and the

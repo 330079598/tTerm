@@ -27,6 +27,7 @@ use self::search::{LOCAL_SHELLS_PAGE_VALUE, TERMINAL_PAGE_VALUE};
 use super::Prototype;
 use crate::appearance_setting::{AppearancePageSubmit, AppearanceSetting};
 use crate::clipboard_setting::ClipboardSetting;
+use crate::command_marks_setting::CommandMarksSetting;
 use crate::font_setting::{FontPageSubmit, FontSetting};
 use crate::local_shells_setting::LocalShellsSetting;
 use crate::locale::Locale;
@@ -73,16 +74,18 @@ pub(super) enum SettingsSection {
     Font,
     Cursor,
     Clipboard,
+    CommandMarks,
     Scrollback,
     Padding,
     Preview,
     Save,
 }
 
-pub(super) const SETTINGS_SECTIONS: [SettingsSection; 7] = [
+pub(super) const SETTINGS_SECTIONS: [SettingsSection; 8] = [
     SettingsSection::Font,
     SettingsSection::Cursor,
     SettingsSection::Clipboard,
+    SettingsSection::CommandMarks,
     SettingsSection::Scrollback,
     SettingsSection::Padding,
     SettingsSection::Preview,
@@ -95,6 +98,11 @@ impl SettingsSection {
             .iter()
             .position(|section| *section == self)
             .unwrap_or_default()
+    }
+
+    /// Whether this section continues the block above without a section gap.
+    pub(super) fn continues_previous(self) -> bool {
+        self == Self::CommandMarks
     }
 }
 
@@ -122,6 +130,7 @@ pub(super) struct SettingsPage {
     font: Entity<FontSetting>,
     appearance: Entity<AppearanceSetting>,
     clipboard: Entity<ClipboardSetting>,
+    command_marks: Entity<CommandMarksSetting>,
     local_shells: Entity<LocalShellsSetting>,
     search_input: Option<Entity<InputState>>,
     _search_events: Option<Subscription>,
@@ -158,11 +167,15 @@ impl SettingsPage {
         let font = cx.new(|cx| FontSetting::new(config.clone(), locale.clone(), theme, cx));
         let appearance =
             cx.new(|cx| AppearanceSetting::new(config.clone(), locale.clone(), theme, cx));
-        let clipboard = cx.new(|cx| ClipboardSetting::new(config, locale.clone(), theme, cx));
+        let clipboard =
+            cx.new(|cx| ClipboardSetting::new(config.clone(), locale.clone(), theme, cx));
+        let command_marks =
+            cx.new(|cx| CommandMarksSetting::new(config.clone(), locale.clone(), theme, cx));
         cx.observe(&scrollback, |_, _, cx| cx.notify()).detach();
         cx.observe(&font, |_, _, cx| cx.notify()).detach();
         cx.observe(&appearance, |_, _, cx| cx.notify()).detach();
         cx.observe(&clipboard, |_, _, cx| cx.notify()).detach();
+        cx.observe(&command_marks, |_, _, cx| cx.notify()).detach();
         let content_scroll = gpui_kit::ScrollHandle::new();
         cx.observe(&local_shells, |_, _, cx| cx.notify()).detach();
         Self {
@@ -172,6 +185,7 @@ impl SettingsPage {
             font,
             appearance,
             clipboard,
+            command_marks,
             local_shells,
             search_input: None,
             _search_events: None,
@@ -209,6 +223,8 @@ impl SettingsPage {
             .update(cx, |setting, cx| setting.open_page(window, cx));
         self.clipboard
             .update(cx, |setting, cx| setting.open_page(cx));
+        self.command_marks
+            .update(cx, |setting, cx| setting.open_page(cx));
         self.local_shells
             .update(cx, |setting, cx| setting.open_page(cx));
         self.page_saving = false;
@@ -233,6 +249,7 @@ impl SettingsPage {
             || !self.font.read(cx).can_close()
             || !self.appearance.read(cx).can_close()
             || !self.clipboard.read(cx).can_close()
+            || !self.command_marks.read(cx).can_close()
             || !self.local_shells.read(cx).can_close()
         {
             return false;
@@ -247,6 +264,9 @@ impl SettingsPage {
         let clipboard_closed = self
             .clipboard
             .update(cx, |setting, cx| setting.close_page(cx));
+        let command_marks_closed = self
+            .command_marks
+            .update(cx, |setting, cx| setting.close_page(cx));
         let local_shells_closed = self
             .local_shells
             .update(cx, |setting, cx| setting.close_page(cx));
@@ -254,6 +274,7 @@ impl SettingsPage {
             || !font_closed
             || !appearance_closed
             || !clipboard_closed
+            || !command_marks_closed
             || !local_shells_closed
         {
             return false;
@@ -371,6 +392,9 @@ impl SettingsPage {
         let clipboard = self
             .clipboard
             .update(cx, |clipboard, cx| clipboard.page_values(cx));
+        let command_marks = self
+            .command_marks
+            .update(cx, |setting, cx| setting.page_values(cx));
         self.page_saving = true;
         self.page_saved = false;
         self.page_error = None;
@@ -390,6 +414,8 @@ impl SettingsPage {
             right_click_paste: clipboard.right_click_paste,
             osc52_clipboard_write: clipboard.osc52_clipboard_write,
             mac_option_is_meta: clipboard.mac_option_is_meta,
+            command_marks: command_marks.command_marks,
+            local_unix_shell_integration: command_marks.local_unix_shell_integration,
         };
         let config = self.scrollback.read(cx).config_entity();
         let task = config.update(cx, |config, cx| config.save_terminal_page(settings, cx));
@@ -419,6 +445,9 @@ impl SettingsPage {
         });
         self.clipboard.update(cx, |clipboard, cx| {
             clipboard.page_save_result(result.clone(), cx)
+        });
+        self.command_marks.update(cx, |setting, cx| {
+            setting.page_save_result(result.clone(), cx)
         });
         self.scrollback.update(cx, |scrollback, cx| {
             scrollback.page_save_result(result, window, cx)
@@ -559,6 +588,10 @@ impl SettingsPage {
                             setting.focus_cursor(window, cx);
                         });
                         self.scroll_to_section(SettingsSection::Cursor);
+                    } else if self.command_marks.update(cx, |setting, cx| {
+                        setting.focus_search_result(&result.title, window, cx)
+                    }) {
+                        self.scroll_to_section(SettingsSection::CommandMarks);
                     } else if self.clipboard.update(cx, |editor, cx| {
                         editor.focus_search_result(&result.title, window, cx)
                     }) {

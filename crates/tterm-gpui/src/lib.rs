@@ -3,6 +3,7 @@
 pub mod app_window;
 mod appearance_setting;
 mod clipboard_setting;
+mod command_marks_setting;
 mod config_state;
 mod font_setting;
 mod local_shells_setting;

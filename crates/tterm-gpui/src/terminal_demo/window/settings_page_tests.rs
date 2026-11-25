@@ -5,6 +5,7 @@ mod shell_launcher_tests;
 
 mod appearance;
 mod clipboard;
+mod command_marks;
 mod font;
 mod layout;
 mod local_shells;

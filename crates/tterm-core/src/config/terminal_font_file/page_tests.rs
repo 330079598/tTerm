@@ -35,6 +35,8 @@ fn applies_only_the_changed_fields_to_the_latest_file() {
             right_click_paste: false,
             osc52_clipboard_write: true,
             mac_option_is_meta: false,
+            command_marks: true,
+            local_unix_shell_integration: false,
             ..AppConfig::default()
         },
     );
@@ -56,6 +58,8 @@ fn applies_only_the_changed_fields_to_the_latest_file() {
     other_client.right_click_paste = true;
     other_client.osc52_clipboard_write = false;
     other_client.mac_option_is_meta = true;
+    other_client.command_marks = false;
+    other_client.local_unix_shell_integration = true;
     seed(&path, &other_client);
     let extended = fs::read_to_string(&path)
         .unwrap()
@@ -86,6 +90,8 @@ fn applies_only_the_changed_fields_to_the_latest_file() {
             right_click_paste: true,
             osc52_clipboard_write: false,
             mac_option_is_meta: true,
+            command_marks: false,
+            local_unix_shell_integration: true,
         },
         "the untouched page fields keep the values the other client wrote"
     );
@@ -114,6 +120,13 @@ fn applies_only_the_changed_fields_to_the_latest_file() {
             reloaded.mac_option_is_meta,
         ),
         (true, false, true, false, true)
+    );
+    assert_eq!(
+        (
+            reloaded.command_marks,
+            reloaded.local_unix_shell_integration,
+        ),
+        (false, true)
     );
     assert!(fs::read_to_string(&path).unwrap().contains("1.2300e+45"));
     fs::remove_file(path).unwrap();
@@ -385,6 +398,8 @@ fn reports_the_values_the_file_holds() {
             right_click_paste: true,
             osc52_clipboard_write: false,
             mac_option_is_meta: true,
+            command_marks: false,
+            local_unix_shell_integration: true,
         },
     )
     .unwrap();
@@ -412,6 +427,8 @@ fn reports_the_values_the_file_holds() {
     assert!(saved.right_click_paste);
     assert!(!saved.osc52_clipboard_write);
     assert!(saved.mac_option_is_meta);
+    assert!(!saved.command_marks);
+    assert!(saved.local_unix_shell_integration);
     fs::remove_file(path).unwrap();
 }
 
@@ -570,5 +587,36 @@ fn refuses_an_osc52_and_option_edit_to_an_unreadable_config() {
         assert!(save_page_at(&path, &previous, draft.clone()).is_err());
         assert_eq!(fs::read_to_string(&path).unwrap(), damaged);
     }
+    fs::remove_file(path).unwrap();
+}
+
+#[test]
+fn saves_command_marks_and_local_shell_integration_with_the_page() {
+    let path = temp_config();
+    let previous = AppConfig {
+        command_marks: true,
+        local_unix_shell_integration: false,
+        ..AppConfig::default()
+    };
+    seed(&path, &previous);
+    let snapshot = super::super::load_config_at(&path).unwrap();
+    let mut draft = TerminalPageSettings::from(&snapshot);
+    draft.command_marks = false;
+    draft.local_unix_shell_integration = true;
+
+    let saved = save_page_at(&path, &snapshot, draft).unwrap();
+
+    assert_eq!(
+        (saved.command_marks, saved.local_unix_shell_integration,),
+        (false, true)
+    );
+    let reloaded = super::super::load_config_at(&path).unwrap();
+    assert_eq!(
+        (
+            reloaded.command_marks,
+            reloaded.local_unix_shell_integration,
+        ),
+        (false, true)
+    );
     fs::remove_file(path).unwrap();
 }

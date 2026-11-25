@@ -116,6 +116,7 @@ async fn saves_the_page_then_publishes_the_actual_values_and_both_events(cx: &mu
             right_click_paste: true,
             osc52_clipboard_write: false,
             mac_option_is_meta: true,
+            ..TerminalPageSettings::from(&AppConfig::default())
         },
     )
     .await;
@@ -138,6 +139,7 @@ async fn saves_the_page_then_publishes_the_actual_values_and_both_events(cx: &mu
             right_click_paste: true,
             osc52_clipboard_write: false,
             mac_option_is_meta: true,
+            ..TerminalPageSettings::from(&AppConfig::default())
         }],
         "the checked draft reaches the one page writer"
     );
@@ -158,6 +160,7 @@ async fn saves_the_page_then_publishes_the_actual_values_and_both_events(cx: &mu
             right_click_paste: true,
             osc52_clipboard_write: false,
             mac_option_is_meta: true,
+            ..TerminalPageSettings::from(&AppConfig::default())
         },
         "the snapshot publishes what the writer reported, not the draft"
     );
@@ -171,6 +174,7 @@ async fn saves_the_page_then_publishes_the_actual_values_and_both_events(cx: &mu
             confirm_multiline_paste: false,
             copy_on_select: true,
             right_click_paste: true,
+            command_marks: true,
         }]
     );
     assert_eq!(
@@ -227,6 +231,7 @@ async fn publishes_the_clipboard_preferences_the_file_reported(cx: &mut TestAppC
             confirm_multiline_paste: false,
             copy_on_select: true,
             right_click_paste: true,
+            command_marks: true,
         }]
     );
 }
@@ -273,6 +278,7 @@ async fn publishes_the_osc52_and_option_values_the_file_reported(cx: &mut TestAp
             confirm_multiline_paste: saved.confirm_multiline_paste,
             copy_on_select: saved.copy_on_select,
             right_click_paste: saved.right_click_paste,
+            command_marks: saved.command_marks,
         }],
         "the event keeps its fields; the runtime reads the new snapshot values"
     );
@@ -308,6 +314,7 @@ async fn a_font_only_page_does_not_emit_a_scrollback_change(cx: &mut TestAppCont
             confirm_multiline_paste: draft.confirm_multiline_paste,
             copy_on_select: draft.copy_on_select,
             right_click_paste: draft.right_click_paste,
+            command_marks: draft.command_marks,
         }]
     );
     assert!(
@@ -394,6 +401,7 @@ async fn a_cursor_and_padding_only_page_updates_the_snapshot_before_the_font_eve
             confirm_multiline_paste: false,
             copy_on_select: true,
             right_click_paste: true,
+            command_marks: true,
         }]
     );
     assert!(
@@ -483,6 +491,7 @@ async fn keeps_the_old_page_when_the_write_fails_and_remains_usable(cx: &mut Tes
             confirm_multiline_paste: true,
             copy_on_select: true,
             right_click_paste: true,
+            command_marks: true,
         }],
         "a retried clipboard edit publishes only after the write succeeds"
     );
@@ -728,6 +737,7 @@ async fn the_old_font_save_reports_the_pages_line_settings(cx: &mut TestAppConte
             confirm_multiline_paste: false,
             copy_on_select: true,
             right_click_paste: false,
+            command_marks: true,
         }]
     );
     let saved = page(cx, &state);

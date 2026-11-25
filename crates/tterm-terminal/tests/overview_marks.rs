@@ -34,6 +34,38 @@ fn marks(model: &Terminal) -> Vec<CommandMarkPosition> {
 }
 
 #[test]
+fn disabling_command_marks_drops_them_and_stops_new_ones() {
+    let model = model(5, 50);
+    command(&model, 0, 0);
+    assert_eq!(marks(&model).len(), 1);
+
+    model.set_command_marks_enabled(false);
+    assert!(marks(&model).is_empty(), "the existing marks are dropped");
+    command(&model, 1, 0);
+    assert!(
+        marks(&model).is_empty(),
+        "output while disabled creates no marks"
+    );
+
+    model.set_command_marks_enabled(true);
+    command(&model, 2, 0);
+    assert_eq!(marks(&model).len(), 1, "the next prompt is collected again");
+}
+
+#[test]
+fn reopening_collection_does_not_complete_an_old_partial_prompt() {
+    let model = model(5, 50);
+    model.write(b"\x1b]133;");
+    model.set_command_marks_enabled(false);
+    model.write(b"A\x07");
+    model.set_command_marks_enabled(true);
+    model.write(b"A\x07");
+    assert!(marks(&model).is_empty());
+    command(&model, 1, 0);
+    assert_eq!(marks(&model).len(), 1);
+}
+
+#[test]
 fn three_commands_expose_prompt_output_and_end_lines() {
     let model = model(5, 50);
     for index in 0..3 {

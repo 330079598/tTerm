@@ -67,6 +67,12 @@ const IMPLEMENTED: &[(&str, TranslationKey, Option<TranslationKey>)] = &[
         keys::FONT_SETTINGS_OSC52_CLIPBOARD_WRITE,
         None,
     ),
+    (TERMINAL_PAGE_VALUE, keys::FONT_SETTINGS_COMMAND_MARKS, None),
+    (
+        TERMINAL_PAGE_VALUE,
+        keys::FONT_SETTINGS_LOCAL_SHELL_INTEGRATION,
+        None,
+    ),
     (
         TERMINAL_PAGE_VALUE,
         keys::FONT_SETTINGS_SCROLLBACK_LINES,
@@ -96,10 +102,14 @@ const IMPLEMENTED: &[(&str, TranslationKey, Option<TranslationKey>)] = &[
 
 /// The pages and settings a search may list.
 pub(super) fn items(locale: &Locale) -> Vec<SettingsSearchResult> {
-    items_on_platform(locale, cfg!(target_os = "macos"))
+    items_on_platform(
+        locale,
+        cfg!(target_os = "macos"),
+        cfg!(target_os = "windows"),
+    )
 }
 
-fn items_on_platform(locale: &Locale, macos: bool) -> Vec<SettingsSearchResult> {
+fn items_on_platform(locale: &Locale, macos: bool, windows: bool) -> Vec<SettingsSearchResult> {
     let mut items = Vec::new();
     for (page, label) in PAGES {
         let label = text(locale, *label);
@@ -115,6 +125,9 @@ fn items_on_platform(locale: &Locale, macos: bool) -> Vec<SettingsSearchResult> 
     // Only the entries that this client implements survive the filter.
     for (page, title, description) in IMPLEMENTED {
         if *title == keys::FONT_SETTINGS_MAC_OPTION_IS_META && !macos {
+            continue;
+        }
+        if *title == keys::FONT_SETTINGS_LOCAL_SHELL_INTEGRATION && windows {
             continue;
         }
         if !entries_for_page(page)
@@ -198,12 +211,12 @@ mod tests {
         let locale = Locale::new(Language::En);
         let title = "Use Option as Meta key";
         assert!(
-            items_on_platform(&locale, true)
+            items_on_platform(&locale, true, false)
                 .iter()
                 .any(|item| item.title == title)
         );
         assert!(
-            !items_on_platform(&locale, false)
+            !items_on_platform(&locale, false, false)
                 .iter()
                 .any(|item| item.title == title)
         );

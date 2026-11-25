@@ -190,6 +190,9 @@ pub struct Config {
     /// and its reset (or a fresh terminal) uses this shape. The view never
     /// forces a shape, so a hidden cursor or an application override wins.
     pub cursor_shape: CursorShape,
+    /// Whether shell-integration marks (OSC 133 and 633) create prompt and
+    /// command positions.
+    pub command_marks: bool,
 }
 
 impl Default for Config {
@@ -200,6 +203,7 @@ impl Default for Config {
             clipboard: ClipboardPolicy::default(),
             word_separators: WORD_SEPARATORS.to_string(),
             cursor_shape: CursorShape::default(),
+            command_marks: true,
         }
     }
 }
@@ -251,6 +255,7 @@ struct State {
     parser: Processor,
     osc52_scanner: Osc52Scanner,
     command_marks: CommandMarkState,
+    command_marks_enabled: bool,
     config: Config,
     cell_size: CellSize,
     version: u64,
@@ -295,6 +300,7 @@ impl Terminal {
             parser: Processor::new(),
             osc52_scanner,
             command_marks: CommandMarkState::new(),
+            command_marks_enabled: config.command_marks,
             config,
             cell_size,
             version: 0,
@@ -352,7 +358,7 @@ impl Terminal {
         // applied after the parser has consumed the bytes up to its end, so
         // its position is the model state after that OSC, not a guessed line.
         let stores = state.osc52_scanner.scan(bytes);
-        let mark_events = state.command_marks.scan(bytes);
+        let mark_events = state.scan_command_marks(bytes);
         let mut events = stores
             .into_iter()
             .map(|(end, text)| (end, Some(text), None))

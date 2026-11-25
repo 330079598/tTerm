@@ -89,6 +89,10 @@ impl Prototype {
                     .factory
                     .sessions
                     .set_clipboard_write_enabled(saved.osc52_clipboard_write);
+                prototype
+                    .factory
+                    .sessions
+                    .set_command_marks_enabled(changed.command_marks);
                 prototype.factory.keyboard = keyboard;
                 prototype.factory.sessions.set_default_cursor_shape(cursor);
                 for (_, tab) in prototype.tabs.ordered() {

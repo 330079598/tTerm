@@ -301,7 +301,9 @@ fn content(page: &mut SettingsPage, cx: &mut Context<SettingsPage>) -> Stateful<
                 let child = final_section(page, *section, cx);
                 panel = panel.child(
                     div()
-                        .when(index > 0, |child| child.mt(px(24.0)))
+                        .when(index > 0 && !section.continues_previous(), |child| {
+                            child.mt(px(24.0))
+                        })
                         .child(child),
                 );
             }
@@ -334,6 +336,10 @@ fn final_section(
             .into_any_element(),
         SettingsSection::Clipboard => page
             .clipboard
+            .update(cx, |setting, cx| setting.section(cx))
+            .into_any_element(),
+        SettingsSection::CommandMarks => page
+            .command_marks
             .update(cx, |setting, cx| setting.section(cx))
             .into_any_element(),
         SettingsSection::Scrollback => page

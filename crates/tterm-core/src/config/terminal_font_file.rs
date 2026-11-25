@@ -70,6 +70,11 @@ pub struct TerminalPageSettings {
     /// Send Option+key as Meta (ESC prefix) on macOS instead of typing the
     /// alternate character.
     pub mac_option_is_meta: bool,
+    /// Let shells mark each command's prompt and output (OSC 133).
+    pub command_marks: bool,
+    /// Start local bash, zsh and fish through tTerm's shell integration on
+    /// macOS and Linux.
+    pub local_unix_shell_integration: bool,
 }
 
 impl From<&AppConfig> for TerminalPageSettings {
@@ -89,6 +94,8 @@ impl From<&AppConfig> for TerminalPageSettings {
             right_click_paste: config.right_click_paste,
             osc52_clipboard_write: config.osc52_clipboard_write,
             mac_option_is_meta: config.mac_option_is_meta,
+            command_marks: config.command_marks,
+            local_unix_shell_integration: config.local_unix_shell_integration,
         }
     }
 }
@@ -173,6 +180,12 @@ pub(super) fn save_page_at(
         if checked.mac_option_is_meta != previous.mac_option_is_meta {
             config.mac_option_is_meta = checked.mac_option_is_meta;
         }
+        if checked.command_marks != previous.command_marks {
+            config.command_marks = checked.command_marks;
+        }
+        if checked.local_unix_shell_integration != previous.local_unix_shell_integration {
+            config.local_unix_shell_integration = checked.local_unix_shell_integration;
+        }
         super::compatible_file::save_at(path, &config)?;
         config = super::load_config_at(path)?;
     }
@@ -230,6 +243,8 @@ fn checked_page(settings: TerminalPageSettings) -> Result<TerminalPageSettings, 
         right_click_paste: settings.right_click_paste,
         osc52_clipboard_write: settings.osc52_clipboard_write,
         mac_option_is_meta: settings.mac_option_is_meta,
+        command_marks: settings.command_marks,
+        local_unix_shell_integration: settings.local_unix_shell_integration,
     })
 }
 
