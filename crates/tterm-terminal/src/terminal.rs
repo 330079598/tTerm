@@ -35,7 +35,7 @@ use crate::command_marks::overview::CommandMarkState;
 use crate::damage::Damage;
 use crate::event::{self, Clipboard, Intent};
 use crate::grid::{CellSize, GridPoint, GridSize};
-use crate::history_release::{HistoryRelease, MarkChanges, ScrollRegion};
+use crate::history_release::{HistoryRelease, ScrollRegion};
 use crate::mode::Modes;
 use crate::mouse_reporting::MOUSE_REPORTING_OFF;
 use crate::ordered_replies::{MarkerSource, OrderedReplies};
@@ -43,7 +43,10 @@ use crate::osc52_scanner::Osc52Scanner;
 use crate::selection::{SelectionKind, SelectionRange, Side, word};
 use crate::snapshot::{self, Cursor, CursorShape, Row, Snapshot, SnapshotParts};
 
+use self::marks::apply_mark_changes;
+
 mod legacy_restore;
+mod marks;
 mod ordered_api;
 mod preferences;
 mod search_ops;
@@ -693,15 +696,6 @@ impl Terminal {
         }
         self.write(MOUSE_REPORTING_OFF);
         true
-    }
-}
-
-/// Applies the history changes the parser made during one slice.
-fn apply_mark_changes(command_marks: &mut CommandMarkState, changes: MarkChanges) {
-    if changes.dispose {
-        command_marks.dispose_markers();
-    } else if changes.shift > 0 {
-        command_marks.trim_scrollback(changes.shift);
     }
 }
 
