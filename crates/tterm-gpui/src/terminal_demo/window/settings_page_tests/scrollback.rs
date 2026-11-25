@@ -380,9 +380,14 @@ fn invalid_input_and_a_failed_save_recover_through_the_field(cx: &mut TestAppCon
     replace_focused_text(&mut harness, "500");
     press(harness.visual, "enter");
     wait_for_write_attempts(&writes, 1);
+    super::page_save::wait_for_page_idle(&mut harness, &root);
     wait_for_settings_error(harness.visual);
     harness.visual.update(|window, cx| {
         window.render_frame(cx);
+        assert_eq!(
+            root.read(cx).ui.settings_page.read(cx).page_error(),
+            Some("the config disk is full")
+        );
         assert!(root.read(cx).settings_is_open());
         assert_eq!(config.read(cx).scrollback_lines(), 10_000);
         assert_eq!(
