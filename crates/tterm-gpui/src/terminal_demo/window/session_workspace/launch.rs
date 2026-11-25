@@ -44,7 +44,10 @@ pub(crate) fn launch_for_tab(tab: &Tab, config: &AppConfig) -> TabLaunch {
     }
 }
 
-fn local_options(tab: &Tab, config: &AppConfig) -> Result<PtyConnectionOptions, String> {
+pub(in crate::terminal_demo::window) fn local_options(
+    tab: &Tab,
+    config: &AppConfig,
+) -> Result<PtyConnectionOptions, String> {
     let connection = tab
         .connection
         .as_ref()

@@ -12,6 +12,7 @@ pub mod keymap;
 pub mod keyword_highlight;
 pub mod limits;
 pub mod local_shells;
+pub mod local_shells_file;
 pub mod monitor_metrics;
 pub mod panes;
 pub mod panes_file;
@@ -25,6 +26,7 @@ pub mod sftp_start_directory;
 pub mod tab_agent_indicator;
 pub mod tab_icons;
 pub mod terminal_font;
+pub mod terminal_font_file;
 pub mod update_channel;
 pub mod window_background;
 

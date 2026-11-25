@@ -284,6 +284,28 @@
       ]
     },
     {
+      "id": "settings.terminal.font",
+      "title": "Terminal font settings at the top of the page",
+      "fixture": "settings.reference.json",
+      "uiStyles": ["classic"],
+      "uiScalePercents": [100],
+      "actions": [
+        { "type": "click", "target": "settings.layout.tab.terminal" },
+        { "type": "waitFor", "target": "settings.font.size" }
+      ]
+    },
+    {
+      "id": "settings.terminal.preview",
+      "title": "Terminal preview and page save",
+      "fixture": "settings.reference.json",
+      "uiStyles": ["classic"],
+      "uiScalePercents": [100],
+      "actions": [
+        { "type": "click", "target": "settings.layout.tab.terminal" },
+        { "type": "scrollTo", "target": "settings.font.prompt-preview" }
+      ]
+    },
+    {
       "id": "settings.terminal.scrollback",
       "title": "Terminal settings scrolled to Scrollback Lines",
       "fixture": "settings.reference.json",

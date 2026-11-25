@@ -53,6 +53,43 @@ impl TerminalFont {
         }
     }
 
+    /// The first-launch font with the shared config's family chain and size.
+    ///
+    /// The line height and letter spacing keep the platform defaults until a
+    /// theme supplies them, because the shared settings this applies carry
+    /// only the family and the size.
+    pub fn from_shared(family: &str, size: u16) -> Self {
+        let mut font = Self::platform_default();
+        font.apply_shared(family, size);
+        font
+    }
+
+    /// Applies the shared config's CSS family chain and size.
+    ///
+    /// The chain is parsed the way a browser reads `font-family`, so the
+    /// installed family is resolved later by [`FontSet::resolve`] rather than
+    /// here. A chain with no usable name keeps the current families: a blank
+    /// config value must not drop the terminal onto GPUI's proportional UI
+    /// font. Sizes below one logical pixel become one, matching the floor
+    /// [`measure_cell`] and [`cell_size`] already apply. Returns whether the
+    /// font changed, so a repeated commit can skip the re-measurement and the
+    /// PTY resize.
+    pub fn apply_shared(&mut self, family: &str, size: u16) -> bool {
+        let parsed = parse_family_chain(family);
+        let families = if parsed.is_empty() {
+            self.families.clone()
+        } else {
+            parsed
+        };
+        let size = f32::from(size.max(1));
+        if self.families == families && self.size == size {
+            return false;
+        }
+        self.families = families;
+        self.size = size;
+        true
+    }
+
     /// The primary family, or a platform monospace fallback.
     pub fn primary_family(&self) -> &str {
         self.families
@@ -410,6 +447,45 @@ mod tests {
         let metrics = cell.device_metrics();
         assert!((metrics.width - 10.5).abs() < 1e-4);
         assert!((metrics.height - 23.1).abs() < 1e-4);
+    }
+
+    #[test]
+    fn the_shared_font_parses_the_css_chain_and_clamps_the_size() {
+        let font = TerminalFont::from_shared(r#" "Fira Code", "JetBrains Mono", monospace "#, 18);
+        assert_eq!(font.families, ["Fira Code", "JetBrains Mono", "monospace"]);
+        assert_eq!(font.size, 18.0);
+        assert_eq!(font.line_height, 1.0);
+        assert_eq!(font.letter_spacing, 0.0);
+
+        // A blank value keeps the chain a first launch would use.
+        let blank = TerminalFont::from_shared("  ,  ", 0);
+        assert_eq!(blank.families, TerminalFont::platform_default().families);
+        assert_eq!(blank.size, 1.0);
+    }
+
+    #[test]
+    fn applying_the_same_shared_font_reports_no_change() {
+        let mut font = TerminalFont::platform_default();
+        assert!(font.apply_shared("Menlo, monospace", 16));
+        assert_eq!(font.families, ["Menlo", "monospace"]);
+        assert_eq!(font.size, 16.0);
+        assert!(!font.apply_shared("Menlo, monospace", 16));
+        // Only the parsed values are compared, so different quoting for the
+        // same chain is not a change and does not re-measure.
+        assert!(!font.apply_shared("\"Menlo\", monospace", 16));
+        assert!(font.apply_shared("Menlo", 16));
+        assert!(!font.apply_shared("Menlo", 16));
+    }
+
+    #[test]
+    fn the_shared_chain_keeps_fonts_the_import_does_not_have() {
+        let font = TerminalFont::from_shared(r#""Nope Mono", Menlo, monospace"#, 14);
+        // Resolution, not parsing, decides which installed family draws.
+        let installed = ["Menlo"];
+        assert_eq!(
+            first_available(&font.families, |family| installed.contains(&family)),
+            Some("Menlo")
+        );
     }
 
     #[test]

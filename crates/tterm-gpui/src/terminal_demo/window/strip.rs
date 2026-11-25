@@ -488,18 +488,8 @@ impl Prototype {
             .child(viewport)
             .child(
                 div()
-                    .id("new-session-tab")
-                    .aria_label(new)
-                    .size(px(28.))
-                    .flex_shrink_0()
-                    .flex()
-                    .items_center()
-                    .justify_center()
-                    .rounded(px(4.))
-                    .hover(|style| style.bg(hsla(colors.muted, 1.)))
-                    .cursor_pointer()
-                    .child("+")
-                    .on_click(cx.listener(|this, _, window, cx| this.new_tab(window, cx))),
+                    .debug_selector(|| "new-shell-menu".into())
+                    .child(self.shell_launcher(new, cx)),
             )
     }
 

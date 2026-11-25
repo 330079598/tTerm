@@ -1637,7 +1637,17 @@
       "bar": "Bar",
       "block": "Block",
       "underline": "Underline"
-    }
+    },
+    "familyRequired": "Choose a font or a CSS font-family chain.",
+    "sizeRequired": "Enter a font size between 6 and 72.",
+    "sizeInvalid": "Enter a whole number between 6 and 72.",
+    "sizeRange": "Font size must be between 6 and 72.",
+    "lineHeightRequired": "The line height cannot be empty.",
+    "lineHeightInvalid": "Enter a line-height multiplier such as 1.2.",
+    "lineHeightRange": "Line height must be between 1 and 2.",
+    "letterSpacingRequired": "The letter spacing cannot be empty.",
+    "letterSpacingInvalid": "Enter a whole number of pixels.",
+    "letterSpacingRange": "Letter spacing must be between -5 and 10 pixels."
   },
   "tabContent": {
     "type": "Type",
@@ -2952,6 +2962,8 @@
     "moveUp": "Move up",
     "moveDown": "Move down",
     "edit": "Edit",
+    "empty": "No shells added yet.",
+    "programRequired": "Choose the shell program.",
     "remove": "Remove",
     "program": "Program",
     "name": "Name",

@@ -9,7 +9,8 @@ use tterm_core::agent_status::AgentResumeSession;
 use tterm_core::i18n::translate::TranslationKey;
 use tterm_core::workspace::tab::Tab;
 use tterm_terminal::terminal::{Config, Terminal};
-use tterm_terminal_view::view::TerminalView;
+use tterm_terminal_view::view::font::TerminalFont;
+use tterm_terminal_view::view::{TerminalView, TerminalViewConfig};
 
 use super::super::binding::TabBinding;
 use super::picker;
@@ -29,11 +30,29 @@ pub(super) struct FailedTab {
 }
 
 /// Builds a local view that shows the launch error instead of a session.
-pub(super) fn failed(cx: &mut Context<Prototype>, tab: FailedTab, error: String) -> WindowTab {
+///
+/// The placeholder draws with the shared config font, so a failed launch does
+/// not fall back to the platform size while every other pane uses the user's
+/// choice.
+pub(super) fn failed(
+    cx: &mut Context<Prototype>,
+    tab: FailedTab,
+    error: String,
+    font: TerminalFont,
+) -> WindowTab {
     eprintln!("tterm-gpui: {error}");
     let terminal = Arc::new(Terminal::new(Config::default(), INITIAL_GRID, INITIAL_CELL));
     terminal.write(format!("\x1b[31m[{error}]\x1b[0m\r\n").as_bytes());
-    let view = cx.new(|cx| TerminalView::new(cx, terminal, Default::default()));
+    let view = cx.new(|cx| {
+        TerminalView::new(
+            cx,
+            terminal,
+            TerminalViewConfig {
+                font,
+                ..TerminalViewConfig::default()
+            },
+        )
+    });
     WindowTab {
         saved_id: tab.saved_id,
         saved: tab.saved,

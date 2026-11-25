@@ -51,6 +51,8 @@ export const parityScreens: Record<string, ComponentType<ParityScreenProps>> = {
   "settings.layout.default": SettingsReference,
   "settings.search.results": SettingsReference,
   "settings.terminal.scrollback": SettingsReference,
+  "settings.terminal.font": SettingsReference,
+  "settings.terminal.preview": SettingsReference,
   "settings.search.scrollback": SettingsReference,
   "settings.search.scrollback.open": SettingsReference,
   "settings.search.scrollback-zh": SettingsReference,

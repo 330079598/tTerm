@@ -8,10 +8,16 @@ use gpui_kit::prelude::*;
 use gpui_kit::{Entity, Task, TestAppContext};
 use serde_json::json;
 use tterm_core::config::AppConfig;
+use tterm_core::config::local_shells::LocalShell;
+use tterm_core::config::local_shells_file::SavedLocalShells;
 use tterm_core::config::panes::{PaneConfig, PaneLayoutTemplate};
+use tterm_core::config::terminal_font_file::SavedTerminalFont;
+use tterm_core::workspace::local_shells::types::DefaultShellSettings;
 
 use super::{
-    ConfigState, PaneTemplatesChanged, PaneTemplatesWriter, ScrollbackChanged, ScrollbackWriter,
+    ConfigState, LocalShellsChanged, LocalShellsWriter, PaneTemplatesChanged, PaneTemplatesWriter,
+    ScrollbackChanged, ScrollbackWriter, TerminalFontChanged, TerminalFontWriter,
+    echo_local_shells_writer,
 };
 
 fn runtime() -> tokio::runtime::Runtime {
@@ -327,6 +333,7 @@ async fn saves_the_complete_template_list_then_publishes_and_emits_it(cx: &mut T
                 runtime.handle(),
                 Arc::new(|_| Ok(())),
                 writer,
+                echo_local_shells_writer(),
             )
         })
     });
@@ -361,6 +368,7 @@ async fn publishes_the_canonical_shape_that_reaches_disk(cx: &mut TestAppContext
                 runtime.handle(),
                 Arc::new(|_| Ok(())),
                 writer,
+                echo_local_shells_writer(),
             )
         })
     });
@@ -414,6 +422,7 @@ async fn keeps_the_old_templates_when_the_write_fails_and_remains_usable(cx: &mu
                 runtime.handle(),
                 Arc::new(|_| Ok(())),
                 writer,
+                echo_local_shells_writer(),
             )
         })
     });
@@ -447,6 +456,7 @@ async fn refuses_template_edits_while_a_scrollback_save_is_pending(cx: &mut Test
                 runtime.handle(),
                 blocking_writer(entered_tx, Arc::clone(&latch)),
                 Arc::new(|_| Ok(())),
+                echo_local_shells_writer(),
             )
         })
     });
@@ -484,6 +494,7 @@ async fn a_dropped_template_waiter_still_commits_and_releases_pending(cx: &mut T
                 runtime.handle(),
                 Arc::new(|_| Ok(())),
                 blocking_templates_writer(entered_tx, Arc::clone(&latch)),
+                echo_local_shells_writer(),
             )
         })
     });
@@ -505,6 +516,397 @@ async fn a_dropped_template_waiter_still_commits_and_releases_pending(cx: &mut T
     let second = save_templates(cx, &state, Vec::new()).await;
     assert_eq!(second, Ok(()));
     assert!(templates(cx, &state).is_empty());
+
+    drop(release_on_drop);
+}
+
+fn local_shell(id: &str, path: &str) -> LocalShell {
+    LocalShell {
+        id: id.to_string(),
+        name: id.to_string(),
+        path: path.to_string(),
+        args: String::new(),
+    }
+}
+
+fn local_shells(cx: &TestAppContext, state: &Entity<ConfigState>) -> Vec<LocalShell> {
+    cx.read(|app| state.read(app).config().local_shells.clone())
+}
+
+fn save_local_shell(
+    cx: &mut TestAppContext,
+    state: &Entity<ConfigState>,
+    shell: LocalShell,
+) -> Task<Result<LocalShellsChanged, String>> {
+    cx.update(|cx| state.update(cx, |state, cx| state.save_local_shell(shell, cx)))
+}
+
+fn subscribe_local_shells(
+    cx: &mut TestAppContext,
+    state: &Entity<ConfigState>,
+) -> Arc<Mutex<Vec<Vec<LocalShell>>>> {
+    let events = Arc::new(Mutex::new(Vec::new()));
+    let recorded = Arc::clone(&events);
+    cx.update(|cx| {
+        cx.subscribe(state, move |_, event: &LocalShellsChanged, _| {
+            recorded
+                .lock()
+                .expect("local shell events")
+                .push(event.local_shells.clone());
+        })
+        .detach();
+    });
+    events
+}
+
+#[gpui_kit::test]
+async fn saves_a_local_shell_then_publishes_the_latest_list(cx: &mut TestAppContext) {
+    let runtime = runtime();
+    let existing = local_shell("existing", "/bin/zsh");
+    let writer_existing = existing.clone();
+    let writes = Arc::new(Mutex::new(Vec::new()));
+    let recorded = Arc::clone(&writes);
+    let writer: LocalShellsWriter = Arc::new(move |shell| {
+        recorded
+            .lock()
+            .expect("local shell writes")
+            .push(shell.clone());
+        Ok(SavedLocalShells {
+            local_shells: vec![writer_existing.clone(), shell],
+            default_shell: DefaultShellSettings::default(),
+        })
+    });
+    let state = cx.update(|cx| {
+        cx.new(|_| {
+            ConfigState::with_writers(
+                AppConfig {
+                    local_shells: vec![existing.clone()],
+                    ..AppConfig::default()
+                },
+                runtime.handle(),
+                Arc::new(|_| Ok(())),
+                Arc::new(|_| Ok(())),
+                writer,
+            )
+        })
+    });
+    let events = subscribe_local_shells(cx, &state);
+    cx.executor().allow_parking();
+    let added = local_shell("added", "/bin/nu");
+
+    let result = save_local_shell(cx, &state, added.clone()).await;
+
+    let saved = result.expect("the save reports the list");
+    assert_eq!(saved.local_shells, vec![existing.clone(), added.clone()]);
+    assert_eq!(local_shells(cx, &state), vec![existing, added.clone()]);
+    assert_eq!(
+        *writes.lock().expect("local shell writes"),
+        vec![added.clone()]
+    );
+    assert_eq!(
+        *events.lock().expect("local shell events"),
+        vec![saved.local_shells]
+    );
+}
+
+#[gpui_kit::test]
+async fn keeps_the_old_local_shells_when_the_write_fails_and_remains_usable(
+    cx: &mut TestAppContext,
+) {
+    let runtime = runtime();
+    let existing = local_shell("existing", "/bin/zsh");
+    let fail = Arc::new(AtomicUsize::new(1));
+    let writer_fail = Arc::clone(&fail);
+    let writer: LocalShellsWriter = Arc::new(move |shell| {
+        if writer_fail.fetch_sub(1, Ordering::SeqCst) > 0 {
+            Err("disk is full".to_string())
+        } else {
+            Ok(SavedLocalShells {
+                local_shells: vec![shell],
+                default_shell: DefaultShellSettings::default(),
+            })
+        }
+    });
+    let state = cx.update(|cx| {
+        cx.new(|_| {
+            ConfigState::with_writers(
+                AppConfig {
+                    local_shells: vec![existing.clone()],
+                    ..AppConfig::default()
+                },
+                runtime.handle(),
+                Arc::new(|_| Ok(())),
+                Arc::new(|_| Ok(())),
+                writer,
+            )
+        })
+    });
+    let events = subscribe_local_shells(cx, &state);
+    cx.executor().allow_parking();
+    let added = local_shell("added", "/bin/nu");
+
+    let result = save_local_shell(cx, &state, added.clone()).await;
+
+    assert_eq!(result, Err("disk is full".to_string()));
+    assert_eq!(local_shells(cx, &state), vec![existing]);
+    assert!(events.lock().expect("local shell events").is_empty());
+    assert!(!save_pending(cx, &state));
+
+    let result = save_local_shell(cx, &state, added.clone()).await;
+    assert!(result.is_ok());
+    assert_eq!(local_shells(cx, &state), vec![added]);
+    assert_eq!(
+        events.lock().expect("local shell events").len(),
+        1,
+        "only the successful save emits an event"
+    );
+}
+
+fn terminal_font(cx: &TestAppContext, state: &Entity<ConfigState>) -> (String, u16) {
+    cx.read(|app| {
+        let config = state.read(app).config();
+        (config.font_family.clone(), config.font_size)
+    })
+}
+
+fn save_terminal_font(
+    cx: &mut TestAppContext,
+    state: &Entity<ConfigState>,
+    family: &str,
+    size: u16,
+) -> Task<Result<(), String>> {
+    let family = family.to_string();
+    cx.update(|cx| state.update(cx, |state, cx| state.save_terminal_font(family, size, cx)))
+}
+
+fn subscribe_terminal_font(
+    cx: &mut TestAppContext,
+    state: &Entity<ConfigState>,
+) -> Arc<Mutex<Vec<(String, u16)>>> {
+    let events = Arc::new(Mutex::new(Vec::new()));
+    let recorded = Arc::clone(&events);
+    cx.update(|cx| {
+        cx.subscribe(state, move |_, event: &TerminalFontChanged, _| {
+            recorded
+                .lock()
+                .expect("font events")
+                .push((event.family.clone(), event.size));
+        })
+        .detach();
+    });
+    events
+}
+
+fn blocking_terminal_font_writer(
+    entered: mpsc::Sender<()>,
+    latch: WriterLatch,
+) -> TerminalFontWriter {
+    Arc::new(move |family, size| {
+        let _ = entered.send(());
+        let (lock, condvar) = &*latch;
+        let mut released = lock
+            .lock()
+            .map_err(|_| "the writer latch was poisoned".to_string())?;
+        while !*released {
+            released = condvar
+                .wait(released)
+                .map_err(|_| "the writer latch was poisoned".to_string())?;
+        }
+        Ok(SavedTerminalFont { family, size })
+    })
+}
+
+#[gpui_kit::test]
+async fn saves_the_terminal_font_then_publishes_the_saved_values(cx: &mut TestAppContext) {
+    let runtime = runtime();
+    let writes = Arc::new(Mutex::new(Vec::new()));
+    let recorded = Arc::clone(&writes);
+    let writer: TerminalFontWriter = Arc::new(move |family, size| {
+        recorded
+            .lock()
+            .expect("font writes")
+            .push((family.clone(), size));
+        Ok(SavedTerminalFont {
+            family: family.trim().to_string(),
+            size,
+        })
+    });
+    let state = cx.update(|cx| {
+        cx.new(|_| {
+            ConfigState::with_terminal_font_writer(AppConfig::default(), runtime.handle(), writer)
+        })
+    });
+    let events = subscribe_terminal_font(cx, &state);
+    cx.executor().allow_parking();
+
+    let result = save_terminal_font(cx, &state, "  Menlo, monospace  ", 18).await;
+
+    assert_eq!(result, Ok(()));
+    assert_eq!(
+        *writes.lock().expect("font writes"),
+        vec![("Menlo, monospace".to_string(), 18)]
+    );
+    assert_eq!(
+        terminal_font(cx, &state),
+        ("Menlo, monospace".to_string(), 18)
+    );
+    assert_eq!(
+        *events.lock().expect("font events"),
+        vec![("Menlo, monospace".to_string(), 18)]
+    );
+}
+
+#[gpui_kit::test]
+async fn keeps_the_old_font_when_the_write_fails_and_remains_usable(cx: &mut TestAppContext) {
+    let runtime = runtime();
+    let fail = Arc::new(AtomicUsize::new(1));
+    let writer_fail = Arc::clone(&fail);
+    let writer: TerminalFontWriter = Arc::new(move |family, size| {
+        if writer_fail.fetch_sub(1, Ordering::SeqCst) > 0 {
+            Err("disk is full".to_string())
+        } else {
+            Ok(SavedTerminalFont { family, size })
+        }
+    });
+    let state = cx.update(|cx| {
+        cx.new(|_| {
+            ConfigState::with_terminal_font_writer(
+                AppConfig {
+                    font_family: "Menlo".to_string(),
+                    font_size: 14,
+                    ..AppConfig::default()
+                },
+                runtime.handle(),
+                writer,
+            )
+        })
+    });
+    let events = subscribe_terminal_font(cx, &state);
+    cx.executor().allow_parking();
+
+    let result = save_terminal_font(cx, &state, "Fira Code", 20).await;
+
+    assert_eq!(result, Err("disk is full".to_string()));
+    assert_eq!(terminal_font(cx, &state), ("Menlo".to_string(), 14));
+    assert!(events.lock().expect("font events").is_empty());
+    assert!(!save_pending(cx, &state));
+
+    let result = save_terminal_font(cx, &state, "Fira Code", 20).await;
+    assert_eq!(result, Ok(()));
+    assert_eq!(terminal_font(cx, &state), ("Fira Code".to_string(), 20));
+    assert_eq!(
+        *events.lock().expect("font events"),
+        vec![("Fira Code".to_string(), 20)]
+    );
+}
+
+#[gpui_kit::test]
+async fn an_unchanged_font_skips_the_write_and_the_event(cx: &mut TestAppContext) {
+    let runtime = runtime();
+    let writes = Arc::new(AtomicUsize::new(0));
+    let writer_writes = Arc::clone(&writes);
+    let writer: TerminalFontWriter = Arc::new(move |family, size| {
+        writer_writes.fetch_add(1, Ordering::SeqCst);
+        Ok(SavedTerminalFont { family, size })
+    });
+    let state = cx.update(|cx| {
+        cx.new(|_| {
+            ConfigState::with_terminal_font_writer(
+                AppConfig {
+                    font_family: "Menlo".to_string(),
+                    font_size: 14,
+                    ..AppConfig::default()
+                },
+                runtime.handle(),
+                writer,
+            )
+        })
+    });
+    let events = subscribe_terminal_font(cx, &state);
+    cx.executor().allow_parking();
+
+    let result = save_terminal_font(cx, &state, "Menlo", 14).await;
+
+    assert_eq!(result, Ok(()));
+    assert_eq!(writes.load(Ordering::SeqCst), 0);
+    assert!(events.lock().expect("font events").is_empty());
+}
+
+#[gpui_kit::test]
+async fn refuses_a_font_edit_while_another_save_is_pending(cx: &mut TestAppContext) {
+    let runtime = runtime();
+    let (entered_tx, entered_rx) = mpsc::channel();
+    let latch: WriterLatch = Arc::new((Mutex::new(false), Condvar::new()));
+    let release_on_drop = ReleaseOnDrop(Arc::clone(&latch));
+    let state = cx.update(|cx| {
+        cx.new(|_| {
+            ConfigState::with_writer(
+                AppConfig::default(),
+                runtime.handle(),
+                blocking_writer(entered_tx, Arc::clone(&latch)),
+            )
+        })
+    });
+    let events = subscribe_terminal_font(cx, &state);
+    cx.executor().allow_parking();
+
+    let scrollback = save(cx, &state, 20_000);
+    entered_rx
+        .recv_timeout(Duration::from_secs(2))
+        .expect("the scrollback writer entered its blocking section");
+    let result = save_terminal_font(cx, &state, "Menlo", 16).await;
+
+    assert!(
+        result.is_err(),
+        "a font edit cannot start from a stale snapshot"
+    );
+    assert_eq!(
+        terminal_font(cx, &state),
+        (AppConfig::default().font_family, 14)
+    );
+    assert!(events.lock().expect("font events").is_empty());
+
+    release(&latch);
+    assert_eq!(scrollback.await, Ok(20_000));
+    drop(release_on_drop);
+}
+
+#[gpui_kit::test]
+async fn a_dropped_font_waiter_still_commits_and_releases_pending(cx: &mut TestAppContext) {
+    let runtime = runtime();
+    let (entered_tx, entered_rx) = mpsc::channel();
+    let latch: WriterLatch = Arc::new((Mutex::new(false), Condvar::new()));
+    let release_on_drop = ReleaseOnDrop(Arc::clone(&latch));
+    let state = cx.update(|cx| {
+        cx.new(|_| {
+            ConfigState::with_terminal_font_writer(
+                AppConfig::default(),
+                runtime.handle(),
+                blocking_terminal_font_writer(entered_tx, Arc::clone(&latch)),
+            )
+        })
+    });
+    let events = subscribe_terminal_font(cx, &state);
+    cx.executor().allow_parking();
+
+    let first = save_terminal_font(cx, &state, "Menlo", 16);
+    drop(first);
+    entered_rx
+        .recv_timeout(Duration::from_secs(2))
+        .expect("the font writer entered its blocking section");
+
+    release(&latch);
+    wait_until(cx, |cx| !save_pending(cx, &state)).await;
+
+    assert_eq!(terminal_font(cx, &state), ("Menlo".to_string(), 16));
+    assert_eq!(
+        *events.lock().expect("font events"),
+        vec![("Menlo".to_string(), 16)]
+    );
+
+    let second = save_terminal_font(cx, &state, "Fira Code", 17).await;
+    assert_eq!(second, Ok(()));
+    assert_eq!(terminal_font(cx, &state), ("Fira Code".to_string(), 17));
 
     drop(release_on_drop);
 }

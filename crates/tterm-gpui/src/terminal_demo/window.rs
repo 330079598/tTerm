@@ -28,6 +28,7 @@ mod settings_page;
 pub(super) mod settings_page_capture;
 #[cfg(test)]
 mod settings_page_tests;
+mod shell_launcher;
 #[cfg(test)]
 mod split_session_tests;
 mod split_state;
@@ -36,6 +37,10 @@ mod strip;
 mod tabs;
 mod template_actions;
 mod template_ui;
+mod terminal_font;
+#[cfg(test)]
+mod terminal_font_tests;
+mod title;
 mod tunnel_page;
 #[cfg(test)]
 mod tunnel_page_tests;
@@ -79,6 +84,7 @@ use crate::app_window::startup;
 use crate::app_window::state;
 use crate::app_window::state::WindowGeometry;
 use crate::config_state::ConfigState;
+use crate::local_shells_setting::LocalShellsSetting;
 use crate::locale::{Locale, LocaleGlobal};
 use crate::scrollback_setting::ScrollbackSetting;
 use saved_connections::SavedConnectionsUi;
@@ -342,7 +348,10 @@ impl Prototype {
         } = workspace;
         let setting =
             cx.new(|cx| ScrollbackSetting::new(config.clone(), locale.clone(), theme, cx));
-        let page = cx.new(|cx| SettingsPage::new(locale.clone(), theme, setting.clone(), cx));
+        let local_shells =
+            cx.new(|cx| LocalShellsSetting::new(config.clone(), locale.clone(), theme, cx));
+        let page = cx
+            .new(|cx| SettingsPage::new(locale.clone(), theme, setting.clone(), local_shells, cx));
         cx.observe(&page, |_, _, cx| cx.notify()).detach();
         let template_ui = TemplateUi::for_workspace(config.clone(), locale.clone(), theme, cx);
         let saved_connections =
@@ -400,6 +409,7 @@ impl Prototype {
             ui,
         };
         prototype.publish_workspace(cx);
+        prototype.subscribe_shared_font(cx).detach();
         cx.spawn(async move |prototype, cx| {
             while let Some(event) = events.recv().await {
                 if prototype
@@ -505,6 +515,7 @@ impl TabFactory {
         let agent_resume = saved_agent_resume(&saved);
         let drop_text = connection.as_ref().ok().and_then(local_drop_text);
         let (binding, open_error) = self.open_binding(id, connection, &mut launch);
+        let font = self.shared_font(cx);
         let attachment = binding.as_ref().and_then(|binding| binding.attach());
         let Some(attachment) = attachment else {
             let error = open_error.unwrap_or_else(|| "Failed to start terminal".to_string());
@@ -522,6 +533,7 @@ impl TabFactory {
                     search,
                 },
                 error,
+                font,
             );
         };
         log_conpty_source();
@@ -543,6 +555,7 @@ impl TabFactory {
                     search,
                 },
                 "The terminal tab was not registered".to_string(),
+                font,
             );
         };
         let agent_resume_controller = binding.session().and_then(|session| {
@@ -575,6 +588,7 @@ impl TabFactory {
         });
         let paste_gate = super::clipboard::view_gate(&paste_controller, &binding, session_nonce);
         let config = TerminalViewConfig {
+            font,
             input: Some(Rc::new(attachment.input())),
             resize: Some(Rc::new(attachment.resizer())),
             keyboard: self.keyboard,
@@ -629,25 +643,6 @@ impl TabFactory {
 }
 
 impl Prototype {
-    fn default_window_title(&self, cx: &App) -> String {
-        let locale = self.ui.locale.read(cx);
-        let title = match locale.text(keys::APP_TITLE) {
-            Ok(title) => title,
-            Err(error) => {
-                eprintln!("tterm-gpui: failed to translate the window title: {error}");
-                return DEFAULT_TITLE.to_string();
-            }
-        };
-        let subtitle = match locale.text(keys::APP_SUBTITLE) {
-            Ok(subtitle) => subtitle,
-            Err(error) => {
-                eprintln!("tterm-gpui: failed to translate the window subtitle: {error}");
-                return title;
-            }
-        };
-        format!("{title} — {subtitle}")
-    }
-
     /// Switches the shared locale for this session only. Persisting the
     /// choice stays with the configuration settings (P3-02).
     #[cfg(all(feature = "automation", debug_assertions))]
@@ -657,14 +652,8 @@ impl Prototype {
             .update(cx, |locale, cx| locale.set_language(language, cx));
         cx.notify();
     }
-
-    fn apply_window_title(&mut self, window: &mut Window, title: String) {
-        if self.current_title != title {
-            window.set_window_title(&title);
-            self.current_title = title;
-        }
-    }
 }
+
 struct WindowUi {
     locale: Entity<Locale>,
     geometry: Entity<WindowGeometry>,

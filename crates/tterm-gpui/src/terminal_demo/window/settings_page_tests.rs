@@ -1,19 +1,46 @@
 //! The settings route over two live split sessions.
 
+#[path = "shell_launcher_tests.rs"]
+mod shell_launcher_tests;
+
+mod font;
+mod layout;
+mod local_shells;
+mod page_save;
+mod routes;
+mod scrollback;
+mod search;
+
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
 use gpui_kit::test::TestWindowExt as _;
 use gpui_kit::{App, MouseButton, TestAppContext, VisualTestContext};
 use tterm_core::config::AppConfig;
+use tterm_core::config::local_shells::LocalShell;
+use tterm_core::config::local_shells_file::SavedLocalShells;
 use tterm_core::config::scrollback::resolve_scrollback_lines;
+use tterm_core::config::terminal_font_file::TerminalPageSettings;
 use tterm_core::i18n::keys;
+use tterm_core::workspace::local_shells::types::DefaultShellSettings;
 use tterm_core::workspace::tab_groups::{PaneNode, SplitOrientation};
 
-use super::settings_page::{SETTINGS_OPEN_BUTTON_ID, SETTINGS_PAGE_ID};
+use super::settings_page;
+use super::settings_page::{
+    SETTINGS_OPEN_BUTTON_ID, SETTINGS_PAGE_ID, SETTINGS_TAB_LOCAL_SHELLS_ID,
+    SETTINGS_TAB_TERMINAL_ID, SettingsTab,
+};
 use super::split_state::Edge;
 use super::*;
-use crate::config_state::{PaneTemplatesWriter, ScrollbackWriter};
+use crate::config_state::{
+    LocalShellsWriter, PaneTemplatesWriter, ScrollbackWriter, TerminalFontWriter,
+    TerminalPageWriter,
+};
+use crate::local_shells_setting::{
+    ARGS_INPUT_ID, EDIT_PREFIX, ERROR_ID as LOCAL_SHELLS_ERROR_ID, NAME_INPUT_ID,
+    PAGE_ADD_ID as LOCAL_SHELLS_ADD_ID, PAGE_SECTION_ID as LOCAL_SHELLS_SECTION_ID,
+    SAVE_ID as LOCAL_SHELLS_SAVE_ID,
+};
 use crate::terminal_demo::runtime::{GpuiRuntime, test_runtime};
 
 fn test_shell() -> CommandSpec {
@@ -44,11 +71,18 @@ fn test_shell() -> CommandSpec {
     }
 }
 
+struct WorkspaceWriters {
+    scrollback: ScrollbackWriter,
+    local_shells: LocalShellsWriter,
+    font: Option<TerminalFontWriter>,
+    page: Option<TerminalPageWriter>,
+}
+
 fn make_workspace(
     runtime: &GpuiRuntime,
     events: UnboundedReceiver<AppEvent>,
     config: AppConfig,
-    scrollback_writer: ScrollbackWriter,
+    writers: WorkspaceWriters,
     cx: &mut Context<Prototype>,
 ) -> Prototype {
     let keymap = Rc::new(KeymapRouter::new(&config.keymap, cfg!(target_os = "macos")));
@@ -58,8 +92,18 @@ fn make_workspace(
     let queue = state::SaveQueue::start(handle, Arc::new(|_| Ok(())));
     let geometry = cx.new(|_| WindowGeometry::new(None, Default::default(), queue));
     let pane_templates_writer: PaneTemplatesWriter = Arc::new(|_| Ok(()));
-    let config = cx.new(|_| {
-        ConfigState::with_writers(config, handle, scrollback_writer, pane_templates_writer)
+    let config = cx.new(|_| match writers.page {
+        Some(writer) => ConfigState::with_terminal_page_writer(config, handle, writer),
+        None => match writers.font {
+            Some(writer) => ConfigState::with_terminal_font_writer(config, handle, writer),
+            None => ConfigState::with_writers(
+                config,
+                handle,
+                writers.scrollback,
+                pane_templates_writer,
+                writers.local_shells,
+            ),
+        },
     });
     Prototype::new(
         cx,
@@ -88,6 +132,7 @@ struct Harness<'a> {
     visual: &'a mut VisualTestContext,
     config: Entity<ConfigState>,
     writes: Arc<Mutex<Vec<u32>>>,
+    local_shell_writes: Arc<Mutex<Vec<LocalShell>>>,
     first: Rc<TabBinding>,
     second: Rc<TabBinding>,
     first_model: Arc<Terminal>,
@@ -101,7 +146,51 @@ fn harness<'a>(cx: &'a mut TestAppContext, config: AppConfig) -> Harness<'a> {
         recorded.lock().expect("scrollback writes").push(lines);
         Ok(())
     });
-    harness_with_writer(cx, config, scrollback_writer, writes)
+    let local_shell_writes = Arc::new(Mutex::new(Vec::new()));
+    let recorded_shells = Arc::clone(&local_shell_writes);
+    let local_shells_writer: LocalShellsWriter = Arc::new(move |saved| {
+        recorded_shells
+            .lock()
+            .expect("local shell writes")
+            .push(saved.clone());
+        Ok(SavedLocalShells {
+            local_shells: vec![saved],
+            default_shell: DefaultShellSettings::default(),
+        })
+    });
+    harness_with_writers(
+        cx,
+        config,
+        scrollback_writer,
+        writes,
+        local_shells_writer,
+        local_shell_writes,
+        None,
+    )
+}
+
+fn harness_with_font_writer<'a>(
+    cx: &'a mut TestAppContext,
+    config: AppConfig,
+    writer: TerminalFontWriter,
+) -> Harness<'a> {
+    let writes = Arc::new(Mutex::new(Vec::new()));
+    let local_shell_writes = Arc::new(Mutex::new(Vec::new()));
+    let local_shells_writer: LocalShellsWriter = Arc::new(|saved| {
+        Ok(SavedLocalShells {
+            local_shells: vec![saved],
+            default_shell: DefaultShellSettings::default(),
+        })
+    });
+    harness_with_writers(
+        cx,
+        config,
+        Arc::new(|_| Ok(())),
+        writes,
+        local_shells_writer,
+        local_shell_writes,
+        Some(writer),
+    )
 }
 
 fn harness_with_writer<'a>(
@@ -110,6 +199,100 @@ fn harness_with_writer<'a>(
     scrollback_writer: ScrollbackWriter,
     writes: Arc<Mutex<Vec<u32>>>,
 ) -> Harness<'a> {
+    let local_shell_writes = Arc::new(Mutex::new(Vec::new()));
+    let recorded_shells = Arc::clone(&local_shell_writes);
+    let local_shells_writer: LocalShellsWriter = Arc::new(move |saved| {
+        recorded_shells
+            .lock()
+            .expect("local shell writes")
+            .push(saved.clone());
+        Ok(SavedLocalShells {
+            local_shells: vec![saved],
+            default_shell: DefaultShellSettings::default(),
+        })
+    });
+    harness_with_writers(
+        cx,
+        config,
+        scrollback_writer,
+        writes,
+        local_shells_writer,
+        local_shell_writes,
+        None,
+    )
+}
+
+struct HarnessWriters {
+    scrollback: ScrollbackWriter,
+    writes: Arc<Mutex<Vec<u32>>>,
+    local_shells: LocalShellsWriter,
+    local_shell_writes: Arc<Mutex<Vec<LocalShell>>>,
+    font: Option<TerminalFontWriter>,
+    page: Option<TerminalPageWriter>,
+}
+
+fn harness_with_writers<'a>(
+    cx: &'a mut TestAppContext,
+    config: AppConfig,
+    scrollback_writer: ScrollbackWriter,
+    writes: Arc<Mutex<Vec<u32>>>,
+    local_shells_writer: LocalShellsWriter,
+    local_shell_writes: Arc<Mutex<Vec<LocalShell>>>,
+    font_writer: Option<TerminalFontWriter>,
+) -> Harness<'a> {
+    harness_with_options(
+        cx,
+        config,
+        HarnessWriters {
+            scrollback: scrollback_writer,
+            writes,
+            local_shells: local_shells_writer,
+            local_shell_writes,
+            font: font_writer,
+            page: None,
+        },
+    )
+}
+
+fn harness_with_page_writer<'a>(
+    cx: &'a mut TestAppContext,
+    config: AppConfig,
+    writer: TerminalPageWriter,
+) -> Harness<'a> {
+    let local_shell_writes = Arc::new(Mutex::new(Vec::new()));
+    let local_shells_writer: LocalShellsWriter = Arc::new(|saved| {
+        Ok(SavedLocalShells {
+            local_shells: vec![saved],
+            default_shell: DefaultShellSettings::default(),
+        })
+    });
+    harness_with_options(
+        cx,
+        config,
+        HarnessWriters {
+            scrollback: Arc::new(|_| Ok(())),
+            writes: Arc::new(Mutex::new(Vec::new())),
+            local_shells: local_shells_writer,
+            local_shell_writes,
+            font: None,
+            page: Some(writer),
+        },
+    )
+}
+
+fn harness_with_options<'a>(
+    cx: &'a mut TestAppContext,
+    config: AppConfig,
+    writers: HarnessWriters,
+) -> Harness<'a> {
+    let HarnessWriters {
+        scrollback,
+        writes,
+        local_shells,
+        local_shell_writes,
+        font,
+        page,
+    } = writers;
     let mut runtime = test_runtime();
     let events = std::mem::replace(
         &mut runtime.events,
@@ -120,8 +303,20 @@ fn harness_with_writer<'a>(
         gpui_kit::init(cx);
         tterm_terminal_view::view::bind_keys(cx);
     });
-    let (root, visual) =
-        cx.add_window_view(|_, cx| make_workspace(&runtime, events, config, scrollback_writer, cx));
+    let (root, visual) = cx.add_window_view(|_, cx| {
+        make_workspace(
+            &runtime,
+            events,
+            config,
+            WorkspaceWriters {
+                scrollback,
+                local_shells,
+                font,
+                page,
+            },
+            cx,
+        )
+    });
     let [first, second] = visual.update(|window, cx| {
         root.update(cx, |workspace, cx| {
             workspace.tabs.push(|id| {
@@ -157,6 +352,7 @@ fn harness_with_writer<'a>(
         visual,
         config,
         writes,
+        local_shell_writes,
         first,
         second,
         first_model,
@@ -257,6 +453,13 @@ fn output(model: &Terminal) -> String {
 }
 
 fn click(visual: &mut VisualTestContext, id: &'static str) {
+    click_id(visual, id);
+}
+
+fn click_id(visual: &mut VisualTestContext, id: &str) {
+    // The debug-selector lookup requires a `'static` id; leaking one test
+    // string per click keeps the helper usable with generated row ids.
+    let id: &'static str = Box::leak(id.to_string().into_boxed_str());
     visual.update(|window, cx| window.render_frame(cx));
     let bounds = visual
         .debug_bounds(id)
@@ -361,594 +564,118 @@ fn wait_for_save(harness: &mut Harness<'_>, expected: u32) {
     }
 }
 
-#[gpui_kit::test]
-fn titlebar_click_opens_one_route_and_back_restores_the_exact_pane(cx: &mut TestAppContext) {
-    let harness = harness(cx, AppConfig::default());
-    let root = harness.root.clone();
-    let first_model = Arc::clone(&harness.first_model);
-    let second_model = Arc::clone(&harness.second_model);
-    send_marker(harness.visual, &first_model, "beforefirst");
-    harness.visual.update(|window, cx| {
-        root.update(cx, |workspace, cx| workspace.focus_pane(2, window, cx));
-    });
-    send_marker(harness.visual, &second_model, "beforesecond");
-    harness.visual.update(|window, cx| {
-        root.update(cx, |workspace, cx| {
-            workspace.focus_pane(1, window, cx);
-            assert_panes(workspace, &[1, 2], 1, window, cx);
+fn page_font_family_focused(root: &Entity<Prototype>, window: &Window, cx: &App) -> bool {
+    root.read(cx)
+        .ui
+        .settings_page
+        .read(cx)
+        .font_family_focus(cx)
+        .is_some_and(|focus| focus.is_focused(window))
+}
+
+fn page_font_size_focused(root: &Entity<Prototype>, window: &Window, cx: &App) -> bool {
+    root.read(cx)
+        .ui
+        .settings_page
+        .read(cx)
+        .font_size_focus(cx)
+        .is_some_and(|focus| focus.is_focused(window))
+}
+
+fn page_font_line_height_focused(root: &Entity<Prototype>, window: &Window, cx: &App) -> bool {
+    root.read(cx)
+        .ui
+        .settings_page
+        .read(cx)
+        .font_line_height_focus(cx)
+        .is_some_and(|focus| focus.is_focused(window))
+}
+
+fn page_font_letter_spacing_focused(root: &Entity<Prototype>, window: &Window, cx: &App) -> bool {
+    root.read(cx)
+        .ui
+        .settings_page
+        .read(cx)
+        .font_letter_spacing_focus(cx)
+        .is_some_and(|focus| focus.is_focused(window))
+}
+
+fn wait_for_font_save(harness: &mut Harness<'_>, root: &Entity<Prototype>, size: &str) {
+    let deadline = Instant::now() + Duration::from_secs(10);
+    loop {
+        harness.visual.update(|window, cx| window.render_frame(cx));
+        let done = harness.visual.update(|_, cx| {
+            let page = root.read(cx).ui.settings_page.read(cx);
+            page.font_saved(cx) && page.font_values(cx).1 == size
         });
-    });
-    let before = settled_outputs(&[first_model.as_ref(), second_model.as_ref()]);
-    assert!(before[0].contains("beforefirst"));
-    assert!(before[1].contains("beforesecond"));
-
-    click(harness.visual, SETTINGS_OPEN_BUTTON_ID);
-    let first = Rc::clone(&harness.first);
-    let second = Rc::clone(&harness.second);
-    assert_eq!(settings_page_count(harness.visual), 1);
-    harness.visual.update(|window, cx| {
-        let workspace = root.read(cx);
-        assert_route_open(workspace, &[1, 2], 1, window, cx);
-        assert_sessions_unchanged(workspace, &first, &second, 1);
-        assert!(workspace.factory.sessions.tab("gpui-1").is_some());
-        assert!(Rc::ptr_eq(&first, &tab_binding(workspace, 1)));
-        assert!(Rc::ptr_eq(&second, &tab_binding(workspace, 2)));
-    });
-
-    click(harness.visual, SETTINGS_OPEN_BUTTON_ID);
-    assert!(!settings_page_visible(harness.visual));
-    harness.visual.update(|window, cx| {
-        let workspace = root.read(cx);
-        assert!(!workspace.settings_is_open());
-        assert_panes(workspace, &[1, 2], 1, window, cx);
-        assert!(pane_focus(workspace, 1, cx).is_focused(window));
-        assert_sessions_unchanged(workspace, &first, &second, 1);
-        assert_eq!(workspace.splits.split_sizes(1, &[]), Some(vec![0.35, 0.65]));
-        assert_eq!(output(&first_model), before[0]);
-        assert_eq!(output(&second_model), before[1]);
-    });
-
-    click(harness.visual, SETTINGS_OPEN_BUTTON_ID);
-    assert_eq!(settings_page_count(harness.visual), 1);
-    harness.visual.update(|window, cx| {
-        let workspace = root.read(cx);
-        assert_route_open(workspace, &[1, 2], 1, window, cx);
-        assert_sessions_unchanged(workspace, &first, &second, 1);
-    });
-
-    press(harness.visual, "escape");
-    assert!(!settings_page_visible(harness.visual));
-    harness.visual.update(|window, cx| {
-        let workspace = root.read(cx);
-        assert!(!workspace.settings_is_open());
-        assert_panes(workspace, &[1, 2], 1, window, cx);
-        let focus = pane_focus(workspace, 1, cx);
-        assert!(focus.is_focused(window));
-        assert_sessions_unchanged(workspace, &first, &second, 1);
-        assert_eq!(workspace.splits.split_sizes(1, &[]), Some(vec![0.35, 0.65]));
-        assert_eq!(output(&first_model), before[0]);
-        assert_eq!(output(&second_model), before[1]);
-    });
-
-    send_marker(harness.visual, &first_model, "backtopane");
-    assert!(!output(&second_model).contains("backtopane"));
-    harness.visual.update(|window, _| window.remove_window());
-}
-
-#[gpui_kit::test]
-fn keymap_opens_the_singleton_route_and_escape_returns_input(cx: &mut TestAppContext) {
-    let harness = harness(cx, AppConfig::default());
-    let root = harness.root.clone();
-    let second_model = Arc::clone(&harness.second_model);
-    let first_model = Arc::clone(&harness.first_model);
-    let first = Rc::clone(&harness.first);
-    let second = Rc::clone(&harness.second);
-    harness.visual.update(|window, cx| {
-        root.update(cx, |workspace, cx| {
-            workspace.focus_pane(2, window, cx);
-            assert_panes(workspace, &[1, 2], 2, window, cx);
-        });
-    });
-
-    press(harness.visual, &format!("{}-,", modifier()));
-    harness.visual.update(|window, cx| {
-        let workspace = root.read(cx);
-        assert_route_open(workspace, &[1, 2], 2, window, cx);
-        assert_sessions_unchanged(workspace, &first, &second, 2);
-    });
-    assert_eq!(settings_page_count(harness.visual), 1);
-
-    click(harness.visual, SETTINGS_OPEN_BUTTON_ID);
-    assert!(!settings_page_visible(harness.visual));
-    click(harness.visual, SETTINGS_OPEN_BUTTON_ID);
-    assert_eq!(settings_page_count(harness.visual), 1);
-    harness.visual.update(|window, cx| {
-        let workspace = root.read(cx);
-        assert_route_open(workspace, &[1, 2], 2, window, cx);
-        assert_sessions_unchanged(workspace, &first, &second, 2);
-    });
-
-    press(harness.visual, &format!("{}-,", modifier()));
-    assert_eq!(settings_page_count(harness.visual), 1);
-    harness.visual.update(|window, cx| {
-        let workspace = root.read(cx);
-        assert_route_open(workspace, &[1, 2], 2, window, cx);
-        assert_sessions_unchanged(workspace, &first, &second, 2);
-    });
-
-    press(harness.visual, "escape");
-    assert!(!settings_page_visible(harness.visual));
-    harness.visual.update(|window, cx| {
-        let workspace = root.read(cx);
-        assert!(!workspace.settings_is_open());
-        assert_panes(workspace, &[1, 2], 2, window, cx);
-        assert!(pane_focus(workspace, 2, cx).is_focused(window));
-        assert_sessions_unchanged(workspace, &first, &second, 2);
-    });
-
-    send_marker(harness.visual, &second_model, "keymapreturn");
-    assert!(!output(&first_model).contains("keymapreturn"));
-    harness.visual.update(|window, _| window.remove_window());
-}
-
-#[gpui_kit::test]
-fn remapped_settings_key_replaces_the_default_chord(cx: &mut TestAppContext) {
-    let mut config = AppConfig::default();
-    config
-        .keymap
-        .bindings
-        .insert("settings.open".into(), Some(vec!["mod+alt+p".into()]));
-    let harness = harness(cx, config);
-    let root = harness.root.clone();
-    let first_model = Arc::clone(&harness.first_model);
-    let first = Rc::clone(&harness.first);
-    let second = Rc::clone(&harness.second);
-
-    press(harness.visual, &format!("{}-,", modifier()));
-    assert!(!settings_page_visible(harness.visual));
-    harness
-        .visual
-        .update(|_, cx| assert!(!root.read(cx).settings_is_open()));
-
-    let remapped = format!("{}-alt-p", modifier());
-    press(harness.visual, &remapped);
-    harness.visual.update(|window, cx| {
-        let workspace = root.read(cx);
-        assert_route_open(workspace, &[1, 2], 1, window, cx);
-        assert_sessions_unchanged(workspace, &first, &second, 1);
-    });
-    assert_eq!(settings_page_count(harness.visual), 1);
-
-    press(harness.visual, &format!("{}-,", modifier()));
-    harness
-        .visual
-        .update(|_, cx| assert!(root.read(cx).settings_is_open()));
-
-    press(harness.visual, &remapped);
-    assert_eq!(settings_page_count(harness.visual), 1);
-    harness.visual.update(|window, cx| {
-        let workspace = root.read(cx);
-        assert_route_open(workspace, &[1, 2], 1, window, cx);
-        assert_sessions_unchanged(workspace, &first, &second, 1);
-    });
-
-    press(harness.visual, "escape");
-    assert!(!settings_page_visible(harness.visual));
-    harness.visual.update(|window, cx| {
-        let workspace = root.read(cx);
-        assert!(!workspace.settings_is_open());
-        assert_panes(workspace, &[1, 2], 1, window, cx);
-        assert!(pane_focus(workspace, 1, cx).is_focused(window));
-        assert_sessions_unchanged(workspace, &first, &second, 1);
-    });
-
-    click(harness.visual, SETTINGS_OPEN_BUTTON_ID);
-    press(harness.visual, &remapped);
-    assert_eq!(settings_page_count(harness.visual), 1);
-    harness.visual.update(|window, cx| {
-        let workspace = root.read(cx);
-        assert_route_open(workspace, &[1, 2], 1, window, cx);
-        assert_sessions_unchanged(workspace, &first, &second, 1);
-    });
-    press(harness.visual, "escape");
-    assert!(!settings_page_visible(harness.visual));
-    send_marker(harness.visual, &first_model, "remapreturn");
-    harness.visual.update(|window, _| window.remove_window());
-}
-
-#[gpui_kit::test]
-fn settings_input_does_not_leak_and_background_output_keeps_running(cx: &mut TestAppContext) {
-    let harness = harness(cx, AppConfig::default());
-    let root = harness.root.clone();
-    let first_model = Arc::clone(&harness.first_model);
-    let second_model = Arc::clone(&harness.second_model);
-    send_marker(harness.visual, &first_model, "beforeinput");
-    let before = settled_outputs(&[first_model.as_ref()])[0].clone();
-    let background = Rc::clone(&harness.second);
-    let first = Rc::clone(&harness.first);
-    let second = Rc::clone(&harness.second);
-
-    click(harness.visual, SETTINGS_OPEN_BUTTON_ID);
-    assert!(settings_page_visible(harness.visual));
-    harness.visual.update(|window, cx| {
-        let workspace = root.read(cx);
-        assert_route_open(workspace, &[1, 2], 1, window, cx);
-        assert!(!pane_focus(workspace, 1, cx).is_focused(window));
-        assert!(!pane_focus(workspace, 2, cx).is_focused(window));
-    });
-
-    harness.visual.simulate_input("leakprobe");
-    harness.visual.update(|window, cx| window.render_frame(cx));
-    std::thread::sleep(Duration::from_millis(250));
-    assert!(!output(&first_model).contains("leakprobe"));
-    assert!(!output(&second_model).contains("leakprobe"));
-    harness.visual.update(|_, cx| {
-        assert_eq!(
-            root.read(cx).ui.settings_page.read(cx).search_query(),
-            "leakprobe"
-        );
-    });
-
-    let probe = if cfg!(windows) {
-        "echo bgprobe\r\n"
-    } else {
-        "echo bgprobe\n"
-    };
-    background
-        .session()
-        .expect("the background session")
-        .write_input(probe.as_bytes())
-        .expect("the background PTY accepts input");
-    wait_until("the hidden background session to print bgprobe", || {
-        output(&second_model).contains("bgprobe")
-    });
-    assert!(!output(&first_model).contains("bgprobe"));
-    harness
-        .visual
-        .update(|_, cx| assert!(root.read(cx).settings_is_open()));
-
-    press(harness.visual, "escape");
-    assert!(settings_page_visible(harness.visual));
-    harness.visual.update(|_, cx| {
-        assert_eq!(root.read(cx).ui.settings_page.read(cx).search_query(), "");
-    });
-    press(harness.visual, "escape");
-    assert!(!settings_page_visible(harness.visual));
-    harness.visual.update(|window, cx| {
-        let workspace = root.read(cx);
-        assert!(!workspace.settings_is_open());
-        assert_panes(workspace, &[1, 2], 1, window, cx);
-        assert!(pane_focus(workspace, 1, cx).is_focused(window));
-        assert_eq!(output(&first_model), before);
-        assert_sessions_unchanged(workspace, &first, &second, 1);
-    });
-
-    send_marker(harness.visual, &first_model, "afterbackground");
-    assert!(output(&first_model).contains("afterbackground"));
-    assert!(!output(&second_model).contains("afterbackground"));
-    harness.visual.update(|window, _| window.remove_window());
-}
-
-#[gpui_kit::test]
-fn edited_scrollback_survives_reopening_and_stays_applied(cx: &mut TestAppContext) {
-    let mut harness = harness(cx, AppConfig::default());
-    let root = harness.root.clone();
-    let first_model = Arc::clone(&harness.first_model);
-    let writes = Arc::clone(&harness.writes);
-    let config = harness.config.clone();
-    let first = Rc::clone(&harness.first);
-    let second = Rc::clone(&harness.second);
-
-    click(harness.visual, SETTINGS_OPEN_BUTTON_ID);
-    harness
-        .visual
-        .update(|_, cx| assert!(root.read(cx).settings_is_open()));
-    open_scrollback_from_search(&mut harness, &root);
-
-    // A value outside the field's range stays a draft: pressing Enter must
-    // not write it or shrink the live buffers.
-    replace_focused_text(&mut harness, "20000001");
-    press(harness.visual, "enter");
-    harness.visual.update(|window, cx| {
-        window.render_frame(cx);
-        assert!(root.read(cx).settings_is_open());
-        assert_eq!(config.read(cx).scrollback_lines(), 10_000);
-        assert_eq!(
-            root.read(cx).ui.settings_page.read(cx).scrollback_value(cx),
-            "20000001"
-        );
-        assert!(page_scrollback_focused(&root, window, cx));
-    });
-    assert!(
-        harness
-            .visual
-            .debug_bounds(super::settings_page::SETTINGS_SCROLLBACK_ERROR_ID)
-            .is_some()
-    );
-    assert!(writes.lock().expect("scrollback writes").is_empty());
-
-    replace_focused_text(&mut harness, "400");
-    click(
-        harness.visual,
-        super::settings_page::SETTINGS_SCROLLBACK_SAVE_ID,
-    );
-    wait_for_save(&mut harness, 400);
-    harness.visual.update(|_, cx| {
-        assert!(root.read(cx).settings_is_open());
-        assert_eq!(config.read(cx).scrollback_lines(), 400);
-    });
-    assert_eq!(
-        first_model.scrollback(),
-        resolve_scrollback_lines(Some(400.0)) as usize
-    );
-
-    click(
-        harness.visual,
-        super::settings_page::SETTINGS_SCROLLBACK_INPUT_ID,
-    );
-    replace_focused_text(&mut harness, "800");
-    press(harness.visual, "enter");
-    wait_for_save(&mut harness, 800);
-    harness
-        .visual
-        .update(|_, cx| assert_eq!(config.read(cx).scrollback_lines(), 800));
-    assert_eq!(
-        first_model.scrollback(),
-        resolve_scrollback_lines(Some(800.0)) as usize
-    );
-
-    click(harness.visual, SETTINGS_OPEN_BUTTON_ID);
-    assert!(!settings_page_visible(harness.visual));
-    harness.visual.update(|window, cx| {
-        let workspace = root.read(cx);
-        assert!(!workspace.settings_is_open());
-        assert_panes(workspace, &[1, 2], 1, window, cx);
-        assert!(pane_focus(workspace, 1, cx).is_focused(window));
-        assert_sessions_unchanged(workspace, &first, &second, 1);
-    });
-
-    press(harness.visual, &format!("{}-,", modifier()));
-    harness.visual.update(|window, cx| {
-        window.render_frame(cx);
-        assert!(root.read(cx).settings_is_open());
-        assert_eq!(
-            root.read(cx).ui.settings_page.read(cx).scrollback_value(cx),
-            "800"
-        );
-    });
-    open_scrollback_from_search(&mut harness, &root);
-    replace_focused_text(&mut harness, "1200");
-    press(harness.visual, "enter");
-    wait_for_save(&mut harness, 1200);
-    harness.visual.update(|_, cx| {
-        assert!(root.read(cx).settings_is_open());
-        assert_eq!(config.read(cx).scrollback_lines(), 1200);
-    });
-    assert_eq!(
-        first_model.scrollback(),
-        resolve_scrollback_lines(Some(1200.0)) as usize
-    );
-
-    click(harness.visual, SETTINGS_OPEN_BUTTON_ID);
-    harness.visual.update(|window, cx| {
-        let workspace = root.read(cx);
-        assert!(!workspace.settings_is_open());
-        assert_panes(workspace, &[1, 2], 1, window, cx);
-        assert!(pane_focus(workspace, 1, cx).is_focused(window));
-        assert_sessions_unchanged(workspace, &first, &second, 1);
-    });
-
-    assert_eq!(
-        *writes.lock().expect("scrollback writes"),
-        vec![400, 800, 1200]
-    );
-    send_marker(harness.visual, &first_model, "aftersetting");
-    harness.visual.update(|window, _| window.remove_window());
-}
-
-#[gpui_kit::test]
-fn keyboard_and_mouse_selection_focus_the_editable_value(cx: &mut TestAppContext) {
-    let mut harness = harness(cx, AppConfig::default());
-    let root = harness.root.clone();
-    let config = harness.config.clone();
-    let writes = Arc::clone(&harness.writes);
-
-    click(harness.visual, SETTINGS_OPEN_BUTTON_ID);
-    open_scrollback_from_search(&mut harness, &root);
-    replace_focused_text(&mut harness, "4321");
-    harness.visual.update(|window, cx| {
-        let page = root.read(cx).ui.settings_page.read(cx);
-        assert_eq!(page.search_value(cx), "");
-        assert_eq!(page.scrollback_value(cx), "4321");
-        assert!(page_scrollback_focused(&root, window, cx));
-        assert_eq!(config.read(cx).scrollback_lines(), 10_000);
-    });
-
-    // The settings shortcut opens the route that is already showing. It must
-    // keep the unsaved draft and its field instead of rebuilding the page.
-    press(harness.visual, &format!("{}-,", modifier()));
-    harness.visual.update(|window, cx| {
-        let page = root.read(cx).ui.settings_page.read(cx);
-        assert!(root.read(cx).settings_is_open());
-        assert_eq!(page.scrollback_value(cx), "4321");
-        assert_eq!(page.search_query(), "");
-        assert!(page_scrollback_focused(&root, window, cx));
-    });
-    assert!(writes.lock().expect("scrollback writes").is_empty());
-
-    press(harness.visual, "escape");
-    harness.visual.update(|window, cx| {
-        let workspace = root.read(cx);
-        assert!(!workspace.settings_is_open());
-        assert!(pane_focus(workspace, 1, cx).is_focused(window));
-    });
-
-    // The same result selected with the pointer must take the next typed
-    // digits into the value, not into the search query.
-    click(harness.visual, SETTINGS_OPEN_BUTTON_ID);
-    type_search(&mut harness, "scrollback");
-    click(
-        harness.visual,
-        super::settings_page::SETTINGS_SEARCH_RESULT_0_ID,
-    );
-    harness.visual.update(|window, cx| {
-        assert!(page_scrollback_focused(&root, window, cx));
-    });
-    replace_focused_text(&mut harness, "8765");
-    harness.visual.update(|window, cx| {
-        let page = root.read(cx).ui.settings_page.read(cx);
-        assert_eq!(page.search_value(cx), "");
-        assert_eq!(page.scrollback_value(cx), "8765");
-        assert!(page_scrollback_focused(&root, window, cx));
-        assert_eq!(config.read(cx).scrollback_lines(), 10_000);
-    });
-
-    click(harness.visual, SETTINGS_OPEN_BUTTON_ID);
-    harness.visual.update(|window, cx| {
-        let workspace = root.read(cx);
-        assert!(!workspace.settings_is_open());
-        assert!(pane_focus(workspace, 1, cx).is_focused(window));
-    });
-    assert!(writes.lock().expect("scrollback writes").is_empty());
-    harness.visual.update(|window, _| window.remove_window());
-}
-
-#[gpui_kit::test]
-fn tab_and_shift_tab_leave_the_value_for_the_page_focus_order(cx: &mut TestAppContext) {
-    let mut harness = harness(cx, AppConfig::default());
-    let root = harness.root.clone();
-    click(harness.visual, SETTINGS_OPEN_BUTTON_ID);
-    open_scrollback_from_search(&mut harness, &root);
-
-    press(harness.visual, "shift-tab");
-    harness.visual.update(|window, cx| {
-        assert!(
-            page_search_focused(&root, window, cx),
-            "Shift+Tab from the value should reach the search field"
-        );
-        assert!(!page_scrollback_focused(&root, window, cx));
-    });
-
-    press(harness.visual, "tab");
-    harness.visual.update(|window, cx| {
-        assert!(
-            page_scrollback_focused(&root, window, cx),
-            "Tab from the search field should return to the value"
-        );
-    });
-
-    press(harness.visual, "tab");
-    harness.visual.update(|window, cx| {
-        assert!(
-            !page_scrollback_focused(&root, window, cx),
-            "Tab must leave the numeric field instead of trapping focus"
-        );
-    });
-    let mut returned_to_search = false;
-    for _ in 0..16 {
-        if harness
-            .visual
-            .update(|window, cx| page_search_focused(&root, window, cx))
-        {
-            returned_to_search = true;
-            break;
+        if done {
+            return;
         }
-        press(harness.visual, "tab");
-    }
-    assert!(
-        returned_to_search,
-        "the page focus order should cycle back to the search field"
-    );
-    harness.visual.update(|_, cx| {
-        assert_eq!(
-            root.read(cx).ui.settings_page.read(cx).scrollback_value(cx),
-            "10000"
+        assert!(
+            Instant::now() < deadline,
+            "timed out waiting for the font save"
         );
-    });
-
-    click(harness.visual, SETTINGS_OPEN_BUTTON_ID);
-    harness.visual.update(|window, _| window.remove_window());
+        harness.visual.run_until_parked();
+        std::thread::sleep(Duration::from_millis(10));
+    }
 }
 
-#[gpui_kit::test]
-fn language_change_updates_placeholders_without_resetting_the_draft(cx: &mut TestAppContext) {
-    let mut harness = harness(cx, AppConfig::default());
-    let root = harness.root.clone();
-    click(harness.visual, SETTINGS_OPEN_BUTTON_ID);
-
-    let english_search = harness.visual.update(|_, cx| {
-        root.read(cx)
-            .ui
-            .locale
-            .read(cx)
-            .text(keys::SETTINGS_SEARCH_PLACEHOLDER)
-            .expect("the English search placeholder is embedded")
-    });
-    let english_scrollback = harness.visual.update(|_, cx| {
-        root.read(cx)
-            .ui
-            .locale
-            .read(cx)
-            .text(keys::SCROLLBACK_SETTING_PLACEHOLDER)
-            .expect("the English scrollback placeholder is embedded")
-    });
-    harness.visual.update(|_, cx| {
-        let page = root.read(cx).ui.settings_page.read(cx);
-        assert_eq!(page.search_placeholder(cx), english_search);
-    });
-
-    open_scrollback_from_search(&mut harness, &root);
-    replace_focused_text(&mut harness, "777");
-    harness.visual.update(|_, cx| {
-        assert_eq!(
+fn wait_for_font_page_error(harness: &mut Harness<'_>, root: &Entity<Prototype>) {
+    let deadline = Instant::now() + Duration::from_secs(10);
+    loop {
+        harness.visual.update(|window, cx| window.render_frame(cx));
+        if harness.visual.update(|_, cx| {
             root.read(cx)
                 .ui
                 .settings_page
                 .read(cx)
-                .scrollback_placeholder(cx),
-            english_scrollback
+                .font_error(cx)
+                .is_some()
+        }) {
+            return;
+        }
+        assert!(
+            Instant::now() < deadline,
+            "timed out waiting for the font save error"
         );
-    });
+        harness.visual.run_until_parked();
+        std::thread::sleep(Duration::from_millis(10));
+    }
+}
 
-    let (chinese_search, chinese_scrollback) = harness.visual.update(|_, cx| {
-        let locale = root.read(cx).ui.locale.clone();
-        locale.update(cx, |locale, cx| locale.set_language(Language::Zh, cx));
-        (
-            locale
-                .read(cx)
-                .text(keys::SETTINGS_SEARCH_PLACEHOLDER)
-                .expect("the Chinese search placeholder is embedded"),
-            locale
-                .read(cx)
-                .text(keys::SCROLLBACK_SETTING_PLACEHOLDER)
-                .expect("the Chinese scrollback placeholder is embedded"),
-        )
-    });
-    harness.visual.update(|window, cx| {
-        window.render_frame(cx);
-        let page = root.read(cx).ui.settings_page.read(cx);
-        assert_eq!(page.search_placeholder(cx), chinese_search);
-        assert_eq!(page.scrollback_placeholder(cx), chinese_scrollback);
-        assert!(!chinese_search.is_empty());
-        assert_eq!(page.scrollback_value(cx), "777");
-        assert_eq!(page.search_query(), "");
-        assert!(page_scrollback_focused(&root, window, cx));
-    });
+fn write_layout_json(visual: &mut VisualTestContext, file: &str, ids: &[&'static str]) {
+    use std::path::Path;
 
-    harness.visual.update(|_, cx| {
-        let locale = root.read(cx).ui.locale.clone();
-        locale.update(cx, |locale, cx| locale.set_language(Language::En, cx));
-    });
-    harness.visual.update(|window, cx| {
-        window.render_frame(cx);
-        let page = root.read(cx).ui.settings_page.read(cx);
-        assert_eq!(page.search_placeholder(cx), english_search);
-        assert_eq!(page.scrollback_placeholder(cx), english_scrollback);
-        assert_eq!(page.scrollback_value(cx), "777");
-    });
+    fn element(visual: &mut VisualTestContext, id: &'static str) -> serde_json::Value {
+        let bounds = page_bounds(visual, id);
+        serde_json::json!({
+            "x": bounds.origin.x.as_f32(),
+            "y": bounds.origin.y.as_f32() - 36.0,
+            "width": bounds.size.width.as_f32(),
+            "height": bounds.size.height.as_f32(),
+        })
+    }
 
-    click(harness.visual, SETTINGS_OPEN_BUTTON_ID);
-    harness.visual.update(|window, _| window.remove_window());
+    let elements: serde_json::Map<String, serde_json::Value> = ids
+        .iter()
+        .map(|id| (id.to_string(), element(visual, id)))
+        .collect();
+    let layout = serde_json::json!({
+        "version": 1,
+        "viewport": { "width": 800, "height": 600, "deviceScaleFactor": 2 },
+        "titleBarHeight": 36,
+        "coordinateSpace": "settings content, origin at the title bar's bottom edge",
+        "elements": elements,
+    });
+    let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
+    let directory = root.join("target/parity/settings-gpui");
+    std::fs::create_dir_all(&directory).expect("the layout directory is writable");
+    std::fs::write(
+        directory.join(file),
+        serde_json::to_string_pretty(&layout).expect("the layout serializes") + "\n",
+    )
+    .expect("the layout is written");
+    println!("settings layout: {}", directory.join(file).display());
 }
 
 fn page_bounds(
@@ -1016,6 +743,7 @@ fn replace_focused_text(harness: &mut Harness<'_>, text: &str) {
 }
 
 fn open_scrollback_from_search(harness: &mut Harness<'_>, root: &Entity<Prototype>) {
+    click(harness.visual, settings_page::SETTINGS_SEARCH_FIELD_ID);
     type_search(harness, "scrollback");
     press(harness.visual, "enter");
     harness.visual.update(|window, cx| {
@@ -1060,478 +788,64 @@ fn wait_for_write_attempts(writes: &Arc<Mutex<Vec<u32>>>, expected: usize) {
     }
 }
 
-#[gpui_kit::test]
-fn search_finds_the_scrollback_setting_and_opens_it(cx: &mut TestAppContext) {
-    let mut harness = harness(cx, AppConfig::default());
-    let root = harness.root.clone();
-    click(harness.visual, SETTINGS_OPEN_BUTTON_ID);
-    assert!(settings_page_visible(harness.visual));
-
-    type_search(&mut harness, "scrollback");
-    harness.visual.update(|window, cx| {
-        let page = root.read(cx).ui.settings_page.read(cx);
-        assert_eq!(page.search_query(), "scrollback");
-        assert_eq!(page.search_result_count(cx), 1);
-        assert_eq!(page.result_titles(cx), vec!["Scrollback Lines".to_string()]);
-        window.render_frame(cx);
-    });
-    assert!(
-        harness
-            .visual
-            .debug_bounds(super::settings_page::SETTINGS_SEARCH_RESULT_0_ID)
-            .is_some()
-    );
-    assert!(
-        harness
-            .visual
-            .debug_bounds(super::settings_page::SETTINGS_SEARCH_EMPTY_ID)
-            .is_none()
-    );
-
-    press(harness.visual, "down");
-    press(harness.visual, "up");
-    harness
-        .visual
-        .update(|_, cx| assert_eq!(root.read(cx).ui.settings_page.read(cx).active_index(), 0));
-
-    press(harness.visual, "enter");
-    assert!(
-        harness
-            .visual
-            .debug_bounds(super::settings_page::SETTINGS_SEARCH_RESULTS_ID)
-            .is_none()
-    );
-    harness.visual.update(|window, cx| {
-        window.render_frame(cx);
-        assert!(root.read(cx).settings_is_open());
-        assert_eq!(root.read(cx).ui.settings_page.read(cx).search_query(), "");
-        assert_eq!(root.read(cx).ui.settings_page.read(cx).search_value(cx), "");
-    });
-    assert!(
-        harness
-            .visual
-            .debug_bounds(super::settings_page::SETTINGS_SEARCH_RESULT_0_ID)
-            .is_none()
-    );
-
-    press(harness.visual, "escape");
-    assert!(!settings_page_visible(harness.visual));
-    harness.visual.update(|window, _| window.remove_window());
-}
-
-#[gpui_kit::test]
-fn search_reports_no_match_and_clears_before_closing(cx: &mut TestAppContext) {
-    let mut harness = harness(cx, AppConfig::default());
-    let root = harness.root.clone();
-    click(harness.visual, SETTINGS_OPEN_BUTTON_ID);
-
-    type_search(&mut harness, "zzz");
-    harness.visual.update(|window, cx| {
-        let page = root.read(cx).ui.settings_page.read(cx);
-        assert_eq!(page.search_result_count(cx), 0);
-        assert_eq!(
-            page.empty_message(cx),
-            "No settings match \u{201c}zzz\u{201d}"
-        );
-        window.render_frame(cx);
-    });
-    assert!(
-        harness
-            .visual
-            .debug_bounds(super::settings_page::SETTINGS_SEARCH_EMPTY_ID)
-            .is_some()
-    );
-    assert!(
-        harness
-            .visual
-            .debug_bounds(super::settings_page::SETTINGS_SEARCH_RESULT_0_ID)
-            .is_none()
-    );
-
-    click(
-        harness.visual,
-        super::settings_page::SETTINGS_SEARCH_CLEAR_ID,
-    );
-    harness.visual.update(|window, cx| {
-        window.render_frame(cx);
-        assert_eq!(root.read(cx).ui.settings_page.read(cx).search_query(), "");
-    });
-    assert!(
-        harness
-            .visual
-            .debug_bounds(super::settings_page::SETTINGS_SEARCH_EMPTY_ID)
-            .is_none()
-    );
-    assert!(
-        harness
-            .visual
-            .debug_bounds(super::settings_page::SETTINGS_PANEL_ID)
-            .is_some()
-    );
-
-    type_search(&mut harness, "scrollback");
-    press(harness.visual, "escape");
-    assert!(settings_page_visible(harness.visual));
-    harness
-        .visual
-        .update(|_, cx| assert_eq!(root.read(cx).ui.settings_page.read(cx).search_query(), ""));
-    press(harness.visual, "escape");
-    assert!(!settings_page_visible(harness.visual));
-    harness.visual.update(|window, _| window.remove_window());
-}
-
-#[gpui_kit::test]
-fn search_accepts_chinese_and_mouse_selection(cx: &mut TestAppContext) {
-    let mut harness = harness(cx, AppConfig::default());
-    let root = harness.root.clone();
-    click(harness.visual, SETTINGS_OPEN_BUTTON_ID);
-    harness.visual.update(|_, cx| {
-        let locale = root.read(cx).ui.locale.clone();
-        locale.update(cx, |locale, cx| locale.set_language(Language::Zh, cx));
-    });
-
-    type_search(&mut harness, "回滚");
-    harness.visual.update(|window, cx| {
-        let page = root.read(cx).ui.settings_page.read(cx);
-        assert_eq!(page.search_query(), "回滚");
-        assert_eq!(page.result_titles(cx), vec!["回滚行数".to_string()]);
-        window.render_frame(cx);
-    });
-    assert!(
-        harness
-            .visual
-            .debug_bounds(super::settings_page::SETTINGS_SEARCH_RESULT_0_ID)
-            .is_some()
-    );
-
-    click(
-        harness.visual,
-        super::settings_page::SETTINGS_SEARCH_RESULT_0_ID,
-    );
-    harness.visual.update(|window, cx| {
-        window.render_frame(cx);
-        assert_eq!(root.read(cx).ui.settings_page.read(cx).search_query(), "");
-        assert!(root.read(cx).settings_is_open());
-    });
-    assert!(
-        harness
-            .visual
-            .debug_bounds(super::settings_page::SETTINGS_PANEL_ID)
-            .is_some()
-    );
-
-    harness.visual.update(|_, cx| {
-        let locale = root.read(cx).ui.locale.clone();
-        locale.update(cx, |locale, cx| locale.set_language(Language::En, cx));
-    });
-    click(
-        harness.visual,
-        super::settings_page::SETTINGS_SEARCH_FIELD_ID,
-    );
-    type_search(&mut harness, "scrollback");
-    click(
-        harness.visual,
-        super::settings_page::SETTINGS_SEARCH_RESULT_0_ID,
-    );
-    harness.visual.update(|window, cx| {
-        window.render_frame(cx);
-        assert_eq!(root.read(cx).ui.settings_page.read(cx).search_query(), "");
-    });
-    assert!(
-        harness
-            .visual
-            .debug_bounds(super::settings_page::SETTINGS_PANEL_ID)
-            .is_some()
-    );
-
-    click(
-        harness.visual,
-        super::settings_page::SETTINGS_OPEN_BUTTON_ID,
-    );
-    assert!(!settings_page_visible(harness.visual));
-    harness.visual.update(|window, _| window.remove_window());
-}
-
-#[gpui_kit::test]
-fn page_layout_matches_the_reference_metrics(cx: &mut TestAppContext) {
-    let mut harness = harness(cx, AppConfig::default());
-    harness
-        .visual
-        .simulate_resize(gpui_kit::size(gpui_kit::px(800.0), gpui_kit::px(636.0)));
-    click(harness.visual, SETTINGS_OPEN_BUTTON_ID);
-
-    // The 36px window title bar sits above the 800x600 settings content area.
-    assert_page_box(harness.visual, SETTINGS_PAGE_ID, 0.0, 36.0, 800.0, 600.0);
-    assert_page_box(
-        harness.visual,
-        super::settings_page::SETTINGS_HEADER_ID,
-        0.0,
-        36.0,
-        800.0,
-        73.0,
-    );
-    assert_page_box(
-        harness.visual,
-        super::settings_page::SETTINGS_SEARCH_FIELD_ID,
-        496.0,
-        60.0,
-        256.0,
-        32.0,
-    );
-    assert_page_box(
-        harness.visual,
-        super::settings_page::SETTINGS_SIDEBAR_ID,
-        0.0,
-        109.0,
-        192.0,
-        527.0,
-    );
-    assert_page_box(
-        harness.visual,
-        super::settings_page::SETTINGS_TAB_TERMINAL_ID,
-        12.0,
-        139.0,
-        159.0,
-        32.0,
-    );
-    assert_page_box(
-        harness.visual,
-        super::settings_page::SETTINGS_PANEL_ID,
-        192.0,
-        109.0,
-        608.0,
-        527.0,
-    );
-    assert_page_box(
-        harness.visual,
-        super::settings_page::SETTINGS_SCROLLBACK_SECTION_ID,
-        216.0,
-        133.0,
-        536.0,
-        111.0,
-    );
-    assert_page_box(
-        harness.visual,
-        super::settings_page::SETTINGS_SCROLLBACK_INPUT_ID,
-        216.0,
-        155.0,
-        536.0,
-        36.0,
-    );
-
-    if std::env::var_os("TTERM_GPUI_WRITE_SETTINGS_LAYOUT").is_some() {
-        write_layout_json(harness.visual, "layout.json", &LAYOUT_IDS);
-    }
-
-    type_search(&mut harness, "scrollback");
-    assert_page_box(
-        harness.visual,
-        super::settings_page::SETTINGS_SEARCH_RESULT_0_ID,
-        216.0,
-        154.0,
-        560.0,
-        40.0,
-    );
-    if std::env::var_os("TTERM_GPUI_WRITE_SETTINGS_LAYOUT").is_some() {
-        write_layout_json(harness.visual, "layout-search.json", &SEARCH_LAYOUT_IDS);
-    }
-
-    press(harness.visual, "escape");
-    type_search(&mut harness, "zzz");
-    if std::env::var_os("TTERM_GPUI_WRITE_SETTINGS_LAYOUT").is_some() {
-        write_layout_json(harness.visual, "layout-empty.json", &EMPTY_LAYOUT_IDS);
-    }
-
-    harness.visual.update(|window, _| window.remove_window());
-}
-
-const LAYOUT_IDS: [&str; 10] = [
-    SETTINGS_PAGE_ID,
-    super::settings_page::SETTINGS_HEADER_ID,
-    super::settings_page::SETTINGS_TITLE_ID,
-    super::settings_page::SETTINGS_SEARCH_FIELD_ID,
-    super::settings_page::SETTINGS_SIDEBAR_ID,
-    super::settings_page::SETTINGS_TAB_TERMINAL_ID,
-    super::settings_page::SETTINGS_PANEL_ID,
-    super::settings_page::SETTINGS_SCROLLBACK_SECTION_ID,
-    super::settings_page::SETTINGS_SCROLLBACK_INPUT_ID,
-    super::settings_page::SETTINGS_SCROLLBACK_SAVE_ID,
-];
-
-const SEARCH_LAYOUT_IDS: [&str; 6] = [
-    SETTINGS_PAGE_ID,
-    super::settings_page::SETTINGS_SEARCH_FIELD_ID,
-    super::settings_page::SETTINGS_SEARCH_RESULTS_ID,
-    super::settings_page::SETTINGS_SEARCH_COUNT_ID,
-    super::settings_page::SETTINGS_SEARCH_RESULT_0_ID,
-    super::settings_page::SETTINGS_SIDEBAR_ID,
-];
-
-const EMPTY_LAYOUT_IDS: [&str; 4] = [
-    SETTINGS_PAGE_ID,
-    super::settings_page::SETTINGS_SEARCH_FIELD_ID,
-    super::settings_page::SETTINGS_SEARCH_EMPTY_ID,
-    super::settings_page::SETTINGS_SIDEBAR_ID,
-];
-
-fn write_layout_json(visual: &mut VisualTestContext, file: &str, ids: &[&'static str]) {
-    use std::path::Path;
-
-    fn element(visual: &mut VisualTestContext, id: &'static str) -> serde_json::Value {
-        let bounds = page_bounds(visual, id);
-        serde_json::json!({
-            "x": bounds.origin.x.as_f32(),
-            "y": bounds.origin.y.as_f32() - 36.0,
-            "width": bounds.size.width.as_f32(),
-            "height": bounds.size.height.as_f32(),
-        })
-    }
-
-    let elements: serde_json::Map<String, serde_json::Value> = ids
-        .iter()
-        .map(|id| (id.to_string(), element(visual, id)))
-        .collect();
-    let layout = serde_json::json!({
-        "version": 1,
-        "viewport": { "width": 800, "height": 600, "deviceScaleFactor": 2 },
-        "titleBarHeight": 36,
-        "coordinateSpace": "settings content, origin at the title bar's bottom edge",
-        "elements": elements,
-    });
-    let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
-    let directory = root.join("target/parity/settings-gpui");
-    std::fs::create_dir_all(&directory).expect("the layout directory is writable");
-    std::fs::write(
-        directory.join(file),
-        serde_json::to_string_pretty(&layout).expect("the layout serializes") + "\n",
-    )
-    .expect("the layout is written");
-    println!("settings layout: {}", directory.join(file).display());
-}
-
-#[gpui_kit::test]
-fn invalid_input_and_a_failed_save_recover_through_the_field(cx: &mut TestAppContext) {
-    let writes = Arc::new(Mutex::new(Vec::new()));
-    let recorded = Arc::clone(&writes);
-    let writer: ScrollbackWriter = Arc::new(move |lines| {
-        let mut attempts = recorded.lock().expect("scrollback write attempts");
-        attempts.push(lines);
-        if attempts.len() == 1 {
-            Err("the config disk is full".to_string())
-        } else {
-            Ok(())
-        }
-    });
-    let mut harness = harness_with_writer(cx, AppConfig::default(), writer, Arc::clone(&writes));
-    let root = harness.root.clone();
+fn wait_for_local_shells(harness: &mut Harness<'_>, expected: usize) {
     let config = harness.config.clone();
-    let first_model = Arc::clone(&harness.first_model);
-    click(harness.visual, SETTINGS_OPEN_BUTTON_ID);
-    open_scrollback_from_search(&mut harness, &root);
-
-    replace_focused_text(&mut harness, "20000001");
-    press(harness.visual, "enter");
-    harness.visual.update(|window, cx| {
-        window.render_frame(cx);
-        assert!(root.read(cx).settings_is_open());
-        assert_eq!(config.read(cx).scrollback_lines(), 10_000);
-        assert_eq!(
-            root.read(cx).ui.settings_page.read(cx).scrollback_value(cx),
-            "20000001"
+    let deadline = Instant::now() + Duration::from_secs(20);
+    loop {
+        let saved = harness.visual.update(|_, cx| {
+            let state = config.read(cx);
+            state.config().local_shells.len() == expected && !state.is_save_pending()
+        });
+        if saved {
+            return;
+        }
+        assert!(
+            Instant::now() < deadline,
+            "timed out waiting for {expected} local shell(s)"
         );
-        assert!(page_scrollback_focused(&root, window, cx));
-    });
-    wait_for_settings_error(harness.visual);
-    assert!(writes.lock().expect("scrollback write attempts").is_empty());
-
-    replace_focused_text(&mut harness, "500");
-    press(harness.visual, "enter");
-    wait_for_write_attempts(&writes, 1);
-    wait_for_settings_error(harness.visual);
-    harness.visual.update(|window, cx| {
-        window.render_frame(cx);
-        assert!(root.read(cx).settings_is_open());
-        assert_eq!(config.read(cx).scrollback_lines(), 10_000);
-        assert_eq!(
-            first_model.scrollback(),
-            resolve_scrollback_lines(Some(10_000.0)) as usize
-        );
-        assert_eq!(
-            root.read(cx).ui.settings_page.read(cx).scrollback_value(cx),
-            "500"
-        );
-        assert!(page_scrollback_focused(&root, window, cx));
-        assert!(!config.read(cx).is_save_pending());
-    });
-
-    replace_focused_text(&mut harness, "400");
-    press(harness.visual, "enter");
-    wait_for_save(&mut harness, 400);
-    harness.visual.update(|window, cx| {
-        window.render_frame(cx);
-        assert!(root.read(cx).settings_is_open());
-        assert_eq!(config.read(cx).scrollback_lines(), 400);
-    });
-    assert!(
-        harness
-            .visual
-            .debug_bounds(super::settings_page::SETTINGS_SCROLLBACK_ERROR_ID)
-            .is_none(),
-        "a successful retry should clear the save error"
-    );
-    assert_eq!(
-        first_model.scrollback(),
-        resolve_scrollback_lines(Some(400.0)) as usize
-    );
-
-    click(harness.visual, SETTINGS_OPEN_BUTTON_ID);
-    harness.visual.update(|window, cx| {
-        let workspace = root.read(cx);
-        assert!(!workspace.settings_is_open());
-        assert!(pane_focus(workspace, 1, cx).is_focused(window));
-    });
-    assert_eq!(
-        *writes.lock().expect("scrollback write attempts"),
-        vec![500, 400]
-    );
-    harness.visual.update(|window, _| window.remove_window());
+        harness.visual.run_until_parked();
+        std::thread::sleep(Duration::from_millis(10));
+    }
 }
 
-#[gpui_kit::test]
-fn arrow_keys_move_between_the_page_and_its_setting(cx: &mut TestAppContext) {
-    let mut harness = harness(cx, AppConfig::default());
-    let root = harness.root.clone();
-    click(harness.visual, SETTINGS_OPEN_BUTTON_ID);
-
-    type_search(&mut harness, "e");
-    harness.visual.update(|window, cx| {
-        let page = root.read(cx).ui.settings_page.read(cx);
-        assert_eq!(page.search_result_count(cx), 2);
-        assert_eq!(page.active_index(), 0);
-        window.render_frame(cx);
-    });
-
-    press(harness.visual, "down");
-    harness
-        .visual
-        .update(|_, cx| assert_eq!(root.read(cx).ui.settings_page.read(cx).active_index(), 1));
-    press(harness.visual, "up");
-    harness
-        .visual
-        .update(|_, cx| assert_eq!(root.read(cx).ui.settings_page.read(cx).active_index(), 0));
-    press(harness.visual, "down");
-    press(harness.visual, "enter");
-    harness.visual.update(|window, cx| {
-        window.render_frame(cx);
-        assert_eq!(root.read(cx).ui.settings_page.read(cx).search_query(), "");
-        assert!(root.read(cx).settings_is_open());
-    });
-    assert!(
-        harness
+fn wait_for_local_shell_writes(harness: &mut Harness<'_>, expected: usize) {
+    let config = harness.config.clone();
+    let deadline = Instant::now() + Duration::from_secs(20);
+    loop {
+        let settled = harness
             .visual
-            .debug_bounds(super::settings_page::SETTINGS_SEARCH_RESULT_0_ID)
-            .is_none()
-    );
+            .update(|_, cx| !config.read(cx).is_save_pending());
+        if settled
+            && harness
+                .local_shell_writes
+                .lock()
+                .expect("local shell writes")
+                .len()
+                >= expected
+        {
+            return;
+        }
+        assert!(
+            Instant::now() < deadline,
+            "timed out waiting for {expected} local shell write(s)"
+        );
+        harness.visual.run_until_parked();
+        std::thread::sleep(Duration::from_millis(10));
+    }
+}
 
-    harness.visual.update(|window, _| window.remove_window());
+fn wait_for_local_shells_error(harness: &mut Harness<'_>) {
+    let deadline = Instant::now() + Duration::from_secs(10);
+    loop {
+        harness.visual.update(|window, cx| window.render_frame(cx));
+        if harness.visual.debug_bounds(LOCAL_SHELLS_ERROR_ID).is_some() {
+            return;
+        }
+        assert!(
+            Instant::now() < deadline,
+            "timed out waiting for the local shell error"
+        );
+        harness.visual.run_until_parked();
+        std::thread::sleep(Duration::from_millis(10));
+    }
 }

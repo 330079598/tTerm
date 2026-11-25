@@ -45,6 +45,7 @@ impl TerminalView {
             previous => {
                 self.fonts = FontSet::resolve(&self.font, &text_system);
                 let geometry = measure_cell(&text_system, &self.fonts, &self.font, scale_factor);
+                self.stats.font_measurements = self.stats.font_measurements.saturating_add(1);
                 if previous != Some(geometry) {
                     metrics_changed = true;
                     self.style_epoch = self.style_epoch.wrapping_add(1);

@@ -23,6 +23,7 @@ use tterm_core::i18n::language::Language;
 use super::background;
 use super::settings_page::SettingsPage;
 use crate::config_state::{ConfigState, PaneTemplatesWriter, ScrollbackWriter};
+use crate::local_shells_setting::LocalShellsSetting;
 use crate::locale::{Locale, LocaleGlobal};
 use crate::scrollback_setting::ScrollbackSetting;
 
@@ -78,12 +79,31 @@ pub(crate) fn capture_headlessly(output: &Path, reference: &Path) -> Result<(), 
                         &runtime_handle,
                         scrollback_writer,
                         pane_writer,
+                        Arc::new(|shell| {
+                            Ok(
+                                tterm_core::config::local_shells_file::SavedLocalShells {
+                                    local_shells: vec![shell],
+                                    default_shell:
+                                        tterm_core::workspace::local_shells::types::DefaultShellSettings::default(),
+                                },
+                            )
+                        }),
                     )
                 });
                 let scrollback =
-                    cx.new(|cx| ScrollbackSetting::new(config, locale.clone(), theme, cx));
-                let page = cx.new(|cx| SettingsPage::new(locale.clone(), theme, scrollback, cx));
-                page.update(cx, |page, cx| page.open(window, cx));
+                    cx.new(|cx| ScrollbackSetting::new(config.clone(), locale.clone(), theme, cx));
+                let local_shells =
+                    cx.new(|cx| LocalShellsSetting::new(config, locale.clone(), theme, cx));
+                let page = cx.new(|cx| {
+                    SettingsPage::new(locale.clone(), theme, scrollback, local_shells, cx)
+                });
+                page.update(cx, |page, cx| {
+                    page.set_font_system_fonts(
+                        vec!["SF Mono".into(), "Menlo".into(), "JetBrains Mono".into()],
+                        cx,
+                    );
+                    page.open(window, cx);
+                });
                 entities = Some((page.clone(), locale.clone()));
                 cx.new(|_| CaptureView { page })
             },
@@ -99,6 +119,7 @@ pub(crate) fn capture_headlessly(output: &Path, reference: &Path) -> Result<(), 
         .map_err(|error| format!("could not render the capture window: {error}"))?;
 
     let mut screens = serde_json::Map::new();
+    capture_terminal_page(&mut context, window.into(), output, &mut screens)?;
     type_text(&mut context, window.into(), "scrollback")?;
     capture(
         &mut context,
@@ -109,9 +130,7 @@ pub(crate) fn capture_headlessly(output: &Path, reference: &Path) -> Result<(), 
     )?;
 
     press(&mut context, window.into(), "enter")?;
-    // The reference keeps the search field focused after opening a result, so
-    // move focus back there before comparing that state.
-    press(&mut context, window.into(), "shift-tab")?;
+    focus_search(&mut context, window.into())?;
     capture(
         &mut context,
         window.into(),
@@ -142,7 +161,7 @@ pub(crate) fn capture_headlessly(output: &Path, reference: &Path) -> Result<(), 
         "settings.search.scrollback-zh",
     )?;
     press(&mut context, window.into(), "enter")?;
-    press(&mut context, window.into(), "shift-tab")?;
+    focus_search(&mut context, window.into())?;
     capture(
         &mut context,
         window.into(),
@@ -170,6 +189,78 @@ pub(crate) fn capture_headlessly(output: &Path, reference: &Path) -> Result<(), 
         serde_json::to_string_pretty(&manifest).map_err(|error| error.to_string())? + "\n",
     )
     .map_err(|error| format!("could not write the capture manifest: {error}"))?;
+    Ok(())
+}
+
+fn capture_terminal_page(
+    context: &mut HeadlessAppContext,
+    window: gpui_kit::AnyWindowHandle,
+    output: &Path,
+    screens: &mut serde_json::Map<String, serde_json::Value>,
+) -> Result<(), String> {
+    capture(context, window, output, screens, "settings.terminal.font")?;
+    scroll_content(context, window, -3000.0)?;
+    capture(
+        context,
+        window,
+        output,
+        screens,
+        "settings.terminal.preview",
+    )?;
+    scroll_content(context, window, 3000.0)
+}
+
+fn scroll_content(
+    context: &mut HeadlessAppContext,
+    handle: gpui_kit::AnyWindowHandle,
+    delta_y: f32,
+) -> Result<(), String> {
+    use gpui_kit::{InputEvent, ScrollDelta, ScrollEvent, ScrollSource, TouchPhase, point};
+
+    context
+        .update_window(handle, |_, window, cx| {
+            let event = ScrollEvent {
+                position: point(px(746.0), px(120.0)),
+                delta: ScrollDelta::Pixels(point(px(0.0), px(delta_y))),
+                modifiers: Default::default(),
+                touch_phase: TouchPhase::Moved,
+                source: ScrollSource::Pointer,
+            };
+            window.dispatch_event(event.to_platform_input(), cx);
+            let _ = window.draw(cx);
+        })
+        .map_err(|error| format!("could not scroll the settings content: {error}"))?;
+    context.run_until_parked();
+    Ok(())
+}
+
+fn focus_search(
+    context: &mut HeadlessAppContext,
+    handle: gpui_kit::AnyWindowHandle,
+) -> Result<(), String> {
+    use gpui_kit::{InputEvent, MouseButton, MouseDownEvent, MouseUpEvent, point};
+    context
+        .update_window(handle, |_, window, cx| {
+            let position = point(px(640.0), px(40.0));
+            let _ = window.draw(cx);
+            let down = MouseDownEvent {
+                button: MouseButton::Left,
+                position,
+                modifiers: Default::default(),
+                click_count: 1,
+                first_mouse: false,
+            };
+            let up = MouseUpEvent {
+                button: MouseButton::Left,
+                position,
+                modifiers: Default::default(),
+                click_count: 1,
+            };
+            window.dispatch_event(down.to_platform_input(), cx);
+            window.dispatch_event(up.to_platform_input(), cx);
+        })
+        .map_err(|error| format!("could not focus the settings search: {error}"))?;
+    context.run_until_parked();
     Ok(())
 }
 
@@ -268,7 +359,7 @@ const SEARCH_RESULT: (&str, Rect, Rect) = (
 const SCROLLBACK_FIELD: (&str, Rect, Rect) = (
     "scrollback-field",
     (216.0, 281.0, 536.0, 111.0),
-    (216.0, 97.0, 536.0, 111.0),
+    (216.0, 162.0, 536.0, 111.0),
 );
 
 fn measure_against_reference(

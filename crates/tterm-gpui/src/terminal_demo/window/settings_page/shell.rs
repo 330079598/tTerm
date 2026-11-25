@@ -13,6 +13,7 @@ use gpui_kit::{
 };
 use tterm_core::i18n::keys;
 use tterm_core::settings::search::SettingsSearchResult;
+use tterm_ui::components::button::{ButtonSize, ButtonState, Variant, button};
 use tterm_ui::components::icons::{
     CHEVRON_RIGHT, SEARCH, SEARCH_X, SETTINGS, SQUARE_TERMINAL, X, icon,
 };
@@ -20,10 +21,11 @@ use tterm_ui::tokens::gpui::hsla;
 
 use super::search;
 use super::{
-    SETTINGS_HEADER_ID, SETTINGS_PAGE_ID, SETTINGS_PANEL_ID, SETTINGS_SEARCH_CLEAR_ID,
-    SETTINGS_SEARCH_COUNT_ID, SETTINGS_SEARCH_EMPTY_ID, SETTINGS_SEARCH_FIELD_ID,
-    SETTINGS_SEARCH_RESULT_0_ID, SETTINGS_SEARCH_RESULTS_ID, SETTINGS_SIDEBAR_ID,
-    SETTINGS_TAB_TERMINAL_ID, SETTINGS_TITLE_ID, SettingsPage,
+    SETTINGS_HEADER_ID, SETTINGS_PAGE_ID, SETTINGS_PANEL_ID, SETTINGS_SAVE_CONFIRMATION_ID,
+    SETTINGS_SAVE_ERROR_ID, SETTINGS_SAVE_ID, SETTINGS_SEARCH_CLEAR_ID, SETTINGS_SEARCH_COUNT_ID,
+    SETTINGS_SEARCH_EMPTY_ID, SETTINGS_SEARCH_FIELD_ID, SETTINGS_SEARCH_RESULT_0_ID,
+    SETTINGS_SEARCH_RESULTS_ID, SETTINGS_SIDEBAR_ID, SETTINGS_TAB_LOCAL_SHELLS_ID,
+    SETTINGS_TAB_TERMINAL_ID, SETTINGS_TITLE_ID, SettingsPage, SettingsTab,
 };
 
 const HEADER_HEIGHT: f32 = 73.0;
@@ -196,7 +198,6 @@ fn search_field(
 fn sidebar(page: &mut SettingsPage, cx: &mut Context<SettingsPage>) -> Stateful<Div> {
     let colors = page.theme.colors;
     let group = search::text(page.locale.read(cx), keys::SETTINGS_CATEGORIES_EXPERIENCE);
-    let label = search::text(page.locale.read(cx), keys::SETTINGS_TERMINAL);
     div()
         .id(SETTINGS_SIDEBAR_ID)
         .debug_selector(|| SETTINGS_SIDEBAR_ID.to_string())
@@ -221,59 +222,151 @@ fn sidebar(page: &mut SettingsPage, cx: &mut Context<SettingsPage>) -> Stateful<
                     .child(group.to_uppercase()),
             ),
         )
-        .child(
-            div()
-                .id(SETTINGS_TAB_TERMINAL_ID)
-                .debug_selector(|| SETTINGS_TAB_TERMINAL_ID.to_string())
-                .h(px(TAB_HEIGHT))
-                .w_full()
-                .flex()
-                .items_center()
-                .gap(px(TAB_GAP))
-                .px(px(TAB_PAD_X))
-                .rounded(px(6.0))
-                .cursor_pointer()
-                .role(Role::Tab)
-                .aria_selected(true)
-                .aria_label(label.clone())
-                .bg(hsla(colors.background, 1.0))
-                .text_color(hsla(colors.foreground, 1.0))
-                .text_size(px(13.0))
-                .line_height(px(18.2))
-                .font_weight(FontWeight(500.0))
-                .on_click(cx.listener(|this, _, window, cx| {
-                    this.clear_search(window, cx);
-                }))
-                .child(icon(
-                    SQUARE_TERMINAL,
-                    hsla(colors.muted_foreground, 1.0),
-                    TAB_ICON,
-                ))
-                .child(div().min_w(px(0.0)).truncate().child(label)),
-        )
+        .child(sidebar_tab(
+            page,
+            SETTINGS_TAB_TERMINAL_ID,
+            SettingsTab::Terminal,
+            keys::SETTINGS_TERMINAL,
+            cx,
+        ))
+        .child(sidebar_tab(
+            page,
+            SETTINGS_TAB_LOCAL_SHELLS_ID,
+            SettingsTab::LocalShells,
+            keys::LOCAL_SHELLS_SIDEBAR,
+            cx,
+        ))
+}
+
+fn sidebar_tab(
+    page: &mut SettingsPage,
+    id: &'static str,
+    tab: SettingsTab,
+    label_key: tterm_core::i18n::translate::TranslationKey,
+    cx: &mut Context<SettingsPage>,
+) -> Stateful<Div> {
+    let colors = page.theme.colors;
+    let label = search::text(page.locale.read(cx), label_key);
+    let selected = page.active_tab == tab;
+    div()
+        .id(id)
+        .debug_selector(move || id.to_string())
+        .h(px(TAB_HEIGHT))
+        .w_full()
+        .flex()
+        .items_center()
+        .gap(px(TAB_GAP))
+        .px(px(TAB_PAD_X))
+        .rounded(px(6.0))
+        .cursor_pointer()
+        .role(Role::Tab)
+        .aria_selected(selected)
+        .aria_label(label.clone())
+        .bg(hsla(colors.background, 1.0))
+        .text_color(hsla(
+            if selected {
+                colors.foreground
+            } else {
+                colors.muted_foreground
+            },
+            1.0,
+        ))
+        .text_size(px(13.0))
+        .line_height(px(18.2))
+        .font_weight(FontWeight(500.0))
+        .on_click(cx.listener(move |this, _, window, cx| {
+            this.select_tab(tab, window, cx);
+        }))
+        .child(icon(
+            SQUARE_TERMINAL,
+            hsla(colors.muted_foreground, 1.0),
+            TAB_ICON,
+        ))
+        .child(div().min_w(px(0.0)).truncate().child(label))
 }
 
 fn content(page: &mut SettingsPage, cx: &mut Context<SettingsPage>) -> Stateful<Div> {
-    let section = page
-        .scrollback
-        .update(cx, |setting, cx| setting.section(cx));
-    let save = page
-        .scrollback
-        .update(cx, |setting, cx| setting.save_button(cx));
-    div()
+    let panel = div()
         .id(SETTINGS_PANEL_ID)
+        .track_scroll(&page.content_scroll)
         .debug_selector(|| SETTINGS_PANEL_ID.to_string())
         .min_w(px(0.0))
         .flex_1()
         .overflow_y_scroll()
         .p(px(CONTENT_PAD))
-        .child(
+        .pr(px(CONTENT_PAD + CONTENT_SCROLLBAR));
+    match page.active_tab {
+        SettingsTab::Terminal => {
+            let text = page.font.update(cx, |setting, cx| setting.text_section(cx));
+            let scrollback = page
+                .scrollback
+                .update(cx, |setting, cx| setting.section(cx));
+            let preview = page.font.read(cx).preview_section(cx);
+            let save = page_save(page, cx);
+            panel
+                .child(text)
+                .child(div().mt(px(24.0)).child(scrollback))
+                .child(div().mt(px(24.0)).child(preview))
+                .child(div().mt(px(24.0)).child(save))
+        }
+        SettingsTab::LocalShells => {
+            let section = page
+                .local_shells
+                .update(cx, |setting, cx| setting.section(cx));
+            panel.child(section)
+        }
+    }
+}
+
+/// The one Save below the Terminal page.
+///
+/// It writes the whole draft through one configuration edit; the field
+/// editors deliberately carry no save action of their own.
+fn page_save(page: &mut SettingsPage, cx: &mut Context<SettingsPage>) -> Div {
+    let theme = page.theme;
+    let save = search::text(page.locale.read(cx), keys::FONT_SETTINGS_SAVE);
+    let saved = search::text(page.locale.read(cx), keys::FONT_SETTINGS_SAVED);
+    let state = ButtonState {
+        disabled: page.page_saving,
+        ..ButtonState::default()
+    };
+    let mut content = div().w_full().flex().flex_col().gap(px(8.0));
+    if let Some(error) = &page.page_error {
+        content = content.child(
             div()
-                .w_full()
-                .pr(px(CONTENT_SCROLLBAR))
-                .child(section)
-                .child(div().mt(px(24.0)).child(save)),
+                .id(SETTINGS_SAVE_ERROR_ID)
+                .debug_selector(|| SETTINGS_SAVE_ERROR_ID.to_string())
+                .text_size(px(12.0))
+                .line_height(px(16.0))
+                .text_color(hsla(theme.colors.destructive, 1.0))
+                .child(error.clone()),
+        );
+    }
+    if page.page_saved {
+        content = content.child(
+            div()
+                .id(SETTINGS_SAVE_CONFIRMATION_ID)
+                .debug_selector(|| SETTINGS_SAVE_CONFIRMATION_ID.to_string())
+                .text_size(px(12.0))
+                .line_height(px(16.0))
+                .text_color(hsla(theme.colors.success, 1.0))
+                .child(saved),
+        );
+    }
+    content.child(
+        button(
+            SETTINGS_SAVE_ID,
+            save.clone(),
+            Variant::Default,
+            ButtonSize::Default,
+            state,
+            theme,
         )
+        .w_full()
+        .debug_selector(|| SETTINGS_SAVE_ID.to_string())
+        .aria_label(save)
+        .on_click(cx.listener(|this, _, window, cx| this.submit_page(window, cx))),
+    )
 }
 
 fn search_results(

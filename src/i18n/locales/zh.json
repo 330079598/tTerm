@@ -1619,7 +1619,17 @@
       "bar": "竖线",
       "block": "方块",
       "underline": "下划线"
-    }
+    },
+    "familyRequired": "请选择字体或填写 CSS 字体列表。",
+    "sizeRequired": "请输入 6 到 72 之间的字号。",
+    "sizeInvalid": "请输入 6 到 72 之间的整数。",
+    "sizeRange": "字号必须在 6 到 72 之间。",
+    "lineHeightRequired": "行高不能为空。",
+    "lineHeightInvalid": "请输入类似 1.2 的行高倍数。",
+    "lineHeightRange": "行高必须在 1 到 2 之间。",
+    "letterSpacingRequired": "字间距不能为空。",
+    "letterSpacingInvalid": "请输入整数像素值。",
+    "letterSpacingRange": "字间距必须在 -5 到 10 像素之间。"
   },
   "tabContent": {
     "type": "类型",
@@ -2921,6 +2931,8 @@
     "moveUp": "上移",
     "moveDown": "下移",
     "edit": "编辑",
+    "empty": "还没有添加 Shell。",
+    "programRequired": "请选择 Shell 程序。",
     "remove": "删除",
     "program": "程序",
     "name": "名称",

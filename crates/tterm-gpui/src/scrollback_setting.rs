@@ -8,8 +8,8 @@
 use gpui_kit::component::input::InputState;
 use gpui_kit::prelude::*;
 use gpui_kit::{
-    App, Context, Div, Entity, FocusHandle, FontWeight, KeyDownEvent, MouseButton, ParentElement,
-    Render, Stateful, Styled, Window, div, px,
+    App, Context, Div, Entity, EventEmitter, FocusHandle, FontWeight, KeyDownEvent, MouseButton,
+    ParentElement, Render, Stateful, Styled, Window, div, px,
 };
 use tterm_core::config::scrollback::MAX_EXPLICIT_SCROLLBACK_LINES;
 use tterm_core::i18n::keys;
@@ -31,12 +31,20 @@ const CANCEL_BUTTON_ID: &str = "scrollback-setting-cancel";
 const SAVE_BUTTON_ID: &str = "scrollback-setting-save";
 const PAGE_SECTION_ID: &str = "settings-scrollback-lines";
 const PAGE_INPUT_ID: &str = "settings-scrollback-input";
-const PAGE_SAVE_BUTTON_ID: &str = "settings-scrollback-save";
 const PAGE_ERROR_ID: &str = "settings-scrollback-error";
 const SCROLLBACK_PRESETS: [u32; 5] = [1_000, 5_000, 10_000, 50_000, 100_000];
 const DIALOG_WIDTH: f32 = 448.0;
 const DIALOG_PADDING: f32 = 24.0;
 const DIALOG_RADIUS: f32 = 8.0;
+
+/// Emitted when Enter in the page field asks the page to save every draft.
+///
+/// The field owns no save action of its own in page mode: one Save below the
+/// page writes the whole Terminal draft.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct ScrollbackPageSubmit;
+
+impl EventEmitter<ScrollbackPageSubmit> for ScrollbackSetting {}
 
 /// The title-bar button and the editor it opens.
 pub(crate) struct ScrollbackSetting {
@@ -156,6 +164,11 @@ impl ScrollbackSetting {
         self.restore_focus = None;
         cx.notify();
         true
+    }
+
+    /// Whether the route may close without dropping a pending save.
+    pub(crate) fn can_close(&self) -> bool {
+        !self.saving
     }
 
     fn close(&mut self, window: &mut Window, cx: &mut Context<Self>) {
@@ -279,10 +292,21 @@ impl ScrollbackSetting {
             "enter" => {
                 window.prevent_default();
                 cx.stop_propagation();
-                self.submit(window, cx);
+                if self.page_mode {
+                    // The page owns the single save action; submitting this
+                    // field alone would write only the scrollback capacity.
+                    cx.emit(ScrollbackPageSubmit);
+                } else {
+                    self.submit(window, cx);
+                }
             }
             _ => {}
         }
+    }
+
+    /// The shared configuration entity, so another settings section can use it.
+    pub(crate) fn config_entity(&self) -> Entity<ConfigState> {
+        self.config.clone()
     }
 
     /// The current draft, for a test that reopens the page.
@@ -318,6 +342,52 @@ impl ScrollbackSetting {
             .as_ref()
             .map(|input| input.read(cx).presentation().placeholder().to_string())
             .unwrap_or_default()
+    }
+
+    /// Validates the page draft, returning its capacity or showing the error.
+    ///
+    /// A draft the shared rules reject stays in the field and keeps focus so
+    /// the user can correct it; the page must not write any other field.
+    pub(crate) fn page_value(
+        &mut self,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) -> Option<u32> {
+        let value = self
+            .input
+            .as_ref()
+            .map(|input| input.read(cx).value().to_string())
+            .unwrap_or_default();
+        match self.parse_lines(&value, cx) {
+            Ok(lines) => Some(lines),
+            Err(message) => {
+                self.error = Some(message);
+                self.focus_input(window, cx);
+                cx.notify();
+                None
+            }
+        }
+    }
+
+    /// Applies the unified page save result to this field.
+    ///
+    /// A failure stays beside the draft and returns focus there; a success
+    /// clears the previous error without closing the page.
+    pub(crate) fn page_save_result(
+        &mut self,
+        result: Result<(), String>,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        self.saving = false;
+        match result {
+            Ok(()) => self.error = None,
+            Err(message) => {
+                self.error = Some(message);
+                self.focus_input(window, cx);
+            }
+        }
+        cx.notify();
     }
 
     /// Renders the scrollback field as the body of the Terminal settings page.
@@ -408,29 +478,6 @@ impl ScrollbackSetting {
             ));
         }
         section.child(presets)
-    }
-
-    /// The full-width save action below the Terminal page.
-    pub(crate) fn save_button(&mut self, cx: &mut Context<Self>) -> Div {
-        let save = self.text(cx, keys::FONT_SETTINGS_SAVE);
-        let state = ButtonState {
-            disabled: self.saving,
-            ..ButtonState::default()
-        };
-        div().w_full().child(
-            button(
-                PAGE_SAVE_BUTTON_ID,
-                save.clone(),
-                Variant::Default,
-                ButtonSize::Default,
-                state,
-                self.theme,
-            )
-            .w_full()
-            .debug_selector(|| PAGE_SAVE_BUTTON_ID.to_string())
-            .aria_label(save)
-            .on_click(cx.listener(|this, _, window, cx| this.submit(window, cx))),
-        )
     }
 
     fn set_preset(&mut self, lines: u32, window: &mut Window, cx: &mut Context<Self>) {

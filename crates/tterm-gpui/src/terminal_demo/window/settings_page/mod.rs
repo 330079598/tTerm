@@ -14,16 +14,19 @@ use gpui_kit::prelude::*;
 use gpui_kit::{
     AnyElement, App, Context, Div, Entity, KeyDownEvent, Role, Stateful, Subscription, Window,
 };
+use tterm_core::config::terminal_font_file::TerminalPageSettings;
 use tterm_core::i18n::keys;
 use tterm_core::i18n::translate::TranslationKey;
 use tterm_core::settings::search::SettingsSearchResult;
 use tterm_ui::components::button::{ButtonSize, ButtonState, Variant, button};
 use tterm_ui::tokens::theme::Theme;
 
-use self::search::PAGE_VALUE;
+use self::search::{LOCAL_SHELLS_PAGE_VALUE, TERMINAL_PAGE_VALUE};
 use super::Prototype;
+use crate::font_setting::{FontPageSubmit, FontSetting};
+use crate::local_shells_setting::LocalShellsSetting;
 use crate::locale::Locale;
-use crate::scrollback_setting::ScrollbackSetting;
+use crate::scrollback_setting::{ScrollbackPageSubmit, ScrollbackSetting};
 
 pub(super) const SETTINGS_PAGE_ID: &str = "settings-page";
 pub(super) const SETTINGS_OPEN_BUTTON_ID: &str = "settings-page-open";
@@ -31,6 +34,7 @@ pub(super) const SETTINGS_HEADER_ID: &str = "settings-header";
 pub(super) const SETTINGS_TITLE_ID: &str = "settings-title";
 pub(super) const SETTINGS_SIDEBAR_ID: &str = "settings-sidebar";
 pub(super) const SETTINGS_TAB_TERMINAL_ID: &str = "settings-tab-terminal";
+pub(super) const SETTINGS_TAB_LOCAL_SHELLS_ID: &str = "settings-tab-local-shells";
 pub(super) const SETTINGS_PANEL_ID: &str = "settings-panel";
 pub(super) const SETTINGS_SEARCH_FIELD_ID: &str = "settings-search-field";
 pub(super) const SETTINGS_SEARCH_CLEAR_ID: &str = "settings-search-clear";
@@ -38,29 +42,61 @@ pub(super) const SETTINGS_SEARCH_RESULTS_ID: &str = "settings-search-results";
 pub(super) const SETTINGS_SEARCH_COUNT_ID: &str = "settings-search-count";
 pub(super) const SETTINGS_SEARCH_EMPTY_ID: &str = "settings-search-empty";
 pub(super) const SETTINGS_SEARCH_RESULT_0_ID: &str = "settings-search-result-0";
+pub(super) const SETTINGS_SAVE_ID: &str = "settings-save";
+pub(super) const SETTINGS_SAVE_ERROR_ID: &str = "settings-save-error";
+pub(super) const SETTINGS_SAVE_CONFIRMATION_ID: &str = "settings-save-confirmation";
 /// The scrollback section and its field, shared with the route tests.
 #[cfg(test)]
 pub(super) const SETTINGS_SCROLLBACK_SECTION_ID: &str = "settings-scrollback-lines";
 #[cfg(test)]
 pub(super) const SETTINGS_SCROLLBACK_INPUT_ID: &str = "settings-scrollback-input";
 #[cfg(test)]
-pub(super) const SETTINGS_SCROLLBACK_SAVE_ID: &str = "settings-scrollback-save";
-#[cfg(test)]
 pub(super) const SETTINGS_SCROLLBACK_ERROR_ID: &str = "settings-scrollback-error";
 
-/// The settings page entity. It owns the live search and delegates the one
-/// implemented setting to the same editor the title-bar shortcut used.
+/// The page the settings route shows below its header.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(super) enum SettingsTab {
+    Terminal,
+    LocalShells,
+}
+
+impl SettingsTab {
+    pub(super) fn value(self) -> &'static str {
+        match self {
+            Self::Terminal => TERMINAL_PAGE_VALUE,
+            Self::LocalShells => LOCAL_SHELLS_PAGE_VALUE,
+        }
+    }
+
+    fn from_value(value: &str) -> Option<Self> {
+        [Self::Terminal, Self::LocalShells]
+            .into_iter()
+            .find(|tab| tab.value() == value)
+    }
+}
+
+/// The settings page entity. It owns the live search and delegates each
+/// implemented page to its own setting editor.
 pub(super) struct SettingsPage {
     locale: Entity<Locale>,
     theme: Theme,
     scrollback: Entity<ScrollbackSetting>,
+    font: Entity<FontSetting>,
+    local_shells: Entity<LocalShellsSetting>,
     search_input: Option<Entity<InputState>>,
     _search_events: Option<Subscription>,
     _search_observer: Option<Subscription>,
     query: String,
     active_index: usize,
+    active_tab: SettingsTab,
+    content_scroll: gpui_kit::ScrollHandle,
     open: bool,
+    page_saving: bool,
+    page_saved: bool,
+    page_error: Option<String>,
     _locale_observer: Option<Subscription>,
+    _font_submit: Option<Subscription>,
+    _scrollback_submit: Option<Subscription>,
 }
 
 impl SettingsPage {
@@ -68,20 +104,41 @@ impl SettingsPage {
         locale: Entity<Locale>,
         theme: Theme,
         scrollback: Entity<ScrollbackSetting>,
+        local_shells: Entity<LocalShellsSetting>,
         cx: &mut Context<Self>,
     ) -> Self {
+        let font = cx.new(|cx| {
+            FontSetting::new(
+                scrollback.read(cx).config_entity(),
+                locale.clone(),
+                theme,
+                cx,
+            )
+        });
         cx.observe(&scrollback, |_, _, cx| cx.notify()).detach();
+        cx.observe(&font, |_, _, cx| cx.notify()).detach();
+        let content_scroll = gpui_kit::ScrollHandle::new();
+        cx.observe(&local_shells, |_, _, cx| cx.notify()).detach();
         Self {
             locale,
             theme,
             scrollback,
+            font,
+            local_shells,
             search_input: None,
             _search_events: None,
             _search_observer: None,
             query: String::new(),
             active_index: 0,
+            active_tab: SettingsTab::Terminal,
+            content_scroll,
             open: false,
+            page_saving: false,
+            page_saved: false,
+            page_error: None,
             _locale_observer: None,
+            _font_submit: None,
+            _scrollback_submit: None,
         }
     }
 
@@ -97,8 +154,16 @@ impl SettingsPage {
         self.active_index = 0;
         self.scrollback
             .update(cx, |setting, cx| setting.open_page(window, cx));
+        self.font
+            .update(cx, |setting, cx| setting.open_page(window, cx));
+        self.local_shells
+            .update(cx, |setting, cx| setting.open_page(cx));
+        self.page_saving = false;
+        self.page_saved = false;
+        self.page_error = None;
         let field = self.ensure_search_input(window, cx);
         self.ensure_locale_observer(window, cx);
+        self.ensure_page_submit_events(window, cx);
         field.update(cx, |state, cx| state.focus(window, cx));
         self.open = true;
         cx.notify();
@@ -110,10 +175,21 @@ impl SettingsPage {
         if !self.open {
             return true;
         }
-        if !self
-            .scrollback
-            .update(cx, |setting, cx| setting.close_page(cx))
+        if self.page_saving
+            || !self.scrollback.read(cx).can_close()
+            || !self.font.read(cx).can_close()
+            || !self.local_shells.read(cx).can_close()
         {
+            return false;
+        }
+        let scrollback_closed = self
+            .scrollback
+            .update(cx, |setting, cx| setting.close_page(cx));
+        let font_closed = self.font.update(cx, |setting, cx| setting.close_page(cx));
+        let local_shells_closed = self
+            .local_shells
+            .update(cx, |setting, cx| setting.close_page(cx));
+        if !scrollback_closed || !font_closed || !local_shells_closed {
             return false;
         }
         self.open = false;
@@ -122,7 +198,12 @@ impl SettingsPage {
         self._search_events = None;
         self._search_observer = None;
         self._locale_observer = None;
+        self._font_submit = None;
+        self._scrollback_submit = None;
         self.search_input = None;
+        self.page_saving = false;
+        self.page_saved = false;
+        self.page_error = None;
         cx.notify();
         true
     }
@@ -161,6 +242,91 @@ impl SettingsPage {
         self._locale_observer = Some(observer);
     }
 
+    fn ensure_page_submit_events(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        if self._font_submit.is_none() {
+            let font = self.font.clone();
+            self._font_submit = Some(cx.subscribe_in(
+                &font,
+                window,
+                |this, _, _: &FontPageSubmit, window, cx| this.submit_page(window, cx),
+            ));
+        }
+        if self._scrollback_submit.is_none() {
+            let scrollback = self.scrollback.clone();
+            self._scrollback_submit = Some(cx.subscribe_in(
+                &scrollback,
+                window,
+                |this, _, _: &ScrollbackPageSubmit, window, cx| this.submit_page(window, cx),
+            ));
+        }
+    }
+
+    /// Saves every Terminal draft as one configuration edit.
+    ///
+    /// Both editors validate before the write starts, so an invalid font or
+    /// scrollback field keeps every draft and no field is written on its own.
+    /// While the write is in flight the Save button is disabled and the route
+    /// refuses to close.
+    pub(super) fn submit_page(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        if !self.open || self.page_saving {
+            return;
+        }
+        // A new attempt replaces the previous outcome before validation, so a
+        // stale write error cannot sit beside a draft the user has changed.
+        self.page_saved = false;
+        self.page_error = None;
+        let Some((family, size, line_height, letter_spacing)) = self
+            .font
+            .update(cx, |font, cx| font.page_values(window, cx))
+        else {
+            return;
+        };
+        let Some(scrollback_lines) = self
+            .scrollback
+            .update(cx, |scrollback, cx| scrollback.page_value(window, cx))
+        else {
+            return;
+        };
+        self.page_saving = true;
+        self.page_saved = false;
+        self.page_error = None;
+        cx.notify();
+        let settings = TerminalPageSettings {
+            family,
+            size,
+            line_height,
+            letter_spacing,
+            scrollback_lines,
+        };
+        let config = self.scrollback.read(cx).config_entity();
+        let task = config.update(cx, |config, cx| config.save_terminal_page(settings, cx));
+        cx.spawn_in(window, async move |this, cx| {
+            let result = task.await;
+            let _ = cx.update(|window, app| {
+                let _ = this.update(app, |this, cx| this.finish_page_save(result, window, cx));
+            });
+        })
+        .detach();
+    }
+
+    fn finish_page_save(
+        &mut self,
+        result: Result<(), String>,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        self.page_saving = false;
+        self.page_saved = result.is_ok();
+        self.page_error = result.as_ref().err().cloned();
+        self.font.update(cx, |font, cx| {
+            font.page_save_result(result.clone(), window, cx)
+        });
+        self.scrollback.update(cx, |scrollback, cx| {
+            scrollback.page_save_result(result, window, cx)
+        });
+        cx.notify();
+    }
+
     fn refresh_placeholders(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         if let Some(field) = &self.search_input {
             let placeholder = search::text(self.locale.read(cx), keys::SETTINGS_SEARCH_PLACEHOLDER);
@@ -170,6 +336,12 @@ impl SettingsPage {
         }
         self.scrollback.update(cx, |setting, cx| {
             setting.refresh_placeholder(window, cx);
+        });
+        self.font.update(cx, |setting, cx| {
+            setting.refresh_placeholders(window, cx);
+        });
+        self.local_shells.update(cx, |setting, cx| {
+            setting.refresh_placeholders(window, cx);
         });
     }
 
@@ -227,18 +399,20 @@ impl SettingsPage {
         self.open_result(result, window, cx);
     }
 
-    /// Opens one search result: the query ends and the one implemented page
-    /// is shown. `result.is_page` is accepted so the page row behaves like the
-    /// setting row when it is the only page.
+    /// Opens one search result: the query ends, its page is shown, and a
+    /// setting row gives the page's editor focus while a page row keeps focus
+    /// in the search field.
     fn open_result(
         &mut self,
         result: SettingsSearchResult,
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        if result.tab != PAGE_VALUE {
+        let Some(tab) = SettingsTab::from_value(&result.tab) else {
             return;
-        }
+        };
+        self.active_tab = tab;
+        self.content_scroll.set_offset(Default::default());
         self.query.clear();
         self.active_index = 0;
         if let Some(field) = &self.search_input {
@@ -248,10 +422,61 @@ impl SettingsPage {
             }
         }
         if !result.is_page {
-            self.scrollback.update(cx, |setting, cx| {
-                setting.focus_page_input(window, cx);
-            });
+            match tab {
+                SettingsTab::Terminal => {
+                    if result.title
+                        == search::text(self.locale.read(cx), keys::FONT_SETTINGS_FONT_SIZE)
+                    {
+                        self.font.update(cx, |setting, cx| {
+                            setting.focus_size(window, cx);
+                        });
+                    } else if result.title
+                        == search::text(self.locale.read(cx), keys::FONT_SETTINGS_LINE_HEIGHT)
+                    {
+                        self.font.update(cx, |setting, cx| {
+                            setting.focus_line_height(window, cx);
+                        });
+                    } else if result.title
+                        == search::text(self.locale.read(cx), keys::FONT_SETTINGS_LETTER_SPACING)
+                    {
+                        self.font.update(cx, |setting, cx| {
+                            setting.focus_letter_spacing(window, cx);
+                        });
+                    } else if result.title
+                        == search::text(self.locale.read(cx), keys::FONT_SETTINGS_FONT_FAMILY)
+                        || result.title
+                            == search::text(
+                                self.locale.read(cx),
+                                keys::FONT_SETTINGS_TEXT_RENDERING,
+                            )
+                    {
+                        self.font.update(cx, |setting, cx| {
+                            setting.focus_family(window, cx);
+                        });
+                    } else if result.title
+                        == search::text(self.locale.read(cx), keys::FONT_SETTINGS_PREVIEW)
+                    {
+                        self.content_scroll.scroll_to_top_of_item(2);
+                    } else {
+                        self.content_scroll.scroll_to_top_of_item(1);
+                        self.scrollback.update(cx, |setting, cx| {
+                            setting.focus_page_input(window, cx);
+                        });
+                    }
+                }
+                SettingsTab::LocalShells => {
+                    self.local_shells.update(cx, |setting, cx| {
+                        setting.focus_page_input(window, cx);
+                    });
+                }
+            }
         }
+        cx.notify();
+    }
+
+    fn select_tab(&mut self, tab: SettingsTab, window: &mut Window, cx: &mut Context<Self>) {
+        self.active_tab = tab;
+        self.clear_search(window, cx);
         cx.notify();
     }
 
@@ -293,6 +518,90 @@ impl SettingsPage {
             }
             _ => {}
         }
+    }
+
+    #[cfg(test)]
+    pub(super) fn active_tab(&self) -> SettingsTab {
+        self.active_tab
+    }
+
+    #[cfg(test)]
+    pub(super) fn local_shells_editor(&self, cx: &App) -> Option<(String, String, String)> {
+        self.local_shells.read(cx).editor_values(cx)
+    }
+
+    #[cfg(test)]
+    pub(super) fn local_shells_error(&self, cx: &App) -> Option<String> {
+        self.local_shells.read(cx).error().map(str::to_string)
+    }
+
+    #[cfg(test)]
+    pub(super) fn local_shells_saving(&self, cx: &App) -> bool {
+        self.local_shells.read(cx).is_saving()
+    }
+
+    #[cfg(test)]
+    pub(super) fn font_values(&self, cx: &App) -> (String, String) {
+        let font = self.font.read(cx);
+        (font.family(cx), font.size(cx))
+    }
+
+    #[cfg(test)]
+    pub(super) fn font_error(&self, cx: &App) -> Option<String> {
+        self.font.read(cx).error().map(str::to_string)
+    }
+
+    #[cfg(test)]
+    pub(super) fn font_saved(&self, cx: &App) -> bool {
+        self.font.read(cx).saved()
+    }
+
+    #[cfg(test)]
+    pub(super) fn font_preview(&self, cx: &App) -> (String, u16) {
+        let font = self.font.read(cx);
+        (font.preview_family(cx), font.preview_size(cx))
+    }
+
+    #[cfg(test)]
+    pub(super) fn font_family_focus(&self, cx: &App) -> Option<gpui_kit::FocusHandle> {
+        self.font.read(cx).family_focus(cx)
+    }
+
+    #[cfg(test)]
+    pub(super) fn font_size_focus(&self, cx: &App) -> Option<gpui_kit::FocusHandle> {
+        self.font.read(cx).size_focus(cx)
+    }
+
+    #[cfg(test)]
+    pub(super) fn font_line_height_focus(&self, cx: &App) -> Option<gpui_kit::FocusHandle> {
+        self.font.read(cx).line_height_focus(cx)
+    }
+
+    #[cfg(test)]
+    pub(super) fn font_letter_spacing_focus(&self, cx: &App) -> Option<gpui_kit::FocusHandle> {
+        self.font.read(cx).letter_spacing_focus(cx)
+    }
+
+    #[cfg(test)]
+    pub(super) fn font_spacing_values(&self, cx: &App) -> (String, String) {
+        let font = self.font.read(cx);
+        (font.line_height(cx), font.letter_spacing(cx))
+    }
+
+    #[cfg(test)]
+    pub(super) fn font_family_placeholder(&self, cx: &App) -> String {
+        self.font.read(cx).family_placeholder(cx)
+    }
+
+    #[cfg(test)]
+    pub(super) fn font_system_fonts(&self, cx: &App) -> Vec<String> {
+        self.font.read(cx).system_fonts().to_vec()
+    }
+
+    #[cfg(any(test, all(debug_assertions, feature = "automation")))]
+    pub(super) fn set_font_system_fonts(&self, fonts: Vec<String>, cx: &mut App) {
+        self.font
+            .update(cx, |setting, _| setting.set_system_fonts(fonts));
     }
 
     #[cfg(test)]
@@ -341,6 +650,21 @@ impl SettingsPage {
     #[cfg(test)]
     pub(super) fn active_index(&self) -> usize {
         self.active_index
+    }
+
+    #[cfg(test)]
+    pub(super) fn page_saving(&self) -> bool {
+        self.page_saving
+    }
+
+    #[cfg(test)]
+    pub(super) fn page_saved(&self) -> bool {
+        self.page_saved
+    }
+
+    #[cfg(test)]
+    pub(super) fn page_error(&self) -> Option<&str> {
+        self.page_error.as_deref()
     }
 
     #[cfg(test)]

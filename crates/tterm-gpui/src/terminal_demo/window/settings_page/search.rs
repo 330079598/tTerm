@@ -12,38 +12,89 @@ use tterm_core::settings::search_index::entries_for_page;
 
 use crate::locale::Locale;
 
-/// The one settings page the native client implements today.
-pub(super) const PAGE_VALUE: &str = "terminal";
+/// The Terminal page, the route's default.
+pub(super) const TERMINAL_PAGE_VALUE: &str = "terminal";
+/// The local-shells page.
+pub(super) const LOCAL_SHELLS_PAGE_VALUE: &str = "shells";
 
-/// Settings that exist in this client, in page order.
+/// Pages this client implements, in sidebar order.
+const PAGES: &[(&str, TranslationKey)] = &[
+    (TERMINAL_PAGE_VALUE, keys::SETTINGS_TERMINAL),
+    (LOCAL_SHELLS_PAGE_VALUE, keys::LOCAL_SHELLS_SIDEBAR),
+];
+
+/// Settings that exist in this client, with the page that owns them.
 ///
 /// Each key must also appear in the shared index; the test below keeps the
-/// two lists from drifting apart.
-const IMPLEMENTED: &[(TranslationKey, Option<TranslationKey>)] =
-    &[(keys::FONT_SETTINGS_SCROLLBACK_LINES, None)];
+/// lists from drifting apart.
+const IMPLEMENTED: &[(&str, TranslationKey, Option<TranslationKey>)] = &[
+    (
+        TERMINAL_PAGE_VALUE,
+        keys::FONT_SETTINGS_TEXT_RENDERING,
+        Some(keys::FONT_SETTINGS_TEXT_RENDERING_DESC),
+    ),
+    (TERMINAL_PAGE_VALUE, keys::FONT_SETTINGS_FONT_FAMILY, None),
+    (TERMINAL_PAGE_VALUE, keys::FONT_SETTINGS_FONT_SIZE, None),
+    (TERMINAL_PAGE_VALUE, keys::FONT_SETTINGS_LINE_HEIGHT, None),
+    (
+        TERMINAL_PAGE_VALUE,
+        keys::FONT_SETTINGS_LETTER_SPACING,
+        Some(keys::FONT_SETTINGS_SPACING_DESC),
+    ),
+    (
+        TERMINAL_PAGE_VALUE,
+        keys::FONT_SETTINGS_PREVIEW,
+        Some(keys::FONT_SETTINGS_PREVIEW_DESC),
+    ),
+    (
+        TERMINAL_PAGE_VALUE,
+        keys::FONT_SETTINGS_SCROLLBACK_LINES,
+        None,
+    ),
+    (
+        LOCAL_SHELLS_PAGE_VALUE,
+        keys::LOCAL_SHELLS_TITLE,
+        Some(keys::LOCAL_SHELLS_DESCRIPTION),
+    ),
+    (
+        LOCAL_SHELLS_PAGE_VALUE,
+        keys::LOCAL_SHELLS_LIST_TITLE,
+        Some(keys::LOCAL_SHELLS_LIST_DESCRIPTION),
+    ),
+];
 
-/// The page and settings a search may list.
+/// The pages and settings a search may list.
 pub(super) fn items(locale: &Locale) -> Vec<SettingsSearchResult> {
-    let tab_label = text(locale, keys::SETTINGS_TERMINAL);
-    let mut items = vec![SettingsSearchResult {
-        tab: PAGE_VALUE.to_string(),
-        tab_label: tab_label.clone(),
-        title: tab_label,
-        description: None,
-        is_page: true,
-    }];
+    let mut items = Vec::new();
+    for (page, label) in PAGES {
+        let label = text(locale, *label);
+        items.push(SettingsSearchResult {
+            tab: (*page).to_string(),
+            tab_label: label.clone(),
+            title: label,
+            description: None,
+            is_page: true,
+        });
+    }
     // The shared index decides which page owns an entry and in what order.
     // Only the entries that this client implements survive the filter.
-    for entry in entries_for_page(PAGE_VALUE) {
-        let Some((title, description)) = IMPLEMENTED
+    for (page, title, description) in IMPLEMENTED {
+        if !entries_for_page(page)
             .iter()
-            .find(|(key, _)| key.as_str() == entry.title)
+            .any(|entry| entry.title == title.as_str())
+        {
+            continue;
+        }
+        let Some(tab_label) = items
+            .iter()
+            .find(|item| item.is_page && item.tab == *page)
+            .map(|item| item.tab_label.clone())
         else {
             continue;
         };
         items.push(SettingsSearchResult {
-            tab: PAGE_VALUE.to_string(),
-            tab_label: items[0].tab_label.clone(),
+            tab: (*page).to_string(),
+            tab_label,
             title: text(locale, *title),
             description: description.map(|key| text(locale, key)),
             is_page: false,
@@ -91,19 +142,25 @@ mod tests {
 
     #[test]
     fn every_searchable_setting_exists_in_the_shared_index() {
-        for (title, _) in IMPLEMENTED {
+        for (page, title, _) in IMPLEMENTED {
             assert!(
-                entries_for_page(PAGE_VALUE)
+                entries_for_page(page)
                     .iter()
                     .any(|entry| entry.title == title.as_str()),
                 "{} is not in the shared settings index",
                 title.as_str()
             );
         }
-        let page = SETTINGS_PAGES
-            .iter()
-            .find(|page| page.value == PAGE_VALUE)
-            .expect("the implemented page is missing from the shared sidebar");
-        assert_eq!(page.label_key, keys::SETTINGS_TERMINAL.as_str());
+    }
+
+    #[test]
+    fn every_page_is_in_the_shared_sidebar() {
+        for (value, label_key) in PAGES {
+            let page = SETTINGS_PAGES
+                .iter()
+                .find(|page| page.value == *value)
+                .expect("the implemented page is missing from the shared sidebar");
+            assert_eq!(page.label_key, label_key.as_str());
+        }
     }
 }

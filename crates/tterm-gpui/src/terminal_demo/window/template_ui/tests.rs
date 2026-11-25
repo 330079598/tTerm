@@ -59,6 +59,7 @@ fn make_workspace(
                 }
                 Ok(())
             }),
+            crate::config_state::echo_local_shells_writer(),
         )
     });
     Prototype::new(

@@ -48,6 +48,8 @@ mod scrollback_tests;
 #[cfg(test)]
 mod search_tests;
 #[cfg(test)]
+mod terminal_font_tests;
+#[cfg(test)]
 mod tests;
 
 use std::collections::HashSet;
@@ -68,7 +70,7 @@ use crate::input::keyboard::EncoderConfig;
 use self::blink::BlinkState;
 use self::cache::RowCache;
 use self::element::TerminalElement;
-use self::font::{CellGeometry, FontSet, TerminalFont};
+use self::font::{CellGeometry, FontSet, TerminalFont, grid_for, measure_cell};
 use self::frame::FrameData;
 use self::scroll::ScrollAccumulator;
 use self::search::{SearchOverlay, SearchStaleListener};
@@ -189,6 +191,11 @@ pub struct ViewStats {
     pub blink_reuses: u64,
     /// Candidate geometry changes that requested an IME coordinate update.
     pub ime_geometry_updates: u64,
+    /// Font chain resolutions and cell measurements.
+    ///
+    /// A view measures once per font and scale-factor change, never per frame;
+    /// this counter is how the tests hold that down.
+    pub font_measurements: u64,
     /// Overview ruler rectangles painted in the last prepared frame.
     pub overview_marks: u64,
     /// Search match spans painted in the last prepared frame.
@@ -468,17 +475,91 @@ impl TerminalView {
         self.invalidate(cx);
     }
 
-    /// Replaces the font and measures the grid again on the next frame.
+    /// The font the view draws with.
+    pub fn font(&self) -> &TerminalFont {
+        &self.font
+    }
+
+    /// The measured cell from the last re-measurement.
+    ///
+    /// It is `None` before the first frame and after a font change on a hidden
+    /// tab, which measures when it is shown.
+    pub fn cell_geometry(&self) -> Option<CellGeometry> {
+        self.geometry
+    }
+
+    /// Replaces the font, measures the grid again and drops every cached row.
+    ///
+    /// A visible view that has already been laid out measures at the last
+    /// frame's scale factor and asks the session to resize its PTY before the
+    /// next frame. A hidden tab keeps the new font and measures when it is
+    /// shown, as the Tauri client refits only the active tab. The model, its
+    /// scrollback and the session are untouched either way.
     pub fn set_font(&mut self, font: TerminalFont, cx: &mut Context<Self>) {
-        if self.font == font {
+        if !self.replace_font(font) {
             return;
         }
+        self.remeasure(cx);
+        self.invalidate(cx);
+    }
+
+    /// Applies the shared config's family chain and size, if they changed.
+    ///
+    /// This is the entry point for a committed font setting: the chain is read
+    /// as a CSS `font-family` list and the installed family is resolved when
+    /// the grid is measured, so a missing font falls back down the chain. The
+    /// line height and letter spacing stay with the theme. Returns whether the
+    /// font changed; an unchanged pair neither re-measures nor resizes the PTY.
+    pub fn set_shared_font(&mut self, family: &str, size: u16, cx: &mut Context<Self>) -> bool {
+        let mut font = self.font.clone();
+        if !font.apply_shared(family, size) {
+            return false;
+        }
+        self.set_font(font, cx);
+        true
+    }
+
+    /// Stores `font` and invalidates everything drawn with the old one.
+    ///
+    /// Returns whether the font changed.
+    fn replace_font(&mut self, font: TerminalFont) -> bool {
+        if self.font == font {
+            return false;
+        }
+        // The measured primary family is replaced by the next measurement,
+        // which resolves the installed family once per font change.
         self.fonts = FontSet::new(&font);
         self.font = font;
         self.geometry = None;
         self.style_epoch = self.style_epoch.wrapping_add(1);
         self.cache.clear();
-        self.invalidate(cx);
+        self.last_frame = None;
+        true
+    }
+
+    /// Measures the stored font again and tells the session the new cell size.
+    ///
+    /// It needs the scale factor and bounds of a laid-out frame, so the first
+    /// frame and a hidden tab let [`Self::prepare`] do the measurement instead.
+    fn remeasure(&mut self, cx: &mut Context<Self>) {
+        if !self.visible || self.geometry_scale <= 0.0 {
+            return;
+        }
+        let Some(bounds) = self.last_bounds else {
+            return;
+        };
+        let text_system = cx.text_system();
+        self.fonts = FontSet::resolve(&self.font, text_system);
+        let geometry = measure_cell(text_system, &self.fonts, &self.font, self.geometry_scale);
+        self.stats.font_measurements = self.stats.font_measurements.saturating_add(1);
+        self.geometry = Some(geometry);
+        self.last_grid = Some(grid_for(
+            bounds.size.width,
+            bounds.size.height,
+            &geometry,
+            self.terminal.scrollback() > 0,
+        ));
+        self.resend_resize();
     }
 
     /// Shows or hides the view, as a tab switch does.

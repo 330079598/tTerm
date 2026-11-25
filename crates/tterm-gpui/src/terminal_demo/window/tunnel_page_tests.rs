@@ -57,7 +57,13 @@ fn make_workspace(
     let geometry = cx.new(|_| WindowGeometry::new(None, Default::default(), queue));
     let pane_templates_writer: PaneTemplatesWriter = Arc::new(|_| Ok(()));
     let config = cx.new(|_| {
-        ConfigState::with_writers(config, handle, scrollback_writer, pane_templates_writer)
+        ConfigState::with_writers(
+            config,
+            handle,
+            scrollback_writer,
+            pane_templates_writer,
+            crate::config_state::echo_local_shells_writer(),
+        )
     });
     Prototype::new(
         cx,

@@ -138,6 +138,13 @@ impl TabLaunch {
         }
     }
 
+    /// Starts a newly selected local shell without treating it as a restored session.
+    pub(super) fn selected_shell(saved: Tab, options: PtyConnectionOptions) -> Self {
+        let mut launch = Self::restored_tab(saved, LaunchSource::Local(Box::new(options)));
+        launch.restored = false;
+        launch
+    }
+
     /// A profile confirmed in the picker, with its connection already built
     /// from the isolated profile database.
     pub(super) fn saved_profile(saved_id: impl Into<String>, launch: SavedSshLaunch) -> Self {

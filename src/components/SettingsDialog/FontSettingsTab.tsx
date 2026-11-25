@@ -193,7 +193,9 @@ export const FontSettingsTab: React.FC<FontSettingsTabProps> = ({
           </div>
 
           <div>
-            <Label className="mb-2 block">{t("fontSettings.fontSize")}</Label>
+            <Label className="mb-2 block" data-parity="settings.font.size">
+              {t("fontSettings.fontSize")}
+            </Label>
             <div className="flex flex-wrap gap-1.5">
               {fontSizeOptions.map((size) => (
                 <Button
@@ -476,6 +478,7 @@ export const FontSettingsTab: React.FC<FontSettingsTabProps> = ({
               {t("fontSettings.nerdFontPreview", { defaultValue: "Nerd Font Preview" })}
             </Label>
             <div
+              data-parity="settings.font.prompt-preview"
               className="bg-secondary text-foreground border-border rounded-lg border px-4 py-3"
               style={{ fontFamily, fontSize: `${fontSize}px`, lineHeight: 1.6 }}
             >
