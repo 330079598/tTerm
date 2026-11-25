@@ -4,7 +4,7 @@
 
 - 路由来源：[`src/components/SettingsDialog/settingsTabs.ts`](../../src/components/SettingsDialog/settingsTabs.ts)（侧栏分组与顺序）、[`SettingsTabPanel.tsx`](../../src/components/SettingsDialog/SettingsTabPanel.tsx)（页面容器）、[`index.tsx`](../../src/components/SettingsDialog/index.tsx)（每一页对应的组件）。
 - 迁移卡：[P4-15 至 P4-26 设置](p4-features.md#p4-15-至-p4-26-设置)；跨页的还有 P4-01、P4-14、P4-15。
-- 存储字段以共享核心 [`crates/tterm-core/src/config/mod.rs`](../../crates/tterm-core/src/config/mod.rs) 的 `AppConfig` 为准；设置搜索的条目以 [`crates/tterm-core/src/settings/search_index.rs`](../../crates/tterm-core/src/settings/search_index.rs) 为准（它是 `settingsSearchIndex.ts` 的镜像）。
+- 存储字段以共享核心 [`AppConfig`](../../crates/tterm-core/src/config/mod.rs) 为准。[Rust 搜索索引](../../crates/tterm-core/src/settings/search_index.rs) 从 `settingsSearchIndex.ts` 派生，保留 14 页的目录，但排除 WebView 专有的 `terminal_renderer` 与 `hidden_renderer_release_secs`。GPUI 页面再按已接入的控件和平台过滤；索引有条目不代表页面已实现。见 [P4-16 渲染器设置报告](reports/P4-16-renderer-settings.md)。
 - 本清单不是验收结论。共享配置结构已存在、搜索索引已有条目、页面壳已实现，都不能替代某一页的交互与视觉验收。
 - 本清单以代码审计为基础。Shell 子集的自动验证见[本批验收](reports/P3-11-P4-17-local-shells.md)；其他页不借用这次测试作为验收证据。
 
@@ -27,7 +27,7 @@
 - 页面容器 `SettingsTabPanel` 提供 `role="tabpanel"`、`aria-labelledby`、`tabIndex=0` 与 `data-parity="settings.layout.panel"`；`terminal` 与 `shells` 两页由容器自身滚动（`scroll`），其余页在页内放 `ScrollArea`。
 - 搜索：NFKC + 小写归一；查询的每个词都要命中标题、描述或页名，且至少一个词命中标题或描述本身；结果含「页」行与「设置」行；`font` 作为旧值归一为 `terminal`（`settingsLoaders.ts`）。搜索框支持清除、方向键、Enter、Escape 两级返回。
 - 懒加载只覆盖主题编辑器、主题库、主题导入三个对话框（`settingsLazy.ts`）；14 个页面组件在 `index.tsx` 中静态导入。P4-15 要求的页面级懒加载没有实现，不能写成已有。
-- 保存：除字体/终端页的整页 Save（GPUI 页内另有回滚行数的 Save）外，控件大多即时调用 `useSettingsSave` → `ConfigContext.saveConfig` → `save_config`，失败弹 toast 并保留界面。字体/终端页把 18 个字段作为一次草稿保存（`useTerminalSettingsDraft.ts`）。
+- 保存：除字体/终端页的整页 Save（GPUI 页内另有回滚行数的 Save）外，控件大多即时调用 `useSettingsSave` → `ConfigContext.saveConfig` → `save_config`，失败弹 toast 并保留界面。React 字体/终端页把 18 个字段作为一次草稿保存（`useTerminalSettingsDraft.ts`）。
 - 打开设置默认页是 General（React），GPUI 默认是 Terminal；`defaultTab` 支持深链。
 - 设置入口在 GPUI 是单例路由，打开时隐藏窗格但保留标签、分屏和会话；Escape 先清搜索再返回原窗格。详见 [P4-15 报告](reports/P4-15.md)。
 
@@ -37,7 +37,7 @@
 
 | 页面     | GPUI 状态              | 实际内容                                                                                    | 说明                                                                                  |
 | -------- | ---------------------- | ------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------- |
-| Terminal | 局部 | 字体与间距、光标、剪贴板行为与 OSC 52 权限、macOS Option、回滚、三侧内边距及预览 | 14/18 个字段已迁移；见[第五批证据](reports/P4-16-osc52-meta.md) |
+| Terminal | 局部 | 字体与间距、光标、剪贴板行为与 OSC 52 权限、macOS Option、命令标记与本机 Shell 集成、回滚、三侧内边距及预览 | 16/16 个与 GPUI 相关的字段已迁移；另有 2 个 WebView 渲染器字段不适用；见[第六批证据](reports/P4-16-shell-integration.md) |
 | shells   | 局部（`9eb24d8b`） | 自定义 shell 列表、新增/编辑（程序、名称、参数）、显式保存、失败保留草稿、Escape/Enter 处理 | 启动菜单有 Auto，设置页无 Auto 行；自动发现、默认、隐藏、复制、排序、删除、路径检查及桌面验收待做 |
 
 侧栏只出现 Experience 组与这两行；搜索列出已实现的字体、预览、回滚和 Shell 条目。因此“搜索能打开某页”不能当作该页实现。
@@ -141,20 +141,20 @@
 
 - **迁移卡**：P4-16。
 - **React**：[`FontSettingsTab.tsx`](../../src/components/SettingsDialog/FontSettingsTab.tsx)、[`FontFamilyPicker.tsx`](../../src/components/SettingsDialog/FontFamilyPicker.tsx)、[`CursorStylePicker.tsx`](../../src/components/SettingsDialog/CursorStylePicker.tsx)、[`ScrollbackLinesField.tsx`](../../src/components/SettingsDialog/ScrollbackLinesField.tsx)、[`TerminalPaddingFields.tsx`](../../src/components/SettingsDialog/TerminalPaddingFields.tsx)、[`useTerminalSettingsDraft.ts`](../../src/components/SettingsDialog/useTerminalSettingsDraft.ts)。
-- **GPUI 交互**：局部。14 个字段显式保存；其中 Option 作为 Meta 仅在 macOS 可见。默认 OSC 52 可写不可读。
-- **双端存储**：React 可一次保存 18 个终端字段；GPUI 对已实现的 14 个字段用一次文件更新，只改用户修改的字段。隔离文件读回已测，双客户端桌面互写待验。
+- **GPUI 交互**：局部。16 个适用字段显式保存；其中 Option 作为 Meta 仅在 macOS 可见，本机 Shell 集成仅在非 Windows 可见并在命令标记关闭时禁用。默认 OSC 52 可写不可读。
+- **双端存储**：React 可一次保存 18 个终端字段；GPUI 对已实现的 16 个字段用一次文件更新，只改用户修改的字段。`terminal_renderer` 与 `hidden_renderer_release_secs` 仍保留在共享配置格式中供 React/WebView 使用；GPUI 不读取也不写入，但页面保存会保留另一端写入的值。隔离文件读回已测，双客户端桌面互写待验。
 - **视觉/证据**：局部。5 张 GPUI 截图只比较标题/搜索区与回滚字段；侧栏页面集合、拉丁字体宽度、数字步进器、Save 位置均有已知差异，整页未通过。见 [P4-15 报告](reports/P4-15.md) 与 [资产](reports/assets/settings-scrollback-flow/)。
 
 控件与动作：
 
-- 文本渲染：终端渲染器 WebGL/Canvas；隐藏终端释放渲染器时限（0/10/30/60/300 秒）；字号预设按钮 + 6–72 输入；行高 1–2（步长 0.05）；字距 -5–10；字体选择器（系统字体加载中/失败提示）。
+- 文本渲染：字号预设按钮 + 6–72 输入；行高 1–2（步长 0.05）；字距 -5–10；字体选择器（系统字体加载中/失败提示）。终端渲染器 WebGL/Canvas 与隐藏终端释放渲染器时限（0/10/30/60/300 秒）仅存在于 React/WebView；GPUI 使用原生渲染，本页不提供这两个控件。
 - 终端行为：光标样式；macOS 的 Option 作为 Meta；多行粘贴确认；选中即复制；右键粘贴；OSC 52 写剪贴板；命令标记（含复制 POSIX/Fish 集成脚本）；本机 shell 集成（Windows 不显示，命令标记关闭时禁用）；回滚行数（预设/自由/无限）；左/右/下内边距。
 - 预览：正文预览与 Nerd Font 预览，按当前字体、字号、行高、字距渲染。
 - 保存：整页一个 Save，保存中禁用并显示进度文案。
 
 平台/条件：`mac_option_is_meta` 仅 macOS；`local_unix_shell_integration` 仅非 Windows 且依赖命令标记。
 
-待补：命令标记、本机 Shell 集成、渲染器选择与隐藏时释放时限（4 项）。另需复核整页布局、浅色、多缩放和跨平台桌面。
+待补：无（命令标记、本机 Shell 集成及复制 POSIX/Fish 脚本按钮均已接入，见[本批报告](reports/P4-16-shell-integration.md)）。WebView 渲染器选择与隐藏释放时限不计入 GPUI 待补项，共享配置兼容见 [P4-16 渲染器设置报告](reports/P4-16-renderer-settings.md)。另需复核整页布局、浅色、多缩放和跨平台桌面。
 
 ### 4.6 `shells` — Shell
 
