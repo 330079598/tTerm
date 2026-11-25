@@ -87,7 +87,7 @@ impl Session {
         restored: Option<RestoredHistory>,
     ) -> Result<Self, String> {
         let WindowSize { grid, cell } = size;
-        prepare_connection(&services, &mut connection)?;
+        prepare_connection(&mut connection);
         // Only a local term session owns a process this client can inspect.
         // SSH, serial and unknown kinds must not run a host process check.
         let local = matches!(
@@ -451,39 +451,15 @@ impl RefreshWatch {
     }
 }
 
-/// Makes a password profile ask in the GPUI window when no saved password is
-/// available. Keyboard-interactive reaches the same server password prompt
-/// over servers that disable the password method itself.
-fn prepare_connection(
-    services: &AppServices,
-    connection: &mut PtyConnectionOptions,
-) -> Result<(), String> {
-    if connection.connection_type.as_deref() != Some("ssh") {
-        return Ok(());
-    }
-    if connection.auth_method.is_none() {
+/// Supplies the default only when an SSH connection names no method.
+///
+/// A password profile keeps `password` even without a saved password: core
+/// asks once after the host key is verified, then sends the standard password
+/// method. Interactive, key, agent and auto profiles stay as configured.
+fn prepare_connection(connection: &mut PtyConnectionOptions) {
+    if connection.connection_type.as_deref() == Some("ssh") && connection.auth_method.is_none() {
         connection.auth_method = Some("auto".to_string());
     }
-    let saved = !connection.ignore_saved_password
-        && tterm_core::core::session::load_saved_ssh_password(
-            &services.shared.secrets,
-            connection.profile_id.as_deref(),
-            connection.profile_name.as_deref(),
-        )
-        .is_ok_and(|password| password.is_some());
-    if password_needs_interactive_prompt(connection, saved) {
-        connection.auth_method = Some("interactive".to_string());
-    }
-    Ok(())
-}
-
-fn password_needs_interactive_prompt(
-    connection: &PtyConnectionOptions,
-    saved_password: bool,
-) -> bool {
-    connection.auth_method.as_deref() == Some("password")
-        && connection.password.is_none()
-        && !saved_password
 }
 
 struct GpuiSessionSink {
@@ -565,7 +541,7 @@ mod tests {
     use tterm_terminal::terminal::{Config, Terminal};
 
     use super::pipeline::{self, RefreshSignal, SessionState};
-    use super::{GpuiSessionSink, password_needs_interactive_prompt};
+    use super::{GpuiSessionSink, prepare_connection};
 
     const GRID: GridSize = GridSize {
         columns: 80,
@@ -584,27 +560,36 @@ mod tests {
         }
     }
 
-    #[test]
-    fn a_password_profile_without_a_saved_password_uses_interactive_prompts() {
-        let options = PtyConnectionOptions {
+    fn ssh_options(auth_method: Option<&str>) -> PtyConnectionOptions {
+        PtyConnectionOptions {
             connection_type: Some("ssh".to_string()),
-            auth_method: Some("password".to_string()),
+            auth_method: auth_method.map(str::to_string),
             profile_name: Some("Production".to_string()),
             ..PtyConnectionOptions::default()
-        };
-        assert!(password_needs_interactive_prompt(&options, false));
-        assert!(!password_needs_interactive_prompt(&options, true));
+        }
     }
 
     #[test]
-    fn an_explicitly_ignored_password_is_typed_in_the_window() {
-        let options = PtyConnectionOptions {
-            connection_type: Some("ssh".to_string()),
-            auth_method: Some("password".to_string()),
-            ignore_saved_password: true,
-            ..PtyConnectionOptions::default()
-        };
-        assert!(password_needs_interactive_prompt(&options, false));
+    fn a_password_profile_without_a_saved_password_keeps_password_auth() {
+        let mut options = ssh_options(Some("password"));
+        prepare_connection(&mut options);
+        assert_eq!(options.auth_method.as_deref(), Some("password"));
+    }
+
+    #[test]
+    fn explicit_ssh_auth_methods_are_preserved() {
+        for method in ["interactive", "key", "agent", "auto"] {
+            let mut options = ssh_options(Some(method));
+            prepare_connection(&mut options);
+            assert_eq!(options.auth_method.as_deref(), Some(method));
+        }
+    }
+
+    #[test]
+    fn an_unset_ssh_auth_method_defaults_to_auto() {
+        let mut options = ssh_options(None);
+        prepare_connection(&mut options);
+        assert_eq!(options.auth_method.as_deref(), Some("auto"));
     }
 
     #[test]

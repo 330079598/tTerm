@@ -632,6 +632,75 @@ async fn a_missing_password_is_asked_from_the_user() {
 }
 
 #[tokio::test]
+async fn a_password_only_server_accepts_one_typed_password() {
+    let mut harness = Harness::start(
+        Script {
+            password: || Auth::Accept,
+            methods: Some(vec![MethodKind::Password]),
+            ..Script::default()
+        },
+        vec![Some(vec![PASSWORD])],
+    )
+    .await;
+
+    let used = harness
+        .authenticate(AuthMethod::Password(None))
+        .await
+        .expect("authenticate");
+    assert_eq!(used, AuthUsed::Password);
+    assert_eq!(harness.asked(), [vec![field("Password:", false)]]);
+    assert_eq!(harness.log(), [format!("password:{PASSWORD}")]);
+}
+
+#[tokio::test]
+async fn a_typed_password_answers_a_pam_password_prompt() {
+    let mut harness = Harness::start(
+        Script {
+            password: Auth::reject,
+            rounds: vec![password_round()],
+            ..Script::default()
+        },
+        vec![Some(vec![PASSWORD])],
+    )
+    .await;
+
+    harness
+        .authenticate(AuthMethod::Password(None))
+        .await
+        .expect("authenticate");
+    assert_eq!(harness.asked(), [vec![field("Password:", false)]]);
+    assert_eq!(
+        harness.log(),
+        [
+            format!("password:{PASSWORD}"),
+            "kbd:start".to_string(),
+            format!("kbd:{PASSWORD}")
+        ]
+    );
+}
+
+#[tokio::test]
+async fn cancelling_the_password_prompt_sends_no_authentication() {
+    let mut harness = Harness::start(
+        Script {
+            password: || Auth::Accept,
+            methods: Some(vec![MethodKind::Password]),
+            ..Script::default()
+        },
+        vec![None],
+    )
+    .await;
+
+    let error = harness
+        .authenticate(AuthMethod::Password(None))
+        .await
+        .expect_err("cancelled");
+    assert_eq!(error, "SSH authentication was cancelled");
+    assert_eq!(harness.asked(), [vec![field("Password:", false)]]);
+    assert!(harness.log().is_empty());
+}
+
+#[tokio::test]
 async fn a_missing_password_is_reported_where_no_prompt_can_show() {
     let mut harness = Harness::start(Script::default(), vec![]).await;
 

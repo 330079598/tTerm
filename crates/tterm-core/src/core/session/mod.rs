@@ -480,6 +480,12 @@ pub fn load_saved_jump_host_password(
     Ok(None)
 }
 
+/// Fills saved SSH passwords into the plan before a connection starts.
+///
+/// A missing target password is deliberately left unset: authentication asks
+/// once after the host key is verified and then sends the method the server
+/// supports. A saved password that is currently unreadable still fails here,
+/// because prompting would hide a locked credential store.
 pub fn resolve_ssh_password(
     secret_state: &crate::ssh::secret_store::types::SecretStoreState,
     plan: &mut SessionPlan,
@@ -514,31 +520,21 @@ pub fn resolve_ssh_password(
                     );
                 }
             }
-        } else if plan.ignore_saved_password {
-            return Err(format!(
-                "Password is required for profile '{}'",
-                plan.profile_name
-            ));
-        } else {
-            // Try to get password from secret store
-            let Some(password) = load_saved_ssh_password(
+        } else if !plan.ignore_saved_password {
+            match load_saved_ssh_password(
                 secret_state,
                 plan.profile_id.as_deref(),
                 Some(plan.profile_name.as_str()),
-            )?
-            else {
-                let keys = [plan.profile_id.as_deref(), Some(plan.profile_name.as_str())];
-                let keys: Vec<&str> = keys.into_iter().flatten().collect();
-                if let Some(reason) = secret_state.unreadable_reason(&keys)? {
-                    return Err(reason.to_string());
+            )? {
+                Some(password) => plan.password = Some(password),
+                None => {
+                    let keys = [plan.profile_id.as_deref(), Some(plan.profile_name.as_str())];
+                    let keys: Vec<&str> = keys.into_iter().flatten().collect();
+                    if let Some(reason) = secret_state.unreadable_reason(&keys)? {
+                        return Err(reason.to_string());
+                    }
                 }
-                return Err(format!(
-                    "No password provided and no saved password found for profile '{}'",
-                    plan.profile_name
-                ));
-            };
-
-            plan.password = Some(password);
+            }
         }
     }
 
@@ -709,5 +705,39 @@ mod tests {
             assert!(plan.certificate_path.is_none(), "{other}");
             assert!(plan.jump_hosts[0].certificate_path.is_none(), "{other}");
         }
+    }
+
+    #[test]
+    fn a_password_profile_without_a_saved_password_waits_for_the_prompt() {
+        let app = crate::services::test_support::app();
+        let options: PtyConnectionOptions = serde_json::from_value(serde_json::json!({
+            "type": "ssh",
+            "profileId": "p2-12-remote",
+            "profileName": "p2-12-remote",
+            "host": "example.test",
+            "username": "tester",
+            "authMethod": "password",
+            "rememberPassword": false
+        }))
+        .expect("options should deserialize");
+        let mut plan = normalize_connection(Some(options)).expect("should normalize");
+
+        resolve_ssh_password(&app.services.shared.secrets, &mut plan)
+            .expect("a missing password is left for authentication");
+
+        assert!(plan.password.is_none());
+        assert!(!plan.keyboard_interactive);
+        assert!(matches!(
+            plan.auth_method(),
+            crate::ssh::auth::AuthMethod::Password(None)
+        ));
+        assert!(
+            app.services
+                .shared
+                .secrets
+                .get_password("p2-12-remote")
+                .expect("read the secret store")
+                .is_none()
+        );
     }
 }
