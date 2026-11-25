@@ -1,5 +1,9 @@
 # 任务状态
 
+## 2026-11-25 Shell 与 SSH 现场验收首批
+
+WSL2 下 bash、zsh 的 8 组隔离 PTY 捕获均通过真实终端模型检查；Windows 的 7 个 GPUI 已保存连接及回环 SSH 回归通过。见 [Unix Shell 记录](reports/P2-13-unix-shell-field.md) 和 [SSH 现场准备](reports/P2-12-remote-field.md)。fish、物理 GPUI 桌面及真实远端 tmux/neovim 尚无此次验收证据，G2/G3 状态不变。
+
 ## 2026-11-25 终端设置与 SSH 查询续批（本地已提交）
 
 实现截至 `676e1cd3`：`0a5e330c` 修复同步输出，`6d655706` 划定 WebView 设置兼容范围，`676e1cd3` 接入命令标记和本机 Shell 设置。本批未推送。
