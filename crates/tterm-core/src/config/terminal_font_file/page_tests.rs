@@ -26,17 +26,25 @@ fn applies_only_the_changed_fields_to_the_latest_file() {
             terminal_line_height: 1.2,
             terminal_letter_spacing: 1,
             scrollback_lines: 10_000,
+            cursor_style: "bar".to_string(),
+            terminal_padding_left_px: 7,
+            terminal_padding_right_px: 8,
+            terminal_padding_bottom_px: 9,
             ..AppConfig::default()
         },
     );
     let snapshot = super::super::load_config_at(&path).unwrap();
 
-    // Another client changes the theme, one page field and the scrollback
-    // between the snapshot this window loaded and its save.
+    // Another client changes the theme, several page fields and the
+    // scrollback between the snapshot this window loaded and its save.
     let mut other_client = super::super::load_config_at(&path).unwrap();
     other_client.theme = "nord".to_string();
     other_client.terminal_letter_spacing = 4;
     other_client.scrollback_lines = 25_000;
+    other_client.cursor_style = "underline".to_string();
+    other_client.terminal_padding_left_px = 20;
+    other_client.terminal_padding_right_px = 21;
+    other_client.terminal_padding_bottom_px = 22;
     seed(&path, &other_client);
     let extended = fs::read_to_string(&path)
         .unwrap()
@@ -58,6 +66,10 @@ fn applies_only_the_changed_fields_to_the_latest_file() {
             line_height: 1.75,
             letter_spacing: 4,
             scrollback_lines: 25_000,
+            cursor_style: "underline".to_string(),
+            padding_left: 20,
+            padding_right: 21,
+            padding_bottom: 22,
         },
         "the untouched page fields keep the values the other client wrote"
     );
@@ -68,7 +80,83 @@ fn applies_only_the_changed_fields_to_the_latest_file() {
     assert_eq!(reloaded.terminal_line_height, 1.75);
     assert_eq!(reloaded.terminal_letter_spacing, 4);
     assert_eq!(reloaded.scrollback_lines, 25_000);
+    assert_eq!(reloaded.cursor_style, "underline");
+    assert_eq!(
+        (
+            reloaded.terminal_padding_left_px,
+            reloaded.terminal_padding_right_px,
+            reloaded.terminal_padding_bottom_px,
+        ),
+        (20, 21, 22)
+    );
     assert!(fs::read_to_string(&path).unwrap().contains("1.2300e+45"));
+    fs::remove_file(path).unwrap();
+}
+
+#[test]
+fn a_cursor_and_padding_edit_keeps_the_latest_font_and_scrollback() {
+    let path = temp_config();
+    seed(
+        &path,
+        &AppConfig {
+            font_family: "Menlo".to_string(),
+            font_size: 14,
+            terminal_line_height: 1.2,
+            terminal_letter_spacing: 1,
+            scrollback_lines: 10_000,
+            ..AppConfig::default()
+        },
+    );
+    let snapshot = super::super::load_config_at(&path).unwrap();
+
+    // Another client changes everything except the cursor and padding between
+    // this window's snapshot and its save.
+    let mut other_client = super::super::load_config_at(&path).unwrap();
+    other_client.font_family = "Fira Code".to_string();
+    other_client.font_size = 18;
+    other_client.terminal_line_height = 1.6;
+    other_client.terminal_letter_spacing = 3;
+    other_client.scrollback_lines = 25_000;
+    seed(&path, &other_client);
+
+    let mut draft = TerminalPageSettings::from(&snapshot);
+    draft.cursor_style = "bar".to_string();
+    draft.padding_left = 12;
+    draft.padding_right = 14;
+    draft.padding_bottom = 8;
+
+    let saved = save_page_at(&path, &snapshot, draft).unwrap();
+
+    assert_eq!(
+        (
+            saved.family.as_str(),
+            saved.size,
+            saved.line_height,
+            saved.letter_spacing,
+            saved.scrollback_lines,
+            saved.cursor_style.as_str(),
+            saved.padding_left,
+            saved.padding_right,
+            saved.padding_bottom,
+        ),
+        ("Fira Code", 18, 1.6, 3, 25_000, "bar", 12, 14, 8),
+        "an old field the other client changed must survive a page edit"
+    );
+    let reloaded = super::super::load_config_at(&path).unwrap();
+    assert_eq!(
+        (
+            reloaded.font_family.as_str(),
+            reloaded.font_size,
+            reloaded.terminal_line_height,
+            reloaded.terminal_letter_spacing,
+            reloaded.scrollback_lines,
+            reloaded.cursor_style.as_str(),
+            reloaded.terminal_padding_left_px,
+            reloaded.terminal_padding_right_px,
+            reloaded.terminal_padding_bottom_px,
+        ),
+        ("Fira Code", 18, 1.6, 3, 25_000, "bar", 12, 14, 8)
+    );
     fs::remove_file(path).unwrap();
 }
 
@@ -86,6 +174,10 @@ fn reports_the_values_the_file_holds() {
             line_height: 1.236,
             letter_spacing: -2,
             scrollback_lines: 0,
+            cursor_style: "underline".to_string(),
+            padding_left: 80,
+            padding_right: 0,
+            padding_bottom: 80,
         },
     )
     .unwrap();
@@ -99,6 +191,15 @@ fn reports_the_values_the_file_holds() {
     assert_eq!(saved.line_height, 1.24);
     assert_eq!(saved.letter_spacing, -2);
     assert_eq!(saved.scrollback_lines, 0);
+    assert_eq!(saved.cursor_style, "underline");
+    assert_eq!(
+        (
+            saved.padding_left,
+            saved.padding_right,
+            saved.padding_bottom
+        ),
+        (80, 0, 80)
+    );
     fs::remove_file(path).unwrap();
 }
 
@@ -167,6 +268,26 @@ fn refuses_an_invalid_page_without_touching_the_file() {
         },
         TerminalPageSettings {
             scrollback_lines: MAX_EXPLICIT_SCROLLBACK_LINES + 1,
+            ..base.clone()
+        },
+        TerminalPageSettings {
+            cursor_style: "beam".to_string(),
+            ..base.clone()
+        },
+        TerminalPageSettings {
+            cursor_style: String::new(),
+            ..base.clone()
+        },
+        TerminalPageSettings {
+            padding_left: 81,
+            ..base.clone()
+        },
+        TerminalPageSettings {
+            padding_right: 81,
+            ..base.clone()
+        },
+        TerminalPageSettings {
+            padding_bottom: 81,
             ..base.clone()
         },
     ] {

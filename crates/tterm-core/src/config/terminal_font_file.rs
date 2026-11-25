@@ -19,6 +19,9 @@ use super::paths::ensure_config_dir;
 use super::scrollback::{MAX_EXPLICIT_SCROLLBACK_LINES, normalize_scrollback_config};
 use tterm_terminal::js_text::js_trim;
 
+const CURSOR_STYLES: [&str; 3] = ["block", "bar", "underline"];
+const MAX_PAGE_PADDING: u16 = 80;
+
 /// The Terminal font settings after a save, already read back from the file.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SavedTerminalFont {
@@ -45,6 +48,14 @@ pub struct TerminalPageSettings {
     pub letter_spacing: i8,
     /// The scrollback capacity; `0` means unlimited.
     pub scrollback_lines: u32,
+    /// The cursor shape: `block`, `bar` or `underline`.
+    pub cursor_style: String,
+    /// The left page padding in logical pixels.
+    pub padding_left: u16,
+    /// The right page padding in logical pixels.
+    pub padding_right: u16,
+    /// The bottom page padding in logical pixels.
+    pub padding_bottom: u16,
 }
 
 impl From<&AppConfig> for TerminalPageSettings {
@@ -55,6 +66,10 @@ impl From<&AppConfig> for TerminalPageSettings {
             line_height: config.terminal_line_height,
             letter_spacing: config.terminal_letter_spacing,
             scrollback_lines: config.scrollback_lines,
+            cursor_style: config.cursor_style.clone(),
+            padding_left: config.terminal_padding_left_px,
+            padding_right: config.terminal_padding_right_px,
+            padding_bottom: config.terminal_padding_bottom_px,
         }
     }
 }
@@ -112,6 +127,18 @@ pub(super) fn save_page_at(
         if checked.scrollback_lines != previous.scrollback_lines {
             config.scrollback_lines = checked.scrollback_lines;
         }
+        if checked.cursor_style != previous.cursor_style {
+            config.cursor_style = checked.cursor_style;
+        }
+        if checked.padding_left != previous.padding_left {
+            config.terminal_padding_left_px = checked.padding_left;
+        }
+        if checked.padding_right != previous.padding_right {
+            config.terminal_padding_right_px = checked.padding_right;
+        }
+        if checked.padding_bottom != previous.padding_bottom {
+            config.terminal_padding_bottom_px = checked.padding_bottom;
+        }
         super::compatible_file::save_at(path, &config)?;
         config = super::load_config_at(path)?;
     }
@@ -145,13 +172,35 @@ fn checked_page(settings: TerminalPageSettings) -> Result<TerminalPageSettings, 
             settings.scrollback_lines, MAX_EXPLICIT_SCROLLBACK_LINES
         ));
     }
+    if !CURSOR_STYLES.contains(&settings.cursor_style.as_str()) {
+        return Err(format!(
+            "The cursor style '{}' is not one of block, bar or underline.",
+            settings.cursor_style
+        ));
+    }
+    checked_padding("left", settings.padding_left)?;
+    checked_padding("right", settings.padding_right)?;
+    checked_padding("bottom", settings.padding_bottom)?;
     Ok(TerminalPageSettings {
         family,
         size: settings.size,
         line_height: normalize_terminal_line_height(Some(settings.line_height)),
         letter_spacing: settings.letter_spacing,
         scrollback_lines: normalize_scrollback_config(Some(f64::from(settings.scrollback_lines))),
+        cursor_style: settings.cursor_style,
+        padding_left: settings.padding_left,
+        padding_right: settings.padding_right,
+        padding_bottom: settings.padding_bottom,
     })
+}
+
+fn checked_padding(side: &str, padding: u16) -> Result<(), String> {
+    if padding <= MAX_PAGE_PADDING {
+        return Ok(());
+    }
+    Err(format!(
+        "The {side} padding {padding} is outside the 0 to {MAX_PAGE_PADDING} pixels the settings accept."
+    ))
 }
 
 /// Replaces the Terminal font family and size in the shared config file.

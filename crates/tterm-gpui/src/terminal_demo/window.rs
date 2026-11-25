@@ -64,6 +64,7 @@ use tterm_core::services::AppServices;
 use tterm_core::workspace::tab::Tab;
 use tterm_core::workspace::tab_attention::TabAttentionStore;
 use tterm_terminal::grid::{CellSize, GridSize};
+use tterm_terminal::snapshot::CursorShape;
 #[cfg(test)]
 use tterm_terminal::terminal::Terminal;
 use tterm_terminal::terminal::{ClipboardPolicy, Config};
@@ -169,6 +170,7 @@ pub(super) fn run_window(
         SessionManager::new(Arc::clone(&services), attention).with_terminal_config(Config {
             clipboard: clipboard_policy,
             scrollback: history_capacity(app_config.scrollback_lines),
+            cursor_shape: CursorShape::from_config(&app_config.cursor_style),
             ..Config::default()
         }),
     );
@@ -589,6 +591,7 @@ impl TabFactory {
         let paste_gate = super::clipboard::view_gate(&paste_controller, &binding, session_nonce);
         let config = TerminalViewConfig {
             font,
+            padding: self.shared_padding(cx),
             input: Some(Rc::new(attachment.input())),
             resize: Some(Rc::new(attachment.resizer())),
             keyboard: self.keyboard,

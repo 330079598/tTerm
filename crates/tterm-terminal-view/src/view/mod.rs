@@ -23,7 +23,9 @@ mod frame;
 mod ime;
 mod input_handler;
 mod keyboard;
+pub mod layout;
 pub mod overview;
+mod padding;
 mod paint;
 pub mod paste;
 mod pointer;
@@ -160,6 +162,11 @@ pub struct TerminalViewConfig {
     /// Overrides how primary-selection text is read. `None` uses the platform
     /// clipboard on Linux and disables middle-click paste elsewhere.
     pub primary: Option<PrimarySelection>,
+    /// Space between the element edges and the cell grid.
+    ///
+    /// The window fills this from the committed page settings. A zero value
+    /// is the view's own default so a bare view has no hidden padding.
+    pub padding: layout::TerminalPadding,
 }
 
 /// Counters the element keeps for tests and the drawing benchmark.
@@ -243,6 +250,7 @@ pub struct TerminalView {
     pointer: pointer::PointerState,
     pointer_policy: PointerPolicy,
     primary: Option<PrimarySelection>,
+    padding: layout::TerminalPadding,
     composition: composition::Composition,
     ime_confirm: bool,
     preedit: Option<composition::PreeditPaint>,
@@ -301,6 +309,7 @@ impl TerminalView {
             pointer: pointer::PointerState::default(),
             pointer_policy: config.pointer,
             primary,
+            padding: config.padding,
             composition: composition::Composition::default(),
             ime_confirm: false,
             preedit: None,
@@ -553,9 +562,10 @@ impl TerminalView {
         let geometry = measure_cell(text_system, &self.fonts, &self.font, self.geometry_scale);
         self.stats.font_measurements = self.stats.font_measurements.saturating_add(1);
         self.geometry = Some(geometry);
+        let content = layout::content_bounds(bounds, self.padding);
         self.last_grid = Some(grid_for(
-            bounds.size.width,
-            bounds.size.height,
+            content.size.width,
+            content.size.height,
             &geometry,
             self.terminal.scrollback() > 0,
         ));

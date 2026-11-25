@@ -295,6 +295,28 @@
       ]
     },
     {
+      "id": "settings.terminal.cursor",
+      "title": "Terminal cursor styles",
+      "fixture": "settings.reference.json",
+      "uiStyles": ["classic"],
+      "uiScalePercents": [100],
+      "actions": [
+        { "type": "click", "target": "settings.layout.tab.terminal" },
+        { "type": "scrollTo", "target": "settings.cursor.choices" }
+      ]
+    },
+    {
+      "id": "settings.terminal.padding",
+      "title": "Terminal edge padding",
+      "fixture": "settings.reference.json",
+      "uiStyles": ["classic"],
+      "uiScalePercents": [100],
+      "actions": [
+        { "type": "click", "target": "settings.layout.tab.terminal" },
+        { "type": "scrollTo", "target": "settings.padding.fields" }
+      ]
+    },
+    {
       "id": "settings.terminal.preview",
       "title": "Terminal preview and page save",
       "fixture": "settings.reference.json",

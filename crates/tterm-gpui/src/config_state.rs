@@ -388,24 +388,29 @@ impl ConfigState {
         self.save_terminal_page(settings, cx)
     }
 
-    fn apply_terminal_font(&mut self, changed: &TerminalFontChanged) {
-        self.config.font_family = changed.family.clone();
-        self.config.font_size = changed.size;
-        self.config.terminal_line_height = changed.line_height;
-        self.config.terminal_letter_spacing = changed.letter_spacing;
+    fn apply_terminal_page(&mut self, saved: &TerminalPageSettings) {
+        self.config.font_family = saved.family.clone();
+        self.config.font_size = saved.size;
+        self.config.terminal_line_height = saved.line_height;
+        self.config.terminal_letter_spacing = saved.letter_spacing;
+        self.config.cursor_style = saved.cursor_style.clone();
+        self.config.terminal_padding_left_px = saved.padding_left;
+        self.config.terminal_padding_right_px = saved.padding_right;
+        self.config.terminal_padding_bottom_px = saved.padding_bottom;
     }
 
     /// Saves every Terminal page field as one configuration edit.
     ///
-    /// The draft covers the font family, size, line height, letter spacing and
-    /// scrollback capacity, so pressing Enter in any field writes the whole
-    /// page rather than only the focused input. The draft is checked with the
-    /// shared core rules before a writer runs. The writer applies only the
-    /// fields that differ from this state's snapshot to the latest config
-    /// file and returns the values the file now holds; the snapshot, the
-    /// [`TerminalFontChanged`] event and, when the capacity moved, the
-    /// [`ScrollbackChanged`] event are published only after that succeeds. A
-    /// second edit is refused while any setting save is pending.
+    /// The draft covers the font family, size, line height, letter spacing,
+    /// scrollback capacity, cursor style and page padding, so pressing Enter
+    /// in any field writes the whole page rather than only the focused input.
+    /// The draft is checked with the shared core rules before a writer runs.
+    /// The writer applies only the fields that differ from this state's
+    /// snapshot to the latest config file and returns the values the file now
+    /// holds; the snapshot, the [`TerminalFontChanged`] event and, when the
+    /// capacity moved, the [`ScrollbackChanged`] event are published only
+    /// after that succeeds. A second edit is refused while any setting save is
+    /// pending.
     pub fn save_terminal_page(
         &mut self,
         settings: TerminalPageSettings,
@@ -442,7 +447,7 @@ impl ConfigState {
                 Ok(saved) => {
                     let scrollback_lines = saved.scrollback_lines;
                     let changed = TerminalFontChanged {
-                        family: saved.family,
+                        family: saved.family.clone(),
                         size: saved.size,
                         line_height: saved.line_height,
                         letter_spacing: saved.letter_spacing,
@@ -450,8 +455,11 @@ impl ConfigState {
                     let published = changed.clone();
                     let _ = this.update(cx, |state, cx| {
                         state.pending = false;
-                        state.apply_terminal_font(&published);
+                        state.apply_terminal_page(&saved);
                         state.config.scrollback_lines = scrollback_lines;
+                        // The event is emitted after the complete snapshot, so a
+                        // listener sees cursor and padding changes that the font
+                        // event fields do not carry.
                         cx.emit(published);
                         if scrollback_lines != previous_lines {
                             cx.emit(ScrollbackChanged {

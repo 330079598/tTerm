@@ -28,7 +28,7 @@ use alacritty_terminal::selection::Selection as AnsiSelection;
 use alacritty_terminal::sync::FairMutex;
 use alacritty_terminal::term::cell::Cell as AnsiCell;
 use alacritty_terminal::term::{Config as TermConfig, Osc52, Term, TermDamage, TermMode};
-use alacritty_terminal::vte::ansi::Processor;
+use alacritty_terminal::vte::ansi::{CursorStyle as AnsiCursorStyle, Processor};
 
 use crate::cell::Cell;
 use crate::command_marks::overview::CommandMarkState;
@@ -45,6 +45,7 @@ use crate::snapshot::{self, Cursor, CursorShape, Row, Snapshot, SnapshotParts};
 
 mod legacy_restore;
 mod ordered_api;
+mod preferences;
 mod search_ops;
 mod selection_text;
 
@@ -179,6 +180,12 @@ pub struct Config {
     pub clipboard: ClipboardPolicy,
     /// Characters that end a word for double-click selection.
     pub word_separators: String,
+    /// The shape the cursor returns to when the application resets it.
+    ///
+    /// This is Alacritty's default cursor style: DECSCUSR sets an override
+    /// and its reset (or a fresh terminal) uses this shape. The view never
+    /// forces a shape, so a hidden cursor or an application override wins.
+    pub cursor_shape: CursorShape,
 }
 
 impl Default for Config {
@@ -188,6 +195,7 @@ impl Default for Config {
             kitty_keyboard: false,
             clipboard: ClipboardPolicy::default(),
             word_separators: WORD_SEPARATORS.to_string(),
+            cursor_shape: CursorShape::default(),
         }
     }
 }
@@ -198,6 +206,10 @@ impl Config {
             scrolling_history: self.scrollback,
             kitty_keyboard: self.kitty_keyboard,
             semantic_escape_chars: self.word_separators.clone(),
+            default_cursor_style: AnsiCursorStyle {
+                shape: self.cursor_shape.into(),
+                blinking: false,
+            },
             // Alacritty is the only clipboard reader. The model's bounded
             // scanner produces write intents so every OSC 52 store has one
             // bounded path while queries still use Alacritty's formatter.
@@ -523,11 +535,6 @@ impl Terminal {
             // active, so no visible history size can tell how far to move.
             state.command_marks.dispose_markers();
         }
-    }
-
-    /// The configured scrollback capacity, in lines.
-    pub fn scrollback(&self) -> usize {
-        self.state.lock().config.scrollback
     }
 
     /// The current modes, without copying or consuming the grid's damage.

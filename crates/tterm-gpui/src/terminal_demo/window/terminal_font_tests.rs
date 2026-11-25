@@ -18,7 +18,9 @@ use tterm_core::config::terminal_font_file::SavedTerminalFont;
 use tterm_core::events::AppEvent;
 use tterm_core::i18n::language::Language;
 use tterm_terminal::grid::GridSize;
+use tterm_terminal::snapshot::CursorShape;
 use tterm_terminal::terminal::Terminal;
+use tterm_terminal_view::view::layout::TerminalPadding;
 
 use super::split_state::Edge;
 use super::*;
@@ -234,6 +236,25 @@ impl Harness<'_> {
                 .is_some()
         })
     }
+
+    fn padding(&self, id: usize) -> TerminalPadding {
+        self.root.read_with(self.visual, |workspace, cx| {
+            workspace
+                .tabs
+                .get(id)
+                .expect("the tab")
+                .view
+                .read(cx)
+                .padding()
+        })
+    }
+
+    /// The shape a reset cursor returns to in a pane's live model.
+    fn reset_cursor_shape(&self, id: usize) -> CursorShape {
+        let model = self.model(id);
+        model.write(b"\x1b[0 q");
+        model.snapshot().cursor().shape
+    }
 }
 
 fn menlo() -> (Vec<String>, f32) {
@@ -392,6 +413,57 @@ async fn an_equivalent_chain_spelling_does_not_remeasure(cx: &mut TestAppContext
     assert_eq!(h.save_font("Fira Code,  monospace", SIZE).await, Ok(()));
     assert_eq!(h.font(1), font);
     assert_eq!(h.measurements(1), measurements);
+}
+
+#[gpui_kit::test]
+async fn a_committed_page_reaches_split_and_new_panes_with_cursor_and_padding(
+    cx: &mut TestAppContext,
+) {
+    use tterm_core::config::terminal_font_file::TerminalPageSettings;
+
+    let mut h = harness(cx);
+    h.open_tab();
+    h.draw();
+    let root = h.root.clone();
+    h.visual.update(|window, cx| {
+        root.update(cx, |workspace, cx| {
+            workspace.select_tab(1, window, cx);
+            workspace.split_tab(2, 1, Edge::Bottom, window, cx);
+        });
+    });
+    h.draw();
+
+    let save = h.visual.update(|_, cx| {
+        h.config.update(cx, |state, cx| {
+            let mut page = TerminalPageSettings::from(state.config());
+            page.cursor_style = "bar".to_string();
+            page.padding_left = 13;
+            page.padding_right = 5;
+            page.padding_bottom = 9;
+            state.save_terminal_page(page, cx)
+        })
+    });
+    save.await.expect("the committed page is accepted");
+    h.draw();
+
+    for id in [1, 2] {
+        assert_eq!(
+            h.padding(id),
+            TerminalPadding::new(13, 5, 9),
+            "an existing split pane takes the page padding"
+        );
+        assert_eq!(
+            h.reset_cursor_shape(id),
+            CursorShape::Beam,
+            "the live model resets to the configured bar"
+        );
+    }
+
+    // A pane opened after the save reads the same snapshot, not a stale one.
+    h.open_tab();
+    h.draw();
+    assert_eq!(h.padding(3), TerminalPadding::new(13, 5, 9));
+    assert_eq!(h.reset_cursor_shape(3), CursorShape::Beam);
 }
 
 #[gpui_kit::test]

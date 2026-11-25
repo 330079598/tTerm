@@ -20,6 +20,7 @@ use tterm_core::session::sink::SessionSink;
 use tterm_core::terminal::io_batcher::OutputFlow;
 use tterm_core::terminal::output::TerminalOutput;
 use tterm_terminal::grid::{CellSize, GridSize, WindowSize};
+use tterm_terminal::snapshot::CursorShape;
 use tterm_terminal::terminal::{ClipboardPolicy, Config, Terminal};
 
 use super::clipboard::store::ClipboardWrites;
@@ -290,6 +291,13 @@ impl Session {
             return;
         }
         model.set_scrollback(lines);
+        self.wake();
+    }
+
+    /// Changes the shape a reset cursor returns to in this session's model.
+    pub fn set_default_cursor_shape(&self, shape: CursorShape) {
+        let model = self.model();
+        model.set_default_cursor_shape(shape);
         self.wake();
     }
 

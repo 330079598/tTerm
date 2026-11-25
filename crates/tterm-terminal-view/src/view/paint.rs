@@ -62,12 +62,6 @@ pub struct PaintContext<'a> {
 }
 
 impl PaintContext<'_> {
-    /// Paints the terminal background.
-    pub fn paint_terminal_background(&mut self, bounds: Bounds<Pixels>) {
-        self.window
-            .paint_quad(fill(bounds, hsla(self.palette.background)));
-    }
-
     /// Paints one row's backgrounds, selection, text and decorations.
     pub fn paint_row(&mut self, row_index: usize, row: &RowLayout) {
         let origin = self.row_origin(row_index);

@@ -54,6 +54,8 @@ pub enum PreparedFrame {
     Full {
         /// The snapshot and shaped rows.
         data: Arc<FrameData>,
+        /// The element rectangle inside the pane padding.
+        content: Bounds<Pixels>,
         /// The top-left corner of the grid.
         origin: Point<Pixels>,
         /// The cursor, after focus and blink, when one is drawn.
@@ -78,6 +80,7 @@ impl PreparedFrame {
             }
             Self::Full {
                 data,
+                content,
                 origin,
                 cursor,
                 show_cursor,
@@ -85,7 +88,9 @@ impl PreparedFrame {
                 overview,
                 search,
             } => {
-                let mask = ContentMask { bounds };
+                // The padding shows the terminal background, not empty window color.
+                window.paint_quad(gpui_kit::fill(bounds, hsla(data.palette.background)));
+                let mask = ContentMask { bounds: *content };
                 window.with_content_mask(Some(mask), |window| {
                     let mut context = PaintContext {
                         window,
@@ -98,7 +103,6 @@ impl PreparedFrame {
                         cursor: *cursor,
                         search: Some(search),
                     };
-                    context.paint_terminal_background(bounds);
                     for (index, row) in data.rows.iter().enumerate() {
                         context.paint_row(index, row);
                     }
@@ -107,11 +111,13 @@ impl PreparedFrame {
                     {
                         context.paint_cursor(row);
                     }
-                    if let Some(scrollbar) = scrollbar {
+                    if let Some(scrollbar) = scrollbar
+                        && content.size.width >= gpui_kit::px(10.0)
+                    {
                         let track = Bounds {
                             origin: gpui_kit::point(
-                                bounds.origin.x + gpui_kit::px(bounds.size.width.as_f32() - 10.0),
-                                bounds.origin.y,
+                                content.right() - gpui_kit::px(10.0),
+                                content.origin.y,
                             ),
                             size: gpui_kit::size(gpui_kit::px(10.0), gpui_kit::px(scrollbar.track)),
                         };

@@ -37,8 +37,8 @@
 
 | 页面     | GPUI 状态              | 实际内容                                                                                    | 说明                                                                                  |
 | -------- | ---------------------- | ------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------- |
-| Terminal | 局部 | 字号、行高、字距、字体系列、回滚行数及预览；页尾统一保存 | 5/18 个设置字段可编辑；见[第二批证据](reports/P4-16-spacing.md) |
-| shells   | 局部（工作树未提交） | 自定义 shell 列表、新增/编辑（程序、名称、参数）、显式保存、失败保留草稿、Escape/Enter 处理 | 启动菜单有 Auto，设置页无 Auto 行；自动发现、默认、隐藏、复制、排序、删除、路径检查及桌面验收待做 |
+| Terminal | 局部 | 字号、行高、字距、字体系列、光标、回滚行数、三侧内边距及预览；页尾统一保存 | 9/18 个设置字段可编辑；见[第三批证据](reports/P4-16-cursor-padding.md) |
+| shells   | 局部（`9eb24d8b`） | 自定义 shell 列表、新增/编辑（程序、名称、参数）、显式保存、失败保留草稿、Escape/Enter 处理 | 启动菜单有 Auto，设置页无 Auto 行；自动发现、默认、隐藏、复制、排序、删除、路径检查及桌面验收待做 |
 
 侧栏只出现 Experience 组与这两行；搜索列出已实现的字体、预览、回滚和 Shell 条目。因此“搜索能打开某页”不能当作该页实现。
 
@@ -141,8 +141,8 @@
 
 - **迁移卡**：P4-16。
 - **React**：[`FontSettingsTab.tsx`](../../src/components/SettingsDialog/FontSettingsTab.tsx)、[`FontFamilyPicker.tsx`](../../src/components/SettingsDialog/FontFamilyPicker.tsx)、[`CursorStylePicker.tsx`](../../src/components/SettingsDialog/CursorStylePicker.tsx)、[`ScrollbackLinesField.tsx`](../../src/components/SettingsDialog/ScrollbackLinesField.tsx)、[`TerminalPaddingFields.tsx`](../../src/components/SettingsDialog/TerminalPaddingFields.tsx)、[`useTerminalSettingsDraft.ts`](../../src/components/SettingsDialog/useTerminalSettingsDraft.ts)。
-- **GPUI 交互**：局部。字体组、回滚行数和预览按原版顺序呈现，五个字段显式保存。光标、行为开关、渲染器和内边距等仍没有编辑控件。
-- **双端存储**：React 可一次保存 18 个终端字段；GPUI 对已实现的五个字段用一次文件更新，只改用户修改的字段。隔离文件读回已测，双客户端桌面互写待验。
+- **GPUI 交互**：局部。字体组、光标样式、回滚行数、内边距和预览按原版顺序呈现，九个字段显式保存。行为开关和渲染器仍没有编辑控件。
+- **双端存储**：React 可一次保存 18 个终端字段；GPUI 对已实现的九个字段用一次文件更新，只改用户修改的字段。隔离文件读回已测，双客户端桌面互写待验。
 - **视觉/证据**：局部。5 张 GPUI 截图只比较标题/搜索区与回滚字段；侧栏页面集合、拉丁字体宽度、数字步进器、Save 位置均有已知差异，整页未通过。见 [P4-15 报告](reports/P4-15.md) 与 [资产](reports/assets/settings-scrollback-flow/)。
 
 控件与动作：
@@ -154,13 +154,13 @@
 
 平台/条件：`mac_option_is_meta` 仅 macOS；`local_unix_shell_integration` 仅非 Windows 且依赖命令标记。
 
-待补：其余 13 个字段、整页布局、浅色与不同缩放、跨平台桌面复核。见[页首和页尾截图](reports/P4-16-spacing.md)。
+待补：其余 9 个字段、整页布局、浅色与不同缩放、跨平台桌面复核。见[光标与内边距截图](reports/P4-16-cursor-padding.md)。
 
 ### 4.6 `shells` — Shell
 
 - **迁移卡**：P4-17；与 P3-11 新标签启动器共用子集。
 - **React**：[`LocalShells/LocalShellSettings.tsx`](../../src/components/SettingsDialog/LocalShells/LocalShellSettings.tsx)、[`LocalShellEditor.tsx`](../../src/components/SettingsDialog/LocalShells/LocalShellEditor.tsx)、[`LocalShellRow.tsx`](../../src/components/SettingsDialog/LocalShells/LocalShellRow.tsx)、[`useLocalShellSettings.ts`](../../src/components/SettingsDialog/LocalShells/useLocalShellSettings.ts)、[`src/lib/localShells.ts`](../../src/lib/localShells.ts)。
-- **GPUI 交互**：**局部（工作树未提交）**。已验自定义 shell 的列表、新增/编辑（程序、名称、参数）、显式保存与失败重试。设置页没有 Auto 行、检测到的 shell、默认星标/徽标、隐藏/复制/上移/下移/删除、“设为默认”、路径存在性检查或缺程序提示。
+- **GPUI 交互**：**局部（`9eb24d8b`）**。已验自定义 shell 的列表、新增/编辑（程序、名称、参数）、显式保存与失败重试。设置页没有 Auto 行、检测到的 shell、默认星标/徽标、隐藏/复制/上移/下移/删除、“设为默认”、路径存在性检查或缺程序提示。
 - **双端存储**：`config.json`：`local_shells`、`hidden_shells`、`terminal_shell`、`terminal_shell_id`、`terminal_shell_custom_path`、`terminal_shell_custom_args`、`terminal_shell_wsl_distro`。GPUI 保存时会先读最新文件再应用共享规则，写入 `local_shells` 以及默认项可能被带着改动的 `terminal_shell*` 字段；检测列表与 `check_local_shell` 尚未接入。
 - **视觉/证据**：待补。GPUI 截图工具仍只生成 Terminal 页的 5 个状态，没有 Shell 页。
 
@@ -348,7 +348,7 @@
 
 1. **写整份配置会覆盖另一端的改动。** React 的 `saveConfig` 把内存中的整份 `AppConfig` 发给 `save_config`；GPUI 的回滚行数、Shell、布局模板保存则先读最新文件再只改自己负责的字段或条目。后者不会覆盖前者，但前者在旧快照上保存会覆盖 GPUI 刚写入的值。字体/终端页一次保存 18 个字段，最容易出现“改了终端回滚行数，另一端保存字体页又把它改回去”。每页验收时要包含一次跨端写入后重开的检查。
 2. **侧栏与搜索不是完整索引。** GPUI 侧栏只有 Experience 组的 2 行，搜索只列已实现条目；其余 12 页在 React 的搜索索引中可搜到，但 GPUI 不列。
-3. **Shell 页是工作树快照。** 本批自动验证对应尚未提交的工作树；双客户端桌面读写与同状态整页截图仍待补。
+3. **Shell 页只交付自定义条目子集。** 已提交 `9eb24d8b`；双客户端桌面读写与同状态整页截图仍待补。
 4. **视觉证据只有一页且只是局部。** Terminal 页的对比只覆盖标题/搜索区与回滚字段，且已知侧栏集合、字体宽度、步进器、Save 位置差异；General 只有 React 参照屏，没有 GPUI 截图；其余 12 页连参照屏也没有。每页至少需要默认态 + 空/错误/禁用态 + 平台条件态，不能只截默认页。
 5. **平台专有条件没有自动证据。** 窗口模糊与材质、后台策略、系统钥匙串与系统解锁、系统集成菜单、目录/文件选择器、更新器、通知权限，都需要在 macOS 与 Windows 上人工核对；Linux 按项目现状另记。本文不把这些列为已验。
 6. **浅色、islands、125% 未验。** 现有 GPUI 截图与参照都只是 dark/classic/100%；P4-15 报告已明确这一点，本文沿用。

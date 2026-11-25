@@ -1,6 +1,7 @@
 //! Pointer routing and selection use the frame's grid geometry.
 
 use super::TerminalView;
+use super::layout::cell_at;
 use super::scrollbar::ScrollbarGeometry;
 use crate::input::click::{ClickCount, selection_kind};
 use crate::input::mouse::{self, ButtonAction, ButtonState};
@@ -22,10 +23,36 @@ impl TerminalView {
     pub(super) fn pointer_cell(&self, position: Point<Pixels>) -> Option<(GridPoint, Side)> {
         let frame = self.last_frame.as_ref()?;
         let origin = self.input_origin?;
+        let content = self.content_bounds()?;
+        let grid = frame.grid();
+        let (row, column) = cell_at(content, origin, grid, &frame.metrics, position)?;
+        let x = (position.x - origin.x).as_f32() / frame.metrics.cell_width;
+        let side = if x.fract() < 0.5 {
+            Side::Left
+        } else {
+            Side::Right
+        };
+        Some((
+            GridPoint::new(row as i32 - frame.snapshot.display_offset() as i32, column),
+            side,
+        ))
+    }
+
+    /// The nearest cell while a press that started inside the grid is held.
+    ///
+    /// A release delivered outside the pane still has to pair the button it
+    /// reported or finish the selection it began. This fallback is never used
+    /// for a fresh pointer position, so padding still cannot become a cell or
+    /// start a mouse report.
+    fn pointer_cell_clamped(&self, position: Point<Pixels>) -> Option<(GridPoint, Side)> {
+        self.pointer.held?;
+        let frame = self.last_frame.as_ref()?;
+        let origin = self.input_origin?;
+        let grid = frame.grid();
         let x = (position.x - origin.x).as_f32() / frame.metrics.cell_width;
         let y = (position.y - origin.y).as_f32() / frame.metrics.cell_height;
-        let column = x.floor().clamp(0.0, (frame.grid().columns - 1) as f32) as usize;
-        let row = y.floor().clamp(0.0, (frame.grid().screen_lines - 1) as f32) as i32;
+        let column = x.floor().clamp(0.0, (grid.columns - 1) as f32) as usize;
+        let row = y.floor().clamp(0.0, (grid.screen_lines - 1) as f32) as i32;
         let side = if x.fract() < 0.5 {
             Side::Left
         } else {
@@ -43,27 +70,25 @@ impl TerminalView {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        if event.position.x.as_f32()
-            >= self
-                .input_origin
-                .map(|origin| origin.x.as_f32())
-                .unwrap_or(0.0)
-                + self
-                    .last_frame
-                    .as_ref()
-                    .map(|frame| frame.metrics.cell_width * frame.grid().columns as f32)
-                    .unwrap_or(0.0)
-            && let Some(frame) = self.last_frame.as_ref()
+        if let Some(frame) = self.last_frame.as_ref()
+            && let Some(content) = self.content_bounds()
+            && content.size.width >= gpui_kit::px(10.0)
+            && let Some(origin) = self.input_origin
+            && event.position.x
+                >= origin.x + gpui_kit::px(frame.grid().columns as f32 * frame.metrics.cell_width)
+            && event.position.x < content.right()
+            && event.position.y >= content.origin.y
+            && event.position.y < content.bottom()
             && frame.snapshot.history_size() > 0
         {
-            let track = frame.snapshot.grid().screen_lines as f32 * frame.metrics.cell_height;
+            let track = content.size.height.as_f32();
             let geometry = ScrollbarGeometry::new(
                 track,
                 frame.snapshot.grid().screen_lines,
                 frame.snapshot.history_size(),
                 frame.snapshot.display_offset(),
             );
-            let y = (event.position.y - self.input_origin.unwrap().y).as_f32();
+            let y = (event.position.y - content.origin.y).as_f32();
             let target = geometry.offset_at(y, frame.snapshot.history_size());
             let current = frame.snapshot.display_offset();
             self.terminal
@@ -142,16 +167,15 @@ impl TerminalView {
     ) {
         if self.scrollbar_drag {
             if let Some(frame) = self.last_frame.as_ref()
-                && let Some(origin) = self.input_origin
+                && let Some(content) = self.content_bounds()
             {
-                let track = frame.snapshot.grid().screen_lines as f32 * frame.metrics.cell_height;
                 let geometry = ScrollbarGeometry::new(
-                    track,
+                    content.size.height.as_f32(),
                     frame.snapshot.grid().screen_lines,
                     frame.snapshot.history_size(),
                     frame.snapshot.display_offset(),
                 );
-                let y = (event.position.y - origin.y).as_f32();
+                let y = (event.position.y - content.origin.y).as_f32();
                 let target = geometry.offset_at(y, frame.snapshot.history_size());
                 let current = frame.snapshot.display_offset();
                 if target != current {
@@ -167,9 +191,12 @@ impl TerminalView {
         if event.pressed_button.is_none() && self.pointer.held.is_some() {
             self.finish_pointer(event.position, event.modifiers, cx);
         }
-        let Some((point, side)) = self.pointer_cell(event.position) else {
+        let strict = self.pointer_cell(event.position);
+        let Some((point, side)) = strict.or_else(|| self.pointer_cell_clamped(event.position))
+        else {
             return;
         };
+        let in_grid = strict.is_some();
         let held = self.pointer.held;
         let option_forces =
             self.pointer_policy.macos_option_forces_selection && event.modifiers.alt;
@@ -180,7 +207,8 @@ impl TerminalView {
             mouse::motion(self.input_modes(), held, force_local)
         };
         if let Some(motion) = motion {
-            if self.pointer.last_cell != Some(point)
+            if in_grid
+                && self.pointer.last_cell != Some(point)
                 && let Some(bytes) =
                     mouse::encode_motion(point, motion, event.modifiers.into(), self.input_modes())
             {
@@ -229,7 +257,10 @@ impl TerminalView {
         let Some(button) = self.pointer.held else {
             return;
         };
-        if let Some((point, side)) = self.pointer_cell(position) {
+        if let Some((point, side)) = self
+            .pointer_cell(position)
+            .or_else(|| self.pointer_cell_clamped(position))
+        {
             if self.pointer.selecting {
                 self.terminal.extend_selection(point, side);
                 self.invalidate(cx);

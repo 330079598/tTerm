@@ -17,6 +17,7 @@ use gpui_kit::{
 use tterm_terminal::grid::{CellSize, GridSize};
 use tterm_terminal::terminal::{Config, Scroll, Terminal};
 
+use super::layout::TerminalPadding;
 use super::{TerminalView, TerminalViewConfig};
 
 fn terminal() -> Arc<Terminal> {
@@ -298,6 +299,40 @@ fn activating_a_view_focuses_it_and_reports_its_grid_again(cx: &mut TestAppConte
         resizes.borrow().len() > before,
         "activation reports the current grid to the session again"
     );
+}
+
+#[gpui_kit::test]
+fn padding_fits_the_grid_and_a_live_change_refits_the_model(cx: &mut TestAppContext) {
+    let (handle, view) = open_window(cx);
+    cx.update_window(handle, |_, window, cx| window.render_frame(cx))
+        .expect("render the first frame");
+
+    view.update(cx, |view, cx| {
+        view.set_padding(TerminalPadding::new(11, 7, 5), cx)
+    });
+    cx.update_window(handle, |_, window, cx| window.render_frame(cx))
+        .expect("render with the padding");
+
+    view.read_with(cx, |view, _| {
+        let content = view.content_bounds().expect("a content rectangle");
+        let metrics = view.cell_geometry().expect("measured metrics");
+        assert_eq!(content.origin.x, px(11.0));
+        assert_eq!(
+            view.input_origin.expect("the grid origin").x,
+            content.origin.x
+        );
+        let expected = super::font::grid_for(
+            content.size.width,
+            content.size.height,
+            &metrics,
+            view.model().scrollback() > 0,
+        );
+        assert_eq!(view.grid_size().expect("the fitted grid"), expected);
+        assert_eq!(
+            view.model().grid_size(),
+            view.grid_size().expect("the grid")
+        );
+    });
 }
 
 #[test]

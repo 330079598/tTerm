@@ -58,6 +58,8 @@ export const fixtures: Record<string, ParityFixture> = {
   "settings.terminal.scrollback": settingsReferenceFixture,
   "settings.terminal.font": settingsReferenceFixture,
   "settings.terminal.preview": settingsReferenceFixture,
+  "settings.terminal.cursor": settingsReferenceFixture,
+  "settings.terminal.padding": settingsReferenceFixture,
   "settings.search.scrollback": settingsReferenceFixture,
   "settings.search.scrollback.open": settingsReferenceFixture,
   "settings.search.scrollback-zh": settingsReferenceFixture,

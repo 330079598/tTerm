@@ -3,6 +3,7 @@
 #[path = "shell_launcher_tests.rs"]
 mod shell_launcher_tests;
 
+mod appearance;
 mod font;
 mod layout;
 mod local_shells;

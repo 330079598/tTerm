@@ -50,7 +50,7 @@ export function TerminalPaddingFields({
       <Label className="mb-2 block">
         {t("fontSettings.terminalPadding", { defaultValue: "Terminal Padding" })}
       </Label>
-      <div className="grid gap-3 sm:grid-cols-3">
+      <div className="grid gap-3 sm:grid-cols-3" data-parity="settings.padding.fields">
         {terminalPaddingFields.map((field) => (
           <div key={field.id} className="space-y-1.5">
             <Label htmlFor={field.id} className="text-muted-foreground text-xs">

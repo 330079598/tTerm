@@ -41,15 +41,21 @@ const IMPLEMENTED: &[(&str, TranslationKey, Option<TranslationKey>)] = &[
         keys::FONT_SETTINGS_LETTER_SPACING,
         Some(keys::FONT_SETTINGS_SPACING_DESC),
     ),
-    (
-        TERMINAL_PAGE_VALUE,
-        keys::FONT_SETTINGS_PREVIEW,
-        Some(keys::FONT_SETTINGS_PREVIEW_DESC),
-    ),
+    (TERMINAL_PAGE_VALUE, keys::FONT_SETTINGS_CURSOR_STYLE, None),
     (
         TERMINAL_PAGE_VALUE,
         keys::FONT_SETTINGS_SCROLLBACK_LINES,
         None,
+    ),
+    (
+        TERMINAL_PAGE_VALUE,
+        keys::FONT_SETTINGS_TERMINAL_PADDING,
+        Some(keys::FONT_SETTINGS_TERMINAL_PADDING_DESC),
+    ),
+    (
+        TERMINAL_PAGE_VALUE,
+        keys::FONT_SETTINGS_PREVIEW,
+        Some(keys::FONT_SETTINGS_PREVIEW_DESC),
     ),
     (
         LOCAL_SHELLS_PAGE_VALUE,

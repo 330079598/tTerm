@@ -35,7 +35,7 @@ export const CursorStylePicker: React.FC<CursorStylePickerProps> = ({ value, onC
   const { t } = useTranslation()
 
   return (
-    <div className="grid gap-2 sm:grid-cols-3">
+    <div className="grid gap-2 sm:grid-cols-3" data-parity="settings.cursor.choices">
       {CURSOR_STYLE_OPTIONS.map((option) => {
         const selected = option.value === value
 

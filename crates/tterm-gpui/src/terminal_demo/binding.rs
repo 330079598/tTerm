@@ -22,6 +22,7 @@ use tterm_core::prompts::SessionKey;
 use tterm_core::services::AppServices;
 use tterm_core::workspace::tab_attention::TabAttentionStore;
 use tterm_terminal::grid::{CellSize, GridSize, WindowSize};
+use tterm_terminal::snapshot::CursorShape;
 use tterm_terminal::terminal::{Config, Terminal};
 
 use self::scoped::{ConnectionState, SessionScopedState};
@@ -68,6 +69,18 @@ impl SessionManager {
         self.terminal_config.borrow_mut().scrollback = lines;
         for binding in self.tabs().values() {
             binding.set_scrollback(lines);
+        }
+    }
+
+    /// Changes the default cursor shape of every managed session.
+    ///
+    /// Sessions opened later inherit the same shape. An application's live
+    /// DECSCUSR override is kept, because the model, not the view, applies
+    /// the default; the next reset returns to this shape.
+    pub fn set_default_cursor_shape(&self, shape: CursorShape) {
+        self.terminal_config.borrow_mut().cursor_shape = shape;
+        for binding in self.tabs().values() {
+            binding.set_default_cursor_shape(shape);
         }
     }
 
@@ -324,6 +337,12 @@ impl TabBinding {
     fn set_scrollback(&self, lines: usize) {
         if let Some(session) = self.session() {
             session.set_scrollback(lines);
+        }
+    }
+
+    fn set_default_cursor_shape(&self, shape: CursorShape) {
+        if let Some(session) = self.session() {
+            session.set_default_cursor_shape(shape);
         }
     }
 

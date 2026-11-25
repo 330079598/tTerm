@@ -1,6 +1,7 @@
 //! Selection and clipboard tests exercise the same pointer listeners as the window.
 
 use super::input_tests::Harness;
+use super::layout::TerminalPadding;
 use gpui_kit::{
     ClipboardItem, Modifiers, MouseButton, MouseDownEvent, MouseMoveEvent, MouseUpEvent,
     TestAppContext, point, px,
@@ -820,4 +821,61 @@ fn right_click_pastes_through_the_same_gate_when_enabled(cx: &mut TestAppContext
     );
     assert_eq!(&*h.bytes.borrow(), b"lane\rnext");
     assert!(h.terminal.selection_text().is_none());
+}
+
+#[gpui_kit::test]
+fn page_padding_is_not_a_cell_and_never_reaches_the_program(cx: &mut TestAppContext) {
+    let h = Harness::with_padding(cx, TerminalPadding::new(11, 7, 5));
+    let content = h
+        .view
+        .read_with(cx, |view, _| view.content_bounds())
+        .expect("a prepared content rectangle");
+    let origin = h
+        .view
+        .read_with(cx, |view, _| view.input_origin)
+        .expect("a prepared grid origin");
+    assert_eq!(
+        content.origin.x, origin.x,
+        "the grid starts inside the left padding"
+    );
+    let outside = [
+        point(content.origin.x - px(1.0), content.origin.y + px(1.0)),
+        point(content.right() + px(1.0), content.origin.y + px(1.0)),
+        point(content.origin.x + px(1.0), content.bottom() + px(1.0)),
+    ];
+    h.view.read_with(cx, |view, _| {
+        for position in outside {
+            assert_eq!(view.pointer_cell(position), None, "padding has no cell");
+        }
+        assert!(
+            view.pointer_cell(origin).is_some(),
+            "the grid still starts at its origin"
+        );
+    });
+
+    h.output(cx, b"\x1b[?1002h\x1b[?1006h");
+    for position in outside {
+        h.event(
+            cx,
+            MouseDownEvent {
+                button: MouseButton::Left,
+                position,
+                click_count: 1,
+                ..Default::default()
+            },
+        );
+        h.event(
+            cx,
+            MouseUpEvent {
+                button: MouseButton::Left,
+                position,
+                click_count: 1,
+                ..Default::default()
+            },
+        );
+    }
+    assert!(
+        h.bytes.borrow().is_empty(),
+        "a pointer in padding sends no mouse report"
+    );
 }

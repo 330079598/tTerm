@@ -1115,6 +1115,63 @@ fn cursor_style_changes_report_blinking_and_shape() {
 }
 
 #[test]
+fn an_application_cursor_override_wins_and_reset_returns_to_the_configured_shape() {
+    let terminal = Terminal::new(
+        Config {
+            cursor_shape: CursorShape::Beam,
+            ..Config::default()
+        },
+        GridSize::new(20, 5),
+        CELL,
+    );
+    assert_eq!(terminal.snapshot().cursor().shape, CursorShape::Beam);
+
+    // DECSCUSR 4 is the steady underline; the configured bar does not win.
+    terminal.write(b"\x1b[4 q");
+    assert_eq!(terminal.snapshot().cursor().shape, CursorShape::Underline);
+
+    // DECSCUSR 0 clears the override, as vte maps it to `None`.
+    terminal.write(b"\x1b[0 q");
+    assert_eq!(terminal.snapshot().cursor().shape, CursorShape::Beam);
+}
+
+#[test]
+fn changing_the_default_cursor_shape_keeps_an_active_override_until_reset() {
+    let terminal = terminal(20, 5, 0);
+    terminal.write(b"\x1b[2 q");
+    assert_eq!(terminal.snapshot().cursor().shape, CursorShape::Block);
+
+    terminal.set_default_cursor_shape(CursorShape::Underline);
+    assert_eq!(
+        terminal.snapshot().cursor().shape,
+        CursorShape::Block,
+        "a live application override survives a settings change"
+    );
+
+    terminal.write(b"\x1b[0 q");
+    assert_eq!(terminal.snapshot().cursor().shape, CursorShape::Underline);
+}
+
+#[test]
+fn a_hidden_cursor_is_reported_and_restores_the_default_shape() {
+    let terminal = Terminal::new(
+        Config {
+            cursor_shape: CursorShape::Underline,
+            ..Config::default()
+        },
+        GridSize::new(20, 5),
+        CELL,
+    );
+    terminal.write(b"\x1b[?25l");
+    let frame = terminal.snapshot();
+    assert_eq!(frame.cursor().shape, CursorShape::Hidden);
+    assert!(!frame.cursor().is_visible());
+
+    terminal.write(b"\x1b[?25h");
+    assert_eq!(terminal.snapshot().cursor().shape, CursorShape::Underline);
+}
+
+#[test]
 fn the_kitty_keyboard_protocol_is_opt_in() {
     let off = terminal(20, 5, 0);
     off.write(b"\x1b[>1u");

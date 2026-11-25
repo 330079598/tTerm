@@ -50,8 +50,8 @@ fn page_layout_matches_the_reference_metrics(cx: &mut TestAppContext) {
         608.0,
         527.0,
     );
-    // The page shows text rendering first, then scrollback, then the preview,
-    // and one Save last. The font section is taller than the viewport, so the
+    // The page shows text rendering first, then the cursor samples, scrollback,
+    // padding, the preview and one Save last. The font section is taller than the viewport, so the
     // later sections are laid out below it rather than hidden by a second
     // save action.
     assert_page_box(
@@ -82,7 +82,7 @@ fn page_layout_matches_the_reference_metrics(cx: &mut TestAppContext) {
         harness.visual,
         super::settings_page::SETTINGS_SCROLLBACK_SECTION_ID,
         216.0,
-        783.0,
+        903.0,
         536.0,
         111.0,
     );
@@ -90,7 +90,7 @@ fn page_layout_matches_the_reference_metrics(cx: &mut TestAppContext) {
         harness.visual,
         super::settings_page::SETTINGS_SCROLLBACK_INPUT_ID,
         216.0,
-        805.0,
+        925.0,
         536.0,
         36.0,
     );
@@ -98,7 +98,7 @@ fn page_layout_matches_the_reference_metrics(cx: &mut TestAppContext) {
         harness.visual,
         crate::font_setting::PREVIEW_ID,
         216.0,
-        988.0,
+        1252.0,
         536.0,
         40.0,
     );
@@ -106,7 +106,7 @@ fn page_layout_matches_the_reference_metrics(cx: &mut TestAppContext) {
         harness.visual,
         super::settings_page::SETTINGS_SAVE_ID,
         216.0,
-        1161.0,
+        1425.0,
         536.0,
         36.0,
     );

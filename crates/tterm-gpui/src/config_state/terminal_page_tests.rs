@@ -112,6 +112,10 @@ async fn saves_the_page_then_publishes_the_actual_values_and_both_events(cx: &mu
             line_height: 1.26,
             letter_spacing: 2,
             scrollback_lines: 50_000,
+            cursor_style: "underline".to_string(),
+            padding_left: 12,
+            padding_right: 14,
+            padding_bottom: 8,
         },
     )
     .await;
@@ -125,6 +129,10 @@ async fn saves_the_page_then_publishes_the_actual_values_and_both_events(cx: &mu
             line_height: 1.26,
             letter_spacing: 2,
             scrollback_lines: 50_000,
+            cursor_style: "underline".to_string(),
+            padding_left: 12,
+            padding_right: 14,
+            padding_bottom: 8,
         }],
         "the checked draft reaches the one page writer"
     );
@@ -136,6 +144,10 @@ async fn saves_the_page_then_publishes_the_actual_values_and_both_events(cx: &mu
             line_height: 1.3,
             letter_spacing: 2,
             scrollback_lines: 50_000,
+            cursor_style: "underline".to_string(),
+            padding_left: 12,
+            padding_right: 14,
+            padding_bottom: 8,
         },
         "the snapshot publishes what the writer reported, not the draft"
     );
@@ -184,6 +196,68 @@ async fn a_font_only_page_does_not_emit_a_scrollback_change(cx: &mut TestAppCont
             .expect("scrollback events")
             .is_empty(),
         "an unchanged capacity must not move the scrollback buffer"
+    );
+}
+
+#[gpui_kit::test]
+async fn a_cursor_and_padding_only_page_updates_the_snapshot_before_the_font_event(
+    cx: &mut TestAppContext,
+) {
+    let runtime = runtime();
+    let writer: TerminalPageWriter = Arc::new(Ok);
+    let state = cx.update(|cx| {
+        cx.new(|_| {
+            ConfigState::with_terminal_page_writer(AppConfig::default(), runtime.handle(), writer)
+        })
+    });
+    let seen = Arc::new(Mutex::new(Vec::new()));
+    let recorded = Arc::clone(&seen);
+    cx.update(|cx| {
+        cx.subscribe(&state, move |state, event: &TerminalFontChanged, cx| {
+            let config = state.read(cx).config();
+            recorded.lock().expect("page snapshot at event").push((
+                event.family.clone(),
+                config.cursor_style.clone(),
+                config.terminal_padding_left_px,
+                config.terminal_padding_right_px,
+                config.terminal_padding_bottom_px,
+            ));
+        })
+        .detach();
+    });
+    let font_events = subscribe_font(cx, &state);
+    let scrollback_events = subscribe_scrollback(cx, &state);
+    cx.executor().allow_parking();
+
+    let mut draft = page(cx, &state);
+    draft.cursor_style = "bar".to_string();
+    draft.padding_left = 12;
+    draft.padding_right = 14;
+    draft.padding_bottom = 8;
+    let result = save(cx, &state, draft.clone()).await;
+
+    assert_eq!(result, Ok(()));
+    assert_eq!(page(cx, &state), draft);
+    assert_eq!(
+        *seen.lock().expect("page snapshot at event"),
+        vec![(draft.family.clone(), "bar".to_string(), 12, 14, 8)],
+        "the listener sees the cursor and padding the event follows"
+    );
+    assert_eq!(
+        *font_events.lock().expect("font events"),
+        vec![(
+            draft.family.clone(),
+            draft.size,
+            draft.line_height,
+            draft.letter_spacing
+        )]
+    );
+    assert!(
+        scrollback_events
+            .lock()
+            .expect("scrollback events")
+            .is_empty(),
+        "a cursor and padding edit must not move the scrollback buffer"
     );
 }
 
@@ -290,6 +364,22 @@ async fn refuses_an_invalid_page_before_the_writer_runs(cx: &mut TestAppContext)
         },
         TerminalPageSettings {
             letter_spacing: 11,
+            ..before.clone()
+        },
+        TerminalPageSettings {
+            cursor_style: "beam".to_string(),
+            ..before.clone()
+        },
+        TerminalPageSettings {
+            padding_left: 81,
+            ..before.clone()
+        },
+        TerminalPageSettings {
+            padding_right: 81,
+            ..before.clone()
+        },
+        TerminalPageSettings {
+            padding_bottom: 81,
             ..before.clone()
         },
     ] {

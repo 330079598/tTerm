@@ -2,15 +2,16 @@
 
 use std::sync::Arc;
 
-use gpui_kit::{Bounds, Context, Pixels, Point, Window};
+use gpui_kit::{Bounds, Context, Pixels, Window};
 use tterm_terminal::damage::Damage;
 use tterm_terminal::grid::GridSize;
 use tterm_terminal::mode::Modes;
 
 use super::TerminalView;
 use super::blink::{BLINK_INTERVAL, BlinkState};
-use super::font::{CellGeometry, FontSet, grid_for, measure_cell};
+use super::font::{FontSet, grid_for, measure_cell};
 use super::frame::{FrameData, PreparedFrame, cursor_for};
+use super::layout;
 use super::overview::{self, OverviewLayout};
 use super::row::{plan_row, row_hash, shape_row};
 use super::scrollbar::ScrollbarGeometry;
@@ -36,6 +37,7 @@ impl TerminalView {
                 background: self.palette.background,
             };
         }
+        let content = layout::content_bounds(bounds, self.padding);
 
         let scale_factor = window.scale_factor();
         let text_system = window.text_system().clone();
@@ -59,8 +61,8 @@ impl TerminalView {
         };
 
         let grid = grid_for(
-            bounds.size.width,
-            bounds.size.height,
+            content.size.width,
+            content.size.height,
             &metrics,
             self.terminal.scrollback() > 0,
         );
@@ -128,8 +130,8 @@ impl TerminalView {
             true
         };
 
-        let origin = grid_origin(
-            bounds,
+        let origin = layout::grid_origin(
+            content,
             data.snapshot.grid(),
             &data.metrics,
             bottom_anchored(&data.snapshot),
@@ -141,7 +143,7 @@ impl TerminalView {
         self.prepare_ime(&data, origin, window, cx);
         let scrollbar = (data.snapshot.history_size() > 0).then(|| {
             ScrollbarGeometry::new(
-                bounds.size.height.as_f32(),
+                content.size.height.as_f32(),
                 data.snapshot.grid().screen_lines,
                 data.snapshot.history_size(),
                 data.snapshot.display_offset(),
@@ -155,6 +157,7 @@ impl TerminalView {
         self.stats.overview_marks = u64::try_from(overview.rects.len()).unwrap_or(u64::MAX);
         PreparedFrame::Full {
             data,
+            content,
             origin,
             cursor,
             show_cursor,
@@ -275,27 +278,6 @@ fn damaged_rows(damage: &Damage, line_count: usize) -> Vec<bool> {
         }
     }
     damaged
-}
-
-/// The grid origin for a viewport.
-pub(crate) fn grid_origin(
-    bounds: Bounds<Pixels>,
-    grid: GridSize,
-    metrics: &CellGeometry,
-    bottom_anchored: bool,
-    scale_factor: f32,
-) -> Point<Pixels> {
-    let snap = |value: f32| (value * scale_factor).round() / scale_factor;
-    let x = snap(bounds.origin.x.as_f32());
-    let extra = if bottom_anchored {
-        (bounds.size.height.as_f32() - grid.screen_lines as f32 * metrics.cell_height).max(0.0)
-    } else {
-        0.0
-    };
-    Point::new(
-        gpui_kit::px(x),
-        gpui_kit::px(snap(bounds.origin.y.as_f32() + extra)),
-    )
 }
 
 /// Whether the viewport should sit at the bottom of the element.

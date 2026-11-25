@@ -45,6 +45,33 @@ impl From<AnsiCursorShape> for CursorShape {
     }
 }
 
+impl From<CursorShape> for AnsiCursorShape {
+    fn from(shape: CursorShape) -> Self {
+        match shape {
+            CursorShape::Block => Self::Block,
+            CursorShape::Underline => Self::Underline,
+            CursorShape::Beam => Self::Beam,
+            CursorShape::HollowBlock => Self::HollowBlock,
+            CursorShape::Hidden => Self::Hidden,
+        }
+    }
+}
+
+impl CursorShape {
+    /// Reads the shared config's cursor style name.
+    ///
+    /// The settings page only accepts `block`, `bar` and `underline`; an
+    /// unknown name falls back to the term default rather than hiding the
+    /// cursor or surprising a caller with another shape.
+    pub fn from_config(value: &str) -> Self {
+        match value {
+            "bar" | "beam" => Self::Beam,
+            "underline" => Self::Underline,
+            _ => Self::Block,
+        }
+    }
+}
+
 /// Where the cursor is and how to draw it.
 ///
 /// The point is in grid coordinates, as the design note requires; use

@@ -286,7 +286,7 @@ fn sidebar_tab(
 }
 
 fn content(page: &mut SettingsPage, cx: &mut Context<SettingsPage>) -> Stateful<Div> {
-    let panel = div()
+    let mut panel = div()
         .id(SETTINGS_PANEL_ID)
         .track_scroll(&page.content_scroll)
         .debug_selector(|| SETTINGS_PANEL_ID.to_string())
@@ -297,17 +297,15 @@ fn content(page: &mut SettingsPage, cx: &mut Context<SettingsPage>) -> Stateful<
         .pr(px(CONTENT_PAD + CONTENT_SCROLLBAR));
     match page.active_tab {
         SettingsTab::Terminal => {
-            let text = page.font.update(cx, |setting, cx| setting.text_section(cx));
-            let scrollback = page
-                .scrollback
-                .update(cx, |setting, cx| setting.section(cx));
-            let preview = page.font.read(cx).preview_section(cx);
-            let save = page_save(page, cx);
+            for (index, section) in super::SETTINGS_SECTIONS.iter().enumerate() {
+                let child = final_section(page, *section, cx);
+                panel = panel.child(
+                    div()
+                        .when(index > 0, |child| child.mt(px(24.0)))
+                        .child(child),
+                );
+            }
             panel
-                .child(text)
-                .child(div().mt(px(24.0)).child(scrollback))
-                .child(div().mt(px(24.0)).child(preview))
-                .child(div().mt(px(24.0)).child(save))
         }
         SettingsTab::LocalShells => {
             let section = page
@@ -315,6 +313,35 @@ fn content(page: &mut SettingsPage, cx: &mut Context<SettingsPage>) -> Stateful<
                 .update(cx, |setting, cx| setting.section(cx));
             panel.child(section)
         }
+    }
+}
+
+/// Renders one Terminal-page section in the shared order.
+fn final_section(
+    page: &mut SettingsPage,
+    section: super::SettingsSection,
+    cx: &mut Context<SettingsPage>,
+) -> AnyElement {
+    use super::SettingsSection;
+    match section {
+        SettingsSection::Font => page
+            .font
+            .update(cx, |setting, cx| setting.text_section(cx))
+            .into_any_element(),
+        SettingsSection::Cursor => page
+            .appearance
+            .update(cx, |setting, cx| setting.cursor_section(cx))
+            .into_any_element(),
+        SettingsSection::Scrollback => page
+            .scrollback
+            .update(cx, |setting, cx| setting.section(cx))
+            .into_any_element(),
+        SettingsSection::Padding => page
+            .appearance
+            .update(cx, |setting, cx| setting.padding_section(cx))
+            .into_any_element(),
+        SettingsSection::Preview => page.font.read(cx).preview_section(cx).into_any_element(),
+        SettingsSection::Save => page_save(page, cx).into_any_element(),
     }
 }
 

@@ -1,5 +1,6 @@
 //! GPUI event tests assert bytes at the session boundary.
 
+use super::layout::TerminalPadding;
 use super::{TerminalView, TerminalViewConfig};
 use gpui_kit::test::TestWindowExt as _;
 use gpui_kit::{
@@ -41,7 +42,30 @@ impl Harness {
         )
     }
 
+    /// Opens a view with the production page padding and no other overrides.
+    pub fn with_padding(cx: &mut TestAppContext, padding: TerminalPadding) -> Self {
+        Self::with_config_and_view(
+            cx,
+            Config {
+                kitty_keyboard: true,
+                ..Config::default()
+            },
+            TerminalViewConfig {
+                padding,
+                ..TerminalViewConfig::default()
+            },
+        )
+    }
+
     fn with_config(cx: &mut TestAppContext, config: Config) -> Self {
+        Self::with_config_and_view(cx, config, TerminalViewConfig::default())
+    }
+
+    fn with_config_and_view(
+        cx: &mut TestAppContext,
+        config: Config,
+        view_config: TerminalViewConfig,
+    ) -> Self {
         cx.update(gpui_kit::init);
         let terminal = Arc::new(Terminal::new(
             config,
@@ -61,7 +85,7 @@ impl Harness {
                             input: Some(Rc::new(move |input| {
                                 output.borrow_mut().extend_from_slice(input)
                             })),
-                            ..Default::default()
+                            ..view_config
                         },
                     )
                 })

@@ -9,14 +9,19 @@ use gpui_kit::{ScrollDelta, ScrollEvent};
 
 use super::*;
 
-fn echo_page_writer(writes: Arc<Mutex<Vec<TerminalPageSettings>>>) -> TerminalPageWriter {
+pub(super) fn echo_page_writer(
+    writes: Arc<Mutex<Vec<TerminalPageSettings>>>,
+) -> TerminalPageWriter {
     Arc::new(move |settings| {
         writes.lock().expect("page writes").push(settings.clone());
         Ok(settings)
     })
 }
 
-fn wait_for_page_writes(writes: &Arc<Mutex<Vec<TerminalPageSettings>>>, expected: usize) {
+pub(super) fn wait_for_page_writes(
+    writes: &Arc<Mutex<Vec<TerminalPageSettings>>>,
+    expected: usize,
+) {
     let deadline = Instant::now() + Duration::from_secs(20);
     loop {
         if writes.lock().expect("page writes").len() >= expected {
@@ -30,7 +35,7 @@ fn wait_for_page_writes(writes: &Arc<Mutex<Vec<TerminalPageSettings>>>, expected
     }
 }
 
-fn wait_for_page_idle(harness: &mut Harness<'_>, root: &Entity<Prototype>) {
+pub(super) fn wait_for_page_idle(harness: &mut Harness<'_>, root: &Entity<Prototype>) {
     let deadline = Instant::now() + Duration::from_secs(20);
     loop {
         let idle = harness.visual.update(|_, cx| {
@@ -118,6 +123,7 @@ fn enter_saves_every_field_and_each_field_reruns_the_whole_page(cx: &mut TestApp
             line_height: 1.5,
             letter_spacing: 3,
             scrollback_lines: 4321,
+            ..TerminalPageSettings::from(&AppConfig::default())
         }]
     );
 
@@ -140,6 +146,7 @@ fn enter_saves_every_field_and_each_field_reruns_the_whole_page(cx: &mut TestApp
             line_height: 1.5,
             letter_spacing: 3,
             scrollback_lines: 4321,
+            ..TerminalPageSettings::from(&AppConfig::default())
         }
     );
 
