@@ -26,6 +26,19 @@ impl Prototype {
         format!("{title} — {subtitle}")
     }
 
+    /// The title the active tab asks the platform window to show.
+    ///
+    /// Render and the automation readback both use this calculation so a
+    /// selected tab's title is correct before the next frame.
+    pub(super) fn logical_window_title(&self, cx: &App) -> String {
+        self.tabs
+            .active()
+            .program_title
+            .borrow()
+            .clone()
+            .unwrap_or_else(|| self.default_window_title(cx))
+    }
+
     /// Applies `title` to the platform window when it changed.
     pub(super) fn apply_window_title(&mut self, window: &mut Window, title: String) {
         if self.current_title != title {

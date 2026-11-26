@@ -190,3 +190,55 @@ fn split_panes_keep_live_sessions_and_route_input_only_to_the_focused_view(
     send_marker(visual, &first.model(), "survivorpane");
     visual.update(|window, _| window.remove_window());
 }
+
+#[gpui_kit::test]
+fn active_tab_title_readback_does_not_wait_for_a_render(cx: &mut TestAppContext) {
+    let mut runtime = test_runtime();
+    let events = std::mem::replace(
+        &mut runtime.events,
+        tokio::sync::mpsc::unbounded_channel().1,
+    );
+    cx.executor().allow_parking();
+    cx.update(|cx| {
+        gpui_kit::init(cx);
+        tterm_terminal_view::view::bind_keys(cx);
+    });
+    let (root, visual) = cx.add_window_view(|_, cx| make_workspace(&runtime, events, cx));
+    visual.update(|window, cx| {
+        root.update(cx, |workspace, cx| {
+            workspace.tabs.push(|id| {
+                workspace
+                    .factory
+                    .open(id, shell(), &workspace.ui.locale, cx)
+            });
+            let first = "first tab title".to_string();
+            let second = "second tab title".to_string();
+            *workspace
+                .tabs
+                .get(1)
+                .expect("the first tab exists")
+                .program_title
+                .borrow_mut() = Some(first.clone());
+            *workspace
+                .tabs
+                .get(2)
+                .expect("the second tab exists")
+                .program_title
+                .borrow_mut() = Some(second.clone());
+            // Switching reads the new active tab directly; no render occurs here.
+            workspace.select_tab(1, window, cx);
+            assert_eq!(workspace.logical_window_title(cx), first);
+            #[cfg(all(feature = "automation", debug_assertions))]
+            assert_eq!(workspace.automation_state(cx), format!("title={first}"));
+            workspace.select_tab(2, window, cx);
+            assert_eq!(workspace.logical_window_title(cx), second);
+            #[cfg(all(feature = "automation", debug_assertions))]
+            assert_eq!(workspace.automation_state(cx), format!("title={second}"));
+            workspace.select_tab(1, window, cx);
+            assert_eq!(workspace.logical_window_title(cx), first);
+            #[cfg(all(feature = "automation", debug_assertions))]
+            assert_eq!(workspace.automation_state(cx), format!("title={first}"));
+        });
+    });
+    visual.update(|window, _| window.remove_window());
+}

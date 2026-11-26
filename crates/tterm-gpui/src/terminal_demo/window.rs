@@ -322,8 +322,8 @@ impl WindowTab {
 
 impl Prototype {
     #[cfg(all(feature = "automation", debug_assertions))]
-    pub(super) fn automation_state(&self) -> String {
-        format!("title={}", self.current_title)
+    pub(super) fn automation_state(&self, cx: &App) -> String {
+        format!("title={}", self.logical_window_title(cx))
     }
 
     /// The automation endpoint's close path, using the same gate as the
@@ -707,13 +707,7 @@ impl Render for Prototype {
         } else {
             self.tab_strip(window, cx)
         };
-        let title = self
-            .tabs
-            .active()
-            .program_title
-            .borrow()
-            .clone()
-            .unwrap_or_else(|| self.default_window_title(cx));
+        let title = self.logical_window_title(cx);
         self.apply_window_title(window, title);
         let close_root = cx.entity().downgrade();
         let on_action: ActionHandler = Rc::new(move |action, window, cx| match action {

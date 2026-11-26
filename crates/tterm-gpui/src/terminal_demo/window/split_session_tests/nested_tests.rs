@@ -1,6 +1,6 @@
 //! Nested trees keep every pane live while the visible leaves take turns with input.
 
-use gpui_kit::{MouseButton, point, px};
+use gpui_kit::{InputEvent, MouseButton, MouseMoveEvent, MouseUpEvent, point, px};
 use tterm_core::workspace::tab_groups::{PaneNode, SplitOrientation};
 
 use super::*;
@@ -230,6 +230,70 @@ fn dragging_the_third_tab_onto_the_right_pane_nests_it_below(cx: &mut TestAppCon
         }
     });
     assert!(visual.debug_bounds("workspace-pane-drop-2").is_none());
+    visual.update(|window, _| window.remove_window());
+}
+
+#[gpui_kit::test]
+fn releasing_a_tab_drag_before_the_next_frame_still_splits_the_pane(cx: &mut TestAppContext) {
+    let NestedWorkspace {
+        _runtime,
+        root,
+        visual,
+    } = nested_workspace(cx);
+    open_standalone_third(visual, &root);
+    visual
+        .update(|window, cx| root.update(cx, |workspace, cx| workspace.select_tab(2, window, cx)));
+    let (source, release) = visual.update(|window, cx| {
+        window.render_frame(cx);
+        let workspace = root.read(cx);
+        let source = workspace
+            .overflow
+            .handle
+            .bounds_for_item(2)
+            .expect("third tab is laid out")
+            .center();
+        let pane = workspace
+            .tabs
+            .get(2)
+            .and_then(|tab| tab.view.read(cx).content_bounds())
+            .expect("the right-hand pane is laid out");
+        (
+            source,
+            point(pane.center().x, pane.top() + pane.size.height * 0.8),
+        )
+    });
+
+    visual.simulate_mouse_down(source, MouseButton::Left, Default::default());
+    // Dispatch both events in one update. The test harness draws dirty windows when an
+    // update finishes, so separate simulated events always insert a frame; macOS can
+    // deliver mouse-up before the frame that installs the active-drag drop surfaces.
+    visual.update(|window, cx| {
+        window.dispatch_event(
+            MouseMoveEvent {
+                position: release,
+                pressed_button: Some(MouseButton::Left),
+                modifiers: Default::default(),
+            }
+            .to_platform_input(),
+            cx,
+        );
+        window.dispatch_event(
+            MouseUpEvent {
+                button: MouseButton::Left,
+                position: release,
+                modifiers: Default::default(),
+                click_count: 1,
+            }
+            .to_platform_input(),
+            cx,
+        );
+    });
+    visual.update(|window, cx| {
+        window.render_frame(cx);
+        let workspace = root.read(cx);
+        check_visible(workspace, &[1, 2, 3], 3, window, cx);
+        assert_nested_shape(workspace);
+    });
     visual.update(|window, _| window.remove_window());
 }
 

@@ -169,7 +169,7 @@ fn handle_request(
             window_is_active(handle, cx),
             type_name::<Prototype>(),
         )),
-        Command::State => AutomationResponse::text(prototype.read(cx).automation_state()),
+        Command::State => AutomationResponse::text(prototype.read(cx).automation_state(cx)),
         Command::Focus => {
             // Activating only the window leaves the process behind the
             // caller's application, so macOS never reports it as active and

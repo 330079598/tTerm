@@ -66,6 +66,7 @@ fn leaf_drop_surface(
     tab_id: usize,
     foreground: Hsla,
     background: Hsla,
+    armed: bool,
     commit: impl Fn(&TabDrag, Edge, &mut Window, &mut App) + 'static,
 ) -> impl IntoElement {
     named_drop_surface(
@@ -73,6 +74,7 @@ fn leaf_drop_surface(
         format!("workspace-pane-drop-{tab_id}"),
         foreground,
         background,
+        armed,
         commit,
     )
 }
@@ -82,21 +84,21 @@ fn named_drop_surface(
     selector: String,
     foreground: Hsla,
     background: Hsla,
+    armed: bool,
     commit: impl Fn(&TabDrag, Edge, &mut Window, &mut App) + 'static,
 ) -> impl IntoElement {
     let measured = Rc::new(Cell::new(None::<Bounds<Pixels>>));
     let target = measured.clone();
-    div()
-        .id(id)
-        .debug_selector(move || selector)
-        .absolute()
-        .inset_0()
-        .occlude()
+    let mut surface = div().id(id).absolute().inset_0();
+    if armed {
+        surface = surface.debug_selector(move || selector).occlude();
+    }
+    surface
         .child(
             canvas(
                 move |bounds, _, _| measured.set(Some(bounds)),
                 move |bounds, (), window, _| {
-                    if let Some(edge) = edge_at(bounds, window.mouse_position()) {
+                    if armed && let Some(edge) = edge_at(bounds, window.mouse_position()) {
                         let preview = preview_bounds(bounds, edge);
                         window.paint_quad(fill(preview, background));
                         window.paint_quad(outline(preview, foreground, Default::default()));
@@ -207,6 +209,7 @@ impl Prototype {
         };
         let owner = cx.entity_id();
         let workspace = cx.weak_entity();
+        let armed = source.is_some_and(|source| self.splits.can_split(source, tab_id));
         let mut pane = div()
             .debug_selector(|| format!("workspace-pane-{tab_id}"))
             .relative()
@@ -238,23 +241,27 @@ impl Prototype {
                     this.focus_pane(tab_id, window, cx);
                 }
             }));
-        if let Some(source) = source
-            && self.splits.can_split(source, tab_id)
-        {
-            let primary = self.ui.theme.colors.primary;
-            pane = pane.child(leaf_drop_surface(
-                tab_id,
-                hsla(primary, 0.9),
-                hsla(primary, 0.18),
-                move |drag, edge, window, cx| {
-                    if drag.owner == owner && drag.id == source {
-                        let _ = workspace.update(cx, |this, cx| {
-                            this.split_tab(source, tab_id, edge, window, cx)
-                        });
+        let primary = self.ui.theme.colors.primary;
+        // The surface must already be in the rendered hit-test tree when the
+        // release arrives, because macOS can deliver it before the frame that
+        // sees the active drag.
+        pane = pane.child(leaf_drop_surface(
+            tab_id,
+            hsla(primary, 0.9),
+            hsla(primary, 0.18),
+            armed,
+            move |drag, edge, window, cx| {
+                if drag.owner != owner {
+                    return;
+                }
+                let _ = workspace.update(cx, |this, cx| {
+                    let source = this.drag_layout.gesture.get().map(|(id, _)| id);
+                    if source == Some(drag.id) {
+                        this.split_tab(drag.id, tab_id, edge, window, cx);
                     }
-                },
-            ));
-        }
+                });
+            },
+        ));
         pane
     }
 }

@@ -64,6 +64,7 @@ impl Render for DropProbe {
                             6,
                             gpui_kit::white(),
                             gpui_kit::white(),
+                            true,
                             move |drag, edge, _, _| dropped.set(Some((drag.id, edge))),
                         ))
                     }),
