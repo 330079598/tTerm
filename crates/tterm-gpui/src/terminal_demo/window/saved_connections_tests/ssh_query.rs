@@ -13,8 +13,14 @@ use super::server::{ShellScript, ShellServer};
 use super::{direct_launch, harness, output, pump_until, trust_server};
 
 const DA1_REPLY: &[u8] = b"\x1b[?64;1;2;4;6;9;15;21;22c";
+const DA2_REPLY: &[u8] = b"\x1b[>0;276;0c";
 const STATUS_REPLY: &[u8] = b"\x1b[0n";
 const CPR_REPLY: &[u8] = b"\x1b[4;7R";
+const FOREGROUND_COLOR_REPLY: &[u8] = b"\x1b]10;rgb:d7d7/dddd/e8e8\x07";
+const BACKGROUND_COLOR_REPLY: &[u8] = b"\x1b]11;rgb:1b1b/1d1d/2323\x07";
+const CURSOR_COLOR_REPLY: &[u8] = b"\x1b]12;rgb:7979/d8d8/ffff\x07";
+const XTGETTCAP_CO_REPLY: &[u8] = b"\x1bP1+r436f3d323536\x1b\\";
+const XTGETTCAP_MS_REPLY: &[u8] = b"\x1bP1+r4d73=5c455d35323b25703125733b25703225735c303037\x1b\\";
 const START_GATE: &[u8] = b"P2-12-START";
 const STATUS_GATE: &[u8] = b"P2-12-STATUS";
 const WINDOW_GATE: &[u8] = b"P2-12-WINDOW";
@@ -25,8 +31,10 @@ const CAPABILITIES_GATE: &[u8] = b"P2-12-CAPABILITIES";
 const SPLIT_CAPABILITIES_GATE: &[u8] = b"P2-12-SPLIT-CAPABILITIES";
 const SYNC_FORWARD_GATE: &[u8] = b"P2-12-SYNC-FORWARD";
 const SYNC_REVERSE_GATE: &[u8] = b"P2-12-SYNC-REVERSE";
+const COUNT_GATE: &[u8] = b"P2-12-COUNT";
 const DONE_GATE: &[u8] = b"P2-12-DONE";
 const END_MARKER: &str = "P2-12-END";
+const COUNT_END_MARKER: &str = "P2-12-COUNT-END";
 const DONE_ACK: &str = "P2-12-DONE-ACK";
 const CPR_OSR_REPLY: &[u8] = b"\x1b[4;7R\x1b[0n";
 const OSR_CPR_REPLY: &[u8] = b"\x1b[0n\x1b[4;7R";
@@ -105,6 +113,28 @@ fn query_script() -> ShellScript {
             ],
         )
         .after_input(DONE_GATE, vec![format!("\r\n{DONE_ACK}\r\n").into_bytes()])
+}
+
+fn count_query_script() -> ShellScript {
+    ShellScript::new(vec![b"SAVED_SSH_READY\r\n".to_vec()]).after_input(
+        COUNT_GATE,
+        vec![
+            [
+                b"\x1b[4;7H\x1b[6n\x1b[5n\x1b[c\x1b[>c".as_slice(),
+                b"\x1b]10;?\x07\x1b]11;?\x07\x1b]12;?\x07",
+                b"\x1bP+q436f\x1b\\\x1bP+q4d73\x1b\\",
+            ]
+            .concat(),
+            format!("\r\n{COUNT_END_MARKER}\r\n").into_bytes(),
+        ],
+    )
+}
+
+fn reply_count(transcript: &[u8], reply: &[u8]) -> usize {
+    transcript
+        .windows(reply.len())
+        .filter(|window| *window == reply)
+        .count()
 }
 
 fn sync_query_script() -> ShellScript {
@@ -288,6 +318,81 @@ fn core_and_model_queries_are_answered_once_and_in_order(cx: &mut TestAppContext
         0,
         "every scripted query should have been requested"
     );
+    harness.visual.update(|window, _| window.remove_window());
+}
+
+/// G2 evidence: count each reply kind in the full loopback server transcript.
+#[gpui_kit::test]
+fn each_query_kind_is_answered_exactly_once(cx: &mut TestAppContext) {
+    let harness = harness(cx);
+    let server =
+        ShellServer::start_scripted(harness._runtime._runtime.handle(), count_query_script());
+    let name = "Query Counts";
+    trust_server("query-counts", name, &server);
+    let root = harness.root.clone();
+    let launch = direct_launch("query-counts", name, &server);
+    let tab_id = harness.visual.update(|window, cx| {
+        root.update(cx, |workspace, cx| {
+            workspace
+                .open_saved_profile_launch(launch, window, cx)
+                .expect("the saved launch should open one SSH tab")
+        })
+    });
+    let (session, model) = harness.visual.update(|window, cx| {
+        window.render_frame(cx);
+        let workspace = root.read(cx);
+        let session = workspace
+            .tabs
+            .get(tab_id)
+            .and_then(|tab| tab.binding.as_ref())
+            .and_then(|binding| binding.session())
+            .expect("the saved launch runs a live session");
+        (session.clone(), session.model())
+    });
+    pump_until(harness.visual, "the SSH shell to become ready", |_| {
+        output(&model).contains("SAVED_SSH_READY")
+    });
+
+    session.input()(COUNT_GATE);
+    pump_until(harness.visual, "the count fence after every query", |_| {
+        output(&model).contains(COUNT_END_MARKER)
+    });
+    std::thread::sleep(STABLE);
+    harness.visual.run_until_parked();
+    assert_eq!(
+        server.script_remaining(),
+        0,
+        "the server should have released every scripted query"
+    );
+
+    let replies: [(&str, &str, &[u8]); 9] = [
+        ("CPR", "model", CPR_REPLY),
+        ("DSR", "model", STATUS_REPLY),
+        ("DA1", "SSH", DA1_REPLY),
+        ("DA2", "SSH", DA2_REPLY),
+        ("OSC 10 foreground", "model", FOREGROUND_COLOR_REPLY),
+        ("OSC 11 background", "model", BACKGROUND_COLOR_REPLY),
+        ("OSC 12 cursor", "model", CURSOR_COLOR_REPLY),
+        ("XTGETTCAP Co", "SSH", XTGETTCAP_CO_REPLY),
+        ("XTGETTCAP Ms", "SSH", XTGETTCAP_MS_REPLY),
+    ];
+    let inputs = server.inputs();
+    let mut expected = COUNT_GATE.to_vec();
+    for (_, _, reply) in &replies {
+        expected.extend_from_slice(reply);
+    }
+    assert_eq!(
+        inputs, expected,
+        "the full server transcript carries the gate and each reply in wire order"
+    );
+    for (label, responder, reply) in replies {
+        let count = reply_count(&inputs, reply);
+        eprintln!("P2-12 query={label} responder={responder} count={count}");
+        assert_eq!(
+            count, 1,
+            "{label} is answered by {responder} and must appear exactly once"
+        );
+    }
     harness.visual.update(|window, _| window.remove_window());
 }
 
