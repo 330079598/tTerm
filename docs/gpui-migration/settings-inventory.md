@@ -160,8 +160,8 @@
 
 - **迁移卡**：P4-17；与 P3-11 新标签启动器共用子集。
 - **React**：[`LocalShells/LocalShellSettings.tsx`](../../src/components/SettingsDialog/LocalShells/LocalShellSettings.tsx)、[`LocalShellEditor.tsx`](../../src/components/SettingsDialog/LocalShells/LocalShellEditor.tsx)、[`LocalShellRow.tsx`](../../src/components/SettingsDialog/LocalShells/LocalShellRow.tsx)、[`useLocalShellSettings.ts`](../../src/components/SettingsDialog/LocalShells/useLocalShellSettings.ts)、[`src/lib/localShells.ts`](../../src/lib/localShells.ts)。
-- **GPUI 交互**：**局部（`9eb24d8b`）**。已验自定义 shell 的列表、新增/编辑（程序、名称、参数）、显式保存与失败重试。设置页没有 Auto 行、检测到的 shell、默认星标/徽标、隐藏/复制/上移/下移/删除、“设为默认”、路径存在性检查或缺程序提示。
-- **双端存储**：`config.json`：`local_shells`、`hidden_shells`、`terminal_shell`、`terminal_shell_id`、`terminal_shell_custom_path`、`terminal_shell_custom_args`、`terminal_shell_wsl_distro`。GPUI 保存时会先读最新文件再应用共享规则，写入 `local_shells` 以及默认项可能被带着改动的 `terminal_shell*` 字段；检测列表与 `check_local_shell` 尚未接入。
+- **GPUI 交互**：`82b8ee12` 已接入 Auto、检测与自定义条目、设为默认、隐藏/显示、复制、排序、删除和缺程序提示。窗口测试与真实桌面证据分开记录。
+- **双端存储**：`config.json`：`local_shells`、`hidden_shells`、`terminal_shell`、`terminal_shell_id`、`terminal_shell_custom_path`、`terminal_shell_custom_args`、`terminal_shell_wsl_distro`。GPUI 保存时先读最新文件再应用共享规则；检测与路径检查不创建配置条目。
 - **视觉/证据**：待补。GPUI 截图工具仍只生成 Terminal 页的 5 个状态，没有 Shell 页。
 
 控件与动作：
@@ -171,9 +171,7 @@
 - 编辑器：程序路径（带文件选择）、名称（占位为程序名）、参数、设为默认（已是默认时显示说明）、取消/保存（程序为空时保存禁用）。
 - 数据来源：`list_available_terminal_shells`、`check_local_shell`。
 
-当前工作树与 React 的差异（审计快照，随后续提交可能变化）：只有自定义项；没有默认/隐藏/排序/删除/复制；没有检测列表；没有“设为默认”；保存规则复用共享核心（含默认项路径/参数跟随），但页面未显露这些动作。
-
-待补：补齐其余行类型与动作、WSL 发行版枚举、缺失路径提示、该页参照屏与 GPUI 截图；提交后再按提交哈希复核。
+程序文件选择及启动器菜单复核见[执行与验收记录](reports/P3-11-P4-03-picker-acceptance.md)。待补：双端隔离配置桌面读写、Shell 页同状态整页视觉与另一平台复验。
 
 ### 4.7 `highlight` — 关键词高亮
 

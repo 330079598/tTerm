@@ -25,14 +25,14 @@
 [P2-25 测量准备报告](reports/P2-25-memory-selfcheck.md)补验。在取得环境之前，
 不再派发重复的无头实现卡。
 
-**下一张实现卡：** P3-11/P4-17 本地 Shell 启动器收尾。现有实现已能保存自定义
-Shell 并从新标签启动，但还缺 Auto/检测列表、默认项、隐藏/复制/排序/删除、路径
-检查和完整 Windows/macOS 现场证据。先在隔离数据根完成这些用户路径，再继续
-P3-07/P3-08 的工作区视觉与桌面验收。
+**当前批次：** [Shell 与 SSH 路径选择及启动器验收](reports/P3-11-P4-03-picker-acceptance.md)。
+`82b8ee12` 已实现 Shell 检测、默认项、列表管理、路径检查及按配置启动；不要重复派发。
+按用户路径验收设置编辑器和 SSH 导入的系统选择器后，再做 P3-11 的最近连接、搜索与快速连接，
+以及 P3-07/P3-08 尚缺的工作区视觉与桌面验收。
 
-**现场续批：** [Unix Shell](reports/P2-13-unix-shell-field.md) 已完成 WSL2 中 bash、zsh 的 8 组真实 PTY 与模型验证；下一轮保留 fish 及原生桌面的标尺、焦点和切换检查。[SSH](reports/P2-12-remote-field.md) 的 7 个保存连接与回环用例已通过，一次性连接配置已能离线生成；下一步在获授权的专用主机上通过普通选择器验证 tmux/neovim，不使用个人连接库。
+**现场续批：** [Unix Shell](reports/P2-13-unix-shell-field.md) 已完成 WSL2 中 bash、zsh 的 8 组真实 PTY 与模型验证；保留 fish 及原生桌面的标尺、焦点和切换检查。[原生 SSH](reports/P2-12-remote-field.md) 已通过 Windows 到 Linux 的 tmux/Neovim 现场场景；断链及写回失败的用户可见策略未定。不使用个人连接库。
 
-**本轮交接：** 不再派 WebGL/Canvas 或隐藏 WebView 渲染器释放选项；GPUI 固定使用原生渲染，保留 Tauri 的配置兼容。命令标记及本机集成见[第六批](reports/P4-16-shell-integration.md)。下一步是在隔离的 Unix 桌面从普通默认 Shell 启动核对钩子和标尺，在真实 SSH 会话检查 tmux/neovim；写回失败处理另定策略。[P2-12 续批](reports/P2-12-closeout.md) 已覆盖同步块超时与颜色查询，不再作为未实现项派发。以下各批为历史记录。
+**历史交接：** 不再派 WebGL/Canvas 或隐藏 WebView 渲染器释放选项；GPUI 固定使用原生渲染，保留 Tauri 的配置兼容。命令标记及本机集成见[第六批](reports/P4-16-shell-integration.md)。[P2-12 续批](reports/P2-12-closeout.md) 已覆盖同步块超时与颜色查询，不再作为未实现项派发。以下各批为历史记录。
 
 P4-16 第五批（从 `a8e5de3e` 起）：迁移「允许程序通过 OSC 52 写剪贴板」与 macOS「Option 作为 Meta」。pi + DeepSeek v4.1 Flash 分别实施配置合并、平台条件下的开关与搜索、会话权限与键盘编码。协调者验证关闭时不写、重新启用不重放旧数据、查询不读取系统剪贴板、Option 两种模式的实际输入，以及保存前后新旧窗格；不把自动测试或截图当作跨平台原生桌面验收。
 
