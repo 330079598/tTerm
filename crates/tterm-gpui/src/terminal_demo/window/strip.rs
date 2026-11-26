@@ -4,6 +4,8 @@ use gpui_kit::prelude::*;
 use gpui_kit::{Context, Div, KeyDownEvent, Window, div, px};
 use tterm_core::i18n::keys;
 use tterm_core::keymap::actions::KeymapActionId;
+use tterm_core::workspace::local_shells::default_shell::default_shell_choice;
+use tterm_core::workspace::local_shells::types::ShellConfig;
 use tterm_ui::tokens::gpui::hsla;
 
 use super::split_state::{Edge, FOCUS_ACTIONS};
@@ -143,25 +145,9 @@ impl Prototype {
     }
 
     pub(super) fn new_tab(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        if self.tunnel_page_is_open() {
-            self.close_tunnel_page(window, cx);
-        }
-        if !self.close_settings(window, cx) {
-            return;
-        }
-        let previous = self.visible_ids();
-        let saved_id = self.next_saved_id();
-        self.tabs.push(|id| {
-            self.factory.open_launch(
-                id,
-                TabLaunch::command(saved_id, CommandSpec::Shell),
-                &self.ui.locale,
-                cx,
-            )
-        });
-        self.splits.open(self.tabs.active_id());
-        self.refresh_panes(previous, window, cx);
-        self.mark_workspace_dirty(cx);
+        let choice =
+            default_shell_choice(&ShellConfig::from(self.factory.config.read(cx).config()));
+        self.open_shell_choice(choice, None, window, cx);
     }
 
     fn split_shell(&mut self, edge: Edge, window: &mut Window, cx: &mut Context<Self>) {

@@ -188,6 +188,7 @@ pub(super) fn run_window(
         tterm_ui::init(cx);
         let locale = cx.new(|_| Locale::new(language));
         let config = cx.new(|_| ConfigState::new(app_config, &services.shared.runtime));
+        config.update(cx, |state, cx| state.discover_shells(cx));
         LocaleGlobal::set(cx, locale.clone());
         tterm_terminal_view::view::bind_keys(cx);
         lifecycle.install_quit_flush(cx);

@@ -12,7 +12,7 @@ use std::sync::Arc;
 use gpui_kit::{Context, EventEmitter, Task};
 use tterm_core::config::AppConfig;
 use tterm_core::config::local_shells::LocalShell;
-use tterm_core::config::local_shells_file::SavedLocalShells;
+use tterm_core::config::local_shells_file::{SavedLocalShells, SavedShellLists, ShellListEdit};
 use tterm_core::config::panes::PaneLayoutTemplate;
 use tterm_core::config::panes_file::canonical_pane_templates;
 use tterm_core::config::scrollback::normalize_scrollback_config;
@@ -20,7 +20,10 @@ use tterm_core::config::scrollback::normalize_scrollback_config;
 use tterm_core::config::terminal_font_file::SavedTerminalFont;
 use tterm_core::config::terminal_font_file::TerminalPageSettings;
 use tterm_core::core::blocking::run_blocking;
-use tterm_core::workspace::local_shells::types::DefaultShellSettings;
+use tterm_core::terminal::pty::TerminalShellProfile;
+#[cfg(any(test, all(debug_assertions, feature = "automation")))]
+use tterm_core::workspace::local_shells::default_shell::default_shell_updates;
+use tterm_core::workspace::local_shells::types::{DefaultShellSettings, LocalShellChoice};
 
 /// Writes one normalized scrollback setting through the shared core path.
 pub(crate) type ScrollbackWriter = Arc<dyn Fn(u32) -> Result<(), String> + Send + Sync>;
@@ -28,6 +31,25 @@ pub(crate) type ScrollbackWriter = Arc<dyn Fn(u32) -> Result<(), String> + Send 
 /// Writes one local-shell edit through the shared core path.
 pub(crate) type LocalShellsWriter =
     Arc<dyn Fn(LocalShell) -> Result<SavedLocalShells, String> + Send + Sync>;
+
+/// Writes one default-shell choice through the shared core path.
+pub(crate) type DefaultShellWriter =
+    Arc<dyn Fn(LocalShellChoice) -> Result<SavedLocalShells, String> + Send + Sync>;
+
+/// Writes one shell-list edit through the shared core path.
+pub(crate) type ShellListWriter =
+    Arc<dyn Fn(ShellListEdit) -> Result<SavedShellLists, String> + Send + Sync>;
+
+/// The writers a configuration state saves through, grouped so a new save
+/// path does not grow every constructor with another parameter.
+struct ConfigWriters {
+    scrollback: ScrollbackWriter,
+    pane_templates: PaneTemplatesWriter,
+    local_shells: LocalShellsWriter,
+    shell_list: ShellListWriter,
+    default_shell: DefaultShellWriter,
+    final_page: TerminalPageSaver,
+}
 
 /// Records font edits in isolated tests and captures.
 #[cfg(any(test, all(debug_assertions, feature = "automation")))]
@@ -69,6 +91,8 @@ pub struct PaneTemplatesChanged {
 pub struct LocalShellsChanged {
     /// The complete saved list, in display order and without replaced entries.
     pub local_shells: Vec<LocalShell>,
+    /// The keys of the detected shells the user hid.
+    pub hidden_shells: Vec<String>,
     /// The default shell settings the save also moved, when it did.
     pub default_shell: DefaultShellSettings,
 }
@@ -101,7 +125,11 @@ pub struct ConfigState {
     scrollback_writer: ScrollbackWriter,
     pane_templates_writer: PaneTemplatesWriter,
     local_shells_writer: LocalShellsWriter,
+    shell_list_writer: ShellListWriter,
+    default_shell_writer: DefaultShellWriter,
     terminal_page_saver: TerminalPageSaver,
+    detected_shells: Vec<TerminalShellProfile>,
+    shell_discovery_started: bool,
     pending: bool,
 }
 
@@ -117,12 +145,16 @@ impl ConfigState {
         Self::from_writers(
             config,
             runtime,
-            Arc::new(tterm_core::config::scrollback_file::save_scrollback_lines),
-            Arc::new(tterm_core::config::panes_file::save_pane_templates),
-            Arc::new(tterm_core::config::local_shells_file::save_local_shell),
-            Arc::new(|previous, settings| {
-                tterm_core::config::terminal_font_file::save_terminal_page(&previous, settings)
-            }),
+            ConfigWriters {
+                scrollback: Arc::new(tterm_core::config::scrollback_file::save_scrollback_lines),
+                pane_templates: Arc::new(tterm_core::config::panes_file::save_pane_templates),
+                local_shells: Arc::new(tterm_core::config::local_shells_file::save_local_shell),
+                shell_list: Arc::new(tterm_core::config::local_shells_file::edit_shell_list),
+                default_shell: Arc::new(tterm_core::config::local_shells_file::save_default_shell),
+                final_page: Arc::new(|previous, settings| {
+                    tterm_core::config::terminal_font_file::save_terminal_page(&previous, settings)
+                }),
+            },
         )
     }
 
@@ -136,19 +168,34 @@ impl ConfigState {
         runtime: &tokio::runtime::Handle,
         writer: ScrollbackWriter,
     ) -> Self {
-        let local_shells_writer: LocalShellsWriter = Arc::new(|shell| {
-            Ok(SavedLocalShells {
-                local_shells: vec![shell],
-                default_shell: DefaultShellSettings::default(),
-            })
-        });
         Self::with_writers(
             config,
             runtime,
             writer,
             Arc::new(|_| Ok(())),
-            local_shells_writer,
+            echo_local_shells_writer(),
         )
+    }
+
+    /// Creates the state with a default-shell writer controlled by a test.
+    ///
+    /// A test that does not use this constructor keeps the initial list and
+    /// reports the requested default without touching the user's config.
+    #[cfg(test)]
+    pub(crate) fn with_default_shell_writer(
+        config: AppConfig,
+        runtime: &tokio::runtime::Handle,
+        writer: DefaultShellWriter,
+    ) -> Self {
+        let mut state = Self::with_writers(
+            config,
+            runtime,
+            Arc::new(|_| Ok(())),
+            Arc::new(|_| Ok(())),
+            echo_local_shells_writer(),
+        );
+        state.default_shell_writer = writer;
+        state
     }
 
     /// Creates the state with writers controlled by a cross-module test or
@@ -166,13 +213,19 @@ impl ConfigState {
     ) -> Self {
         let font_writer = echo_terminal_font_writer();
         let page_saver = composed_page_saver(Arc::clone(&scrollback_writer), font_writer.clone());
+        let default_shell_writer = isolated_default_shell_writer(config.local_shells.clone());
+        let shell_list_writer = isolated_shell_list_writer(&config);
         Self::from_writers(
             config,
             runtime,
-            scrollback_writer,
-            pane_templates_writer,
-            local_shells_writer,
-            page_saver,
+            ConfigWriters {
+                scrollback: scrollback_writer,
+                pane_templates: pane_templates_writer,
+                local_shells: local_shells_writer,
+                shell_list: shell_list_writer,
+                default_shell: default_shell_writer,
+                final_page: page_saver,
+            },
         )
     }
 
@@ -184,13 +237,19 @@ impl ConfigState {
         writer: TerminalFontWriter,
     ) -> Self {
         let page_saver = composed_page_saver(Arc::new(|_| Ok(())), Arc::clone(&writer));
+        let default_shell_writer = isolated_default_shell_writer(config.local_shells.clone());
+        let shell_list_writer = isolated_shell_list_writer(&config);
         Self::from_writers(
             config,
             runtime,
-            Arc::new(|_| Ok(())),
-            Arc::new(|_| Ok(())),
-            echo_local_shells_writer(),
-            page_saver,
+            ConfigWriters {
+                scrollback: Arc::new(|_| Ok(())),
+                pane_templates: Arc::new(|_| Ok(())),
+                local_shells: echo_local_shells_writer(),
+                shell_list: shell_list_writer,
+                default_shell: default_shell_writer,
+                final_page: page_saver,
+            },
         )
     }
 
@@ -205,31 +264,38 @@ impl ConfigState {
         writer: TerminalPageWriter,
     ) -> Self {
         let page_saver: TerminalPageSaver = Arc::new(move |_previous, settings| writer(settings));
+        let default_shell_writer = isolated_default_shell_writer(config.local_shells.clone());
+        let shell_list_writer = isolated_shell_list_writer(&config);
         Self::from_writers(
             config,
             runtime,
-            Arc::new(|_| Ok(())),
-            Arc::new(|_| Ok(())),
-            echo_local_shells_writer(),
-            page_saver,
+            ConfigWriters {
+                scrollback: Arc::new(|_| Ok(())),
+                pane_templates: Arc::new(|_| Ok(())),
+                local_shells: echo_local_shells_writer(),
+                shell_list: shell_list_writer,
+                default_shell: default_shell_writer,
+                final_page: page_saver,
+            },
         )
     }
 
     fn from_writers(
         config: AppConfig,
         runtime: &tokio::runtime::Handle,
-        scrollback_writer: ScrollbackWriter,
-        pane_templates_writer: PaneTemplatesWriter,
-        local_shells_writer: LocalShellsWriter,
-        terminal_page_saver: TerminalPageSaver,
+        writers: ConfigWriters,
     ) -> Self {
         Self {
             config,
             runtime: runtime.clone(),
-            scrollback_writer,
-            pane_templates_writer,
-            local_shells_writer,
-            terminal_page_saver,
+            scrollback_writer: writers.scrollback,
+            pane_templates_writer: writers.pane_templates,
+            local_shells_writer: writers.local_shells,
+            shell_list_writer: writers.shell_list,
+            default_shell_writer: writers.default_shell,
+            terminal_page_saver: writers.final_page,
+            detected_shells: Vec::new(),
+            shell_discovery_started: false,
             pending: false,
         }
     }
@@ -237,6 +303,12 @@ impl ConfigState {
     /// The current configuration snapshot.
     pub fn config(&self) -> &AppConfig {
         &self.config
+    }
+
+    /// The runtime the state's blocking work runs on, for a view that needs a
+    /// shared async service to run off the UI thread.
+    pub(crate) fn runtime(&self) -> &tokio::runtime::Handle {
+        &self.runtime
     }
 
     /// The saved scrollback capacity; `0` means unlimited.
@@ -297,80 +369,6 @@ impl ConfigState {
                 Err("The scrollback saver stopped before it reported a result.".to_string())
             })
         })
-    }
-
-    /// Saves one local shell, adding it or replacing the entry with its id.
-    ///
-    /// The writer applies the shared rules to the latest config file, so a
-    /// concurrent edit or an unknown field is not replaced by this window's
-    /// startup snapshot. The in-memory list and [`LocalShellsChanged`] are
-    /// updated only after the write succeeds. A second edit is refused while
-    /// any setting save is pending. Dropping the returned task still lets the
-    /// write finish and releases the pending state.
-    pub fn save_local_shell(
-        &mut self,
-        shell: LocalShell,
-        cx: &mut Context<Self>,
-    ) -> Task<Result<LocalShellsChanged, String>> {
-        if self.pending {
-            return Task::ready(Err(pending_save_error()));
-        }
-        self.pending = true;
-
-        let writer = Arc::clone(&self.local_shells_writer);
-        let runtime = self.runtime.clone();
-        let (result_tx, result_rx) = tokio::sync::oneshot::channel();
-        let _save = runtime.spawn(async move {
-            let result = run_blocking(move || writer(shell)).await;
-            let _ = result_tx.send(result);
-        });
-
-        let (waiter_tx, waiter_rx) = tokio::sync::oneshot::channel();
-        cx.spawn(async move |this, cx| {
-            let result = result_rx.await.unwrap_or_else(|_| {
-                Err("The local shell saver stopped before it reported a result.".to_string())
-            });
-            let outcome = match result {
-                Ok(saved) => {
-                    let changed = LocalShellsChanged {
-                        local_shells: saved.local_shells,
-                        default_shell: saved.default_shell,
-                    };
-                    let committed = changed.clone();
-                    let _ = this.update(cx, |state, cx| {
-                        state.pending = false;
-                        state.apply_local_shells(&committed);
-                        cx.emit(committed);
-                        cx.notify();
-                    });
-                    Ok(changed)
-                }
-                Err(error) => {
-                    let _ = this.update(cx, |state, _| state.pending = false);
-                    Err(error)
-                }
-            };
-            let _ = waiter_tx.send(outcome);
-        })
-        .detach();
-
-        cx.spawn(async move |_, _| {
-            waiter_rx.await.unwrap_or_else(|_| {
-                Err("The local shell saver stopped before it reported a result.".to_string())
-            })
-        })
-    }
-
-    fn apply_local_shells(&mut self, changed: &LocalShellsChanged) {
-        self.config.local_shells = changed.local_shells.clone();
-        self.config.terminal_shell = changed.default_shell.terminal_shell.clone();
-        self.config.terminal_shell_custom_path =
-            changed.default_shell.terminal_shell_custom_path.clone();
-        self.config.terminal_shell_custom_args =
-            changed.default_shell.terminal_shell_custom_args.clone();
-        self.config.terminal_shell_id = changed.default_shell.terminal_shell_id.clone();
-        self.config.terminal_shell_wsl_distro =
-            changed.default_shell.terminal_shell_wsl_distro.clone();
     }
 
     /// Saves the Terminal font family and size.
@@ -615,12 +613,41 @@ pub(crate) fn echo_local_shells_writer() -> LocalShellsWriter {
     })
 }
 
+/// A writer for tests and captures that do not persist settings: it keeps the
+/// shells the state started with and reports the requested default.
+#[cfg(any(test, all(debug_assertions, feature = "automation")))]
+fn isolated_default_shell_writer(local_shells: Vec<LocalShell>) -> DefaultShellWriter {
+    Arc::new(move |choice| {
+        Ok(SavedLocalShells {
+            local_shells: local_shells.clone(),
+            default_shell: default_shell_updates(&choice),
+        })
+    })
+}
+
+/// A writer for tests and captures that do not persist settings: it applies
+/// each edit to the shell settings the state started with, so the same core
+/// rules decide an edit without touching a config file.
+#[cfg(any(test, all(debug_assertions, feature = "automation")))]
+fn isolated_shell_list_writer(config: &AppConfig) -> ShellListWriter {
+    let config = std::sync::Mutex::new(config.clone());
+    Arc::new(move |edit| {
+        let mut config = config
+            .lock()
+            .map_err(|_| "The isolated shell list writer was poisoned".to_string())?;
+        tterm_core::config::local_shells_file::apply_shell_list_edit(&mut config, &edit)?;
+        Ok(SavedShellLists::from(&*config))
+    })
+}
+
 /// A writer for tests and captures that do not persist settings: it reports
 /// the requested font back without touching a config file.
 #[cfg(any(test, all(debug_assertions, feature = "automation")))]
 fn echo_terminal_font_writer() -> TerminalFontWriter {
     Arc::new(|family, size| Ok(SavedTerminalFont { family, size }))
 }
+
+mod local_shells;
 
 #[cfg(test)]
 mod terminal_page_tests;

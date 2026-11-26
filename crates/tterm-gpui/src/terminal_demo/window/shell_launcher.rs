@@ -4,11 +4,9 @@ use gpui_kit::component::button::{Button, ButtonVariants};
 use gpui_kit::component::menu::{DropdownMenu, PopupMenuItem};
 use gpui_kit::prelude::*;
 use gpui_kit::{Context, Window};
-use tterm_core::i18n::keys;
 use tterm_core::workspace::local_shells::connections::local_shell_connection;
-use tterm_core::workspace::local_shells::entries::build_shell_entries;
 use tterm_core::workspace::local_shells::saved::own_shell_choice;
-use tterm_core::workspace::local_shells::types::ShellConfig;
+use tterm_core::workspace::local_shells::types::LocalShellChoice;
 use tterm_core::workspace::tab::{Tab, TabType};
 
 use super::{Prototype, TabLaunch, session_workspace};
@@ -29,24 +27,28 @@ impl Prototype {
             .tooltip(label.clone())
             .accessibility_label(label)
             .dropdown_menu(move |mut menu, _, cx| {
-                let snapshot = config.read(cx).config();
-                let auto = locale
-                    .read(cx)
-                    .text(keys::SHELL_LAUNCH_AUTO)
-                    .unwrap_or_else(|_| "Auto".into());
-                for entry in
-                    build_shell_entries(&[], &ShellConfig::from(snapshot), |_, _| auto.clone())
-                {
-                    if entry.hidden || snapshot.hidden_shells.contains(&entry.key) {
+                let hidden = config.read(cx).config().hidden_shells.clone();
+                let entries = {
+                    let state = config.read(cx);
+                    let locale = locale.read(cx);
+                    crate::local_shells_setting::shell_entries(state, locale)
+                };
+                for entry in entries {
+                    if entry.hidden || hidden.contains(&entry.key) {
                         continue;
                     }
                     let owner = owner.clone();
-                    let id = entry.choice.shell_id;
+                    let choice = entry.choice;
+                    let title = entry.label.clone();
                     menu = menu.item(PopupMenuItem::new(entry.label).on_click(
                         move |_, window, app| {
-                            let _ = owner.update(app, |workspace, cx| match &id {
-                                Some(id) => workspace.open_configured_shell(id, window, cx),
-                                None => workspace.new_tab(window, cx),
+                            let _ = owner.update(app, |workspace, cx| {
+                                workspace.open_shell_choice(
+                                    choice.clone(),
+                                    Some(title.clone()),
+                                    window,
+                                    cx,
+                                );
                             });
                         },
                     ));
@@ -55,34 +57,58 @@ impl Prototype {
             })
     }
 
-    pub(super) fn open_configured_shell(
+    /// Opens the shell the user picked in the launcher, rather than the
+    /// configured default. A shell of the user's own follows its latest saved
+    /// path and arguments, and is not started if it was removed meanwhile.
+    pub(super) fn open_shell_choice(
         &mut self,
-        id: &str,
+        choice: LocalShellChoice,
+        title: Option<String>,
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        let saved_id = self.next_saved_id();
-        let config = self.factory.config.read(cx).config();
-        let Some(shell) = config.local_shells.iter().find(|s| s.id == id) else {
+        let Some(choice) = self.current_shell_choice(choice, cx) else {
             return;
         };
-        let mut tab = Tab::new(saved_id, &shell.name, TabType::Terminal);
-        tab.set_connection(Some(local_shell_connection(&own_shell_choice(shell), None)));
-        let launch = match session_workspace::launch::local_options(&tab, config) {
-            Ok(options) => TabLaunch::selected_shell(tab, options),
-            Err(reason) => TabLaunch::unsupported(tab, reason),
-        };
-        if !self.close_settings(window, cx) {
-            return;
-        }
         if self.tunnel_page_is_open() {
             self.close_tunnel_page(window, cx);
         }
+        if !self.close_settings(window, cx) {
+            return;
+        }
+        let saved_id = self.next_saved_id();
+        let mut tab = Tab::new(saved_id, title.unwrap_or_default(), TabType::Terminal);
+        tab.set_connection(Some(local_shell_connection(&choice, None)));
+        let launch = match session_workspace::launch::local_options_for_choice(&choice) {
+            Ok(options) => TabLaunch::selected_shell(tab, options),
+            Err(reason) => TabLaunch::unsupported(tab, reason),
+        };
         let previous = self.visible_ids();
         self.tabs
             .push(|id| self.factory.open_launch(id, launch, &self.ui.locale, cx));
         self.splits.open(self.tabs.active_id());
         self.refresh_panes(previous, window, cx);
         self.mark_workspace_dirty(cx);
+    }
+
+    fn current_shell_choice(
+        &self,
+        choice: LocalShellChoice,
+        cx: &Context<Self>,
+    ) -> Option<LocalShellChoice> {
+        if choice.shell != "custom" {
+            return Some(choice);
+        }
+        let Some(id) = choice.shell_id.as_deref().filter(|id| !id.is_empty()) else {
+            return Some(choice);
+        };
+        self.factory
+            .config
+            .read(cx)
+            .config()
+            .local_shells
+            .iter()
+            .find(|shell| shell.id == id)
+            .map(own_shell_choice)
     }
 }

@@ -9,15 +9,17 @@ use gpui_kit::{Entity, Task, TestAppContext};
 use serde_json::json;
 use tterm_core::config::AppConfig;
 use tterm_core::config::local_shells::LocalShell;
-use tterm_core::config::local_shells_file::SavedLocalShells;
+use tterm_core::config::local_shells_file::{SavedLocalShells, SavedShellLists, ShellListEdit};
 use tterm_core::config::panes::{PaneConfig, PaneLayoutTemplate};
 use tterm_core::config::terminal_font_file::SavedTerminalFont;
-use tterm_core::workspace::local_shells::types::DefaultShellSettings;
+use tterm_core::terminal::pty::TerminalShellProfile;
+use tterm_core::workspace::local_shells::default_shell::default_shell_updates;
+use tterm_core::workspace::local_shells::types::{DefaultShellSettings, LocalShellChoice};
 
 use super::{
-    ConfigState, LocalShellsChanged, LocalShellsWriter, PaneTemplatesChanged, PaneTemplatesWriter,
-    ScrollbackChanged, ScrollbackWriter, TerminalFontChanged, TerminalFontWriter,
-    echo_local_shells_writer,
+    ConfigState, DefaultShellWriter, LocalShellsChanged, LocalShellsWriter, PaneTemplatesChanged,
+    PaneTemplatesWriter, ScrollbackChanged, ScrollbackWriter, ShellListWriter, TerminalFontChanged,
+    TerminalFontWriter, echo_local_shells_writer,
 };
 
 fn runtime() -> tokio::runtime::Runtime {
@@ -559,6 +561,91 @@ fn subscribe_local_shells(
     events
 }
 
+fn default_shell(cx: &TestAppContext, state: &Entity<ConfigState>) -> DefaultShellSettings {
+    cx.read(|app| {
+        let config = state.read(app).config();
+        DefaultShellSettings {
+            terminal_shell: config.terminal_shell.clone(),
+            terminal_shell_custom_path: config.terminal_shell_custom_path.clone(),
+            terminal_shell_custom_args: config.terminal_shell_custom_args.clone(),
+            terminal_shell_id: config.terminal_shell_id.clone(),
+            terminal_shell_wsl_distro: config.terminal_shell_wsl_distro.clone(),
+        }
+    })
+}
+
+fn subscribe_default_shells(
+    cx: &mut TestAppContext,
+    state: &Entity<ConfigState>,
+) -> Arc<Mutex<Vec<DefaultShellSettings>>> {
+    let events = Arc::new(Mutex::new(Vec::new()));
+    let recorded = Arc::clone(&events);
+    cx.update(|cx| {
+        cx.subscribe(state, move |_, event: &LocalShellsChanged, _| {
+            recorded
+                .lock()
+                .expect("default shell events")
+                .push(event.default_shell.clone());
+        })
+        .detach();
+    });
+    events
+}
+
+fn own_shell_choice(id: &str, path: &str, args: &str) -> LocalShellChoice {
+    LocalShellChoice {
+        shell: "custom".to_string(),
+        custom_path: Some(path.to_string()),
+        custom_args: (!args.is_empty()).then(|| args.to_string()),
+        shell_id: Some(id.to_string()),
+        wsl_distro: None,
+    }
+}
+
+fn set_default_shell(
+    cx: &mut TestAppContext,
+    state: &Entity<ConfigState>,
+    choice: LocalShellChoice,
+) -> Task<Result<LocalShellsChanged, String>> {
+    cx.update(|cx| state.update(cx, |state, cx| state.set_default_shell(choice, cx)))
+}
+
+fn edit_shell_list(
+    cx: &mut TestAppContext,
+    state: &Entity<ConfigState>,
+    edit: ShellListEdit,
+) -> Task<Result<LocalShellsChanged, String>> {
+    cx.update(|cx| state.update(cx, |state, cx| state.edit_shell_list(edit, cx)))
+}
+
+fn hidden_shells(cx: &TestAppContext, state: &Entity<ConfigState>) -> Vec<String> {
+    cx.read(|app| state.read(app).config().hidden_shells.clone())
+}
+
+/// The visible shells, hidden keys and default choice each published event
+/// carries.
+type RecordedShellListEvents =
+    Arc<Mutex<Vec<(Vec<LocalShell>, Vec<String>, DefaultShellSettings)>>>;
+
+fn subscribe_shell_lists(
+    cx: &mut TestAppContext,
+    state: &Entity<ConfigState>,
+) -> RecordedShellListEvents {
+    let events = Arc::new(Mutex::new(Vec::new()));
+    let recorded = Arc::clone(&events);
+    cx.update(|cx| {
+        cx.subscribe(state, move |_, event: &LocalShellsChanged, _| {
+            recorded.lock().expect("shell list events").push((
+                event.local_shells.clone(),
+                event.hidden_shells.clone(),
+                event.default_shell.clone(),
+            ));
+        })
+        .detach();
+    });
+    events
+}
+
 #[gpui_kit::test]
 async fn saves_a_local_shell_then_publishes_the_latest_list(cx: &mut TestAppContext) {
     let runtime = runtime();
@@ -660,6 +747,186 @@ async fn keeps_the_old_local_shells_when_the_write_fails_and_remains_usable(
         1,
         "only the successful save emits an event"
     );
+}
+
+#[gpui_kit::test]
+async fn saves_the_default_shell_then_publishes_the_latest_list(cx: &mut TestAppContext) {
+    let runtime = runtime();
+    let existing = local_shell("nu", "/bin/nu");
+    let writer_existing = existing.clone();
+    let writes = Arc::new(Mutex::new(Vec::new()));
+    let recorded = Arc::clone(&writes);
+    let writer: DefaultShellWriter = Arc::new(move |choice: LocalShellChoice| {
+        recorded
+            .lock()
+            .expect("default shell writes")
+            .push(choice.clone());
+        Ok(SavedLocalShells {
+            local_shells: vec![writer_existing.clone()],
+            default_shell: default_shell_updates(&choice),
+        })
+    });
+    let state = cx.update(|cx| {
+        cx.new(|_| {
+            ConfigState::with_default_shell_writer(
+                AppConfig {
+                    local_shells: vec![existing.clone()],
+                    ..AppConfig::default()
+                },
+                runtime.handle(),
+                writer,
+            )
+        })
+    });
+    let lists = subscribe_local_shells(cx, &state);
+    let defaults = subscribe_default_shells(cx, &state);
+    cx.executor().allow_parking();
+    let choice = own_shell_choice("nu", "/bin/nu", "-l");
+
+    let result = set_default_shell(cx, &state, choice.clone()).await;
+
+    let changed = result.expect("the save reports the latest list and default");
+    let expected = default_shell_updates(&choice);
+    assert_eq!(changed.local_shells, vec![existing.clone()]);
+    assert_eq!(changed.default_shell, expected);
+    assert_eq!(*writes.lock().expect("default shell writes"), vec![choice]);
+    assert_eq!(local_shells(cx, &state), vec![existing]);
+    assert_eq!(default_shell(cx, &state), expected);
+    assert_eq!(
+        *lists.lock().expect("local shell events"),
+        vec![changed.local_shells]
+    );
+    assert_eq!(
+        *defaults.lock().expect("default shell events"),
+        vec![changed.default_shell]
+    );
+}
+
+#[gpui_kit::test]
+async fn keeps_the_old_default_when_the_write_fails_and_remains_usable(cx: &mut TestAppContext) {
+    let runtime = runtime();
+    let existing = local_shell("existing", "/bin/zsh");
+    let old = DefaultShellSettings {
+        terminal_shell: "wsl".to_string(),
+        terminal_shell_wsl_distro: "Debian".to_string(),
+        ..DefaultShellSettings::default()
+    };
+    let fail = Arc::new(AtomicUsize::new(1));
+    let writer_fail = Arc::clone(&fail);
+    let shells = vec![existing.clone()];
+    let writer_shells = shells.clone();
+    let writer: DefaultShellWriter = Arc::new(move |choice| {
+        if writer_fail.fetch_sub(1, Ordering::SeqCst) > 0 {
+            return Err("disk is full".to_string());
+        }
+        Ok(SavedLocalShells {
+            local_shells: writer_shells.clone(),
+            default_shell: default_shell_updates(&choice),
+        })
+    });
+    let state = cx.update(|cx| {
+        cx.new(|_| {
+            ConfigState::with_default_shell_writer(
+                AppConfig {
+                    terminal_shell: old.terminal_shell.clone(),
+                    terminal_shell_wsl_distro: old.terminal_shell_wsl_distro.clone(),
+                    local_shells: shells.clone(),
+                    ..AppConfig::default()
+                },
+                runtime.handle(),
+                writer,
+            )
+        })
+    });
+    let defaults = subscribe_default_shells(cx, &state);
+    cx.executor().allow_parking();
+    let reset = LocalShellChoice::default();
+
+    let result = set_default_shell(cx, &state, reset.clone()).await;
+
+    assert_eq!(result, Err("disk is full".to_string()));
+    assert_eq!(default_shell(cx, &state), old);
+    assert!(defaults.lock().expect("default shell events").is_empty());
+    assert!(!save_pending(cx, &state));
+
+    let result = set_default_shell(cx, &state, reset.clone()).await;
+    assert!(result.is_ok());
+    assert_eq!(default_shell(cx, &state), default_shell_updates(&reset));
+    assert_eq!(local_shells(cx, &state), shells);
+    assert_eq!(
+        defaults.lock().expect("default shell events").len(),
+        1,
+        "only the successful save emits an event"
+    );
+}
+
+#[gpui_kit::test]
+async fn resets_the_default_without_dropping_the_saved_shells(cx: &mut TestAppContext) {
+    let runtime = runtime();
+    let existing = local_shell("nu", "/bin/nu");
+    let writer_shells = vec![existing.clone()];
+    let writer: DefaultShellWriter = Arc::new(move |choice| {
+        Ok(SavedLocalShells {
+            local_shells: writer_shells.clone(),
+            default_shell: default_shell_updates(&choice),
+        })
+    });
+    let state = cx.update(|cx| {
+        cx.new(|_| {
+            ConfigState::with_default_shell_writer(
+                AppConfig {
+                    terminal_shell: "custom".to_string(),
+                    terminal_shell_custom_path: "/bin/nu".to_string(),
+                    terminal_shell_custom_args: "-l".to_string(),
+                    terminal_shell_id: "nu".to_string(),
+                    local_shells: vec![existing.clone()],
+                    ..AppConfig::default()
+                },
+                runtime.handle(),
+                writer,
+            )
+        })
+    });
+    cx.executor().allow_parking();
+
+    let result = set_default_shell(cx, &state, LocalShellChoice::default()).await;
+
+    assert!(result.is_ok());
+    assert_eq!(
+        default_shell(cx, &state),
+        default_shell_updates(&LocalShellChoice::default())
+    );
+    assert_eq!(local_shells(cx, &state), vec![existing]);
+}
+
+#[gpui_kit::test]
+fn detected_shells_are_published_without_probing_during_render(cx: &mut TestAppContext) {
+    let runtime = runtime();
+    let state = cx.update(|cx| {
+        cx.new(|_| {
+            ConfigState::with_writer(AppConfig::default(), runtime.handle(), Arc::new(|_| Ok(())))
+        })
+    });
+    assert!(cx.read(|app| state.read(app).detected_shells().is_empty()));
+    let profile = TerminalShellProfile {
+        shell: "pwsh".to_string(),
+        label: "PowerShell".to_string(),
+        source: "/usr/bin/pwsh".to_string(),
+        ..TerminalShellProfile::default()
+    };
+
+    cx.update(|cx| {
+        state.update(cx, |state, _| {
+            state.set_detected_shells_for_test(vec![profile])
+        })
+    });
+
+    cx.read(|app| {
+        let detected = state.read(app).detected_shells();
+        assert_eq!(detected.len(), 1);
+        assert_eq!(detected[0].shell, "pwsh");
+        assert_eq!(detected[0].source, "/usr/bin/pwsh");
+    });
 }
 
 fn terminal_font(cx: &TestAppContext, state: &Entity<ConfigState>) -> (String, u16) {
@@ -909,6 +1176,251 @@ async fn a_dropped_font_waiter_still_commits_and_releases_pending(cx: &mut TestA
     assert_eq!(terminal_font(cx, &state), ("Fira Code".to_string(), 17));
 
     drop(release_on_drop);
+}
+
+#[gpui_kit::test]
+async fn edits_the_isolated_shell_lists_and_reloads_the_latest_snapshot(cx: &mut TestAppContext) {
+    let runtime = runtime();
+    let zsh = local_shell("zsh", "/bin/zsh");
+    let nu = local_shell("nu", "/bin/nu");
+    let state = cx.update(|cx| {
+        cx.new(|_| {
+            ConfigState::with_writer(
+                AppConfig {
+                    local_shells: vec![zsh.clone(), nu.clone()],
+                    hidden_shells: vec!["cmd".to_string()],
+                    ..AppConfig::default()
+                },
+                runtime.handle(),
+                Arc::new(|_| Ok(())),
+            )
+        })
+    });
+    let events = subscribe_shell_lists(cx, &state);
+    cx.executor().allow_parking();
+
+    let moved = edit_shell_list(
+        cx,
+        &state,
+        ShellListEdit::Move {
+            id: "nu".to_string(),
+            offset: -1,
+        },
+    )
+    .await
+    .expect("the move reports the list");
+    assert_eq!(moved.local_shells, vec![nu.clone(), zsh.clone()]);
+    assert_eq!(moved.hidden_shells, ["cmd"]);
+
+    let hidden = edit_shell_list(
+        cx,
+        &state,
+        ShellListEdit::Visibility {
+            key: "pwsh".to_string(),
+            hidden: true,
+        },
+    )
+    .await
+    .expect("the hide reports the list");
+    assert_eq!(hidden.hidden_shells, ["cmd", "pwsh"]);
+    assert_eq!(
+        hidden.local_shells,
+        vec![nu.clone(), zsh.clone()],
+        "the writer reloads the earlier edit instead of the startup list"
+    );
+
+    let again = edit_shell_list(
+        cx,
+        &state,
+        ShellListEdit::Visibility {
+            key: "pwsh".to_string(),
+            hidden: true,
+        },
+    )
+    .await
+    .expect("hiding twice is allowed");
+    assert_eq!(again.hidden_shells, ["cmd", "pwsh"]);
+
+    let shown = edit_shell_list(
+        cx,
+        &state,
+        ShellListEdit::Visibility {
+            key: "cmd".to_string(),
+            hidden: false,
+        },
+    )
+    .await
+    .expect("the show reports the list");
+    assert_eq!(shown.hidden_shells, ["pwsh"]);
+    assert_eq!(local_shells(cx, &state), vec![nu, zsh]);
+    assert_eq!(hidden_shells(cx, &state), ["pwsh"]);
+    assert!(!save_pending(cx, &state));
+
+    let events = events.lock().expect("shell list events");
+    assert_eq!(events.len(), 4);
+    assert_eq!(events[0].0, moved.local_shells);
+    assert_eq!(events[1].1, ["cmd", "pwsh"]);
+    assert_eq!(events[3].1, ["pwsh"]);
+    assert_eq!(events[3].2, default_shell(cx, &state));
+}
+
+#[gpui_kit::test]
+async fn refuses_list_edits_the_lists_cannot_take(cx: &mut TestAppContext) {
+    let runtime = runtime();
+    let nu = local_shell("nu", "/bin/nu");
+    let state = cx.update(|cx| {
+        cx.new(|_| {
+            ConfigState::with_writer(
+                AppConfig {
+                    terminal_shell: "pwsh".to_string(),
+                    local_shells: vec![nu.clone()],
+                    ..AppConfig::default()
+                },
+                runtime.handle(),
+                Arc::new(|_| Ok(())),
+            )
+        })
+    });
+    let events = subscribe_shell_lists(cx, &state);
+    cx.executor().allow_parking();
+
+    let rejected = [
+        ShellListEdit::Visibility {
+            key: "auto".to_string(),
+            hidden: true,
+        },
+        ShellListEdit::Visibility {
+            key: "custom:nu".to_string(),
+            hidden: true,
+        },
+        ShellListEdit::Visibility {
+            key: "pwsh".to_string(),
+            hidden: true,
+        },
+        ShellListEdit::Move {
+            id: "nu".to_string(),
+            offset: 0,
+        },
+        ShellListEdit::Move {
+            id: "nu".to_string(),
+            offset: 2,
+        },
+    ];
+    for edit in rejected {
+        assert!(edit_shell_list(cx, &state, edit).await.is_err());
+    }
+
+    assert!(events.lock().expect("shell list events").is_empty());
+    assert_eq!(local_shells(cx, &state), vec![nu]);
+    assert!(hidden_shells(cx, &state).is_empty());
+    assert!(!save_pending(cx, &state));
+}
+
+#[gpui_kit::test]
+async fn removes_the_default_shell_and_falls_back_to_auto(cx: &mut TestAppContext) {
+    let runtime = runtime();
+    let nu = local_shell("nu", "/bin/nu");
+    let state = cx.update(|cx| {
+        cx.new(|_| {
+            ConfigState::with_writer(
+                AppConfig {
+                    terminal_shell: "custom".to_string(),
+                    terminal_shell_custom_path: "/bin/nu".to_string(),
+                    terminal_shell_custom_args: "-l".to_string(),
+                    terminal_shell_id: "nu".to_string(),
+                    hidden_shells: vec!["cmd".to_string()],
+                    local_shells: vec![nu],
+                    ..AppConfig::default()
+                },
+                runtime.handle(),
+                Arc::new(|_| Ok(())),
+            )
+        })
+    });
+    let events = subscribe_shell_lists(cx, &state);
+    cx.executor().allow_parking();
+
+    let changed = edit_shell_list(
+        cx,
+        &state,
+        ShellListEdit::Remove {
+            id: "nu".to_string(),
+        },
+    )
+    .await
+    .expect("the removal reports the list");
+
+    assert!(changed.local_shells.is_empty());
+    assert_eq!(
+        changed.default_shell,
+        default_shell_updates(&LocalShellChoice::default())
+    );
+    assert_eq!(
+        changed.hidden_shells,
+        ["cmd"],
+        "the hidden list survives a removal"
+    );
+    assert!(local_shells(cx, &state).is_empty());
+    assert_eq!(default_shell(cx, &state), changed.default_shell);
+    let events = events.lock().expect("shell list events");
+    assert_eq!(events.len(), 1);
+    assert_eq!(events[0].0, changed.local_shells);
+    assert_eq!(events[0].1, ["cmd"]);
+}
+
+#[gpui_kit::test]
+async fn keeps_the_lists_when_the_list_write_fails_and_remains_usable(cx: &mut TestAppContext) {
+    let runtime = runtime();
+    let nu = local_shell("nu", "/bin/nu");
+    let state = cx.update(|cx| {
+        cx.new(|_| {
+            ConfigState::with_writer(
+                AppConfig {
+                    local_shells: vec![nu.clone()],
+                    hidden_shells: vec!["cmd".to_string()],
+                    ..AppConfig::default()
+                },
+                runtime.handle(),
+                Arc::new(|_| Ok(())),
+            )
+        })
+    });
+    let fail = Arc::new(AtomicUsize::new(1));
+    let writer_shells = vec![nu.clone()];
+    let writer: ShellListWriter = Arc::new(move |_| {
+        if fail.fetch_sub(1, Ordering::SeqCst) > 0 {
+            return Err("disk is full".to_string());
+        }
+        Ok(SavedShellLists {
+            local_shells: writer_shells.clone(),
+            hidden_shells: vec!["pwsh".to_string()],
+            default_shell: default_shell_updates(&LocalShellChoice::default()),
+        })
+    });
+    cx.update(|cx| state.update(cx, |state, _| state.set_shell_list_writer_for_test(writer)));
+    let events = subscribe_shell_lists(cx, &state);
+    cx.executor().allow_parking();
+    let hide = ShellListEdit::Visibility {
+        key: "pwsh".to_string(),
+        hidden: true,
+    };
+
+    let result = edit_shell_list(cx, &state, hide.clone()).await;
+
+    assert_eq!(result, Err("disk is full".to_string()));
+    assert_eq!(hidden_shells(cx, &state), ["cmd"]);
+    assert!(events.lock().expect("shell list events").is_empty());
+    assert!(!save_pending(cx, &state));
+
+    let result = edit_shell_list(cx, &state, hide).await;
+    assert!(result.is_ok());
+    assert_eq!(hidden_shells(cx, &state), ["pwsh"]);
+    assert_eq!(local_shells(cx, &state), vec![nu]);
+    assert_eq!(
+        events.lock().expect("shell list events").len(),
+        1,
+        "only the successful edit emits an event"
+    );
 }
 
 async fn wait_until(cx: &TestAppContext, mut condition: impl FnMut(&TestAppContext) -> bool) {
