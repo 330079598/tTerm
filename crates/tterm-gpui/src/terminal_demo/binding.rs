@@ -216,6 +216,7 @@ pub struct TabBinding {
     scoped_changes: watch::Sender<u64>,
     attention: Rc<RefCell<TabAttentionStore>>,
     active: AtomicBool,
+    saved_profile_id: Mutex<Option<String>>,
 }
 
 impl TabBinding {
@@ -228,7 +229,25 @@ impl TabBinding {
             scoped_changes,
             attention,
             active: AtomicBool::new(false),
+            saved_profile_id: Mutex::new(None),
         }
+    }
+
+    /// The saved SSH profile this session was opened from, when there is one.
+    /// This is the profile's stable id, never the generated tab id.
+    pub fn saved_profile_id(&self) -> Option<String> {
+        self.saved_profile_id
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .clone()
+    }
+
+    /// Sets the saved SSH profile a successful session should credit.
+    pub(crate) fn set_saved_profile_id(&self, profile_id: Option<String>) {
+        *self
+            .saved_profile_id
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner) = profile_id;
     }
 
     /// The tab these values belong to.
@@ -313,6 +332,8 @@ impl TabBinding {
     }
 
     /// Sets the connection status for `session_nonce`.
+    ///
+    /// Returns whether the status actually changed.
     pub fn set_connection_state(&self, session_nonce: u32, state: ConnectionState) -> bool {
         let changed = self
             .scoped

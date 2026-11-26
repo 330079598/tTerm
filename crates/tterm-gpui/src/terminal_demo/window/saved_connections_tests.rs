@@ -1,6 +1,7 @@
 //! Acceptance tests for the saved-SSH picker over live split sessions.
 
 mod early_query;
+mod first_trust;
 mod server;
 mod ssh_query;
 #[cfg(unix)]
@@ -147,6 +148,7 @@ fn summary(id: &str, name: &str, port: u16) -> SavedSshProfileSummary {
         username: Some("picker-test".to_string()),
         host: Some("127.0.0.1".to_string()),
         port: Some(port),
+        group_path: None,
     }
 }
 

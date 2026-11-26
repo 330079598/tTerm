@@ -92,8 +92,11 @@ impl SessionScopedState {
     }
 
     /// Sets the connection status for this generation.
+    ///
+    /// Returns whether the status actually changed, so callers do not act on a
+    /// repeated progress message.
     pub fn set_connection_state(&mut self, session_nonce: u32, state: ConnectionState) -> bool {
-        if session_nonce != self.session_nonce {
+        if session_nonce != self.session_nonce || self.connection_state == state {
             return false;
         }
         self.connection_state = state;
@@ -120,5 +123,26 @@ impl SessionScopedState {
         }
         self.start_error = error;
         true
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{ConnectionState, SessionScopedState};
+
+    #[test]
+    fn duplicate_ready_markers_do_not_count_as_new_connections() {
+        let mut state = SessionScopedState::new(1);
+        assert!(state.set_connection_state(1, ConnectionState::Connected));
+        assert!(!state.set_connection_state(1, ConnectionState::Connected));
+        assert_eq!(state.connection_state(), ConnectionState::Connected);
+    }
+
+    #[test]
+    fn a_genuine_reconnect_counts_as_a_new_connection() {
+        let mut state = SessionScopedState::new(1);
+        assert!(state.set_connection_state(1, ConnectionState::Connected));
+        assert!(state.set_connection_state(1, ConnectionState::Reconnecting));
+        assert!(state.set_connection_state(1, ConnectionState::Connected));
     }
 }

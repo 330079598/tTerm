@@ -158,7 +158,16 @@
     "empty": "还没有已保存的 SSH 连接。",
     "loadFailed": "无法加载已保存的 SSH 连接，请重试。",
     "openFailed": "无法打开这个已保存的连接。它可能已被删除或暂时不可用，请选择其他连接。",
-    "select": "选择 {{name}}"
+    "select": "选择 {{name}}",
+    "editNamed": "编辑 {{name}}",
+    "editorDescription": "保存地址和登录方式。连接时会询问密码，不会在此保存。",
+    "passwordHint": "连接时会询问密码，此表单不会保存密码。",
+    "hostRequired": "请输入要连接的主机。",
+    "usernameRequired": "请输入用户名。",
+    "portInvalid": "请输入 1 到 65535 之间的端口。",
+    "keyPathRequired": "请选择密钥认证使用的私钥文件。",
+    "saving": "正在保存…",
+    "loadingEditor": "正在加载连接…"
   },
   "broadcast": {
     "title": "终端广播",
@@ -1390,6 +1399,7 @@
     "name": "连接名称",
     "group": "分组",
     "groupPlaceholder": "例如：工作、生产 / Web（可选，用 / 分隔子分组）",
+    "search": "搜索已保存的连接",
     "hostPlaceholder": "主机名或 IP",
     "usernamePlaceholder": "用户名",
     "passphrasePlaceholder": "密钥口令",

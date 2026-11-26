@@ -1,13 +1,16 @@
 //! Core session events for the prototype window.
 
+use tterm_core::connections::profile_recents;
 use tterm_core::events::AppEvent;
 use tterm_core::events::ssh::{SshConnectionProgressPayload, SshEvent};
 use tterm_core::events::terminal::TerminalEvent;
+use tterm_core::services::AppServices;
+use tterm_core::ssh::store::now_unix_ms;
 
 use crate::terminal_demo::binding::TabBinding;
 use crate::terminal_demo::binding::scoped::ConnectionState;
 
-pub(super) fn handle_event(binding: &TabBinding, event: AppEvent) -> bool {
+pub(super) fn handle_event(binding: &TabBinding, event: AppEvent, services: &AppServices) -> bool {
     let Some(session) = binding.session() else {
         return false;
     };
@@ -44,7 +47,13 @@ pub(super) fn handle_event(binding: &TabBinding, event: AppEvent) -> bool {
         AppEvent::Ssh(SshEvent::ConnectionProgress { tab_id, payload }) if tab_id == target => {
             let state = connection_state(&payload);
             binding.set_connection_progress(session_nonce, Some(payload));
-            binding.set_connection_state(session_nonce, state);
+            let changed = binding.set_connection_state(session_nonce, state);
+            if changed
+                && state == ConnectionState::Connected
+                && let Some(profile_id) = binding.saved_profile_id()
+            {
+                record_profile_use(services, profile_id);
+            }
             true
         }
         AppEvent::Terminal(TerminalEvent::Output {
@@ -67,4 +76,16 @@ pub(super) fn connection_state(payload: &SshConnectionProgressPayload) -> Connec
         "failed" | "retry_exhausted" => ConnectionState::Error,
         _ => ConnectionState::Connecting,
     }
+}
+
+/// Credits a saved profile once its own shell is ready, without blocking the
+/// window. The event time is captured here so a delayed worker cannot make an
+/// older use look newer.
+pub(super) fn record_profile_use(services: &AppServices, profile_id: String) {
+    let used_at = now_unix_ms();
+    drop(services.shared.runtime.spawn_blocking(move || {
+        if let Err(error) = profile_recents::record_recent_profile(&profile_id, used_at) {
+            eprintln!("tterm-gpui: failed to record a recent saved connection: {error}");
+        }
+    }));
 }

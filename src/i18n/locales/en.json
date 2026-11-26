@@ -158,7 +158,16 @@
     "empty": "No saved SSH connections yet.",
     "loadFailed": "Could not load saved SSH connections. Try again.",
     "openFailed": "This saved connection could not be opened. It may have been deleted or is unavailable. Choose another connection.",
-    "select": "Select {{name}}"
+    "select": "Select {{name}}",
+    "editNamed": "Edit {{name}}",
+    "editorDescription": "Save the address and sign-in method. Passwords are requested when you connect and are never stored here.",
+    "passwordHint": "Your password is requested when the connection opens. This form never stores it.",
+    "hostRequired": "Enter the host to connect to.",
+    "usernameRequired": "Enter the user name.",
+    "portInvalid": "Enter a port from 1 to 65535.",
+    "keyPathRequired": "Choose the private key file to use for key authentication.",
+    "saving": "Saving…",
+    "loadingEditor": "Loading connection…"
   },
   "broadcast": {
     "title": "Terminal broadcast",
@@ -1406,6 +1415,7 @@
     "name": "Connection Name",
     "group": "Group",
     "groupPlaceholder": "e.g. Work, Prod / Web (optional; / separates subgroups)",
+    "search": "Search saved connections",
     "hostPlaceholder": "hostname or IP",
     "usernamePlaceholder": "username",
     "passphrasePlaceholder": "passphrase",

@@ -17,6 +17,7 @@ pub mod monitor_metrics;
 pub mod panes;
 pub mod panes_file;
 pub mod paths;
+pub mod profile_sort_file;
 pub mod reconnect;
 pub mod save;
 pub mod scrollback;

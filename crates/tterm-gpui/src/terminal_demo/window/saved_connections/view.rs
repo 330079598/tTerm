@@ -11,11 +11,15 @@ use tterm_ui::tokens::gpui::hsla;
 
 use super::{
     CANCEL_BUTTON_ID, CONFIRM_BUTTON_ID, DIALOG_ID, DIALOG_PADDING, DIALOG_RADIUS, DIALOG_WIDTH,
-    EMPTY_ID, ERROR_ID, LIST_ID, LIST_MAX_HEIGHT, LOADING_ID, ROW_ID_PREFIX, SavedConnectionsUi,
+    EDIT_BUTTON_ID, ERROR_ID, LIST_ID, LIST_MAX_HEIGHT, LOADING_ID, NEW_BUTTON_ID,
+    SavedConnectionsUi,
 };
 
 impl SavedConnectionsUi {
     pub(super) fn dialog(&self, cx: &mut Context<Self>) -> Stateful<Div> {
+        if self.editor.is_some() {
+            return self.editor_dialog(cx);
+        }
         let theme = self.theme;
         let colors = theme.colors;
         let title = self.text(cx, keys::SAVED_CONNECTIONS_TITLE);
@@ -51,6 +55,7 @@ impl SavedConnectionsUi {
                     .text_color(hsla(colors.muted_foreground, 1.0))
                     .child(description),
             )
+            .child(self.search_controls(cx))
             .child(self.list_body(cx))
             .child(self.footer(cx))
     }
@@ -82,53 +87,8 @@ impl SavedConnectionsUi {
                     Role::Status,
                 ));
             }
-            if !self.profiles.is_empty() {
-                for (index, profile) in self.profiles.iter().enumerate() {
-                    let selector = format!("{ROW_ID_PREFIX}{index}");
-                    let selected = self.selected_id.as_deref() == Some(profile.id.as_str());
-                    let select_label = self.select_label(&profile.name, cx);
-                    let id = profile.id.clone();
-                    body = body.child(
-                        div()
-                            .id(("saved-connections-row", index))
-                            .debug_selector(move || selector)
-                            .role(Role::Button)
-                            .aria_label(select_label)
-                            .flex()
-                            .flex_col()
-                            .gap(px(3.0))
-                            .px(px(12.0))
-                            .py(px(9.0))
-                            .rounded(px(6.0))
-                            .cursor_pointer()
-                            .when(selected, |row| row.bg(hsla(colors.accent, 1.0)))
-                            .when(!selected, |row| {
-                                row.hover(|style| style.bg(hsla(colors.accent, 0.65)))
-                            })
-                            .child(
-                                div()
-                                    .text_size(px(14.0))
-                                    .font_weight(gpui_kit::FontWeight(500.0))
-                                    .child(profile.name.clone()),
-                            )
-                            .child(
-                                div()
-                                    .text_size(px(12.0))
-                                    .text_color(hsla(colors.muted_foreground, 1.0))
-                                    .child(profile.endpoint()),
-                            )
-                            .on_click(cx.listener(move |this, _, _, cx| {
-                                this.select_profile(&id, cx);
-                            })),
-                    );
-                }
-            } else if self.error.is_none() {
-                body = body.child(status_line(
-                    EMPTY_ID,
-                    self.text(cx, keys::SAVED_CONNECTIONS_EMPTY),
-                    colors.muted_foreground,
-                    Role::Status,
-                ));
+            if self.error.is_none() || !self.profiles.is_empty() {
+                body = body.child(self.listing_content(cx));
             }
         }
         body
@@ -143,7 +103,9 @@ impl SavedConnectionsUi {
         } else {
             self.text(cx, keys::SAVED_CONNECTIONS_OPEN_ACTION)
         };
-        let open_disabled = self.loading || self.opening || self.selected_id.is_none();
+        let open_disabled = self.loading || self.opening || self.active_profile_id().is_none();
+        let new_button = self.new_connection_button(NEW_BUTTON_ID, self.profiles.is_empty(), cx);
+        let edit_button = self.edit_selected_button(cx);
         let cancel_button = button(
             CANCEL_BUTTON_ID,
             cancel.clone(),
@@ -200,11 +162,122 @@ impl SavedConnectionsUi {
                     .items_center()
                     .gap(px(8.0))
                     .child(cancel_button)
+                    .child(new_button)
+                    .child(edit_button)
                     .child(open_button),
             )
     }
 
-    fn select_label(&self, name: &str, cx: &Context<Self>) -> String {
+    /// The always-available way into the blank form. It is primary when the
+    /// list is empty, where creating the first connection is the only action.
+    pub(super) fn new_connection_button(
+        &self,
+        id: &'static str,
+        prominent: bool,
+        cx: &mut Context<Self>,
+    ) -> Stateful<Div> {
+        let label = self.text(cx, keys::CONNECTION_NEW);
+        button(
+            id,
+            label.clone(),
+            if prominent {
+                Variant::Default
+            } else {
+                Variant::Outline
+            },
+            ButtonSize::Default,
+            ButtonState {
+                disabled: self.opening,
+                ..ButtonState::default()
+            },
+            self.theme,
+        )
+        .debug_selector(move || id.to_string())
+        .role(Role::Button)
+        .aria_label(label)
+        .when(!self.opening, |new_button| {
+            new_button.on_click(cx.listener(|this, _, window, cx| this.open_new_editor(window, cx)))
+        })
+    }
+
+    /// Edits the selected row from the footer, so the action is reachable
+    /// without opening the row's own button.
+    fn edit_selected_button(&self, cx: &mut Context<Self>) -> Stateful<Div> {
+        let label = self.text(cx, keys::PROFILES_EDIT);
+        let active_id = self.active_profile_id();
+        let disabled = self.loading || self.opening || active_id.is_none();
+        button(
+            EDIT_BUTTON_ID,
+            label.clone(),
+            Variant::Outline,
+            ButtonSize::Default,
+            ButtonState {
+                disabled,
+                ..ButtonState::default()
+            },
+            self.theme,
+        )
+        .debug_selector(|| EDIT_BUTTON_ID.to_string())
+        .role(Role::Button)
+        .aria_label(label)
+        .when(!disabled, |edit| {
+            edit.on_click(cx.listener(move |this, _, window, cx| {
+                if let Some(id) = active_id.clone() {
+                    this.select_profile(&id, cx);
+                    this.open_edit_editor(window, cx);
+                }
+            }))
+        })
+    }
+
+    /// The selected row's edit action. It sits inside the row's selectable
+    /// area, so it stops the click before the row handles it.
+    pub(super) fn row_edit_button(
+        &self,
+        selector: String,
+        profile_id: &str,
+        name: &str,
+        cx: &mut Context<Self>,
+    ) -> Stateful<Div> {
+        let debug_selector = selector.clone();
+        let label = self.text(cx, keys::PROFILES_EDIT);
+        let aria_label = self.edit_label(name, cx);
+        let id = profile_id.to_string();
+        button(
+            selector,
+            label.clone(),
+            Variant::Ghost,
+            ButtonSize::Sm,
+            ButtonState::default(),
+            self.theme,
+        )
+        .debug_selector(move || debug_selector.clone())
+        .role(Role::Button)
+        .aria_label(aria_label)
+        .on_mouse_down(MouseButton::Left, |_, _, cx| cx.stop_propagation())
+        .on_click(cx.listener(move |this, _, window, cx| {
+            cx.stop_propagation();
+            this.open_edit_editor_for(id.clone(), window, cx);
+        }))
+    }
+
+    fn edit_label(&self, name: &str, cx: &Context<Self>) -> String {
+        let arguments = [(
+            "name",
+            tterm_core::i18n::translate::ArgumentValue::Text(name),
+        )];
+        self.locale
+            .read(cx)
+            .translate(
+                tterm_core::i18n::translate::TranslationRequest::new(
+                    keys::SAVED_CONNECTIONS_EDIT_NAMED,
+                )
+                .arguments(&arguments),
+            )
+            .unwrap_or_else(|_| name.to_string())
+    }
+
+    pub(super) fn select_label(&self, name: &str, cx: &Context<Self>) -> String {
         let arguments = [(
             "name",
             tterm_core::i18n::translate::ArgumentValue::Text(name),
@@ -221,7 +294,12 @@ impl SavedConnectionsUi {
     }
 }
 
-fn status_line(id: &'static str, message: String, color: Hsl, role: Role) -> Stateful<Div> {
+pub(super) fn status_line(
+    id: &'static str,
+    message: String,
+    color: Hsl,
+    role: Role,
+) -> Stateful<Div> {
     div()
         .id(id)
         .debug_selector(move || id.to_string())
@@ -239,7 +317,12 @@ impl Render for SavedConnectionsUi {
             return div();
         }
         let dialog = self.dialog(cx);
-        let trapped = dialog.focus_trap("saved-connections-focus-trap", &self.focus_handle);
+        let trap_id = if self.editor.is_some() {
+            "saved-connections-editor-focus-trap"
+        } else {
+            "saved-connections-focus-trap"
+        };
+        let trapped = dialog.focus_trap(trap_id, &self.focus_handle);
         div()
             .absolute()
             .inset_0()
@@ -250,7 +333,11 @@ impl Render for SavedConnectionsUi {
                     this.handle_key(event, window, cx);
                 }),
             )
-            .on_any_mouse_down(cx.listener(|this, _, window, cx| this.close(window, cx)))
+            .on_any_mouse_down(cx.listener(|this, _, window, cx| {
+                if this.editor.is_none() {
+                    this.close(window, cx);
+                }
+            }))
             .child(
                 div()
                     .size_full()

@@ -342,6 +342,10 @@ fn a_new_session_resets_scoped_state_and_ignores_old_updates() {
     };
     assert!(binding.set_host_key_prompt(old_nonce, Some(host_key)));
     assert!(binding.set_connection_state(old_nonce, ConnectionState::Error));
+    assert!(
+        !binding.set_connection_state(old_nonce, ConnectionState::Error),
+        "repeating the current status is not a change"
+    );
     assert!(binding.set_connection_progress(
         old_nonce,
         Some(SshConnectionProgressPayload::new("failed", "old failure"))

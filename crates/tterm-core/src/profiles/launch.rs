@@ -7,6 +7,7 @@ use crate::connections::profile_connections::build_connection_from_profile;
 use crate::core::session::types::PtyConnectionOptions;
 use crate::db::sql_error;
 use crate::profiles::connection::connection_options_for_profile;
+use crate::profiles::groups::{group_paths, list_groups};
 use crate::profiles::storage::{find_profile, normalize_profile};
 use crate::profiles::types::SavedProfile;
 use crate::workspace::tab::Tab;
@@ -22,6 +23,10 @@ pub struct SavedSshProfileSummary {
     pub username: Option<String>,
     pub host: Option<String>,
     pub port: Option<u16>,
+    /// The names of the group and the groups above it, from the top, joined
+    /// by ` / `; `None` when the profile is ungrouped or its group is gone.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub group_path: Option<String>,
 }
 
 impl SavedSshProfileSummary {
@@ -92,13 +97,15 @@ pub fn load_saved_ssh_profile_summaries() -> Result<Vec<SavedSshProfileSummary>,
 pub fn list_saved_ssh_profile_summaries(
     connection: &Connection,
 ) -> Result<Vec<SavedSshProfileSummary>, String> {
+    let paths = group_paths(&list_groups(connection)?);
     let mut statement = connection
         .prepare(
             "SELECT id, \
                     COALESCE(json_extract(data, '$.name'), id), \
                     json_extract(data, '$.username'), \
                     json_extract(data, '$.host'), \
-                    json_extract(data, '$.port') \
+                    json_extract(data, '$.port'), \
+                    COALESCE(json_extract(data, '$.group_id'), json_extract(data, '$.group')) \
              FROM profiles \
              WHERE json_extract(data, '$.connection_type') = 'ssh' \
              ORDER BY position, rowid",
@@ -109,12 +116,16 @@ pub fn list_saved_ssh_profile_summaries(
             let port = row
                 .get::<_, Option<i64>>(4)?
                 .and_then(|port| u16::try_from(port).ok());
+            let group_path = row
+                .get::<_, Option<String>>(5)?
+                .and_then(|id| paths.get(id.trim()).cloned());
             Ok(SavedSshProfileSummary {
                 id: row.get(0)?,
                 name: row.get(1)?,
                 username: row.get(2)?,
                 host: row.get(3)?,
                 port,
+                group_path,
             })
         })
         .map_err(sql_error("Failed to read saved SSH profiles"))?;
@@ -164,6 +175,7 @@ fn summarize_profile(profile: &SavedProfile) -> SavedSshProfileSummary {
         username: profile.username.clone(),
         host: profile.host.clone(),
         port: profile.port,
+        group_path: profile.group_path.clone(),
     }
 }
 
@@ -179,188 +191,4 @@ fn launch_from_lookup(
 }
 
 #[cfg(test)]
-mod tests {
-    use super::{
-        SavedSshLaunchError, launch_from_lookup, launch_from_saved_profile,
-        list_saved_ssh_profile_summaries, summarize_profiles,
-    };
-    use crate::profiles::types::SavedProfile;
-    use rusqlite::{Connection, params};
-    use serde_json::{Value, json};
-
-    fn profile(overrides: Value) -> SavedProfile {
-        let mut value = json!({
-            "id": "prod",
-            "name": "Production",
-            "connection_type": "ssh",
-            "host": "example.com",
-            "port": 2222,
-            "username": "deploy",
-            "auth_method": "password",
-            "password": "stored-password",
-            "private_key_passphrase": "stored-passphrase"
-        });
-        value
-            .as_object_mut()
-            .expect("profile object")
-            .extend(overrides.as_object().cloned().unwrap_or_default());
-        serde_json::from_value(value).expect("profile")
-    }
-
-    #[test]
-    fn the_picker_lists_only_ssh_profiles_and_shows_a_safe_endpoint() {
-        let mut local = profile(json!({
-            "id": "local",
-            "name": "Local",
-            "connection_type": "terminal"
-        }));
-        local.password = Some("local-secret".to_string());
-        local.private_key_passphrase = Some("key-secret".to_string());
-        let summaries = summarize_profiles(&[profile(json!({})), local]);
-
-        assert_eq!(summaries.len(), 1);
-        assert_eq!(summaries[0].id, "prod");
-        assert_eq!(summaries[0].endpoint(), "deploy@example.com:2222");
-        let serialized = serde_json::to_string(&summaries).expect("summaries");
-        assert!(!serialized.contains("stored-password"));
-        assert!(!serialized.contains("stored-passphrase"));
-    }
-
-    #[test]
-    fn launches_use_the_exact_saved_id_and_never_a_same_named_profile() {
-        let production = profile(json!({}));
-        let mut renamed = profile(json!({ "id": "other", "name": "prod" }));
-        renamed.host = Some("other.example.com".to_string());
-
-        let launch =
-            launch_from_lookup("prod", Ok(Some(production))).expect("exact profile should load");
-        assert_eq!(launch.connection.profile_id.as_deref(), Some("prod"));
-        assert_eq!(
-            launch_from_lookup("prod", Ok(Some(renamed))).unwrap_err(),
-            SavedSshLaunchError::NotFound
-        );
-        assert_eq!(
-            launch_from_lookup("missing", Ok(None)).unwrap_err(),
-            SavedSshLaunchError::NotFound
-        );
-    }
-
-    #[test]
-    fn non_ssh_and_unreadable_profiles_do_not_open_a_tab() {
-        assert_eq!(
-            launch_from_saved_profile(&profile(json!({ "connection_type": "terminal" })))
-                .unwrap_err(),
-            SavedSshLaunchError::NotSsh
-        );
-        assert_eq!(
-            launch_from_lookup("prod", Err("profile data is corrupt".to_string())).unwrap_err(),
-            SavedSshLaunchError::Unavailable("profile data is corrupt".to_string())
-        );
-    }
-
-    #[test]
-    fn a_confirmed_launch_carries_connection_details_but_no_saved_secrets() {
-        let launch = launch_from_saved_profile(&profile(json!({
-            "auth_method": "key",
-            "private_key_path": "/keys/id",
-            "agent_forward": true
-        })))
-        .expect("launch");
-        assert_eq!(launch.summary.id, "prod");
-        assert_eq!(launch.connection.host.as_deref(), Some("example.com"));
-        assert_eq!(
-            launch.connection.private_key_path.as_deref(),
-            Some("/keys/id")
-        );
-        assert!(launch.connection.agent_forward);
-        let serialized = serde_json::to_string(&launch.saved_tab).expect("saved tab");
-        assert!(!serialized.contains("stored-password"));
-        assert!(!serialized.contains("stored-passphrase"));
-    }
-
-    #[test]
-    fn an_empty_endpoint_does_not_invent_a_host() {
-        let summary = super::SavedSshProfileSummary {
-            id: "blank".to_string(),
-            name: "Blank".to_string(),
-            username: None,
-            host: None,
-            port: None,
-        };
-        assert_eq!(summary.endpoint(), "not configured");
-    }
-
-    #[test]
-    fn browsing_projects_stored_metadata_in_saved_order() {
-        let connection = Connection::open_in_memory().expect("in-memory database");
-        connection
-            .execute_batch(
-                "CREATE TABLE profiles (\
-                     id TEXT PRIMARY KEY NOT NULL, \
-                     position INTEGER NOT NULL, \
-                     data TEXT NOT NULL\
-                 )",
-            )
-            .expect("profiles schema");
-        let insert = |id: &str, position: i64, data: Value| {
-            connection
-                .execute(
-                    "INSERT INTO profiles (id, position, data) VALUES (?1, ?2, ?3)",
-                    params![id, position, data.to_string()],
-                )
-                .expect("insert profile");
-        };
-        insert(
-            "later",
-            2,
-            json!({
-                "id": "later",
-                "name": "Later",
-                "connection_type": "ssh",
-                "host": "later.example.com",
-                "port": 2200,
-                "username": "deploy",
-                "password": "must-not-be-selected"
-            }),
-        );
-        insert(
-            "first",
-            0,
-            json!({
-                "id": "first",
-                "name": "First",
-                "connection_type": "ssh"
-            }),
-        );
-        insert(
-            "local",
-            1,
-            json!({
-                "id": "local",
-                "name": "Local",
-                "connection_type": "terminal"
-            }),
-        );
-        insert(
-            "unknown",
-            3,
-            json!({
-                "id": "unknown",
-                "name": "Unknown",
-                "connection_type": "future-connection"
-            }),
-        );
-
-        let summaries = list_saved_ssh_profile_summaries(&connection).expect("projected summaries");
-
-        assert_eq!(
-            summaries
-                .iter()
-                .map(|entry| entry.id.as_str())
-                .collect::<Vec<_>>(),
-            vec!["first", "later"]
-        );
-        assert_eq!(summaries[0].endpoint(), "not configured");
-        assert_eq!(summaries[1].endpoint(), "deploy@later.example.com:2200");
-    }
-}
+mod tests;

@@ -201,6 +201,30 @@ impl TabLaunch {
         )
     }
 
+    /// The stable saved profile a successful connection should credit.
+    ///
+    /// `saved_id` is the workspace tab id, not a profile id, so it must not be
+    /// used for recents. A restored tab that only knew its profile by name
+    /// still gets the real id from the options resolved for this launch.
+    pub(super) fn saved_profile_id(&self, options: &PtyConnectionOptions) -> Option<String> {
+        if !self.is_ssh() || options.connection_type.as_deref() != Some("ssh") {
+            return None;
+        }
+        let from_source = match &self.source {
+            LaunchSource::SavedSshProfile(launch) => Some(launch.summary.id.clone()),
+            LaunchSource::SshProfile {
+                selector: SshProfileSelector::Id(id),
+            } => Some(id.clone()),
+            _ => None,
+        };
+        from_source.filter(|id| !id.trim().is_empty()).or_else(|| {
+            options
+                .profile_id
+                .clone()
+                .filter(|id| !id.trim().is_empty())
+        })
+    }
+
     pub(super) fn search_kind(&self) -> &'static str {
         if self.is_ssh() { "ssh" } else { "terminal" }
     }

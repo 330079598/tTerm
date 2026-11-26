@@ -380,6 +380,7 @@ impl Prototype {
             saved_connections,
             tunnel_page,
         };
+        let services = sessions.services();
         let factory = TabFactory {
             sessions,
             config,
@@ -435,7 +436,7 @@ impl Prototype {
                         let Some(binding) = prototype.factory.sessions.tab(&tab_id) else {
                             return;
                         };
-                        if handle_event(&binding, event) && binding.is_active() {
+                        if handle_event(&binding, event, &services) && binding.is_active() {
                             if let Some(tab) = prototype
                                 .visible_ids()
                                 .into_iter()
@@ -469,6 +470,10 @@ impl TabFactory {
         connection: Result<tterm_core::core::session::types::PtyConnectionOptions, String>,
         launch: &mut TabLaunch,
     ) -> (Option<Rc<TabBinding>>, Option<String>) {
+        let saved_profile_id = connection
+            .as_ref()
+            .ok()
+            .and_then(|connection| launch.saved_profile_id(connection));
         match connection {
             Ok(connection) => {
                 let binding = self.sessions.open_with_history(
@@ -478,6 +483,7 @@ impl TabFactory {
                     INITIAL_CELL,
                     launch.take_restored_history(),
                 );
+                binding.set_saved_profile_id(saved_profile_id);
                 let error = binding.scoped_state().start_error().map(str::to_string);
                 (Some(binding), error)
             }

@@ -35,6 +35,7 @@ fn profile(id: &str, name: &str, username: &str, host: &str) -> SavedSshProfileS
         username: Some(username.to_string()),
         host: Some(host.to_string()),
         port: Some(22),
+        group_path: None,
     }
 }
 

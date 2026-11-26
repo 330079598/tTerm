@@ -1,13 +1,19 @@
-//! The singleton saved-SSH profile picker.
+//! The singleton saved-SSH profile picker and its connection editor.
 //!
 //! Reading and selecting only change this overlay. A profile connects when the
 //! user presses Open or Enter, and then it opens in a new tab without replacing
-//! or reflowing the current pane tree.
+//! or reflowing the current pane tree. New and Edit stay inside the overlay:
+//! saving returns to the refreshed list and selects the saved id instead of
+//! opening a session.
 
+use std::collections::HashMap;
 use std::sync::Arc;
 
+use gpui_kit::component::input::InputState;
 use gpui_kit::prelude::*;
-use gpui_kit::{App, Context, Entity, FocusHandle, KeyDownEvent, ScrollHandle, WeakEntity, Window};
+use gpui_kit::{
+    App, Context, Entity, FocusHandle, KeyDownEvent, ScrollHandle, Subscription, WeakEntity, Window,
+};
 use tterm_core::i18n::keys;
 use tterm_core::i18n::translate::TranslationKey;
 use tterm_core::profiles::launch::SavedSshProfileSummary;
@@ -17,6 +23,9 @@ use tterm_ui::tokens::theme::Theme;
 use super::profile_launch;
 use super::{Locale, Prototype};
 
+mod editor;
+mod listing;
+mod profile;
 mod view;
 mod wiring;
 
@@ -29,6 +38,22 @@ pub(super) const ERROR_ID: &str = "saved-connections-error";
 pub(super) const EMPTY_ID: &str = "saved-connections-empty";
 pub(super) const LOADING_ID: &str = "saved-connections-loading";
 pub(super) const ROW_ID_PREFIX: &str = "saved-connections-row-";
+pub(super) const NEW_BUTTON_ID: &str = "saved-connections-new";
+pub(super) const EMPTY_NEW_BUTTON_ID: &str = "saved-connections-empty-new";
+pub(super) const EDIT_BUTTON_ID: &str = "saved-connections-edit";
+pub(super) const ROW_EDIT_PREFIX: &str = "saved-connections-row-edit-";
+pub(super) const EDITOR_DIALOG_ID: &str = "saved-connections-editor-dialog";
+pub(super) const EDITOR_NAME_ID: &str = "saved-connections-editor-name";
+pub(super) const EDITOR_HOST_ID: &str = "saved-connections-editor-host";
+pub(super) const EDITOR_PORT_ID: &str = "saved-connections-editor-port";
+pub(super) const EDITOR_USERNAME_ID: &str = "saved-connections-editor-username";
+pub(super) const EDITOR_AUTH_PASSWORD_ID: &str = "saved-connections-editor-auth-password";
+pub(super) const EDITOR_AUTH_KEY_ID: &str = "saved-connections-editor-auth-key";
+pub(super) const EDITOR_KEY_PATH_ID: &str = "saved-connections-editor-key-path";
+pub(super) const EDITOR_SAVE_ID: &str = "saved-connections-editor-save";
+pub(super) const EDITOR_CANCEL_ID: &str = "saved-connections-editor-cancel";
+pub(super) const EDITOR_ERROR_ID: &str = "saved-connections-editor-error";
+pub(super) const EDITOR_LOADING_ID: &str = "saved-connections-editor-loading";
 
 const DIALOG_WIDTH: f32 = 520.0;
 const DIALOG_PADDING: f32 = 24.0;
@@ -53,6 +78,28 @@ pub(super) struct SavedConnectionsUi {
     restore_focus: Option<FocusHandle>,
     generation: u64,
     scroll_handle: ScrollHandle,
+    navigation: listing::navigation::ListingNavigation,
+    listing: listing::ProfileListing,
+    search: Option<Entity<InputState>>,
+    _search_events: Option<Subscription>,
+    _search_observer: Option<Subscription>,
+    _key_interceptor: Option<Subscription>,
+    /// One tab stop per group heading, keyed by its canonical path.
+    group_focus: HashMap<String, FocusHandle>,
+    /// A sort chosen in this opening must not be overwritten by the stored one
+    /// when its asynchronous read finishes.
+    sort_touched: bool,
+    #[cfg(test)]
+    injected_listing_options: Option<listing::ListingOptions>,
+    editor: Option<editor::Editor>,
+    /// Invalidates an editor load or save that finishes after it was replaced.
+    editor_generation: u64,
+    /// The id a finished save should select once the list is read again.
+    select_after_load: Option<String>,
+    #[cfg(test)]
+    injected_editor_load: Option<Result<profile::ProfileDraft, String>>,
+    #[cfg(test)]
+    injected_editor_save: Option<Result<String, String>>,
 }
 
 impl SavedConnectionsUi {
@@ -80,6 +127,23 @@ impl SavedConnectionsUi {
             restore_focus: None,
             generation: 0,
             scroll_handle: ScrollHandle::default(),
+            navigation: listing::navigation::ListingNavigation::default(),
+            listing: listing::ProfileListing::default(),
+            search: None,
+            _search_events: None,
+            _search_observer: None,
+            _key_interceptor: None,
+            group_focus: HashMap::new(),
+            sort_touched: false,
+            #[cfg(test)]
+            injected_listing_options: None,
+            editor: None,
+            editor_generation: 0,
+            select_after_load: None,
+            #[cfg(test)]
+            injected_editor_load: None,
+            #[cfg(test)]
+            injected_editor_save: None,
         })
     }
 
@@ -108,6 +172,11 @@ impl SavedConnectionsUi {
         self.opening
     }
 
+    #[cfg(test)]
+    pub(super) fn list_focus_for_test(&self) -> &FocusHandle {
+        &self.focus_handle
+    }
+
     pub(super) fn open(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         if self.open {
             return;
@@ -117,12 +186,22 @@ impl SavedConnectionsUi {
         self.loading = true;
         self.opening = false;
         self.profiles.clear();
+        self.listing.clear_profiles();
+        self.listing.set_query(String::new());
+        self.navigation.clear_rows();
         self.selected_id = None;
         self.error = None;
+        self.editor = None;
+        self.editor_generation = self.editor_generation.wrapping_add(1);
+        self.select_after_load = None;
+        self.sort_touched = false;
         self.generation = self.generation.wrapping_add(1);
-        self.focus_handle.focus(window, cx);
+        let generation = self.generation;
+        self.open_search(window, cx);
+        self.install_list_key_interceptor(window, cx);
         cx.notify();
         self.load(window, cx);
+        self.load_listing_options(generation, window, cx);
     }
 
     /// Hides the overlay without restoring focus, for another route taking over.
@@ -133,24 +212,38 @@ impl SavedConnectionsUi {
         self.open = false;
         self.loading = false;
         self.opening = false;
+        self._key_interceptor = None;
+        self.group_focus.clear();
         self.profiles.clear();
+        self.listing.clear_profiles();
+        self.listing.set_query(String::new());
         self.selected_id = None;
         self.error = None;
         self.restore_focus = None;
+        self.editor = None;
+        self.editor_generation = self.editor_generation.wrapping_add(1);
+        self.select_after_load = None;
         self.generation = self.generation.wrapping_add(1);
         cx.notify();
     }
 
     fn close(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        if !self.open || self.opening {
+        if !self.open || self.opening || self.editor_saving() {
             return;
         }
         self.open = false;
         self.loading = false;
         self.opening = false;
+        self._key_interceptor = None;
+        self.group_focus.clear();
         self.profiles.clear();
+        self.listing.clear_profiles();
+        self.listing.set_query(String::new());
         self.selected_id = None;
         self.error = None;
+        self.editor = None;
+        self.editor_generation = self.editor_generation.wrapping_add(1);
+        self.select_after_load = None;
         self.generation = self.generation.wrapping_add(1);
         let active_focus = self.workspace.upgrade().map(|workspace| {
             workspace
@@ -196,14 +289,19 @@ impl SavedConnectionsUi {
             return;
         }
         self.loading = false;
+        let requested = self.select_after_load.take();
         match result {
             Ok(profiles) => {
-                self.selected_id = profiles.first().map(|profile| profile.id.clone());
                 self.profiles = profiles;
+                self.listing.replace_profiles(&self.profiles);
+                self.settle_after_load(requested);
+                self.sync_group_focus(cx);
             }
             Err(error) => {
                 eprintln!("tterm-gpui: failed to read saved SSH profiles: {error}");
                 self.profiles.clear();
+                self.listing.clear_profiles();
+                self.group_focus.clear();
                 self.selected_id = None;
                 self.error = Some(self.text(cx, keys::SAVED_CONNECTIONS_LOAD_FAILED));
             }
@@ -218,6 +316,32 @@ impl SavedConnectionsUi {
         cx: &mut Context<Self>,
     ) {
         if !self.open {
+            return;
+        }
+        if self.editor.is_some() {
+            let handled = match event.keystroke.key.as_str() {
+                "escape" => {
+                    self.cancel_editor(window, cx);
+                    true
+                }
+                "enter" => {
+                    self.submit_editor(window, cx);
+                    true
+                }
+                // Up, Down, Home and End belong to the focused text field
+                // while the editor is open, so the list must not act on them.
+                _ => false,
+            };
+            if handled {
+                window.prevent_default();
+                cx.stop_propagation();
+            }
+            return;
+        }
+        if event.keystroke.key == "enter"
+            && (self.group_header_focused(window, cx)
+                || self.navigation.sort_control_focused(window))
+        {
             return;
         }
         let handled = match event.keystroke.key.as_str() {
@@ -238,7 +362,11 @@ impl SavedConnectionsUi {
                 true
             }
             "end" => {
-                self.select_index(self.profiles.len().saturating_sub(1), cx);
+                self.select_index(self.listing.visible_ids().len().saturating_sub(1), cx);
+                true
+            }
+            "tab" => {
+                listing::navigation::step_focus(window, cx, !event.keystroke.modifiers.shift);
                 true
             }
             "enter" => {
@@ -253,54 +381,13 @@ impl SavedConnectionsUi {
         }
     }
 
-    fn step_selection(&mut self, step: isize, cx: &mut Context<Self>) {
-        let count = self.profiles.len();
-        if count == 0 {
-            return;
-        }
-        let current = self
-            .selected_id
-            .as_deref()
-            .and_then(|id| self.profiles.iter().position(|profile| profile.id == id))
-            .unwrap_or(0) as isize;
-        let next = (current + step).rem_euclid(count as isize) as usize;
-        self.select_index(next, cx);
-    }
-
-    fn select_index(&mut self, index: usize, cx: &mut Context<Self>) {
-        if self.opening {
-            return;
-        }
-        let Some(profile) = self.profiles.get(index) else {
-            return;
-        };
-        if self.selected_id.as_deref() == Some(profile.id.as_str()) {
-            return;
-        }
-        self.selected_id = Some(profile.id.clone());
-        self.scroll_handle.scroll_to_item(index);
-        cx.notify();
-    }
-
-    pub(super) fn select_profile(&mut self, id: &str, cx: &mut Context<Self>) {
-        if self.opening
-            || !self.open
-            || !self.profiles.iter().any(|profile| profile.id == id)
-            || self.selected_id.as_deref() == Some(id)
-        {
-            return;
-        }
-        self.selected_id = Some(id.to_string());
-        cx.notify();
-    }
-
     /// Confirms the selected profile once and keeps the dialog open until the
     /// lookup succeeds, so a failure is visible and can be retried.
     fn confirm_selection(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         if !self.open || self.loading || self.opening {
             return;
         }
-        let Some(id) = self.selected_id.clone() else {
+        let Some(id) = self.active_profile_id() else {
             return;
         };
         let Some(workspace) = self.workspace.upgrade() else {
@@ -349,6 +436,7 @@ impl SavedConnectionsUi {
     ) {
         self.injected = Some(result);
         self.profiles.clear();
+        self.listing.clear_profiles();
         self.selected_id = None;
         self.error = None;
         self.loading = false;
