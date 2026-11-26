@@ -24,6 +24,7 @@ use super::profile_launch;
 use super::{Locale, Prototype};
 
 mod editor;
+mod import;
 mod listing;
 mod profile;
 mod view;
@@ -37,6 +38,7 @@ pub(super) const CANCEL_BUTTON_ID: &str = "saved-connections-cancel";
 pub(super) const ERROR_ID: &str = "saved-connections-error";
 pub(super) const EMPTY_ID: &str = "saved-connections-empty";
 pub(super) const LOADING_ID: &str = "saved-connections-loading";
+pub(super) const NOTICE_ID: &str = "saved-connections-notice";
 pub(super) const ROW_ID_PREFIX: &str = "saved-connections-row-";
 pub(super) const NEW_BUTTON_ID: &str = "saved-connections-new";
 pub(super) const EMPTY_NEW_BUTTON_ID: &str = "saved-connections-empty-new";
@@ -75,6 +77,8 @@ pub(super) struct SavedConnectionsUi {
     loading: bool,
     opening: bool,
     error: Option<String>,
+    /// The result of the last SSH config import, shown until the picker closes.
+    notice: Option<String>,
     restore_focus: Option<FocusHandle>,
     generation: u64,
     scroll_handle: ScrollHandle,
@@ -100,6 +104,18 @@ pub(super) struct SavedConnectionsUi {
     injected_editor_load: Option<Result<profile::ProfileDraft, String>>,
     #[cfg(test)]
     injected_editor_save: Option<Result<String, String>>,
+    import: Option<import::ImportDialog>,
+    /// A counter that outlives each dialog, so a request from a closed dialog
+    /// cannot be mistaken for one from the dialog opened after it.
+    import_generation: u64,
+    #[cfg(test)]
+    injected_import_preview:
+        Option<Result<tterm_core::profiles::types::SshConfigImportPreview, String>>,
+    #[cfg(test)]
+    injected_import_result:
+        Option<Result<tterm_core::profiles::types::SshConfigImportResult, String>>,
+    #[cfg(test)]
+    import_options_for_test: Option<tterm_core::profiles::types::SshConfigImportOptions>,
 }
 
 impl SavedConnectionsUi {
@@ -124,6 +140,7 @@ impl SavedConnectionsUi {
             loading: false,
             opening: false,
             error: None,
+            notice: None,
             restore_focus: None,
             generation: 0,
             scroll_handle: ScrollHandle::default(),
@@ -144,6 +161,14 @@ impl SavedConnectionsUi {
             injected_editor_load: None,
             #[cfg(test)]
             injected_editor_save: None,
+            import: None,
+            import_generation: 0,
+            #[cfg(test)]
+            injected_import_preview: None,
+            #[cfg(test)]
+            injected_import_result: None,
+            #[cfg(test)]
+            import_options_for_test: None,
         })
     }
 
@@ -165,6 +190,11 @@ impl SavedConnectionsUi {
     #[cfg(test)]
     pub(super) fn error(&self) -> Option<&str> {
         self.error.as_deref()
+    }
+
+    #[cfg(test)]
+    pub(super) fn notice(&self) -> Option<&str> {
+        self.notice.as_deref()
     }
 
     #[cfg(test)]
@@ -191,8 +221,11 @@ impl SavedConnectionsUi {
         self.navigation.clear_rows();
         self.selected_id = None;
         self.error = None;
+        self.notice = None;
         self.editor = None;
         self.editor_generation = self.editor_generation.wrapping_add(1);
+        self.import = None;
+        self.import_generation = self.import_generation.wrapping_add(1);
         self.select_after_load = None;
         self.sort_touched = false;
         self.generation = self.generation.wrapping_add(1);
@@ -219,9 +252,12 @@ impl SavedConnectionsUi {
         self.listing.set_query(String::new());
         self.selected_id = None;
         self.error = None;
+        self.notice = None;
         self.restore_focus = None;
         self.editor = None;
         self.editor_generation = self.editor_generation.wrapping_add(1);
+        self.import = None;
+        self.import_generation = self.import_generation.wrapping_add(1);
         self.select_after_load = None;
         self.generation = self.generation.wrapping_add(1);
         cx.notify();
@@ -241,8 +277,11 @@ impl SavedConnectionsUi {
         self.listing.set_query(String::new());
         self.selected_id = None;
         self.error = None;
+        self.notice = None;
         self.editor = None;
         self.editor_generation = self.editor_generation.wrapping_add(1);
+        self.import = None;
+        self.import_generation = self.import_generation.wrapping_add(1);
         self.select_after_load = None;
         self.generation = self.generation.wrapping_add(1);
         let active_focus = self.workspace.upgrade().map(|workspace| {
@@ -318,6 +357,14 @@ impl SavedConnectionsUi {
         if !self.open {
             return;
         }
+        if self.import.is_some() {
+            if event.keystroke.key == "escape" {
+                self.cancel_import(window, cx);
+                window.prevent_default();
+                cx.stop_propagation();
+            }
+            return;
+        }
         if self.editor.is_some() {
             let handled = match event.keystroke.key.as_str() {
                 "escape" => {
@@ -384,7 +431,7 @@ impl SavedConnectionsUi {
     /// Confirms the selected profile once and keeps the dialog open until the
     /// lookup succeeds, so a failure is visible and can be retried.
     fn confirm_selection(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        if !self.open || self.loading || self.opening {
+        if !self.open || self.loading || self.opening || self.import.is_some() {
             return;
         }
         let Some(id) = self.active_profile_id() else {

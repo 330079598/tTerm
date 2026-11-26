@@ -1,0 +1,36 @@
+# P4-03 shared acceptance fixture for the Tauri and GPUI import tests.
+#
+# Both tests materialize this file in an isolated temporary directory and
+# replace the placeholders below with absolute paths from that directory, using
+# `/` separators because the parser, like ssh, treats `\` as an escape:
+#   __P4_03_INCLUDE__  the absolute path of included.conf
+#   __P4_03_KEY__      a synthetic private-key path, never read by the tests
+#   __P4_03_CERT__     a synthetic certificate path, never read by the tests
+#
+# The Include must stay absolute: OpenSSH resolves a relative Include from
+# ~/.ssh, not from the file that names it, and the tests must never read the
+# user's real SSH configuration.
+Include "__P4_03_INCLUDE__"
+
+Host focus
+  HostName focus.example.com
+  User deploy
+  Port 2222
+  IdentityFile "__P4_03_KEY__"
+  CertificateFile "__P4_03_CERT__"
+  ServerAliveInterval 30
+  ServerAliveCountMax 5
+  ForwardAgent yes
+  ProxyJump bastion.example.com
+  LocalForward 15432 db.internal:5432
+  RemoteForward 19000 localhost:3000
+  DynamicForward 11080
+
+Host optional
+  HostName optional.example.com
+  User optional-user
+  Port 2201
+
+Host *.dropped
+  User wildcard-user
+  Port 2022

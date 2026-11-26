@@ -11,7 +11,7 @@ use tterm_ui::tokens::gpui::hsla;
 
 use super::{
     CANCEL_BUTTON_ID, CONFIRM_BUTTON_ID, DIALOG_ID, DIALOG_PADDING, DIALOG_RADIUS, DIALOG_WIDTH,
-    EDIT_BUTTON_ID, ERROR_ID, LIST_ID, LIST_MAX_HEIGHT, LOADING_ID, NEW_BUTTON_ID,
+    EDIT_BUTTON_ID, ERROR_ID, LIST_ID, LIST_MAX_HEIGHT, LOADING_ID, NEW_BUTTON_ID, NOTICE_ID,
     SavedConnectionsUi,
 };
 
@@ -19,6 +19,9 @@ impl SavedConnectionsUi {
     pub(super) fn dialog(&self, cx: &mut Context<Self>) -> Stateful<Div> {
         if self.editor.is_some() {
             return self.editor_dialog(cx);
+        }
+        if self.import.is_some() {
+            return self.import_dialog(cx);
         }
         let theme = self.theme;
         let colors = theme.colors;
@@ -79,6 +82,14 @@ impl SavedConnectionsUi {
                 Role::Status,
             ));
         } else {
+            if let Some(notice) = &self.notice {
+                body = body.child(status_line(
+                    NOTICE_ID,
+                    notice.clone(),
+                    colors.success,
+                    Role::Status,
+                ));
+            }
             if let Some(error) = &self.error {
                 body = body.child(status_line(
                     ERROR_ID,
@@ -105,6 +116,7 @@ impl SavedConnectionsUi {
         };
         let open_disabled = self.loading || self.opening || self.active_profile_id().is_none();
         let new_button = self.new_connection_button(NEW_BUTTON_ID, self.profiles.is_empty(), cx);
+        let import_button = self.import_config_button(cx);
         let edit_button = self.edit_selected_button(cx);
         let cancel_button = button(
             CANCEL_BUTTON_ID,
@@ -162,6 +174,7 @@ impl SavedConnectionsUi {
                     .items_center()
                     .gap(px(8.0))
                     .child(cancel_button)
+                    .child(import_button)
                     .child(new_button)
                     .child(edit_button)
                     .child(open_button),
@@ -197,6 +210,29 @@ impl SavedConnectionsUi {
         .aria_label(label)
         .when(!self.opening, |new_button| {
             new_button.on_click(cx.listener(|this, _, window, cx| this.open_new_editor(window, cx)))
+        })
+    }
+
+    /// The entry to the SSH config importer, beside the new-connection action.
+    fn import_config_button(&self, cx: &mut Context<Self>) -> Stateful<Div> {
+        let label = self.text(cx, keys::SSH_CONFIG_IMPORT_TITLE);
+        let disabled = self.loading || self.opening;
+        button(
+            super::import::IMPORT_BUTTON_ID,
+            label.clone(),
+            Variant::Outline,
+            ButtonSize::Default,
+            ButtonState {
+                disabled,
+                ..ButtonState::default()
+            },
+            self.theme,
+        )
+        .debug_selector(|| super::import::IMPORT_BUTTON_ID.to_string())
+        .role(Role::Button)
+        .aria_label(label)
+        .when(!disabled, |import| {
+            import.on_click(cx.listener(|this, _, window, cx| this.open_import(window, cx)))
         })
     }
 
@@ -317,7 +353,9 @@ impl Render for SavedConnectionsUi {
             return div();
         }
         let dialog = self.dialog(cx);
-        let trap_id = if self.editor.is_some() {
+        let trap_id = if self.import.is_some() {
+            "saved-connections-import-focus-trap"
+        } else if self.editor.is_some() {
             "saved-connections-editor-focus-trap"
         } else {
             "saved-connections-focus-trap"
@@ -334,7 +372,7 @@ impl Render for SavedConnectionsUi {
                 }),
             )
             .on_any_mouse_down(cx.listener(|this, _, window, cx| {
-                if this.editor.is_none() {
+                if this.editor.is_none() && this.import.is_none() {
                     this.close(window, cx);
                 }
             }))
