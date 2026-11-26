@@ -13,7 +13,9 @@ use russh::keys::{Certificate, PrivateKey, PublicKey, load_secret_key};
 use russh::server::Auth;
 use tokio::io::{AsyncReadExt, AsyncWriteExt, DuplexStream};
 
-use super::{AuthMethod, AuthUsed, Harness, Script, USER, auto, write_client_key};
+use super::{
+    AuthMethod, AuthUsed, Harness, Script, USER, auto, write_client_key, write_client_key_with,
+};
 use crate::ssh::agent::{offer_identities, offered_before};
 
 fn now() -> u64 {
@@ -202,6 +204,48 @@ async fn key_file_method_signs_in_with_a_configured_certificate() {
 
     result.expect("authenticate");
     assert_eq!(log, ["certificate"]);
+}
+
+#[tokio::test]
+async fn an_encrypted_key_still_uses_its_configured_certificate_after_the_prompt() {
+    let mut harness = Harness::start(
+        Script {
+            certificate: || Auth::Accept,
+            ..Script::default()
+        },
+        vec![Some(vec!["secret"])],
+    )
+    .await;
+
+    let key_path = write_client_key_with(Some("secret"));
+    let key = load_secret_key(&key_path, Some("secret")).expect("load client key");
+    let certificate_path = write_certificate_file(
+        &certify(key.public_key())
+            .to_openssh()
+            .expect("encode certificate"),
+    );
+    let result = harness
+        .authenticate(AuthMethod::Key {
+            path: key_path.to_str().expect("utf-8 path"),
+            passphrase: None,
+            certificate: Some(certificate_path.to_str().expect("utf-8 path")),
+        })
+        .await;
+    std::fs::remove_file(&key_path).ok();
+    std::fs::remove_file(&certificate_path).ok();
+
+    assert_eq!(
+        result.expect("authenticate"),
+        AuthUsed::Key {
+            path: key_path.to_string_lossy().into_owned(),
+            passphrase_typed: true,
+        }
+    );
+    assert_eq!(harness.log(), ["certificate"]);
+    let asked = harness.prompts.lock().unwrap().asked.clone();
+    assert_eq!(asked.len(), 1);
+    assert_eq!(asked[0].kind, "passphrase");
+    assert!(!asked[0].prompts[0].echo);
 }
 
 /// Asserts that an unusable certificate failed the sign-in with an error

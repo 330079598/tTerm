@@ -79,6 +79,40 @@ async fn run(
 }
 
 #[tokio::test]
+async fn broker_key_passphrase_prompt_is_non_echo_and_reveals_the_window() {
+    let script = Script {
+        publickey: || Auth::Accept,
+        ..Default::default()
+    };
+    let key_path = write_client_key_with(Some("secret"));
+    let path = key_path.to_str().expect("utf-8 path");
+    let (result, asked, revealed) = run(
+        script,
+        vec![Some(vec!["secret"])],
+        AuthMethod::Key {
+            path,
+            passphrase: None,
+            certificate: None,
+        },
+    )
+    .await;
+    std::fs::remove_file(&key_path).ok();
+
+    assert_eq!(
+        result.unwrap(),
+        AuthUsed::Key {
+            path: path.to_string(),
+            passphrase_typed: true,
+        }
+    );
+    assert_eq!(asked.len(), 1);
+    assert_eq!(asked[0].kind, "passphrase");
+    assert_eq!(asked[0].prompts.len(), 1);
+    assert!(!asked[0].prompts[0].echo);
+    assert_eq!(revealed, 1);
+}
+
+#[tokio::test]
 async fn broker_auto_wrong_password_retries_then_succeeds() {
     let script = Script {
         password: || Auth::Accept,

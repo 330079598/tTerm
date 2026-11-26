@@ -2,7 +2,7 @@
 use crate::events::ssh::AuthPromptField;
 use crate::events::ssh::AuthPromptPayload;
 
-use super::{AuthPrompter, AuthTarget, EXCHANGE_TIMEOUT, MAX_STEPS};
+use super::{AuthPrompter, AuthTarget, EXCHANGE_TIMEOUT, MAX_STEPS, TYPING_ATTEMPTS};
 use crate::ssh::agent::offered_before;
 use crate::ssh::key_file::{display_path, parse_certificate, read_key};
 use crate::ssh::key_vault;
@@ -101,13 +101,17 @@ where
 /// Signs in with the key at `path`, a key file or a key in the key vault.
 /// Its certificate is `certificate_path` when one is configured, and
 /// otherwise the one kept with a vault key; see [`key_file_identities`].
+/// When `prompter` is given, an encrypted key that no configured passphrase
+/// unlocked asks the user for one. Returns whether such a passphrase was
+/// typed to unlock it.
 pub(super) async fn publickey<H>(
     session: &mut client::Handle<H>,
     target: &AuthTarget<'_>,
     path: &str,
     passphrase: Option<&str>,
     certificate_path: Option<&str>,
-) -> Result<AuthResult, SshConnectError>
+    prompter: Option<&AuthPrompter>,
+) -> Result<(AuthResult, bool), SshConnectError>
 where
     H: client::Handler,
 {
@@ -134,18 +138,88 @@ where
     match material.decode(passphrase, &key_subject) {
         Ok(key) => {
             let certificate = certificate(key.public_key())?;
-            sign_in_with_key(session, target, path, key, certificate, &mut Vec::new()).await
+            let verdict =
+                sign_in_with_key(session, target, path, key, certificate, &mut Vec::new()).await?;
+            Ok((verdict, false))
         }
         // Some old PEM-format RSA keys are beyond `russh`.
         Err(load_error) => {
+            // Only a key no configured or saved passphrase could unlock asks
+            // the user; a stored one keeps its failure as before.
+            if let Some(prompter) = prompter
+                && passphrase.is_none()
+                && material.saved_passphrase().is_none()
+                && let Some(key) = encrypted_key(&material.text)
+            {
+                let key = decrypt_with_prompt(target, prompter, key, label).await?;
+                let certificate = certificate(key.public_key())?;
+                let verdict =
+                    sign_in_with_key(session, target, path, key, certificate, &mut Vec::new())
+                        .await?;
+                return Ok((verdict, true));
+            }
+
             let (mut signer, public_key) = RingRsaSigner::from_pem(&material.text)
                 .ok_or(SshConnectError::Permanent(load_error))?
                 .map_err(key_error)?;
             let identities = key_file_identities(path, &public_key, certificate(&public_key)?);
             let mut offered = Vec::new();
-            sign_in_with_rsa(session, target, &mut signer, path, identities, &mut offered).await
+            let verdict =
+                sign_in_with_rsa(session, target, &mut signer, path, identities, &mut offered)
+                    .await?;
+            Ok((verdict, false))
         }
     }
+}
+
+/// The key in `text` when it is an encrypted OpenSSH key, which is the kind
+/// [`decrypt_with_prompt`] can unlock.
+fn encrypted_key(text: &str) -> Option<PrivateKey> {
+    PrivateKey::from_openssh(text)
+        .ok()
+        .filter(PrivateKey::is_encrypted)
+}
+
+/// Asks for the passphrase of an encrypted key, as `ssh` does, and returns
+/// the decrypted key. Cancelling or running out of attempts is an error: an
+/// explicit key profile has no other method to fall back to.
+async fn decrypt_with_prompt(
+    target: &AuthTarget<'_>,
+    prompter: &AuthPrompter,
+    key: PrivateKey,
+    label: &str,
+) -> Result<PrivateKey, SshConnectError> {
+    for attempt in 0..TYPING_ATTEMPTS {
+        let instructions = if attempt == 0 {
+            "Cancel to stop authenticating."
+        } else {
+            "Wrong passphrase, try again. Cancel to stop authenticating."
+        };
+        let answers = prompter
+            .ask(
+                target,
+                prompt_payload(
+                    target,
+                    "passphrase",
+                    String::new(),
+                    instructions.to_string(),
+                    vec![AuthPromptField {
+                        text: format!("Passphrase for {label}:"),
+                        echo: false,
+                    }],
+                ),
+            )
+            .await?;
+        let passphrase = Zeroizing::new(answers.into_iter().next().unwrap_or_default());
+        if let Ok(decrypted) = key.decrypt(passphrase.as_bytes()) {
+            return Ok(decrypted);
+        }
+    }
+
+    Err(SshConnectError::Permanent(format!(
+        "{} key {label}: incorrect passphrase",
+        target.subject()
+    )))
 }
 
 /// Reads the certificate configured for a key, which must certify that key

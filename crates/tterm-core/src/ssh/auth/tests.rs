@@ -562,6 +562,213 @@ async fn key_file_method_signs_with_the_key() {
 
     result.expect("authenticate");
     assert_eq!(harness.log(), ["publickey"]);
+    assert!(harness.asked().is_empty());
+}
+
+#[tokio::test]
+async fn key_file_method_prompts_for_an_encrypted_key_without_a_stored_passphrase() {
+    let mut harness = Harness::start(
+        Script {
+            publickey: || Auth::Accept,
+            ..Script::default()
+        },
+        vec![Some(vec!["secret"])],
+    )
+    .await;
+
+    let key_path = write_client_key_with(Some("secret"));
+    let path = key_path.to_str().expect("utf-8 path");
+    let result = harness
+        .authenticate(AuthMethod::Key {
+            path,
+            passphrase: None,
+            certificate: None,
+        })
+        .await;
+    std::fs::remove_file(&key_path).ok();
+
+    assert_eq!(
+        result.expect("authenticate"),
+        AuthUsed::Key {
+            path: path.to_string(),
+            passphrase_typed: true,
+        }
+    );
+    let asked = harness.prompts.lock().unwrap().asked.clone();
+    assert_eq!(asked.len(), 1);
+    assert_eq!(asked[0].kind, "passphrase");
+    assert_eq!(asked[0].prompts.len(), 1);
+    assert_eq!(asked[0].prompts[0].text, format!("Passphrase for {path}:"));
+    assert!(!asked[0].prompts[0].echo);
+    assert_eq!(harness.log(), ["publickey"]);
+}
+
+#[tokio::test]
+async fn key_file_method_uses_a_stored_passphrase_without_prompting() {
+    let mut harness = Harness::start(
+        Script {
+            publickey: || Auth::Accept,
+            ..Script::default()
+        },
+        vec![],
+    )
+    .await;
+
+    let key_path = write_client_key_with(Some("secret"));
+    let path = key_path.to_str().expect("utf-8 path");
+    let result = harness
+        .authenticate(AuthMethod::Key {
+            path,
+            passphrase: Some("secret"),
+            certificate: None,
+        })
+        .await;
+    std::fs::remove_file(&key_path).ok();
+
+    assert_eq!(
+        result.expect("authenticate"),
+        AuthUsed::Key {
+            path: path.to_string(),
+            passphrase_typed: false,
+        }
+    );
+    assert!(harness.asked().is_empty());
+    assert_eq!(harness.log(), ["publickey"]);
+}
+
+#[tokio::test]
+async fn key_file_method_asks_again_after_a_wrong_passphrase() {
+    let mut harness = Harness::start(
+        Script {
+            publickey: || Auth::Accept,
+            ..Script::default()
+        },
+        vec![Some(vec!["wrong"]), Some(vec!["secret"])],
+    )
+    .await;
+
+    let key_path = write_client_key_with(Some("secret"));
+    let path = key_path.to_str().expect("utf-8 path");
+    let result = harness
+        .authenticate(AuthMethod::Key {
+            path,
+            passphrase: None,
+            certificate: None,
+        })
+        .await;
+    std::fs::remove_file(&key_path).ok();
+
+    assert_eq!(
+        result.expect("authenticate"),
+        AuthUsed::Key {
+            path: path.to_string(),
+            passphrase_typed: true,
+        }
+    );
+    let asked = harness.prompts.lock().unwrap().asked.clone();
+    assert_eq!(asked.len(), 2);
+    assert!(
+        asked[1]
+            .instructions
+            .starts_with("Wrong passphrase, try again.")
+    );
+    assert_eq!(harness.log(), ["publickey"]);
+}
+
+#[tokio::test]
+async fn cancelling_the_key_passphrase_aborts_authentication_without_falling_back() {
+    let mut harness = Harness::start(
+        Script {
+            password: || Auth::Accept,
+            publickey: || Auth::Accept,
+            methods: Some(vec![MethodKind::PublicKey, MethodKind::Password]),
+            ..Script::default()
+        },
+        vec![None],
+    )
+    .await;
+
+    let key_path = write_client_key_with(Some("secret"));
+    let result = harness
+        .authenticate(AuthMethod::Key {
+            path: key_path.to_str().expect("utf-8 path"),
+            passphrase: None,
+            certificate: None,
+        })
+        .await;
+    std::fs::remove_file(&key_path).ok();
+
+    assert_eq!(
+        result.expect_err("cancelled"),
+        "SSH authentication was cancelled"
+    );
+    let asked = harness.prompts.lock().unwrap().asked.clone();
+    assert_eq!(asked.len(), 1);
+    assert_eq!(asked[0].kind, "passphrase");
+    assert!(harness.log().is_empty());
+}
+
+#[tokio::test]
+async fn a_wrong_key_passphrase_does_not_fall_back_to_password() {
+    let mut harness = Harness::start(
+        Script {
+            password: || Auth::Accept,
+            publickey: || Auth::Accept,
+            methods: Some(vec![MethodKind::PublicKey, MethodKind::Password]),
+            ..Script::default()
+        },
+        vec![
+            Some(vec!["wrong"]),
+            Some(vec!["wrong"]),
+            Some(vec!["wrong"]),
+        ],
+    )
+    .await;
+
+    let key_path = write_client_key_with(Some("secret"));
+    let result = harness
+        .authenticate(AuthMethod::Key {
+            path: key_path.to_str().expect("utf-8 path"),
+            passphrase: None,
+            certificate: None,
+        })
+        .await;
+    std::fs::remove_file(&key_path).ok();
+
+    let error = result.expect_err("wrong passphrase");
+    assert!(error.contains("incorrect passphrase"), "{error}");
+    assert_eq!(harness.asked().len(), 3);
+    assert!(harness.asked().iter().all(|prompts| !prompts[0].echo));
+    assert!(harness.log().is_empty());
+}
+
+#[tokio::test]
+async fn a_rejected_key_file_does_not_fall_back_to_password() {
+    let mut harness = Harness::start(
+        Script {
+            password: || Auth::Accept,
+            publickey: Auth::reject,
+            methods: Some(vec![MethodKind::PublicKey, MethodKind::Password]),
+            ..Script::default()
+        },
+        vec![],
+    )
+    .await;
+
+    let key_path = write_client_key();
+    let error = harness
+        .authenticate(AuthMethod::Key {
+            path: key_path.to_str().expect("utf-8 path"),
+            passphrase: None,
+            certificate: None,
+        })
+        .await
+        .expect_err("key rejected");
+    std::fs::remove_file(&key_path).ok();
+
+    assert_eq!(error, "SSH authentication failed");
+    assert_eq!(harness.log(), ["publickey"]);
+    assert!(harness.asked().is_empty());
 }
 
 #[tokio::test]

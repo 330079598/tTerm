@@ -241,7 +241,10 @@ where
     let Ok(key) = PrivateKey::from_openssh(&material.text) else {
         // Not in OpenSSH format (old PEM RSA): `publickey` reads the other
         // formats, as long as they need no passphrase.
-        let verdict = publickey(session, target, &display, None, None).await.ok();
+        let verdict = publickey(session, target, &display, None, None, None)
+            .await
+            .ok()
+            .map(|(verdict, _)| verdict);
         return Ok(verdict.map(|verdict| (verdict, false)));
     };
     // The certificate a vault key keeps; a key file's sits beside it. One

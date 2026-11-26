@@ -277,7 +277,22 @@ where
             path,
             passphrase,
             certificate,
-        } => publickey(session, target, path, passphrase, certificate).await?,
+        } => {
+            let (result, passphrase_typed) = publickey(
+                session,
+                target,
+                path,
+                passphrase,
+                certificate,
+                Some(prompter),
+            )
+            .await?;
+            used = AuthUsed::Key {
+                path: path.to_string(),
+                passphrase_typed,
+            };
+            result
+        }
         AuthMethod::Password(_) => {
             // Nothing saved, as for a saved connection used as a jump host
             // that keeps no password: the user types it, as ssh asks.
