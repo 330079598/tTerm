@@ -156,13 +156,11 @@ impl SavedConnectionsUi {
         });
         div()
             .flex()
-            .items_center()
-            .justify_between()
-            .gap(px(12.0))
+            .flex_col()
+            .gap(px(8.0))
             .child(
                 div()
                     .min_w_0()
-                    .flex_1()
                     .truncate()
                     .text_size(px(12.0))
                     .text_color(hsla(colors.muted_foreground, 1.0))
@@ -171,6 +169,8 @@ impl SavedConnectionsUi {
             .child(
                 div()
                     .flex()
+                    .flex_wrap()
+                    .justify_end()
                     .items_center()
                     .gap(px(8.0))
                     .child(cancel_button)
