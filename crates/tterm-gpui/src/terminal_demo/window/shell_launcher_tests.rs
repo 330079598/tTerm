@@ -25,6 +25,16 @@ fn menu_choice(visual: &mut VisualTestContext, index: usize) -> Option<String> {
     })
 }
 
+/// The checked state of the open launcher's choice at `index`.
+fn menu_checked(visual: &mut VisualTestContext, index: usize) -> Option<bool> {
+    visual.update(|window, _| {
+        window
+            .within("popup-menu")
+            .try_find(index)
+            .and_then(|choice| choice.checked())
+    })
+}
+
 #[gpui_kit::test]
 fn local_shell_menu_cancels_then_launches_the_saved_program(cx: &mut TestAppContext) {
     #[cfg(unix)]
@@ -125,6 +135,99 @@ fn menu_lists_synthetic_detected_shells_and_uses_the_selected_choice(cx: &mut Te
 }
 
 #[gpui_kit::test]
+fn configured_wsl_distro_is_listed_first_checked_and_keeps_hidden_entries_out(
+    cx: &mut TestAppContext,
+) {
+    let harness = harness(
+        cx,
+        AppConfig {
+            terminal_shell: "wsl".into(),
+            terminal_shell_wsl_distro: "Ubuntu".into(),
+            hidden_shells: vec!["wsl:Ubuntu".into(), "wsl:Debian".into()],
+            ..Default::default()
+        },
+    );
+    harness.visual.update(|_, app| {
+        harness.config.update(app, |state, _| {
+            state.set_detected_shells_for_test(vec![
+                TerminalShellProfile {
+                    shell: "wsl".into(),
+                    label: "Ubuntu".into(),
+                    source: "wsl.exe".into(),
+                    wsl_distro: Some("Ubuntu".into()),
+                    default_wsl_distro: true,
+                },
+                TerminalShellProfile {
+                    shell: "wsl".into(),
+                    label: "Debian".into(),
+                    source: "wsl.exe".into(),
+                    wsl_distro: Some("Debian".into()),
+                    ..Default::default()
+                },
+            ]);
+        });
+    });
+    let root = harness.root.clone();
+
+    click(harness.visual, "new-shell-menu");
+    assert_eq!(menu_choice(harness.visual, 0).as_deref(), Some("Ubuntu"));
+    assert_eq!(menu_checked(harness.visual, 0), Some(true));
+    assert!(
+        menu_choice(harness.visual, 2).is_none(),
+        "a hidden non-default distribution is not listed"
+    );
+
+    press(harness.visual, "escape");
+    harness.visual.update(|_, cx| {
+        let workspace = root.read(cx);
+        assert_eq!(workspace.tabs.len(), 2);
+        assert_eq!(workspace.tabs.active_id(), 1);
+        assert!(Rc::ptr_eq(&harness.first, &tab_binding(workspace, 1)));
+    });
+    harness.visual.update(|window, _| window.remove_window());
+}
+
+#[gpui_kit::test]
+fn configured_default_without_an_entry_keeps_its_action(cx: &mut TestAppContext) {
+    let path = if cfg!(windows) {
+        r"C:\missing\shell.exe"
+    } else {
+        "/missing/shell"
+    };
+    let harness = harness(
+        cx,
+        AppConfig {
+            terminal_shell: "custom".into(),
+            terminal_shell_custom_path: path.into(),
+            terminal_shell_custom_args: "-l".into(),
+            ..Default::default()
+        },
+    );
+    let root = harness.root.clone();
+
+    click(harness.visual, "new-shell-menu");
+    assert_eq!(
+        menu_choice(harness.visual, 0).as_deref(),
+        Some(path),
+        "the saved path names the default even without a list entry"
+    );
+    assert_eq!(menu_checked(harness.visual, 0), Some(true));
+    assert_eq!(
+        menu_checked(harness.visual, 1),
+        None,
+        "Auto is not marked as the default"
+    );
+
+    press(harness.visual, "escape");
+    harness.visual.update(|_, cx| {
+        let workspace = root.read(cx);
+        assert_eq!(workspace.tabs.len(), 2);
+        assert_eq!(workspace.tabs.active_id(), 1);
+    });
+    harness.visual.update(|window, _| window.remove_window());
+}
+
+#[gpui_kit::test]
 fn explicit_auto_starts_auto_instead_of_the_configured_default(cx: &mut TestAppContext) {
     #[cfg(unix)]
     let (path, args) = ("/bin/sh", "-c \"echo DEFAULT_SHELL; read answer\"");
@@ -141,7 +244,7 @@ fn explicit_auto_starts_auto_instead_of_the_configured_default(cx: &mut TestAppC
     );
     let root = harness.root.clone();
     click(harness.visual, "new-shell-menu");
-    press(harness.visual, "down enter");
+    press(harness.visual, "down down enter");
     harness.visual.update(|_, cx| {
         let workspace = root.read(cx);
         assert_eq!(workspace.tabs.len(), 3);

@@ -4,12 +4,27 @@ use gpui_kit::component::button::{Button, ButtonVariants};
 use gpui_kit::component::menu::{DropdownMenu, PopupMenuItem};
 use gpui_kit::prelude::*;
 use gpui_kit::{Context, Window};
+use tterm_core::i18n::keys;
 use tterm_core::workspace::local_shells::connections::local_shell_connection;
+use tterm_core::workspace::local_shells::default_shell::{default_shell_choice, default_shell_key};
 use tterm_core::workspace::local_shells::saved::own_shell_choice;
-use tterm_core::workspace::local_shells::types::LocalShellChoice;
+use tterm_core::workspace::local_shells::types::{LocalShellChoice, ShellConfig};
 use tterm_core::workspace::tab::{Tab, TabType};
 
+use crate::locale::Locale;
+
 use super::{Prototype, TabLaunch, session_workspace};
+
+/// The label of a configured default that no detected or saved entry names.
+fn default_choice_label(choice: &LocalShellChoice, locale: &Locale) -> String {
+    let path = choice.custom_path.as_deref().map(str::trim).unwrap_or("");
+    if !path.is_empty() {
+        return path.to_string();
+    }
+    locale
+        .text(keys::SHELL_LAUNCH_CUSTOM)
+        .unwrap_or_else(|_| keys::SHELL_LAUNCH_CUSTOM.as_str().to_string())
+}
 
 impl Prototype {
     pub(super) fn shell_launcher(
@@ -27,31 +42,54 @@ impl Prototype {
             .tooltip(label.clone())
             .accessibility_label(label)
             .dropdown_menu(move |mut menu, _, cx| {
-                let hidden = config.read(cx).config().hidden_shells.clone();
-                let entries = {
+                let (entries, default_key, fallback_label, fallback_choice) = {
                     let state = config.read(cx);
-                    let locale = locale.read(cx);
-                    crate::local_shells_setting::shell_entries(state, locale)
+                    let shell_config = ShellConfig::from(state.config());
+                    let default_key = default_shell_key(&shell_config);
+                    let fallback_choice = default_shell_choice(&shell_config);
+                    let entries =
+                        crate::local_shells_setting::shell_entries(state, locale.read(cx));
+                    let fallback_label = default_choice_label(&fallback_choice, locale.read(cx));
+                    (entries, default_key, fallback_label, fallback_choice)
                 };
-                for entry in entries {
-                    if entry.hidden || hidden.contains(&entry.key) {
-                        continue;
+                // React puts the configured default first in the new-tab list,
+                // so the launcher's first item is also the shell a bare
+                // Down+Enter starts. The default stays listed when hidden: the
+                // configuration still makes it the valid default action, while
+                // every other hidden shell is omitted.
+                let default_entry = entries.iter().find(|entry| entry.key == default_key);
+                let (default_label, default_choice) = match default_entry {
+                    Some(entry) if !entry.label.trim().is_empty() => {
+                        (entry.label.clone(), entry.choice.clone())
                     }
+                    Some(entry) => (
+                        default_choice_label(&entry.choice, locale.read(cx)),
+                        entry.choice.clone(),
+                    ),
+                    None => (fallback_label, fallback_choice),
+                };
+                let mut ordered = vec![(default_label, default_choice, true)];
+                ordered.extend(
+                    entries
+                        .iter()
+                        .filter(|entry| entry.key != default_key && !entry.hidden)
+                        .map(|entry| (entry.label.clone(), entry.choice.clone(), false)),
+                );
+                for (item_label, choice, is_default) in ordered {
                     let owner = owner.clone();
-                    let choice = entry.choice;
-                    let title = entry.label.clone();
-                    menu = menu.item(PopupMenuItem::new(entry.label).on_click(
-                        move |_, window, app| {
-                            let _ = owner.update(app, |workspace, cx| {
-                                workspace.open_shell_choice(
-                                    choice.clone(),
-                                    Some(title.clone()),
-                                    window,
-                                    cx,
-                                );
-                            });
-                        },
-                    ));
+                    let title = item_label.clone();
+                    let item = PopupMenuItem::new(item_label);
+                    let item = if is_default { item.checked(true) } else { item };
+                    menu = menu.item(item.on_click(move |_, window, app| {
+                        let _ = owner.update(app, |workspace, cx| {
+                            workspace.open_shell_choice(
+                                choice.clone(),
+                                Some(title.clone()),
+                                window,
+                                cx,
+                            );
+                        });
+                    }));
                 }
                 menu
             })
