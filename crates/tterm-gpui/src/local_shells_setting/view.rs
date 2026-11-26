@@ -18,10 +18,11 @@ use tterm_ui::tokens::theme::Theme;
 use super::list_actions::{can_hide, can_move_custom};
 use super::path_status::EditorStatus;
 use super::{
-    ARGS_INPUT_ID, CANCEL_ID, COPY_PREFIX, DEFAULT_PREFIX, DETECTED_PREFIX, EDIT_PREFIX, EDITOR_ID,
-    EDITOR_PADDING, ERROR_ID, HIDDEN_PREFIX, LocalShellsSetting, MISSING_ID, MISSING_PREFIX,
-    MOVE_DOWN_PREFIX, MOVE_UP_PREFIX, NAME_INPUT_ID, PATH_INPUT_ID, REMOVE_PREFIX, ROW_PAD_Y,
-    ROW_PREFIX, RowLabels, RowSlot, SAVE_ID, SECTION_GAP, SET_DEFAULT_PREFIX, VISIBILITY_PREFIX,
+    ARGS_INPUT_ID, BROWSE_ID, CANCEL_ID, COPY_PREFIX, DEFAULT_PREFIX, DETECTED_PREFIX, EDIT_PREFIX,
+    EDITOR_ID, EDITOR_PADDING, ERROR_ID, HIDDEN_PREFIX, LocalShellsSetting, MISSING_ID,
+    MISSING_PREFIX, MOVE_DOWN_PREFIX, MOVE_UP_PREFIX, NAME_INPUT_ID, PATH_INPUT_ID, REMOVE_PREFIX,
+    ROW_PAD_Y, ROW_PREFIX, RowLabels, RowSlot, SAVE_ID, SECTION_GAP, SET_DEFAULT_PREFIX,
+    VISIBILITY_PREFIX,
 };
 
 /// What one row's action buttons need besides their translated labels.
@@ -375,6 +376,7 @@ impl LocalShellsSetting {
         let program = self.text(cx, keys::LOCAL_SHELLS_PROGRAM);
         let name = self.text(cx, keys::LOCAL_SHELLS_NAME);
         let args = self.text(cx, keys::LOCAL_SHELLS_ARGS);
+        let browse = self.text(cx, keys::LOCAL_SHELLS_BROWSE);
         let save = self.text(cx, keys::LOCAL_SHELLS_SAVE);
         let cancel = self.text(cx, keys::LOCAL_SHELLS_CANCEL);
         let path_input = draft.path.clone();
@@ -384,6 +386,10 @@ impl LocalShellsSetting {
         let error = self.error.clone();
         let state = ButtonState {
             disabled: self.saving,
+            ..ButtonState::default()
+        };
+        let browse_state = ButtonState {
+            disabled: self.saving || self.picker.is_open(),
             ..ButtonState::default()
         };
         let mut panel = div()
@@ -404,7 +410,36 @@ impl LocalShellsSetting {
                     .flex()
                     .flex_col()
                     .gap(px(4.0))
-                    .child(field(theme, program, PATH_INPUT_ID, &path_input))
+                    .child(
+                        div()
+                            .flex()
+                            .items_end()
+                            .gap(px(6.0))
+                            .child(div().min_w(px(0.0)).flex_1().child(field(
+                                theme,
+                                program,
+                                PATH_INPUT_ID,
+                                &path_input,
+                            )))
+                            .child(
+                                button(
+                                    BROWSE_ID,
+                                    browse.clone(),
+                                    Variant::Outline,
+                                    ButtonSize::Sm,
+                                    browse_state,
+                                    theme,
+                                )
+                                .debug_selector(|| BROWSE_ID.to_string())
+                                .role(Role::Button)
+                                .aria_label(browse)
+                                .on_click(cx.listener(
+                                    |this, _, window, cx| {
+                                        this.pick_program(window, cx);
+                                    },
+                                )),
+                            ),
+                    )
                     .when_some(status_line, |wrapper, line| wrapper.child(line)),
             )
             .child(

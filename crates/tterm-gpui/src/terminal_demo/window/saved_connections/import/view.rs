@@ -14,10 +14,11 @@ use tterm_ui::tokens::theme::Theme;
 
 use super::super::SavedConnectionsUi;
 use super::{
-    IMPORT_CANCEL_ID, IMPORT_CONFIRM_ID, IMPORT_COUNT_ID, IMPORT_DIALOG_ID, IMPORT_EMPTY_ID,
-    IMPORT_ERROR_ID, IMPORT_FORWARDS_ID, IMPORT_GROUP_ID, IMPORT_LIST_ID, IMPORT_LOADING_ID,
-    IMPORT_OVERWRITE_ID, IMPORT_PREVIEW_ID, IMPORT_ROW_PREFIX, IMPORT_SELECT_ALL_ID,
-    IMPORT_SOURCE_ID, IMPORT_WARNINGS_ID, ImportDialog,
+    IMPORT_CANCEL_ID, IMPORT_CHOOSE_DIRECTORY_ID, IMPORT_CHOOSE_FILE_ID, IMPORT_CONFIRM_ID,
+    IMPORT_COUNT_ID, IMPORT_DIALOG_ID, IMPORT_EMPTY_ID, IMPORT_ERROR_ID, IMPORT_FORWARDS_ID,
+    IMPORT_GROUP_ID, IMPORT_LIST_ID, IMPORT_LOADING_ID, IMPORT_OVERWRITE_ID, IMPORT_PREVIEW_ID,
+    IMPORT_ROW_PREFIX, IMPORT_SELECT_ALL_ID, IMPORT_SOURCE_ID, IMPORT_WARNINGS_ID, ImportDialog,
+    ImportSourceKind,
 };
 
 const DIALOG_WIDTH: f32 = 680.0;
@@ -100,7 +101,10 @@ impl SavedConnectionsUi {
         let source_label = self.text(cx, keys::SSH_CONFIG_IMPORT_SOURCE);
         let group_label = self.text(cx, keys::SSH_CONFIG_IMPORT_GROUP);
         let preview_label = self.text(cx, keys::SSH_CONFIG_IMPORT_PREVIEW);
+        let choose_file_label = self.text(cx, keys::SSH_CONFIG_IMPORT_CHOOSE_SOURCE_FILE);
+        let choose_directory_label = self.text(cx, keys::SSH_CONFIG_IMPORT_CHOOSE_SOURCE_DIRECTORY);
         let preview_disabled = dialog.loading || dialog.importing;
+        let choose_disabled = preview_disabled;
         let preview_button = button(
             IMPORT_PREVIEW_ID,
             preview_label.clone(),
@@ -120,17 +124,71 @@ impl SavedConnectionsUi {
                 this.start_import_preview(window, cx);
             }))
         });
+        let choose_file_button = button(
+            IMPORT_CHOOSE_FILE_ID,
+            choose_file_label.clone(),
+            Variant::Outline,
+            ButtonSize::Sm,
+            ButtonState {
+                disabled: choose_disabled,
+                ..ButtonState::default()
+            },
+            theme,
+        )
+        .debug_selector(|| IMPORT_CHOOSE_FILE_ID.to_string())
+        .role(Role::Button)
+        .aria_label(choose_file_label)
+        .when(!choose_disabled, |button| {
+            button.on_click(cx.listener(|this, _, window, cx| {
+                this.choose_import_source(ImportSourceKind::File, window, cx);
+            }))
+        });
+        let choose_directory_button = button(
+            IMPORT_CHOOSE_DIRECTORY_ID,
+            choose_directory_label.clone(),
+            Variant::Outline,
+            ButtonSize::Sm,
+            ButtonState {
+                disabled: choose_disabled,
+                ..ButtonState::default()
+            },
+            theme,
+        )
+        .debug_selector(|| IMPORT_CHOOSE_DIRECTORY_ID.to_string())
+        .role(Role::Button)
+        .aria_label(choose_directory_label)
+        .when(!choose_disabled, |button| {
+            button.on_click(cx.listener(|this, _, window, cx| {
+                this.choose_import_source(ImportSourceKind::Directory, window, cx);
+            }))
+        });
         div()
             .flex()
             .gap(px(12.0))
-            .items_end()
-            .child(div().min_w_0().flex_1().child(labeled_input(
-                IMPORT_SOURCE_ID,
-                source_label,
-                &dialog.source,
-                theme,
-            )))
-            .child(preview_button)
+            .items_start()
+            .child(
+                div()
+                    .min_w_0()
+                    .flex_1()
+                    .flex()
+                    .flex_col()
+                    .gap(px(6.0))
+                    .child(labeled_input(
+                        IMPORT_SOURCE_ID,
+                        source_label,
+                        &dialog.source,
+                        theme,
+                    ))
+                    .child(
+                        div()
+                            .flex()
+                            .flex_wrap()
+                            .gap(px(8.0))
+                            .child(choose_file_button)
+                            .child(choose_directory_button)
+                            .child(preview_button),
+                    ),
+            )
             .child(div().min_w_0().flex_1().child(labeled_input(
                 IMPORT_GROUP_ID,
                 group_label,

@@ -1,5 +1,6 @@
 //! Headless tests for the local-shells editor and its save behavior.
 
+use std::path::PathBuf;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
@@ -623,13 +624,150 @@ fn copying_a_detected_shell_opens_a_fresh_draft_and_cancel_writes_nothing(cx: &m
     );
 }
 
+#[gpui_kit::test]
+fn the_program_picker_asks_for_one_file_and_saves_only_after_the_user_saves(
+    cx: &mut TestAppContext,
+) {
+    let (writer, writes) = ok_writer();
+    let (_runtime, setting) = editor(cx, AppConfig::default(), writer);
+    let visual = show(cx, setting.clone());
+
+    visual.update(|window, cx| {
+        setting.update(cx, |setting, cx| setting.start_add(window, cx));
+    });
+    assert!(exists(visual, BROWSE_ID.to_string()));
+    click(visual, BROWSE_ID.to_string());
+    assert!(
+        visual.did_prompt_for_paths(),
+        "the Browse button must open the platform picker"
+    );
+
+    visual.simulate_path_prompt_response(|options| {
+        assert!(options.files, "a shell program is a file");
+        assert!(!options.directories, "a shell program is not a directory");
+        assert!(!options.multiple, "one editor takes one program");
+        Some(vec![PathBuf::from("/bin/picked")])
+    });
+    wait_until(visual, |cx| {
+        setting
+            .read(cx)
+            .editor_values(cx)
+            .is_some_and(|(path, _, _)| path == "/bin/picked")
+    });
+
+    visual.update(|_, cx| {
+        let setting = setting.read(cx);
+        assert_eq!(
+            setting.editor_values(cx),
+            Some(("/bin/picked".to_string(), String::new(), String::new())),
+            "a pick changes only the path"
+        );
+        let name = setting.editor.as_ref().expect("editor").name.read(cx);
+        assert_eq!(
+            name.presentation().placeholder(),
+            "picked",
+            "the name placeholder follows the picked program"
+        );
+        assert_ne!(
+            setting.paths.editor_status(),
+            &EditorStatus::Idle,
+            "the picked path must be checked like typed text"
+        );
+        assert!(!setting.picker.is_open());
+    });
+    assert!(
+        writes.lock().expect("writes").is_empty(),
+        "picking a program must not save the draft"
+    );
+
+    click(visual, SAVE_ID.to_string());
+    wait_until(visual, |cx| setting.read(cx).editor_values(cx).is_none());
+    let writes = writes.lock().expect("writes");
+    assert_eq!(writes.len(), 1);
+    assert_eq!(writes[0].path, "/bin/picked");
+}
+
+#[gpui_kit::test]
+fn cancelling_the_program_picker_keeps_the_typed_path_and_writes_nothing(cx: &mut TestAppContext) {
+    let (writer, writes) = ok_writer();
+    let (_runtime, setting) = editor(cx, AppConfig::default(), writer);
+    let visual = show(cx, setting.clone());
+
+    visual.update(|window, cx| {
+        setting.update(cx, |setting, cx| {
+            setting.start_add(window, cx);
+            let path = setting.editor.as_ref().expect("editor").path.clone();
+            path.update(cx, |state, cx| state.set_value("/bin/typed", window, cx));
+        });
+    });
+    click(visual, BROWSE_ID.to_string());
+    assert!(visual.did_prompt_for_paths());
+
+    visual.simulate_path_prompt_response(|_options| None);
+    wait_until(visual, |cx| !setting.read(cx).picker.is_open());
+
+    visual.update(|_, cx| {
+        let setting = setting.read(cx);
+        assert_eq!(
+            setting.editor_values(cx),
+            Some(("/bin/typed".to_string(), String::new(), String::new())),
+            "cancelling must leave the field as it was"
+        );
+        assert!(setting.editor.is_some(), "cancelling stays in the editor");
+        assert_eq!(
+            setting.paths.editor_status(),
+            &EditorStatus::Idle,
+            "cancelling does not start a check for a path that did not change"
+        );
+    });
+    assert!(writes.lock().expect("writes").is_empty());
+}
+
+#[gpui_kit::test]
+fn a_pick_for_a_closed_editor_does_not_change_the_newer_one(cx: &mut TestAppContext) {
+    let first = shell("one", "one", "/bin/one", "");
+    let second = shell("two", "two", "/bin/two", "");
+    let (writer, writes) = ok_writer();
+    let (_runtime, setting) = editor(
+        cx,
+        AppConfig {
+            local_shells: vec![first.clone(), second.clone()],
+            ..AppConfig::default()
+        },
+        writer,
+    );
+    let visual = show(cx, setting.clone());
+
+    visual.update(|window, cx| {
+        setting.update(cx, |setting, cx| setting.start_edit(first, window, cx));
+    });
+    click(visual, BROWSE_ID.to_string());
+    assert!(visual.did_prompt_for_paths());
+
+    visual.update(|window, cx| {
+        setting.update(cx, |setting, cx| setting.start_edit(second, window, cx));
+    });
+    visual.simulate_path_prompt_response(|_options| Some(vec![PathBuf::from("/bin/late")]));
+    wait_until(visual, |cx| setting.read(cx).picker.finished() == 1);
+
+    visual.update(|_, cx| {
+        let setting = setting.read(cx);
+        assert_eq!(
+            setting.editor_values(cx),
+            Some(("/bin/two".to_string(), "two".to_string(), String::new())),
+            "an answer for the first editor must not reach the second"
+        );
+    });
+    assert!(writes.lock().expect("writes").is_empty());
+}
+
 fn wait_until(
     visual: &mut gpui_kit::VisualTestContext,
     mut condition: impl FnMut(&gpui_kit::App) -> bool,
 ) {
     let deadline = Instant::now() + Duration::from_secs(10);
     while !visual.update(|_, cx| condition(cx)) {
-        assert!(Instant::now() < deadline, "timed out waiting for the save");
+        assert!(Instant::now() < deadline, "timed out waiting for the state");
         visual.run_until_parked();
         std::thread::sleep(Duration::from_millis(10));
     }

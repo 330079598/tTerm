@@ -5,10 +5,11 @@
 //! writing stay in core; this module only holds the dialog's state.
 
 use std::collections::HashSet;
+use std::path::PathBuf;
 use std::sync::Arc;
 
 use gpui_kit::component::input::InputState;
-use gpui_kit::{App, AppContext as _, Context, Entity, ScrollHandle, Window};
+use gpui_kit::{App, AppContext as _, Context, Entity, PathPromptOptions, ScrollHandle, Window};
 use tterm_core::i18n::keys;
 use tterm_core::i18n::translate::TranslationRequest;
 use tterm_core::profiles::import::import_ssh_config_profiles_blocking;
@@ -22,6 +23,8 @@ use super::SavedConnectionsUi;
 pub(super) const IMPORT_BUTTON_ID: &str = "saved-connections-import";
 pub(super) const IMPORT_DIALOG_ID: &str = "saved-connections-import-dialog";
 pub(super) const IMPORT_SOURCE_ID: &str = "saved-connections-import-source";
+pub(super) const IMPORT_CHOOSE_FILE_ID: &str = "saved-connections-import-choose-file";
+pub(super) const IMPORT_CHOOSE_DIRECTORY_ID: &str = "saved-connections-import-choose-directory";
 pub(super) const IMPORT_GROUP_ID: &str = "saved-connections-import-group";
 pub(super) const IMPORT_PREVIEW_ID: &str = "saved-connections-import-preview";
 pub(super) const IMPORT_LIST_ID: &str = "saved-connections-import-list";
@@ -37,6 +40,12 @@ pub(super) const IMPORT_WARNINGS_ID: &str = "saved-connections-import-warnings";
 pub(super) const IMPORT_COUNT_ID: &str = "saved-connections-import-count";
 pub(super) const IMPORT_ROW_PREFIX: &str = "saved-connections-import-row-";
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(super) enum ImportSourceKind {
+    File,
+    Directory,
+}
+
 /// One open import dialog. Dropping it drops both text fields.
 pub(super) struct ImportDialog {
     pub(super) source: Entity<InputState>,
@@ -51,8 +60,14 @@ pub(super) struct ImportDialog {
     pub(super) import_forwards: bool,
     pub(super) overwrite: bool,
     pub(super) scroll: ScrollHandle,
+    /// Identifies this dialog across preview generation changes.
+    pub(super) instance: u64,
     /// Invalidates a preview or import that finishes after the dialog closed.
     pub(super) generation: u64,
+    /// Prevents a second native picker while one is already open.
+    pub(super) picker_open: bool,
+    /// The path the picker wrote, until the user edits the source field.
+    pub(super) picked_source: Option<String>,
 }
 
 impl ImportDialog {
@@ -83,7 +98,10 @@ impl ImportDialog {
             import_forwards: true,
             overwrite: false,
             scroll: ScrollHandle::default(),
+            instance: generation,
             generation,
+            picker_open: false,
+            picked_source: None,
         }
     }
 
@@ -191,11 +209,115 @@ impl SavedConnectionsUi {
         .detach();
     }
 
+    /// Opens the native picker for a config file or a directory of configs.
+    pub(super) fn choose_import_source(
+        &mut self,
+        kind: ImportSourceKind,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        if self
+            .import
+            .as_ref()
+            .is_none_or(|dialog| dialog.loading || dialog.importing || dialog.picker_open)
+        {
+            return;
+        }
+        let title = match kind {
+            ImportSourceKind::File => self.text(cx, keys::SSH_CONFIG_IMPORT_CHOOSE_SOURCE_FILE),
+            ImportSourceKind::Directory => {
+                self.text(cx, keys::SSH_CONFIG_IMPORT_CHOOSE_SOURCE_DIRECTORY)
+            }
+        };
+        let Some(dialog) = self.import.as_mut() else {
+            return;
+        };
+        let instance = dialog.instance;
+        let generation = dialog.generation;
+        dialog.picker_open = true;
+        dialog.picked_source = None;
+        let paths = cx.prompt_for_paths(PathPromptOptions {
+            files: kind == ImportSourceKind::File,
+            directories: kind == ImportSourceKind::Directory,
+            multiple: false,
+            prompt: Some(title.into()),
+        });
+        cx.spawn_in(window, async move |this, cx| {
+            let result = paths
+                .await
+                .map_err(|_| "The native picker closed unexpectedly".to_string())
+                .and_then(|result| result.map_err(|error| error.to_string()))
+                .map(|paths| {
+                    paths.and_then(|mut paths| (!paths.is_empty()).then(|| paths.remove(0)))
+                });
+            let _ = cx.update(|window, app| {
+                let _ = this.update(app, |this, cx| {
+                    this.finish_import_source_choice(instance, generation, result, window, cx);
+                });
+            });
+        })
+        .detach();
+    }
+
+    fn finish_import_source_choice(
+        &mut self,
+        instance: u64,
+        generation: u64,
+        result: Result<Option<PathBuf>, String>,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        let Some(dialog) = self.import.as_ref() else {
+            return;
+        };
+        if dialog.instance != instance {
+            return;
+        }
+        let (current_generation, importing) = (dialog.generation, dialog.importing);
+        if let Some(dialog) = self.import.as_mut() {
+            dialog.picker_open = false;
+        }
+        if current_generation != generation || importing {
+            cx.notify();
+            return;
+        }
+        let path = {
+            match result {
+                Ok(Some(path)) => path,
+                Ok(None) => {
+                    cx.notify();
+                    return;
+                }
+                Err(message) => {
+                    eprintln!("tterm-gpui: failed to choose an SSH config source: {message}");
+                    let text = import_error_text(self, &message, cx);
+                    if let Some(dialog) = self.import.as_mut() {
+                        dialog.error = Some(text);
+                    }
+                    cx.notify();
+                    return;
+                }
+            }
+        };
+        let path = path.to_string_lossy().into_owned();
+        if path.is_empty() {
+            cx.notify();
+            return;
+        }
+        if let Some(dialog) = self.import.as_mut() {
+            dialog.picked_source = Some(path.clone());
+            dialog.source.update(cx, |source, cx| {
+                source.set_value(path, window, cx);
+            });
+        }
+        self.start_import_preview(window, cx);
+    }
+
     fn finish_import_preview(
         &mut self,
         generation: u64,
         result: Result<SshConfigImportPreview, String>,
-        _window: &mut Window,
+        window: &mut Window,
         cx: &mut Context<Self>,
     ) {
         if self
@@ -208,6 +330,17 @@ impl SavedConnectionsUi {
         match result {
             Ok(preview) => {
                 if let Some(dialog) = self.import.as_mut() {
+                    let source_matches_picker = dialog
+                        .picked_source
+                        .as_deref()
+                        .is_some_and(|picked| dialog.source.read(cx).value() == picked);
+                    if source_matches_picker {
+                        let source_path = preview.source_path.clone();
+                        dialog.source.update(cx, |source, cx| {
+                            source.set_value(source_path, window, cx);
+                        });
+                    }
+                    dialog.picked_source = None;
                     dialog.loading = false;
                     dialog.selected = preview
                         .hosts

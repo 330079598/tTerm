@@ -29,11 +29,13 @@ use tterm_ui::tokens::gpui::hsla;
 use tterm_ui::tokens::theme::Theme;
 
 use self::path_status::PathStatus;
+use self::picker::ProgramPicker;
 use crate::config_state::ConfigState;
 use crate::locale::Locale;
 
 mod list_actions;
 mod path_status;
+mod picker;
 #[cfg(test)]
 mod tests;
 mod view;
@@ -43,6 +45,7 @@ pub(crate) const PAGE_ADD_ID: &str = "settings-local-shells-add";
 pub(crate) const PAGE_EMPTY_ID: &str = "settings-local-shells-empty";
 pub(crate) const EDITOR_ID: &str = "settings-local-shells-editor";
 pub(crate) const PATH_INPUT_ID: &str = "settings-local-shells-path";
+pub(crate) const BROWSE_ID: &str = "settings-local-shells-browse";
 pub(crate) const NAME_INPUT_ID: &str = "settings-local-shells-name";
 pub(crate) const ARGS_INPUT_ID: &str = "settings-local-shells-args";
 pub(crate) const SAVE_ID: &str = "settings-local-shells-save";
@@ -144,6 +147,8 @@ pub(crate) struct LocalShellsSetting {
     open: bool,
     /// What the saved paths and the editor's path were last found to be.
     paths: PathStatus,
+    /// The editor's open program dialog, if any.
+    picker: ProgramPicker,
     /// The editor's pending debounce and path check; dropping it cancels both.
     editor_check: Option<Task<()>>,
     /// The saved paths' pending checks for the latest batch.
@@ -183,6 +188,7 @@ impl LocalShellsSetting {
             list_saving: false,
             open: false,
             paths: PathStatus::new(),
+            picker: ProgramPicker::new(),
             editor_check: None,
             saved_checks: Vec::new(),
         }
@@ -200,6 +206,7 @@ impl LocalShellsSetting {
         self.list_error = None;
         self.saving = false;
         self.list_saving = false;
+        self.picker.reset();
         self.editor_check = None;
         self.saved_checks.clear();
         self.paths.open();
@@ -222,6 +229,7 @@ impl LocalShellsSetting {
         self.editor = None;
         self.error = None;
         self.list_error = None;
+        self.picker.reset();
         self.editor_check = None;
         self.saved_checks.clear();
         self.paths.close();
@@ -272,6 +280,7 @@ impl LocalShellsSetting {
 
     fn start_editor(&mut self, shell: LocalShell, window: &mut Window, cx: &mut Context<Self>) {
         self.error = None;
+        self.picker.reset();
         let path = cx.new(|cx| InputState::new(window, cx));
         let name = cx.new(|cx| InputState::new(window, cx));
         let args = cx.new(|cx| InputState::new(window, cx));
@@ -408,6 +417,7 @@ impl LocalShellsSetting {
     fn clear_editor(&mut self) {
         self.editor = None;
         self.error = None;
+        self.picker.reset();
         self.editor_check = None;
         self.paths.clear_editor();
     }
