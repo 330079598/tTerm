@@ -3,6 +3,7 @@
 use super::*;
 use crate::clipboard_setting::ClipboardDraft;
 use crate::command_marks_setting::CommandMarksDraft;
+use tterm_core::config::theme_file::ThemeSettings;
 
 impl SettingsPage {
     #[cfg(test)]
@@ -207,5 +208,73 @@ impl SettingsPage {
             .into_iter()
             .map(|result| result.title)
             .collect()
+    }
+
+    #[cfg(test)]
+    pub(crate) fn theme_settings(&self, cx: &App) -> ThemeSettings {
+        self.theme_setting.read(cx).draft().clone()
+    }
+
+    #[cfg(test)]
+    pub(crate) fn theme(&self) -> Theme {
+        self.theme
+    }
+
+    #[cfg(test)]
+    pub(crate) fn theme_setting_theme(&self, cx: &App) -> Theme {
+        self.theme_setting.read(cx).theme()
+    }
+
+    #[cfg(test)]
+    pub(crate) fn theme_saving(&self, cx: &App) -> bool {
+        self.theme_setting.read(cx).is_saving()
+    }
+
+    #[cfg(test)]
+    pub(crate) fn theme_error(&self, cx: &App) -> Option<String> {
+        self.theme_setting.read(cx).error().map(str::to_string)
+    }
+
+    #[cfg(test)]
+    pub(crate) fn theme_system_dark(&self, cx: &App) -> bool {
+        self.theme_setting.read(cx).system_dark()
+    }
+
+    #[cfg(test)]
+    pub(crate) fn theme_focus(&self, cx: &App) -> gpui_kit::FocusHandle {
+        self.theme_setting.read(cx).focus_handle()
+    }
+
+    #[cfg(test)]
+    pub(crate) fn theme_follow_focus(&self, cx: &App) -> gpui_kit::FocusHandle {
+        self.theme_setting.read(cx).follow_focus_handle()
+    }
+
+    #[cfg(test)]
+    pub(crate) fn theme_library_open(&self, cx: &App) -> bool {
+        self.theme_setting.read(cx).library_open()
+    }
+
+    #[cfg(test)]
+    pub(crate) fn theme_library_query(&self, cx: &App) -> String {
+        self.theme_setting.read(cx).library_query().to_string()
+    }
+
+    #[cfg(test)]
+    pub(crate) fn theme_library_filter(
+        &self,
+        cx: &App,
+    ) -> crate::theme_setting::library::ThemeFilter {
+        self.theme_setting.read(cx).library_filter()
+    }
+
+    #[cfg(test)]
+    pub(crate) fn theme_library_ids(&self, cx: &App) -> Vec<String> {
+        self.theme_setting.read(cx).library_ids()
+    }
+
+    #[cfg(test)]
+    pub(crate) fn theme_library_selected(&self, cx: &App) -> Option<String> {
+        self.theme_setting.read(cx).library_selected()
     }
 }

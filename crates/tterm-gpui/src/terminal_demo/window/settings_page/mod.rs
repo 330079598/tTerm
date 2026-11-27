@@ -6,25 +6,22 @@
 //! settings the native client actually implements; unimplemented sections
 //! stay out rather than appearing as dead entries.
 
+mod route;
 mod search;
 mod shell;
 #[cfg(test)]
 mod test_access;
+mod theme;
 
 use gpui_kit::component::input::{InputEvent, InputState};
 use gpui_kit::prelude::*;
-use gpui_kit::{
-    AnyElement, App, Context, Div, Entity, KeyDownEvent, Role, Stateful, Subscription, Window,
-};
+use gpui_kit::{AnyElement, App, Context, Entity, FocusHandle, KeyDownEvent, Subscription, Window};
 use tterm_core::config::terminal_font_file::TerminalPageSettings;
 use tterm_core::i18n::keys;
-use tterm_core::i18n::translate::TranslationKey;
 use tterm_core::settings::search::SettingsSearchResult;
-use tterm_ui::components::button::{ButtonSize, ButtonState, Variant, button};
 use tterm_ui::tokens::theme::Theme;
 
-use self::search::{LOCAL_SHELLS_PAGE_VALUE, TERMINAL_PAGE_VALUE};
-use super::Prototype;
+use self::search::{APPEARANCE_PAGE_VALUE, LOCAL_SHELLS_PAGE_VALUE, TERMINAL_PAGE_VALUE};
 use crate::appearance_setting::{AppearancePageSubmit, AppearanceSetting};
 use crate::clipboard_setting::ClipboardSetting;
 use crate::command_marks_setting::CommandMarksSetting;
@@ -32,12 +29,14 @@ use crate::font_setting::{FontPageSubmit, FontSetting};
 use crate::local_shells_setting::LocalShellsSetting;
 use crate::locale::Locale;
 use crate::scrollback_setting::{ScrollbackPageSubmit, ScrollbackSetting};
+use crate::theme_setting::ThemeSetting;
 
 pub(super) const SETTINGS_PAGE_ID: &str = "settings-page";
 pub(super) const SETTINGS_OPEN_BUTTON_ID: &str = "settings-page-open";
 pub(super) const SETTINGS_HEADER_ID: &str = "settings-header";
 pub(super) const SETTINGS_TITLE_ID: &str = "settings-title";
 pub(super) const SETTINGS_SIDEBAR_ID: &str = "settings-sidebar";
+pub(super) const SETTINGS_TAB_APPEARANCE_ID: &str = "settings-tab-appearance";
 pub(super) const SETTINGS_TAB_TERMINAL_ID: &str = "settings-tab-terminal";
 pub(super) const SETTINGS_TAB_LOCAL_SHELLS_ID: &str = "settings-tab-local-shells";
 pub(super) const SETTINGS_PANEL_ID: &str = "settings-panel";
@@ -61,6 +60,7 @@ pub(super) const SETTINGS_SCROLLBACK_ERROR_ID: &str = "settings-scrollback-error
 /// The page the settings route shows below its header.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum SettingsTab {
+    Appearance,
     Terminal,
     LocalShells,
 }
@@ -109,13 +109,36 @@ impl SettingsSection {
 impl SettingsTab {
     pub(super) fn value(self) -> &'static str {
         match self {
+            Self::Appearance => APPEARANCE_PAGE_VALUE,
             Self::Terminal => TERMINAL_PAGE_VALUE,
             Self::LocalShells => LOCAL_SHELLS_PAGE_VALUE,
         }
     }
 
+    /// The position of the tab among the implemented pages, which fixes the
+    /// order arrow keys and the focus handles use.
+    pub(super) fn index(self) -> usize {
+        match self {
+            Self::Appearance => 0,
+            Self::Terminal => 1,
+            Self::LocalShells => 2,
+        }
+    }
+
+    /// The tab one step away, wrapping at either end.
+    pub(super) fn next(self, forward: bool) -> Self {
+        let tabs = [Self::Appearance, Self::Terminal, Self::LocalShells];
+        let index = self.index();
+        let next = if forward {
+            (index + 1) % tabs.len()
+        } else {
+            (index + tabs.len() - 1) % tabs.len()
+        };
+        tabs[next]
+    }
+
     fn from_value(value: &str) -> Option<Self> {
-        [Self::Terminal, Self::LocalShells]
+        [Self::Appearance, Self::Terminal, Self::LocalShells]
             .into_iter()
             .find(|tab| tab.value() == value)
     }
@@ -128,11 +151,14 @@ pub(super) struct SettingsPage {
     theme: Theme,
     scrollback: Entity<ScrollbackSetting>,
     font: Entity<FontSetting>,
+    theme_setting: Entity<ThemeSetting>,
     appearance: Entity<AppearanceSetting>,
     clipboard: Entity<ClipboardSetting>,
     command_marks: Entity<CommandMarksSetting>,
     local_shells: Entity<LocalShellsSetting>,
     search_input: Option<Entity<InputState>>,
+    /// One focus stop per implemented tab, in sidebar order.
+    tab_focus: [FocusHandle; 3],
     _search_events: Option<Subscription>,
     _search_observer: Option<Subscription>,
     query: String,
@@ -165,6 +191,8 @@ impl SettingsPage {
     ) -> Self {
         let config = scrollback.read(cx).config_entity();
         let font = cx.new(|cx| FontSetting::new(config.clone(), locale.clone(), theme, cx));
+        let theme_setting =
+            cx.new(|cx| ThemeSetting::new(config.clone(), locale.clone(), theme, cx));
         let appearance =
             cx.new(|cx| AppearanceSetting::new(config.clone(), locale.clone(), theme, cx));
         let clipboard =
@@ -173,6 +201,7 @@ impl SettingsPage {
             cx.new(|cx| CommandMarksSetting::new(config.clone(), locale.clone(), theme, cx));
         cx.observe(&scrollback, |_, _, cx| cx.notify()).detach();
         cx.observe(&font, |_, _, cx| cx.notify()).detach();
+        cx.observe(&theme_setting, |_, _, cx| cx.notify()).detach();
         cx.observe(&appearance, |_, _, cx| cx.notify()).detach();
         cx.observe(&clipboard, |_, _, cx| cx.notify()).detach();
         cx.observe(&command_marks, |_, _, cx| cx.notify()).detach();
@@ -183,11 +212,13 @@ impl SettingsPage {
             theme,
             scrollback,
             font,
+            theme_setting,
             appearance,
             clipboard,
             command_marks,
             local_shells,
             search_input: None,
+            tab_focus: [cx.focus_handle(), cx.focus_handle(), cx.focus_handle()],
             _search_events: None,
             _search_observer: None,
             query: String::new(),
@@ -205,6 +236,12 @@ impl SettingsPage {
         }
     }
 
+    /// Whether the Terminal page's font picker has loaded its fonts.
+    #[cfg(all(feature = "automation", debug_assertions))]
+    pub(super) fn capture_fonts_loaded(&self, cx: &App) -> bool {
+        self.font.read(cx).capture_fonts_loaded()
+    }
+
     /// Opens the route, rebuilds the search field for this window and focuses
     /// it the way the reference page does.
     pub(super) fn open(&mut self, window: &mut Window, cx: &mut Context<Self>) {
@@ -218,6 +255,8 @@ impl SettingsPage {
         self.scrollback
             .update(cx, |setting, cx| setting.open_page(window, cx));
         self.font
+            .update(cx, |setting, cx| setting.open_page(window, cx));
+        self.theme_setting
             .update(cx, |setting, cx| setting.open_page(window, cx));
         self.appearance
             .update(cx, |setting, cx| setting.open_page(window, cx));
@@ -238,8 +277,8 @@ impl SettingsPage {
         cx.notify();
     }
 
-    /// Closes the route. Returns `false` while the scrollback write is in
-    /// flight so the page is not discarded mid-save.
+    /// Closes the route. Returns `false` while a settings write is in flight
+    /// so the page is not discarded mid-save.
     pub(super) fn close(&mut self, cx: &mut Context<Self>) -> bool {
         if !self.open {
             return true;
@@ -247,6 +286,7 @@ impl SettingsPage {
         if self.page_saving
             || !self.scrollback.read(cx).can_close()
             || !self.font.read(cx).can_close()
+            || !self.theme_setting.read(cx).can_close()
             || !self.appearance.read(cx).can_close()
             || !self.clipboard.read(cx).can_close()
             || !self.command_marks.read(cx).can_close()
@@ -258,6 +298,9 @@ impl SettingsPage {
             .scrollback
             .update(cx, |setting, cx| setting.close_page(cx));
         let font_closed = self.font.update(cx, |setting, cx| setting.close_page(cx));
+        let theme_closed = self
+            .theme_setting
+            .update(cx, |setting, cx| setting.close_page(cx));
         let appearance_closed = self
             .appearance
             .update(cx, |setting, cx| setting.close_page(cx));
@@ -272,6 +315,7 @@ impl SettingsPage {
             .update(cx, |setting, cx| setting.close_page(cx));
         if !scrollback_closed
             || !font_closed
+            || !theme_closed
             || !appearance_closed
             || !clipboard_closed
             || !command_marks_closed
@@ -296,9 +340,15 @@ impl SettingsPage {
         true
     }
 
-    /// Clears the search before the route handles Escape. Returns whether it
-    /// changed anything, so a second Escape can close the route.
+    /// Closes the theme library before the search and then the route handle
+    /// Escape. Returns whether it changed anything, so a second Escape can
+    /// leave the page.
     pub(super) fn clear_search(&mut self, window: &mut Window, cx: &mut Context<Self>) -> bool {
+        if self.theme_setting.read(cx).library_open() {
+            return self
+                .theme_setting
+                .update(cx, |setting, cx| setting.cancel_library(window, cx));
+        }
         if self.query.is_empty() {
             return false;
         }
@@ -551,6 +601,18 @@ impl SettingsPage {
         }
         if !result.is_page {
             match tab {
+                SettingsTab::Appearance => {
+                    if result.title == search::text(self.locale.read(cx), keys::THEME_FOLLOW_SYSTEM)
+                    {
+                        self.theme_setting.update(cx, |setting, cx| {
+                            setting.focus_follow(window, cx);
+                        });
+                    } else {
+                        self.theme_setting.update(cx, |setting, cx| {
+                            setting.focus_theme(window, cx);
+                        });
+                    }
+                }
                 SettingsTab::Terminal => {
                     if result.title
                         == search::text(self.locale.read(cx), keys::FONT_SETTINGS_FONT_SIZE)
@@ -633,7 +695,13 @@ impl SettingsPage {
     fn select_tab(&mut self, tab: SettingsTab, window: &mut Window, cx: &mut Context<Self>) {
         self.active_tab = tab;
         self.clear_search(window, cx);
+        self.tab_focus[tab.index()].focus(window, cx);
         cx.notify();
+    }
+
+    /// The focus stop for one sidebar tab.
+    pub(super) fn tab_focus(&self, tab: SettingsTab) -> FocusHandle {
+        self.tab_focus[tab.index()].clone()
     }
 
     fn search_key(&mut self, event: &KeyDownEvent, window: &mut Window, cx: &mut Context<Self>) {
@@ -674,104 +742,5 @@ impl SettingsPage {
             }
             _ => {}
         }
-    }
-}
-
-impl Prototype {
-    /// Opens the settings route, or does nothing when it is already showing.
-    pub(super) fn open_settings(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        self.close_active_search(window, cx);
-        if self.settings_open {
-            self.ui
-                .settings_page
-                .update(cx, |page, cx| page.open(window, cx));
-            return;
-        }
-        if self.tunnel_page_is_open() {
-            self.close_tunnel_page(window, cx);
-        }
-        self.picker = None;
-        self.ui
-            .template_ui
-            .update(cx, |template_ui, cx| template_ui.dismiss(cx));
-        let previous = self.visible_ids();
-        for id in previous {
-            if let Some(tab) = self.tabs.get(id) {
-                tab.leave(cx);
-            }
-        }
-        self.ui
-            .settings_page
-            .update(cx, |page, cx| page.open(window, cx));
-        self.settings_open = true;
-        cx.notify();
-    }
-
-    /// Closes the settings route and restores the workspace's visible panes.
-    ///
-    /// Returns `false` while the scrollback setting is being saved so the
-    /// route does not discard a pending write.
-    pub(super) fn close_settings(&mut self, window: &mut Window, cx: &mut Context<Self>) -> bool {
-        if !self.settings_open {
-            return true;
-        }
-        let closed = self.ui.settings_page.update(cx, |page, cx| page.close(cx));
-        if !closed {
-            return false;
-        }
-        self.settings_open = false;
-        self.refresh_panes(Vec::new(), window, cx);
-        cx.notify();
-        true
-    }
-
-    /// Whether the settings route owns the window content.
-    pub(super) fn settings_is_open(&self) -> bool {
-        self.settings_open
-    }
-
-    /// The title-bar entry that opens settings.
-    pub(super) fn settings_button(&self, cx: &mut Context<Self>) -> Stateful<Div> {
-        let label = self.settings_text(cx, keys::SETTINGS_OPEN);
-        button(
-            SETTINGS_OPEN_BUTTON_ID,
-            "⚙",
-            Variant::Ghost,
-            ButtonSize::Sm,
-            ButtonState::default(),
-            self.ui.theme,
-        )
-        .debug_selector(|| SETTINGS_OPEN_BUTTON_ID.to_string())
-        .role(Role::Button)
-        .aria_label(label)
-        .on_click(cx.listener(|this, _, window, cx| this.toggle_settings(window, cx)))
-    }
-
-    /// The title-bar entry both opens and closes the singleton route, so a
-    /// pointer user has the same way back as Escape.
-    fn toggle_settings(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        if self.settings_open {
-            self.close_settings(window, cx);
-        } else {
-            self.open_settings(window, cx);
-        }
-    }
-
-    /// Renders the route content; the title bar stays mounted above it.
-    pub(super) fn settings_page(
-        &mut self,
-        window: &mut Window,
-        cx: &mut Context<Self>,
-    ) -> gpui_kit::AnyElement {
-        self.ui
-            .settings_page
-            .update(cx, |page, cx| page.render_page(window, cx))
-    }
-
-    fn settings_text(&self, cx: &App, key: TranslationKey) -> String {
-        self.ui.locale.read(cx).text(key).unwrap_or_else(|error| {
-            eprintln!("tterm-gpui: failed to translate a settings label: {error}");
-            key.as_str().to_string()
-        })
     }
 }

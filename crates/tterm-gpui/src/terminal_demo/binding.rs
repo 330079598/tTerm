@@ -22,11 +22,12 @@ use tterm_core::prompts::SessionKey;
 use tterm_core::services::AppServices;
 use tterm_core::workspace::tab_attention::TabAttentionStore;
 use tterm_terminal::grid::{CellSize, GridSize, WindowSize};
+use tterm_terminal::palette::TerminalPalette;
 use tterm_terminal::snapshot::CursorShape;
 use tterm_terminal::terminal::{Config, Terminal};
 
 use self::scoped::{ConnectionState, SessionScopedState};
-use super::session::{RefreshWatch, RestoredHistory, Session};
+use super::session::{RefreshWatch, RestoredHistory, Session, SessionOptions};
 
 /// The application-owned sessions, one binding per tab.
 pub struct SessionManager {
@@ -112,6 +113,10 @@ impl SessionManager {
     /// keep its reset start-failure state and try again. An existing view is
     /// not attached to the new generation automatically; it attaches through
     /// [`TabBinding::attach`].
+    ///
+    /// This path has no tab palette, so it opens with the native default one.
+    /// That is the palette a default view config draws with, which keeps a
+    /// color-query reply equal to the pixels of such a view.
     pub fn open(
         &self,
         tab_id: impl Into<String>,
@@ -119,17 +124,28 @@ impl SessionManager {
         grid: GridSize,
         cell: CellSize,
     ) -> Rc<TabBinding> {
-        self.open_with_history(tab_id, connection, grid, cell, None)
+        self.open_with_history(
+            tab_id,
+            connection,
+            grid,
+            cell,
+            TerminalPalette::default(),
+            None,
+        )
     }
 
     /// Opens a new generation and shows a restored snapshot before its
     /// transport can write anything.
+    ///
+    /// `palette` must be the palette the tab's view draws with, so the parser
+    /// answers OSC 4, 10, 11 and 12 with the colors on screen.
     pub(crate) fn open_with_history(
         &self,
         tab_id: impl Into<String>,
         connection: PtyConnectionOptions,
         grid: GridSize,
         cell: CellSize,
+        palette: TerminalPalette,
         restored: Option<RestoredHistory>,
     ) -> Rc<TabBinding> {
         let tab_id = tab_id.into();
@@ -144,10 +160,13 @@ impl SessionManager {
             Arc::clone(&self.services),
             tab_id,
             session_nonce,
-            connection,
-            WindowSize { grid, cell },
-            config,
-            restored,
+            SessionOptions {
+                connection,
+                size: WindowSize { grid, cell },
+                config,
+                palette,
+                restored,
+            },
         ) {
             Ok(session) => binding.set_session(Arc::new(session)),
             Err(error) => {
@@ -262,6 +281,17 @@ impl TabBinding {
             .unwrap_or_else(PoisonError::into_inner)
             .as_ref()
             .map(Arc::clone)
+    }
+
+    /// Applies a palette change to this tab's current generation.
+    ///
+    /// A generation opened later receives the palette the window resolves at
+    /// that point; this keeps the current parser's color replies in step with
+    /// a live repaint.
+    pub fn set_palette(&self, palette: TerminalPalette) {
+        if let Some(session) = self.session() {
+            session.set_palette(palette);
+        }
     }
 
     /// Subscribes a view to the current session.

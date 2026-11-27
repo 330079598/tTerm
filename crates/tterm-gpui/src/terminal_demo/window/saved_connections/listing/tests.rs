@@ -1,7 +1,7 @@
 //! Regressions for saved-connection grouping, search and visible selection.
 
 use gpui_kit::test::TestWindowExt as _;
-use gpui_kit::{App, Entity, MouseButton, TestAppContext, VisualTestContext};
+use gpui_kit::{App, Entity, MouseButton, TestAppContext, VisualTestContext, px, size};
 use tterm_core::config::AppConfig;
 use tterm_core::connections::profile_recents::RecentProfile;
 use tterm_core::profiles::launch::SavedSshProfileSummary;
@@ -10,7 +10,8 @@ use tterm_core::profiles::types::ProfileGroup;
 use super::super::delete_selected::{DELETE_BUTTON_ID, DELETE_CANCEL_ID, DELETE_CONFIRM_ID};
 use super::super::move_to_group::{MOVE_BUTTON_ID, MOVE_GROUP_PREFIX, ROW_TOGGLE_PREFIX};
 use super::super::{
-    EDIT_BUTTON_ID, OPEN_BUTTON_ID, ROW_EDIT_PREFIX, ROW_ID_PREFIX, SavedConnectionsUi,
+    CLOSE_BUTTON_ID, DESCRIPTION_ID, DIALOG_ID, EDIT_BUTTON_ID, FOOTER_ID, HEADER_ID, LIST_ID,
+    NEW_BUTTON_ID, OPEN_BUTTON_ID, ROW_EDIT_PREFIX, ROW_ID_PREFIX, SavedConnectionsUi, TITLE_ID,
 };
 use super::{
     GROUP_ID_PREFIX, ListingOptions, ProfileListing, ProfileSort, SEARCH_EMPTY_ID, SORT_GROUP_ID,
@@ -240,6 +241,162 @@ fn click(visual: &mut VisualTestContext, selector: &str) {
 fn open_picker(harness: &mut Harness<'_>) {
     click(harness.visual, OPEN_BUTTON_ID);
     harness.visual.update(|window, cx| window.render_frame(cx));
+}
+
+#[gpui_kit::test]
+fn the_dialog_uses_the_production_geometry_and_keeps_the_list_and_footer_usable(
+    cx: &mut TestAppContext,
+) {
+    let mut harness = harness(cx);
+    harness.visual.simulate_resize(size(px(800.0), px(600.0)));
+    let root = harness.root.clone();
+    harness.visual.update(|_, cx| {
+        with_picker(&root, cx, |picker, cx| {
+            picker.set_profiles_for_test(Ok(grouped_profiles()), cx);
+        });
+    });
+    open_picker(&mut harness);
+    harness.visual.update(|window, cx| window.render_frame(cx));
+
+    let dialog = harness
+        .visual
+        .debug_bounds(DIALOG_ID)
+        .expect("the dialog should be laid out");
+    // Tauri uses min(768px, viewport - 32px) by min(720px, 85vh).
+    assert!(
+        (dialog.size.width - px(768.0)).abs() < px(0.5),
+        "the dialog should take the production width, got {}",
+        dialog.size.width
+    );
+    assert!(
+        (dialog.size.height - px(510.0)).abs() < px(0.5),
+        "the dialog should take 85% of the viewport, got {}",
+        dialog.size.height
+    );
+    assert!(
+        (dialog.origin.x - px(16.0)).abs() < px(0.5)
+            && (dialog.origin.y - px(45.0)).abs() < px(0.5),
+        "the dialog should keep the 16px horizontal margin and stay centered, got {:?}",
+        dialog.origin
+    );
+
+    let header = harness
+        .visual
+        .debug_bounds(HEADER_ID)
+        .expect("the production header should be laid out");
+    let title = harness
+        .visual
+        .debug_bounds(TITLE_ID)
+        .expect("the title should be visible");
+    let description = harness
+        .visual
+        .debug_bounds(DESCRIPTION_ID)
+        .expect("the description should be visible");
+    let list = harness
+        .visual
+        .debug_bounds(LIST_ID)
+        .expect("the list should be laid out");
+    let footer = harness
+        .visual
+        .debug_bounds(FOOTER_ID)
+        .expect("the footer should stay clickable");
+    assert!(
+        title.bottom() <= description.top(),
+        "the title should sit above its description"
+    );
+    assert!(
+        list.top() >= header.bottom() - px(0.5),
+        "the list should begin below the header"
+    );
+    assert!(
+        list.bottom() <= footer.top() + px(0.5),
+        "the footer should not cover the list"
+    );
+    assert!(
+        footer.bottom() <= dialog.bottom() + px(0.5),
+        "the footer should stay inside the dialog"
+    );
+    assert!(
+        list.size.height > px(280.0),
+        "the list should fill the dialog instead of leaving one row, got {}",
+        list.size.height
+    );
+    for selector in [NEW_BUTTON_ID, CLOSE_BUTTON_ID] {
+        assert!(
+            harness.visual.debug_bounds(selector).is_some(),
+            "{selector} should be a real header control"
+        );
+    }
+    let second_selector: &'static str = Box::leak(format!("{ROW_ID_PREFIX}1").into_boxed_str());
+    let second = harness
+        .visual
+        .debug_bounds(second_selector)
+        .expect("a second row should fit inside the list");
+    assert!(
+        second.bottom() <= list.bottom() + px(0.5),
+        "the second row should be inside the list viewport"
+    );
+
+    click(harness.visual, CLOSE_BUTTON_ID);
+    harness.visual.update(|window, cx| {
+        window.render_frame(cx);
+        assert!(
+            !picker(&root, cx).is_open(),
+            "the header close control should close the dialog"
+        );
+    });
+}
+
+#[gpui_kit::test]
+fn the_dialog_clamps_inside_a_narrow_viewport(cx: &mut TestAppContext) {
+    let mut harness = harness(cx);
+    harness.visual.simulate_resize(size(px(420.0), px(500.0)));
+    let root = harness.root.clone();
+    harness.visual.update(|_, cx| {
+        with_picker(&root, cx, |picker, cx| {
+            picker.set_profiles_for_test(Ok(grouped_profiles()), cx);
+        });
+    });
+    open_picker(&mut harness);
+    harness.visual.update(|window, cx| window.render_frame(cx));
+
+    let dialog = harness
+        .visual
+        .debug_bounds(DIALOG_ID)
+        .expect("the clamped dialog should be laid out");
+    assert!(
+        (dialog.size.width - px(388.0)).abs() < px(0.5),
+        "the dialog should leave 32px for the viewport, got {}",
+        dialog.size.width
+    );
+    assert!(
+        (dialog.size.height - px(425.0)).abs() < px(0.5),
+        "the dialog should stay at 85% of the short viewport, got {}",
+        dialog.size.height
+    );
+    assert!(
+        dialog.origin.x >= px(15.5) && dialog.right() <= px(404.5),
+        "the clamped dialog should stay centered and inside the viewport"
+    );
+    let list = harness
+        .visual
+        .debug_bounds(LIST_ID)
+        .expect("a narrow dialog still shows the list");
+    let footer = harness
+        .visual
+        .debug_bounds(FOOTER_ID)
+        .expect("a narrow dialog keeps the footer");
+    assert!(
+        list.size.height > px(60.0),
+        "the list should keep a usable height"
+    );
+    assert!(footer.bottom() <= dialog.bottom() + px(0.5));
+    for selector in [NEW_BUTTON_ID, CLOSE_BUTTON_ID] {
+        assert!(
+            harness.visual.debug_bounds(selector).is_some(),
+            "{selector} should remain reachable when the header wraps"
+        );
+    }
 }
 
 fn grouped_profiles() -> Vec<SavedSshProfileSummary> {

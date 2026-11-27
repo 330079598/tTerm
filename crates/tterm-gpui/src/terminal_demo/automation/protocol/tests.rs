@@ -85,6 +85,23 @@ fn keys_use_gpui_parser_including_letters_and_modifiers() {
 }
 
 #[test]
+fn capture_actions_are_named_and_limited_to_their_routes() {
+    assert!(matches!(
+        parse("token=secret\ncommand=capture-state\n"),
+        Ok(Command::CaptureState)
+    ));
+    assert!(matches!(
+        parse("token=secret\ncommand=action=profiles\n"),
+        Ok(Command::OpenProfiles)
+    ));
+    assert!(matches!(
+        parse("token=secret\ncommand=action=settings\n"),
+        Ok(Command::OpenSettings)
+    ));
+    assert!(parse("token=secret\ncommand=action=everything\n").is_err());
+}
+
+#[test]
 fn language_command_accepts_only_supported_codes() {
     assert!(matches!(
         parse("token=secret\ncommand=action=language=en\n"),

@@ -142,6 +142,15 @@ impl FontSetting {
         }
     }
 
+    /// Replaces the interface palette without touching the draft or focus.
+    pub(crate) fn set_theme(&mut self, theme: Theme, cx: &mut Context<Self>) {
+        if self.theme == theme {
+            return;
+        }
+        self.theme = theme;
+        cx.notify();
+    }
+
     /// Shows the section for this settings visit, reloading the saved values so
     /// a draft from the previous visit cannot reappear.
     pub(crate) fn open_page(&mut self, window: &mut Window, cx: &mut Context<Self>) {
@@ -550,6 +559,12 @@ impl FontSetting {
             });
         }));
         cx.notify();
+    }
+
+    /// Whether the font picker finished its system-font load, for the capture.
+    #[cfg(all(feature = "automation", debug_assertions))]
+    pub(crate) fn capture_fonts_loaded(&self) -> bool {
+        !self.fonts_loading && self.system_fonts.is_some()
     }
 
     /// Replaces the system list without starting the loader, for tests and the

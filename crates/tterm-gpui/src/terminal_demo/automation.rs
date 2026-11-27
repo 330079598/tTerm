@@ -170,6 +170,29 @@ fn handle_request(
             type_name::<Prototype>(),
         )),
         Command::State => AutomationResponse::text(prototype.read(cx).automation_state(cx)),
+        Command::CaptureState => AutomationResponse::text(prototype.read(cx).capture_state(cx)),
+        Command::OpenProfiles => {
+            let result = handle.update(cx, |_, window, app| {
+                prototype.update(app, |prototype, cx| {
+                    prototype.capture_open_profiles(window, cx)
+                });
+            });
+            match result {
+                Ok(()) => AutomationResponse::ok(),
+                Err(error) => AutomationResponse::error(error.to_string()),
+            }
+        }
+        Command::OpenSettings => {
+            let result = handle.update(cx, |_, window, app| {
+                prototype.update(app, |prototype, cx| {
+                    prototype.capture_open_settings(window, cx)
+                });
+            });
+            match result {
+                Ok(()) => AutomationResponse::ok(),
+                Err(error) => AutomationResponse::error(error.to_string()),
+            }
+        }
         Command::Focus => {
             // Activating only the window leaves the process behind the
             // caller's application, so macOS never reports it as active and

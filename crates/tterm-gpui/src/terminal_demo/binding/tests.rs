@@ -5,9 +5,11 @@ use std::time::{Duration, Instant};
 
 use tterm_core::core::session::types::PtyConnectionOptions;
 use tterm_core::events::ssh::{SshConnectionProgressPayload, SshHostKeyPromptPayload};
+use tterm_core::theme::definitions::get_preset_theme;
 use tterm_core::workspace::tab_attention::{TabAttentionLevel, TabAttentionStore};
 use tterm_terminal::grid::{CellSize, GridSize};
 use tterm_terminal::terminal::{Config, Scroll, Terminal};
+use tterm_terminal_view::view::TerminalViewConfig;
 
 use super::{SessionManager, scoped::ConnectionState};
 use crate::terminal_demo::command::CommandSpec;
@@ -140,6 +142,40 @@ fn wait_for_text_after(
         }
         std::thread::sleep(Duration::from_millis(10));
     }
+}
+
+#[test]
+fn a_session_keeps_the_palette_color_queries_are_answered_with() {
+    let runtime = test_runtime();
+    let manager = manager(&runtime);
+
+    let default = manager.open("default-palette", local_connection(), GRID, CELL);
+    let session = default.session().expect("the default session opens");
+    assert_eq!(
+        session.palette(),
+        TerminalViewConfig::default().palette,
+        "an untinted tab answers like a default view draws"
+    );
+
+    let overridden = get_preset_theme("ocean")
+        .expect("the ocean theme exists")
+        .terminal
+        .to_terminal_palette();
+    let tab = manager.open_with_history(
+        "connection-theme",
+        local_connection(),
+        GRID,
+        CELL,
+        overridden.clone(),
+        None,
+    );
+    assert_eq!(
+        tab.session()
+            .expect("the overridden session opens")
+            .palette(),
+        overridden,
+        "a connection theme overrides the application palette for queries too"
+    );
 }
 
 #[test]

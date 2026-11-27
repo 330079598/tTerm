@@ -40,11 +40,7 @@ impl TunnelPage {
         cx: &mut Context<Prototype>,
     ) -> Self {
         let data = cx.new(|cx| data::TunnelPageData::new(services, cx));
-        let view = cx.new(|_| {
-            let mut view = view::TunnelPageView::new(locale, theme);
-            view.set_theme(theme);
-            view
-        });
+        let view = cx.new(|_| view::TunnelPageView::new(locale, theme));
         cx.observe(&data, |_, _, cx| cx.notify()).detach();
         Self {
             data,
@@ -57,6 +53,11 @@ impl TunnelPage {
     pub(super) fn apply_status(&mut self, status: TunnelStatus, cx: &mut Context<Prototype>) {
         self.data
             .update(cx, |data, cx| data.apply_status(status, cx));
+    }
+
+    /// Replaces the page palette without rebuilding its data or route.
+    pub(super) fn set_theme(&mut self, theme: Theme, cx: &mut Context<Prototype>) {
+        self.view.update(cx, |view, cx| view.set_theme(theme, cx));
     }
 
     /// Applies a window event that belongs to the page, and consumes it.

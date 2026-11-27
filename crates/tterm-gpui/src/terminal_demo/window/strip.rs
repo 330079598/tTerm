@@ -1,11 +1,12 @@
 //! Native workspace actions share one focus transition for the mouse and keymap.
 
 use gpui_kit::prelude::*;
-use gpui_kit::{Context, Div, KeyDownEvent, Window, div, px};
+use gpui_kit::{Context, Div, FontWeight, KeyDownEvent, Window, div, px};
 use tterm_core::i18n::keys;
 use tterm_core::keymap::actions::KeymapActionId;
 use tterm_core::workspace::local_shells::default_shell::default_shell_choice;
 use tterm_core::workspace::local_shells::types::ShellConfig;
+use tterm_ui::components::icons::{SQUARE_TERMINAL, icon};
 use tterm_ui::tokens::gpui::hsla;
 
 use super::split_state::{Edge, FOCUS_ACTIONS};
@@ -350,6 +351,10 @@ impl Prototype {
             .flex()
             .items_center()
             .gap(px(4.))
+            // React's .tab-list has 3px 4px padding; the tab bar itself is
+            // already inset by the traffic lights.
+            .px(px(4.))
+            .py(px(3.))
             .text_sm()
             .text_color(hsla(colors.foreground, 1.));
         let config = self.factory.config.read(cx).config();
@@ -386,8 +391,13 @@ impl Prototype {
                 .pl(px(9.))
                 .pr(px(7.))
                 .rounded(px(5.))
+                // React's .tab-item keeps a 1px transparent border, which is
+                // what insets the active indicator by one more pixel.
+                .border(px(1.))
+                .border_color(gpui_kit::transparent_black())
                 .min_w(px(96.))
                 .max_w(px(220.))
+                .text_color(hsla(colors.foreground, if active { 1. } else { 0.8 }))
                 .cursor_pointer()
                 .bg(hsla(
                     if active {
@@ -423,7 +433,11 @@ impl Prototype {
                         .child((index + 1).to_string()),
                 )
                 .when(icons, |item| {
-                    item.child(div().text_size(px(12.)).child("›_"))
+                    item.child(icon(
+                        SQUARE_TERMINAL,
+                        hsla(colors.foreground, if active { 1. } else { 0.8 }),
+                        13.,
+                    ))
                 })
                 .child(
                     div()
@@ -431,6 +445,7 @@ impl Prototype {
                         .flex_1()
                         .truncate()
                         .text_size(px(13.))
+                        .when(active, |label| label.font_weight(FontWeight(500.)))
                         .child(label.clone()),
                 )
                 .on_click(cx.listener(move |this, _, window, cx| this.select_tab(id, window, cx)));
@@ -475,6 +490,8 @@ impl Prototype {
             .child(
                 div()
                     .debug_selector(|| "new-shell-menu".into())
+                    // React's .tab-add-button has 0 4px padding.
+                    .pl(px(4.))
                     .child(self.shell_launcher(new, cx)),
             )
     }

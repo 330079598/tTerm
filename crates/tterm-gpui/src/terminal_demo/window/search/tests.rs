@@ -25,7 +25,7 @@ use tterm_terminal::terminal::{Config, Terminal};
 use tterm_terminal_view::view::{TerminalView, TerminalViewConfig};
 
 use super::*;
-use crate::app_window::background;
+use crate::app_window::theme;
 use crate::locale::{Locale, LocaleGlobal};
 
 type Bytes = Rc<RefCell<Vec<u8>>>;
@@ -101,7 +101,7 @@ fn with_harness(
                 Arc::clone(&model),
                 view.downgrade(),
                 locale_entity,
-                background::theme(None),
+                theme::default_theme().ui,
             )
         });
         window.focus(&view.read(cx).focus_handle(), cx);

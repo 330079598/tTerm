@@ -16,9 +16,9 @@ use tterm_core::workspace::tab::{Tab, TabType};
 use super::launch::launch_for_tab;
 use super::save::{SAVE_DEBOUNCE, WorkspacePersistence, test_persistence};
 use super::{StartupWorkspace, can_save, snapshot};
-use crate::app_window::background;
 use crate::app_window::logical_bounds::LogicalBounds;
 use crate::app_window::state::{SaveQueue, SavedWindowState, WindowGeometry};
+use crate::app_window::theme;
 use crate::config_state::ConfigState;
 use crate::locale::{Locale, LocaleGlobal};
 use crate::terminal_demo::binding::SessionManager;
@@ -181,8 +181,7 @@ fn make_startup_window(
             keymap,
             locale,
             config,
-            theme: background::theme(None),
-            background: background::content(None),
+            theme: theme::default_theme(),
         },
         geometry,
     )

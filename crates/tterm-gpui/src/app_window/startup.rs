@@ -3,7 +3,7 @@
 
 use std::sync::{Arc, Mutex};
 
-use gpui_kit::{AnyWindowHandle, App, AppContext, Entity, Render};
+use gpui_kit::{AnyWindowHandle, App, AppContext, Entity, Render, Window};
 
 use super::Platform;
 use super::config;
@@ -24,14 +24,15 @@ pub fn open<V: Render + 'static>(
     shared_geometry: Arc<Mutex<Option<SavedWindowState>>>,
     queue: SaveQueue,
     app_id: &str,
-    build: impl FnOnce(&mut App, Entity<WindowGeometry>) -> Entity<V> + 'static,
+    build: impl FnOnce(&mut App, Entity<WindowGeometry>, &Window) -> Entity<V> + 'static,
 ) -> Result<Opened<V>, String> {
     let plan = config::plan_for(cx, &initial, app_id, Platform::current());
     let geometry = cx.new(|_| WindowGeometry::new(plan.saved, shared_geometry, queue));
     let geometry_for_build = geometry.clone();
-    let (handle, root) =
-        gpui_kit::open_window(plan.options, cx, move |_, cx| build(cx, geometry_for_build))
-            .map_err(|error| error.to_string())?;
+    let (handle, root) = gpui_kit::open_window(plan.options, cx, move |window, cx| {
+        build(cx, geometry_for_build, window)
+    })
+    .map_err(|error| error.to_string())?;
     handle
         .update(cx, |_, window, cx| {
             geometry.update(cx, |geometry, cx| geometry.observe(window, cx));

@@ -76,8 +76,7 @@ fn make_workspace(
             keymap,
             locale,
             config,
-            theme: background::theme(None),
-            background: background::content(None),
+            theme: theme::default_theme(),
         },
         geometry,
     )
@@ -428,6 +427,33 @@ fn closing_the_target_tab_dismisses_the_picker(cx: &mut TestAppContext) {
     });
     visual.update(|window, cx| {
         assert!(!root.read(cx).ui.template_ui.read(cx).open);
+        window.remove_window();
+    });
+}
+
+#[gpui_kit::test]
+fn the_titlebar_action_opens_the_picker_for_the_active_tab(cx: &mut TestAppContext) {
+    let writes = TemplateWrites::default();
+    let (_runtime, root, visual) = workspace(cx, CommandSpec::Shell, AppConfig::default(), writes);
+    visual.update(|window, cx| {
+        root.update(cx, |workspace, cx| {
+            workspace.tabs.push(|id| {
+                workspace
+                    .factory
+                    .open(id, CommandSpec::Shell, &workspace.ui.locale, cx)
+            });
+            workspace.select_tab(1, window, cx);
+            workspace.split_tab(2, 1, Edge::Right, window, cx);
+            workspace.select_tab(1, window, cx);
+            assert!(!workspace.ui.template_ui.read(cx).open);
+        });
+        window.render_frame(cx);
+    });
+    click(visual, OPEN_BUTTON_ID);
+    visual.update(|window, cx| {
+        let template_ui = root.read(cx).ui.template_ui.read(cx);
+        assert!(template_ui.open);
+        assert_eq!(template_ui.target_tab(), Some(1));
         window.remove_window();
     });
 }

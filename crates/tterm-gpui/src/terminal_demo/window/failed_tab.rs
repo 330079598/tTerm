@@ -8,6 +8,7 @@ use gpui_kit::prelude::*;
 use tterm_core::agent_status::AgentResumeSession;
 use tterm_core::i18n::translate::TranslationKey;
 use tterm_core::workspace::tab::Tab;
+use tterm_terminal::palette::TerminalPalette;
 use tterm_terminal::terminal::{Config, Terminal};
 use tterm_terminal_view::view::font::TerminalFont;
 use tterm_terminal_view::view::{TerminalView, TerminalViewConfig};
@@ -39,6 +40,7 @@ pub(super) fn failed(
     tab: FailedTab,
     error: String,
     font: TerminalFont,
+    palette: TerminalPalette,
 ) -> WindowTab {
     eprintln!("tterm-gpui: {error}");
     let terminal = Arc::new(Terminal::new(Config::default(), INITIAL_GRID, INITIAL_CELL));
@@ -49,6 +51,7 @@ pub(super) fn failed(
             terminal,
             TerminalViewConfig {
                 font,
+                palette,
                 ..TerminalViewConfig::default()
             },
         )

@@ -67,6 +67,22 @@ fn redraw(visual: &mut VisualTestContext) {
 }
 
 #[gpui_kit::test]
+fn changing_theme_repaints_an_open_menu_without_moving_its_selection(cx: &mut TestAppContext) {
+    let (menu, visual, events) = harness(cx);
+    visual.read(|cx| assert_eq!(menu.read(cx).theme, DARK));
+
+    visual.update(|_, cx| menu.update(cx, |menu, cx| menu.set_theme(LIGHT, cx)));
+    redraw(visual);
+
+    visual.read(|cx| {
+        assert_eq!(menu.read(cx).theme, LIGHT);
+        assert!(menu.read(cx).is_open());
+        assert_eq!(menu.read(cx).highlighted(), Some(0));
+    });
+    assert!(events.borrow().is_empty());
+}
+
+#[gpui_kit::test]
 fn keys_wrap_skip_disabled_and_separators_then_enter_calls_action_before_close(
     cx: &mut TestAppContext,
 ) {

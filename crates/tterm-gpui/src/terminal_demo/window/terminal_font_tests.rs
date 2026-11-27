@@ -24,8 +24,8 @@ use tterm_terminal_view::view::layout::TerminalPadding;
 
 use super::split_state::Edge;
 use super::*;
-use crate::app_window::background;
 use crate::app_window::state::{SaveQueue, WindowGeometry};
+use crate::app_window::theme;
 use crate::config_state::{ConfigState, TerminalFontWriter};
 use crate::locale::{Locale, LocaleGlobal};
 use crate::terminal_demo::binding::SessionManager;
@@ -130,8 +130,7 @@ fn make_workspace(
             keymap,
             locale,
             config,
-            theme: background::theme(None),
-            background: background::content(None),
+            theme: theme::default_theme(),
         },
         geometry,
     )

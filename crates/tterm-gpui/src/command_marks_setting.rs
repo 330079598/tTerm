@@ -112,6 +112,15 @@ impl CommandMarksSetting {
         }
     }
 
+    /// Replaces the interface palette without touching the draft or focus.
+    pub(crate) fn set_theme(&mut self, theme: Theme, cx: &mut Context<Self>) {
+        if self.theme == theme {
+            return;
+        }
+        self.theme = theme;
+        cx.notify();
+    }
+
     /// Shows the rows for this settings visit with the saved values.
     pub(crate) fn open_page(&mut self, cx: &mut Context<Self>) {
         if self.open {

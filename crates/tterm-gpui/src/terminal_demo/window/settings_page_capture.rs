@@ -20,12 +20,14 @@ use gpui_kit::{
 use tterm_core::config::AppConfig;
 use tterm_core::i18n::language::Language;
 
-use super::background;
 use super::settings_page::SettingsPage;
+use super::theme;
 use crate::config_state::{ConfigState, PaneTemplatesWriter, ScrollbackWriter};
 use crate::local_shells_setting::LocalShellsSetting;
 use crate::locale::{Locale, LocaleGlobal};
 use crate::scrollback_setting::ScrollbackSetting;
+
+pub(crate) mod theme_library;
 
 const VIEWPORT: (u32, u32) = (800, 600);
 /// The reference capture is stored at this pixel density.
@@ -53,7 +55,7 @@ pub(crate) fn capture_headlessly(output: &Path, reference: &Path) -> Result<(), 
         .build()
         .map_err(|error| format!("could not start the capture runtime: {error}"))?;
     let runtime_handle = runtime.handle().clone();
-    let theme = background::theme(None);
+    let theme = theme::default_theme().ui;
     let mut context = HeadlessAppContext::with_platform(
         gpui_kit::platform::current_platform(true).text_system(),
         Arc::new(()),

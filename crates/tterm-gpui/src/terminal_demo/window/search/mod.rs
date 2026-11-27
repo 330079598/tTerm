@@ -186,6 +186,15 @@ impl SearchBar {
         }
     }
 
+    /// Replaces the search overlay palette without closing it or rescanning.
+    pub(super) fn set_theme(&mut self, theme: Theme, cx: &mut Context<Self>) {
+        if self.theme == theme {
+            return;
+        }
+        self.theme = theme;
+        cx.notify();
+    }
+
     /// Whether the bar is visible.
     pub(super) fn is_open(&self) -> bool {
         self.open

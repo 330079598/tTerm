@@ -1,11 +1,12 @@
 //! Connects the layout picker to the workspace and its title bar.
 
 use gpui_kit::prelude::*;
-use gpui_kit::{Context, Div, Role, Stateful, Window};
-use tterm_ui::components::button::{ButtonSize, ButtonState, Variant, button};
+use gpui_kit::{Context, Div, Stateful, Window};
+use tterm_ui::components::icons::LAYOUT_TEMPLATE;
 
 use super::super::Prototype;
 use super::{OPEN_BUTTON_ID, TemplateTarget};
+use crate::app_window::chrome::actions::action_button;
 
 impl Prototype {
     /// Opens the picker for the active tab.
@@ -47,17 +48,7 @@ impl Prototype {
     /// The title-bar entry that opens the picker.
     pub(in super::super) fn layout_template_button(&self, cx: &mut Context<Self>) -> Stateful<Div> {
         let label = self.ui.template_ui.read(cx).open_button_label(cx);
-        button(
-            OPEN_BUTTON_ID,
-            label.clone(),
-            Variant::Ghost,
-            ButtonSize::Sm,
-            ButtonState::default(),
-            self.ui.theme,
-        )
-        .debug_selector(|| OPEN_BUTTON_ID.to_string())
-        .role(Role::Button)
-        .aria_label(label)
-        .on_click(cx.listener(|this, _, window, cx| this.open_layout_templates(window, cx)))
+        action_button(OPEN_BUTTON_ID, label, LAYOUT_TEMPLATE, self.ui.theme)
+            .on_click(cx.listener(|this, _, window, cx| this.open_layout_templates(window, cx)))
     }
 }

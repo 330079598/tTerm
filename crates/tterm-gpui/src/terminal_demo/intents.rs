@@ -14,10 +14,11 @@ pub(super) const DEFAULT_TITLE: &str = "tTerm GPUI Dev";
 
 /// Answers or records one intent.
 ///
-/// The prototype never changes the view's palette, so color queries are
-/// answered from the default palette rather than a copy the view keeps in
-/// sync. Clipboard writes cross to the UI through the session slot. Clipboard
-/// reads get no answer; the bell is reserved for the later attention work.
+/// Color queries are answered from the palette the session opened with, which
+/// is the same one the attached view draws; a live palette change updates both
+/// together. Clipboard writes cross to the UI through the session slot.
+/// Clipboard reads get no answer; the bell is reserved for the later attention
+/// work.
 pub(super) fn handle_intent(
     intent: Intent,
     state: &SessionState,
@@ -27,7 +28,7 @@ pub(super) fn handle_intent(
     match intent {
         Intent::WriteToPty(bytes) => write(bytes),
         Intent::ColorRequest { index, format } => {
-            if let Some(color) = palette_color(&TerminalPalette::default(), index) {
+            if let Some(color) = palette_color(&state.palette(), index) {
                 write(format.format(color));
             }
         }
@@ -88,13 +89,20 @@ fn palette_color(palette: &TerminalPalette, index: usize) -> Option<Rgb> {
 mod tests {
     use std::sync::{Arc, Mutex};
 
+    use tterm_core::theme::definitions::get_preset_theme;
     use tterm_terminal::grid::{CellSize, GridSize, WindowSize};
+    use tterm_terminal::palette::{Rgba, TerminalPalette};
     use tterm_terminal::terminal::{Config, Terminal};
+    use tterm_terminal_view::view::TerminalViewConfig;
 
     use super::{DEFAULT_TITLE, handle_intent};
     use crate::terminal_demo::pipeline::SessionState;
 
     fn state() -> (Arc<Terminal>, SessionState) {
+        state_with_palette(TerminalPalette::default())
+    }
+
+    fn state_with_palette(palette: TerminalPalette) -> (Arc<Terminal>, SessionState) {
         let model = Arc::new(Terminal::new(
             Config::default(),
             GridSize {
@@ -119,6 +127,7 @@ mod tests {
                 },
             })),
             title: Arc::new(Mutex::new(None)),
+            palette: Arc::new(Mutex::new(palette)),
             clipboard: Arc::new(
                 crate::terminal_demo::clipboard::store::ClipboardWrites::disabled(),
             ),
@@ -131,21 +140,91 @@ mod tests {
         (model, state)
     }
 
+    /// Answers every intent the model produced, in order.
+    fn answer_intents(model: &Terminal, state: &SessionState) -> Vec<Vec<u8>> {
+        let mut replies = Vec::new();
+        for intent in model.drain_intents() {
+            handle_intent(intent, state, state.clipboard.epoch(), |bytes| {
+                replies.push(bytes)
+            });
+        }
+        replies
+    }
+
+    /// The reply Alacritty's color formatter writes for one query.
+    fn color_reply(prefix: &str, color: Rgba) -> Vec<u8> {
+        let Rgba { r, g, b, .. } = color;
+        format!("\x1b]{prefix};rgb:{r:02x}{r:02x}/{g:02x}{g:02x}/{b:02x}{b:02x}\x07").into_bytes()
+    }
+
+    fn preset_palette(id: &str) -> TerminalPalette {
+        get_preset_theme(id)
+            .expect("the built-in theme exists")
+            .terminal
+            .to_terminal_palette()
+    }
+
     #[test]
     fn query_replies_are_written_in_the_order_the_program_asked() {
         let (model, state) = state();
         model.write(b"\x1b]11;?\x07\x1b[14t");
-        let mut replies = Vec::new();
-        for intent in model.drain_intents() {
-            handle_intent(intent, &state, state.clipboard.epoch(), |bytes| {
-                replies.push(bytes)
-            });
-        }
+        let replies = answer_intents(&model, &state);
 
         assert_eq!(replies.len(), 2);
         assert!(replies[0].starts_with(b"\x1b]11;rgb:"));
         assert!(replies[0].ends_with(b"\x07"));
         assert_eq!(replies[1], b"\x1b[4;384;640t");
+    }
+
+    #[test]
+    fn color_queries_answer_with_the_palette_the_view_draws_with() {
+        let palette = preset_palette("ocean");
+        assert_ne!(palette.blue, TerminalPalette::default().blue);
+        let (model, state) = state_with_palette(palette.clone());
+        model.write(b"\x1b]4;4;?\x07\x1b]10;?\x07\x1b]11;?\x07\x1b]12;?\x07");
+
+        assert_eq!(
+            answer_intents(&model, &state),
+            [
+                color_reply("4;4", palette.blue),
+                color_reply("10", palette.foreground),
+                color_reply("11", palette.background),
+                color_reply("12", palette.cursor),
+            ]
+        );
+    }
+
+    #[test]
+    fn the_default_palette_answers_like_the_default_view_draws() {
+        let (model, state) = state();
+        assert_eq!(
+            state.palette(),
+            TerminalViewConfig::default().palette,
+            "a session without a tab theme must use the default view palette"
+        );
+        model.write(b"\x1b]11;?\x07");
+
+        assert_eq!(
+            answer_intents(&model, &state),
+            [color_reply(
+                "11",
+                TerminalViewConfig::default().palette.background
+            )]
+        );
+    }
+
+    #[test]
+    fn a_palette_change_answers_later_queries_with_the_new_colors() {
+        let (model, state) = state();
+        let updated = preset_palette("light");
+        assert_ne!(updated.cursor, TerminalPalette::default().cursor);
+        state.set_palette(updated.clone());
+        model.write(b"\x1b]12;?\x07");
+
+        assert_eq!(
+            answer_intents(&model, &state),
+            [color_reply("12", updated.cursor)]
+        );
     }
 
     #[test]

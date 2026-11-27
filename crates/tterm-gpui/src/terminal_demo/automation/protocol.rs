@@ -9,9 +9,12 @@ pub(super) const MAX_REQUEST_BYTES: usize = 64 * 1024;
 pub(super) enum Command {
     Windows,
     State,
+    CaptureState,
     Screenshot,
     Focus,
     Close,
+    OpenProfiles,
+    OpenSettings,
     Key(Keystroke),
     Text(String),
     Language(Language),
@@ -48,9 +51,12 @@ pub(super) fn parse_request(
     match command {
         "windows" => Ok(Command::Windows),
         "state" => Ok(Command::State),
+        "capture-state" => Ok(Command::CaptureState),
         "screenshot" => Ok(Command::Screenshot),
         "action=focus" => Ok(Command::Focus),
         "action=close" => Ok(Command::Close),
+        "action=profiles" => Ok(Command::OpenProfiles),
+        "action=settings" => Ok(Command::OpenSettings),
         _ => {
             if let Some(key) = command.strip_prefix("key=") {
                 return validate_key(key, os).map(Command::Key);

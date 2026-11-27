@@ -20,6 +20,7 @@ use tterm_core::session::sink::SessionSink;
 use tterm_core::terminal::io_batcher::OutputFlow;
 use tterm_core::terminal::output::TerminalOutput;
 use tterm_terminal::grid::{CellSize, GridSize, WindowSize};
+use tterm_terminal::palette::TerminalPalette;
 use tterm_terminal::snapshot::CursorShape;
 use tterm_terminal::terminal::{ClipboardPolicy, Config, Terminal};
 
@@ -54,6 +55,24 @@ pub(crate) struct RestoredHistory {
     pub(crate) banner: String,
 }
 
+/// What one session generation inherits from its tab when it opens.
+///
+/// The palette stays out of [`Config`] on purpose: the model never stores
+/// theme colors, while the parser needs the same palette the view draws with
+/// to answer color queries.
+pub(super) struct SessionOptions {
+    /// The transport and connection details of the new generation.
+    pub(super) connection: PtyConnectionOptions,
+    /// The grid and cell size the generation starts with.
+    pub(super) size: WindowSize,
+    /// The model options inherited from the application settings.
+    pub(super) config: Config,
+    /// The palette the attached view draws with.
+    pub(super) palette: TerminalPalette,
+    /// A Tauri-era snapshot to replay before the transport starts.
+    pub(super) restored: Option<RestoredHistory>,
+}
+
 /// A running core session, its model and the parser that feeds the model.
 ///
 /// Clones are not made; the session manager and attachments share it through
@@ -81,11 +100,15 @@ impl Session {
         services: Arc<AppServices>,
         tab_id: String,
         session_nonce: u32,
-        mut connection: PtyConnectionOptions,
-        size: WindowSize,
-        config: Config,
-        restored: Option<RestoredHistory>,
+        options: SessionOptions,
     ) -> Result<Self, String> {
+        let SessionOptions {
+            mut connection,
+            size,
+            config,
+            palette,
+            restored,
+        } = options;
         let WindowSize { grid, cell } = size;
         prepare_connection(&mut connection);
         // Only a local term session owns a process this client can inspect.
@@ -118,6 +141,7 @@ impl Session {
             terminal: Arc::clone(&terminal),
             size: Arc::new(Mutex::new(WindowSize { grid, cell })),
             title: Arc::new(Mutex::new(None)),
+            palette: Arc::new(Mutex::new(palette)),
             session_nonce,
             alive: Arc::clone(&alive),
             visible: Arc::clone(&visible),
@@ -218,6 +242,19 @@ impl Session {
     /// The latest title a program set, if the window has not shown it yet.
     pub fn title(&self) -> Arc<Mutex<Option<String>>> {
         Arc::clone(&self.state.title)
+    }
+
+    /// Replaces the palette color queries are answered with.
+    ///
+    /// The attached view must be given the same palette so its pixels and the
+    /// replies agree. The model, parser and transport keep running.
+    pub fn set_palette(&self, palette: TerminalPalette) {
+        self.state.set_palette(palette);
+    }
+
+    /// The palette color queries are answered with.
+    pub fn palette(&self) -> TerminalPalette {
+        self.state.palette()
     }
 
     /// The watch channel that wakes every attached view for new output.
@@ -602,6 +639,9 @@ mod tests {
                 cell: CELL,
             })),
             title: Arc::new(Mutex::new(None)),
+            palette: Arc::new(Mutex::new(
+                tterm_terminal::palette::TerminalPalette::default(),
+            )),
             clipboard: Arc::new(
                 crate::terminal_demo::clipboard::store::ClipboardWrites::disabled(),
             ),

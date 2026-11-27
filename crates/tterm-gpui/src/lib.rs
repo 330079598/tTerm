@@ -14,3 +14,4 @@ mod local_shells_setting;
 pub mod locale;
 mod scrollback_setting;
 pub mod terminal_demo;
+mod theme_setting;

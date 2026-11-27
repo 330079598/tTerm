@@ -13,6 +13,9 @@ mod page_save;
 mod routes;
 mod scrollback;
 mod search;
+mod theme_library;
+mod theme_library_smoke;
+mod theme_page;
 
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
@@ -37,7 +40,7 @@ use super::split_state::Edge;
 use super::*;
 use crate::config_state::{
     LocalShellsWriter, PaneTemplatesWriter, ScrollbackWriter, TerminalFontWriter,
-    TerminalPageWriter,
+    TerminalPageWriter, ThemeSettingsWriter,
 };
 use crate::local_shells_setting::{
     ARGS_INPUT_ID, EDIT_PREFIX, ERROR_ID as LOCAL_SHELLS_ERROR_ID, NAME_INPUT_ID,
@@ -79,6 +82,7 @@ struct WorkspaceWriters {
     local_shells: LocalShellsWriter,
     font: Option<TerminalFontWriter>,
     page: Option<TerminalPageWriter>,
+    theme: Option<ThemeSettingsWriter>,
 }
 
 fn make_workspace(
@@ -95,17 +99,20 @@ fn make_workspace(
     let queue = state::SaveQueue::start(handle, Arc::new(|_| Ok(())));
     let geometry = cx.new(|_| WindowGeometry::new(None, Default::default(), queue));
     let pane_templates_writer: PaneTemplatesWriter = Arc::new(|_| Ok(()));
-    let config = cx.new(|_| match writers.page {
-        Some(writer) => ConfigState::with_terminal_page_writer(config, handle, writer),
-        None => match writers.font {
-            Some(writer) => ConfigState::with_terminal_font_writer(config, handle, writer),
-            None => ConfigState::with_writers(
-                config,
-                handle,
-                writers.scrollback,
-                pane_templates_writer,
-                writers.local_shells,
-            ),
+    let config = cx.new(|_| match writers.theme {
+        Some(writer) => ConfigState::with_theme_writer(config, handle, writer),
+        None => match writers.page {
+            Some(writer) => ConfigState::with_terminal_page_writer(config, handle, writer),
+            None => match writers.font {
+                Some(writer) => ConfigState::with_terminal_font_writer(config, handle, writer),
+                None => ConfigState::with_writers(
+                    config,
+                    handle,
+                    writers.scrollback,
+                    pane_templates_writer,
+                    writers.local_shells,
+                ),
+            },
         },
     });
     Prototype::new(
@@ -122,8 +129,7 @@ fn make_workspace(
             keymap,
             locale,
             config,
-            theme: background::theme(None),
-            background: background::content(None),
+            theme: theme::default_theme(),
         },
         geometry,
     )
@@ -232,6 +238,7 @@ struct HarnessWriters {
     local_shell_writes: Arc<Mutex<Vec<LocalShell>>>,
     font: Option<TerminalFontWriter>,
     page: Option<TerminalPageWriter>,
+    theme: Option<ThemeSettingsWriter>,
 }
 
 fn harness_with_writers<'a>(
@@ -253,6 +260,7 @@ fn harness_with_writers<'a>(
             local_shell_writes,
             font: font_writer,
             page: None,
+            theme: None,
         },
     )
 }
@@ -279,6 +287,34 @@ fn harness_with_page_writer<'a>(
             local_shell_writes,
             font: None,
             page: Some(writer),
+            theme: None,
+        },
+    )
+}
+
+fn harness_with_theme_writer<'a>(
+    cx: &'a mut TestAppContext,
+    config: AppConfig,
+    writer: ThemeSettingsWriter,
+) -> Harness<'a> {
+    let local_shell_writes = Arc::new(Mutex::new(Vec::new()));
+    let local_shells_writer: LocalShellsWriter = Arc::new(|saved| {
+        Ok(SavedLocalShells {
+            local_shells: vec![saved],
+            default_shell: DefaultShellSettings::default(),
+        })
+    });
+    harness_with_options(
+        cx,
+        config,
+        HarnessWriters {
+            scrollback: Arc::new(|_| Ok(())),
+            writes: Arc::new(Mutex::new(Vec::new())),
+            local_shells: local_shells_writer,
+            local_shell_writes,
+            font: None,
+            page: None,
+            theme: Some(writer),
         },
     )
 }
@@ -295,6 +331,7 @@ fn harness_with_options<'a>(
         local_shell_writes,
         font,
         page,
+        theme,
     } = writers;
     let mut runtime = test_runtime();
     let events = std::mem::replace(
@@ -316,6 +353,7 @@ fn harness_with_options<'a>(
                 local_shells,
                 font,
                 page,
+                theme,
             },
             cx,
         )

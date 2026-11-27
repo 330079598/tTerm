@@ -9,6 +9,8 @@
 
 use std::sync::Arc;
 
+#[cfg(any(test, all(debug_assertions, feature = "automation")))]
+use self::theme::isolated_theme_writer;
 use gpui_kit::{Context, EventEmitter, Task};
 use tterm_core::config::AppConfig;
 use tterm_core::config::local_shells::LocalShell;
@@ -19,6 +21,7 @@ use tterm_core::config::scrollback::normalize_scrollback_config;
 #[cfg(any(test, all(debug_assertions, feature = "automation")))]
 use tterm_core::config::terminal_font_file::SavedTerminalFont;
 use tterm_core::config::terminal_font_file::TerminalPageSettings;
+use tterm_core::config::theme_file::ThemeSettings;
 use tterm_core::core::blocking::run_blocking;
 use tterm_core::terminal::pty::TerminalShellProfile;
 #[cfg(any(test, all(debug_assertions, feature = "automation")))]
@@ -36,6 +39,10 @@ pub(crate) type LocalShellsWriter =
 pub(crate) type DefaultShellWriter =
     Arc<dyn Fn(LocalShellChoice) -> Result<SavedLocalShells, String> + Send + Sync>;
 
+/// Writes one theme edit through the shared core path.
+pub(crate) type ThemeSettingsWriter =
+    Arc<dyn Fn(AppConfig, ThemeSettings) -> Result<ThemeSettings, String> + Send + Sync>;
+
 /// Writes one shell-list edit through the shared core path.
 pub(crate) type ShellListWriter =
     Arc<dyn Fn(ShellListEdit) -> Result<SavedShellLists, String> + Send + Sync>;
@@ -48,6 +55,7 @@ struct ConfigWriters {
     local_shells: LocalShellsWriter,
     shell_list: ShellListWriter,
     default_shell: DefaultShellWriter,
+    theme: ThemeSettingsWriter,
     final_page: TerminalPageSaver,
 }
 
@@ -118,6 +126,13 @@ pub struct TerminalFontChanged {
     pub command_marks: bool,
 }
 
+/// Emitted after the strict config file accepted a theme change.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct ThemeChanged {
+    /// The theme fields the next launch will load.
+    pub settings: ThemeSettings,
+}
+
 /// The application's live configuration entity.
 pub struct ConfigState {
     config: AppConfig,
@@ -127,6 +142,7 @@ pub struct ConfigState {
     local_shells_writer: LocalShellsWriter,
     shell_list_writer: ShellListWriter,
     default_shell_writer: DefaultShellWriter,
+    theme_saver: ThemeSettingsWriter,
     terminal_page_saver: TerminalPageSaver,
     detected_shells: Vec<TerminalShellProfile>,
     shell_discovery_started: bool,
@@ -137,6 +153,7 @@ impl EventEmitter<ScrollbackChanged> for ConfigState {}
 impl EventEmitter<PaneTemplatesChanged> for ConfigState {}
 impl EventEmitter<LocalShellsChanged> for ConfigState {}
 impl EventEmitter<TerminalFontChanged> for ConfigState {}
+impl EventEmitter<ThemeChanged> for ConfigState {}
 
 impl ConfigState {
     /// Creates the state from the strict config the root loaded and normalized
@@ -151,6 +168,9 @@ impl ConfigState {
                 local_shells: Arc::new(tterm_core::config::local_shells_file::save_local_shell),
                 shell_list: Arc::new(tterm_core::config::local_shells_file::edit_shell_list),
                 default_shell: Arc::new(tterm_core::config::local_shells_file::save_default_shell),
+                theme: Arc::new(|previous, settings| {
+                    tterm_core::config::theme_file::save_theme_settings(&previous, settings)
+                }),
                 final_page: Arc::new(|previous, settings| {
                     tterm_core::config::terminal_font_file::save_terminal_page(&previous, settings)
                 }),
@@ -215,6 +235,7 @@ impl ConfigState {
         let page_saver = composed_page_saver(Arc::clone(&scrollback_writer), font_writer.clone());
         let default_shell_writer = isolated_default_shell_writer(config.local_shells.clone());
         let shell_list_writer = isolated_shell_list_writer(&config);
+        let theme_saver = isolated_theme_writer(&config);
         Self::from_writers(
             config,
             runtime,
@@ -224,6 +245,7 @@ impl ConfigState {
                 local_shells: local_shells_writer,
                 shell_list: shell_list_writer,
                 default_shell: default_shell_writer,
+                theme: theme_saver,
                 final_page: page_saver,
             },
         )
@@ -239,6 +261,7 @@ impl ConfigState {
         let page_saver = composed_page_saver(Arc::new(|_| Ok(())), Arc::clone(&writer));
         let default_shell_writer = isolated_default_shell_writer(config.local_shells.clone());
         let shell_list_writer = isolated_shell_list_writer(&config);
+        let theme_saver = isolated_theme_writer(&config);
         Self::from_writers(
             config,
             runtime,
@@ -248,6 +271,7 @@ impl ConfigState {
                 local_shells: echo_local_shells_writer(),
                 shell_list: shell_list_writer,
                 default_shell: default_shell_writer,
+                theme: theme_saver,
                 final_page: page_saver,
             },
         )
@@ -266,6 +290,7 @@ impl ConfigState {
         let page_saver: TerminalPageSaver = Arc::new(move |_previous, settings| writer(settings));
         let default_shell_writer = isolated_default_shell_writer(config.local_shells.clone());
         let shell_list_writer = isolated_shell_list_writer(&config);
+        let theme_saver = isolated_theme_writer(&config);
         Self::from_writers(
             config,
             runtime,
@@ -275,6 +300,32 @@ impl ConfigState {
                 local_shells: echo_local_shells_writer(),
                 shell_list: shell_list_writer,
                 default_shell: default_shell_writer,
+                theme: theme_saver,
+                final_page: page_saver,
+            },
+        )
+    }
+
+    /// Creates the state with a theme writer controlled by a test.
+    #[cfg(test)]
+    pub(crate) fn with_theme_writer(
+        config: AppConfig,
+        runtime: &tokio::runtime::Handle,
+        writer: ThemeSettingsWriter,
+    ) -> Self {
+        let default_shell_writer = isolated_default_shell_writer(config.local_shells.clone());
+        let shell_list_writer = isolated_shell_list_writer(&config);
+        let page_saver: TerminalPageSaver = Arc::new(|_, settings| Ok(settings));
+        Self::from_writers(
+            config,
+            runtime,
+            ConfigWriters {
+                scrollback: Arc::new(|_| Ok(())),
+                pane_templates: Arc::new(|_| Ok(())),
+                local_shells: echo_local_shells_writer(),
+                shell_list: shell_list_writer,
+                default_shell: default_shell_writer,
+                theme: writer,
                 final_page: page_saver,
             },
         )
@@ -293,6 +344,7 @@ impl ConfigState {
             local_shells_writer: writers.local_shells,
             shell_list_writer: writers.shell_list,
             default_shell_writer: writers.default_shell,
+            theme_saver: writers.theme,
             terminal_page_saver: writers.final_page,
             detected_shells: Vec::new(),
             shell_discovery_started: false,
@@ -648,6 +700,7 @@ fn echo_terminal_font_writer() -> TerminalFontWriter {
 }
 
 mod local_shells;
+mod theme;
 
 #[cfg(test)]
 mod terminal_page_tests;

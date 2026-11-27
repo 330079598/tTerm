@@ -21,7 +21,7 @@ use tterm_terminal_view::view::{TerminalView, TerminalViewConfig};
 
 use super::drag::BAR_WIDTH;
 use super::*;
-use crate::app_window::background;
+use crate::app_window::theme;
 use crate::locale::{Locale, LocaleGlobal};
 
 type Bytes = Rc<RefCell<Vec<u8>>>;
@@ -94,7 +94,7 @@ fn with_harness(cx: &mut TestAppContext, run: impl FnOnce(&mut Harness, &mut Vis
                 Arc::clone(&model),
                 view.downgrade(),
                 locale,
-                background::theme(None),
+                theme::default_theme().ui,
             )
         });
         window.focus(&view.read(cx).focus_handle(), cx);

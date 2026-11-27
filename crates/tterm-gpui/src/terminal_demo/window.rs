@@ -12,6 +12,8 @@ mod drag;
 mod events;
 mod failed_tab;
 mod history;
+mod launch;
+mod live_theme;
 mod motion;
 mod nudge;
 mod overflow;
@@ -49,15 +51,15 @@ mod tunnel_page_tests;
 use events::handle_event;
 use failed_tab::{FailedTab, failed, saved_agent_resume};
 use history::{history_capacity, subscribe_history};
+use live_theme::{Subscriptions, is_dark_appearance};
 use tabs::Tabs;
 
 use gpui_kit::prelude::*;
 use gpui_kit::{App, Entity, Rgba, Task, Window, div, px};
 use tokio::sync::mpsc::UnboundedReceiver;
 use tterm_core::agent_status::AgentResumeSession;
+#[cfg(test)]
 use tterm_core::config::AppConfig;
-use tterm_core::config::app_config_normalize::normalize_loaded_config;
-use tterm_core::config::load_config_file;
 use tterm_core::events::AppEvent;
 use tterm_core::i18n::catalogue::Catalogue;
 use tterm_core::i18n::keys;
@@ -66,6 +68,7 @@ use tterm_core::services::AppServices;
 use tterm_core::workspace::tab::Tab;
 use tterm_core::workspace::tab_attention::TabAttentionStore;
 use tterm_terminal::grid::{CellSize, GridSize};
+use tterm_terminal::palette::TerminalPalette;
 use tterm_terminal::snapshot::CursorShape;
 use tterm_terminal::terminal::Config;
 #[cfg(test)]
@@ -80,13 +83,13 @@ use super::command::{CommandSpec, TabLaunch};
 use super::conpty::{log_conpty_source, prepare_conpty};
 use super::intents::DEFAULT_TITLE;
 use super::keymap::{KeymapRouter, encoder_config, route_keymap};
-use crate::app_window::background;
 use crate::app_window::chrome::shell;
 use crate::app_window::chrome::titlebar::TitleBar;
 use crate::app_window::chrome::{ActionHandler, TitleBarAction};
 use crate::app_window::startup;
 use crate::app_window::state;
 use crate::app_window::state::WindowGeometry;
+use crate::app_window::theme::{self, ResolvedTheme};
 use crate::config_state::ConfigState;
 use crate::local_shells_setting::LocalShellsSetting;
 use crate::locale::{Locale, LocaleGlobal};
@@ -104,48 +107,10 @@ const INITIAL_CELL: CellSize = CellSize {
     width: 8,
     height: 16,
 };
-struct PrototypeStartup {
-    command: CommandSpec,
-    workspace: session_workspace::StartupWorkspace,
-    sessions: Rc<SessionManager>,
-    events: UnboundedReceiver<AppEvent>,
-    keyboard: tterm_terminal_view::input::keyboard::EncoderConfig,
-    keymap: Rc<KeymapRouter>,
-    locale: Entity<Locale>,
-    config: Entity<ConfigState>,
-    theme: Theme,
-    background: Rgba,
-}
 
-/// Loads settings with the same sequence the Tauri client uses: the strict
-/// file reader, then the shared UI normalization before any view reads them.
-fn load_startup_config() -> AppConfig {
-    startup_config(load_config_file())
-}
-
-/// Normalizes a loaded config, or starts from the normalized defaults when
-/// the strict reader rejects the file. The Tauri frontend makes the same
-/// fallback in `ConfigContext`.
-fn startup_config(loaded: Result<AppConfig, String>) -> AppConfig {
-    let normalized = loaded.and_then(|config| {
-        normalize_loaded_config(&config)
-            .map_err(|error| format!("Failed to normalize config: {error}"))
-    });
-    normalized.unwrap_or_else(|error| {
-        eprintln!("tterm-gpui: failed to load config, using defaults: {error}");
-        default_startup_config()
-    })
-}
-
-fn default_startup_config() -> AppConfig {
-    match normalize_loaded_config(&AppConfig::default()) {
-        Ok(config) => config,
-        Err(error) => {
-            eprintln!("tterm-gpui: failed to normalize the default config: {error}");
-            AppConfig::default()
-        }
-    }
-}
+#[cfg(test)]
+use launch::startup_config;
+use launch::{PrototypeStartup, load_startup_config};
 
 /// Runs the application with one prototype window until it closes.
 pub(super) fn run_window(
@@ -180,8 +145,7 @@ pub(super) fn run_window(
         command.uses_saved_workspace(),
         app_config.restore_terminal_content,
     );
-    let theme = background::theme(lifecycle.initial.background);
-    let background = background::content(lifecycle.initial.background);
+    let theme_config = app_config.clone();
     let app_id = services.shared.identity.identifier.clone();
     gpui_kit::application().run(move |cx: &mut App| {
         gpui_kit::init(cx);
@@ -199,25 +163,26 @@ pub(super) fn run_window(
             }
         })
         .detach();
-        let startup = PrototypeStartup {
-            command,
-            workspace,
-            sessions,
-            events,
-            keyboard,
-            keymap,
-            locale,
-            config,
-            theme,
-            background,
-        };
         let opened = match startup::open(
             cx,
             lifecycle.initial,
             Arc::clone(&lifecycle.geometry),
             lifecycle.queue(),
             &app_id,
-            |cx, geometry| cx.new(|cx| Prototype::new(cx, startup, geometry)),
+            move |cx, geometry, window| {
+                let startup = PrototypeStartup {
+                    command,
+                    workspace,
+                    sessions,
+                    events,
+                    keyboard,
+                    keymap,
+                    locale,
+                    config,
+                    theme: theme::resolve(&theme_config, is_dark_appearance(window.appearance())),
+                };
+                cx.new(|cx| Prototype::new(cx, startup, geometry))
+            },
         ) {
             Ok(opened) => opened,
             Err(error) => {
@@ -269,6 +234,8 @@ pub(super) struct Prototype {
     pending_profile_opens: std::collections::HashSet<String>,
     factory: TabFactory,
     current_title: String,
+    system_dark: bool,
+    theme_subscriptions: Subscriptions,
     ui: WindowUi,
 }
 
@@ -277,7 +244,7 @@ struct TabFactory {
     config: Entity<ConfigState>,
     keyboard: tterm_terminal_view::input::keyboard::EncoderConfig,
     keymap: Rc<KeymapRouter>,
-    theme: Theme,
+    theme: ResolvedTheme,
 }
 
 struct WindowTab {
@@ -327,6 +294,41 @@ impl Prototype {
         format!("title={}", self.logical_window_title(cx))
     }
 
+    /// Opens the production saved-connections route for the capture.
+    #[cfg(all(feature = "automation", debug_assertions))]
+    pub(super) fn capture_open_profiles(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        self.open_saved_connections(window, cx);
+    }
+
+    /// Opens the production settings page for the capture.
+    ///
+    /// This uses the page's own open path, so the capture does not depend on
+    /// the route's private helper while the route is being split out.
+    #[cfg(all(feature = "automation", debug_assertions))]
+    pub(super) fn capture_open_settings(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        self.ui
+            .settings_page
+            .update(cx, |page, cx| page.open(window, cx));
+        self.settings_open = true;
+        cx.notify();
+    }
+
+    /// The state the visual-acceptance capture polls between actions.
+    ///
+    /// It is compiled only into the debug automation build and only reads
+    /// booleans and counts, so the capture can wait for the production views
+    /// instead of sleeping for a fixed time.
+    #[cfg(all(feature = "automation", debug_assertions))]
+    pub(super) fn capture_state(&self, cx: &App) -> String {
+        let (profiles_open, profiles_loading, profiles_count) =
+            self.ui.saved_connections.read(cx).capture_state(cx);
+        format!(
+            "settings_open={}\nsettings_fonts_loaded={}\nprofiles_open={profiles_open}\nprofiles_loading={profiles_loading}\nprofiles_count={profiles_count}\n",
+            self.settings_open,
+            self.ui.settings_page.read(cx).capture_fonts_loaded(cx)
+        )
+    }
+
     /// The automation endpoint's close path, using the same gate as the
     /// platform close button.
     pub(super) fn request_close(&mut self, window: &mut Window, cx: &mut Context<Self>) {
@@ -347,9 +349,9 @@ impl Prototype {
             keymap,
             locale,
             config,
-            theme,
-            background,
+            theme: app_theme,
         } = startup;
+        let theme = app_theme.ui;
         let session_workspace::StartupWorkspace {
             load,
             persistence,
@@ -362,6 +364,7 @@ impl Prototype {
             cx.new(|cx| LocalShellsSetting::new(config.clone(), locale.clone(), theme, cx));
         let page = cx
             .new(|cx| SettingsPage::new(locale.clone(), theme, setting.clone(), local_shells, cx));
+        let theme_subscriptions = Subscriptions::install(cx, &page, &config);
         cx.observe(&page, |_, _, cx| cx.notify()).detach();
         let template_ui = TemplateUi::for_workspace(config.clone(), locale.clone(), theme, cx);
         let saved_connections =
@@ -370,23 +373,22 @@ impl Prototype {
         cx.observe(&locale, |_, _, cx| cx.notify()).detach();
         cx.observe(&geometry, |_, _, cx| cx.notify()).detach();
         subscribe_history(cx, &config, &sessions).detach();
-        let ui = WindowUi {
-            locale: locale.clone(),
+        let ui = WindowUi::new(
+            locale.clone(),
             geometry,
-            theme,
-            background,
-            settings_page: page,
+            &app_theme,
+            page,
             template_ui,
             saved_connections,
             tunnel_page,
-        };
+        );
         let services = sessions.services();
         let factory = TabFactory {
             sessions,
             config,
             keyboard,
             keymap,
-            theme,
+            theme: app_theme,
         };
         strip::register_actions(&factory.keymap);
         template_ui::register_actions(&factory.keymap);
@@ -418,6 +420,8 @@ impl Prototype {
             nudge: None,
             factory,
             current_title: DEFAULT_TITLE.to_string(),
+            system_dark: is_dark_appearance(cx.window_appearance()),
+            theme_subscriptions,
             ui,
         };
         prototype.publish_workspace(cx);
@@ -469,6 +473,7 @@ impl TabFactory {
         id: usize,
         connection: Result<tterm_core::core::session::types::PtyConnectionOptions, String>,
         launch: &mut TabLaunch,
+        palette: &TerminalPalette,
     ) -> (Option<Rc<TabBinding>>, Option<String>) {
         let saved_profile_id = connection
             .as_ref()
@@ -481,6 +486,7 @@ impl TabFactory {
                     connection,
                     INITIAL_GRID,
                     INITIAL_CELL,
+                    palette.clone(),
                     launch.take_restored_history(),
                 );
                 binding.set_saved_profile_id(saved_profile_id);
@@ -523,6 +529,7 @@ impl TabFactory {
             picker::ConnectionLabel::new_parts(launch.search_kind(), connection.as_ref().ok());
         let saved = launch.saved().clone();
         let saved_id = launch.saved_id().to_string();
+        let palette = self.theme.palette_for_tab(&saved);
         let restored = launch.is_restored();
         let default_shell = launch.is_default_shell();
         let may_resume_agent = launch.may_resume_agent();
@@ -531,7 +538,7 @@ impl TabFactory {
         let local_custom_path = launch.local_custom_path().map(str::to_owned);
         let agent_resume = saved_agent_resume(&saved);
         let drop_text = connection.as_ref().ok().and_then(local_drop_text);
-        let (binding, open_error) = self.open_binding(id, connection, &mut launch);
+        let (binding, open_error) = self.open_binding(id, connection, &mut launch, &palette);
         let font = self.shared_font(cx);
         let attachment = binding.as_ref().and_then(|binding| binding.attach());
         let Some(attachment) = attachment else {
@@ -551,6 +558,7 @@ impl TabFactory {
                 },
                 error,
                 font,
+                palette.clone(),
             );
         };
         log_conpty_source();
@@ -573,6 +581,7 @@ impl TabFactory {
                 },
                 "The terminal tab was not registered".to_string(),
                 font,
+                palette,
             );
         };
         let agent_resume_controller = binding.session().and_then(|session| {
@@ -604,10 +613,10 @@ impl TabFactory {
             )
         });
         let paste_gate = super::clipboard::view_gate(&paste_controller, &binding, session_nonce);
-        let context_menu = cx.new(|_| PaneContextMenu::new(self.theme));
-        let context_menu_handler = view_handler(context_menu.clone());
+        let context_menu = cx.new(|_| PaneContextMenu::new(self.theme.ui));
         let config = TerminalViewConfig {
             font,
+            palette,
             padding: self.shared_padding(cx),
             input: Some(Rc::new(attachment.input())),
             resize: Some(Rc::new(attachment.resizer())),
@@ -616,7 +625,7 @@ impl TabFactory {
             paste_gate: Some(paste_gate),
             copy_on_select: initial.copy_on_select,
             right_click_paste: initial.right_click_paste,
-            context_menu: Some(context_menu_handler),
+            context_menu: Some(view_handler(context_menu.clone())),
             drop_text,
             ..TerminalViewConfig::default()
         };
@@ -705,6 +714,7 @@ fn classify_title_update(pending: Option<String>) -> Option<TitleUpdate> {
 
 impl Render for Prototype {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+        self.observe_theme(window, cx);
         self.sync_layout_template_target(cx);
         let settings_open = self.settings_is_open();
         let tunnel_page_open = self.tunnel_page_is_open();

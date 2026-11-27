@@ -37,6 +37,15 @@ pub fn capture_settings_headlessly(
     window::settings_page_capture::capture_headlessly(output, reference)
 }
 
+/// Writes the headless production theme-library gallery capture.
+///
+/// This exists only in debug builds with the automation feature and uses an
+/// in-memory config with no-op writers, so it cannot touch a user profile.
+#[cfg(all(debug_assertions, feature = "automation"))]
+pub fn capture_theme_library_headlessly(output: &std::path::Path) -> Result<(), String> {
+    window::settings_page_capture::theme_library::capture_headlessly(output)
+}
+
 /// Writes the headless production search-bar capture.
 ///
 /// This exists only in debug builds with the automation feature and uses a

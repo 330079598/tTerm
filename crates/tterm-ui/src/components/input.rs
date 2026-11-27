@@ -67,15 +67,31 @@ pub fn style(options: InputOptions) -> InputStyle {
     }
 }
 
+/// The opaque fill of a composed field's input surface on the theme
+/// background.
+///
+/// `Input` paints `bg-transparent dark:bg-input/30`, so a light theme shows
+/// the page background through the field while a dark theme tints it. A
+/// caller that composes an icon or a clear button around gpui-kit's `Input`
+/// uses this fill instead of the opacity the dark variant adds.
+pub fn field_fill(theme: Theme) -> gpui_kit::Hsla {
+    field_fill_at(theme, 1.0)
+}
+
+fn field_fill_at(theme: Theme, opacity: f32) -> gpui_kit::Hsla {
+    let alpha = if theme.uses_dark_variant() { 0.3 } else { 0.0 };
+    css_backdrop_color(
+        theme.colors.input,
+        alpha * css_opacity(opacity),
+        theme.colors.background,
+    )
+}
+
 /// Creates an editable single-line input from a gpui-component state entity.
 pub fn input(state: &Entity<InputState>, options: InputOptions) -> gpui_kit::Div {
     let computed = style(options);
     let theme = options.theme.unwrap_or(crate::tokens::palette::DARK);
-    let background = css_backdrop_color(
-        computed.background,
-        computed.background_alpha * css_opacity(computed.opacity),
-        theme.colors.background,
-    );
+    let background = field_fill_at(theme, computed.opacity);
     div()
         .h(px(options.height))
         .w_full()
@@ -164,6 +180,20 @@ mod tests {
         cx.simulate_input("hello");
         let value = cx.read(|cx| view.read(cx).dark.read(cx).value());
         assert_eq!(value.as_ref(), "hello");
+    }
+
+    #[test]
+    fn a_composed_field_keeps_the_page_backdrop_in_light_mode() {
+        assert_eq!(
+            field_fill(LIGHT),
+            hsla(LIGHT.colors.background, 1.0),
+            "the light Input is bg-transparent, so the page background shows through"
+        );
+        assert_ne!(
+            field_fill(DARK),
+            hsla(DARK.colors.background, 1.0),
+            "the dark Input adds bg-input/30 like the production stylesheet"
+        );
     }
 
     #[gpui_kit::test]

@@ -47,6 +47,9 @@ pub(super) fn state(visible: bool, scrollback: usize) -> (Arc<Terminal>, Session
             cell: CELL,
         })),
         title: Arc::new(Mutex::new(None)),
+        palette: Arc::new(Mutex::new(
+            tterm_terminal::palette::TerminalPalette::default(),
+        )),
         clipboard: Arc::new(crate::terminal_demo::clipboard::store::ClipboardWrites::disabled()),
         session_nonce: 1,
         alive: Arc::new(AtomicBool::new(true)),

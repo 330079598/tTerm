@@ -15,7 +15,7 @@ use tterm_terminal::terminal::{Config, Scroll, Terminal};
 use tterm_terminal_view::view::{TerminalView, TerminalViewConfig};
 
 use super::SearchBar;
-use crate::app_window::background;
+use crate::app_window::theme;
 use crate::locale::{Locale, LocaleGlobal};
 
 const VIEWPORT: (u32, u32) = (800, 600);
@@ -62,7 +62,7 @@ fn build(window: &mut Window, cx: &mut App) -> Entity<CaptureRoot> {
             model,
             view.downgrade(),
             locale,
-            background::theme(None),
+            theme::default_theme().ui,
         )
     });
     cx.new(|_| CaptureRoot {

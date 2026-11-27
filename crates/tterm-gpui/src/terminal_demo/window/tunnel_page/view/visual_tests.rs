@@ -246,11 +246,7 @@ fn capture(cx: &mut App, model: TunnelPageModel, image_path: &Path) {
     };
     let (handle, _) = gpui_kit::open_window(options, cx, |_, cx| {
         let locale = cx.new(|_| Locale::new(Language::En));
-        let view = cx.new(|_| {
-            let mut view = TunnelPageView::new(locale, DARK);
-            view.set_theme(DARK);
-            view
-        });
+        let view = cx.new(|_| TunnelPageView::new(locale, DARK));
         cx.new(|_| Page { view, model })
     })
     .expect("the tunnel page window opens");

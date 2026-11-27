@@ -194,6 +194,15 @@ impl LocalShellsSetting {
         }
     }
 
+    /// Replaces the interface palette without touching a draft or focus.
+    pub(crate) fn set_theme(&mut self, theme: Theme, cx: &mut Context<Self>) {
+        if self.theme == theme {
+            return;
+        }
+        self.theme = theme;
+        cx.notify();
+    }
+
     /// Shows the list for this settings visit and drops a draft left from the
     /// previous one.
     pub(crate) fn open_page(&mut self, cx: &mut Context<Self>) {

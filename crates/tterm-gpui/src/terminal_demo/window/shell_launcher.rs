@@ -3,13 +3,15 @@
 use gpui_kit::component::button::{Button, ButtonVariants};
 use gpui_kit::component::menu::{DropdownMenu, PopupMenuItem};
 use gpui_kit::prelude::*;
-use gpui_kit::{Context, Window};
+use gpui_kit::{Context, Window, px};
 use tterm_core::i18n::keys;
 use tterm_core::workspace::local_shells::connections::local_shell_connection;
 use tterm_core::workspace::local_shells::default_shell::{default_shell_choice, default_shell_key};
 use tterm_core::workspace::local_shells::saved::own_shell_choice;
 use tterm_core::workspace::local_shells::types::{LocalShellChoice, ShellConfig};
 use tterm_core::workspace::tab::{Tab, TabType};
+use tterm_ui::components::icons::{PLUS, icon};
+use tterm_ui::tokens::gpui::hsla;
 
 use crate::locale::Locale;
 
@@ -36,11 +38,20 @@ impl Prototype {
         let config = self.factory.config.clone();
         let locale = self.ui.locale.clone();
         Button::new("new-session-tab")
-            .label("+")
             .ghost()
             .compact()
+            // React draws a 28 by 28 .tab-action with a 16 px Lucide plus in
+            // the muted foreground; the stock ghost label was the component
+            // theme's dark text and measured larger than the reference.
+            .w(px(28.))
+            .h(px(28.))
             .tooltip(label.clone())
             .accessibility_label(label)
+            .child(icon(
+                PLUS,
+                hsla(self.ui.theme.colors.muted_foreground, 1.0),
+                16.0,
+            ))
             .dropdown_menu(move |mut menu, _, cx| {
                 let (entries, default_key, fallback_label, fallback_choice) = {
                     let state = config.read(cx);

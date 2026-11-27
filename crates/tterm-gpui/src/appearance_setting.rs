@@ -160,6 +160,15 @@ impl AppearanceSetting {
         }
     }
 
+    /// Replaces the interface palette without touching the draft or focus.
+    pub(crate) fn set_theme(&mut self, theme: Theme, cx: &mut Context<Self>) {
+        if self.theme == theme {
+            return;
+        }
+        self.theme = theme;
+        cx.notify();
+    }
+
     /// Shows the section for this settings visit, reloading every saved value.
     pub(crate) fn open_page(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         if self.open {

@@ -41,6 +41,18 @@ impl PaneContextMenu {
         Self { theme, menu: None }
     }
 
+    /// Replaces the palette, including one menu that is already open.
+    pub(super) fn set_theme(&mut self, theme: Theme, cx: &mut Context<Self>) {
+        if self.theme == theme {
+            return;
+        }
+        self.theme = theme;
+        if let Some(menu) = &self.menu {
+            menu.update(cx, |menu, cx| menu.set_theme(theme, cx));
+        }
+        cx.notify();
+    }
+
     /// Opens the menu at the click and replaces one this pane already shows.
     ///
     /// A missing target means the pane closed between the click and the

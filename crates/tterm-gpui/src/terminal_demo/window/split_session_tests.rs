@@ -59,8 +59,7 @@ pub(super) fn make_workspace_with(
             keymap,
             locale,
             config,
-            theme: background::theme(None),
-            background: background::content(None),
+            theme: theme::default_theme(),
         },
         geometry,
     )

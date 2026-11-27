@@ -71,3 +71,32 @@ fn startup_config_uses_normalized_defaults_when_reading_fails() {
     assert_eq!(config.ui_style, "islands");
     assert_eq!(config.secret_storage_mode, "system");
 }
+
+#[test]
+fn saved_and_new_tabs_resolve_their_connection_theme() {
+    use tterm_core::workspace::tab::{Tab, TabConnection, TabType};
+
+    use crate::app_window::theme::{ResolvedTheme, resolve};
+
+    let theme = resolve(&AppConfig::default(), true);
+    let mut connection = TabConnection::default();
+    connection.set_terminal_theme(Some("ocean".to_string()));
+    let mut saved = Tab::new("saved", "Saved", TabType::Terminal);
+    saved.set_connection(Some(connection));
+
+    assert_eq!(
+        theme.palette_for_tab(&saved),
+        theme.terminal_palette_for(Some("ocean"))
+    );
+    assert_eq!(
+        theme.palette_for_tab(&Tab::new("new", "New", TabType::Terminal)),
+        theme.terminal_palette()
+    );
+
+    let mut missing = TabConnection::default();
+    missing.set_terminal_theme(Some("missing".to_string()));
+    let mut saved = Tab::new("missing", "Missing", TabType::Terminal);
+    saved.set_connection(Some(missing));
+    assert_eq!(theme.palette_for_tab(&saved), theme.terminal_palette());
+    assert_eq!(ResolvedTheme::default(), theme);
+}

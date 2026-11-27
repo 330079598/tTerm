@@ -17,6 +17,7 @@ use tokio::sync::watch;
 use tterm_core::terminal::ssh_query_handler::ordered::{OrderedQueries, Part};
 use tterm_terminal::event::Intent;
 use tterm_terminal::grid::WindowSize;
+use tterm_terminal::palette::TerminalPalette;
 use tterm_terminal::terminal::Terminal;
 
 use super::clipboard::store::ClipboardWrites;
@@ -301,6 +302,12 @@ pub(super) struct SessionState {
     pub size: Arc<Mutex<WindowSize>>,
     /// The latest title the program set that the window has not shown yet.
     pub title: Arc<Mutex<Option<String>>>,
+    /// The palette the attached view draws with.
+    ///
+    /// Color-query replies read it on the parser thread, so a theme change
+    /// has to update this and the view together to keep the answer and the
+    /// pixels in step. The model itself never stores theme colors.
+    pub palette: Arc<Mutex<TerminalPalette>>,
     /// The bounded OSC 52 write slot consumed on the UI thread.
     pub clipboard: Arc<ClipboardWrites>,
     /// The generation whose output this parser may still apply.
@@ -328,6 +335,23 @@ impl SessionState {
         self.terminal.write(bytes);
         self.reports.observe(bytes);
         true
+    }
+
+    /// The palette color-query replies resolve against.
+    pub(super) fn palette(&self) -> TerminalPalette {
+        self.palette
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .clone()
+    }
+
+    /// Replaces the palette color-query replies resolve against.
+    ///
+    /// The caller owns the matching repaint of the attached view; this only
+    /// updates what the parser answers, so the model and its output stay
+    /// untouched.
+    pub(super) fn set_palette(&self, palette: TerminalPalette) {
+        *self.palette.lock().unwrap_or_else(PoisonError::into_inner) = palette;
     }
 
     /// Wakes the view only when it can actually draw this session.

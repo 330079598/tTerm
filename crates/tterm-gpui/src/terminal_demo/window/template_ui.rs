@@ -136,6 +136,15 @@ impl TemplateUi {
         }
     }
 
+    /// Replaces the picker palette without closing it or dropping its draft.
+    pub(super) fn set_theme(&mut self, theme: Theme, cx: &mut Context<Self>) {
+        if self.theme == theme {
+            return;
+        }
+        self.theme = theme;
+        cx.notify();
+    }
+
     fn open(&mut self, target: TemplateTarget, window: &mut Window, cx: &mut Context<Self>) {
         if self.saving {
             return;

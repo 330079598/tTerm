@@ -82,6 +82,15 @@ impl ScrollbackSetting {
         }
     }
 
+    /// Replaces the interface palette without touching the draft or focus.
+    pub(crate) fn set_theme(&mut self, theme: Theme, cx: &mut Context<Self>) {
+        if self.theme == theme {
+            return;
+        }
+        self.theme = theme;
+        cx.notify();
+    }
+
     #[cfg(test)]
     fn open(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         self.open_editor(window, cx, false);

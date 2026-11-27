@@ -115,10 +115,7 @@ mod tests {
     }
 
     fn initial() -> InitialWindowState {
-        InitialWindowState {
-            saved: None,
-            background: Some((0x1b, 0x1d, 0x23)),
-        }
+        InitialWindowState { saved: None }
     }
 
     #[test]
@@ -201,10 +198,7 @@ mod tests {
             },
             maximized: true,
         };
-        let state = InitialWindowState {
-            saved: Some(saved),
-            background: Some((0xff, 0xff, 0xff)),
-        };
+        let state = InitialWindowState { saved: Some(saved) };
         let monitor = LogicalArea {
             x: 0.0,
             y: 0.0,

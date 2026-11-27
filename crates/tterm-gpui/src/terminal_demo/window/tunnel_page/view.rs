@@ -65,8 +65,12 @@ impl TunnelPageView {
     }
 
     /// Applies a theme without rebuilding the page entity.
-    pub fn set_theme(&mut self, theme: Theme) {
+    pub fn set_theme(&mut self, theme: Theme, cx: &mut Context<Self>) {
+        if self.theme == theme {
+            return;
+        }
         self.theme = theme;
+        cx.notify();
     }
 
     /// Renders one loading, failure, empty or tunnel-list snapshot.

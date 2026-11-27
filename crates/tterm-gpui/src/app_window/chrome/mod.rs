@@ -7,6 +7,7 @@ use gpui_kit::{App, Window};
 /// The title bar height, matching `--title-bar-height` in `layout.css`.
 pub const BAR_HEIGHT: f32 = 36.0;
 
+pub mod actions;
 pub mod buttons;
 pub mod shell;
 pub mod titlebar;

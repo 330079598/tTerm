@@ -11,7 +11,6 @@ use gpui_kit::{App, Bounds, Context, Subscription, Window, WindowBounds};
 use serde::{Deserialize, Serialize};
 use tokio::runtime::Handle;
 use tokio::sync::{mpsc, oneshot};
-use tterm_core::config::window_background;
 use tterm_core::core::blocking::run_blocking;
 use tterm_core::db;
 use tterm_core::db::meta;
@@ -47,18 +46,16 @@ impl SavedWindowState {
 #[derive(Clone, Copy, Debug, Default)]
 pub struct InitialWindowState {
     pub saved: Option<SavedWindowState>,
-    pub background: Option<(u8, u8, u8)>,
 }
 
-/// Reads both values through the existing blocking worker. Startup calls this
-/// before `gpui_kit::application().run`, so no database work happens on a
-/// window or move callback.
+/// Reads the saved geometry through the existing blocking worker. Startup
+/// calls this before `gpui_kit::application().run`, so no database work
+/// happens on a window or move callback.
 pub async fn load_initial() -> Result<InitialWindowState, String> {
     run_blocking(|| {
         db::read(|connection| {
             Ok(InitialWindowState {
                 saved: read(connection)?.map(SavedWindowState::sanitized),
-                background: window_background::read(connection)?,
             })
         })
     })

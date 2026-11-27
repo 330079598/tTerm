@@ -17,6 +17,7 @@ use tterm_ui::components::button::{ButtonSize, ButtonState, Variant, button};
 use tterm_ui::components::icons::{
     CHEVRON_RIGHT, SEARCH, SEARCH_X, SETTINGS, SQUARE_TERMINAL, X, icon,
 };
+use tterm_ui::components::input::field_fill;
 use tterm_ui::tokens::gpui::hsla;
 
 use super::search;
@@ -24,8 +25,9 @@ use super::{
     SETTINGS_HEADER_ID, SETTINGS_PAGE_ID, SETTINGS_PANEL_ID, SETTINGS_SAVE_CONFIRMATION_ID,
     SETTINGS_SAVE_ERROR_ID, SETTINGS_SAVE_ID, SETTINGS_SEARCH_CLEAR_ID, SETTINGS_SEARCH_COUNT_ID,
     SETTINGS_SEARCH_EMPTY_ID, SETTINGS_SEARCH_FIELD_ID, SETTINGS_SEARCH_RESULT_0_ID,
-    SETTINGS_SEARCH_RESULTS_ID, SETTINGS_SIDEBAR_ID, SETTINGS_TAB_LOCAL_SHELLS_ID,
-    SETTINGS_TAB_TERMINAL_ID, SETTINGS_TITLE_ID, SettingsPage, SettingsTab,
+    SETTINGS_SEARCH_RESULTS_ID, SETTINGS_SIDEBAR_ID, SETTINGS_TAB_APPEARANCE_ID,
+    SETTINGS_TAB_LOCAL_SHELLS_ID, SETTINGS_TAB_TERMINAL_ID, SETTINGS_TITLE_ID, SettingsPage,
+    SettingsTab,
 };
 
 const HEADER_HEIGHT: f32 = 73.0;
@@ -82,7 +84,7 @@ pub(super) fn page(
                 .min_h(px(0.0))
                 .flex()
                 .flex_1()
-                .child(sidebar(page, cx))
+                .child(sidebar(page, window, cx))
                 .child(body),
         )
         .into_any_element()
@@ -147,13 +149,13 @@ fn search_field(
         .flex()
         .flex_none()
         .items_center()
-        .gap(px(4.0))
+        .gap(px(8.0))
         .pl(px(10.0))
         .pr(px(12.0))
         .rounded(px(6.0))
         .border(px(1.0))
         .border_color(hsla(border, 1.0))
-        .bg(hsla(colors.input, 0.3))
+        .bg(field_fill(page.theme))
         .role(Role::ComboBox)
         .aria_label(label)
         .capture_key_down(cx.listener(SettingsPage::search_key))
@@ -195,7 +197,11 @@ fn search_field(
     row
 }
 
-fn sidebar(page: &mut SettingsPage, cx: &mut Context<SettingsPage>) -> Stateful<Div> {
+fn sidebar(
+    page: &mut SettingsPage,
+    window: &Window,
+    cx: &mut Context<SettingsPage>,
+) -> Stateful<Div> {
     let colors = page.theme.colors;
     let group = search::text(page.locale.read(cx), keys::SETTINGS_CATEGORIES_EXPERIENCE);
     div()
@@ -211,35 +217,59 @@ fn sidebar(page: &mut SettingsPage, cx: &mut Context<SettingsPage>) -> Stateful<
         .pl(px(SIDEBAR_PAD))
         .pr(px(SIDEBAR_PAD + SIDEBAR_SCROLLBAR))
         .child(
-            div().flex().flex_col().child(
+            // The production sidebar spaces groups 16px apart and the items
+            // inside a group 2px apart.
+            div().flex().flex_col().gap(px(16.0)).child(
                 div()
-                    .px(px(TAB_PAD_X))
-                    .mb(px(4.0))
-                    .text_size(px(10.0))
-                    .line_height(px(14.0))
-                    .font_weight(FontWeight(600.0))
-                    .text_color(hsla(colors.muted_foreground, 1.0))
-                    .child(group.to_uppercase()),
+                    .flex()
+                    .flex_col()
+                    .child(
+                        div()
+                            .px(px(TAB_PAD_X))
+                            .mb(px(4.0))
+                            .text_size(px(10.0))
+                            .line_height(px(14.0))
+                            .font_weight(FontWeight(600.0))
+                            .text_color(hsla(colors.muted_foreground, 1.0))
+                            .child(group.to_uppercase()),
+                    )
+                    .child(
+                        div()
+                            .flex()
+                            .flex_col()
+                            .gap(px(2.0))
+                            .child(sidebar_tab(
+                                page,
+                                window,
+                                SETTINGS_TAB_APPEARANCE_ID,
+                                SettingsTab::Appearance,
+                                keys::SETTINGS_APPEARANCE,
+                                cx,
+                            ))
+                            .child(sidebar_tab(
+                                page,
+                                window,
+                                SETTINGS_TAB_TERMINAL_ID,
+                                SettingsTab::Terminal,
+                                keys::SETTINGS_TERMINAL,
+                                cx,
+                            ))
+                            .child(sidebar_tab(
+                                page,
+                                window,
+                                SETTINGS_TAB_LOCAL_SHELLS_ID,
+                                SettingsTab::LocalShells,
+                                keys::LOCAL_SHELLS_SIDEBAR,
+                                cx,
+                            )),
+                    ),
             ),
         )
-        .child(sidebar_tab(
-            page,
-            SETTINGS_TAB_TERMINAL_ID,
-            SettingsTab::Terminal,
-            keys::SETTINGS_TERMINAL,
-            cx,
-        ))
-        .child(sidebar_tab(
-            page,
-            SETTINGS_TAB_LOCAL_SHELLS_ID,
-            SettingsTab::LocalShells,
-            keys::LOCAL_SHELLS_SIDEBAR,
-            cx,
-        ))
 }
 
 fn sidebar_tab(
     page: &mut SettingsPage,
+    window: &Window,
     id: &'static str,
     tab: SettingsTab,
     label_key: tterm_core::i18n::translate::TranslationKey,
@@ -248,9 +278,17 @@ fn sidebar_tab(
     let colors = page.theme.colors;
     let label = search::text(page.locale.read(cx), label_key);
     let selected = page.active_tab == tab;
-    div()
+    let focus = page.tab_focus(tab);
+    let key_focused = focus.is_focused(window) && window.last_input_was_keyboard();
+    let foreground = if selected {
+        colors.foreground
+    } else {
+        colors.muted_foreground
+    };
+    let mut tab_view = div()
         .id(id)
         .debug_selector(move || id.to_string())
+        .relative()
         .h(px(TAB_HEIGHT))
         .w_full()
         .flex()
@@ -259,30 +297,62 @@ fn sidebar_tab(
         .px(px(TAB_PAD_X))
         .rounded(px(6.0))
         .cursor_pointer()
+        .track_focus(&focus)
         .role(Role::Tab)
         .aria_selected(selected)
         .aria_label(label.clone())
-        .bg(hsla(colors.background, 1.0))
-        .text_color(hsla(
-            if selected {
-                colors.foreground
-            } else {
-                colors.muted_foreground
-            },
-            1.0,
-        ))
+        .text_color(hsla(foreground, 1.0))
         .text_size(px(13.0))
         .line_height(px(18.2))
         .font_weight(FontWeight(500.0))
+        .when(selected, |tab_view| {
+            tab_view.bg(hsla(colors.background, 1.0))
+        })
+        .when(!selected, |tab_view| {
+            tab_view
+                .hover(|style| {
+                    style
+                        .bg(hsla(colors.background, 0.6))
+                        .text_color(hsla(colors.foreground, 1.0))
+                })
+                .focus(|style| style.text_color(hsla(colors.foreground, 1.0)))
+        })
         .on_click(cx.listener(move |this, _, window, cx| {
             this.select_tab(tab, window, cx);
         }))
-        .child(icon(
-            SQUARE_TERMINAL,
-            hsla(colors.muted_foreground, 1.0),
-            TAB_ICON,
-        ))
-        .child(div().min_w(px(0.0)).truncate().child(label))
+        .on_key_down(
+            cx.listener(move |this, event: &gpui_kit::KeyDownEvent, window, cx| {
+                let next = match event.keystroke.key.as_str() {
+                    "enter" | "space" => tab,
+                    "down" => tab.next(true),
+                    "up" => tab.next(false),
+                    "home" => SettingsTab::Appearance,
+                    "end" => SettingsTab::LocalShells,
+                    _ => return,
+                };
+                this.select_tab(next, window, cx);
+                cx.stop_propagation();
+                window.prevent_default();
+            }),
+        )
+        .child(icon(SQUARE_TERMINAL, hsla(foreground, 1.0), TAB_ICON))
+        .child(div().min_w(px(0.0)).truncate().child(label));
+    if key_focused {
+        tab_view = tab_view
+            .bg(hsla(colors.background, 1.0))
+            .shadow(focus_ring_shadow(hsla(colors.ring, 1.0)));
+    }
+    tab_view
+}
+
+/// CSS paints `ring-2` outside the element; GPUI's spread shadow gives the
+/// same hollow contour without changing the tab's layout.
+fn focus_ring_shadow(ring: gpui_kit::Hsla) -> Vec<gpui_kit::BoxShadow> {
+    vec![
+        gpui_kit::BoxShadow::new(px(0.0), px(0.0), ring)
+            .blur_radius(px(0.0))
+            .spread_radius(px(2.0)),
+    ]
 }
 
 fn content(page: &mut SettingsPage, cx: &mut Context<SettingsPage>) -> Stateful<Div> {
@@ -296,6 +366,12 @@ fn content(page: &mut SettingsPage, cx: &mut Context<SettingsPage>) -> Stateful<
         .p(px(CONTENT_PAD))
         .pr(px(CONTENT_PAD + CONTENT_SCROLLBAR));
     match page.active_tab {
+        SettingsTab::Appearance => {
+            let section = page
+                .theme_setting
+                .update(cx, |setting, cx| setting.section(cx));
+            panel.child(section)
+        }
         SettingsTab::Terminal => {
             for (index, section) in super::SETTINGS_SECTIONS.iter().enumerate() {
                 let child = final_section(page, *section, cx);

@@ -136,6 +136,14 @@ impl ContextMenu {
             cx.notify();
         }
     }
+    /// Replaces the menu palette without changing its rows or focus.
+    pub fn set_theme(&mut self, theme: Theme, cx: &mut Context<Self>) {
+        if self.theme == theme {
+            return;
+        }
+        self.theme = theme;
+        cx.notify();
+    }
     pub fn is_open(&self) -> bool {
         self.open
     }

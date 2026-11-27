@@ -12,6 +12,8 @@ use tterm_core::settings::search_index::entries_for_page;
 
 use crate::locale::Locale;
 
+/// The appearance page.
+pub(super) const APPEARANCE_PAGE_VALUE: &str = "appearance";
 /// The Terminal page, the route's default.
 pub(super) const TERMINAL_PAGE_VALUE: &str = "terminal";
 /// The local-shells page.
@@ -19,6 +21,7 @@ pub(super) const LOCAL_SHELLS_PAGE_VALUE: &str = "shells";
 
 /// Pages this client implements, in sidebar order.
 const PAGES: &[(&str, TranslationKey)] = &[
+    (APPEARANCE_PAGE_VALUE, keys::SETTINGS_APPEARANCE),
     (TERMINAL_PAGE_VALUE, keys::SETTINGS_TERMINAL),
     (LOCAL_SHELLS_PAGE_VALUE, keys::LOCAL_SHELLS_SIDEBAR),
 ];
@@ -28,6 +31,16 @@ const PAGES: &[(&str, TranslationKey)] = &[
 /// Each key must also appear in the shared index; the test below keeps the
 /// lists from drifting apart.
 const IMPLEMENTED: &[(&str, TranslationKey, Option<TranslationKey>)] = &[
+    (
+        APPEARANCE_PAGE_VALUE,
+        keys::THEME_TITLE,
+        Some(keys::THEME_DESCRIPTION),
+    ),
+    (
+        APPEARANCE_PAGE_VALUE,
+        keys::THEME_FOLLOW_SYSTEM,
+        Some(keys::THEME_FOLLOW_SYSTEM_DESC),
+    ),
     (
         TERMINAL_PAGE_VALUE,
         keys::FONT_SETTINGS_TEXT_RENDERING,

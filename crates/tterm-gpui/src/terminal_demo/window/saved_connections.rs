@@ -35,6 +35,11 @@ mod wiring;
 
 pub(super) const OPEN_BUTTON_ID: &str = "saved-connections-open";
 pub(super) const DIALOG_ID: &str = "saved-connections-dialog";
+pub(super) const HEADER_ID: &str = "saved-connections-header";
+pub(super) const TITLE_ID: &str = "saved-connections-title";
+pub(super) const DESCRIPTION_ID: &str = "saved-connections-description";
+pub(super) const CLOSE_BUTTON_ID: &str = "saved-connections-close";
+pub(super) const FOOTER_ID: &str = "saved-connections-footer";
 pub(super) const LIST_ID: &str = "saved-connections-list";
 pub(super) const CONFIRM_BUTTON_ID: &str = "saved-connections-confirm";
 pub(super) const CANCEL_BUTTON_ID: &str = "saved-connections-cancel";
@@ -60,10 +65,11 @@ pub(super) const EDITOR_CANCEL_ID: &str = "saved-connections-editor-cancel";
 pub(super) const EDITOR_ERROR_ID: &str = "saved-connections-editor-error";
 pub(super) const EDITOR_LOADING_ID: &str = "saved-connections-editor-loading";
 
-const DIALOG_WIDTH: f32 = 520.0;
-const DIALOG_PADDING: f32 = 24.0;
+const DIALOG_MAX_WIDTH: f32 = 768.0;
+const DIALOG_MAX_HEIGHT: f32 = 720.0;
+const DIALOG_VIEWPORT_MARGIN: f32 = 32.0;
+const DIALOG_HEIGHT_RATIO: f32 = 0.85;
 const DIALOG_RADIUS: f32 = 8.0;
-const LIST_MAX_HEIGHT: f32 = 300.0;
 
 /// The saved-profile picker owned by one workspace window.
 pub(super) struct SavedConnectionsUi {
@@ -184,6 +190,15 @@ impl SavedConnectionsUi {
         })
     }
 
+    /// Replaces the picker palette without closing it or discarding its draft.
+    pub(super) fn set_theme(&mut self, theme: Theme, cx: &mut Context<Self>) {
+        if self.theme == theme {
+            return;
+        }
+        self.theme = theme;
+        cx.notify();
+    }
+
     #[cfg(test)]
     pub(super) fn is_open(&self) -> bool {
         self.open
@@ -197,6 +212,12 @@ impl SavedConnectionsUi {
     #[cfg(test)]
     pub(super) fn profiles(&self) -> &[SavedSshProfileSummary] {
         &self.profiles
+    }
+
+    /// The picker's visibility and row count for the visual-acceptance capture.
+    #[cfg(all(feature = "automation", debug_assertions))]
+    pub(super) fn capture_state(&self, _cx: &App) -> (bool, bool, usize) {
+        (self.open, self.loading, self.profiles.len())
     }
 
     #[cfg(test)]

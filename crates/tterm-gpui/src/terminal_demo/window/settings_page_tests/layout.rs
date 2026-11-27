@@ -19,19 +19,12 @@ fn assert_header(visual: &mut VisualTestContext) {
     );
 }
 
-#[gpui_kit::test]
-fn page_layout_matches_the_reference_metrics(cx: &mut TestAppContext) {
-    let mut harness = harness(cx, AppConfig::default());
-    harness
-        .visual
-        .simulate_resize(gpui_kit::size(gpui_kit::px(800.0), gpui_kit::px(636.0)));
-    click(harness.visual, SETTINGS_OPEN_BUTTON_ID);
-
+fn assert_static_layout(visual: &mut VisualTestContext) {
     // The 36px window title bar sits above the 800x600 settings content area.
-    assert_page_box(harness.visual, SETTINGS_PAGE_ID, 0.0, 36.0, 800.0, 600.0);
-    assert_header(harness.visual);
+    assert_page_box(visual, SETTINGS_PAGE_ID, 0.0, 36.0, 800.0, 600.0);
+    assert_header(visual);
     assert_page_box(
-        harness.visual,
+        visual,
         super::settings_page::SETTINGS_SIDEBAR_ID,
         0.0,
         109.0,
@@ -39,15 +32,23 @@ fn page_layout_matches_the_reference_metrics(cx: &mut TestAppContext) {
         527.0,
     );
     assert_page_box(
-        harness.visual,
-        super::settings_page::SETTINGS_TAB_TERMINAL_ID,
+        visual,
+        super::settings_page::SETTINGS_TAB_APPEARANCE_ID,
         12.0,
         139.0,
         159.0,
         32.0,
     );
     assert_page_box(
-        harness.visual,
+        visual,
+        super::settings_page::SETTINGS_TAB_TERMINAL_ID,
+        12.0,
+        173.0,
+        159.0,
+        32.0,
+    );
+    assert_page_box(
+        visual,
         super::settings_page::SETTINGS_PANEL_ID,
         192.0,
         109.0,
@@ -60,7 +61,7 @@ fn page_layout_matches_the_reference_metrics(cx: &mut TestAppContext) {
     // The font section is taller than the viewport, so the later sections are
     // laid out below it rather than hidden by a second save action.
     assert_page_box(
-        harness.visual,
+        visual,
         crate::font_setting::SECTION_ID,
         216.0,
         133.0,
@@ -68,7 +69,7 @@ fn page_layout_matches_the_reference_metrics(cx: &mut TestAppContext) {
         626.0,
     );
     assert_page_box(
-        harness.visual,
+        visual,
         crate::font_setting::LINE_HEIGHT_INPUT_ID,
         216.0,
         289.0,
@@ -76,26 +77,26 @@ fn page_layout_matches_the_reference_metrics(cx: &mut TestAppContext) {
         36.0,
     );
     assert_page_box(
-        harness.visual,
+        visual,
         crate::font_setting::LETTER_SPACING_INPUT_ID,
         490.0,
         289.0,
         262.0,
         36.0,
     );
-    let cursor = page_bounds(harness.visual, crate::appearance_setting::CURSOR_SECTION_ID);
-    let clipboard = page_bounds(harness.visual, crate::clipboard_setting::SECTION_ID);
+}
+
+fn assert_later_sections(visual: &mut VisualTestContext) {
+    let cursor = page_bounds(visual, crate::appearance_setting::CURSOR_SECTION_ID);
+    let clipboard = page_bounds(visual, crate::clipboard_setting::SECTION_ID);
     assert_eq!(clipboard.origin.x.as_f32(), 216.0);
     assert_eq!(clipboard.size.width.as_f32(), 536.0);
     assert!(
         clipboard.origin.y > cursor.origin.y + cursor.size.height,
         "the clipboard switches follow the cursor choices"
     );
-    let scrollback = page_bounds(
-        harness.visual,
-        super::settings_page::SETTINGS_SCROLLBACK_SECTION_ID,
-    );
-    let marks = page_bounds(harness.visual, crate::command_marks_setting::SECTION_ID);
+    let scrollback = page_bounds(visual, super::settings_page::SETTINGS_SCROLLBACK_SECTION_ID);
+    let marks = page_bounds(visual, crate::command_marks_setting::SECTION_ID);
     assert_eq!(marks.origin.x.as_f32(), 216.0);
     assert_eq!(marks.size.width.as_f32(), 536.0);
     assert_eq!(
@@ -111,10 +112,7 @@ fn page_layout_matches_the_reference_metrics(cx: &mut TestAppContext) {
         marks.origin.y + marks.size.height + gpui_kit::px(24.0),
         "the scrollback section follows the command-mark rows with one section gap"
     );
-    let scrollback_input = page_bounds(
-        harness.visual,
-        super::settings_page::SETTINGS_SCROLLBACK_INPUT_ID,
-    );
+    let scrollback_input = page_bounds(visual, super::settings_page::SETTINGS_SCROLLBACK_INPUT_ID);
     assert_eq!(scrollback_input.origin.x.as_f32(), 216.0);
     assert_eq!(scrollback_input.size.width.as_f32(), 536.0);
     assert_eq!(scrollback_input.size.height.as_f32(), 36.0);
@@ -122,15 +120,12 @@ fn page_layout_matches_the_reference_metrics(cx: &mut TestAppContext) {
         scrollback_input.origin.y,
         scrollback.origin.y + gpui_kit::px(22.0)
     );
-    let padding = page_bounds(
-        harness.visual,
-        crate::appearance_setting::PADDING_SECTION_ID,
-    );
+    let padding = page_bounds(visual, crate::appearance_setting::PADDING_SECTION_ID);
     assert!(
         padding.origin.y > scrollback.origin.y + scrollback.size.height,
         "the padding section follows the scrollback section"
     );
-    let preview = page_bounds(harness.visual, crate::font_setting::PREVIEW_ID);
+    let preview = page_bounds(visual, crate::font_setting::PREVIEW_ID);
     assert_eq!(preview.origin.x.as_f32(), 216.0);
     assert_eq!(preview.size.width.as_f32(), 536.0);
     assert_eq!(preview.size.height.as_f32(), 40.0);
@@ -138,7 +133,7 @@ fn page_layout_matches_the_reference_metrics(cx: &mut TestAppContext) {
         preview.origin.y > padding.origin.y,
         "the preview follows the padding section"
     );
-    let save = page_bounds(harness.visual, super::settings_page::SETTINGS_SAVE_ID);
+    let save = page_bounds(visual, super::settings_page::SETTINGS_SAVE_ID);
     assert_eq!(save.origin.x.as_f32(), 216.0);
     assert_eq!(save.size.width.as_f32(), 536.0);
     assert_eq!(save.size.height.as_f32(), 36.0);
@@ -147,12 +142,21 @@ fn page_layout_matches_the_reference_metrics(cx: &mut TestAppContext) {
         "the one Save stays below the last section"
     );
     assert!(
-        harness
-            .visual
-            .debug_bounds("settings-scrollback-save")
-            .is_none(),
+        visual.debug_bounds("settings-scrollback-save").is_none(),
         "the scrollback field must not keep an orphan save button"
     );
+}
+
+#[gpui_kit::test]
+fn page_layout_matches_the_reference_metrics(cx: &mut TestAppContext) {
+    let mut harness = harness(cx, AppConfig::default());
+    harness
+        .visual
+        .simulate_resize(gpui_kit::size(gpui_kit::px(800.0), gpui_kit::px(636.0)));
+    click(harness.visual, SETTINGS_OPEN_BUTTON_ID);
+
+    assert_static_layout(harness.visual);
+    assert_later_sections(harness.visual);
 
     if std::env::var_os("TTERM_GPUI_WRITE_SETTINGS_LAYOUT").is_some() {
         write_layout_json(harness.visual, "layout.json", &LAYOUT_IDS);
