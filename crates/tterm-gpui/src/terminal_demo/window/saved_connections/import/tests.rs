@@ -5,6 +5,7 @@ use std::path::PathBuf;
 use gpui_kit::test::TestWindowExt as _;
 use gpui_kit::{App, Entity, TestAppContext, VisualTestContext};
 use tterm_core::config::AppConfig;
+use tterm_core::i18n::keys;
 use tterm_core::profiles::launch::SavedSshProfileSummary;
 use tterm_core::profiles::types::{
     SavedJumpHost, SshConfigImportHost, SshConfigImportOptions, SshConfigImportPreview,
@@ -406,6 +407,9 @@ fn choosing_a_file_prompts_updates_the_source_and_previews(cx: &mut TestAppConte
     let selected = std::env::temp_dir().join("p4-03-selected-config");
     let mut selected_preview = preview();
     selected_preview.source_path = selected.to_string_lossy().into_owned();
+    let expected_title = harness
+        .visual
+        .update(|_, cx| picker(&root, cx).text(cx, keys::SSH_CONFIG_IMPORT_CHOOSE_SOURCE_FILE));
     harness.visual.update(|_, cx| {
         with_picker(&root, cx, |picker, _cx| {
             picker.set_import_preview_for_test(Ok(selected_preview));
@@ -418,7 +422,7 @@ fn choosing_a_file_prompts_updates_the_source_and_previews(cx: &mut TestAppConte
         assert!(options.files);
         assert!(!options.directories);
         assert!(!options.multiple);
-        assert!(options.prompt.is_some());
+        assert_eq!(options.prompt.as_deref(), Some(expected_title.as_str()));
         Some(vec![selected.clone()])
     });
     harness.visual.run_until_parked();
@@ -453,6 +457,9 @@ fn choosing_a_directory_prompts_updates_the_source_and_previews(cx: &mut TestApp
     let config = selected.join("config");
     let mut selected_preview = preview();
     selected_preview.source_path = config.to_string_lossy().into_owned();
+    let expected_title = harness.visual.update(|_, cx| {
+        picker(&root, cx).text(cx, keys::SSH_CONFIG_IMPORT_CHOOSE_SOURCE_DIRECTORY)
+    });
     harness.visual.update(|_, cx| {
         with_picker(&root, cx, |picker, _cx| {
             picker.set_import_preview_for_test(Ok(selected_preview));
@@ -465,6 +472,7 @@ fn choosing_a_directory_prompts_updates_the_source_and_previews(cx: &mut TestApp
         assert!(!options.files);
         assert!(options.directories);
         assert!(!options.multiple);
+        assert_eq!(options.prompt.as_deref(), Some(expected_title.as_str()));
         Some(vec![selected.clone()])
     });
     harness.visual.run_until_parked();
@@ -689,6 +697,54 @@ fn a_late_preview_does_not_overwrite_a_typed_source(cx: &mut TestAppContext) {
                 .as_ref()
                 .map(|preview| preview.source_path.as_str()),
             Some("/tmp/typed-directory/config")
+        );
+    });
+}
+
+#[gpui_kit::test]
+fn a_superseded_preview_cannot_replace_the_newer_one(cx: &mut TestAppContext) {
+    let mut harness = harness(cx);
+    let root = harness.root.clone();
+    open_import(&mut harness, preview());
+    let stale_generation = harness.visual.update(|_, cx| {
+        picker(&root, cx)
+            .import_state_for_test()
+            .expect("the import dialog should be open")
+            .generation
+    });
+
+    let mut newer = preview();
+    newer.source_path = "/tmp/newer/config".to_string();
+    harness.visual.update(|_, cx| {
+        with_picker(&root, cx, |picker, _cx| {
+            picker.set_import_preview_for_test(Ok(newer));
+        });
+    });
+    harness.visual.update(|window, cx| {
+        let picker = root.read(cx).ui.saved_connections.clone();
+        picker.update(cx, |picker, cx| picker.start_import_preview(window, cx));
+    });
+
+    let mut stale = preview();
+    stale.source_path = "/tmp/stale/config".to_string();
+    harness.visual.update(|window, cx| {
+        let picker = root.read(cx).ui.saved_connections.clone();
+        picker.update(cx, |picker, cx| {
+            picker.finish_import_preview(stale_generation, Ok(stale), window, cx);
+        });
+    });
+
+    harness.visual.update(|_, cx| {
+        let dialog = picker(&root, cx)
+            .import_state_for_test()
+            .expect("the import dialog should stay open");
+        assert_eq!(
+            dialog
+                .preview
+                .as_ref()
+                .map(|preview| preview.source_path.as_str()),
+            Some("/tmp/newer/config"),
+            "a superseded preview must not replace the newer result"
         );
     });
 }
