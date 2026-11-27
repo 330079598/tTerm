@@ -32,7 +32,7 @@
 | 滚动、回滚与终端搜索             | `src/components/TerminalTab/useTerminalSearch.ts`                                | `terminal_demo/window/search/`、`crates/tterm-terminal/src/search/`                    | 进行中 | [P2-06 滚动与内存](reports/P2-06-scroll-memory.md)、[P2-07 搜索栏](reports/P2-07-search-ui.md) 已通过自动验收；物理滚动和桌面输入待补。                 |
 | 命令标记与概览                   | `src/components/TerminalTab/commandMarks.ts`                                     | `crates/tterm-terminal/src/command_mark/`、`command_marks_setting.rs`                  | 进行中 | [P2-06 概览标记](reports/P2-06-overview.md)、[P4-16 Shell 集成](reports/P4-16-shell-integration.md) 已接开关与复制脚本；命令跳转和真实 shell 行为待补。 |
 | 终端右键菜单与快捷动作           | `src/components/TerminalTab/useTerminalContextMenu.ts`                           | `terminal_demo/window/context_menu/`                                                   | 进行中 | [P0-24 上下文菜单](reports/P0-24-context-menu.md) 已合入复制、粘贴、查找等基础动作；保存命令、重设终端等剩余项待对照。                                  |
-| 终端主题与调色板                 | `src/components/TerminalTab/useTerminalTheme.ts`                                 | `crates/tterm-terminal/src/theme/`                                                     | 未开始 | GPUI 目前固定使用默认调色板；[`intents.rs`](../../crates/tterm-gpui/src/terminal_demo/intents.rs) 明确说明视图不切换调色板。                            |
+| 终端主题与调色板                 | `src/components/TerminalTab/useTerminalTheme.ts`                                 | `crates/tterm-gpui/src/app_window/theme.rs`、`theme_setting.rs`                             | 进行中 | 预设及目录主题可在原窗口即时应用，已有和新开标签沿用连接覆盖规则，绘制与 OSC 查询使用同一调色板。[换肤验收](reports/P4-14-live-theme-library.md)。 |
 | 关键词高亮                       | `src/components/TerminalTab/useKeywordHighlight.ts`、`keywordHighlighter.ts`     | `crates/tterm-core/src/keyword_highlight.rs`                                           | 未开始 | core 有匹配服务，GPUI 终端视图没有读取 `keyword_highlight` 配置，也没有 P4-19 页面。                                                                    |
 | 预测回显与 sudo 提示             | `src/components/TerminalTab/predictiveEcho*.ts`、`sudoAutofill` 文案             | `crates/tterm-core/src/password_feedback.rs`、`saved_password_prompts.rs`              | 未开始 | core 有提示数据，GPUI 没有预测回显覆盖层或 sudo 提示条。                                                                                                |
 | 串口终端                         | `src/components/TerminalTab/Serial*`                                             | `crates/tterm-core/src/serial/`                                                        | 未开始 | 只有 core 串口服务；GPUI 没有控制栏、发送栏、历史或 XMODEM 传输界面。                                                                                   |
@@ -62,7 +62,7 @@
 | 会话头与重连状态                 | `src/components/TerminalTab/ConnectionHeader.tsx`                          | `terminal_demo/window/failed_tab.rs`、`title.rs`             | 进行中 | 有基本标签标题与失败占位；连接头、重连重试状态、Shell 集成回退原因和等待输入提示未接。                                         |
 | 欢迎页与错误空状态               | `src/components/TTermApp/EmptyState.tsx`、`ErrorBoundary.tsx`              | `terminal_demo/window/failed_tab.rs`                         | 进行中 | 有失败标签占位；欢迎页、无连接引导、配置读写失败和会话保存失败的完整文案与重试未接。                                           |
 | 窗口、标题栏与窗口状态           | `src/components/TTermApp/AppTitleBar.tsx`                                  | `app_window/`、`terminal_demo/window/title.rs`               | 进行中 | [P3-01](reports/P3-01.md) 首批已合入；原生标题栏和跨平台窗口状态待补。                                                         |
-| 设置路由、搜索与两页             | `src/components/SettingsDialog/`                                           | `terminal_demo/window/settings_page/`                        | 进行中 | [P4-15](reports/P4-15.md) 与[逐页清单](settings-inventory.md)：只有终端、Shell 两页可操作，其余 12 页无入口。                  |
+| 设置路由、搜索与三个页面         | `src/components/SettingsDialog/`                                           | `terminal_demo/window/settings_page/`                        | 进行中 | [逐页清单](settings-inventory.md)：外观、终端、Shell 三页部分可操作，其余 11 页无入口。 |
 | 国际化与语言切换                 | `src/i18n/`                                                                | `crates/tterm-core/src/i18n/`、`locale.rs`                   | 进行中 | [P3-03](reports/P3-03.md) 共享翻译已合入；真实窗口切换与所有新文案覆盖待补。                                                   |
 | 托盘、应用菜单、单实例与系统通知 | `src-tauri/src/system_integration/`、`notification/`                       | `crates/tterm-platform/`                                     | 未开始 | 平台 trait 已有骨架，GPUI 没有托盘、应用菜单、单实例传参或通知点击路由；属 P5-01。                                             |
 
@@ -90,7 +90,7 @@
 | 远程文件编辑器           | `src/components/RemoteFileEditor.tsx`、`CodeMirrorEditor.tsx`              | `crates/tterm-core/src/external_editor.rs`            | 未开始 | 没有按连接/身份/路径打开的远程文件标签、保存冲突检测、编码与换行保留、查找替换或语法高亮。                        |
 | 命令库、编写器与变量     | `src/components/CommandLibrary/`、`CommandComposer/`、`CommandVariables*`  | `crates/tterm-core/src/command_library/`、`composer/` | 未开始 | 只有 core 仓储与变量替换；GPUI 没有命令库列表、编辑器、标签管理、编写器或变量对话框。                             |
 | 广播输入                 | `src/components/BroadcastManager.tsx`、`TTermApp/useBroadcast*.ts`         | 无                                                    | 未开始 | 没有广播目标选择、开始/停止、视觉提示或编写器多终端发送。                                                         |
-| 主题库、编辑与导入       | `src/components/ThemeEditor/`、`ThemeGallery.tsx`、`ThemeImportDialog.tsx` | `crates/tterm-core/src/theme/`、`themes/`             | 未开始 | 只有 core 主题数据；GPUI 没有主题库、颜色编辑、实时预览、导入或删除/复制界面。                                    |
+| 主题库、编辑与导入       | `src/components/ThemeEditor/`、`ThemeGallery.tsx`、`ThemeImportDialog.tsx` | `theme_setting/library.rs`、`library_view.rs` | 进行中 | 可搜索、筛选、预览和应用共享目录主题；自定义编辑、导入和复制不在本批。 |
 
 ## 设置
 
@@ -101,7 +101,7 @@
 | 连接分组   | `ProfileGroupsSettingsTab.tsx`                    | P4-01、P4-15        | 无                                                                                                                                    | 未开始 | 侧栏无该页；P4-01 的分组管理仍在进行。                                                                                                                                     |
 | 连接       | `ConnectionSettingsTab.tsx`                       | P4-17               | 无                                                                                                                                    | 未开始 | 自动重连、预测回显、Shell 集成、跳板信息、sudo 与监控设置均未接。                                                                                                          |
 | 代理       | `ProxySettingsTab.tsx`                            | P4-17               | 无                                                                                                                                    | 未开始 | 默认代理、服务器列表、凭据和删除确认均未接。                                                                                                                               |
-| 外观       | `AppearanceSettingsTab.tsx`                       | P4-16、P4-14        | 无                                                                                                                                    | 未开始 | 主题、界面缩放、窗口模糊、标签和窗格设置均未接；GPUI 只读已保存背景色。                                                                                                    |
+| 外观       | `AppearanceSettingsTab.tsx`                       | P4-16、P4-14        | `theme_setting.rs`、`config/theme_file.rs` | 进行中 | 支持六套预设和完整主题目录，当前窗口无需重启，支持跟随系统。自定义主题、界面缩放、窗口模糊、标签和分屏控件仍待补。 |
 | 终端       | `FontSettingsTab.tsx`、`ScrollbackLinesField.tsx` | P4-16               | `settings_page/`、`font_setting/`、`appearance_setting/`、`clipboard_setting.rs`、`command_marks_setting.rs`、`scrollback_setting.rs` | 进行中 | 16/16 个原生适用字段已接入；整页视觉、浅色/缩放、macOS/Linux Shell 行为和双客户端互写待补。见 [P4-16](reports/P4-16-shell-integration.md)。                                |
 | Shell      | `LocalShells/LocalShellSettings.tsx`              | P4-17、P3-11        | `local_shells_setting/`、`settings_page/shell.rs`                                                                                     | 进行中 | Auto、检测、自定义、默认、隐藏、复制、排序、删除与路径检查已接；整页视觉、双端隔离配置桌面读写和另一平台复验待补。见[来源选择](reports/P3-11-P4-03-picker-acceptance.md)。 |
 | 关键词高亮 | `HighlightSettingsTab.tsx`                        | P4-19               | 无                                                                                                                                    | 未开始 | 规则组、规则编辑、颜色、预览和恢复内置均未接。                                                                                                                             |
@@ -132,8 +132,8 @@
 | 状态     | 数量 | 说明                                                                                  |
 | -------- | ---- | ------------------------------------------------------------------------------------- |
 | 对齐     | 0    | 目前没有一项满足整卡对齐门槛；局部通过都记在“进行中”。                                |
-| 进行中   | 33   | 终端、工作区、连接、设置外壳与两页、分组管理切片、只读隧道页。                       |
-| 未开始   | 42   | 高级连接、SFTP、传输、远程编辑、命令库、广播、主题、12 个设置页、平台能力。          |
+| 进行中   | 36   | 终端与调色板、主题库、工作区、连接、设置外壳与三页、分组管理切片、只读隧道页。 |
+| 未开始   | 39   | 高级连接、SFTP、传输、远程编辑、命令库、广播、11 个设置页、平台能力。 |
 | 明确放弃 | 0    | 目前没有经决策人确认的放弃项。                                                        |
 
 因此 **P4-27 不能签收**。P4-27 的验收要求“矩阵中没有未开始”，当前仍有大量未开始项；这不是文档遗漏，而是实现缺口。进入 P5-04 之前必须先消除这些行，或为每一项取得明确的放弃决策。
@@ -143,9 +143,9 @@
 按用户可感知的完整流程排序，影响最大的缺口是：
 
 1. **SFTP、传输管理器和远程文件编辑**没有界面，三条流程都只有 core 服务。
-2. **设置页 14 页中只有 2 页可操作**，连接、安全、外观、快捷键、日志、数据迁移和更新都无入口。
+2. **设置页 14 页中只有 3 页部分可操作**，连接、安全、快捷键、日志、数据迁移和更新都无入口。
 3. **连接编辑器只覆盖基础字段**，跳板机、代理、证书、agent、串口和高级终端字段未接。
-4. **工具类功能缺失**：命令库、编写器、广播、主题库、服务器监控、串口、日志回放和 ZMODEM。
+4. **工具类功能缺失**：命令库、编写器、广播、自定义主题编辑与导入、服务器监控、串口、日志回放和 ZMODEM。
 5. **应用级能力缺失**：关于/许可、更新、系统集成、agent 集成、备份同步、无障碍和打包。
 
 ## 填写

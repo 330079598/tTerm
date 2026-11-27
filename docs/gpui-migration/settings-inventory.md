@@ -33,14 +33,15 @@
 
 ### 2.1 GPUI 当前页面集合
 
-当前工作树里只有 2 个可操作的页签，都不等于整页对齐：
+当前工作树里有 3 个部分可操作的页签，都不等于整页对齐：
 
 | 页面     | GPUI 状态              | 实际内容                                                                                    | 说明                                                                                  |
 | -------- | ---------------------- | ------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------- |
+| appearance | 局部 | 六套预设、共享主题库、跟随系统开关与深浅槽位 | 当前窗口可预览和应用，见[换肤验收](reports/P4-14-live-theme-library.md)。 |
 | Terminal | 局部 | 字体与间距、光标、剪贴板行为与 OSC 52 权限、macOS Option、命令标记与本机 Shell 集成、回滚、三侧内边距及预览 | 16/16 个与 GPUI 相关的字段已迁移；另有 2 个 WebView 渲染器字段不适用；见[第六批证据](reports/P4-16-shell-integration.md) |
 | shells   | 局部（`82b8ee12`） | Auto、自动发现、自定义 shell 列表、新增/编辑（程序、名称、参数）、设为默认、隐藏/显示、复制、排序、删除、路径检查、显式保存、失败保留草稿、Escape/Enter 处理 | 双端隔离配置桌面读写、Shell 页同状态整页视觉和另一平台复验待补 |
 
-侧栏只出现 Experience 组与这两行；搜索列出已实现的字体、预览、回滚和 Shell 条目。因此“搜索能打开某页”不能当作该页实现。
+侧栏只出现 Experience 组与这三行；搜索只列出已接入设置项。因此“搜索能打开某页”不能当作该页实现。
 
 ## 3. 总览
 
@@ -121,9 +122,9 @@
 
 - **迁移卡**：P4-16；主题库/编辑/导入为 P4-14。
 - **React**：[`AppearanceSettingsTab.tsx`](../../src/components/SettingsDialog/AppearanceSettingsTab.tsx)、[`ThemeLibrarySettings.tsx`](../../src/components/SettingsDialog/ThemeLibrarySettings.tsx)、[`WindowBlurSection.tsx`](../../src/components/SettingsDialog/WindowBlurSection.tsx)、[`useWindowBlurDraft.ts`](../../src/components/SettingsDialog/useWindowBlurDraft.ts)、[`UiStyleSetting.tsx`](../../src/components/SettingsDialog/UiStyleSetting.tsx)、[`TabSettingsSection.tsx`](../../src/components/SettingsDialog/TabSettingsSection.tsx)、[`TabIconSettings.tsx`](../../src/components/SettingsDialog/TabIconSettings.tsx)、[`TabAgentIndicatorSettings.tsx`](../../src/components/SettingsDialog/TabAgentIndicatorSettings.tsx)、[`PaneSettingsSection.tsx`](../../src/components/SettingsDialog/PaneSettingsSection.tsx)。
-- **GPUI 交互**：无。GPUI 只从 `app_meta` 的已保存背景色选择内置深/浅色板，不读 `theme`、`ui_style`、`ui_scale_percent`、窗口模糊、标签或窗格配置。
-- **双端存储**：`config.json` 的 `theme`、`theme_follow_system`、`theme_light`、`theme_dark`、`favorite_themes`、`ui_scale_percent`、`ui_style`、`window_blur`、`window_blur_material`、`window_blur_radius`、`window_opacity_percent`、`tab_width_mode`、`tab_standard_width`、`tab_hover_tooltip`、`tab_icons`、`tab_agent_indicator`、`panes.show_headers`、`panes.dim_inactive_percent`、`panes.templates`；自定义主题与预设覆盖在 SQLite `custom_themes`。GPUI 只读写 `panes.templates`（且入口在 P3-08 布局模板对话框，不在本页）。
-- **视觉/证据**：待补。无该页参照屏与 GPUI 页面。
+- **GPUI 交互**：局部。外观页支持六套预设以及完整目录的搜索、明暗筛选、预览与应用。当前窗口和已有会话随之更新。选择主题不会关闭“跟随系统”：关闭状态下只改 `theme`，开启状态下按主题明暗只改对应槽位。
+- **双端存储**：`config.json` 的 `theme`、`theme_follow_system`、`theme_light`、`theme_dark`、`favorite_themes`、`ui_scale_percent`、`ui_style`、`window_blur`、`window_blur_material`、`window_blur_radius`、`window_opacity_percent`、`tab_width_mode`、`tab_standard_width`、`tab_hover_tooltip`、`tab_icons`、`tab_agent_indicator`、`panes.show_headers`、`panes.dim_inactive_percent`、`panes.templates`；自定义主题与预设覆盖在 SQLite `custom_themes`。GPUI 的主题保存只改上述四个主题字段，保留其他键、未知键和未改动的自定义主题 id；`panes.templates` 仍由 P3-08 对话框读写。
+- **视觉/证据**：局部。路由测试覆盖六个主题卡片、跟随系统槽位、关闭跟随时冻结当前槽位、自定义 id 保留、保存失败提示和搜索跳转；尚无该页参照屏与整页视觉通过。见 [P4-16 主题选择报告](reports/P4-16-appearance-theme.md)。
 
 控件与动作：
 
@@ -135,7 +136,7 @@
 
 平台/条件：窗口模糊整段按平台出现；材质与半径各自再分平台；标签图标的两行依赖总开关。
 
-待补：GPUI 全部控件、主题与自定义主题互通、浅色/islands/125% 证据、该页参照屏。
+待补：收藏与自定义主题管理、界面缩放、窗口模糊、标签与分屏控件、整页浅色/深色对齐。
 
 ### 4.5 `terminal` — 终端
 
@@ -345,7 +346,7 @@
 ## 6. 共同待补与风险
 
 1. **写整份配置会覆盖另一端的改动。** React 的 `saveConfig` 把内存中的整份 `AppConfig` 发给 `save_config`；GPUI 的回滚行数、Shell、布局模板保存则先读最新文件再只改自己负责的字段或条目。后者不会覆盖前者，但前者在旧快照上保存会覆盖 GPUI 刚写入的值。字体/终端页一次保存 18 个字段，最容易出现“改了终端回滚行数，另一端保存字体页又把它改回去”。每页验收时要包含一次跨端写入后重开的检查。
-2. **侧栏与搜索不是完整索引。** GPUI 侧栏只有 Experience 组的 2 行，搜索只列已实现条目；其余 12 页在 React 的搜索索引中可搜到，但 GPUI 不列。
+2. **侧栏与搜索不是完整索引。** GPUI 侧栏只有 Experience 组的 3 行，搜索只列已实现条目；其余 11 页在 React 的搜索索引中可搜到，但 GPUI 不列。
 3. **Shell 页只交付自定义条目子集。** 已提交 `9eb24d8b`；双客户端桌面读写与同状态整页截图仍待补。
 4. **视觉证据只有一页且只是局部。** Terminal 页的对比只覆盖标题/搜索区与回滚字段，且已知侧栏集合、字体宽度、步进器、Save 位置差异；General 只有 React 参照屏，没有 GPUI 截图；其余 12 页连参照屏也没有。每页至少需要默认态 + 空/错误/禁用态 + 平台条件态，不能只截默认页。
 5. **平台专有条件没有自动证据。** 窗口模糊与材质、后台策略、系统钥匙串与系统解锁、系统集成菜单、目录/文件选择器、更新器、通知权限，都需要在 macOS 与 Windows 上人工核对；Linux 按项目现状另记。本文不把这些列为已验。

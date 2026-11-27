@@ -2,6 +2,8 @@
 
 本目录记录 React 参考端与 GPUI 端的逐屏对比工具：怎么生成参考截图、怎么渲染 GPUI 屏幕、怎么跑对比、怎么加一屏，以及门槛和输出格式。门槛本身来自 [ui-parity.md 第 5.2 节](../ui-parity.md#52-通过门槛macosdpr-2)，本工具只负责执行它。
 
+首屏批次的真实原生窗口取证（工作区、已保存 SSH 列表、Terminal 设置，深色与浅色）单独放在 [first-screen.md](first-screen.md)，入口是 `node scripts/parity/first-screen.mjs`。
+
 Windows 通道使用本机 Microsoft Edge（Playwright `channel: "msedge"`），不下载 Playwright 浏览器；GPUI 端打开短暂的真实窗口并调用 `Window::render_to_image`，截图后立即关闭窗口。运行：
 
 ```powershell
