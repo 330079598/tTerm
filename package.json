@@ -23,7 +23,8 @@
     "themes:update": "node scripts/update-themes.mjs",
     "tokens:generate": "node scripts/tokens/generate.mjs",
     "icons:update": "node scripts/app-icon/build.mjs",
-    "licenses": "node scripts/gen-licenses.mjs --force"
+    "licenses": "node scripts/gen-licenses.mjs --force",
+    "parity:first-screen": "node scripts/parity/first-screen.mjs"
   },
   "dependencies": {
     "@codemirror/commands": "^6.11.1",

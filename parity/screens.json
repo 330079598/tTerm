@@ -685,6 +685,20 @@
           "ms": 200
         }
       ]
+    },
+    {
+      "id": "workspace.first-screen",
+      "title": "First screen: production title bar and synthetic local terminal",
+      "fixture": "workspace.titlebar.default.json",
+      "uiStyles": ["classic"],
+      "uiScalePercents": [100]
+    },
+    {
+      "id": "profiles.list.first-screen",
+      "title": "First screen: populated saved SSH connections over the workspace",
+      "fixture": "first-screen.profiles.json",
+      "uiStyles": ["classic"],
+      "uiScalePercents": [100]
     }
   ]
 }

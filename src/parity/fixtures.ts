@@ -10,6 +10,7 @@ import tabsFixture from "@fixtures/ui.tabs.default.json"
 import emptyTunnels from "@fixtures/tunnels.empty.json"
 import runningTunnels from "@fixtures/tunnels.list.running.json"
 import { workspaceTitleBarFixture } from "@/parity/screens/workspaceTitleBarFixture"
+import { firstScreenProfilesFixture } from "@/parity/screens/firstScreen/fixture"
 import { settingsReferenceFixture } from "@/parity/screens/settingsReferenceFixture"
 import searchFixture from "@fixtures/terminal.search.default.json"
 
@@ -53,6 +54,15 @@ export const fixtures: Record<string, ParityFixture> = {
   "ui.context-menu.highlighted": { commands: contextMenu.commands },
   "ui.context-menu.wrapped": { commands: contextMenu.commands },
   "workspace.titlebar.default": { commands: workspaceTitleBarFixture.commands },
+  "workspace.first-screen": {
+    commands: { ...workspaceTitleBarFixture.commands, ...settingsReferenceFixture.commands },
+  },
+  "profiles.list.first-screen": {
+    commands: {
+      ...settingsReferenceFixture.commands,
+      ...firstScreenProfilesFixture.commands,
+    },
+  },
   "settings.layout.default": settingsReferenceFixture,
   "settings.search.results": settingsReferenceFixture,
   "settings.terminal.scrollback": settingsReferenceFixture,

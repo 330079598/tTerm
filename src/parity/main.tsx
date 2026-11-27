@@ -78,7 +78,30 @@ if (!rootElement) {
 }
 
 const Screen = parityScreens[screenId]
-const fixture = fixtures[screenId]
+const baseFixture = fixtures[screenId]
+// The settings providers apply the configuration's theme after mounting, so a
+// light capture also needs the fixture's `load_config` to name the light theme.
+// This changes only the parity answer, never a product default.
+const fixture =
+  baseFixture && theme === "light"
+    ? {
+        ...baseFixture,
+        commands: {
+          ...baseFixture.commands,
+          ...(baseFixture.commands.load_config
+            ? {
+                load_config: {
+                  ...(baseFixture.commands.load_config as Record<string, unknown>),
+                  theme: "light",
+                  theme_follow_system: false,
+                  theme_light: "light",
+                  theme_dark: "default",
+                },
+              }
+            : {}),
+        },
+      }
+    : baseFixture
 
 if (!screenId || !Screen || !fixture) {
   const known = Object.keys(parityScreens).sort().join(", ")

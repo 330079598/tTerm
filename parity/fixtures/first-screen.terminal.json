@@ -1,0 +1,18 @@
+{
+  "lines": [
+    "\u001b[38;5;39mcapture@atlas\u001b[0m:\u001b[38;5;45m~/work/demo\u001b[0m$ ./status",
+    "service      state      latency",
+    "\u001b[32mapi          ready      12 ms\u001b[0m",
+    "\u001b[32mworker       ready       9 ms\u001b[0m",
+    "\u001b[32mdatabase     ready       4 ms\u001b[0m",
+    "\u001b[33mcache        warming     1 ms\u001b[0m",
+    "",
+    "checks",
+    "\u001b[32m  \u2713\u001b[0m layout     800x600 @ 2x",
+    "\u001b[32m  \u2713\u001b[0m locale     en-US",
+    "\u001b[32m  \u2713\u001b[0m style      classic / 100%",
+    "  \u2713 data       synthetic only",
+    "",
+    "capture@atlas:~/work/demo$ "
+  ]
+}

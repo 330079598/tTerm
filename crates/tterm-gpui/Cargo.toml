@@ -24,10 +24,24 @@ path = "examples/settings_capture.rs"
 required-features = ["automation"]
 
 [[example]]
+name = "theme_library_capture"
+path = "examples/theme_library_capture.rs"
+# The headless Metal/WGPU gallery capture needs the automation feature's test support.
+required-features = ["automation"]
+test = false
+
+[[example]]
 name = "search_capture"
 path = "examples/search_capture.rs"
 # The headless Metal/WGPU capture needs the automation feature's test support.
 required-features = ["automation"]
+
+[[example]]
+name = "first_screen_capture"
+path = "examples/first_screen_capture/main.rs"
+# The native-window capture drives the debug automation endpoint.
+required-features = ["automation"]
+test = false
 
 [[example]]
 name = "seed_ssh_check"
