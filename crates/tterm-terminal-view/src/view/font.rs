@@ -2,20 +2,23 @@
 //!
 //! The cell grid is measured once per font, size and scale factor. The
 //! measurement follows `src/lib/terminalFont.ts` and what the Tauri version
-//! actually runs: xterm.js's `CharSizeService`, its WebGL and canvas
-//! renderers (both size cells the same way) and `FitAddon`, so the row and
-//! column counts match at the same font and window size:
+//! actually runs: xterm.js's `CharSizeService`, its default WebGL
+//! renderer and `FitAddon`, so the row and column counts match at the same font
+//! and window size:
 //!
 //! - the character width is the advance of `m`, rounded down to whole device
 //!   pixels; the letter spacing, rounded, is added in device pixels;
-//! - the character height is the font's ascent plus descent rounded up to
-//!   whole device pixels, and the cell height is that times the line height,
-//!   rounded down;
+//! - the character height is the font's ascent plus descent, each rounded to
+//!   a whole CSS pixel the way WebKit reports them, rounded up to whole device
+//!   pixels, and the cell height is that times the line height, rounded down;
 //! - the available width loses the overview ruler gutter whenever the
 //!   terminal has scrollback, and both sides are whole logical pixels, as
 //!   `FitAddon` reads them from CSS;
 //! - rows and columns are `floor(available / cell)`, with the model's minimum
 //!   of two columns.
+//!
+//! The canvas fallback keeps a fractional character width, while GPUI only
+//! models the default WebGL rounding; the captured first screen uses WebGL.
 //!
 //! GPUI has no letter spacing, but the terminal sets each cell's x position
 //! itself, so a non-zero `letter_spacing` widens the cell and every column
@@ -285,12 +288,20 @@ pub fn measure_cell(
                 .map(|size| size.width)
         })
         .unwrap_or_else(|_| px(font.size.max(1.0) * 0.6));
-    let ascent = text_system.ascent(font_id, font_size).as_f32();
+    // WebKit reports fontBoundingBoxAscent and Descent as whole CSS pixels,
+    // and xterm.js adds those two numbers. Rounding each metric here
+    // keeps a 14 px JetBrains Mono on its 18 px row instead of a CoreText
+    // 18.48 px one, which is what the reference's rows use.
+    let ascent = text_system.ascent(font_id, font_size).as_f32().round();
     // DirectWrite (the Windows platform text system) reports `descent` as a
     // negative number, while the shared `FontMetrics` contract and the other
     // platforms use the distance below the baseline. Take the magnitude so
     // the cell is as tall as the glyphs on every platform.
-    let descent = text_system.descent(font_id, font_size).as_f32().abs();
+    let descent = text_system
+        .descent(font_id, font_size)
+        .as_f32()
+        .abs()
+        .round();
     let font_height = ascent + descent;
     let (cell_width, cell_height) = cell_size(advance.as_f32(), font_height, font, scale_factor);
     let baseline = (cell_height - font_height) / 2.0 + ascent;
@@ -306,12 +317,12 @@ pub fn measure_cell(
 
 /// The logical cell size for a character `advance` and `font_height`.
 ///
-/// This is xterm.js's renderer arithmetic: the character width is rounded
-/// down and the character height rounded up to whole device pixels, the
-/// rounded letter spacing is added in device pixels, and the line height
+/// This follows xterm.js's WebGL renderer arithmetic: the character width
+/// is rounded down and the character height rounded up to whole device pixels,
+/// the rounded letter spacing is added in device pixels, and the line height
 /// scales the rounded character height before it is rounded down. A 14px
-/// JetBrains Mono advance of 8.4 therefore makes 8px cells at every common
-/// scale factor, as it does in the Tauri version.
+/// JetBrains Mono advance of 8.4 therefore makes 8px cells, as it does under
+/// the Tauri version's default renderer.
 fn cell_size(advance: f32, font_height: f32, font: &TerminalFont, scale_factor: f32) -> (f32, f32) {
     let char_width_device = (advance * scale_factor).floor().max(1.0);
     let cell_width_device = (char_width_device + font.letter_spacing.round()).max(1.0);
@@ -402,7 +413,7 @@ mod tests {
 
     #[test]
     fn grid_counts_reserve_the_gutter_and_keep_the_minimums() {
-        // JetBrains Mono 14px in xterm.js: 8px cells and 19px rows at DPR 1.
+        // A synthetic 8px cell and 19px row.
         let cell = geometry(8.0, 19.0);
         assert_eq!(grid(800.0, 600.0, &cell, true), (98, 31));
         assert_eq!(grid(1200.0, 800.0, &cell, true), (148, 42));

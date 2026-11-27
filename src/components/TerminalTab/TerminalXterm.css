@@ -34,9 +34,10 @@
   background: currentColor;
 }
 
-/* Protect fallback DOM renderer against global CSS resets */
+/* Protect the fallback DOM renderer against global CSS resets. The font
+   family stays whatever xterm measured and injected for the rows; inheriting
+   the page font here would draw the grid in the UI font. */
 .terminal-surface .xterm .xterm-rows {
-  font-family: inherit;
   line-height: normal;
 }
 
