@@ -129,6 +129,8 @@
 
 ## P4-10 串口
 
+> 排期：按[决策 021](decisions/021-defer-nonblocking-terminal-features.md)后置到主体 G2 验收之后；不改变 core 能力和 Tauri 版。
+
 - 依赖：G2、P4-02
 - 规模：M
 - 参考：`TerminalTab/SerialControlBar.tsx`、`SerialSendBar.tsx`、`SerialSendHistoryMenu.tsx`、`SerialFileTransfer.tsx`、`useSerialControls.ts`、`useSerialSender.ts`、`useSerialSendHistory.ts`、`src/lib/serial.ts`、`serialSendStore.ts`、`src-tauri/src/serial/`
@@ -136,6 +138,8 @@
 - 验收：用虚拟串口对（Linux 上的 `socat`，Windows 上的 com0com）验证；有条件时用真实设备验证。
 
 ## P4-11 日志与回放
+
+> 排期：按[决策 021](decisions/021-defer-nonblocking-terminal-features.md)后置到主体 G2 验收之后；不改变 core 能力和 Tauri 版。
 
 - 依赖：G2
 - 规模：M

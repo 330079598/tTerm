@@ -1,7 +1,22 @@
 //! Scrollbar geometry shared by the terminal element and pointer handling.
 
+use tterm_terminal::palette::Rgba;
+
 /// The minimum thumb size keeps a large scrollback usable on a short track.
 const MIN_THUMB: f32 = 18.0;
+
+/// The fixed, low-contrast gray behind the thumb.
+///
+/// The Tauri scrollbar uses the theme's muted gray at 30 percent opacity.
+/// A neutral gray with alpha gives the same quiet presence on light and dark
+/// terminal themes without borrowing an accent color.
+pub const SCROLLBAR_TRACK: Rgba = Rgba::new(0x80, 0x80, 0x80, 46);
+
+/// The fixed gray thumb.
+///
+/// It stays translucent so content underneath remains readable, and it does
+/// not follow the cursor or ANSI palette, which can be a saturated accent.
+pub const SCROLLBAR_THUMB: Rgba = Rgba::new(0x80, 0x80, 0x80, 150);
 
 /// A vertical scrollbar's track and thumb in logical pixels.
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -93,5 +108,27 @@ mod tests {
         assert_eq!(geometry.line_fraction(100, 100), None);
         let last = geometry.line_fraction(99, 100).expect("a retained line");
         assert!(last > 97.0 && last < 100.0, "the last row stays inside");
+    }
+
+    #[test]
+    fn scrollbar_colors_are_neutral_and_translucent() {
+        for color in [SCROLLBAR_TRACK, SCROLLBAR_THUMB] {
+            assert_neutral_translucent(color);
+        }
+        assert_lower_alpha(SCROLLBAR_TRACK, SCROLLBAR_THUMB);
+    }
+
+    fn assert_neutral_translucent(color: Rgba) {
+        assert_eq!(
+            (color.r, color.g, color.b),
+            (0x80, 0x80, 0x80),
+            "the scrollbar stays gray instead of taking a theme accent"
+        );
+        assert!(color.a < 255, "the scrollbar stays translucent");
+    }
+
+    fn assert_lower_alpha(track: Rgba, thumb: Rgba) {
+        assert!(track.a < thumb.a);
+        assert!(thumb.a < 200);
     }
 }

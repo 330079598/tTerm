@@ -30,8 +30,9 @@
 | 018  | 先补工作区与设置参照，再并行推进设置流程与终端日用能力 | [018-workspace-settings-order.md](018-workspace-settings-order.md) |
 | 019  | 30 会话帧预算是独立、必跑的 release 门禁               | [019-release-frame-budget-gate.md](019-release-frame-budget-gate.md)                     |
 | 020  | 独立测量前台帧延迟与后台吞吐                           | [020-independent-frame-and-throughput-measurements.md](020-independent-frame-and-throughput-measurements.md) |
+| 021  | 串口与日志回放后置，不阻塞主体 G2                     | [021-defer-nonblocking-terminal-features.md](021-defer-nonblocking-terminal-features.md) |
 
-- 下一个可用编号：**021**。
+- 下一个可用编号：**022**。
 
 ## 正文格式
 

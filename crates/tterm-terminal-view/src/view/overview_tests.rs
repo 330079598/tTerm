@@ -8,7 +8,7 @@ use super::input_tests::Harness;
 use super::overview::{
     self, ACTIVE_MATCH_COLOR, FAILED_COLOR, MATCH_COLOR, OverviewSearchMark, SUCCEEDED_COLOR,
 };
-use super::scrollbar::ScrollbarGeometry;
+use super::scrollbar::{SCROLLBAR_THUMB, SCROLLBAR_TRACK, ScrollbarGeometry};
 use super::style::hsla;
 use gpui_kit::{
     AppContext, Modifiers, MouseButton, MouseDownEvent, MouseUpEvent, ScrollDelta, ScrollEvent,
@@ -315,7 +315,6 @@ fn overview_layout_is_painted_in_the_track_under_the_thumb(cx: &mut TestAppConte
     assert!(snapshot.history_size() > 0);
     assert!(!layout(&h, cx, &snapshot).rects.is_empty());
 
-    let cursor = h.view.read_with(cx, |view, _| view.palette().cursor);
     cx.update_window(h.window, |_, window, _| {
         let scale = window.scale_factor();
         let quads = window.painted_quads();
@@ -341,10 +340,17 @@ fn overview_layout_is_painted_in_the_track_under_the_thumb(cx: &mut TestAppConte
             .enumerate()
             .rev()
             .find(|(_, quad)| {
-                quad.background == hsla(cursor).into()
+                quad.background == hsla(SCROLLBAR_THUMB).into()
                     && (quad.bounds.size.width.as_f32() / scale - 10.0).abs() < 0.01
             })
             .expect("the scrollbar thumb is painted");
+        assert!(
+            quads.iter().any(|quad| {
+                quad.background == hsla(SCROLLBAR_TRACK).into()
+                    && (quad.bounds.size.width.as_f32() / scale - 10.0).abs() < 0.01
+            }),
+            "the track keeps the fixed translucent gray"
+        );
         for (index, mark) in &marks {
             assert!(*index < thumb_index, "the thumb paints over the marks");
             let left = thumb.bounds.origin.x.as_f32();

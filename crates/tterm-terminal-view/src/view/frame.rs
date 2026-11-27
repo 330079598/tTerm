@@ -11,7 +11,7 @@ use super::font::CellGeometry;
 use super::overview::OverviewLayout;
 use super::paint::{CursorPaint, PaintContext};
 use super::row::RowLayout;
-use super::scrollbar::ScrollbarGeometry;
+use super::scrollbar::{SCROLLBAR_THUMB, SCROLLBAR_TRACK, ScrollbarGeometry};
 use super::search::VisibleSearch;
 use super::style::hsla;
 
@@ -121,7 +121,7 @@ impl PreparedFrame {
                             ),
                             size: gpui_kit::size(gpui_kit::px(10.0), gpui_kit::px(scrollbar.track)),
                         };
-                        window.paint_quad(gpui_kit::fill(track, hsla(data.palette.bright_black)));
+                        window.paint_quad(gpui_kit::fill(track, hsla(SCROLLBAR_TRACK)));
                         for mark in &overview.rects {
                             if mark.height <= 0.0 {
                                 continue;
@@ -145,7 +145,7 @@ impl PreparedFrame {
                             ),
                             size: gpui_kit::size(gpui_kit::px(10.0), gpui_kit::px(scrollbar.thumb)),
                         };
-                        window.paint_quad(gpui_kit::fill(thumb, hsla(data.palette.cursor)));
+                        window.paint_quad(gpui_kit::fill(thumb, hsla(SCROLLBAR_THUMB)));
                     }
                 });
             }

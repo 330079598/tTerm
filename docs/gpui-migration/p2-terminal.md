@@ -189,6 +189,8 @@
 
 ## P2-18 会话日志
 
+> 排期：按[决策 021](decisions/021-defer-nonblocking-terminal-features.md)后置到主体 G2 验收之后；本卡仍需在后续实现完整 GPUI 日志与回放界面，不视为放弃。
+
 - 依赖：P2-02
 - 规模：S
 - 参考：`src-tauri/src/session_log/`、`src/lib/terminalLogRecording.ts`、`TabLogIndicator.tsx`
@@ -206,6 +208,8 @@
 - 验收：用真实的旧快照测试恢复效果；回放不触发副作用的测试。
 
 ## P2-20 ZMODEM、XMODEM 与串口显示
+
+> 排期：串口显示部分按[决策 021](decisions/021-defer-nonblocking-terminal-features.md)后置到主体 G2 验收之后；ZMODEM 仍按本卡独立排期。
 
 - 依赖：P2-02
 - 规模：M
