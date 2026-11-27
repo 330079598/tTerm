@@ -155,6 +155,7 @@ const rust = (tokens) => {
     return `/// The ${theme.selector === ":root" ? `${theme.name} theme, which \`${theme.selector}\` serves as the default.` : `${theme.name} theme.`}
 pub const ${constant(theme.name)}: Theme = Theme {
     id: "${theme.name}",
+    dark: ${theme.selector !== '[data-theme="light"]'},
     colors: Colors {
 ${fields.join("\n")}
     },

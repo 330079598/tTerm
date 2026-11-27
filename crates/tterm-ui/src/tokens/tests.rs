@@ -130,11 +130,10 @@ fn dark_variant_matches_css_theme_selector_rule() {
         5
     );
     assert!(!THEMES[1].uses_dark_variant());
-    let bright_custom = crate::tokens::theme::Theme {
-        id: "ocean",
-        colors: THEMES[1].colors,
-    };
-    assert!(bright_custom.uses_dark_variant());
+    let pale_ocean = crate::tokens::theme::Theme::library("ocean", THEMES[1].colors, false);
+    assert!(!pale_ocean.uses_dark_variant());
+    let dark_light = crate::tokens::theme::Theme::library("light", THEMES[0].colors, true);
+    assert!(dark_light.uses_dark_variant());
 }
 
 #[test]

@@ -82,6 +82,7 @@ impl Colors {
 /// The dark theme, which `:root` serves as the default.
 pub const DARK: Theme = Theme {
     id: "dark",
+    dark: true,
     colors: Colors {
         background: Hsl::new(220.0, 13.0, 12.0),
         foreground: Hsl::new(0.0, 0.0, 80.0),
@@ -117,6 +118,7 @@ pub const DARK: Theme = Theme {
 /// The light theme.
 pub const LIGHT: Theme = Theme {
     id: "light",
+    dark: false,
     colors: Colors {
         background: Hsl::new(0.0, 0.0, 100.0),
         foreground: Hsl::new(222.2, 84.0, 4.9),
@@ -152,6 +154,7 @@ pub const LIGHT: Theme = Theme {
 /// The ocean theme.
 pub const OCEAN: Theme = Theme {
     id: "ocean",
+    dark: true,
     colors: Colors {
         background: Hsl::new(200.0, 30.0, 10.0),
         foreground: Hsl::new(180.0, 20.0, 85.0),
@@ -187,6 +190,7 @@ pub const OCEAN: Theme = Theme {
 /// The forest theme.
 pub const FOREST: Theme = Theme {
     id: "forest",
+    dark: true,
     colors: Colors {
         background: Hsl::new(140.0, 25.0, 12.0),
         foreground: Hsl::new(120.0, 15.0, 85.0),
@@ -222,6 +226,7 @@ pub const FOREST: Theme = Theme {
 /// The sunset theme.
 pub const SUNSET: Theme = Theme {
     id: "sunset",
+    dark: true,
     colors: Colors {
         background: Hsl::new(20.0, 30.0, 12.0),
         foreground: Hsl::new(30.0, 20.0, 85.0),
@@ -257,6 +262,7 @@ pub const SUNSET: Theme = Theme {
 /// The ubuntu theme.
 pub const UBUNTU: Theme = Theme {
     id: "ubuntu",
+    dark: true,
     colors: Colors {
         background: Hsl::new(302.0, 58.0, 10.0),
         foreground: Hsl::new(25.0, 24.0, 92.0),

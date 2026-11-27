@@ -28,6 +28,7 @@ pub mod tab_agent_indicator;
 pub mod tab_icons;
 pub mod terminal_font;
 pub mod terminal_font_file;
+pub mod theme_file;
 pub mod update_channel;
 pub mod window_background;
 
