@@ -108,7 +108,7 @@ impl SavedConnectionsUi {
                 _ => return,
             };
             let _ = this.update(cx, |this, cx| {
-                if !this.open || this.editor.is_some() {
+                if !this.open || this.editor.is_some() || this.group_admin_is_open() {
                     return;
                 }
                 if home {

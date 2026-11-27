@@ -290,6 +290,7 @@ impl SavedConnectionsUi {
         if !self.open || self.opening || self.editor_saving() {
             return;
         }
+        self.group_admin.reset();
         let placeholders = EditorPlaceholders {
             name: self.text(cx, keys::CONNECTION_TITLE),
             host: self.text(cx, keys::CONNECTION_HOST_PLACEHOLDER),

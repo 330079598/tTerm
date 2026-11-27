@@ -155,6 +155,7 @@ impl SavedConnectionsUi {
         {
             return;
         }
+        self.group_admin.reset();
         let default_group = self.text(cx, keys::SSH_CONFIG_IMPORT_DEFAULT_GROUP);
         let source_placeholder = self.text(cx, keys::SSH_CONFIG_IMPORT_SOURCE_PLACEHOLDER);
         self.import_generation = self.import_generation.wrapping_add(1);

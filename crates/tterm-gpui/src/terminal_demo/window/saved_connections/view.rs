@@ -59,6 +59,9 @@ impl SavedConnectionsUi {
                     .child(description),
             )
             .child(self.search_controls(cx))
+            .children(self.move_picker_panel(cx))
+            .children(self.delete_confirm_panel(cx))
+            .children(self.group_admin_panel(cx))
             .child(self.list_body(cx))
             .child(self.footer(cx))
     }
@@ -118,6 +121,9 @@ impl SavedConnectionsUi {
         let new_button = self.new_connection_button(NEW_BUTTON_ID, self.profiles.is_empty(), cx);
         let import_button = self.import_config_button(cx);
         let edit_button = self.edit_selected_button(cx);
+        let move_button = self.move_selected_button(cx);
+        let delete_button = self.delete_selected_button(cx);
+        let groups_button = self.group_admin_button(cx);
         let cancel_button = button(
             CANCEL_BUTTON_ID,
             cancel.clone(),
@@ -160,20 +166,31 @@ impl SavedConnectionsUi {
             .gap(px(8.0))
             .child(
                 div()
-                    .min_w_0()
-                    .truncate()
-                    .text_size(px(12.0))
-                    .text_color(hsla(colors.muted_foreground, 1.0))
-                    .child(self.text(cx, keys::SAVED_CONNECTIONS_HINT)),
+                    .flex()
+                    .items_center()
+                    .gap(px(8.0))
+                    .child(
+                        div()
+                            .min_w_0()
+                            .flex_1()
+                            .truncate()
+                            .text_size(px(12.0))
+                            .text_color(hsla(colors.muted_foreground, 1.0))
+                            .child(self.text(cx, keys::SAVED_CONNECTIONS_HINT)),
+                    )
+                    .child(delete_button)
+                    .child(move_button),
             )
             .child(
                 div()
+                    .min_w_0()
                     .flex()
                     .flex_wrap()
                     .justify_end()
                     .items_center()
                     .gap(px(8.0))
                     .child(cancel_button)
+                    .child(groups_button)
                     .child(import_button)
                     .child(new_button)
                     .child(edit_button)

@@ -9,6 +9,7 @@ use tterm_core::i18n::translate::{ArgumentValue, TranslationKey, TranslationRequ
 use tterm_ui::components::icons::{CHEVRON_DOWN, CHEVRON_RIGHT, SEARCH, icon};
 use tterm_ui::tokens::gpui::hsla;
 
+use super::super::move_to_group::ROW_TOGGLE_PREFIX;
 use super::super::view::status_line;
 use super::super::{
     EMPTY_ID, EMPTY_NEW_BUTTON_ID, ROW_EDIT_PREFIX, ROW_ID_PREFIX, SavedConnectionsUi,
@@ -473,7 +474,10 @@ impl SavedConnectionsUi {
                     .text_color(hsla(colors.muted_foreground, 1.0))
                     .child(subtitle),
             );
-        row = row.child(details);
+        let toggle_selector = format!("{ROW_TOGGLE_PREFIX}{index}");
+        row = row
+            .child(self.row_toggle(toggle_selector, id, &profile.summary().name, cx))
+            .child(details);
         if selected && !self.opening {
             let edit_selector = format!("{ROW_EDIT_PREFIX}{index}");
             row = row.child(self.row_edit_button(edit_selector, id, &profile.summary().name, cx));

@@ -29,3 +29,51 @@ Tauri 与 GPUI 各用独立的临时连接库，初始保存顺序均为 `Atlas`
 前端六项、Rust 格式、全目标严格 Clippy、默认并发的全工作区测试及大小限制均通过。本机独立 release 测量：30 个后台会话下前台 p95 为 **0.334209 ms**（上限 16.667 ms）；30 MiB 全部处理并确认用时 **156.219 ms**（时限 500 ms）。这是本机结果，不替代 CI 或整个 G2 的验收。
 
 **结论：本批通过；P4-01 整卡仍在进行。** 下一步优先开发 SSH 配置导入（P4-03），使用同一份合成配置验证两端的主机预览、选择与导入结果。
+
+## 2026-11-27 多选移动最小闭环
+
+当前 GPUI 工作树已补充连接行多选，以及把所选连接移动到已有分组或“未分组”的操作。移动沿用 `profiles::group_service::move_profiles_to_group`，成功后清空选择并重新加载列表；列表刷新会丢弃已经不存在的 profile ID，Escape 可关闭目标面板。分组创建/重命名/删除、拖放和批量删除仍未实现，因此本节不签收 P4-01 整卡。
+
+定向验收（仓库根目录）：
+
+```text
+cargo test -p tterm-gpui checked_rows_move_to_the_chosen_existing_group
+  1 passed; 0 failed
+
+cargo test -p tterm-gpui move_to_group::tests
+  2 passed; 0 failed
+
+cargo test -p tterm-gpui saved_connections::listing::tests
+  11 passed; 0 failed
+
+cargo clippy -p tterm-gpui -p tterm-core --all-targets -- -D warnings
+  finished successfully
+```
+
+全量桌面视觉、跨平台手工验收和剩余分组操作仍待后续批次。
+
+## 2026-11-27 分组 CRUD 与批量删除
+
+连接列表面板新增「分组」入口：可列出当前分组（按完整路径显示），输入名称新建顶层分组，选中分组后把名称填回输入框以便重命名，删除需要第二次点击确认。三个写操作分别沿用 `profiles::group_service::{create_profile_group, rename_profile_group, delete_profile_group}`；删除后子分组和连接由共享服务上移一级。成功后重新读取连接列表，使分组树与连接归属立即刷新；Escape 只关闭分组面板，不关闭连接选择器。
+
+同一工作树还包含已勾选连接的批量删除：先显示确认条，确认后才调用共享删除服务，取消保留勾选。该流程由 `checked_rows_delete_only_after_the_confirmation` 覆盖。
+
+定向验收（仓库根目录）：
+
+```text
+cargo test -p tterm-gpui group_admin::tests
+  5 passed; 0 failed
+
+cargo test -p tterm-gpui saved_connections
+  78 passed; 1 ignored; 0 failed
+
+cargo test -p tterm-core i18n
+  17 passed; 0 failed
+
+cargo clippy -p tterm-gpui -p tterm-core --all-targets -- -D warnings
+  finished successfully
+```
+
+仍未完成：拖放移动分组或连接、分组整页视觉对照、跨平台桌面验收。因此 P4-01 仍不整卡签收。
+
+协调者复验（2026-11-27，本机 macOS arm64，基于 `dab68e8a` 的工作树）：前端六项、Rust 格式、workspace 全目标严格 Clippy、默认并发 workspace 测试通过。`saved_connections` 定向测试 78 通过、1 忽略。其后单独运行 release 性能门：30/30 会话在采样窗口推进，前台加载 p95 为 0.120333 ms；独立吞吐测量中 30 MiB 全部应用并确认，用时 165.717 ms（181.03 MiB/s）。这是本地测量，不是 CI 或物理桌面验收。

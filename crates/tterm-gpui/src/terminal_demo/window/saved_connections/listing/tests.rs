@@ -5,7 +5,10 @@ use gpui_kit::{App, Entity, MouseButton, TestAppContext, VisualTestContext};
 use tterm_core::config::AppConfig;
 use tterm_core::connections::profile_recents::RecentProfile;
 use tterm_core::profiles::launch::SavedSshProfileSummary;
+use tterm_core::profiles::types::ProfileGroup;
 
+use super::super::delete_selected::{DELETE_BUTTON_ID, DELETE_CANCEL_ID, DELETE_CONFIRM_ID};
+use super::super::move_to_group::{MOVE_BUTTON_ID, MOVE_GROUP_PREFIX, ROW_TOGGLE_PREFIX};
 use super::super::{
     EDIT_BUTTON_ID, OPEN_BUTTON_ID, ROW_EDIT_PREFIX, ROW_ID_PREFIX, SavedConnectionsUi,
 };
@@ -458,4 +461,147 @@ fn edit_and_open_are_disabled_when_the_search_has_no_results(cx: &mut TestAppCon
     assert!(harness.visual.debug_bounds(EDIT_BUTTON_ID).is_some());
     let edit_selector: &'static str = Box::leak(format!("{ROW_EDIT_PREFIX}0").into_boxed_str());
     assert!(harness.visual.debug_bounds(edit_selector).is_none());
+}
+
+#[gpui_kit::test]
+fn checked_rows_move_to_the_chosen_existing_group(cx: &mut TestAppContext) {
+    let mut harness = harness(cx);
+    let root = harness.root.clone();
+    harness.visual.update(|_, cx| {
+        with_picker(&root, cx, |picker, cx| {
+            picker.set_profiles_for_test(Ok(grouped_profiles()), cx);
+            picker.set_move_groups_for_test(
+                Ok(vec![ProfileGroup {
+                    id: "prod".to_string(),
+                    name: "Prod".to_string(),
+                    parent_id: None,
+                }]),
+                cx,
+            );
+            picker.set_move_result_for_test(Ok(()));
+        });
+    });
+    open_picker(&mut harness);
+
+    click(harness.visual, &format!("{ROW_TOGGLE_PREFIX}0"));
+    harness.visual.update(|window, cx| {
+        window.render_frame(cx);
+        let picker = picker(&root, cx);
+        assert_eq!(picker.checked_ids_for_test(), ["api"]);
+        assert_eq!(
+            picker.visible_ids_for_test(),
+            vec!["api".to_string(), "web".to_string(), "loose".to_string()]
+        );
+    });
+    click(harness.visual, &format!("{ROW_TOGGLE_PREFIX}1"));
+    harness.visual.update(|window, cx| {
+        window.render_frame(cx);
+        let picker = picker(&root, cx);
+        assert_eq!(picker.checked_ids_for_test(), ["api", "web"]);
+    });
+
+    click(harness.visual, MOVE_BUTTON_ID);
+    harness.visual.update(|window, cx| {
+        window.render_frame(cx);
+        let picker = picker(&root, cx);
+        assert!(picker.move_picker_is_open());
+        assert!(picker.last_move_request_for_test().is_none());
+    });
+
+    click(harness.visual, &format!("{MOVE_GROUP_PREFIX}prod"));
+    harness.visual.update(|window, cx| {
+        window.render_frame(cx);
+        let picker = picker(&root, cx);
+        assert_eq!(
+            picker.last_move_request_for_test(),
+            Some((
+                vec!["api".to_string(), "web".to_string()],
+                Some("prod".to_string())
+            ))
+        );
+        assert!(picker.checked_ids_for_test().is_empty());
+        assert!(!picker.move_picker_is_open());
+        assert!(picker.notice().is_some());
+        assert!(picker.is_open());
+    });
+}
+
+#[gpui_kit::test]
+fn checked_rows_delete_only_after_the_confirmation(cx: &mut TestAppContext) {
+    let mut harness = harness(cx);
+    let root = harness.root.clone();
+    harness.visual.update(|_, cx| {
+        with_picker(&root, cx, |picker, cx| {
+            picker.set_profiles_for_test(Ok(grouped_profiles()), cx);
+            picker.set_delete_result_for_test(Ok(()));
+        });
+    });
+    open_picker(&mut harness);
+
+    click(harness.visual, &format!("{ROW_TOGGLE_PREFIX}0"));
+    click(harness.visual, &format!("{ROW_TOGGLE_PREFIX}1"));
+    harness.visual.update(|_, cx| {
+        assert_eq!(picker(&root, cx).checked_ids_for_test(), ["api", "web"]);
+        assert!(picker(&root, cx).last_delete_request_for_test().is_none());
+    });
+
+    click(harness.visual, DELETE_BUTTON_ID);
+    harness.visual.update(|_, cx| {
+        let picker = picker(&root, cx);
+        assert!(picker.delete_confirm_is_open());
+        assert!(
+            picker.last_delete_request_for_test().is_none(),
+            "opening the confirmation must not delete anything"
+        );
+        assert_eq!(picker.checked_ids_for_test(), ["api", "web"]);
+    });
+
+    harness.visual.update(|_, cx| {
+        with_picker(&root, cx, |picker, _cx| {
+            picker.set_next_load_for_test(Ok(vec![summary(
+                "loose",
+                "Loose",
+                "loose.example",
+                "me",
+                None,
+            )]));
+        });
+    });
+    click(harness.visual, DELETE_CONFIRM_ID);
+    harness.visual.update(|_, cx| {
+        let picker = picker(&root, cx);
+        assert_eq!(
+            picker.last_delete_request_for_test(),
+            Some(vec!["api".to_string(), "web".to_string()])
+        );
+        assert!(picker.checked_ids_for_test().is_empty());
+        assert!(!picker.delete_confirm_is_open());
+        assert!(picker.notice().is_some());
+        assert!(picker.is_open());
+        assert_eq!(picker.visible_ids_for_test(), vec!["loose".to_string()]);
+    });
+}
+
+#[gpui_kit::test]
+fn cancelling_the_delete_confirmation_keeps_the_checked_rows(cx: &mut TestAppContext) {
+    let mut harness = harness(cx);
+    let root = harness.root.clone();
+    harness.visual.update(|_, cx| {
+        with_picker(&root, cx, |picker, cx| {
+            picker.set_profiles_for_test(Ok(grouped_profiles()), cx);
+            picker.set_delete_result_for_test(Ok(()));
+        });
+    });
+    open_picker(&mut harness);
+
+    click(harness.visual, &format!("{ROW_TOGGLE_PREFIX}0"));
+    click(harness.visual, DELETE_BUTTON_ID);
+    click(harness.visual, DELETE_CANCEL_ID);
+
+    harness.visual.update(|_, cx| {
+        let picker = picker(&root, cx);
+        assert!(!picker.delete_confirm_is_open());
+        assert_eq!(picker.checked_ids_for_test(), ["api"]);
+        assert!(picker.last_delete_request_for_test().is_none());
+    });
 }

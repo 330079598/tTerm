@@ -23,9 +23,12 @@ use tterm_ui::tokens::theme::Theme;
 use super::profile_launch;
 use super::{Locale, Prototype};
 
+mod delete_selected;
 mod editor;
+mod group_admin;
 mod import;
 mod listing;
+mod move_to_group;
 mod profile;
 mod view;
 mod wiring;
@@ -116,6 +119,12 @@ pub(super) struct SavedConnectionsUi {
         Option<Result<tterm_core::profiles::types::SshConfigImportResult, String>>,
     #[cfg(test)]
     import_options_for_test: Option<tterm_core::profiles::types::SshConfigImportOptions>,
+    /// The rows checked for a group move, and the open target list.
+    move_selection: move_to_group::MoveSelection,
+    /// The group management panel and its name field.
+    group_admin: group_admin::GroupAdmin,
+    /// The pending confirmation for deleting the checked rows.
+    delete_confirm: delete_selected::DeleteConfirm,
 }
 
 impl SavedConnectionsUi {
@@ -169,6 +178,9 @@ impl SavedConnectionsUi {
             injected_import_result: None,
             #[cfg(test)]
             import_options_for_test: None,
+            move_selection: move_to_group::MoveSelection::default(),
+            group_admin: group_admin::GroupAdmin::default(),
+            delete_confirm: delete_selected::DeleteConfirm::default(),
         })
     }
 
@@ -226,6 +238,9 @@ impl SavedConnectionsUi {
         self.editor_generation = self.editor_generation.wrapping_add(1);
         self.import = None;
         self.import_generation = self.import_generation.wrapping_add(1);
+        self.move_selection.reset();
+        self.group_admin.reset();
+        self.delete_confirm.reset();
         self.select_after_load = None;
         self.sort_touched = false;
         self.generation = self.generation.wrapping_add(1);
@@ -258,6 +273,9 @@ impl SavedConnectionsUi {
         self.editor_generation = self.editor_generation.wrapping_add(1);
         self.import = None;
         self.import_generation = self.import_generation.wrapping_add(1);
+        self.move_selection.reset();
+        self.group_admin.reset();
+        self.delete_confirm.reset();
         self.select_after_load = None;
         self.generation = self.generation.wrapping_add(1);
         cx.notify();
@@ -282,6 +300,9 @@ impl SavedConnectionsUi {
         self.editor_generation = self.editor_generation.wrapping_add(1);
         self.import = None;
         self.import_generation = self.import_generation.wrapping_add(1);
+        self.move_selection.reset();
+        self.group_admin.reset();
+        self.delete_confirm.reset();
         self.select_after_load = None;
         self.generation = self.generation.wrapping_add(1);
         let active_focus = self.workspace.upgrade().map(|workspace| {
@@ -333,6 +354,15 @@ impl SavedConnectionsUi {
             Ok(profiles) => {
                 self.profiles = profiles;
                 self.listing.replace_profiles(&self.profiles);
+                let existing: std::collections::HashSet<&str> = self
+                    .profiles
+                    .iter()
+                    .map(|profile| profile.id.as_str())
+                    .collect();
+                self.move_selection.retain_existing(&existing);
+                if !self.has_checked() {
+                    self.delete_confirm.reset();
+                }
                 self.settle_after_load(requested);
                 self.sync_group_focus(cx);
             }
@@ -360,6 +390,30 @@ impl SavedConnectionsUi {
         if self.import.is_some() {
             if event.keystroke.key == "escape" {
                 self.cancel_import(window, cx);
+                window.prevent_default();
+                cx.stop_propagation();
+            }
+            return;
+        }
+        if self.move_picker_is_open() {
+            if event.keystroke.key == "escape" {
+                self.cancel_move(cx);
+                window.prevent_default();
+                cx.stop_propagation();
+            }
+            return;
+        }
+        if self.group_admin_is_open() {
+            if event.keystroke.key == "escape" {
+                self.close_group_admin(cx);
+                window.prevent_default();
+                cx.stop_propagation();
+            }
+            return;
+        }
+        if self.delete_confirm_is_open() {
+            if event.keystroke.key == "escape" {
+                self.cancel_delete(cx);
                 window.prevent_default();
                 cx.stop_propagation();
             }
@@ -431,7 +485,14 @@ impl SavedConnectionsUi {
     /// Confirms the selected profile once and keeps the dialog open until the
     /// lookup succeeds, so a failure is visible and can be retried.
     fn confirm_selection(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        if !self.open || self.loading || self.opening || self.import.is_some() {
+        if !self.open
+            || self.loading
+            || self.opening
+            || self.import.is_some()
+            || self.move_picker_is_open()
+            || self.group_admin_is_open()
+            || self.delete_confirm_is_open()
+        {
             return;
         }
         let Some(id) = self.active_profile_id() else {
@@ -473,6 +534,14 @@ impl SavedConnectionsUi {
             eprintln!("tterm-gpui: failed to translate a saved-connections label: {error}");
             key.as_str().to_string()
         })
+    }
+
+    #[cfg(test)]
+    pub(super) fn set_next_load_for_test(
+        &mut self,
+        result: Result<Vec<SavedSshProfileSummary>, String>,
+    ) {
+        self.injected = Some(result);
     }
 
     #[cfg(test)]
