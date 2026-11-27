@@ -340,16 +340,16 @@ impl SettingsPage {
         true
     }
 
-    /// Closes the theme library before the search and then the route handle
-    /// Escape. Returns whether it changed anything, so a second Escape can
-    /// leave the page.
+    /// Clears the settings search first, then closes the theme library. Both
+    /// happen before the route handles Escape, so a later Escape can leave the
+    /// page. Returns whether it changed anything.
     pub(super) fn clear_search(&mut self, window: &mut Window, cx: &mut Context<Self>) -> bool {
-        if self.theme_setting.read(cx).library_open() {
-            return self
-                .theme_setting
-                .update(cx, |setting, cx| setting.cancel_library(window, cx));
-        }
         if self.query.is_empty() {
+            if self.theme_setting.read(cx).library_open() {
+                return self
+                    .theme_setting
+                    .update(cx, |setting, cx| setting.cancel_library(window, cx));
+            }
             return false;
         }
         self.query.clear();
