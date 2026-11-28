@@ -156,6 +156,7 @@
     "hint": "上下键选择，Enter 打开，Esc 关闭。",
     "loading": "正在加载已保存的连接…",
     "empty": "还没有已保存的 SSH 连接。",
+    "noRecent": "还没有最近使用的 SSH 连接。",
     "loadFailed": "无法加载已保存的 SSH 连接，请重试。",
     "openFailed": "无法打开这个已保存的连接。它可能已被删除或暂时不可用，请选择其他连接。",
     "select": "选择 {{name}}",

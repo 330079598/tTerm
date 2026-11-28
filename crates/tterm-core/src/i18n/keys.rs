@@ -209,6 +209,8 @@ translation_keys! {
     SAVED_CONNECTIONS_HINT => "savedConnections.hint",
     SAVED_CONNECTIONS_LOADING => "savedConnections.loading",
     SAVED_CONNECTIONS_EMPTY => "savedConnections.empty",
+    SAVED_CONNECTIONS_NO_RECENT => "savedConnections.noRecent",
+    QUICK_CONNECT_SECTIONS_RECENT => "quickConnect.sections.recent",
     SAVED_CONNECTIONS_LOAD_FAILED => "savedConnections.loadFailed",
     SAVED_CONNECTIONS_OPEN_FAILED => "savedConnections.openFailed",
     SAVED_CONNECTIONS_SELECT => "savedConnections.select",

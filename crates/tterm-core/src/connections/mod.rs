@@ -1,6 +1,7 @@
 //! The client-side connection models: what the launcher and the connection
 //! tabs remember between launches.
 
+pub mod launcher_query;
 pub mod profile_connections;
 pub mod profile_groups;
 

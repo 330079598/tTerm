@@ -156,6 +156,7 @@
     "hint": "Up and Down select, Enter opens, and Escape closes.",
     "loading": "Loading saved connections…",
     "empty": "No saved SSH connections yet.",
+    "noRecent": "No recent SSH connections yet.",
     "loadFailed": "Could not load saved SSH connections. Try again.",
     "openFailed": "This saved connection could not be opened. It may have been deleted or is unavailable. Choose another connection.",
     "select": "Select {{name}}",

@@ -2,8 +2,15 @@ use gpui_kit::test::TestWindowExt as _;
 
 use super::*;
 use tterm_core::config::local_shells_file::ShellListEdit;
+use tterm_core::profiles::launch::SavedSshProfileSummary;
 use tterm_core::terminal::pty::TerminalShellProfile;
 use tterm_core::workspace::local_shells::detected_shell_key;
+
+use crate::terminal_demo::window::shell_launcher::recent::Fixture;
+
+const RECENT_LABEL: &str = "Recent";
+const EMPTY_RECENT_LABEL: &str = "No recent SSH connections yet.";
+const RECENT_WAIT: Duration = Duration::from_secs(5);
 
 /// Applies one shell-list edit and waits for the configuration to accept it.
 async fn edit_shell_list(harness: &mut Harness<'_>, edit: ShellListEdit) {
@@ -33,6 +40,127 @@ fn menu_checked(visual: &mut VisualTestContext, index: usize) -> Option<bool> {
             .try_find(index)
             .and_then(|choice| choice.checked())
     })
+}
+
+/// Every label the open launcher lists, in order.
+fn menu_labels(visual: &mut VisualTestContext) -> Vec<String> {
+    let mut labels = Vec::new();
+    for index in 0..64 {
+        let Some(label) = menu_choice(visual, index) else {
+            break;
+        };
+        labels.push(label);
+    }
+    labels
+}
+
+/// Asserts that Recent is one fixed submenu at the end of the launcher.
+fn assert_recent_is_last(visual: &mut VisualTestContext) -> Vec<String> {
+    let labels = menu_labels(visual);
+    assert_eq!(
+        labels.iter().filter(|label| *label == RECENT_LABEL).count(),
+        1,
+        "the launcher has exactly one Recent submenu: {labels:?}"
+    );
+    assert_eq!(
+        labels.last().map(String::as_str),
+        Some(RECENT_LABEL),
+        "Recent follows every shell choice: {labels:?}"
+    );
+    labels
+}
+
+fn click_menu_index(visual: &mut VisualTestContext, index: usize) {
+    visual.update(|window, cx| window.within("popup-menu").click(index, cx));
+    visual.update(|window, cx| window.render_frame(cx));
+}
+
+fn open_recent_submenu(visual: &mut VisualTestContext) {
+    let labels = assert_recent_is_last(visual);
+    click_menu_index(visual, labels.len() - 1);
+}
+
+fn submenu_choice(visual: &mut VisualTestContext, index: usize) -> Option<String> {
+    visual.update(|window, _| {
+        window.try_find("submenu")?;
+        window
+            .within("submenu")
+            .try_find(index)
+            .and_then(|item| item.label().map(str::to_string))
+    })
+}
+
+fn wait_for_first_recent(visual: &mut VisualTestContext, expected: &str) {
+    let deadline = Instant::now() + RECENT_WAIT;
+    loop {
+        visual.run_until_parked();
+        if submenu_choice(visual, 0).as_deref() == Some(expected) {
+            return;
+        }
+        assert!(
+            Instant::now() < deadline,
+            "Recent never listed {expected:?}; it lists {:?}",
+            submenu_choice(visual, 0)
+        );
+        std::thread::sleep(Duration::from_millis(20));
+    }
+}
+
+fn install_recent(visual: &mut VisualTestContext, profiles: Vec<SavedSshProfileSummary>) {
+    visual.update(|_, cx| Fixture::install(cx, profiles));
+}
+
+fn confirmed_recent(visual: &mut VisualTestContext) -> Option<String> {
+    visual.update(|_, cx| Fixture::confirmed(cx))
+}
+
+fn wait_for_confirmed(visual: &mut VisualTestContext, expected: &str) {
+    let deadline = Instant::now() + RECENT_WAIT;
+    loop {
+        visual.run_until_parked();
+        if confirmed_recent(visual).as_deref() == Some(expected) {
+            return;
+        }
+        assert!(
+            Instant::now() < deadline,
+            "Recent confirmed {:?} instead of {expected:?}",
+            confirmed_recent(visual)
+        );
+        std::thread::sleep(Duration::from_millis(20));
+    }
+}
+
+fn ssh_summary(id: &str, name: &str) -> SavedSshProfileSummary {
+    SavedSshProfileSummary {
+        id: id.to_string(),
+        name: name.to_string(),
+        username: Some("deploy".to_string()),
+        host: Some("10.0.0.5".to_string()),
+        port: Some(2222),
+        group_path: Some("Production".to_string()),
+    }
+}
+
+fn recent_item_label(profile: &SavedSshProfileSummary) -> String {
+    format!("{} · {}", profile.name, profile.endpoint())
+}
+
+fn click_submenu_index(visual: &mut VisualTestContext, index: usize) {
+    visual.update(|window, cx| window.within("submenu").click(index, cx));
+    visual.update(|window, cx| window.render_frame(cx));
+}
+
+fn close_open_menus(visual: &mut VisualTestContext) {
+    for _ in 0..3 {
+        let open = visual.update(|window, _| {
+            !window.find_all("popup-menu").is_empty() || window.try_find("submenu").is_some()
+        });
+        if !open {
+            return;
+        }
+        press(visual, "escape");
+    }
+    panic!("the launcher did not close after Escape");
 }
 
 #[gpui_kit::test]
@@ -172,9 +300,10 @@ fn configured_wsl_distro_is_listed_first_checked_and_keeps_hidden_entries_out(
     click(harness.visual, "new-shell-menu");
     assert_eq!(menu_choice(harness.visual, 0).as_deref(), Some("Ubuntu"));
     assert_eq!(menu_checked(harness.visual, 0), Some(true));
+    let labels = assert_recent_is_last(harness.visual);
     assert!(
-        menu_choice(harness.visual, 2).is_none(),
-        "a hidden non-default distribution is not listed"
+        !labels.iter().any(|label| label == "Debian"),
+        "a hidden non-default distribution is not listed: {labels:?}"
     );
 
     press(harness.visual, "escape");
@@ -415,9 +544,10 @@ async fn hiding_and_showing_a_detected_shell_follows_the_launcher(cx: &mut TestA
         menu_choice(harness.visual, 0).is_some(),
         "Auto is always listed"
     );
+    let labels = assert_recent_is_last(harness.visual);
     assert!(
-        menu_choice(harness.visual, 1).is_none(),
-        "a hidden detected shell is not listed"
+        !labels.iter().any(|label| label == "Detected shell"),
+        "a hidden detected shell is not listed: {labels:?}"
     );
     press(harness.visual, "down enter");
     harness.visual.update(|_, cx| {
@@ -447,6 +577,7 @@ async fn hiding_and_showing_a_detected_shell_follows_the_launcher(cx: &mut TestA
         Some("Detected shell"),
         "showing the shell lists it again"
     );
+    assert_recent_is_last(harness.visual);
     press(harness.visual, "down down enter");
     harness.visual.update(|_, cx| {
         let connection = root
@@ -511,6 +642,7 @@ async fn moving_a_custom_shell_changes_which_menu_choice_opens(cx: &mut TestAppC
         "the moved shell is listed first among the user's shells"
     );
     assert_eq!(menu_choice(harness.visual, 2).as_deref(), Some("First"));
+    assert_recent_is_last(harness.visual);
     press(harness.visual, "down down enter");
     harness.visual.update(|_, cx| {
         let connection = root
@@ -608,9 +740,10 @@ async fn removing_the_active_custom_default_starts_auto_and_keeps_the_open_sessi
     );
     assert!(output(&still_open).contains(marker));
     click(harness.visual, "new-shell-menu");
+    let labels = assert_recent_is_last(harness.visual);
     assert!(
-        menu_choice(harness.visual, 1).is_none(),
-        "the removed shell is not listed"
+        !labels.iter().any(|label| label == "Default custom"),
+        "the removed shell is not listed: {labels:?}"
     );
     press(harness.visual, "escape");
 
@@ -634,5 +767,164 @@ async fn removing_the_active_custom_default_starts_auto_and_keeps_the_open_sessi
         );
         assert_eq!(connection.saved_field("terminalShellCustomPath"), None);
     });
+    harness.visual.update(|window, _| window.remove_window());
+}
+
+#[gpui_kit::test]
+fn recent_submenu_is_last_and_shows_its_empty_message(cx: &mut TestAppContext) {
+    let harness = harness(cx, AppConfig::default());
+    let root = harness.root.clone();
+    let first = Rc::clone(&harness.first);
+    install_recent(harness.visual, Vec::new());
+    assert_eq!(
+        confirmed_recent(harness.visual),
+        None,
+        "a new fixture starts without a confirmed recent"
+    );
+
+    click(harness.visual, "new-shell-menu");
+    let labels = assert_recent_is_last(harness.visual);
+    assert!(
+        labels.len() > 1,
+        "the shells stay listed ahead of Recent: {labels:?}"
+    );
+    open_recent_submenu(harness.visual);
+    wait_for_first_recent(harness.visual, EMPTY_RECENT_LABEL);
+    assert_eq!(
+        submenu_choice(harness.visual, 1),
+        None,
+        "an empty fixture lists only the not-found message"
+    );
+    assert_eq!(confirmed_recent(harness.visual), None);
+
+    close_open_menus(harness.visual);
+    harness.visual.update(|window, cx| {
+        let workspace = root.read(cx);
+        assert_eq!(workspace.tabs.len(), 2);
+        assert_eq!(workspace.tabs.active_id(), 1);
+        assert!(Rc::ptr_eq(&first, &tab_binding(workspace, 1)));
+        assert!(
+            workspace
+                .tabs
+                .active()
+                .view
+                .read(cx)
+                .focus_handle()
+                .is_focused(window),
+            "closing the empty Recent submenu returns focus to the open tab"
+        );
+    });
+    harness.visual.update(|window, _| window.remove_window());
+}
+
+#[gpui_kit::test]
+fn clicking_a_recent_ssh_profile_confirms_its_id_without_opening_a_tab(cx: &mut TestAppContext) {
+    let harness = harness(cx, AppConfig::default());
+    let root = harness.root.clone();
+    let first = Rc::clone(&harness.first);
+    let profile = ssh_summary("prod-web", "Production web");
+    install_recent(harness.visual, vec![profile.clone()]);
+
+    click(harness.visual, "new-shell-menu");
+    open_recent_submenu(harness.visual);
+    let label = recent_item_label(&profile);
+    wait_for_first_recent(harness.visual, &label);
+    click_submenu_index(harness.visual, 0);
+    wait_for_confirmed(harness.visual, &profile.id);
+
+    harness.visual.update(|window, cx| {
+        let workspace = root.read(cx);
+        assert_eq!(workspace.tabs.len(), 2, "the test double does not dial");
+        assert_eq!(workspace.tabs.active_id(), 1);
+        assert!(Rc::ptr_eq(&first, &tab_binding(workspace, 1)));
+        assert!(window.try_find("popup-menu").is_none());
+        assert!(window.try_find("submenu").is_none());
+    });
+
+    click(harness.visual, "new-shell-menu");
+    close_open_menus(harness.visual);
+    harness.visual.update(|_, cx| {
+        let workspace = root.read(cx);
+        assert_eq!(workspace.tabs.len(), 2);
+        assert_eq!(workspace.tabs.active_id(), 1);
+        assert!(Rc::ptr_eq(&first, &tab_binding(workspace, 1)));
+    });
+    assert_eq!(
+        confirmed_recent(harness.visual).as_deref(),
+        Some("prod-web"),
+        "Esc does not replace the stable id already confirmed"
+    );
+    harness.visual.update(|window, _| window.remove_window());
+}
+
+#[gpui_kit::test]
+fn keyboard_selection_of_a_recent_ssh_profile_confirms_it(cx: &mut TestAppContext) {
+    let harness = harness(cx, AppConfig::default());
+    let root = harness.root.clone();
+    let first = Rc::clone(&harness.first);
+    let profile = ssh_summary("prod-db", "Production db");
+    install_recent(harness.visual, vec![profile.clone()]);
+
+    click(harness.visual, "new-shell-menu");
+    assert_recent_is_last(harness.visual);
+    for _ in 0..64 {
+        if harness
+            .visual
+            .update(|window, _| window.try_find("submenu").is_some())
+        {
+            break;
+        }
+        press(harness.visual, "down");
+    }
+    assert!(
+        harness
+            .visual
+            .update(|window, _| window.try_find("submenu").is_some()),
+        "the keyboard never opened the Recent submenu"
+    );
+    wait_for_first_recent(harness.visual, &recent_item_label(&profile));
+    // Opening the submenu leaves focus in the parent popup, so the first Enter
+    // enters the submenu and highlights its first item; the second activates it.
+    press(harness.visual, "enter enter");
+    wait_for_confirmed(harness.visual, &profile.id);
+
+    harness.visual.update(|window, cx| {
+        let workspace = root.read(cx);
+        assert_eq!(workspace.tabs.len(), 2);
+        assert_eq!(workspace.tabs.active_id(), 1);
+        assert!(Rc::ptr_eq(&first, &tab_binding(workspace, 1)));
+        assert!(window.try_find("popup-menu").is_none());
+        assert!(window.try_find("submenu").is_none());
+    });
+    harness.visual.update(|window, _| window.remove_window());
+}
+
+#[gpui_kit::test]
+fn opening_recent_again_loads_the_current_fixture(cx: &mut TestAppContext) {
+    let harness = harness(cx, AppConfig::default());
+    let first = ssh_summary("old-web", "Old web");
+    let second = ssh_summary("new-db", "New db");
+    install_recent(harness.visual, vec![first.clone()]);
+
+    click(harness.visual, "new-shell-menu");
+    open_recent_submenu(harness.visual);
+    wait_for_first_recent(harness.visual, &recent_item_label(&first));
+    close_open_menus(harness.visual);
+
+    install_recent(harness.visual, vec![second.clone()]);
+    click(harness.visual, "new-shell-menu");
+    open_recent_submenu(harness.visual);
+    wait_for_first_recent(harness.visual, &recent_item_label(&second));
+    assert_eq!(
+        submenu_choice(harness.visual, 1),
+        None,
+        "the refreshed fixture replaces the first list"
+    );
+    assert_eq!(
+        confirmed_recent(harness.visual),
+        None,
+        "refreshing the list does not confirm a connection"
+    );
+    close_open_menus(harness.visual);
     harness.visual.update(|window, _| window.remove_window());
 }

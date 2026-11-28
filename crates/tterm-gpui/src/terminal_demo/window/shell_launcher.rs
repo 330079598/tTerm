@@ -1,5 +1,7 @@
 //! Opens a fresh session from a shell selected in the tab strip.
 
+pub(super) mod recent;
+
 use gpui_kit::component::button::{Button, ButtonVariants};
 use gpui_kit::component::menu::{DropdownMenu, PopupMenuItem};
 use gpui_kit::prelude::*;
@@ -37,6 +39,7 @@ impl Prototype {
         let owner = cx.weak_entity();
         let config = self.factory.config.clone();
         let locale = self.ui.locale.clone();
+        let services = self.factory.sessions.services();
         Button::new("new-session-tab")
             .ghost()
             .compact()
@@ -52,7 +55,7 @@ impl Prototype {
                 hsla(self.ui.theme.colors.muted_foreground, 1.0),
                 16.0,
             ))
-            .dropdown_menu(move |mut menu, _, cx| {
+            .dropdown_menu(move |mut menu, window, cx| {
                 let (entries, default_key, fallback_label, fallback_choice) = {
                     let state = config.read(cx);
                     let shell_config = ShellConfig::from(state.config());
@@ -102,7 +105,7 @@ impl Prototype {
                         });
                     }));
                 }
-                menu
+                recent::submenu(menu, &owner, &locale, &services, window, cx)
             })
     }
 
