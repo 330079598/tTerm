@@ -8,3 +8,4 @@ pub mod profile_groups;
 pub mod profile_recents;
 pub mod profile_search;
 pub mod quick_connect;
+pub mod quick_launch;

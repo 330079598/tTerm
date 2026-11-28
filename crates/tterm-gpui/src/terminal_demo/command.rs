@@ -4,6 +4,8 @@
 //! `--ssh` selects a saved connection from the isolated GPUI database by id
 //! or name. The core's `AppServices` builds the actual PTY or SSH session.
 
+use tterm_core::connections::quick_connect::{QuickConnection, build_quick_connect_tab};
+use tterm_core::connections::quick_launch::connection_options_for_quick;
 use tterm_core::core::session::types::PtyConnectionOptions;
 use tterm_core::profiles::connection::connection_options_for_profile;
 use tterm_core::profiles::launch::SavedSshLaunch;
@@ -99,6 +101,7 @@ pub(super) enum LaunchSource {
     Local(Box<PtyConnectionOptions>),
     SshProfile { selector: SshProfileSelector },
     SavedSshProfile(Box<SavedSshLaunch>),
+    QuickConnection(Box<QuickConnection>),
     Unsupported { reason: String },
 }
 
@@ -161,6 +164,24 @@ impl TabLaunch {
         }
     }
 
+    /// A quick connection typed in the launcher, with no saved profile.
+    pub(super) fn quick_connection(
+        saved_id: impl Into<String>,
+        connection: QuickConnection,
+    ) -> Self {
+        let saved_id = saved_id.into();
+        let mut saved = build_quick_connect_tab(&connection);
+        saved.set_id(saved_id.clone());
+        Self {
+            saved_id,
+            saved,
+            source: LaunchSource::QuickConnection(Box::new(connection)),
+            may_resume_agent: true,
+            restored: false,
+            restored_history: None,
+        }
+    }
+
     /// A saved tab kept in the workspace without opening its contents.
     pub(super) fn unsupported(saved: Tab, reason: String) -> Self {
         Self {
@@ -198,6 +219,7 @@ impl TabLaunch {
             LaunchSource::Command(CommandSpec::SshProfile { .. })
                 | LaunchSource::SshProfile { .. }
                 | LaunchSource::SavedSshProfile(_)
+                | LaunchSource::QuickConnection(_)
         )
     }
 
@@ -269,6 +291,9 @@ impl TabLaunch {
             LaunchSource::Local(options) => Ok(options.as_ref().clone()),
             LaunchSource::SshProfile { selector } => saved_ssh_profile(selector),
             LaunchSource::SavedSshProfile(launch) => Ok(launch.connection.clone()),
+            LaunchSource::QuickConnection(connection) => {
+                Ok(connection_options_for_quick(connection))
+            }
             LaunchSource::Unsupported { reason } => Err(reason.clone()),
         }
     }
@@ -464,6 +489,9 @@ fn join_arguments(args: &[String]) -> Result<String, String> {
         .collect::<Vec<_>>()
         .join(" "))
 }
+
+#[cfg(test)]
+mod quick;
 
 #[cfg(test)]
 mod tests {
