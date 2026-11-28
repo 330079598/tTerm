@@ -2,12 +2,10 @@
 
 use std::sync::Arc;
 
-#[cfg(test)]
 use std::collections::HashMap;
 
 use gpui_kit::component::menu::{PopupMenu, PopupMenuItem};
 use gpui_kit::{App, Context, Entity, PromptLevel, Task, WeakEntity, Window};
-use tterm_core::connections::launcher_query::query_saved_profiles;
 use tterm_core::connections::profile_recents::RecentProfile;
 use tterm_core::i18n::{keys, translate::TranslationKey};
 use tterm_core::profiles::launch::SavedSshProfileSummary;
@@ -17,24 +15,6 @@ use super::{Locale, Prototype};
 
 type Profiles = Vec<SavedSshProfileSummary>;
 
-fn filter_recent_profiles(
-    query: &str,
-    profiles: &[SavedSshProfileSummary],
-    recents: &[RecentProfile],
-) -> Profiles {
-    let ranked = query_saved_profiles(query, profiles, recents, 8);
-    ranked
-        .into_iter()
-        .filter_map(|item| {
-            profiles
-                .iter()
-                .find(|profile| profile.id == item.id)
-                .cloned()
-        })
-        .collect()
-}
-
-#[cfg(test)]
 fn recently_used(profiles: Profiles, mut recents: Vec<RecentProfile>) -> Profiles {
     let mut profiles: HashMap<_, _> = profiles
         .into_iter()
@@ -48,7 +28,7 @@ fn recently_used(profiles: Profiles, mut recents: Vec<RecentProfile>) -> Profile
         .collect()
 }
 
-fn text(locale: &Entity<Locale>, key: TranslationKey, cx: &App) -> String {
+pub(super) fn text(locale: &Entity<Locale>, key: TranslationKey, cx: &App) -> String {
     locale
         .read(cx)
         .text(key)
@@ -116,11 +96,7 @@ fn load(services: &AppServices, cx: &mut Context<PopupMenu>) -> Task<Result<Prof
 
     let task = services.shared.runtime.spawn_blocking(|| {
         let recents = read_recent_profiles()?;
-        Ok(filter_recent_profiles(
-            "",
-            &load_saved_ssh_profile_summaries()?,
-            &recents,
-        ))
+        Ok(recently_used(load_saved_ssh_profile_summaries()?, recents))
     });
     cx.spawn(async move |_, _| task.await.map_err(|error| error.to_string())?)
 }
@@ -129,11 +105,16 @@ fn load(services: &AppServices, cx: &mut Context<PopupMenu>) -> Task<Result<Prof
 fn load(_: &AppServices, cx: &mut Context<PopupMenu>) -> Task<Result<Profiles, String>> {
     Task::ready(Ok(cx
         .try_global::<Fixture>()
-        .map(|data| data.rows.clone())
+        .map(|data| recently_used(data.rows.clone(), data.recents.clone()))
         .unwrap_or_default()))
 }
 
-fn confirm(this: &mut Prototype, id: String, window: &mut Window, cx: &mut Context<Prototype>) {
+pub(super) fn confirm(
+    this: &mut Prototype,
+    id: String,
+    window: &mut Window,
+    cx: &mut Context<Prototype>,
+) {
     #[cfg(test)]
     if cx.has_global::<Fixture>() {
         cx.global_mut::<Fixture>().confirmed = Some(id);
@@ -156,6 +137,7 @@ fn confirm(this: &mut Prototype, id: String, window: &mut Window, cx: &mut Conte
 #[cfg(test)]
 pub(in super::super) struct Fixture {
     rows: Profiles,
+    recents: Vec<RecentProfile>,
     confirmed: Option<String>,
 }
 
@@ -164,9 +146,38 @@ impl gpui_kit::Global for Fixture {}
 
 #[cfg(test)]
 impl Fixture {
+    pub(super) fn profiles(cx: &App) -> Profiles {
+        cx.try_global::<Self>()
+            .map(|data| data.rows.clone())
+            .unwrap_or_default()
+    }
+    pub(super) fn recents(cx: &App) -> Vec<RecentProfile> {
+        cx.try_global::<Self>()
+            .map(|data| data.recents.clone())
+            .unwrap_or_default()
+    }
     pub(in super::super) fn install(cx: &mut App, rows: Profiles) {
+        let recents = rows
+            .iter()
+            .map(|row| RecentProfile {
+                profile_id: row.id.clone(),
+                last_used_at: 1,
+            })
+            .collect();
         cx.set_global(Self {
             rows,
+            recents,
+            confirmed: None,
+        });
+    }
+    pub(in super::super) fn install_with_recents(
+        cx: &mut App,
+        rows: Profiles,
+        recents: Vec<RecentProfile>,
+    ) {
+        cx.set_global(Self {
+            rows,
+            recents,
             confirmed: None,
         });
     }
@@ -206,7 +217,7 @@ mod tests {
     }
 
     #[test]
-    fn query_filters_recent_profiles_by_name_and_host() {
+    fn recent_submenu_excludes_unused_saved_profiles() {
         let web = SavedSshProfileSummary {
             id: "web".into(),
             name: "Production web".into(),
@@ -227,10 +238,8 @@ mod tests {
             profile_id: "web".into(),
             last_used_at: 2,
         }];
-        assert_eq!(
-            filter_recent_profiles("web", &[web.clone(), db.clone()], &recents)[0].id,
-            "web"
-        );
-        assert!(filter_recent_profiles("missing", &[web, db], &recents).is_empty());
+        let rows = recently_used(vec![web, db], recents);
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0].id, "web");
     }
 }

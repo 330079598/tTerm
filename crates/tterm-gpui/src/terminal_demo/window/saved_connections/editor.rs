@@ -265,6 +265,28 @@ impl SavedConnectionsUi {
         self.start_editor(None, window, cx);
     }
 
+    /// Opens the new-connection form filled with what the launcher parsed, or
+    /// blank when the typed text is not a connection. Opening it saves and
+    /// dials nothing; the user still has to press Save or connect.
+    pub(super) fn open_new_editor_with_draft(
+        &mut self,
+        draft: Option<ProfileDraft>,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        if !self.start_editor(None, window, cx) {
+            return;
+        }
+        let Some(draft) = draft else {
+            return;
+        };
+        let Some(editor) = self.editor.as_mut() else {
+            return;
+        };
+        editor.apply_draft(draft, window, cx);
+        cx.notify();
+    }
+
     /// Edits the row the picker currently has selected.
     pub(super) fn open_edit_editor(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         let Some(id) = self.selected_id.clone() else {
@@ -286,9 +308,17 @@ impl SavedConnectionsUi {
         self.start_editor(Some(id), window, cx);
     }
 
-    fn start_editor(&mut self, id: Option<String>, window: &mut Window, cx: &mut Context<Self>) {
+    /// Creates the form and reports whether it did. A closed, still opening
+    /// or saving picker returns `false`, so a caller adding a draft never
+    /// writes into a form it did not just create.
+    fn start_editor(
+        &mut self,
+        id: Option<String>,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) -> bool {
         if !self.open || self.opening || self.editor_saving() {
-            return;
+            return false;
         }
         self.group_admin.reset();
         let placeholders = EditorPlaceholders {
@@ -310,12 +340,12 @@ impl SavedConnectionsUi {
         }
         cx.notify();
         let Some(id) = id else {
-            return;
+            return true;
         };
         #[cfg(test)]
         if let Some(result) = self.injected_editor_load.clone() {
             self.finish_editor_load(generation, &id, result, window, cx);
-            return;
+            return true;
         }
         let services = Arc::clone(&self.services);
         cx.spawn_in(window, async move |this, cx| {
@@ -327,6 +357,7 @@ impl SavedConnectionsUi {
             });
         })
         .detach();
+        true
     }
 
     fn finish_editor_load(

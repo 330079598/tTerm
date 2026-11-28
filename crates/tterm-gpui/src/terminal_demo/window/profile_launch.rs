@@ -1,6 +1,7 @@
 //! Loads and opens confirmed saved SSH profiles without blocking the window.
 
 use gpui_kit::{Context, Task, Window};
+use tterm_core::connections::quick_connect::QuickConnection;
 use tterm_core::profiles::launch::{
     SavedSshLaunch, SavedSshLaunchError, SavedSshProfileSummary, load_saved_ssh_launch,
     load_saved_ssh_profile_summaries,
@@ -85,6 +86,37 @@ impl Prototype {
             self.factory.open_launch(
                 id,
                 TabLaunch::saved_profile(saved_id, launch),
+                &self.ui.locale,
+                cx,
+            )
+        });
+        let new_id = self.tabs.active_id();
+        self.splits.open(new_id);
+        self.refresh_panes(previous, window, cx);
+        self.mark_workspace_dirty(cx);
+        Some(new_id)
+    }
+
+    /// Opens a quick connection typed in the launcher in one new SSH tab.
+    pub(super) fn open_quick_connection(
+        &mut self,
+        connection: QuickConnection,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) -> Option<usize> {
+        self.tabs.next_id()?;
+        if self.tunnel_page_is_open() {
+            self.close_tunnel_page(window, cx);
+        }
+        if !self.close_settings(window, cx) {
+            return None;
+        }
+        let previous = self.visible_ids();
+        let saved_id = self.next_saved_id();
+        self.tabs.push(|id| {
+            self.factory.open_launch(
+                id,
+                TabLaunch::quick_connection(saved_id, connection),
                 &self.ui.locale,
                 cx,
             )

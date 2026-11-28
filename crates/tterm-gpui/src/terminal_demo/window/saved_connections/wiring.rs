@@ -3,6 +3,7 @@
 use gpui_kit::prelude::*;
 use gpui_kit::{Context, Div, Stateful, Window};
 use tterm_core::i18n::keys;
+use tterm_core::profiles::types::SavedProfile;
 use tterm_ui::components::icons::BOOK_MARKED;
 
 use super::OPEN_BUTTON_ID;
@@ -30,6 +31,25 @@ impl Prototype {
             .saved_connections
             .update(cx, |saved_connections, cx| {
                 saved_connections.open(window, cx);
+            });
+    }
+
+    /// Opens the picker with the new-connection form already open and filled
+    /// from the launcher's typed text. A `None` draft leaves the form blank,
+    /// which is what text that is not a connection gets. Opening the form
+    /// writes and connects nothing.
+    pub(in crate::terminal_demo::window) fn open_new_saved_connection(
+        &mut self,
+        draft: Option<SavedProfile>,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        self.open_saved_connections(window, cx);
+        let draft = draft.map(super::profile::draft_from_quick_profile);
+        self.ui
+            .saved_connections
+            .update(cx, |saved_connections, cx| {
+                saved_connections.open_new_editor_with_draft(draft, window, cx);
             });
     }
 

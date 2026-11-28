@@ -304,6 +304,27 @@ fn draft_from_profile(profile: &SavedProfile) -> Result<ProfileDraft, String> {
     })
 }
 
+/// The new-connection form's draft for the profile core parsed from the
+/// launcher. Only the name and address cross over: the sign-in choice keeps
+/// this form's password default, no secret is read, and the draft carries no
+/// id so opening it can only ever create a profile the user saves.
+pub(super) fn draft_from_quick_profile(profile: SavedProfile) -> ProfileDraft {
+    ProfileDraft {
+        id: None,
+        name: profile.name,
+        host: profile.host.unwrap_or_default(),
+        port: profile
+            .port
+            .map(|port| port.to_string())
+            .unwrap_or_else(|| DEFAULT_PORT.to_string()),
+        username: profile.username.unwrap_or_default(),
+        auth: AuthKind::Password,
+        key_path: String::new(),
+        group_path: String::new(),
+        group_changed: false,
+    }
+}
+
 /// The two sign-in methods this form can represent; any other stored method
 /// is rejected instead of being rewritten as a password.
 fn editable_auth(profile: &SavedProfile) -> Result<AuthKind, String> {

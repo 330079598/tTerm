@@ -11,9 +11,12 @@ use tterm_ui::tokens::gpui::hsla;
 
 use super::{Locale, Prototype, WindowTab};
 
-pub(super) struct TabPicker {
-    field: Entity<InputState>,
-    _events: Subscription,
+pub(super) enum TabPicker {
+    Tabs {
+        field: Entity<InputState>,
+        _events: Subscription,
+    },
+    Launcher(Entity<super::shell_launcher::search::LauncherSearch>),
 }
 
 /// Only display and search fields are retained, never the connection credentials.
@@ -115,14 +118,14 @@ impl Prototype {
                 _ => {}
             },
         );
-        self.picker = Some(TabPicker {
+        self.picker = Some(TabPicker::Tabs {
             field,
             _events: events,
         });
         cx.notify();
     }
 
-    fn dismiss_picker(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+    pub(super) fn dismiss_picker(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         self.picker = None;
         self.tabs
             .active()
@@ -134,7 +137,12 @@ impl Prototype {
     }
 
     pub(super) fn picker_panel(&self, window: &Window, cx: &mut Context<Self>) -> Option<Div> {
-        let field = self.picker.as_ref()?.field.clone();
+        let field = match self.picker.as_ref()? {
+            TabPicker::Tabs { field, .. } => field.clone(),
+            TabPicker::Launcher(panel) => {
+                return Some(div().absolute().inset_0().child(panel.clone()));
+            }
+        };
         let query = field.read(cx).value();
         let rows = self.matching_rows(&query, cx);
         let locale = self.ui.locale.read(cx);

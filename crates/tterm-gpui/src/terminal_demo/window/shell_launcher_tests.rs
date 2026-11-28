@@ -2,6 +2,7 @@ use gpui_kit::test::TestWindowExt as _;
 
 use super::*;
 use tterm_core::config::local_shells_file::ShellListEdit;
+use tterm_core::connections::profile_recents::RecentProfile;
 use tterm_core::profiles::launch::SavedSshProfileSummary;
 use tterm_core::terminal::pty::TerminalShellProfile;
 use tterm_core::workspace::local_shells::detected_shell_key;
@@ -78,6 +79,193 @@ fn click_menu_index(visual: &mut VisualTestContext, index: usize) {
 fn open_recent_submenu(visual: &mut VisualTestContext) {
     let labels = assert_recent_is_last(visual);
     click_menu_index(visual, labels.len() - 1);
+}
+
+fn open_launcher_search(visual: &mut VisualTestContext) {
+    click(visual, "new-shell-menu");
+    let labels = menu_labels(visual);
+    let index = labels
+        .iter()
+        .position(|label| label == "Search by name, host, username, or group")
+        .unwrap();
+    click_menu_index(visual, index);
+    visual.run_until_parked();
+}
+
+fn launcher_labels(root: &Entity<Prototype>, visual: &mut VisualTestContext) -> Vec<String> {
+    visual.update(|_, cx| {
+        let picker = root.read(cx).picker.as_ref();
+        let Some(super::picker::TabPicker::Launcher(panel)) = picker else {
+            panic!("the launcher search is not open");
+        };
+        panel.read(cx).test_labels(cx)
+    })
+}
+
+#[gpui_kit::test]
+fn launcher_search_edits_filters_and_confirms_only_a_matching_id(cx: &mut TestAppContext) {
+    let harness = harness(cx, AppConfig::default());
+    let visual = harness.visual;
+    install_recent(
+        visual,
+        vec![ssh_summary("web", "Web"), ssh_summary("db", "Database")],
+    );
+    open_launcher_search(visual);
+    visual.simulate_input("Datax");
+    assert!(
+        !launcher_labels(&harness.root, visual)
+            .iter()
+            .any(|row| row.starts_with("Database ·"))
+    );
+    press(visual, "backspace");
+    click(visual, "launcher-row-0");
+    wait_for_confirmed(visual, "db");
+    install_recent(
+        visual,
+        vec![ssh_summary("web", "Web"), ssh_summary("db", "Database")],
+    );
+    open_launcher_search(visual);
+    visual.simulate_input("Database");
+    press(visual, &format!("{}-a backspace", modifier()));
+    assert!(
+        launcher_labels(&harness.root, visual)
+            .iter()
+            .any(|row| row.starts_with("Web ·"))
+    );
+    press(visual, "escape");
+    assert_eq!(confirmed_recent(visual), None);
+    open_launcher_search(visual);
+    visual.simulate_input("Data");
+    press(visual, "enter");
+    wait_for_confirmed(visual, "db");
+    install_recent(visual, vec![ssh_summary("one", "One")]);
+    open_launcher_search(visual);
+    visual.simulate_input("deploy");
+    press(visual, "escape");
+    assert_eq!(confirmed_recent(visual), None);
+    visual.update(|window, cx| {
+        let workspace = harness.root.read(cx);
+        assert!(workspace.picker.is_none());
+        assert!(
+            workspace
+                .tabs
+                .active()
+                .view
+                .read(cx)
+                .focus_handle()
+                .is_focused(window)
+        );
+        window.remove_window();
+    });
+}
+
+#[gpui_kit::test]
+fn launcher_search_starts_with_shells_new_connection_and_recent_profiles(cx: &mut TestAppContext) {
+    let harness = harness(cx, AppConfig::default());
+    let root = harness.root.clone();
+    let visual = harness.visual;
+    visual.update(|_, cx| {
+        Fixture::install_with_recents(
+            cx,
+            vec![ssh_summary("web", "Web")],
+            vec![RecentProfile {
+                profile_id: "web".into(),
+                last_used_at: 1,
+            }],
+        );
+    });
+    open_launcher_search(visual);
+    let labels = launcher_labels(&root, visual);
+    assert!(
+        labels.iter().any(|label| label.contains("New connection")),
+        "the launcher offers a new connection: {labels:?}"
+    );
+    assert_eq!(
+        labels.last().map(String::as_str),
+        Some("Web · deploy@10.0.0.5:2222"),
+        "the recently used saved connection comes after the default actions: {labels:?}"
+    );
+    press(visual, "escape");
+    visual.update(|window, _| window.remove_window());
+}
+
+#[gpui_kit::test]
+fn launcher_search_arrows_confirm_one_of_two_same_named_profiles(cx: &mut TestAppContext) {
+    let harness = harness(cx, AppConfig::default());
+    let visual = harness.visual;
+    install_recent(
+        visual,
+        vec![ssh_summary("first", "Twin"), ssh_summary("second", "Twin")],
+    );
+    open_launcher_search(visual);
+    visual.simulate_input("Twin");
+    press(visual, "down up down enter");
+    wait_for_confirmed(visual, "second");
+    visual.update(|window, _| window.remove_window());
+}
+
+#[gpui_kit::test]
+fn launcher_add_user_caret_and_enter_open_one_unsaved_ssh_tab(cx: &mut TestAppContext) {
+    let harness = harness(cx, AppConfig::default());
+    let visual = harness.visual;
+    let listener = std::net::TcpListener::bind((std::net::Ipv4Addr::LOCALHOST, 0)).unwrap();
+    let port = listener.local_addr().unwrap().port();
+    open_launcher_search(visual);
+    visual.simulate_input("tester@127.0.0.1:65536");
+    assert!(
+        !launcher_labels(&harness.root, visual)
+            .iter()
+            .any(|row| row.starts_with("Connect to"))
+    );
+    press(visual, &format!("{}-a backspace", modifier()));
+    let endpoint = format!("127.0.0.1:{port}");
+    visual.simulate_input(&endpoint);
+    press(visual, "enter");
+    visual.simulate_input("tester");
+    assert!(launcher_labels(&harness.root, visual)[0].contains(&format!("tester@{endpoint}")));
+    press(visual, "enter");
+    visual.update(|window, cx| {
+        let workspace = harness.root.read(cx);
+        assert!(workspace.picker.is_none());
+        assert_eq!(workspace.tabs.len(), 3);
+        let tab = workspace.tabs.active().saved();
+        assert_eq!(tab.quick_connect, Some(true));
+        let connection = tab.connection.as_ref().unwrap();
+        assert_eq!(connection.host.as_deref(), Some("127.0.0.1"));
+        assert_eq!(connection.port, Some(u32::from(port)));
+        assert_eq!(connection.username.as_deref(), Some("tester"));
+        assert!(connection.profile_id.is_none() && connection.password.is_none());
+        window.remove_window();
+    });
+}
+
+#[gpui_kit::test]
+fn launcher_search_filters_local_shells_by_their_label(cx: &mut TestAppContext) {
+    let harness = harness(
+        cx,
+        AppConfig {
+            local_shells: vec![LocalShell {
+                id: "picked".into(),
+                name: "Picked shell".into(),
+                path: "/bin/sh".into(),
+                args: String::new(),
+            }],
+            ..Default::default()
+        },
+    );
+    let root = harness.root.clone();
+    let visual = harness.visual;
+    open_launcher_search(visual);
+    visual.simulate_input("Picked");
+    let labels = launcher_labels(&root, visual);
+    assert!(
+        labels
+            .iter()
+            .any(|label| label.starts_with("Picked shell ·")),
+        "the typed label keeps its local shell: {labels:?}"
+    );
+    press(visual, "escape");
+    visual.update(|window, _| window.remove_window());
 }
 
 fn submenu_choice(visual: &mut VisualTestContext, index: usize) -> Option<String> {

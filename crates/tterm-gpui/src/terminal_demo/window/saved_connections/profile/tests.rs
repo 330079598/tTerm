@@ -1,10 +1,12 @@
 //! Persistence rules for the saved SSH connection form.
 
 use super::{
-    AuthKind, NormalizedDraft, ProfileDraft, build_profile, draft_from_profile, load_profile,
+    AuthKind, NormalizedDraft, ProfileDraft, build_profile, draft_from_profile,
+    draft_from_quick_profile, load_profile,
 };
 use rusqlite::Connection;
 use serde_json::{Value, json};
+use tterm_core::connections::quick_connect::{SshConfigHost, draft_profile_from_input};
 use tterm_core::db::Database;
 use tterm_core::profiles::groups::{
     create_group, group_paths, list_groups, move_group, resolve_path,
@@ -201,6 +203,55 @@ fn loading_key_authentication_returns_its_key_path() {
     let draft = draft_for(&key_profile());
     assert_eq!(draft.auth, AuthKind::Key);
     assert_eq!(draft.key_path, "/keys/id_ed25519");
+}
+
+#[test]
+fn the_launcher_draft_prefills_only_the_safe_address_fields() {
+    let profile =
+        draft_profile_from_input("tester@db.internal:2222", &[]).expect("a typed endpoint");
+
+    let draft = draft_from_quick_profile(profile);
+
+    assert_eq!(draft.id, None, "the form must only ever create a profile");
+    assert_eq!(draft.name, "tester@db.internal:2222");
+    assert_eq!(draft.host, "db.internal");
+    assert_eq!(draft.port, "2222");
+    assert_eq!(draft.username, "tester");
+    assert_eq!(draft.auth, AuthKind::Password);
+    assert!(draft.key_path.is_empty());
+    assert!(draft.group_path.is_empty());
+    assert!(!draft.group_changed);
+}
+
+#[test]
+fn the_launcher_draft_reads_an_alias_like_the_quick_row_does() {
+    let host = SshConfigHost {
+        host_pattern: "prod".to_string(),
+        name: "Production".to_string(),
+        host: Some("prod.internal".to_string()),
+        port: 2200,
+        username: Some("alice".to_string()),
+        private_key_path: None,
+        agent_forward: false,
+        keepalive_interval_secs: 15,
+        keepalive_count_max: 3,
+        jump_hosts: Vec::new(),
+        skipped: false,
+    };
+    let profile = draft_profile_from_input("prod", &[host]).expect("a config alias");
+
+    let draft = draft_from_quick_profile(profile);
+
+    assert_eq!(draft.name, "alice@Production");
+    assert_eq!(draft.host, "prod.internal");
+    assert_eq!(draft.port, "2200");
+    assert_eq!(draft.username, "alice");
+}
+
+#[test]
+fn text_that_is_not_a_connection_has_no_launcher_draft() {
+    assert!(draft_profile_from_input("prod db", &[]).is_none());
+    assert!(draft_profile_from_input("", &[]).is_none());
 }
 
 #[test]

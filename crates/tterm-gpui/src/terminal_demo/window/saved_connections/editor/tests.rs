@@ -3,6 +3,7 @@
 use gpui_kit::test::TestWindowExt as _;
 use gpui_kit::{App, Entity, MouseButton, TestAppContext, VisualTestContext};
 use tterm_core::config::AppConfig;
+use tterm_core::connections::quick_connect::draft_profile_from_input;
 use tterm_core::profiles::launch::SavedSshProfileSummary;
 
 use super::super::profile::{AuthKind, ProfileDraft};
@@ -414,4 +415,95 @@ fn an_untouched_group_is_told_apart_from_one_the_user_changed() {
     assert!(!group_path_changed(" Prod /Web ", "Prod / Web"));
     assert!(group_path_changed("", "Prod / Web"));
     assert!(group_path_changed("Prod / API", "Prod / Web"));
+}
+
+#[gpui_kit::test]
+fn the_launcher_new_connection_opens_a_filled_editor_without_saving(cx: &mut TestAppContext) {
+    let harness = harness(cx);
+    let root = harness.root.clone();
+    harness.visual.update(|_, cx| {
+        with_picker(&root, cx, |picker, cx| {
+            picker.set_profiles_for_test(Ok(Vec::new()), cx);
+        });
+    });
+    let query = format!("{}@db.internal:2222", "deploy");
+    let draft = draft_profile_from_input(&query, &[]).expect("the launcher parses the endpoint");
+    let tabs = harness.visual.update(|_, cx| root.read(cx).tabs.len());
+
+    harness.visual.update(|window, cx| {
+        root.update(cx, |workspace, cx| {
+            workspace.open_new_saved_connection(Some(draft), window, cx);
+        });
+    });
+    harness.visual.run_until_parked();
+
+    harness.visual.update(|window, cx| {
+        window.render_frame(cx);
+        let picker = picker(&root, cx);
+        assert!(picker.is_open(), "the picker hosts the form");
+        assert!(
+            picker.editor_is_open(),
+            "New connection opens the form at once"
+        );
+        assert_eq!(
+            picker.editor_id_for_test(),
+            None,
+            "the form can only create a profile"
+        );
+        assert!(picker.editor_name_focused_for_test(window, cx));
+        assert_eq!(
+            root.read(cx).tabs.len(),
+            tabs,
+            "opening the form must not dial"
+        );
+        assert!(
+            picker.profiles().is_empty(),
+            "opening the form must not save"
+        );
+        let values = picker.editor_values_for_test(cx).expect("editor values");
+        assert_eq!(values.name, query);
+        assert_eq!(values.host, "db.internal");
+        assert_eq!(values.port, "2222");
+        assert_eq!(values.username, "deploy");
+        assert!(!values.group_changed);
+    });
+}
+
+#[gpui_kit::test]
+fn the_launcher_new_connection_opens_a_blank_editor_for_unparsed_text(cx: &mut TestAppContext) {
+    let harness = harness(cx);
+    let root = harness.root.clone();
+    harness.visual.update(|_, cx| {
+        with_picker(&root, cx, |picker, cx| {
+            picker.set_profiles_for_test(Ok(Vec::new()), cx);
+        });
+    });
+    let draft = draft_profile_from_input("prod db", &[]);
+    assert!(
+        draft.is_none(),
+        "the launcher still offers the row for unparsed text"
+    );
+
+    harness.visual.update(|window, cx| {
+        root.update(cx, |workspace, cx| {
+            workspace.open_new_saved_connection(draft, window, cx);
+        });
+    });
+    harness.visual.run_until_parked();
+
+    harness.visual.update(|window, cx| {
+        window.render_frame(cx);
+        let picker = picker(&root, cx);
+        assert!(picker.is_open());
+        assert!(picker.editor_is_open());
+        assert!(picker.editor_name_focused_for_test(window, cx));
+        let values = picker.editor_values_for_test(cx).expect("editor values");
+        assert_eq!(values.name, "");
+        assert_eq!(values.host, "");
+        assert_eq!(values.username, "");
+        assert_eq!(
+            values.port, "22",
+            "an unparsed query keeps the default port"
+        );
+    });
 }

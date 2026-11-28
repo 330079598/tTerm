@@ -241,6 +241,9 @@ impl Prototype {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
+        if matches!(self.picker, Some(super::picker::TabPicker::Launcher(_))) {
+            return;
+        }
         if self.tunnel_page_is_open() {
             if event.keystroke.key == "escape" {
                 self.close_tunnel_page(window, cx);

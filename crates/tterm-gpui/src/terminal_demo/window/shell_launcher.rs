@@ -1,6 +1,7 @@
 //! Opens a fresh session from a shell selected in the tab strip.
 
 pub(super) mod recent;
+pub(super) mod search;
 
 use gpui_kit::component::button::{Button, ButtonVariants};
 use gpui_kit::component::menu::{DropdownMenu, PopupMenuItem};
@@ -15,6 +16,7 @@ use tterm_core::workspace::tab::{Tab, TabType};
 use tterm_ui::components::icons::{PLUS, icon};
 use tterm_ui::tokens::gpui::hsla;
 
+use crate::config_state::ConfigState;
 use crate::locale::Locale;
 
 use super::{Prototype, TabLaunch, session_workspace};
@@ -28,6 +30,62 @@ fn default_choice_label(choice: &LocalShellChoice, locale: &Locale) -> String {
     locale
         .text(keys::SHELL_LAUNCH_CUSTOM)
         .unwrap_or_else(|_| keys::SHELL_LAUNCH_CUSTOM.as_str().to_string())
+}
+
+/// One local shell the launcher offers, labelled and ordered the same way in
+/// the menu and the searchable panel.
+#[derive(Clone)]
+pub(super) struct ShellChoiceRow {
+    pub label: String,
+    pub detail: String,
+    pub choice: LocalShellChoice,
+    pub is_default: bool,
+}
+
+/// The configured default first, then every shell the settings show and the
+/// user has not hidden. The default stays listed when hidden because the
+/// configuration still makes it the valid default action.
+pub(super) fn ordered_shell_rows(state: &ConfigState, locale: &Locale) -> Vec<ShellChoiceRow> {
+    let shell_config = ShellConfig::from(state.config());
+    let default_key = default_shell_key(&shell_config);
+    let fallback_choice = default_shell_choice(&shell_config);
+    let entries = crate::local_shells_setting::shell_entries(state, locale);
+    let default_entry = entries.iter().find(|entry| entry.key == default_key);
+    let (default_label, default_detail, default_choice) = match default_entry {
+        Some(entry) if !entry.label.trim().is_empty() => (
+            entry.label.clone(),
+            entry.detail.clone(),
+            entry.choice.clone(),
+        ),
+        Some(entry) => (
+            default_choice_label(&entry.choice, locale),
+            entry.detail.clone(),
+            entry.choice.clone(),
+        ),
+        None => (
+            default_choice_label(&fallback_choice, locale),
+            String::new(),
+            fallback_choice,
+        ),
+    };
+    let mut rows = vec![ShellChoiceRow {
+        label: default_label,
+        detail: default_detail,
+        choice: default_choice,
+        is_default: true,
+    }];
+    rows.extend(
+        entries
+            .into_iter()
+            .filter(|entry| entry.key != default_key && !entry.hidden)
+            .map(|entry| ShellChoiceRow {
+                label: entry.label,
+                detail: entry.detail,
+                choice: entry.choice,
+                is_default: false,
+            }),
+    );
+    rows
 }
 
 impl Prototype {
@@ -56,48 +114,23 @@ impl Prototype {
                 16.0,
             ))
             .dropdown_menu(move |mut menu, window, cx| {
-                let (entries, default_key, fallback_label, fallback_choice) = {
+                let rows = {
                     let state = config.read(cx);
-                    let shell_config = ShellConfig::from(state.config());
-                    let default_key = default_shell_key(&shell_config);
-                    let fallback_choice = default_shell_choice(&shell_config);
-                    let entries =
-                        crate::local_shells_setting::shell_entries(state, locale.read(cx));
-                    let fallback_label = default_choice_label(&fallback_choice, locale.read(cx));
-                    (entries, default_key, fallback_label, fallback_choice)
+                    ordered_shell_rows(state, locale.read(cx))
                 };
-                // React puts the configured default first in the new-tab list,
-                // so the launcher's first item is also the shell a bare
-                // Down+Enter starts. The default stays listed when hidden: the
-                // configuration still makes it the valid default action, while
-                // every other hidden shell is omitted.
-                let default_entry = entries.iter().find(|entry| entry.key == default_key);
-                let (default_label, default_choice) = match default_entry {
-                    Some(entry) if !entry.label.trim().is_empty() => {
-                        (entry.label.clone(), entry.choice.clone())
-                    }
-                    Some(entry) => (
-                        default_choice_label(&entry.choice, locale.read(cx)),
-                        entry.choice.clone(),
-                    ),
-                    None => (fallback_label, fallback_choice),
-                };
-                let mut ordered = vec![(default_label, default_choice, true)];
-                ordered.extend(
-                    entries
-                        .iter()
-                        .filter(|entry| entry.key != default_key && !entry.hidden)
-                        .map(|entry| (entry.label.clone(), entry.choice.clone(), false)),
-                );
-                for (item_label, choice, is_default) in ordered {
+                for row in rows {
                     let owner = owner.clone();
-                    let title = item_label.clone();
-                    let item = PopupMenuItem::new(item_label);
-                    let item = if is_default { item.checked(true) } else { item };
+                    let title = row.label.clone();
+                    let item = PopupMenuItem::new(row.label);
+                    let item = if row.is_default {
+                        item.checked(true)
+                    } else {
+                        item
+                    };
                     menu = menu.item(item.on_click(move |_, window, app| {
                         let _ = owner.update(app, |workspace, cx| {
                             workspace.open_shell_choice(
-                                choice.clone(),
+                                row.choice.clone(),
                                 Some(title.clone()),
                                 window,
                                 cx,
@@ -105,6 +138,13 @@ impl Prototype {
                         });
                     }));
                 }
+                let search_owner = owner.clone();
+                let label = recent::text(&locale, keys::PROFILES_SEARCH_PLACEHOLDER, cx);
+                menu = menu.item(PopupMenuItem::new(label).on_click(move |_, window, app| {
+                    let _ = search_owner.update(app, |workspace, cx| {
+                        workspace.open_launcher_search(window, cx)
+                    });
+                }));
                 recent::submenu(menu, &owner, &locale, &services, window, cx)
             })
     }
