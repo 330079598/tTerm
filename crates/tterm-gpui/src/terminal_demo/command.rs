@@ -1,12 +1,16 @@
 //! The session the prototype opens.
 //!
-//! Local shells and `--exec` workloads become local connection options.
-//! `--ssh` selects a saved connection from the isolated GPUI database by id
-//! or name. The core's `AppServices` builds the actual PTY or SSH session.
+//! Local shells, command-line folders and `--exec` workloads become local
+//! connection options. `--ssh` selects a saved connection from the isolated
+//! GPUI database by id or name. The core's `AppServices` builds the actual PTY
+//! or SSH session.
+
+use std::path::Path;
 
 use tterm_core::connections::quick_connect::{QuickConnection, build_quick_connect_tab};
 use tterm_core::connections::quick_launch::connection_options_for_quick;
 use tterm_core::core::session::types::PtyConnectionOptions;
+use tterm_core::launch_dir::{LaunchDir, resolve_dir};
 use tterm_core::profiles::connection::connection_options_for_profile;
 use tterm_core::profiles::launch::SavedSshLaunch;
 use tterm_core::profiles::types::SavedProfile;
@@ -14,8 +18,7 @@ use tterm_core::workspace::tab::{ConnectionType, Tab, TabConnection, TabType, Te
 
 use super::session::RestoredHistory;
 
-const USAGE: &str =
-    "usage: tterm-gpui [--ssh <saved-profile-id-or-name> | --exec <program> [args...]]";
+const USAGE: &str = "usage: tterm-gpui [--ssh <saved-profile-id-or-name> | --exec <program> [args...] | [--] <folder>...]";
 
 /// What the prototype opens through `AppServices`.
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -26,11 +29,23 @@ pub(super) enum CommandSpec {
     Program { program: String, args: Vec<String> },
     /// A saved SSH profile selected by id or name.
     SshProfile { selector: String },
+    /// Folders to open in the configured local shell, in command-line order.
+    /// A path that does not exist is kept so the GUI can report it.
+    Folders(Vec<LaunchDir>),
 }
 
 impl CommandSpec {
     /// Reads the command line after the program name.
     pub fn from_args(arguments: &[String]) -> Result<Self, String> {
+        let cwd = std::env::current_dir().unwrap_or_default();
+        Self::from_args_in(arguments, &cwd)
+    }
+
+    /// Reads the command line after the program name, resolving positional
+    /// folders against the directory it was run in. Options end at `--`, so a
+    /// folder whose name starts with a dash can be named after it. A path is
+    /// resolved as data; it is never turned into a shell command.
+    fn from_args_in(arguments: &[String], cwd: &Path) -> Result<Self, String> {
         let Some((first, rest)) = arguments.split_first() else {
             return Ok(Self::Shell);
         };
@@ -53,23 +68,58 @@ impl CommandSpec {
                 }),
                 None => Err(format!("--exec needs a program; {USAGE}")),
             },
-            _ => Err(USAGE.to_string()),
+            "--" => Ok(Self::folders(
+                rest.iter().map(|arg| resolve_dir(arg, cwd)).collect(),
+            )),
+            option if option.starts_with('-') => {
+                Err(format!("unrecognized option '{option}'; {USAGE}"))
+            }
+            _ => {
+                let mut folders = vec![resolve_dir(first, cwd)];
+                let mut options_ended = false;
+                for argument in rest {
+                    if !options_ended {
+                        if argument == "--" {
+                            options_ended = true;
+                            continue;
+                        }
+                        if argument.starts_with('-') {
+                            return Err(format!("unrecognized option '{argument}'; {USAGE}"));
+                        }
+                    }
+                    folders.push(resolve_dir(argument, cwd));
+                }
+                Ok(Self::folders(folders))
+            }
         }
     }
 
-    /// The connection options passed to `AppServices`.
+    /// A launch with no folder names is the ordinary shell tab.
+    fn folders(folders: Vec<LaunchDir>) -> Self {
+        if folders.is_empty() {
+            Self::Shell
+        } else {
+            Self::Folders(folders)
+        }
+    }
+
+    /// The connection options passed to `AppServices`. A folder launch opens
+    /// one tab per folder instead of sharing one connection.
     pub fn connection_options(&self) -> Result<PtyConnectionOptions, String> {
         match self {
             Self::Shell => local_options(None, &[]),
             Self::Program { program, args } => local_options(Some(program), args),
             Self::SshProfile { selector } => saved_ssh_profile_from_cli(selector),
+            Self::Folders(_) => Err("Command-line folders open one tab each.".to_string()),
         }
     }
 
-    /// A bare launch restores and saves the workspace. An explicit `--ssh` or
-    /// `--exec` run is disposable and must not overwrite the saved workspace.
+    /// A bare launch restores and saves the workspace, and so does a folder
+    /// launch: the folders are appended to the restored tabs. An explicit
+    /// `--ssh` or `--exec` run is disposable and must not overwrite the saved
+    /// workspace.
     pub fn uses_saved_workspace(&self) -> bool {
-        matches!(self, Self::Shell)
+        matches!(self, Self::Shell | Self::Folders(_))
     }
 }
 
@@ -525,6 +575,85 @@ mod tests {
         assert!(CommandSpec::from_args(&args(&["--ssh", "one", "extra"])).is_err());
         assert!(CommandSpec::from_args(&args(&["--exec"])).is_err());
         assert!(CommandSpec::from_args(&args(&["--unknown"])).is_err());
+    }
+
+    #[test]
+    fn positional_folders_keep_their_order_and_spaces() {
+        let cwd = std::env::temp_dir();
+        let command = CommandSpec::from_args_in(
+            &args(&["first folder", "two words", ".", "--", "-dash", "--"]),
+            &cwd,
+        )
+        .expect("folder arguments");
+        assert!(command.uses_saved_workspace());
+        let CommandSpec::Folders(dirs) = command else {
+            panic!("folder arguments open folders");
+        };
+        let paths: Vec<_> = dirs
+            .iter()
+            .map(|dir| std::path::PathBuf::from(dir.path()))
+            .collect();
+        let base = std::path::absolute(&cwd).expect("absolute directory");
+        assert_eq!(
+            paths,
+            [
+                base.join("first folder"),
+                base.join("two words"),
+                base.clone(),
+                base.join("-dash"),
+                base.join("--"),
+            ]
+        );
+        assert!(dirs[2].exists());
+    }
+
+    #[test]
+    fn positional_launches_reject_unknown_options() {
+        let cwd = std::env::temp_dir();
+        assert!(CommandSpec::from_args_in(&args(&["--unknown"]), &cwd).is_err());
+        assert!(CommandSpec::from_args_in(&args(&["-x"]), &cwd).is_err());
+        assert!(CommandSpec::from_args_in(&args(&["folder", "-x"]), &cwd).is_err());
+        assert!(CommandSpec::from_args_in(&args(&["-x", "--", "folder"]), &cwd).is_err());
+        assert_eq!(
+            CommandSpec::from_args_in(&args(&["--"]), &cwd),
+            Ok(CommandSpec::Shell)
+        );
+    }
+
+    #[test]
+    fn explicit_modes_stay_strict_and_do_not_take_folders() {
+        let cwd = std::env::temp_dir();
+        assert!(CommandSpec::from_args_in(&args(&["--ssh", "one", "folder"]), &cwd).is_err());
+        assert!(CommandSpec::from_args_in(&args(&["--ssh", ""]), &cwd).is_err());
+        assert_eq!(
+            CommandSpec::from_args_in(&args(&["--exec", "prog", "--flag", "folder"]), &cwd),
+            Ok(CommandSpec::Program {
+                program: "prog".to_string(),
+                args: args(&["--flag", "folder"]),
+            })
+        );
+        assert!(
+            !CommandSpec::Program {
+                program: "prog".to_string(),
+                args: Vec::new(),
+            }
+            .uses_saved_workspace()
+        );
+    }
+
+    #[cfg(target_os = "windows")]
+    #[test]
+    fn a_quoted_drive_root_resolves_as_a_folder() {
+        let cwd = std::env::temp_dir();
+        let drive = cwd.to_string_lossy()[..2].to_string();
+        let quoted = format!("{drive}\"");
+        let command =
+            CommandSpec::from_args_in(&args(&[&quoted]), &cwd).expect("quoted drive root");
+        let CommandSpec::Folders(dirs) = command else {
+            panic!("the drive root is a folder");
+        };
+        assert_eq!(dirs[0].path(), format!("{drive}\\"));
+        assert!(dirs[0].exists());
     }
 
     #[test]

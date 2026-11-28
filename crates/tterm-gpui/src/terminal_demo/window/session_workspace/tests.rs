@@ -1,14 +1,18 @@
 use std::collections::HashMap;
+use std::path::{Path, PathBuf};
 use std::rc::Rc;
+use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::mpsc;
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
-use gpui_kit::{AppContext, Context, TestAppContext, VisualTestContext};
+use gpui_kit::test::TestWindowExt as _;
+use gpui_kit::{AppContext, Context, MouseButton, TestAppContext, VisualTestContext};
 use tokio::sync::mpsc::UnboundedReceiver;
 use tterm_core::config::AppConfig;
 use tterm_core::events::AppEvent;
 use tterm_core::i18n::language::Language;
+use tterm_core::launch_dir::{LaunchDir, resolve_dir};
 use tterm_core::session_restore::SessionData;
 use tterm_core::session_restore::workspace::{WorkspaceLoad, WorkspaceSnapshot, decode_session};
 use tterm_core::workspace::tab::{Tab, TabType};
@@ -26,7 +30,7 @@ use crate::terminal_demo::command::CommandSpec;
 use crate::terminal_demo::keymap::{KeymapRouter, encoder_config};
 use crate::terminal_demo::runtime::{GpuiRuntime, test_runtime};
 use crate::terminal_demo::window::split_state::SplitState;
-use crate::terminal_demo::window::{Prototype, PrototypeStartup};
+use crate::terminal_demo::window::{Prototype, PrototypeStartup, WindowTab};
 
 mod legacy;
 mod restart;
@@ -73,6 +77,21 @@ fn test_workspace_loading<'a>(
     gpui_kit::Entity<Prototype>,
     &'a mut VisualTestContext,
 ) {
+    test_workspace_with_command(cx, writes, notified, load, restore, CommandSpec::Shell)
+}
+
+fn test_workspace_with_command<'a>(
+    cx: &'a mut TestAppContext,
+    writes: Arc<Mutex<Vec<&'static str>>>,
+    notified: mpsc::Sender<()>,
+    load: WorkspaceLoad,
+    restore: bool,
+    command: CommandSpec,
+) -> (
+    GpuiRuntime,
+    gpui_kit::Entity<Prototype>,
+    &'a mut VisualTestContext,
+) {
     let mut runtime = test_runtime();
     let events = std::mem::replace(
         &mut runtime.events,
@@ -101,13 +120,17 @@ fn test_workspace_loading<'a>(
         tterm_terminal_view::view::bind_keys(cx);
     });
     let (root, visual) = cx.add_window_view(|_, cx| {
-        make_workspace(
+        make_startup_window(
             &runtime,
             events,
-            persistence,
+            StartupWorkspace {
+                load,
+                persistence,
+                restore,
+                legacy: Default::default(),
+            },
             geometry_queue,
-            load,
-            restore,
+            command,
             cx,
         )
     });
@@ -282,6 +305,168 @@ fn restoring_enters_only_the_saved_active_tab(cx: &mut TestAppContext) {
     });
 }
 
+/// A scratch folder under the workspace target, so the test stays inside the
+/// build tree instead of the user's profile or a system directory.
+fn test_folder(name: &str) -> (PathBuf, String) {
+    static NEXT: AtomicU32 = AtomicU32::new(1);
+    let dir = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../../target/gpui-test-launch-dirs")
+        .join(format!(
+            "tterm-gpui-startup-folder-{}-{}-{name} with space",
+            std::process::id(),
+            NEXT.fetch_add(1, Ordering::Relaxed)
+        ));
+    std::fs::create_dir_all(&dir).expect("create the test folder");
+    let path = std::path::absolute(&dir)
+        .unwrap_or_else(|_| dir.clone())
+        .to_string_lossy()
+        .into_owned();
+    (dir, path)
+}
+
+fn missing_folder(name: &str) -> (PathBuf, String) {
+    let (dir, path) = test_folder(name);
+    std::fs::remove_dir_all(&dir).expect("remove the test folder");
+    (dir, path)
+}
+
+fn folder_arg(path: &str) -> LaunchDir {
+    resolve_dir(path, Path::new(""))
+}
+
+fn saved_cwd(tab: &WindowTab) -> Option<String> {
+    tab.saved()
+        .connection
+        .as_ref()
+        .and_then(|connection| connection.saved_field("cwd"))
+        .and_then(serde_json::Value::as_str)
+        .map(str::to_owned)
+}
+
+#[gpui_kit::test]
+fn folder_arguments_are_appended_after_the_restored_workspace(cx: &mut TestAppContext) {
+    let (first_dir, first) = test_folder("first");
+    let (second_dir, second) = test_folder("second");
+    let (_missing_dir, missing) = missing_folder("missing");
+    let writes = Arc::new(Mutex::new(Vec::new()));
+    let (notified, _notifications) = mpsc::channel();
+    let load = WorkspaceLoad::Readable {
+        snapshot: WorkspaceSnapshot {
+            tabs: vec![saved_local_tab("tab-7")],
+            active_tab_id: Some("tab-7".to_string()),
+            groups: Vec::new(),
+        },
+        can_save: true,
+    };
+    let command = CommandSpec::Folders(vec![
+        folder_arg(&first),
+        folder_arg(&missing),
+        folder_arg(&second),
+    ]);
+    let (_runtime, root, visual) =
+        test_workspace_with_command(cx, writes, notified, load, true, command);
+
+    visual.update(|window, cx| {
+        let workspace = root.read(cx);
+        let ids: Vec<_> = workspace
+            .tabs
+            .ordered()
+            .map(|(_, tab)| tab.saved_id().to_string())
+            .collect();
+        assert_eq!(ids, ["tab-7", "tab-8", "tab-9"]);
+        assert_eq!(workspace.tabs.len(), 3, "only openable folders get a tab");
+        assert_eq!(workspace.missing_folders, [missing]);
+        assert_eq!(workspace.tabs.active().saved_id(), "tab-9");
+        let cwds: Vec<_> = workspace
+            .tabs
+            .ordered()
+            .skip(1)
+            .map(|(_, tab)| saved_cwd(tab))
+            .collect();
+        assert_eq!(cwds, [Some(first), Some(second)]);
+        window.remove_window();
+    });
+    let _ = std::fs::remove_dir_all(&first_dir);
+    let _ = std::fs::remove_dir_all(&second_dir);
+}
+
+#[gpui_kit::test]
+fn openable_folders_alone_do_not_add_the_default_shell(cx: &mut TestAppContext) {
+    let (first_dir, first) = test_folder("one");
+    let (second_dir, second) = test_folder("two");
+    let writes = Arc::new(Mutex::new(Vec::new()));
+    let (notified, _notifications) = mpsc::channel();
+    let command = CommandSpec::Folders(vec![folder_arg(&first), folder_arg(&second)]);
+    let (_runtime, root, visual) =
+        test_workspace_with_command(cx, writes, notified, WorkspaceLoad::Empty, true, command);
+
+    visual.update(|window, cx| {
+        let workspace = root.read(cx);
+        assert_eq!(workspace.tabs.len(), 2);
+        assert!(workspace.missing_folders.is_empty());
+        let tabs: Vec<_> = workspace.tabs.ordered().map(|(_, tab)| tab).collect();
+        assert_eq!(saved_cwd(tabs[0]), Some(first));
+        assert_eq!(saved_cwd(tabs[1]), Some(second));
+        assert_eq!(workspace.tabs.active().saved_id(), "tab-2");
+        window.remove_window();
+    });
+    let _ = std::fs::remove_dir_all(&first_dir);
+    let _ = std::fs::remove_dir_all(&second_dir);
+}
+
+#[gpui_kit::test]
+fn a_missing_folder_is_reported_and_the_normal_shell_opens(cx: &mut TestAppContext) {
+    let (_missing_dir, missing) = missing_folder("missing-alone");
+    let writes = Arc::new(Mutex::new(Vec::new()));
+    let (notified, _notifications) = mpsc::channel();
+    let command = CommandSpec::Folders(vec![folder_arg(&missing)]);
+    let (_runtime, root, visual) =
+        test_workspace_with_command(cx, writes, notified, WorkspaceLoad::Empty, true, command);
+
+    visual.run_until_parked();
+    visual.update(|window, cx| {
+        root.update(cx, |workspace, cx| {
+            workspace.initialize_workspace(window, cx)
+        });
+        window.render_frame(cx);
+    });
+    assert!(
+        visual.debug_bounds("launch-dir-notice-close").is_some(),
+        "the missing folder is reported in the window"
+    );
+    visual.update(|_, cx| {
+        let workspace = root.read(cx);
+        assert_eq!(workspace.tabs.len(), 1);
+        assert_eq!(workspace.missing_folders, [missing]);
+        assert_eq!(saved_cwd(workspace.tabs.active()), None);
+        assert_eq!(
+            workspace
+                .tabs
+                .active()
+                .saved()
+                .connection
+                .as_ref()
+                .and_then(|connection| connection.saved_field("terminalShell"))
+                .and_then(serde_json::Value::as_str),
+            Some("auto")
+        );
+    });
+    let close = visual
+        .debug_bounds("launch-dir-notice-close")
+        .expect("the notice has a close button")
+        .center();
+    visual.simulate_mouse_down(close, MouseButton::Left, Default::default());
+    visual.simulate_mouse_up(close, MouseButton::Left, Default::default());
+    visual.update(|window, cx| window.render_frame(cx));
+    assert!(
+        visual.debug_bounds("launch-dir-notice-close").is_none(),
+        "dismissing the notice removes it"
+    );
+    visual.update(|window, cx| {
+        assert!(root.read(cx).missing_folders.is_empty());
+        window.remove_window();
+    });
+}
 #[test]
 fn tabs_missing_from_the_saved_layout_get_their_own_card() {
     let snapshot = fixture();

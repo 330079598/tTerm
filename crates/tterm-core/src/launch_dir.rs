@@ -23,6 +23,19 @@ pub struct LaunchDir {
     exists: bool,
 }
 
+impl LaunchDir {
+    /// The absolute path a shell starts in, kept as data rather than as a
+    /// command line fragment.
+    pub fn path(&self) -> &str {
+        &self.path
+    }
+
+    /// Whether the path is a directory a shell can start in.
+    pub fn exists(&self) -> bool {
+        self.exists
+    }
+}
+
 /// The directories waiting for the frontend to open them.
 #[derive(Default)]
 pub struct LaunchDirs(Mutex<Vec<LaunchDir>>);
@@ -100,16 +113,21 @@ fn requested_dirs(args: &[String], cwd: &Path) -> Vec<LaunchDir> {
             }
             !arg.starts_with('-')
         })
-        .map(|arg| {
-            let joined = cwd.join(unquoted(arg));
-            // Drops the `.` of `tterm .`, and on Windows resolves `..` as well.
-            let path = std::path::absolute(&joined).unwrap_or(joined);
-            LaunchDir {
-                exists: path.is_dir(),
-                path: path.to_string_lossy().into_owned(),
-            }
-        })
+        .map(|arg| resolve_dir(arg, cwd))
         .collect()
+}
+
+/// Resolves one command-line argument as a folder, against the directory the
+/// app was started in. The caller decides whether the argument is a folder or
+/// an option; a file manager passes every folder it wants opened.
+pub fn resolve_dir(argument: &str, cwd: &Path) -> LaunchDir {
+    let joined = cwd.join(unquoted(argument));
+    // Drops the `.` of `tterm .`, and on Windows resolves `..` as well.
+    let path = std::path::absolute(&joined).unwrap_or(joined);
+    LaunchDir {
+        exists: path.is_dir(),
+        path: path.to_string_lossy().into_owned(),
+    }
 }
 
 /// Undoes a quirk of Windows command lines: in `"D:\"`, the backslash escapes
@@ -205,6 +223,15 @@ mod tests {
         let dirs = requested_dirs(&args(&[&name]), &cwd);
         assert!(!dirs[0].exists);
         assert!(dirs[0].path.ends_with(&name));
+    }
+
+    #[test]
+    fn resolves_one_folder_without_splitting_its_spaces() {
+        let cwd = std::env::temp_dir();
+        let name = format!("tterm-two words-{}", uuid::Uuid::new_v4());
+        let dir = resolve_dir(&name, &cwd);
+        assert!(dir.path().ends_with(&name));
+        assert!(!dir.exists());
     }
 
     #[cfg(target_os = "windows")]

@@ -246,7 +246,7 @@ impl Prototype {
         })
     }
 
-    fn take_saved_id(next: &mut u64, is_taken: impl Fn(&str) -> bool) -> String {
+    pub(super) fn take_saved_id(next: &mut u64, is_taken: impl Fn(&str) -> bool) -> String {
         loop {
             let number = (*next).max(1);
             *next = if number == u64::MAX { 1 } else { number + 1 };

@@ -13,6 +13,7 @@ mod events;
 mod failed_tab;
 mod history;
 mod launch;
+mod launch_dirs;
 mod live_theme;
 mod motion;
 mod nudge;
@@ -229,6 +230,7 @@ pub(super) struct Prototype {
     workspace: session_workspace::save::WorkspacePersistence,
     workspace_timer: Option<Task<()>>,
     next_saved_tab: u64,
+    missing_folders: Vec<String>,
     closing: bool,
     settings_open: bool,
     pending_profile_opens: std::collections::HashSet<String>,
@@ -392,25 +394,19 @@ impl Prototype {
         };
         strip::register_actions(&factory.keymap);
         template_ui::register_actions(&factory.keymap);
-        let restored = restore
-            .then(|| session_workspace::snapshot(load))
-            .flatten()
-            .and_then(|snapshot| {
-                session_workspace::restore::restore_workspace(
-                    &factory, snapshot, legacy, &locale, cx,
-                )
-                .map(|restored| (restored.tabs, restored.splits, restored.next_saved_tab))
-            });
-        let (tabs, splits, next_saved_tab) = restored.unwrap_or_else(|| {
-            let tab = factory.open(1, command, &locale, cx);
-            (Tabs::new(tab), split_state::SplitState::new(1), 2)
-        });
+        let launch_dirs::StartupTabs {
+            tabs,
+            splits,
+            next_saved_tab,
+            missing_folders,
+        } = launch_dirs::build_startup_tabs(&factory, command, restore, load, legacy, &locale, cx);
         let prototype = Self {
             tabs,
             splits,
             workspace: persistence,
             workspace_timer: None,
             next_saved_tab,
+            missing_folders,
             closing: false,
             settings_open: false,
             pending_profile_opens: Default::default(),
@@ -773,6 +769,7 @@ impl Render for Prototype {
                 .flex_col()
                 .min_h(px(0.0))
                 .children(self.agent_resume_notice(cx))
+                .children(self.launch_dir_notice(cx))
                 .child(self.workspace_panes(window, cx))
                 .into_any_element()
         };

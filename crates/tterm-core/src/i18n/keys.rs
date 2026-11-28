@@ -23,6 +23,8 @@ translation_keys! {
     COMMON_CLOSE => "common.close",
     COMMON_LOADING => "common.loading",
     COMMON_RETRY => "common.retry",
+    LAUNCH_DIR_NOT_FOUND_TITLE => "launchDir.notFoundTitle",
+    LAUNCH_DIR_NOT_FOUND_DESC => "launchDir.notFoundDesc",
     SETTINGS_TITLE => "settings.title",
     SETTINGS_OPEN => "settings.open",
     SETTINGS_BACK => "settings.back",

@@ -1,9 +1,11 @@
 //! The GPUI terminal runtime prototype.
 //!
 //! With no arguments it opens the configured local shell through
-//! `AppServices`. `--ssh <saved-profile-id-or-name>` opens a saved connection,
-//! and `--exec <program> [args...]` runs a local workload through the same
-//! service path as the Tauri client.
+//! `AppServices`. Positional folders open one tab each in the configured
+//! default local shell, starting in that folder and after the restored
+//! workspace. `--ssh <saved-profile-id-or-name>` opens a saved connection, and
+//! `--exec <program> [args...]` runs a local workload through the same service
+//! path as the Tauri client.
 
 pub mod binding;
 mod clipboard;
