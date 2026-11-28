@@ -262,6 +262,7 @@ struct State {
     scrollback_generation: u64,
     content_version: u64,
     scroll_region: ScrollRegion,
+    absolute_redraw: bool,
     word_selection: bool,
     word_drag: Option<SelectionRange>,
     ordered_replies: Option<OrderedReplies>,
@@ -307,6 +308,7 @@ impl Terminal {
             scrollback_generation: 0,
             content_version: 0,
             scroll_region: ScrollRegion::full(grid.clamped().screen_lines),
+            absolute_redraw: false,
             word_selection: false,
             word_drag: None,
             ordered_replies: None,
@@ -498,7 +500,7 @@ impl Terminal {
         if grid != current {
             state.content_version = state.content_version.wrapping_add(1);
         }
-        state.term.resize(grid);
+        state.resize_viewport(grid);
         state.scroll_region = ScrollRegion::full(state.term.screen_lines());
     }
 

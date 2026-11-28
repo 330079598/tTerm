@@ -129,7 +129,11 @@ impl Session {
         // Replay before the parser or transport exists, so the old content can
         // never land below output from the new session.
         if let Some(restored) = restored {
-            terminal.restore_legacy_history(&restored.content, &restored.banner);
+            if cfg!(windows) && local {
+                terminal.restore_before_redraw(&restored.content, &restored.banner);
+            } else {
+                terminal.restore_legacy_history(&restored.content, &restored.banner);
+            }
         }
         let alive = Arc::new(AtomicBool::new(true));
         let visible = Arc::new(AtomicBool::new(false));

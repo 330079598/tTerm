@@ -204,3 +204,32 @@ fn banner_control_characters_are_removed_before_drawing() {
     assert!(!text.contains('\u{1b}'));
     assert!(text.contains("── [31mredbanner ──"));
 }
+
+#[test]
+fn banner_above_screen_remains_in_retained_rows_before_live_output() {
+    let terminal = model();
+    terminal.restore_before_redraw("history\r\n", "Restored");
+    assert!(display_text(&terminal.snapshot()).trim().is_empty());
+    let before = terminal.retained_rows(0, usize::MAX);
+    let text = before
+        .rows()
+        .iter()
+        .map(|row| String::from_utf16_lossy(row.units()))
+        .collect::<Vec<_>>()
+        .join("\n");
+    assert!(text.contains("history"));
+    assert!(text.contains("Restored"));
+    terminal.write(b"prompt");
+    terminal.resize(GridSize::new(40, 14), CellSize::new(8, 16));
+    assert!(display_text(&terminal.snapshot()).starts_with("prompt"));
+    terminal.write(b"\x1b[2J\x1b[Hlive");
+    let after = terminal.retained_rows(0, usize::MAX);
+    let text = after
+        .rows()
+        .iter()
+        .map(|row| String::from_utf16_lossy(row.units()))
+        .collect::<Vec<_>>()
+        .join("\n");
+    assert!(text.find("history").unwrap() < text.find("Restored").unwrap());
+    assert!(text.find("Restored").unwrap() < text.find("live").unwrap());
+}

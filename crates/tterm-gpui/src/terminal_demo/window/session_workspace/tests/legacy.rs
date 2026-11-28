@@ -13,7 +13,7 @@ use tterm_core::session_restore::scrollback::{ScrollbackSnapshot, write_snapshot
 use tterm_core::session_restore::workspace::{WorkspaceSnapshot, encode_session};
 use tterm_core::session_restore::write_session;
 use tterm_terminal::color::{Color, NamedColor};
-use tterm_terminal::terminal::Terminal;
+use tterm_terminal::terminal::{Scroll, Terminal};
 
 use crate::terminal_demo::runtime::{GpuiRuntime, test_runtime};
 use crate::terminal_demo::session::Session;
@@ -264,10 +264,20 @@ fn assert_restored(sessions: &[(String, Arc<Session>)]) {
                 assert!(text.contains("scrolled-off-0"), "missing scrolled-off line");
                 assert!(text.contains("red 中文"), "missing SGR text");
                 assert!(text.contains("$ cargo test"), "missing command line");
-                assert!(text.contains("Restored"), "missing restore banner");
+                assert!(
+                    text.contains("Restored"),
+                    "missing restore banner; retained={text:?}"
+                );
                 assert!(!text.contains("second-tab-only"));
                 assert!(!text.contains("hostile-visible"));
-                let snapshot = session.model().snapshot();
+                let model = session.model();
+                let red_line = text
+                    .lines()
+                    .position(|line| line.contains("red 中文"))
+                    .unwrap();
+                model.scroll_to_retained_line(red_line as i64);
+                let snapshot = model.snapshot();
+                model.scroll(Scroll::Bottom);
                 assert!(
                     snapshot.rows().iter().any(|row| {
                         row.cells().windows(3).any(|cells| {
@@ -303,10 +313,16 @@ fn assert_restored(sessions: &[(String, Arc<Session>)]) {
                     Some("P219-TITLE"),
                     "the snapshot changed the title"
                 );
+                let model = session.model();
+                let link_line = text
+                    .lines()
+                    .position(|line| line.contains("P219-LINK"))
+                    .unwrap();
+                model.scroll_to_retained_line(link_line as i64);
+                let snapshot = model.snapshot();
+                model.scroll(Scroll::Bottom);
                 assert!(
-                    session
-                        .model()
-                        .snapshot()
+                    snapshot
                         .rows()
                         .iter()
                         .flat_map(|row| row.cells())

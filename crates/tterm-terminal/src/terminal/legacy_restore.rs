@@ -13,11 +13,12 @@
 //! may reach the grid during an import.
 
 use alacritty_terminal::event::EventListener;
-use alacritty_terminal::grid::Scroll as AnsiScroll;
-use alacritty_terminal::term::Term;
-use alacritty_terminal::vte::ansi::{Attr, Handler, Processor};
+use alacritty_terminal::grid::{Dimensions, Scroll as AnsiScroll};
+use alacritty_terminal::term::{Term, TermMode};
+use alacritty_terminal::vte::ansi::{Attr, ClearMode, Handler, Processor};
 
-use super::Terminal;
+use super::{State, Terminal};
+use crate::grid::GridSize;
 
 /// Forwards the drawing subset of the ANSI handler to one Alacritty grid.
 ///
@@ -85,6 +86,15 @@ impl Terminal {
     /// newest row. The live parser, scanners and intent queue are not
     /// touched.
     pub fn restore_legacy_history(&self, content: &str, banner: &str) {
+        self.import_history(content, banner, false);
+    }
+
+    /// Imports above a clean viewport so absolute ConPTY redraws cannot overwrite history.
+    pub fn restore_before_redraw(&self, content: &str, banner: &str) {
+        self.import_history(content, banner, true);
+    }
+
+    fn import_history(&self, content: &str, banner: &str, fresh_viewport: bool) {
         if content.trim().is_empty() {
             return;
         }
@@ -102,10 +112,38 @@ impl Terminal {
         state.term.selection = None;
         state.command_marks.dispose_markers();
 
+        state.absolute_redraw = fresh_viewport;
         let terminal = &mut state.term;
         parse_into(terminal, content.as_bytes());
         parse_into(terminal, tail.as_bytes());
+        if fresh_viewport {
+            terminal.clear_screen(ClearMode::All);
+            terminal.goto(0, 0);
+        }
         terminal.scroll_display(AnsiScroll::Bottom);
+    }
+}
+
+impl State {
+    /// Keeps ConPTY's origin fixed when a taller primary screen would pull history back into it.
+    pub(super) fn resize_viewport(&mut self, size: GridSize) {
+        let screen = self.term.screen_lines();
+        if !self.absolute_redraw
+            || size.screen_lines <= screen
+            || self.term.mode().contains(TermMode::ALT_SCREEN)
+        {
+            self.term.resize(size);
+            return;
+        }
+        self.term.resize(GridSize::new(size.columns, screen));
+        let pulled = (size.screen_lines - screen).min(self.term.history_size());
+        self.term.resize(size);
+        if pulled != 0 {
+            self.term.scroll_up(pulled);
+            let grid = self.term.grid_mut();
+            grid.cursor.point.line -= pulled;
+            grid.saved_cursor.point.line -= pulled;
+        }
     }
 }
 
